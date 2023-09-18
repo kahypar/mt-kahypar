@@ -26,9 +26,6 @@
 
 #pragma once
 
-#include <array>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "include/libmtkahypartypes.h"
@@ -70,44 +67,6 @@ class IRefiner {
                           const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                           Metrics& best_metrics,
                           const double time_limit) = 0;
-};
-
-class IRebalancer: public IRefiner {
-
- public:
-  virtual ~IRebalancer() = default;
-
-  bool refineAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                            parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
-                            Metrics& best_metrics,
-                            const double time_limit) {
-    return refineAndOutputMovesImpl(hypergraph, refinement_nodes, moves_by_part, best_metrics, time_limit);
-  }
-
-  bool refineAndOutputMovesLinear(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                  parallel::scalable_vector<Move>& moves,
-                                  Metrics& best_metrics,
-                                  const double time_limit) {
-    return refineAndOutputMovesLinearImpl(hypergraph, refinement_nodes, moves, best_metrics, time_limit);
-  }
-
- protected:
-  IRebalancer() = default;
-
- private:
-  virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                        parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
-                                        Metrics& best_metrics,
-                                        const double time_limit) = 0;
-
-  virtual bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                              parallel::scalable_vector<Move>& moves,
-                                              Metrics& best_metrics,
-                                              const double time_limit) = 0;
 };
 
 }  // namespace mt_kahypar

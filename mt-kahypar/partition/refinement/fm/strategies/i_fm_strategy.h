@@ -112,8 +112,6 @@ class IFMStrategy {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     tbb::task_group tg;
 
-    initRound(num_tasks, num_seeds, round);
-
     auto task = [&](const size_t task_id) {
       LocalFM& fm = ets_fm.local();
       while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
@@ -138,10 +136,6 @@ class IFMStrategy {
   virtual bool includesUnconstrainedImpl() const = 0;
 
   virtual void reportImprovementImpl(size_t, Gain, double) {
-    // most strategies don't use this
-  }
-
-  virtual void initRound(size_t /*num_tasks*/, size_t /*num_seeds*/, size_t /*round*/) {
     // most strategies don't use this
   }
 };

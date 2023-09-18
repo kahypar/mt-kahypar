@@ -42,6 +42,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"

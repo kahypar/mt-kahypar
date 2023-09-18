@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {

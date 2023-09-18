@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/buffered_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/km1_gains.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
