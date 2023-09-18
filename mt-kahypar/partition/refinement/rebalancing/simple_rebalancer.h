@@ -101,7 +101,7 @@ public:
                                 vec<vec<Move>>&,
                                 Metrics&,
                                 const double) override final {
-    ERROR("simple rebalancer can't be used for unconstrained refinement");
+    ERR("simple rebalancer can not be used for unconstrained refinement");
   }
 
   bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
@@ -109,7 +109,7 @@ public:
                                       vec<Move>&,
                                       Metrics&,
                                       const double) override final {
-    ERROR("simple rebalancer can't be used for unconstrained refinement");
+    ERR("simple rebalancer can not be used for unconstrained refinement");
   }
 
   vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);
