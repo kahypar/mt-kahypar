@@ -155,7 +155,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
 
 enum class FMAlgorithm : uint8_t {
   kway_fm,
-  unconstrained,
+  unconstrained_fm,
   do_nothing
 };
 

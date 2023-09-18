@@ -550,7 +550,7 @@ namespace mt_kahypar {
     refinement.label_propagation.relative_improvement_threshold = 0.001;
 
     // refinement -> fm
-    refinement.fm.algorithm = FMAlgorithm::unconstrained;
+    refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
     refinement.fm.multitry_rounds = 10;
     refinement.fm.unconstrained_rounds = 8;
     refinement.fm.perform_moves_global = false;

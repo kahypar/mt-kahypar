@@ -89,7 +89,7 @@ class MultiTryFMTest : public Test {
 
     context.refinement.fm.algorithm = Config::ALG;
     context.refinement.fm.multitry_rounds = 10;
-    if (context.refinement.fm.algorithm == FMAlgorithm::unconstrained) {
+    if (context.refinement.fm.algorithm == FMAlgorithm::unconstrained_fm) {
       context.refinement.fm.unconstrained_rounds = 10;
       context.refinement.fm.imbalance_penalty_min = 0.5;
       context.refinement.fm.imbalance_penalty_max = 0.5;
@@ -147,14 +147,14 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::kway_fm>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::kway_fm>),
                          // unconstrained
-                         TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::unconstrained>,
-                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::unconstrained>,
-                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::unconstrained>,
-                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::unconstrained>
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::unconstrained>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::unconstrained>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::unconstrained>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::unconstrained>) > TestConfigs;
+                         TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::unconstrained_fm>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::unconstrained_fm>) > TestConfigs;
 
 TYPED_TEST_CASE(MultiTryFMTest, TestConfigs);
 
@@ -274,8 +274,7 @@ TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
   Km1GainCache gain_cache;
   gain_cache.initializeGainCache(phg);
 
-  UnconstrainedFMData ufm_data;
-  ufm_data.rebalancing_nodes.setSize(4);
+  UnconstrainedFMData ufm_data(4);
   ufm_data.initialize<TypeTraits, Km1GainTypes>(context, phg, gain_cache);
 
   ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(0, -1, -1));

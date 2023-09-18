@@ -152,7 +152,7 @@ REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
-REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::unconstrained,
+REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::unconstrained_fm,
                                UnconstrainedFMDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
@@ -166,7 +166,7 @@ REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
                                  context.partition.partition_type),
                                 kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                  context.partition.gain_policy));
-REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained,
+REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
                                 UnconstrainedFMStrategyDispatcher,
                                 kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                  context.partition.partition_type),

@@ -176,7 +176,7 @@ class LocalUnconstrainedStrategy {
       // node is not available anymore). This is achieved by increasing the "virtual" weight of
       // the origin block, thus pessimizing future estimations
       if (global) {
-        sharedData.unconstrained.virtual_weight_delta[m.from].fetch_add(
+        sharedData.unconstrained.virtualWeightDelta(m.from).fetch_add(
             phg.nodeWeight(m.node), std::memory_order_relaxed);
       } else {
         localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node);
@@ -189,7 +189,7 @@ class LocalUnconstrainedStrategy {
   void revertMove(const PartitionedHypergraph& phg, const GainCache&, Move m, bool global) {
     if (sharedData.unconstrained.isRebalancingNode(m.node)) {
       if (global) {
-        sharedData.unconstrained.virtual_weight_delta[m.from].fetch_sub(
+        sharedData.unconstrained.virtualWeightDelta(m.from).fetch_sub(
             phg.nodeWeight(m.node), std::memory_order_relaxed);
       } else {
         localVirtualWeightDelta[m.from] -= phg.nodeWeight(m.node);
@@ -201,7 +201,7 @@ class LocalUnconstrainedStrategy {
   void flushLocalChanges() {
     for (auto [block, delta]: localVirtualWeightDelta) {
       ASSERT(delta >= 0);
-      sharedData.unconstrained.virtual_weight_delta[block].fetch_add(delta, std::memory_order_relaxed);
+      sharedData.unconstrained.virtualWeightDelta(block).fetch_add(delta, std::memory_order_relaxed);
     }
     localVirtualWeightDelta.clear();
   }
@@ -343,8 +343,8 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   Gain estimatePenalty(PartitionID to, HypernodeWeight to_weight, HypernodeWeight wu) const {
-    HypernodeWeight virtual_delta = sharedData.unconstrained.virtual_weight_delta[to].load(std::memory_order_relaxed)
-                                    + localVirtualWeightDelta[to];
+    HypernodeWeight virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
+                                    + localVirtualWeightDelta.getOrDefault(to);
     HypernodeWeight initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to];
     return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initial_imbalance, wu);
   }

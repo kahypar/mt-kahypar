@@ -150,30 +150,30 @@ struct NodeTracker {
 // Contains data required for unconstrained FM: We group non-border nodes in buckets based on their
 // incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
 // gain for moves that violate the balance constraint
-struct UnconstrainedFMData {
+class UnconstrainedFMData {
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
+
+  template<typename TypeTraits, typename GainTypes>
+  struct InitializationHelper {
+    static void initialize(UnconstrainedFMData& data, const Context& context,
+                           const typename TypeTraits::PartitionedHypergraph& phg,
+                           const typename GainTypes::GainCache& gain_cache);
+  };
 
   static constexpr BucketID NUM_BUCKETS = 16;
   static constexpr double BUCKET_FACTOR = 1.5;
   static constexpr double FALLBACK_TRESHOLD = 0.75;
 
-  bool initialized = false;
-  PartitionID current_k;
-  parallel::scalable_vector<HypernodeWeight> bucket_weights;
-  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
-  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
-  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
-  kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
-
-  explicit UnconstrainedFMData():
+ public:
+  explicit UnconstrainedFMData(HypernodeID num_nodes):
     initialized(false),
     current_k(0),
     bucket_weights(),
     virtual_weight_delta(),
     local_bucket_weights(),
-    rebalancing_nodes() { }
+    rebalancing_nodes(num_nodes) { }
 
   template<typename TypeTraits, typename GainTypes>
   void initialize(const Context& context,
@@ -186,6 +186,11 @@ struct UnconstrainedFMData {
   }
 
   Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
+
+  AtomicWeight& virtualWeightDelta(PartitionID block) {
+    ASSERT(block >= 0 && static_cast<size_t>(block) < virtual_weight_delta.size());
+    return virtual_weight_delta[block];
+  }
 
   bool isRebalancingNode(HypernodeID hn) const {
     return initialized && rebalancing_nodes[hn];
@@ -202,7 +207,8 @@ struct UnconstrainedFMData {
   }
 
  private:
- friend class InitializationHelper;
+  template<typename TypeTraits, typename GainTypes>
+  friend class InitializationHelper;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
@@ -232,12 +238,13 @@ struct UnconstrainedFMData {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  struct InitializationHelper {
-    static void initialize(UnconstrainedFMData& data, const Context& context,
-                           const typename TypeTraits::PartitionedHypergraph& phg,
-                           const typename GainTypes::GainCache& gain_cache);
-  };
+  bool initialized = false;
+  PartitionID current_k;
+  parallel::scalable_vector<HypernodeWeight> bucket_weights;
+  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
+  kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
 };
 
 
@@ -281,7 +288,7 @@ struct FMSharedData {
     moveTracker(), //numNodes),
     nodeTracker(), //numNodes),
     targetPart(),
-    unconstrained() {
+    unconstrained(numNodes) {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
@@ -299,8 +306,6 @@ struct FMSharedData {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
-    }, [&] {
-      unconstrained.rebalancing_nodes.setSize(numNodes);
     });
   }
 

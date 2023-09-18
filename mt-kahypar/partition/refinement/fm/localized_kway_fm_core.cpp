@@ -94,7 +94,7 @@ namespace mt_kahypar {
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
-                                                                                    DispatchedFMStrategy& fm_strategy) {
+                                                                        DispatchedFMStrategy& fm_strategy) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
