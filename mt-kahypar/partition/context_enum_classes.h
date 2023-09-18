@@ -166,6 +166,7 @@ enum class FlowAlgorithm : uint8_t {
 };
 
 enum class RebalancingAlgorithm : uint8_t {
+  simple_rebalancer,
   rebalancer,
   do_nothing
 };

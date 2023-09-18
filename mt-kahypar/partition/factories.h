@@ -54,6 +54,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
 
 namespace mt_kahypar {
@@ -125,6 +126,11 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
+
+using RebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                              Rebalancer,
+                              IRebalancer,
+                              kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using RebalancerV2Dispatcher = kahypar::meta::StaticMultiDispatchFactory<
         RebalancerV2,
