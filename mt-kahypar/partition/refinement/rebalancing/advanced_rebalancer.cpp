@@ -57,7 +57,7 @@ namespace impl {
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < phg.k(); ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
@@ -429,8 +429,8 @@ namespace impl {
     }
 
     _overloaded_blocks.clear();
-    _is_overloaded.assign(phg.k(), false);
-    for (PartitionID k = 0; k < phg.k(); ++k) {
+    _is_overloaded.assign(_context.partition.k, false);
+    for (PartitionID k = 0; k < _context.partition.k; ++k) {
       if (phg.partWeight(k) > _context.partition.max_part_weights[k]) {
         _overloaded_blocks.push_back(k);
         _is_overloaded[k] = 1;
@@ -442,7 +442,7 @@ namespace impl {
     auto [attributed_gain, num_moves_performed] = findMoves(hypergraph);
 
     if (moves_by_part != nullptr) {
-      moves_by_part->resize(phg.k());
+      moves_by_part->resize(_context.partition.k);
       for (auto& direction : *moves_by_part) direction.clear();
       for (size_t i = 0; i < num_moves_performed; ++i) {
         (*moves_by_part)[_moves[i].from].push_back(_moves[i]);
@@ -459,7 +459,7 @@ namespace impl {
     best_metric.imbalance = metrics::imbalance(phg, _context);
 
     size_t num_overloaded_blocks = 0;
-    for (PartitionID b = 0; b < phg.k(); ++b) {
+    for (PartitionID b = 0; b < _context.partition.k; ++b) {
       if (phg.partWeight(b) > _context.partition.max_part_weights[b]) {
         num_overloaded_blocks++;
       }
