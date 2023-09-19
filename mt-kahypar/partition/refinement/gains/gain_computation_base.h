@@ -62,7 +62,8 @@ class GainComputationBase {
   Move computeMaxGainMove(const PartitionedHypergraph& phg,
                           const HypernodeID hn,
                           const bool rebalance = false,
-                          const bool consider_non_adjacent_blocks = false) {
+                          const bool consider_non_adjacent_blocks = false,
+                          const bool allow_imbalance = false) {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
     Gain& isolated_block_gain = _isolated_block_gain.local();
@@ -80,8 +81,8 @@ class GainComputationBase {
                             (score == best_move.gain &&
                             !_disable_randomization &&
                             (no_tie_breaking || rand.flipCoin(cpu_id)));
-      if (new_best_gain && phg.partWeight(to) + hn_weight <=
-          _context.partition.max_part_weights[to]) {
+      if (new_best_gain && (allow_imbalance || phg.partWeight(to) + hn_weight <=
+          _context.partition.max_part_weights[to])) {
         best_move.to = to;
         best_move.gain = score;
         return true;
@@ -124,7 +125,7 @@ class GainComputationBase {
     return best_move;
   }
 
-  inline void computeDeltaForHyperedge(const SyncronizedEdgeUpdate& sync_update) {
+  inline void computeDeltaForHyperedge(const SynchronizedEdgeUpdate& sync_update) {
     _deltas.local() += AttributedGains::gain(sync_update);
   }
 

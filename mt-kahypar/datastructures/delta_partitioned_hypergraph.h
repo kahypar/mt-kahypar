@@ -202,7 +202,7 @@ class DeltaPartitionedHypergraph {
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
 
-      SyncronizedEdgeUpdate sync_update;
+      SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
       sync_update.target_graph = _phg->targetGraph();
@@ -340,7 +340,7 @@ class DeltaPartitionedHypergraph {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updateConnectivitySet(const HyperedgeID e,
-                             const SyncronizedEdgeUpdate& sync_update) {
+                             const SynchronizedEdgeUpdate& sync_update) {
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       _connectivity_set_delta.remove(sync_update.he, sync_update.from);
     }

@@ -592,7 +592,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
     return true;
   }(), "Cut of extracted blocks does not sum up to current objective");
 
-  if ( gain_cache.isInitialized() ) {
+  if ( GainCache::invalidates_entries && gain_cache.isInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
       gain_cache.recomputeInvalidTerms(partitioned_hg, hn);
     });

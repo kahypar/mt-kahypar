@@ -36,11 +36,11 @@ Our label propagation algorithm iterates over all nodes in parallel and moves ea
 
 The gain of a node move can change between its initial calculation and execution due to concurrent node moves in its neighborhood. We therefore double-check the gain of a node move at the time performed on the partition via synchronized data structure updates. This technique is called *attributed gains*. The label propagation algorithm reverts node moves that worsen the solution quality by checking the attributed gain value. The attributed gain function implements the following interface:
 ```cpp
-static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update);
+static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update);
 ```
-The ```SyncronizedEdgeUpdate``` structs contains the following members:
+The ```SynchronizedEdgeUpdate``` structs contains the following members:
 ```cpp
-struct SyncronizedEdgeUpdate {
+struct SynchronizedEdgeUpdate {
   HyperedgeID he;
   PartitionID from;
   PartitionID to;
@@ -56,7 +56,7 @@ struct SyncronizedEdgeUpdate {
 };
 ```
 
-When we move a node from its *source* (```from```) to a *target* block (```to```), we iterate over all hyperedges, perform syncronized data structure updates and call this function for each incident hyperedge of the moved node. The sum of all calls to this function is the attributed gain of the node move. The most important parameters of the ```SyncronizedEdgeUpdate``` struct are ```pin_count_in_from_part_after``` and ```pin_count_in_to_part_after```, which are the number of pins contained in the source and target block of hyperedge ```he``` after the node move. For example, the node move removes an hyperedge from the cut if ```pin_count_in_to_part_after == edge_size```. If ```pin_count_in_from_part_after == 0```, then the node move reduces the connectivity of the hyperedge by one. Conversely, if ```pin_count_in_to_part_after == 1```, then the node move increases the connectivity of the hyperedge by one.
+When we move a node from its *source* (```from```) to a *target* block (```to```), we iterate over all hyperedges, perform syncronized data structure updates and call this function for each incident hyperedge of the moved node. The sum of all calls to this function is the attributed gain of the node move. The most important parameters of the ```SynchronizedEdgeUpdate``` struct are ```pin_count_in_from_part_after``` and ```pin_count_in_to_part_after```, which are the number of pins contained in the source and target block of hyperedge ```he``` after the node move. For example, the node move removes an hyperedge from the cut if ```pin_count_in_to_part_after == edge_size```. If ```pin_count_in_from_part_after == 0```, then the node move reduces the connectivity of the hyperedge by one. Conversely, if ```pin_count_in_to_part_after == 1```, then the node move increases the connectivity of the hyperedge by one.
 
 ### Gain Computation
 
@@ -92,7 +92,7 @@ Most notable is the delta gain update function, which has the following interfac
 ```cpp
 template<typename PartitionedHypergraph>
 void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                     const SyncronizedEdgeUpdate& sync_update);
+                     const SynchronizedEdgeUpdate& sync_update);
 ```
 If we move a node u to another block, we call this function for each incident hyperedge of u (similar to the attributed gains). The function should be used to update gain cache entries affected by the node move.
 
@@ -158,4 +158,3 @@ To test your implementation, you can enable logging in our flow-based refinement
 ### Python Interface
 
 The Python interface is defined in ```python/module.cpp```. You only have to add a mapping between a string representation of your new objective function and our ```Objective``` enum type in the enum type section of the file. Afterwards, add function to the ```PartitionedGraph```, ```PartitionedHypergraph``` and ```SparsePartitionedHypergraph``` class that computes the value of your objective function.
-

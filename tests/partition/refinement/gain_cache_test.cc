@@ -175,7 +175,7 @@ class AGainCache : public Test {
   }
 
   void moveAllNodesAtRandomOnDeltaPartition() {
-    auto update_delta_gain_cache = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto update_delta_gain_cache = [&](const SynchronizedEdgeUpdate& sync_update) {
       delta_gain_cache->deltaGainUpdate(*delta_phg, sync_update);
     };
 
@@ -358,7 +358,7 @@ class AGainCache : public Test {
     verifyAdjacentBlocksOfDeltaGainCache();
   }
 
-  Gain attributedGain(const SyncronizedEdgeUpdate& sync_update) {
+  Gain attributedGain(const SynchronizedEdgeUpdate& sync_update) {
     return -AttributedGains::gain(sync_update);
   }
 
@@ -476,7 +476,7 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
 
   utils::Randomize& rand = utils::Randomize::instance();
   Gain attributed_gain = 0;
-  auto delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+  auto delta = [&](const SynchronizedEdgeUpdate& sync_update) {
     attributed_gain += this->attributedGain(sync_update);
   };
   vec<PartitionID> adjacent_blocks;

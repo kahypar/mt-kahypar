@@ -147,6 +147,7 @@ include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOU
 include_directories(external_tools/kahypar-shared-resources)
 include_directories(external_tools/growt)
 include_directories(external_tools/WHFC)
+include_directories(external_tools/pcg)
 
 if(KAHYPAR_DOWNLOAD_BOOST)
   # Download Boost

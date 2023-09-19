@@ -489,13 +489,24 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
     @inproceedings{MT-KAHYPAR-SDET,
       author    = {Lars Gottesb{\"{u}}ren and
                    Michael Hamann},
-      title     = {{Deterministic Parallel Hypergraph Partitioning}},
+      title     = {Deterministic Parallel Hypergraph Partitioning},
       booktitle = {European Conference on Parallel Processing (Euro-Par)},
       volume    = {13440},
       pages     = {301--316},
       publisher = {Springer},
       year      = {2022},
       doi       = {10.1007/978-3-031-12597-3\_19},
+    }
+
+    // Unconstrained Refinement (Under Review)
+    @article{MT-KAHYPAR-UNCONSTRAINED,
+      title       = {Parallel Unconstrained Local Search for Partitioning Irregular Graphs},
+      author      = {Nikolai Maas and
+                     Lars Gottesb{\"{u}}ren and
+                     Daniel Seemaier},
+      institution = {Karlsruhe Institute of Technology},
+      year        = {2023},
+      url         = {https://arxiv.org/abs/2308.15494}
     }
 
     // Dissertation of Lars Gottesbüren
@@ -523,11 +534,11 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
       title       = {Scalable High-Quality Hypergraph Partitioning},
       author      = {Lars Gottesb{\"u}ren and
                      Tobias Heuer and
-                     Nikolai Mass and
+                     Nikolai Maas and
                      Peter Sanders and
                      Sebastian Schlag},
       institution = {Karlsruhe Institute of Technology},
-      year        = {2023}
+      year        = {2023},
       url         = {https://arxiv.org/abs/2303.17679}
     }
 

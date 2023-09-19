@@ -125,7 +125,7 @@ namespace mt_kahypar {
   Gain DeterministicLabelPropagationRefiner<TypeTraits>::performMoveWithAttributedGain(
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
-    auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       attributed_gain -= Km1AttributedGains::gain(sync_update);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);

@@ -72,13 +72,13 @@ void GraphSteinerTreeGainCache::initializeGainCacheEntryForNode(const Partitione
   initializeGainCacheEntryForNode(partitioned_hg, hn, gain_aggregator);
 }
 
-bool GraphSteinerTreeGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate&) {
+bool GraphSteinerTreeGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate&) {
   return true;
 }
 
 template<typename PartitionedHypergraph>
 void GraphSteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                                            const SyncronizedEdgeUpdate& sync_update) {
+                                                            const SynchronizedEdgeUpdate& sync_update) {
   if ( !partitioned_hg.isSinglePin(sync_update.he) ) {
     const HyperedgeID unique_id = partitioned_hg.uniqueEdgeID(sync_update.he);
     ASSERT(UL(unique_id) < _edge_state.size());
@@ -97,7 +97,7 @@ void GraphSteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHyp
 
 template<typename PartitionedHypergraph>
 void GraphSteinerTreeGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                                const SyncronizedEdgeUpdate& sync_update) {
+                                                const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   ASSERT(sync_update.target_graph);
 
@@ -237,7 +237,7 @@ void GraphSteinerTreeGainCache::initializeAdjacentBlocksOfNode(const Partitioned
 
 template<typename PartitionedHypergraph>
 void GraphSteinerTreeGainCache::updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
-                                                     const SyncronizedEdgeUpdate& sync_update) {
+                                                     const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(!partitioned_hg.isSinglePin(sync_update.he));
   if ( sync_update.pin_count_in_from_part_after == 0 ) {
     // The node move has removed the source block of the move from the
@@ -426,9 +426,9 @@ namespace {
 #define STEINER_TREE_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void GraphSteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,          \
                                                                                                                        const HypernodeID)
 #define STEINER_TREE_NOTIFY(X) void GraphSteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const X&,                     \
-                                                                                           const SyncronizedEdgeUpdate&)
+                                                                                           const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_DELTA_GAIN_UPDATE(X) void GraphSteinerTreeGainCache::deltaGainUpdate(const X&,                     \
-                                                                                          const SyncronizedEdgeUpdate&)
+                                                                                          const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_RESTORE_UPDATE(X) void GraphSteinerTreeGainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                                                     const HypernodeID, \
                                                                                                     const HypernodeID, \
@@ -444,7 +444,7 @@ namespace {
 #define STEINER_TREE_INIT_ADJACENT_BLOCKS_OF_NODE(X) void GraphSteinerTreeGainCache::initializeAdjacentBlocksOfNode(const X&,          \
                                                                                                                     const HypernodeID)
 #define STEINER_TREE_UPDATE_ADJACENT_BLOCKS(X) void GraphSteinerTreeGainCache::updateAdjacentBlocks(const X&,                     \
-                                                                                                    const SyncronizedEdgeUpdate&)
+                                                                                                    const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_INIT_GAIN_CACHE_ENTRY(X) void GraphSteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,           \
                                                                                                               const HypernodeID,  \
                                                                                                               vec<Gain>&)

@@ -1,10 +1,12 @@
 set(RefinementSources
+        fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
-        rebalancing/rebalancer.cpp
+        rebalancing/simple_rebalancer.cpp
+        rebalancing/advanced_rebalancer.cpp
         deterministic/deterministic_label_propagation.cpp
         flows/refiner_adapter.cpp
         flows/problem_construction.cpp

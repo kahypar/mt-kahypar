@@ -113,6 +113,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
+        << " lp_unconstrained=" << std::boolalpha << context.refinement.label_propagation.unconstrained
+        << " lp_relative_improvement_threshold=" << context.refinement.label_propagation.relative_improvement_threshold
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
         << " sync_lp_num_sub_rounds_sync_lp=" << context.refinement.deterministic_refinement.num_sub_rounds_sync_lp
         << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
@@ -130,6 +132,15 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
         << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
+        << " fm_unconstrained_rounds=" << context.refinement.fm.unconstrained_rounds
+        << " fm_treshold_border_node_inclusion=" << context.refinement.fm.treshold_border_node_inclusion
+        << " fm_unconstrained_min_improvement=" << context.refinement.fm.unconstrained_min_improvement
+        << " fm_unconstrained_upper_bound=" << context.refinement.fm.unconstrained_upper_bound
+        << " fm_unconstrained_upper_bound_min=" << context.refinement.fm.unconstrained_upper_bound_min
+        << " fm_imbalance_penalty_min=" << context.refinement.fm.imbalance_penalty_min
+        << " fm_imbalance_penalty_max=" << context.refinement.fm.imbalance_penalty_max
+        << " fm_activate_unconstrained_dynamically=" << std::boolalpha << context.refinement.fm.activate_unconstrained_dynamically
+        << " fm_penalty_for_activation_test=" << context.refinement.fm.penalty_for_activation_test
         << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
         << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes

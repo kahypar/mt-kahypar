@@ -64,7 +64,7 @@ void SteinerTreeGainCache::initializeGainCacheEntryForNode(const PartitionedHype
   initializeGainCacheEntryForNode(partitioned_hg, hn, benefit_aggregator);
 }
 
-bool SteinerTreeGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+bool SteinerTreeGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
   return sync_update.pin_count_in_from_part_after == 0 ||
          sync_update.pin_count_in_from_part_after == 1 ||
          sync_update.pin_count_in_to_part_after == 1 ||
@@ -73,7 +73,7 @@ bool SteinerTreeGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& 
 
 template<typename PartitionedHypergraph>
 void SteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&,
-                                                       const SyncronizedEdgeUpdate& sync_update) {
+                                                       const SynchronizedEdgeUpdate& sync_update) {
   if ( triggersDeltaGainUpdate(sync_update) ) {
     ASSERT(UL(sync_update.he) < _version.size());
     // The move will induce a gain cache update. In this case, we increment the version ID
@@ -105,7 +105,7 @@ HyperedgeWeight gainOfHyperedge(const PartitionID from,
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void reconstructConnectivitySetAndPinCountsBeforeMove(const SyncronizedEdgeUpdate& sync_update,
+void reconstructConnectivitySetAndPinCountsBeforeMove(const SynchronizedEdgeUpdate& sync_update,
                                                       ds::Bitset& connectivity_set,
                                                       ds::PinCountSnapshot& pin_counts) {
   if ( sync_update.pin_count_in_from_part_after == 0 ) {
@@ -123,7 +123,7 @@ void reconstructConnectivitySetAndPinCountsBeforeMove(const SyncronizedEdgeUpdat
 
 template<typename PartitionedHypergraph>
 void SteinerTreeGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                           const SyncronizedEdgeUpdate& sync_update) {
+                                           const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   ASSERT(sync_update.connectivity_set_after);
   ASSERT(sync_update.pin_counts_after);
@@ -424,7 +424,7 @@ void SteinerTreeGainCache::initializeAdjacentBlocksOfNode(const PartitionedHyper
 
 template<typename PartitionedHypergraph>
 void SteinerTreeGainCache::updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
-                                                const SyncronizedEdgeUpdate& sync_update) {
+                                                const SynchronizedEdgeUpdate& sync_update) {
   if ( partitioned_hg.edgeSize(sync_update.he) <= _large_he_threshold ) {
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       // The node move has removed the source block of the move from the
@@ -628,9 +628,9 @@ namespace {
 #define STEINER_TREE_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void SteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,          \
                                                                                                                   const HypernodeID)
 #define STEINER_TREE_NOTIFY(X) void SteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const X&,                     \
-                                                                                      const SyncronizedEdgeUpdate&)
+                                                                                      const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_DELTA_GAIN_UPDATE(X) void SteinerTreeGainCache::deltaGainUpdate(const X&,                     \
-                                                                                     const SyncronizedEdgeUpdate&)
+                                                                                     const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_RESTORE_UPDATE(X) void SteinerTreeGainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                                                const HypernodeID, \
                                                                                                const HypernodeID, \
@@ -646,7 +646,7 @@ namespace {
 #define STEINER_TREE_INIT_ADJACENT_BLOCKS_OF_NODE(X) void SteinerTreeGainCache::initializeAdjacentBlocksOfNode(const X&,          \
                                                                                                                const HypernodeID)
 #define STEINER_TREE_UPDATE_ADJACENT_BLOCKS(X) void SteinerTreeGainCache::updateAdjacentBlocks(const X&,                     \
-                                                                                               const SyncronizedEdgeUpdate&)
+                                                                                               const SynchronizedEdgeUpdate&)
 #define STEINER_TREE_INIT_GAIN_CACHE_ENTRY(X) void SteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,           \
                                                                                                          const HypernodeID,  \
                                                                                                          vec<Gain>&)

@@ -27,12 +27,15 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
@@ -55,25 +58,16 @@ class MultiTryKWayFM final : public IRefiner {
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 GainCache& gainCache) :
-    initial_num_nodes(num_hypernodes),
-    context(c),
-    gain_cache(gainCache),
-    current_k(c.partition.k),
-    sharedData(num_hypernodes),
-    globalRollback(num_hyperedges, context, gainCache),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
-    if (context.refinement.fm.obey_minimal_parallelism) {
-      sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
-    }
-  }
+                 GainCache& gainCache,
+                 IRebalancer& rb);
 
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 gain_cache_t gainCache) :
+                 gain_cache_t gainCache,
+                 IRebalancer& rb) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
-      GainCachePtr::cast<GainCache>(gainCache)) { }
+      GainCachePtr::cast<GainCache>(gainCache), rb) { }
 
   void printMemoryConsumption();
 
@@ -88,6 +82,27 @@ class MultiTryKWayFM final : public IRefiner {
   void roundInitialization(PartitionedHypergraph& phg,
                            const vec<HypernodeID>& refinement_nodes);
 
+  void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
+                                                  const vec<HypernodeWeight>& initialPartWeights,
+                                                  const std::vector<HypernodeWeight>& max_part_weights,
+                                                  vec<vec<Move>>& rebalancing_moves_by_part);
+
+  void insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
+                                 const PartitionID block,
+                                 const std::vector<HypernodeWeight>& max_part_weights,
+                                 const vec<vec<Move>>& rebalancing_moves_by_part,
+                                 MoveID& next_move_index,
+                                 vec<HypernodeWeight>& current_part_weights,
+                                 vec<MoveID>& current_rebalancing_move_index);
+
+  bool isBalanced(const PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
+      if (phg.partWeight(i) > max_part_weights[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
     return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
@@ -109,8 +124,11 @@ class MultiTryKWayFM final : public IRefiner {
   GainCache& gain_cache;
   PartitionID current_k;
   FMSharedData sharedData;
+  std::unique_ptr<IFMStrategy> fm_strategy;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
+  vec<Move> tmp_move_order;
+  IRebalancer& rebalancer;
 };
 
 } // namespace mt_kahypar

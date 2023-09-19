@@ -139,37 +139,23 @@ class ConnectivityInfo;
 class SparseConnectivityInfo;
 }
 
-struct SyncronizedEdgeUpdate {
-  SyncronizedEdgeUpdate() :
-    he(kInvalidHyperedge),
-    from(kInvalidPartition),
-    to(kInvalidPartition),
-    edge_weight(0),
-    edge_size(0),
-    pin_count_in_from_part_after(kInvalidHypernode),
-    pin_count_in_to_part_after(kInvalidHypernode),
-    block_of_other_node(kInvalidPartition),
-    connectivity_set_after(nullptr),
-    pin_counts_after(nullptr),
-    target_graph(nullptr),
-    edge_locks(nullptr) { }
-
-  HyperedgeID he;
-  PartitionID from;
-  PartitionID to;
-  HyperedgeID edge_weight;
-  HypernodeID edge_size;
-  HypernodeID pin_count_in_from_part_after;
-  HypernodeID pin_count_in_to_part_after;
-  PartitionID block_of_other_node;
-  mutable ds::Bitset* connectivity_set_after;
-  mutable ds::PinCountSnapshot* pin_counts_after;
-  const TargetGraph* target_graph;
-  ds::Array<SpinLock>* edge_locks;
+struct SynchronizedEdgeUpdate {
+  HyperedgeID he = kInvalidHyperedge;
+  PartitionID from = kInvalidPartition;
+  PartitionID to = kInvalidPartition;
+  HyperedgeID edge_weight = 0;
+  HypernodeID edge_size = 0;
+  HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
+  HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
+  PartitionID block_of_other_node = kInvalidPartition;
+  mutable ds::Bitset* connectivity_set_after = nullptr;
+  mutable ds::PinCountSnapshot* pin_counts_after = nullptr;
+  const TargetGraph* target_graph = nullptr;
+  ds::Array<SpinLock>* edge_locks = nullptr;
 };
 
 struct NoOpDeltaFunc {
-  void operator() (const SyncronizedEdgeUpdate&) { }
+  void operator() (const SynchronizedEdgeUpdate&) { }
 };
 
 template<typename Hypergraph, typename ConInfo>

@@ -29,18 +29,22 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-template <typename TypeTraitsT, PartitionID k>
+template <typename TypeTraitsT, PartitionID k, FMAlgorithm alg>
 struct TestConfig {
   using TypeTraits = TypeTraitsT;
   static constexpr PartitionID K = k;
+  static constexpr FMAlgorithm ALG = alg;
 };
 
 template<typename Config>
@@ -64,6 +68,15 @@ class MultiTryFMTest : public Test {
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.25;
+    context.partition.k = Config::K;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+      PresetType::default_preset : PresetType::highest_quality;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.verbose_output = false;
 
     // Shared Memory
@@ -74,10 +87,13 @@ class MultiTryFMTest : public Test {
     context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
-    context.partition.k = Config::K;
-
-    context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    context.refinement.fm.algorithm = Config::ALG;
     context.refinement.fm.multitry_rounds = 10;
+    if (context.refinement.fm.algorithm == FMAlgorithm::unconstrained_fm) {
+      context.refinement.fm.unconstrained_rounds = 10;
+      context.refinement.fm.imbalance_penalty_min = 0.5;
+      context.refinement.fm.imbalance_penalty_max = 0.5;
+    }
     context.refinement.fm.num_seed_nodes = 5;
     context.refinement.fm.rollback_balance_violation_factor = 1.0;
 
@@ -92,8 +108,9 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
+    rebalancer = std::make_unique<AdvancedRebalancer<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
-      hypergraph.initialNumEdges(), context, gain_cache);
+      hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -116,22 +133,28 @@ class MultiTryFMTest : public Test {
   Context context;
   Km1GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
+  std::unique_ptr<IRebalancer> rebalancer;
   Metrics metrics;
 };
 
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, 4>,
-                         TestConfig<StaticHypergraphTypeTraits, 8>,
-                         TestConfig<StaticHypergraphTypeTraits, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, 4>,
-                         TestConfig<StaticHypergraphTypeTraits, 8>
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8>) > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::kway_fm>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::kway_fm>),
+                         // unconstrained
+                         TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::unconstrained_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::unconstrained_fm>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::unconstrained_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::unconstrained_fm>) > TestConfigs;
 
 TYPED_TEST_CASE(MultiTryFMTest, TestConfigs);
 
@@ -196,37 +219,75 @@ TYPED_TEST(MultiTryFMTest, WorksWithRefinementNodes) {
   std::cout.rdbuf(old);                                   // and reset again
 }
 
-/*TYPED_TEST(MultiTryFMTest, IncreasesTheNumberOfBlocks) {
+TYPED_TEST(MultiTryFMTest, ChangesTheNumberOfBlocks) {
   using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
   HyperedgeWeight objective_before = metrics::quality(this->partitioned_hypergraph, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.quality, objective_before);
 
-  // Initialize partition with larger K
+  // Initialize partition with smaller K
   const PartitionID old_k = this->context.partition.k;
-  this->context.partition.k = 2 * old_k;
+  this->context.partition.k = std::max(old_k / 2, 2);
   this->context.setupPartWeights(this->hypergraph.totalWeight());
-  PartitionedHypergraph phg_with_larger_k(
+  PartitionedHypergraph phg_with_new_k(
     this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
-  utils::Randomize& rand = utils::Randomize::instance();
-  vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
   this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    // create a semi-random partition
     const PartitionID block = this->partitioned_hypergraph.partID(hn);
-    phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(THREAD_ID) ? 2 * block : 2 * block + 1);
-    non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
+    phg_with_new_k.setOnlyNodePart(hn, (block + hn) % this->context.partition.k);
   });
-  phg_with_larger_k.initializePartition();
-  this->metrics.quality = metrics::quality(phg_with_larger_k, this->context);
-  this->metrics.imbalance = metrics::imbalance(phg_with_larger_k, this->context);
+  phg_with_new_k.initializePartition();
+  this->metrics.quality = metrics::quality(phg_with_new_k, this->context);
+  this->metrics.imbalance = metrics::imbalance(phg_with_new_k, this->context);
 
-  objective_before = metrics::quality(phg_with_larger_k, this->context.partition.objective);
-  mt_kahypar_partitioned_hypergraph_t phg_larger_k = utils::partitioned_hg_cast(phg_with_larger_k);
-  this->refiner->initialize(phg_larger_k);
-  this->refiner->refine(phg_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
+  objective_before = metrics::quality(phg_with_new_k, this->context.partition.objective);
+  mt_kahypar_partitioned_hypergraph_t phg_new_k = utils::partitioned_hg_cast(phg_with_new_k);
+  this->gain_cache.reset();
+  this->refiner->initialize(phg_new_k);
+  this->rebalancer->initialize(phg_new_k);
+  this->refiner->refine(phg_new_k, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.quality, objective_before);
-  ASSERT_EQ(metrics::quality(phg_with_larger_k, this->context.partition.objective),
+  ASSERT_EQ(metrics::quality(phg_with_new_k, this->context.partition.objective),
             this->metrics.quality);
-}*/
+}
+
+TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+
+  Context context;
+  context.partition.k = 2;
+
+  // use a super-heavy edge to trigger the fallback case
+  std::vector<HyperedgeWeight> he_weights{ 1, 10000 };
+  Hypergraph hg = HypergraphFactory::construct(4, 2, { {0, 1}, {2, 3} }, he_weights.data());
+  PartitionedHypergraph phg(2, hg);
+  phg.setOnlyNodePart(0, 0);
+  phg.setOnlyNodePart(1, 0);
+  phg.setOnlyNodePart(2, 1);
+  phg.setOnlyNodePart(3, 1);
+  phg.initializePartition();
+
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
+
+  UnconstrainedFMData ufm_data(4);
+  ufm_data.initialize<TypeTraits, Km1GainTypes>(context, phg, gain_cache);
+
+  ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(0, -1, -1));
+  ASSERT_LE(1.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));
+  ASSERT_GE(1.5, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));
+  ASSERT_LE(2.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 2));
+  ASSERT_GE(3.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 2));
+
+  ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(1, -1, -1));
+  ASSERT_LE(10000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 1));
+  ASSERT_GE(15000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 1));
+  ASSERT_LE(20000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 2));
+  ASSERT_GE(30000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 2));
+}
 
 }  // namespace mt_kahypar

@@ -114,7 +114,7 @@ void Km1GainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
-bool Km1GainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+bool Km1GainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
   return sync_update.pin_count_in_from_part_after == 0 ||
          sync_update.pin_count_in_from_part_after == 1 ||
          sync_update.pin_count_in_to_part_after == 1 ||
@@ -123,7 +123,7 @@ bool Km1GainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_upd
 
 template<typename PartitionedHypergraph>
 void Km1GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                   const SyncronizedEdgeUpdate& sync_update) {
+                                   const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   const HyperedgeID he = sync_update.he;
   const PartitionID from = sync_update.from;
@@ -262,7 +262,7 @@ void Km1GainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& 
 namespace {
 #define KM1_INITIALIZE_GAIN_CACHE(X) void Km1GainCache::initializeGainCache(const X&)
 #define KM1_DELTA_GAIN_UPDATE(X) void Km1GainCache::deltaGainUpdate(const X&,                     \
-                                                                    const SyncronizedEdgeUpdate&)
+                                                                    const SynchronizedEdgeUpdate&)
 #define KM1_RESTORE_UPDATE(X) void Km1GainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                               const HypernodeID, \
                                                                               const HypernodeID, \

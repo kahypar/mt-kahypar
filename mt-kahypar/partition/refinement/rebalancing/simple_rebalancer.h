@@ -32,14 +32,18 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
-class Rebalancer final : public IRefiner {
+class SimpleRebalancer final : public IRebalancer {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainCache = typename GainTypes::GainCache;
   using GainCalculator = typename GainTypes::GainComputation;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
@@ -67,16 +71,23 @@ public:
     MovePQ pq;
   };
 
-  explicit Rebalancer(const Context& context) :
+  explicit SimpleRebalancer(const Context& context) :
     _context(context),
+    _current_k(context.partition.k),
     _gain(context),
     _part_weights(_context.partition.k) { }
 
-  Rebalancer(const Rebalancer&) = delete;
-  Rebalancer(Rebalancer&&) = delete;
+  explicit SimpleRebalancer(HypernodeID , const Context& context, GainCache&) :
+    SimpleRebalancer(context) { }
 
-  Rebalancer & operator= (const Rebalancer &) = delete;
-  Rebalancer & operator= (Rebalancer &&) = delete;
+  explicit SimpleRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
+    SimpleRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
+
+  SimpleRebalancer(const SimpleRebalancer&) = delete;
+  SimpleRebalancer(SimpleRebalancer&&) = delete;
+
+  SimpleRebalancer & operator= (const SimpleRebalancer &) = delete;
+  SimpleRebalancer & operator= (SimpleRebalancer &&) = delete;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const vec<HypernodeID>&,
@@ -84,6 +95,22 @@ public:
                   double) final ;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { }
+
+  bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
+                                const vec<HypernodeID>&,
+                                vec<vec<Move>>&,
+                                Metrics&,
+                                const double) override final {
+    ERR("simple rebalancer can not be used for unconstrained refinement");
+  }
+
+  bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
+                                      const vec<HypernodeID>&,
+                                      vec<Move>&,
+                                      Metrics&,
+                                      const double) override final {
+    ERR("simple rebalancer can not be used for unconstrained refinement");
+  }
 
   vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);
 
@@ -115,7 +142,19 @@ private:
     return false;
   }
 
+
+  void resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( _current_k != _context.partition.k ) {
+      _current_k = _context.partition.k;
+      _gain.changeNumberOfBlocks(_current_k);
+      _part_weights = parallel::scalable_vector<AtomicWeight>(_context.partition.k);
+    }
+  }
+
   const Context& _context;
+  PartitionID _current_k;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };

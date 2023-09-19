@@ -26,12 +26,16 @@
 
 #pragma once
 
+#include <limits>
+
+#include <mt-kahypar/datastructures/concurrent_bucket_map.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
+#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
@@ -65,7 +69,6 @@ struct GlobalMoveTracker {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
     assert(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
-    moveOrder[move_id - firstMoveID].gain = 0;      // set to zero so the recalculation can safely distribute
     moveOfNode[m.node] = move_id;
     return move_id;
   }
@@ -77,9 +80,11 @@ struct GlobalMoveTracker {
 
   bool wasNodeMovedInThisRound(HypernodeID u) const {
     const MoveID m_id = moveOfNode[u];
-    return m_id >= firstMoveID
-           && m_id < runningMoveID.load(std::memory_order_relaxed)  // active move ID
-           && moveOrder[m_id - firstMoveID].isValid();      // not reverted already
+    if (m_id >= firstMoveID && m_id < runningMoveID.load(std::memory_order_relaxed)) {   // active move ID
+      ASSERT(moveOrder[m_id - firstMoveID].node == u);
+      return moveOrder[m_id - firstMoveID].isValid();  // not reverted already
+    }
+    return false;
   }
 
   MoveID numPerformedMoves() const {
@@ -142,6 +147,107 @@ struct NodeTracker {
 };
 
 
+// Contains data required for unconstrained FM: We group non-border nodes in buckets based on their
+// incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
+// gain for moves that violate the balance constraint
+class UnconstrainedFMData {
+  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using BucketID = uint32_t;
+  using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
+
+  template<typename TypeTraits, typename GainTypes>
+  struct InitializationHelper {
+    static void initialize(UnconstrainedFMData& data, const Context& context,
+                           const typename TypeTraits::PartitionedHypergraph& phg,
+                           const typename GainTypes::GainCache& gain_cache);
+  };
+
+  static constexpr BucketID NUM_BUCKETS = 16;
+  static constexpr double BUCKET_FACTOR = 1.5;
+  static constexpr double FALLBACK_TRESHOLD = 0.75;
+
+ public:
+  explicit UnconstrainedFMData(HypernodeID num_nodes):
+    initialized(false),
+    current_k(0),
+    bucket_weights(),
+    virtual_weight_delta(),
+    local_bucket_weights(),
+    rebalancing_nodes(num_nodes) { }
+
+  template<typename TypeTraits, typename GainTypes>
+  void initialize(const Context& context,
+                  const typename TypeTraits::PartitionedHypergraph& phg,
+                  const typename GainTypes::GainCache& gain_cache) {
+    changeNumberOfBlocks(context.partition.k);
+    reset();
+
+    InitializationHelper<TypeTraits, GainTypes>::initialize(*this, context, phg, gain_cache);
+  }
+
+  Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
+
+  AtomicWeight& virtualWeightDelta(PartitionID block) {
+    ASSERT(block >= 0 && static_cast<size_t>(block) < virtual_weight_delta.size());
+    return virtual_weight_delta[block];
+  }
+
+  bool isRebalancingNode(HypernodeID hn) const {
+    return initialized && rebalancing_nodes[hn];
+  }
+
+  void reset();
+
+  void changeNumberOfBlocks(PartitionID new_k) {
+    if (new_k != current_k) {
+      current_k = new_k;
+      local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
+      initialized = false;
+    }
+  }
+
+ private:
+  template<typename TypeTraits, typename GainTypes>
+  friend class InitializationHelper;
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
+    ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
+    return block * NUM_BUCKETS + bucketId;
+  }
+
+  // upper bound of gain values in bucket
+  static double gainPerWeightForBucket(BucketID bucketId) {
+    if (bucketId > 1) {
+      return std::pow(BUCKET_FACTOR, bucketId - 2);
+    } else if (bucketId == 1) {
+      return 0.5;
+    } else {
+      return 0;
+    }
+  }
+
+  static BucketID bucketForGainPerWeight(double gainPerWeight) {
+    if (gainPerWeight >= 1) {
+      return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR));
+    } else if (gainPerWeight > 0.5) {
+      return 2;
+    } else if (gainPerWeight > 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+
+  bool initialized = false;
+  PartitionID current_k;
+  parallel::scalable_vector<HypernodeWeight> bucket_weights;
+  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
+  kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
+};
+
+
 struct FMSharedData {
   // ! Number of Nodes
   size_t numberOfNodes;
@@ -161,6 +267,9 @@ struct FMSharedData {
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
+  // ! Additional data for unconstrained FM algorithm
+  UnconstrainedFMData unconstrained;
+
   // ! Stop parallel refinement if finishedTasks > finishedTasksLimit to avoid long-running single searches
   CAtomic<size_t> finishedTasks;
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
@@ -178,7 +287,8 @@ struct FMSharedData {
     vertexPQHandles(), //numPQHandles, invalid_position),
     moveTracker(), //numNodes),
     nodeTracker(), //numNodes),
-    targetPart() {
+    targetPart(),
+    unconstrained(numNodes) {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine

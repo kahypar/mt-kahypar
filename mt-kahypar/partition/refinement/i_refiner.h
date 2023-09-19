@@ -26,9 +26,6 @@
 
 #pragma once
 
-#include <array>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "include/libmtkahypartypes.h"

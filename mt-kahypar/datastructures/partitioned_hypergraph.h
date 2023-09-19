@@ -62,10 +62,10 @@ class PartitionedHypergraph {
  private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  using NotificationFunc = std::function<void (SyncronizedEdgeUpdate&)>;
-  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
-  #define NOOP_NOTIFY_FUNC [] (const SyncronizedEdgeUpdate&) { }
-  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
+  using NotificationFunc = std::function<void (SynchronizedEdgeUpdate&)>;
+  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
+  #define NOOP_NOTIFY_FUNC [] (const SynchronizedEdgeUpdate&) { }
+  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
 
   // Factory
   using HypergraphFactory = typename Hypergraph::Factory;
@@ -590,7 +590,7 @@ class PartitionedHypergraph {
       _part_ids[u] = to;
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       report_success();
-      SyncronizedEdgeUpdate sync_update;
+      SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
       sync_update.target_graph = _target_graph;
@@ -624,7 +624,7 @@ class PartitionedHypergraph {
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    auto my_delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto my_delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
       delta_func(sync_update);
       gain_cache.deltaGainUpdate(*this, sync_update);
     };
@@ -632,7 +632,7 @@ class PartitionedHypergraph {
       return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
     } else {
       return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func,
-        [&](SyncronizedEdgeUpdate& sync_update) {
+        [&](SynchronizedEdgeUpdate& sync_update) {
           sync_update.pin_count_in_from_part_after = pinCountInPart(sync_update.he, from) - 1;
           sync_update.pin_count_in_to_part_after = pinCountInPart(sync_update.he, to) + 1;
           gain_cache.notifyBeforeDeltaGainUpdate(*this, sync_update);
@@ -1168,7 +1168,7 @@ class PartitionedHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
                                                                     const PartitionID from,
                                                                     const PartitionID to,
-                                                                    SyncronizedEdgeUpdate& sync_update,
+                                                                    SynchronizedEdgeUpdate& sync_update,
                                                                     const DeltaFunction& delta_func,
                                                                     const NotificationFunc& notify_func) {
     ASSERT(he < _pin_count_update_ownership.size());

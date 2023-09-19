@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
@@ -40,27 +41,40 @@ namespace mt_kahypar {
 namespace {
   using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+  using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 }
 
 
 template<typename Strategy>
-vec<Gain> insertAndExtractAllMoves(Strategy& strat,
-                                   PartitionedHypergraph& phg,
-                                   Km1GainCache& gain_cache) {
-  Move m;
-  vec<Gain> gains;
-  for (HypernodeID u : phg.nodes()) {
-    strat.insertIntoPQ(phg, gain_cache, u);
-  }
+struct AFMStrategy : public Test {
+  vec<Gain> insertAndExtractAllMoves(PartitionedHypergraph& phg,
+                                     const Context& context,
+                                     Km1GainCache& gain_cache,
+                                     FMSharedData& sd,
+                                     BlockPriorityQueue& blockPQ,
+                                     vec<VertexPriorityQueue>& vertexPQs,
+                                     FMStats& fm_stats) {
+    Strategy strategy(context, sd, blockPQ, vertexPQs, fm_stats);
 
-  while (strat.findNextMove(phg, gain_cache, m)) {
-    gains.push_back(m.gain);
-  }
-  strat.clearPQs(0);
-  return gains;
-}
+    Move m;
+    vec<Gain> gains;
+    for (HypernodeID u : phg.nodes()) {
+      strategy.insertIntoPQ(phg, gain_cache, u);
+    }
 
-TEST(StrategyTests, FindNextMove) {
+    while (strategy.findNextMove(phg, gain_cache, m)) {
+      gains.push_back(m.gain);
+    }
+    strategy.reset();
+    return gains;
+  }
+};
+
+using FMStrategyTestTypes = ::testing::Types<LocalGainCacheStrategy, LocalUnconstrainedStrategy>;
+TYPED_TEST_CASE(AFMStrategy, FMStrategyTestTypes);
+
+TYPED_TEST(AFMStrategy, FindNextMove) {
   PartitionID k = 8;
   Context context;
   context.partition.k = k;
@@ -85,12 +99,14 @@ TEST(StrategyTests, FindNextMove) {
 
   context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
-  FMSharedData sd(hg.initialNumNodes());
+  FMSharedData sd(hg.initialNumNodes(), false);
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  GainCacheStrategy gain_caching(context, sd, fm_stats);
-  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg, gain_cache);
+  BlockPriorityQueue blockPQ(k);
+  vec<VertexPriorityQueue> vertexPQs(k, VertexPriorityQueue(sd.vertexPQHandles.data(), sd.numberOfNodes));
+
+  vec<Gain> gains_cached = this->insertAndExtractAllMoves(phg, context, gain_cache, sd, blockPQ, vertexPQs, fm_stats);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
 }
 

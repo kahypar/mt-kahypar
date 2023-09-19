@@ -83,7 +83,7 @@ class UncoarsenerBase {
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
-  std::unique_ptr<IRefiner> _rebalancer;
+  std::unique_ptr<IRebalancer> _rebalancer;
 
  protected:
 
@@ -119,17 +119,18 @@ class UncoarsenerBase {
 
   void initializeRefinementAlgorithms() {
     _gain_cache = GainCachePtr::constructGainCache(_context);
+    // refinement algorithms require access to the rebalancer
+    _rebalancer = RebalancerFactory::getInstance().createObject(
+      _context.refinement.rebalancer, _hg.initialNumNodes(), _context, _gain_cache);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
     _flows = FlowSchedulerFactory::getInstance().createObject(
       _context.refinement.flows.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
-    _rebalancer = RebalancerFactory::getInstance().createObject(
-      _context.refinement.rebalancer, _context);
   }
 };
 }

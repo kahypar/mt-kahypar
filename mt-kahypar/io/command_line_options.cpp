@@ -373,6 +373,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
                      "<bool>")->default_value(true),
              "If true, then zero gain moves are only performed if they improve the balance of the solution (only in label propagation)")
+            ((initial_partitioning ? "i-r-lp-unconstrained" : "r-lp-unconstrained"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.unconstrained :
+                              &context.initial_partitioning.refinement.label_propagation.unconstrained))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, then unconstrained label propagation (including rebalancing) is used.")
             ((initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold
@@ -380,6 +385,11 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name(
                      "<size_t>")->default_value(100),
              "LP refiner activates only neighbors of moved vertices that are part of hyperedges with a size less than this threshold")
+            ((initial_partitioning ? "i-r-lp-relative-improvement-threshold" : "r-lp-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.label_propagation.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(-1.0),
+             "Relative improvement threshold for label propagation.")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
@@ -391,6 +401,7 @@ namespace mt_kahypar {
                      })->default_value("kway_fm"),
              "FM Algorithm:\n"
              "- kway_fm\n"
+             "- unconstrained_fm\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
@@ -434,6 +445,42 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
                               &context.refinement.fm.release_nodes))->value_name("<bool>")->default_value(true),
              "FM releases nodes that weren't moved, so they might be found by another search.")
+            ((initial_partitioning ? "i-r-fm-threshold-border-node-inclusion" : "r-fm-threshold-border-node-inclusion"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
+                              &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
+             "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound" : "r-fm-unconstrained-upper-bound"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound :
+                              &context.refinement.fm.unconstrained_upper_bound))->value_name("<double>")->default_value(0.0),
+             "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
+            ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
+                              &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(8),
+             "Unconstrained FM: Number of rounds that are unconstrained.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-min" : "r-fm-imbalance-penalty-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_min :
+                              &context.refinement.fm.imbalance_penalty_min))->value_name("<double>")->default_value(0.2),
+             "Unconstrained FM: Minimum (starting) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-max" : "r-fm-imbalance-penalty-max"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_max :
+                              &context.refinement.fm.imbalance_penalty_max))->value_name("<double>")->default_value(1.0),
+             "Unconstrained FM: Maximum (final) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound-min" : "r-fm-unconstrained-upper-bound-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
+                              &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
+             "Unconstrained FM: Minimum (final) upper bound (default = 0 = equal to start).")
+            ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
+                              &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
+             "Decide dynamically (based on first two rounds) whether to use unconstrained FM.")
+            ((initial_partitioning ? "i-r-fm-penalty-for-activation-test" : "r-fm-penalty-for-activation-test"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_activation_test :
+                              &context.refinement.fm.penalty_for_activation_test))->value_name("<double>")->default_value(0.5),
+             "If unconstrained FM is activated dynamically, determines the penalty factor used for the test round.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-min-improvement" : "r-fm-unconstrained-min-improvement"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_min_improvement :
+                              &context.refinement.fm.unconstrained_min_improvement))->value_name("<double>")->default_value(-1.0),
+             "Switch to constrained FM if relative improvement of unconstrained FM is below this treshold.")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
@@ -476,6 +523,7 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"
              "- simple_rebalancer\n"
+             "- advanced_rebalancer\n"
              "- do_nothing");
     return options;
   }

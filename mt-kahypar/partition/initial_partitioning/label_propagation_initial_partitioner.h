@@ -42,8 +42,8 @@ template<typename TypeTraits>
 class LabelPropagationInitialPartitioner : public IInitialPartitioner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
-  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
+  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
+  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

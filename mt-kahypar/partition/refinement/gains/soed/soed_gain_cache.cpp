@@ -120,7 +120,7 @@ void SoedGainCache::initializeGainCache(const PartitionedHypergraph& partitioned
   _is_initialized = true;
 }
 
-bool SoedGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+bool SoedGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
   return sync_update.pin_count_in_from_part_after == 0 ||
          sync_update.pin_count_in_from_part_after == 1 ||
          sync_update.pin_count_in_to_part_after == 1 ||
@@ -133,7 +133,7 @@ bool SoedGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_up
 
 template<typename PartitionedHypergraph>
 void SoedGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                    const SyncronizedEdgeUpdate& sync_update) {
+                                    const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   const HypernodeID edge_size = sync_update.edge_size;
   if ( edge_size > 1 ) {
@@ -371,7 +371,7 @@ void SoedGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph&
 namespace {
 #define SOED_INITIALIZE_GAIN_CACHE(X) void SoedGainCache::initializeGainCache(const X&)
 #define SOED_DELTA_GAIN_UPDATE(X) void SoedGainCache::deltaGainUpdate(const X&,                     \
-                                                                      const SyncronizedEdgeUpdate&)
+                                                                      const SynchronizedEdgeUpdate&)
 #define SOED_RESTORE_UPDATE(X) void SoedGainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                                 const HypernodeID, \
                                                                                 const HypernodeID, \

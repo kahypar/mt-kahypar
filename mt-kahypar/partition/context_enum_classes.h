@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstdint>
 
 #include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
@@ -154,6 +155,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
 
 enum class FMAlgorithm : uint8_t {
   kway_fm,
+  unconstrained_fm,
   do_nothing
 };
 
@@ -165,6 +167,7 @@ enum class FlowAlgorithm : uint8_t {
 
 enum class RebalancingAlgorithm : uint8_t {
   simple_rebalancer,
+  advanced_rebalancer,
   do_nothing
 };
 

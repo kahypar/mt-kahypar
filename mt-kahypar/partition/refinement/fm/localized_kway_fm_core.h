@@ -34,22 +34,25 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 
 namespace mt_kahypar {
 
 
 template<typename TypeTraits, typename GainTypes>
 class LocalizedKWayFM {
+public:
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
+ private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
   static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
 
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
   using DeltaGainCache = typename GainTypes::DeltaGainCache;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
   using AttributedGains = typename GainTypes::AttributedGains;
+  using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+  using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
 public:
   explicit LocalizedKWayFM(const Context& context,
@@ -60,16 +63,23 @@ public:
     thisSearch(0),
     deltaPhg(context),
     neighborDeduplicator(numNodes, 0),
-    fm_strategy(context, sharedData, runStats),
     gain_cache(gainCache),
     delta_gain_cache(gainCache),
-    sharedData(sharedData) {
+    sharedData(sharedData),
+    blockPQ(static_cast<size_t>(context.partition.k)),
+    vertexPQs(static_cast<size_t>(context.partition.k),
+      VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) {
     const bool top_level = context.type == ContextType::main;
     delta_gain_cache.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
   }
 
+  template<typename DispatchedFMStrategy>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE DispatchedFMStrategy initializeDispatchedStrategy() {
+    return DispatchedFMStrategy(context, sharedData, blockPQ, vertexPQs, runStats);
+  }
 
-  bool findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds);
+  template<typename DispatchedFMStrategy>
+  bool findMoves(DispatchedFMStrategy& fm_strategy, PartitionedHypergraph& phg, size_t taskID, size_t numSeeds);
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
 
@@ -78,30 +88,24 @@ public:
   FMStats stats;
 
 private:
+  template<bool use_delta, bool has_fixed_vertices, typename DispatchedFMStrategy>
+  void internalFindMoves(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy);
 
-  // ! Performs localized FM local search on the delta partitioned hypergraph.
-  // ! Moves made by this search are not immediately visible to other concurrent local searches.
-  // ! The best prefix of moves is applied to the global partitioned hypergraph after the search finishes.
-  //void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData);
-
-
-  template<bool use_delta, bool has_fixed_vertices>
-  void internalFindMoves(PartitionedHypergraph& phg);
-
-  template<bool has_fixed_vertices, typename PHG, typename CACHE>
+  template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move);
+  void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move, DispatchedFMStrategy& fm_strategy);
 
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
-  std::pair<Gain, size_t> applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
-                                                                const size_t best_index_locally_observed,
-                                                                const Gain best_improvement_locally_observed,
-                                                                const bool apply_delta_improvement);
+  template<typename DispatchedFMStrategy>
+  void applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
+                                             DispatchedFMStrategy& fm_strategy,
+                                             const size_t best_index_locally_observed);
 
   // ! Rollback to the best improvement found during local search in case we applied moves
   // ! directly on the global partitioned hypergraph.
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+  template<typename DispatchedFMStrategy>
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy, size_t bestGainIndex);
 
  private:
 
@@ -127,13 +131,20 @@ private:
 
   FMStats runStats;
 
-  GainCacheStrategy fm_strategy;
-
   GainCache& gain_cache;
 
   DeltaGainCache delta_gain_cache;
 
   FMSharedData& sharedData;
+
+  // ! Priority Queue that contains for each block of the partition
+  // ! the vertex with the best gain value
+  BlockPriorityQueue blockPQ;
+
+  // ! From PQs -> For each block it contains the vertices (contained
+  // ! in that block) touched by the current local search associated
+  // ! with their gain values
+  vec<VertexPriorityQueue> vertexPQs;
 };
 
 }

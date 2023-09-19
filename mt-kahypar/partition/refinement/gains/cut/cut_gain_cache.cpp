@@ -118,7 +118,7 @@ void CutGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
-bool CutGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+bool CutGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update) {
   return sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1 ||
          sync_update.pin_count_in_from_part_after == sync_update.edge_size - 2 ||
          sync_update.pin_count_in_to_part_after == sync_update.edge_size ||
@@ -128,7 +128,7 @@ bool CutGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_upd
 
 template<typename PartitionedHypergraph>
 void CutGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                   const SyncronizedEdgeUpdate& sync_update) {
+                                   const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   const HypernodeID edge_size = sync_update.edge_size;
   if ( edge_size > 1 ) {
@@ -282,7 +282,7 @@ void CutGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& 
 namespace {
 #define CUT_INITIALIZE_GAIN_CACHE(X) void CutGainCache::initializeGainCache(const X&)
 #define CUT_DELTA_GAIN_UPDATE(X) void CutGainCache::deltaGainUpdate(const X&,                     \
-                                                                    const SyncronizedEdgeUpdate&)
+                                                                    const SynchronizedEdgeUpdate&)
 #define CUT_RESTORE_UPDATE(X) void CutGainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                               const HypernodeID, \
                                                                               const HypernodeID, \

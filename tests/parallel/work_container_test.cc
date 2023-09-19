@@ -91,7 +91,7 @@ TEST(WorkContainer, WorkStealingWorks) {
       cdc.safe_push(i, thread_id);
     }
 
-    stage.fetch_add(1, std::memory_order_acq_rel);
+    stage.fetch_add(1, std::memory_order_acquire);
 
     int own_element;
     while (cdc.try_pop(own_element, thread_id)) {
@@ -101,7 +101,7 @@ TEST(WorkContainer, WorkStealingWorks) {
 
   std::thread consumer([&] {
     int thread_id = 1;
-    while (stage.load(std::memory_order_acq_rel) < 1) { } //spin
+    while (stage.load(std::memory_order_acquire) < 1) { } //spin
 
     int stolen_element;
     while (cdc.try_pop(stolen_element, thread_id)) {

@@ -59,13 +59,13 @@ void GraphCutGainCache::initializeGainCache(const PartitionedGraph& partitioned_
   _is_initialized = true;
 }
 
-bool GraphCutGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& /* only relevant for hypergraphs */) {
+bool GraphCutGainCache::triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& /* only relevant for hypergraphs */) {
   return true;
 }
 
 template<typename PartitionedGraph>
 void GraphCutGainCache::deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                                        const SyncronizedEdgeUpdate& sync_update) {
+                                        const SynchronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   const HypernodeID target = partitioned_graph.edgeTarget(sync_update.he);
   const size_t index_in_from_part = incident_weight_index(target, sync_update.from);
@@ -108,7 +108,7 @@ void GraphCutGainCache::uncontractUpdateAfterReplacement(const PartitionedGraph&
 namespace {
 #define GRAPH_CUT_INITIALIZE_GAIN_CACHE(X) void GraphCutGainCache::initializeGainCache(const X&)
 #define GRAPH_CUT_DELTA_GAIN_UPDATE(X) void GraphCutGainCache::deltaGainUpdate(const X&,                     \
-                                                                               const SyncronizedEdgeUpdate&)
+                                                                               const SynchronizedEdgeUpdate&)
 #define GRAPH_CUT_RESTORE_UPDATE(X) void GraphCutGainCache::uncontractUpdateAfterRestore(const X&,   \
                                                                               const HypernodeID,     \
                                                                               const HypernodeID,     \

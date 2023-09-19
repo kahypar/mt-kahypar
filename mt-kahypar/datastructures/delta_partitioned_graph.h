@@ -190,7 +190,7 @@ class DeltaPartitionedGraph {
       _part_weights_delta[to] += weight;
       _part_weights_delta[from] -= weight;
 
-      SyncronizedEdgeUpdate sync_update;
+      SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
       sync_update.target_graph = _pg->targetGraph();

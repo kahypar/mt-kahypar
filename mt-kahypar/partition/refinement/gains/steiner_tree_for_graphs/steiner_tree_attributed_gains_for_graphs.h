@@ -37,7 +37,7 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct GraphSteinerTreeAttributedGains {
-  static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
     ASSERT(sync_update.block_of_other_node != kInvalidPartition);
     ASSERT(sync_update.target_graph);
     const TargetGraph& target_graph = *sync_update.target_graph;

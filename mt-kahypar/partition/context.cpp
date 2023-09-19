@@ -538,26 +538,33 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
     refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    refinement.label_propagation.unconstrained = true;
     refinement.label_propagation.maximum_iterations = 5;
-    refinement.label_propagation.rebalancing = true;
+    refinement.label_propagation.rebalancing = false;
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+    refinement.label_propagation.relative_improvement_threshold = 0.001;
 
     // refinement -> fm
-    refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
     refinement.fm.multitry_rounds = 10;
+    refinement.fm.unconstrained_rounds = 8;
     refinement.fm.perform_moves_global = false;
     refinement.fm.rollback_parallel = true;
-    refinement.fm.rollback_balance_violation_factor = 1.25;
+    refinement.fm.rollback_balance_violation_factor = 1.0;
+    refinement.fm.treshold_border_node_inclusion = 0.7;
+    refinement.fm.imbalance_penalty_min = 0.2;
+    refinement.fm.imbalance_penalty_max = 1.0;
     refinement.fm.num_seed_nodes = 25;
     refinement.fm.obey_minimal_parallelism = true;
     refinement.fm.release_nodes = true;
     refinement.fm.time_limit_factor = 0.25;
     refinement.fm.min_improvement = -1;
+    refinement.fm.unconstrained_min_improvement = 0.002;
     refinement.fm.iter_moves_on_recalc = true;
 
     // refinement -> flows
@@ -573,6 +580,9 @@ namespace mt_kahypar {
     // refinement
     refinement.refine_until_no_improvement = true;
     refinement.relative_improvement_threshold = 0.0025;
+
+    // refinement -> label propagation
+    refinement.label_propagation.rebalancing = true;
 
     // refinement -> flows;
     refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
@@ -660,7 +670,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
@@ -762,7 +772,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.global_fm.use_global_fm = false;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
     refinement.refine_until_no_improvement = true;
     refinement.max_batch_size = 1000;
     refinement.min_border_vertices_per_thread = 50;
@@ -891,7 +901,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation

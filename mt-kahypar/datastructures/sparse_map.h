@@ -124,6 +124,14 @@ class SparseMapBase {
     return _dense[_sparse[key]].value;
   }
 
+  Value getOrDefault(const Key key) const {
+    const size_t index = _sparse[key];
+    if (!contains(key)) {
+      return Value();
+    }
+    return _dense[index].value;
+  }
+
   void freeInternalData() {
     _size = 0;
     _data = nullptr;

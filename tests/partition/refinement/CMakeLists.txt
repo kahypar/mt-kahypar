@@ -8,6 +8,7 @@ target_sources(mt_kahypar_tests PRIVATE
          label_propagation_refiner_test.cc
          rollback_test.cc
          rebalance_test.cc
+         advanced_rebalancer_test.cc
          twoway_fm_refiner_test.cc
          gain_test.cc
          gain_cache_test.cc

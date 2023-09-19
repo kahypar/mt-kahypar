@@ -36,7 +36,7 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct GraphCutAttributedGains {
-  static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
     return (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
       (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
   }
