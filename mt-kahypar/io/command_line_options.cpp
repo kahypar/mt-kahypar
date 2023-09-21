@@ -448,13 +448,13 @@ namespace mt_kahypar {
              po::value<double>(
                      (!initial_partitioning ? &context.refinement.jet.negative_gain_factor_coarse :
                       &context.initial_partitioning.refinement.jet.negative_gain_factor_coarse))->value_name(
-                     "<double>")->default_value(0.25),
+                     "<double>")->default_value(0.75),
              "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
             ((initial_partitioning ? "i-r-jet-negative-gain-factor-fine" : "r-jet-negative-gain-factor-fine"),
              po::value<double>(
                      (!initial_partitioning ? &context.refinement.jet.negative_gain_factor_fine :
                       &context.initial_partitioning.refinement.jet.negative_gain_factor_fine))->value_name(
-                     "<double>")->default_value(0.75),
+                     "<double>")->default_value(0.25),
              "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
             ((initial_partitioning ? "i-r-jet-he-size-activation-threshold" : "r-jet-he-size-activation-threshold"),
              po::value<size_t>(

@@ -148,8 +148,8 @@ struct JetParameters {
   bool rollback_after_each_iteration = false;
   bool exactly_as_in_jet_paper = false;
   double vertex_locking = 1.0;
-  double negative_gain_factor_coarse = 0.25;
-  double negative_gain_factor_fine = 0.75;
+  double negative_gain_factor_coarse = 0.75;
+  double negative_gain_factor_fine = 0.25;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
 };
 

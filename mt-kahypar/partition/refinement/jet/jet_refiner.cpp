@@ -450,8 +450,8 @@ namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes>
   template <bool precomputed, typename F>
   void JetRefiner<TypeTraits, GainTypes>::processNode(const PartitionedHypergraph& hypergraph,
-                                                                   const HypernodeID hn, F add_node_fn,
-                                                                   const bool top_level) {
+                                                      const HypernodeID hn, F add_node_fn,
+                                                      const bool top_level) {
     const double gain_factor = top_level ? _context.refinement.jet.negative_gain_factor_fine :
                                            _context.refinement.jet.negative_gain_factor_coarse;
     if constexpr (precomputed) {
@@ -465,6 +465,8 @@ namespace mt_kahypar {
       if (accept_node) {
         add_node_fn();
         _gains_and_target[hn] = {best_move.gain, best_move.to};
+      } else {
+        _gains_and_target[hn] = {0, hypergraph.partID(hn)};
       }
     } else {
       unused(hn);
