@@ -459,9 +459,10 @@ namespace mt_kahypar {
       Gain isolated_block_gain = 0;
       _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
       Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
-                                                          hn, false, false, true);
+                                                          hn, true, false, true);
       tmp_scores.clear();
-      bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain);
+      bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain)
+                         && best_move.to != hypergraph.partID(hn);
       if (accept_node) {
         add_node_fn();
         _gains_and_target[hn] = {best_move.gain, best_move.to};
