@@ -230,41 +230,7 @@ class MultilevelCoarsener : public ICoarsener,
     _timer.stop_timer("clustering");
 
     if constexpr ( has_fixed_vertices ) {
-      // Verify fixed vertices
-      ASSERT([&] {
-        vec<PartitionID> fixed_vertex_blocks(current_hg.initialNumNodes(), kInvalidPartition);
-        for ( const HypernodeID& hn : current_hg.nodes() ) {
-          if ( current_hg.isFixed(hn) ) {
-            if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition &&
-                 fixed_vertex_blocks[cluster_ids[hn]] != current_hg.fixedVertexBlock(hn)) {
-              LOG << "There are two nodes assigned to same cluster that belong to different fixed vertex blocks";
-              return false;
-            }
-            fixed_vertex_blocks[cluster_ids[hn]] = current_hg.fixedVertexBlock(hn);
-          }
-        }
-
-        vec<HypernodeWeight> expected_block_weights(_context.partition.k, 0);
-        for ( const HypernodeID& hn : current_hg.nodes() ) {
-          if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
-            if ( !fixed_vertices.isFixed(cluster_ids[hn]) ) {
-              LOG << "Cluster" << cluster_ids[hn] << "should be fixed to block"
-                  << fixed_vertex_blocks[cluster_ids[hn]];
-              return false;
-            }
-            expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += current_hg.nodeWeight(hn);
-          }
-        }
-
-        for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-          if ( fixed_vertices.fixedVertexBlockWeight(block) != expected_block_weights[block] ) {
-            LOG << "Fixed vertex block" << block << "should have weight" << expected_block_weights[block]
-                << ", but it is" << fixed_vertices.fixedVertexBlockWeight(block);
-            return false;
-          }
-        }
-        return true;
-      }(), "Fixed vertex support is corrupted");
+      ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
     }
 
     return num_hns_before_pass - contracted_nodes.combine(std::plus<>());
