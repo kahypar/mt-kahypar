@@ -35,8 +35,8 @@
 #include "include/libmtkahypartypes.h"
 
 #include "kahypar-resources/meta/mandatory.h"
-#include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
-#include "mt-kahypar/partition/coarsening/nlevel_vertex_pair_rater.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
