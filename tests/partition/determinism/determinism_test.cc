@@ -31,7 +31,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
