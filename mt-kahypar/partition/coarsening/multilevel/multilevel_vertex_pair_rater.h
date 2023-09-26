@@ -43,9 +43,6 @@
 
 
 namespace mt_kahypar {
-template <typename ScorePolicy = Mandatory,
-          typename HeavyNodePenaltyPolicy = Mandatory,
-          typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using LargeTmpRatingMap = ds::SparseMap<HypernodeID, RatingType>;
   using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
@@ -114,7 +111,8 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
-  template<bool has_fixed_vertices, typename Hypergraph>
+  template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
+           bool has_fixed_vertices, typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -124,15 +122,18 @@ class MultilevelVertexPairRater {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
-      return rate<has_fixed_vertices>(hypergraph, u, _local_cache_efficient_rating_map.local(),
+      return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
+        hypergraph, u, _local_cache_efficient_rating_map.local(),
         cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
-      return rate<has_fixed_vertices>(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(),
+      return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
+        hypergraph, u, _local_vertex_degree_bounded_rating_map.local(),
         cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
-      return rate<has_fixed_vertices>(hypergraph, u, large_tmp_rating_map,
+      return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
+        hypergraph, u, large_tmp_rating_map,
         cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, false);
     }
   }
@@ -154,7 +155,8 @@ class MultilevelVertexPairRater {
   }
 
  private:
-  template<bool has_fixed_vertices, typename Hypergraph, typename RatingMap>
+  template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
+           bool has_fixed_vertices, typename Hypergraph, typename RatingMap>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -165,9 +167,9 @@ class MultilevelVertexPairRater {
                         const bool use_vertex_degree_sampling) {
 
     if ( use_vertex_degree_sampling ) {
-      fillRatingMapWithSampling(hypergraph, u, tmp_ratings, cluster_ids);
+      fillRatingMapWithSampling<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids);
     } else {
-      fillRatingMap(hypergraph, u, tmp_ratings, cluster_ids);
+      fillRatingMap<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids);
     }
 
     int cpu_id = THREAD_ID;
@@ -216,7 +218,7 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
-  template<typename Hypergraph, typename RatingMap>
+  template<typename ScorePolicy, typename Hypergraph, typename RatingMap>
   void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
@@ -253,7 +255,7 @@ class MultilevelVertexPairRater {
     }
   }
 
-  template<typename Hypergraph, typename RatingMap>
+  template<typename ScorePolicy, typename Hypergraph, typename RatingMap>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
