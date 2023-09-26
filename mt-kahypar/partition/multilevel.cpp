@@ -45,8 +45,8 @@
 #endif
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
-#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
