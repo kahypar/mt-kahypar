@@ -31,10 +31,10 @@
 
 #include "mt-kahypar/definitions.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_coarsener.h"
 #endif
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"

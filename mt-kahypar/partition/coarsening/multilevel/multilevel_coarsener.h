@@ -38,8 +38,8 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
-#include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
