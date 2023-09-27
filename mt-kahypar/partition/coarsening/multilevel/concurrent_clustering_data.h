@@ -106,7 +106,6 @@ class ConcurrentClusteringData {
                      const HypernodeID u,
                      const HypernodeID v,
                      parallel::scalable_vector<HypernodeID>& cluster_ids,
-                     HypernodeID& contracted_nodes,
                      MultilevelVertexPairRater& rater,
                      ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 
@@ -120,7 +119,6 @@ class ConcurrentClusteringData {
                    const HypernodeID u,
                    const HypernodeID rep,
                    vec<HypernodeID>& cluster_ids,
-                   HypernodeID& contracted_nodes,
                    ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 
   const Context& _context;

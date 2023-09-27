@@ -53,7 +53,6 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
                                              const HypernodeID u,
                                              const HypernodeID v,
                                              parallel::scalable_vector<HypernodeID>& cluster_ids,
-                                             HypernodeID& contracted_nodes,
                                              MultilevelVertexPairRater& rater,
                                              ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   ASSERT(u < hypergraph.initialNumNodes());
@@ -78,13 +77,11 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
         // In that case, it is safe to set the cluster id of u to the cluster id of v.
         const HypernodeID rep = cluster_ids[v];
         ASSERT(_matching_state[rep] == STATE(MatchingState::MATCHED));
-        success = joinCluster<has_fixed_vertices>(hypergraph,
-          u, rep, cluster_ids, contracted_nodes, fixed_vertices);
+        success = joinCluster<has_fixed_vertices>(hypergraph, u, rep, cluster_ids, fixed_vertices);
       } else if ( _matching_state[v].compare_exchange_strong(unmatched, match_in_progress) ) {
         // Current thread has the "ownership" for u and v and can change the cluster id
         // of both vertices thread-safe.
-        success = joinCluster<has_fixed_vertices>(hypergraph,
-          u, v, cluster_ids, contracted_nodes, fixed_vertices);
+        success = joinCluster<has_fixed_vertices>(hypergraph, u, v, cluster_ids, fixed_vertices);
         _matching_state[v] = STATE(MatchingState::MATCHED);
       } else {
         // State of v must be either MATCHING_IN_PROGRESS or an other thread changed the state
@@ -106,8 +103,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
           // Vertex with smallest id starts to resolve conflict
           const bool is_in_cyclic_dependency = _matching_partner[cur_u] == u;
           if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
-            success = joinCluster<has_fixed_vertices>(hypergraph,
-              u, v, cluster_ids, contracted_nodes, fixed_vertices);
+            success = joinCluster<has_fixed_vertices>(hypergraph, u, v, cluster_ids, fixed_vertices);
             _matching_state[v] = STATE(MatchingState::MATCHED);
           }
         }
@@ -118,8 +114,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
         if ( _matching_state[u] == STATE(MatchingState::MATCHING_IN_PROGRESS) ) {
           ASSERT( _matching_state[v] == STATE(MatchingState::MATCHED) );
           const HypernodeID rep = cluster_ids[v];
-          success = joinCluster<has_fixed_vertices>(hypergraph,
-            u, rep, cluster_ids, contracted_nodes, fixed_vertices);
+          success = joinCluster<has_fixed_vertices>(hypergraph, u, rep, cluster_ids, fixed_vertices);
         }
       }
       rater.markAsMatched(u);
@@ -166,7 +161,6 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
                                            const HypernodeID u,
                                            const HypernodeID rep,
                                            vec<HypernodeID>& cluster_ids,
-                                           HypernodeID& contracted_nodes,
                                            ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   ASSERT(rep == cluster_ids[rep]);
   bool success = false;
@@ -182,7 +176,6 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
   if ( cluster_join_operation_allowed ) {
     cluster_ids[u] = rep;
     _cluster_weight[rep] += weight_of_u;
-    ++contracted_nodes;
     success = true;
   }
   _matching_partner[u] = u;
@@ -196,13 +189,11 @@ namespace {
 
   #define MATCH_VERTICES(X) bool ConcurrentClusteringData::matchVertices<false>(const X& hypergraph, const HypernodeID u, \
                                    const HypernodeID v, parallel::scalable_vector<HypernodeID>& cluster_ids,              \
-                                   HypernodeID& contracted_nodes, MultilevelVertexPairRater& rater,                       \
-                                   ds::FixedVertexSupport<X>& fixed_vertices)
+                                   MultilevelVertexPairRater& rater, ds::FixedVertexSupport<X>& fixed_vertices)
   #define MATCH_VERTICES_FIXED(X) bool ConcurrentClusteringData::matchVertices<true>(const X& hypergraph,              \
                                          const HypernodeID u, const HypernodeID v,                                     \
                                          parallel::scalable_vector<HypernodeID>& cluster_ids,                          \
-                                         HypernodeID& contracted_nodes, MultilevelVertexPairRater& rater,              \
-                                         ds::FixedVertexSupport<X>& fixed_vertices)
+                                         MultilevelVertexPairRater& rater, ds::FixedVertexSupport<X>& fixed_vertices)
 
   #define VERIFY_CLUSTERING(X) bool ConcurrentClusteringData::verifyClustering(const X& current_hg,           \
                                         const parallel::scalable_vector<HypernodeID>& cluster_ids) const

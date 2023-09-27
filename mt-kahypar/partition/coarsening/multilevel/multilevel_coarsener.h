@@ -192,8 +192,11 @@ class MultilevelCoarsener : public ICoarsener,
           if (rating.target != kInvalidHypernode) {
             const HypernodeID v = rating.target;
             HypernodeID& local_contracted_nodes = contracted_nodes.local();
-            _clustering_data.template matchVertices<has_fixed_vertices>(current_hg,
-              u, v, cluster_ids, local_contracted_nodes, _rater, fixed_vertices);
+            bool success = _clustering_data.template matchVertices<has_fixed_vertices>(
+              current_hg, u, v, cluster_ids, _rater, fixed_vertices);
+            if (success) {
+              ++local_contracted_nodes;
+            }
 
             // To maintain the current number of nodes of the hypergraph each PE sums up
             // its number of contracted nodes locally. To compute the current number of
