@@ -55,8 +55,8 @@ public:
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
-      cumulative_node_weights(num_hypernodes),
       compute_gains(context),
+      cumulative_node_weights(num_hypernodes),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
       prng(context.partition.seed),
@@ -130,8 +130,8 @@ private:
 
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
-  ds::BufferedVector<Move> moves;
   vec<HypernodeWeight> cumulative_node_weights;
+  ds::BufferedVector<Move> moves;
   vec<Move> sorted_moves;
 
   std::mt19937 prng;
