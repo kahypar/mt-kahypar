@@ -10,6 +10,9 @@ set(PROJECT_VERSION "1.0.0")
 
 # CMake Options
 
+option(BUILD_SHARED_LIBS
+  "Build shared libraries." ON)
+
 option(KAHYPAR_DOWNLOAD_BOOST
   "Download boost automatically and compile required libraries." OFF)
 

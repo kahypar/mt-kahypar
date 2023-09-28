@@ -194,6 +194,12 @@ We provide a simple C-style interface to use Mt-KaHyPar as a library.  The libra
 make install.mtkahypar # use sudo (Linux) or run shell as an adminstrator (Windows) to install system-wide
 ```
 
+The library can optionally be built statically by setting `BUILD_SHARED_LIBS` to `OFF` while configuring:
+
+```sh
+cmake -DBUILD_SHARED_LIBS=OFF ...
+```
+
 Note: When installing locally, the build will exit with an error due to missing permissions.
 However, the library is still built successfully and is available in the build folder.
 
