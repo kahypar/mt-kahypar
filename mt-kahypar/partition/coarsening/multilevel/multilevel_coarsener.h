@@ -40,6 +40,7 @@
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/multilevel/num_nodes_tracker.h"
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_algorithms/single_round_lp.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
@@ -62,6 +63,7 @@ class MultilevelCoarsener : public ICoarsener,
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Rating = MultilevelVertexPairRater::Rating;
+  using ClusteringAlgorithm = SingleRoundLP<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
@@ -76,6 +78,7 @@ class MultilevelCoarsener : public ICoarsener,
     Base(utils::cast<Hypergraph>(hypergraph),
          context,
          uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+    _clustering_algo(context),
     _rater(utils::cast<Hypergraph>(hypergraph).initialNumNodes(),
            utils::cast<Hypergraph>(hypergraph).maxEdgeSize(), context),
     _clustering_data(_hg.initialNumNodes(), context),
@@ -142,8 +145,7 @@ class MultilevelCoarsener : public ICoarsener,
                             "Parallel clustering computed invalid cluster ids and weights");
 
     const double reduction_vertices_percentage =
-      static_cast<double>(num_hns_before_pass) /
-      static_cast<double>(current_num_nodes);
+      static_cast<double>(num_hns_before_pass) / static_cast<double>(current_num_nodes);
     if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
       return false;
     }
@@ -160,10 +162,6 @@ class MultilevelCoarsener : public ICoarsener,
 
   template<bool has_fixed_vertices>
   HypernodeID performClustering(const Hypergraph& current_hg, vec<HypernodeID>& cluster_ids) {
-    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
-    // Matched vertices are linked in a concurrent union find data structure, that also aggregates
-    // weights of the resulting clusters and keep track of the number of nodes left, if we would
-    // contract all matched vertices.
     _timer.start_timer("clustering", "Clustering");
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
@@ -176,28 +174,10 @@ class MultilevelCoarsener : public ICoarsener,
     ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
     fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
-    tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
-      ASSERT(id < _current_vertices.size());
-      const HypernodeID hn = _current_vertices[id];
-      // We perform rating if ...
-      //  1.) The contraction limit of the current level is not reached
-      //  2.) Vertex hn is not matched before
-      if (current_hg.nodeIsEnabled(hn)
-          && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
-          && _clustering_data.vertexIsUnmatched(hn)) {
-        const Rating rating = _rater.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                                     current_hg, hn, cluster_ids, _clustering_data.clusterWeight(),
-                                     fixed_vertices, _context.coarsening.max_allowed_node_weight);
-        if (rating.target != kInvalidHypernode) {
-          bool success = _clustering_data.template matchVertices<has_fixed_vertices>(
-            current_hg, hn, rating.target, cluster_ids, _rater, fixed_vertices);
-          if (success) {
-            // update the number of nodes in a way that minimizes synchronization overhead
-            num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
-          }
-        }
-      }
-    });
+
+    _clustering_algo.template performClustering<has_fixed_vertices>(
+                     current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
+                     _rater, _clustering_data, num_nodes_tracker, fixed_vertices);
 
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
@@ -206,7 +186,6 @@ class MultilevelCoarsener : public ICoarsener,
     if constexpr ( has_fixed_vertices ) {
       ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
     }
-
     return num_nodes_tracker.finalNumNodes();
   }
 
@@ -242,6 +221,7 @@ class MultilevelCoarsener : public ICoarsener,
   using Base::_context;
   using Base::_timer;
   using Base::_uncoarseningData;
+  ClusteringAlgorithm _clustering_algo;
   MultilevelVertexPairRater _rater;
   ConcurrentClusteringData _clustering_data;
   HypernodeID _initial_num_nodes;
