@@ -121,6 +121,9 @@
 
 // In windows unisgned long != size_t
 #define UL(X) (size_t) X
+#ifdef STR
+#undef STR
+#endif
 #define STR(X) std::to_string(X)
 #define STREAM2STR(X) static_cast<std::stringstream>(X).str();
 
@@ -133,6 +136,9 @@
 #define BOLD "\033[1m"
 #define END "\033[0m"
 #define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
+#ifdef WARNING
+#undef WARNING
+#endif
 #define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
 #define ERR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
 
