@@ -48,7 +48,6 @@ void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
 }
 
 template<bool has_fixed_vertices, typename Hypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
                                              const HypernodeID u,
                                              const HypernodeID v,

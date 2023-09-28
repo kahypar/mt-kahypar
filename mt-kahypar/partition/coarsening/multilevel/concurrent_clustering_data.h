@@ -101,7 +101,7 @@ class ConcurrentClusteringData {
    * vertices are matched concurrently.
    */
   template<bool has_fixed_vertices, typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE --> not applicable
   bool matchVertices(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      const HypernodeID v,
