@@ -352,7 +352,7 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
-    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, size_t(4), size_t(256));
 
     if ( partition.objective == Objective::steiner_tree ) {
       if ( !target_graph ) {
