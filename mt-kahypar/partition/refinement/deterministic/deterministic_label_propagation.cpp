@@ -325,7 +325,7 @@ namespace mt_kahypar {
 
     // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
     vec<size_t> swap_prefix(max_key, 0);
-    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
+    tbb::parallel_for(size_t(0), relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
       auto sort_by_gain_and_prefix_sum_node_weights = [&](PartitionID p1, PartitionID p2) {
         size_t begin = positions[index(p1, p2)], end = positions[index(p1, p2) + 1];
@@ -405,9 +405,9 @@ namespace mt_kahypar {
   {
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
       assert(p1_ind == p1_invalid || p1_ind < p1_end);
-      assert(p1_ind >= p1_invalid || p1_invalid == (0UL - 1));
+      assert(p1_ind >= p1_invalid || p1_invalid == (size_t(0) - 1));
       assert(p2_ind == p2_invalid || p2_ind < p2_end);
-      assert(p2_ind >= p2_invalid || p2_invalid == (0UL - 1));
+      assert(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
       assert(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
       assert(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
       const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
@@ -596,7 +596,7 @@ namespace mt_kahypar {
 #endif
 
     // remove markers again
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_move_id; });
+    tbb::parallel_for(size_t(0), num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_move_id; });
 
     // calculate number of overloaded blocks
     size_t num_overloaded_blocks_before_pass = 0, num_overloaded_blocks = 0;

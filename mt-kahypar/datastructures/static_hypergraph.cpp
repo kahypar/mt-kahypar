@@ -375,7 +375,7 @@ namespace mt_kahypar::ds {
     // Compute number of hyperedges in coarse graph (those flagged as valid)
     parallel::TBBPrefixSum<size_t, Array> he_mapping(valid_hyperedges);
     tbb::parallel_invoke([&] {
-      tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, UI64(_num_hyperedges)), he_mapping);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(size_t(0), size_t(_num_hyperedges)), he_mapping);
     }, [&] {
       hypergraph._hypernodes.resize(num_hypernodes);
     });
@@ -395,7 +395,7 @@ namespace mt_kahypar::ds {
       // Compute start position of each hyperedge in incidence array
       parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
-        tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
+        tbb::parallel_for(size_t(0), size_t(_num_hyperedges), [&](const HyperedgeID& id) {
           if ( he_mapping.value(id) ) {
             he_sizes[id] = tmp_hyperedges[id].size();
           } else {
