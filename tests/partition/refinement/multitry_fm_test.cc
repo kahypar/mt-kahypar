@@ -188,7 +188,6 @@ TYPED_TEST(MultiTryFMTest, DoesNotWorsenSolutionQuality) {
 TYPED_TEST(MultiTryFMTest, AlsoWorksWithNonDefaultFeatures) {
   this->context.refinement.fm.obey_minimal_parallelism = true;
   this->context.refinement.fm.rollback_parallel = false;
-  this->context.refinement.fm.perform_moves_global = true;
   HyperedgeWeight objective_before = metrics::quality(this->partitioned_hypergraph, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());

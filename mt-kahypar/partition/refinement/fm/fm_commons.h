@@ -275,7 +275,6 @@ struct FMSharedData {
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
 
   bool release_nodes = true;
-  bool perform_moves_global = true;
 
   FMSharedData(size_t numNodes, size_t numThreads) :
     numberOfNodes(numNodes),

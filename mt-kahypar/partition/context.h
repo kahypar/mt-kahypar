@@ -152,7 +152,6 @@ struct FMParameters {
   double min_improvement = -1.0;
   double time_limit_factor = std::numeric_limits<double>::max();
 
-  bool perform_moves_global = false;
   bool rollback_parallel = true;
   bool iter_moves_on_recalc = false;
   bool shuffle = true;

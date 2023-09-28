@@ -92,7 +92,6 @@ namespace mt_kahypar {
     size_t consecutive_rounds_with_too_little_improvement = 0;
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
-    sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
@@ -200,7 +199,6 @@ namespace mt_kahypar {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
           sharedData.release_nodes = false;
-          sharedData.perform_moves_global = true;
           current_time_limit *= 2;
           enable_light_fm = true;
         } else {

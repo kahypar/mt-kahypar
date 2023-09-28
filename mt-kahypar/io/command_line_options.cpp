@@ -406,11 +406,6 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
                                 &context.refinement.fm.multitry_rounds))->value_name("<size_t>")->default_value(10),
              "Number of FM rounds within one level of the multilevel hierarchy.")
-            ((initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
-                              &context.refinement.fm.perform_moves_global))->value_name("<bool>")->default_value(false),
-             "If true, then all moves performed during FM are immediately visible to other searches.\n"
-             "Otherwise, only move sequences that yield an improvement are applied to the global view of the partition.")
             ((initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
                                 &context.refinement.fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
