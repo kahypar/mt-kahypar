@@ -91,8 +91,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       num_nodes -= approveVerticesInTooHeavyClusters(clusters);
     }
 
-    _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
-    ASSERT(currentNumberOfNodes() == num_nodes - hg.numRemovedHypernodes());
     nodes_in_too_heavy_clusters.clear();
   }
 
