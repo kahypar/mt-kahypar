@@ -117,7 +117,6 @@ class MultiTryKWayFM final : public IRefiner {
 
   void resizeDataStructuresForCurrentK();
 
-  bool is_initialized = false;
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;

@@ -84,8 +84,6 @@ namespace mt_kahypar {
               Metrics& metrics,
               const double time_limit) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-
-    if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
     resizeDataStructuresForCurrentK();
 
     Gain overall_improvement = 0;
@@ -217,10 +215,6 @@ namespace mt_kahypar {
         && context.type == ContextType::main
         && phg.initialNumNodes() == sharedData.moveTracker.moveOrder.size() /* top level */) {
       printMemoryConsumption();
-    }
-
-    if ( !context.isNLevelPartitioning() ) {
-      is_initialized = false;
     }
 
     metrics.quality -= overall_improvement;
@@ -427,7 +421,6 @@ namespace mt_kahypar {
     if (!gain_cache.isInitialized()) {
       gain_cache.initializeGainCache(phg);
     }
-    is_initialized = true;
   }
 
   template<typename TypeTraits, typename GainTypes>
