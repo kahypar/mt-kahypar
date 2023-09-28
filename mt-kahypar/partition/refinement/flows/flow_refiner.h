@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -35,15 +41,19 @@
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits, typename GainTypes>
 class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
-  explicit FlowRefiner(const Hypergraph& hg,
+  explicit FlowRefiner(const HyperedgeID num_hyperedges,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -54,9 +64,8 @@ class FlowRefiner final : public IFlowRefiner {
     _sequential_hfc(_flow_hg, context.partition.seed),
     _parallel_hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(hg, _flow_hg, _sequential_hfc, context),
-    _parallel_construction(hg, _flow_hg, _parallel_hfc, context)
-    {
+    _sequential_construction(num_hyperedges, _flow_hg, _sequential_hfc, context),
+    _parallel_construction(num_hyperedges, _flow_hg, _parallel_hfc, context) {
       _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _sequential_hfc.timer.active = false;
       _sequential_hfc.forceSequential(true);
@@ -78,7 +87,8 @@ class FlowRefiner final : public IFlowRefiner {
  protected:
 
  private:
-  void initializeImpl(const PartitionedHypergraph& phg) {
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph) override {
+    const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
     _phg = &phg;
     _time_limit = std::numeric_limits<double>::max();
     _block_0 = kInvalidPartition;
@@ -87,9 +97,9 @@ class FlowRefiner final : public IFlowRefiner {
     _whfc_to_node.clear();
   }
 
-  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
                           const Subhypergraph& sub_hg,
-                          const HighResClockTimepoint& start);
+                          const HighResClockTimepoint& start) override;
 
   bool runFlowCutter(const FlowProblem& flow_problem,
                      const HighResClockTimepoint& start,
@@ -98,18 +108,12 @@ class FlowRefiner final : public IFlowRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const {
+  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
     return 2;
   }
 
-  void setNumThreadsForSearchImpl(const size_t num_threads) {
+  void setNumThreadsForSearchImpl(const size_t num_threads) override {
     _num_available_threads = num_threads;
-  }
-
-  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
-                             const HyperedgeID he) {
-    return _context.partition.objective == kahypar::Objective::cut &&
-      phg.pinCountInPart(he, _block_0) + phg.pinCountInPart(he, _block_1) < phg.edgeSize(he);
   }
 
   const PartitionedHypergraph* _phg;
@@ -124,7 +128,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction _sequential_construction;
-  ParallelConstruction _parallel_construction;
+  SequentialConstruction<TypeTraits, GainTypes> _sequential_construction;
+  ParallelConstruction<TypeTraits, GainTypes> _parallel_construction;
 };
 }  // namespace mt_kahypar

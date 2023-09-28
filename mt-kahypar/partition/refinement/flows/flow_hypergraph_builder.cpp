@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
@@ -96,7 +102,7 @@ void FlowHypergraphBuilder::finalizeHyperedges() {
       _tmp_csr_buckets[i - 1]._global_start_pin_idx + _tmp_csr_buckets[i - 1]._num_pins;
   }
 
-  tbb::parallel_for(0UL, _tmp_csr_buckets.size(), [&](const size_t idx) {
+  tbb::parallel_for(UL(0), _tmp_csr_buckets.size(), [&](const size_t idx) {
     _tmp_csr_buckets[idx].copyDataToFlowHypergraph(hyperedges, pins);
   });
 
@@ -114,7 +120,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
   tbb::parallel_invoke([&] {
     // Determine maximum edge capacity
     maxHyperedgeCapacity = tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(0UL, hyperedges.size()), whfc::Flow(0),
+      tbb::blocked_range<size_t>(UL(0), hyperedges.size()), whfc::Flow(0),
       [&](const tbb::blocked_range<size_t>& range, whfc::Flow init) {
         whfc::Flow max_capacity = init;
         for (size_t i = range.begin(); i < range.end(); ++i) {
@@ -127,7 +133,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
   }, [&] {
     // Determine total node weight
     total_node_weight = tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(0UL, static_cast<size_t>(numNodes())), whfc::NodeWeight(0),
+      tbb::blocked_range<size_t>(UL(0), static_cast<size_t>(numNodes())), whfc::NodeWeight(0),
       [&](const tbb::blocked_range<size_t>& range, whfc::NodeWeight init) {
         whfc::NodeWeight weight = init;
         for (size_t i = range.begin(); i < range.end(); ++i) {
@@ -143,7 +149,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
 
   // Compute node degree prefix sum
   tbb::parallel_scan(
-    tbb::blocked_range<size_t>(0UL, numNodes() + 1), whfc::InHeIndex(0),
+    tbb::blocked_range<size_t>(UL(0), numNodes() + 1), whfc::InHeIndex(0),
     [&](const tbb::blocked_range<size_t>& r, whfc::InHeIndex sum, bool is_final_scan) -> whfc::InHeIndex {
       whfc::InHeIndex tmp = sum;
       for ( size_t i = r.begin(); i < r.end(); ++i ) {
@@ -158,7 +164,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
     }
   );
 
-  tbb::parallel_for(0UL, numHyperedges(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), numHyperedges(), [&](const size_t i) {
     const whfc::Hyperedge e(i);
     for ( auto pin_it = beginIndexPins(e); pin_it != endIndexPins(e); pin_it++ ) {
       Pin& p = pins[pin_it];

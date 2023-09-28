@@ -1,42 +1,72 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
+namespace {
+
+  static constexpr size_t PROGRESS_BAR_SIZE = 50;
+
+  template<typename F>
+  std::string progress_bar(const size_t value, const size_t max, const F& f) {
+    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
+    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
+    std::stringstream pbar_str;
+    pbar_str << "|"
+             << f(percentage) << std::string(ticks, '|') << END
+             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
+             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
+    return pbar_str.str();
+  }
+}
+
+template<typename TypeTraits, typename GainTypes>
 class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainCache = typename GainTypes::GainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
+
   struct RefinementStats {
-    RefinementStats() :
+    RefinementStats(utils::Stats& stats) :
+      _stats(stats),
       num_refinements(0),
       num_improvements(0),
       num_time_limits(0),
@@ -61,6 +91,7 @@ class FlowRefinementScheduler final : public IRefiner {
 
     void update_global_stats();
 
+    utils::Stats& _stats;
     CAtomic<int64_t> num_refinements;
     CAtomic<int64_t> num_improvements;
     CAtomic<int64_t> num_time_limits;
@@ -78,22 +109,63 @@ class FlowRefinementScheduler final : public IRefiner {
     HypernodeWeight overload_weight = 0;
   };
 
-  friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats);
+  friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats) {
+    str << "\n";
+    str << "Total Improvement                   = " << stats.total_improvement << "\n";
+    str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
+    str << "+ No Improvements                   = "
+        << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
+            [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
+    str << "+ Number of Improvements            = "
+        << progress_bar(stats.num_improvements, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
+    str << "  + Correct Expected Improvements   = "
+        << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
+            [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
+    str << "  + Incorrect Expected Improvements = "
+        << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
+            [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
+    str << "  + Zero-Gain Improvements          = "
+        << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
+            [&](const double) { return WHITE; }) << "\n";
+    str << "+ Failed due to Balance Constraint  = "
+        << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+    str << "+ Failed due to Conflicting Moves   = "
+        << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+    str << "+ Time Limits                       = "
+        << progress_bar(stats.num_time_limits, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
+    str << "---------------------------------------------------------------";
+    return str;
+  }
 
 public:
-  explicit FlowRefinementScheduler(const Hypergraph& hg,
-                                   const Context& context) :
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          GainCache& gain_cache) :
     _phg(nullptr),
     _context(context),
-    _quotient_graph(hg, context),
-    _refiner(hg, context),
-    _constructor(hg, context),
-    _was_moved(hg.initialNumNodes(), uint8_t(false)),
+    _gain_cache(gain_cache),
+    _current_k(context.partition.k),
+    _quotient_graph(num_hyperedges, context),
+    _refiner(num_hyperedges, context),
+    _constructor(num_hypernodes, num_hyperedges, context),
+    _was_moved(num_hypernodes, uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
     _max_part_weights(context.partition.k, 0),
-    _stats(),
+    _stats(utils::Utilities::instance().getStats(context.utility_id)),
     _apply_moves_lock() { }
+
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          gain_cache_t gain_cache) :
+    FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
+      GainCachePtr::cast<GainCache>(gain_cache)) { }
 
   FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;
   FlowRefinementScheduler(FlowRefinementScheduler&&) = delete;
@@ -125,12 +197,14 @@ public:
   }
 
 private:
-  bool refineImpl(PartitionedHypergraph& phg,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& metrics,
                   double time_limit) final;
 
-  void initializeImpl(PartitionedHypergraph& phg) final;
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) final;
+
+  void resizeDataStructuresForCurrentK();
 
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
@@ -142,16 +216,18 @@ private:
 
   PartitionedHypergraph* _phg;
   const Context& _context;
+  GainCache& _gain_cache;
+  PartitionID _current_k;
 
   // ! Contains information of all cut hyperedges between the
   // ! blocks of the partition
-  QuotientGraph _quotient_graph;
+  QuotientGraph<TypeTraits> _quotient_graph;
 
   // ! Maintains the flow refiner instances
-  FlowRefinerAdapter _refiner;
+  FlowRefinerAdapter<TypeTraits> _refiner;
 
   // ! Responsible for construction of an flow problems
-  ProblemConstruction _constructor;
+  ProblemConstruction<TypeTraits> _constructor;
 
   // ! For each vertex it store wheather the corresponding vertex
   // ! was moved or not

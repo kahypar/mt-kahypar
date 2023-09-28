@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include <functional>
@@ -24,14 +30,22 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
-
-
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Km1Rebalancer = SimpleRebalancer<TypeTraits, Km1GainTypes>;
+}
+
 
 TEST(RebalanceTests, HeapSortWithMoveGainComparator) {
   vec<Move> moves;
@@ -58,7 +72,9 @@ TEST(RebalanceTests, FindsMoves) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true /* enable stable construction */);
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis,
+    true /* enable stable construction */);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
 
@@ -70,16 +86,18 @@ TEST(RebalanceTests, FindsMoves) {
     }
   }
   phg.initializePartition();
-  phg.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
 
-  Km1Rebalancer rebalancer(phg, context);
-  vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
+  Km1Rebalancer rebalancer(context);
+  vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks(phg);
 
   ASSERT_EQ(moves_to_empty_blocks.size(), 4);
 
   for (Move& m : moves_to_empty_blocks) {
-    ASSERT_EQ(phg.km1Gain(m.node, m.from, m.to), m.gain);
-    Gain recomputed_gain = phg.moveFromBenefitRecomputed(m.node) - phg.moveToPenaltyRecomputed(m.node, m.to);
+    ASSERT_EQ(gain_cache.gain(m.node, m.from, m.to), m.gain);
+    Gain recomputed_gain = gain_cache.recomputeBenefitTerm(phg, m.node, m.to) -
+      gain_cache.recomputePenaltyTerm(phg, m.node);
     if (recomputed_gain == 0) {
       ASSERT_TRUE([&]() {
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
@@ -95,10 +113,10 @@ TEST(RebalanceTests, FindsMoves) {
     ASSERT_EQ(phg.partWeight(m.to), 0);
     ASSERT_GE(m.to, k - 4);
     ASSERT_LT(m.from, k - 4);
-    phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to);
+    phg.changeNodePart(gain_cache, m.node, m.from, m.to);
   }
 
-  moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
+  moves_to_empty_blocks = rebalancer.repairEmptyBlocks(phg);
   ASSERT_EQ(moves_to_empty_blocks.size(), 0);
 }
 

@@ -1,22 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <mutex>
@@ -25,6 +32,13 @@
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#ifdef __linux__
+#include <sys/ioctl.h>
+#elif _WIN32
+#include <windows.h>
+#endif
+#include <stdio.h>
+#include <unistd.h>
 
 #include "mt-kahypar/macros.h"
 
@@ -32,7 +46,6 @@ namespace mt_kahypar {
 namespace utils {
 class ProgressBar {
 
- static constexpr size_t PROGRESS_BAR_SIZE = 75;
  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
  public:
@@ -45,7 +58,17 @@ class ProgressBar {
     _expected_count(expected_count),
     _start(std::chrono::high_resolution_clock::now()),
     _objective(objective),
+    _progress_bar_size(0),
     _enable(enable) {
+    #ifdef __linux__
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    _progress_bar_size = w.ws_col / 2;
+    #elif _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    _progress_bar_size = (csbi.srWindow.Right - csbi.srWindow.Left + 1)/2;
+    #endif
     display_progress();
   }
 
@@ -86,6 +109,10 @@ class ProgressBar {
     _objective = objective;
   }
 
+  void addToObjective(const HyperedgeWeight delta) {
+    __atomic_fetch_add(&_objective, delta, __ATOMIC_RELAXED);
+  }
+
  private:
   void finalize() {
     if ( _count.load() < _expected_count ) {
@@ -109,7 +136,7 @@ class ProgressBar {
         std::cout << "#";
       }
       std::cout << END;
-      for ( size_t i = 0; i < PROGRESS_BAR_SIZE - current_tics; ++i ) {
+      for ( size_t i = 0; i < _progress_bar_size - current_tics; ++i ) {
         std::cout << " ";
       }
       std::cout << " ] ";
@@ -146,15 +173,15 @@ class ProgressBar {
 
   size_t get_tics(const size_t current_count) {
     return ( static_cast<double>(current_count) /
-      static_cast<double>(_expected_count) ) * PROGRESS_BAR_SIZE;
+      static_cast<double>(_expected_count) ) * _progress_bar_size;
   }
 
   size_t compute_next_tic_count(const size_t current_count) {
     size_t next_tics = get_tics(current_count) + 1;
-    if ( next_tics > PROGRESS_BAR_SIZE ) {
+    if ( next_tics > _progress_bar_size ) {
       return std::numeric_limits<size_t>::max();
     } else {
-      return ( static_cast<double>(next_tics) / static_cast<double>(PROGRESS_BAR_SIZE) ) *
+      return ( static_cast<double>(next_tics) / static_cast<double>(_progress_bar_size) ) *
         static_cast<double>(_expected_count);
     }
   }
@@ -165,6 +192,7 @@ class ProgressBar {
   size_t _expected_count;
   HighResClockTimepoint _start;
   HyperedgeWeight _objective;
+  size_t _progress_bar_size;
   bool _enable;
 };
 

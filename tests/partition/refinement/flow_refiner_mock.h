@@ -1,34 +1,49 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
 
-#include "kahypar/meta/registrar.h"
+#include "kahypar-resources/meta/registrar.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
 using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const Subhypergraph&, const size_t)>;
 
@@ -67,8 +82,8 @@ class FlowRefinerMockControl {
 class FlowRefinerMock final : public IFlowRefiner {
 
  public:
-  explicit FlowRefinerMock(const Hypergraph&,
-                               const Context& context) :
+  explicit FlowRefinerMock(const HyperedgeID,
+                           const Context& context) :
     _context(context),
     _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
@@ -84,11 +99,12 @@ class FlowRefinerMock final : public IFlowRefiner {
  protected:
 
  private:
-  void initializeImpl(const PartitionedHypergraph&) { }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t&) override { }
 
-  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& partitioned_hg,
                           const Subhypergraph& sub_hg,
-                          const HighResClockTimepoint&) {
+                          const HighResClockTimepoint&) override {
+    const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(partitioned_hg);
     return _refine_func(phg, sub_hg, _num_threads);
   }
 
@@ -106,13 +122,13 @@ class FlowRefinerMock final : public IFlowRefiner {
   RefineFunc _refine_func;
 };
 
-#define REGISTER_FLOW_REFINER(id, refiner)                                          \
-  static kahypar::meta::Registrar<FlowRefinementFactory> register_ ## refiner(      \
-    id,                                                                                 \
-    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {     \
-    return new refiner(hypergraph, context);                                            \
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
+    id,                                                                                         \
+    [](const HyperedgeID num_hyperedges, const Context& context) -> IFlowRefiner* {             \
+    return new refiner(num_hyperedges, context);                                                \
   })
 
-REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock);
+REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock, 1);
 
 }  // namespace mt_kahypar

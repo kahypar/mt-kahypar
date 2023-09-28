@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -27,13 +33,12 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
-
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 
 namespace mt_kahypar {
 template <typename ScorePolicy = Mandatory,
@@ -81,17 +86,17 @@ class NLevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
-  NLevelVertexPairRater(Hypergraph& hypergraph,
-                           const Context& context) :
+  NLevelVertexPairRater(const HypernodeID num_hypernodes,
+                        const Context& context) :
     _context(context),
-    _current_num_nodes(hypergraph.initialNumNodes()),
+    _current_num_nodes(num_hypernodes),
     _vertex_degree_sampling_threshold(context.coarsening.vertex_degree_sampling_threshold),
     _local_cache_efficient_rating_map(0.0),
     _local_vertex_degree_bounded_rating_map(3UL * _vertex_degree_sampling_threshold, 0.0),
     _local_large_rating_map([&] {
       return construct_large_tmp_rating_map();
     }),
-    _already_matched(hypergraph.initialNumNodes()) { }
+    _already_matched(num_hypernodes) { }
 
   NLevelVertexPairRater(const NLevelVertexPairRater&) = delete;
   NLevelVertexPairRater & operator= (const NLevelVertexPairRater &) = delete;
@@ -99,19 +104,20 @@ class NLevelVertexPairRater {
   NLevelVertexPairRater(NLevelVertexPairRater&&) = delete;
   NLevelVertexPairRater & operator= (NLevelVertexPairRater &&) = delete;
 
+  template<bool has_fixed_vertices, typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const HypernodeWeight max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
-      return rate(hypergraph, u, _local_cache_efficient_rating_map.local(), max_allowed_node_weight, false);
+      return rate<has_fixed_vertices>(hypergraph, u, _local_cache_efficient_rating_map.local(), max_allowed_node_weight, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
-      return rate(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), max_allowed_node_weight, true);
+      return rate<has_fixed_vertices>(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), max_allowed_node_weight, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
-      return rate(hypergraph, u, large_tmp_rating_map, max_allowed_node_weight, false);
+      return rate<has_fixed_vertices>(hypergraph, u, large_tmp_rating_map, max_allowed_node_weight, false);
     }
   }
 
@@ -132,7 +138,7 @@ class NLevelVertexPairRater {
   }
 
  private:
-  template<typename RatingMap>
+  template<bool has_fixed_vertices, typename Hypergraph, typename RatingMap>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -145,7 +151,7 @@ class NLevelVertexPairRater {
       fillRatingMap(hypergraph, u, tmp_ratings);
     }
 
-    int cpu_id = sched_getcpu();
+    int cpu_id = THREAD_ID;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
@@ -159,11 +165,19 @@ class NLevelVertexPairRater {
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
+        bool accept_fixed_vertex_contraction = true;
+        if constexpr ( has_fixed_vertices ) {
+          accept_fixed_vertex_contraction =
+            FixedVertexAcceptancePolicy::acceptContraction(
+              hypergraph, hypergraph.fixedVertexSupport(), _context, tmp_target, u);
+        }
+
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        if ( community_u_id == hypergraph.communityID(tmp_target) &&
-            AcceptancePolicy::acceptRating(tmp_rating, max_rating,
-                                           target, tmp_target,
-                                           cpu_id, _already_matched) ) {
+        if ( accept_fixed_vertex_contraction &&
+             community_u_id == hypergraph.communityID(tmp_target) &&
+             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
+                                            target, tmp_target,
+                                            cpu_id, _already_matched) ) {
           max_rating = tmp_rating;
           target = tmp_target;
         }
@@ -181,7 +195,7 @@ class NLevelVertexPairRater {
     return ret;
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings) {
@@ -196,7 +210,7 @@ class NLevelVertexPairRater {
     }
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings) {
@@ -218,6 +232,7 @@ class NLevelVertexPairRater {
     }
   }
 
+  template<typename Hypergraph>
   inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
                                                             const HypernodeID u) {
     const bool use_vertex_degree_sampling =

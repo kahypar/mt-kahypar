@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -32,6 +38,120 @@
 
 namespace mt_kahypar {
 namespace ds {
+
+// Represents a uncontraction that is assigned to a certain batch
+// and within that batch to a certain position.
+struct BatchAssignment {
+  HypernodeID u;
+  HypernodeID v;
+  size_t batch_index;
+  size_t batch_pos;
+};
+
+/*!
+  * Helper class that synchronizes assignements of uncontractions
+  * to batches. A batch has a certain maximum allowed batch size. The
+  * class provides functionality to compute such an assignment in a
+  * thread-safe manner. Several threads can request a batch index
+  * and a position within that batch for its uncontraction it wants
+  * to assign. The class guarantees that each combination of
+  * (batch_index, batch_position) is unique and consecutive.
+  * Furthermore, it is ensured that batch_position is always
+  * smaller than max_batch_size.
+  */
+class BatchIndexAssigner {
+
+  using AtomicCounter = parallel::IntegralAtomicWrapper<size_t>;
+
+  public:
+  explicit BatchIndexAssigner(const HypernodeID num_hypernodes,
+                              const size_t max_batch_size) :
+    _max_batch_size(max_batch_size),
+    _high_water_mark(0),
+    _current_batch_counter(num_hypernodes, AtomicCounter(0)),
+    _current_batch_sizes(num_hypernodes, AtomicCounter(0)) { }
+
+  BatchAssignment getBatchIndex(const size_t min_required_batch,
+                                const size_t num_uncontractions = 1) {
+    if ( min_required_batch <= _high_water_mark ) {
+      size_t current_high_water_mark = _high_water_mark.load();
+      const BatchAssignment assignment = findBatchAssignment(
+        current_high_water_mark, num_uncontractions);
+
+      // Update high water mark in case batch index is greater than
+      // current high water mark
+      size_t current_batch_index = assignment.batch_index;
+      increaseHighWaterMark(current_batch_index);
+      return assignment;
+    } else {
+      return findBatchAssignment(min_required_batch, num_uncontractions);
+    }
+  }
+
+  size_t batchSize(const size_t batch_index) const {
+    ASSERT(batch_index < _current_batch_sizes.size());
+    return _current_batch_sizes[batch_index];
+  }
+
+  void increaseHighWaterMark(size_t new_high_water_mark) {
+    size_t current_high_water_mark = _high_water_mark.load();
+    while ( new_high_water_mark > current_high_water_mark ) {
+      _high_water_mark.compare_exchange_strong(
+        current_high_water_mark, new_high_water_mark);
+    }
+  }
+
+  size_t numberOfNonEmptyBatches() {
+    size_t current_batch = _high_water_mark;
+    if ( _current_batch_sizes[_high_water_mark] == 0 )  {
+      while ( current_batch > 0 && _current_batch_sizes[current_batch] == 0 ) {
+        --current_batch;
+      }
+      if ( _current_batch_sizes[current_batch] > 0 ) {
+        ++current_batch;
+      }
+    } else {
+      while ( _current_batch_sizes[current_batch] > 0 ) {
+        ++current_batch;
+      }
+    }
+    return current_batch;
+  }
+
+  void reset(const size_t num_batches) {
+    ASSERT(num_batches <= _current_batch_sizes.size());
+    _high_water_mark = 0;
+    tbb::parallel_for(UL(0), num_batches, [&](const size_t i) {
+      _current_batch_counter[i] = 0;
+      _current_batch_sizes[i] = 0;
+    });
+  }
+
+  private:
+  BatchAssignment findBatchAssignment(const size_t start_batch_index,
+                                      const size_t num_uncontractions) {
+    size_t current_batch_index = start_batch_index;
+    size_t batch_pos = _current_batch_counter[current_batch_index].fetch_add(
+      num_uncontractions, std::memory_order_relaxed);
+    // Search for batch in which atomic update of the batch counter
+    // return a position smaller than max_batch_size.
+    while ( batch_pos >= _max_batch_size ) {
+      ++current_batch_index;
+      ASSERT(current_batch_index < _current_batch_counter.size());
+      batch_pos = _current_batch_counter[current_batch_index].fetch_add(
+        num_uncontractions, std::memory_order_relaxed);
+    }
+    ASSERT(batch_pos < _max_batch_size);
+    _current_batch_sizes[current_batch_index] += num_uncontractions;
+    return BatchAssignment { kInvalidHypernode,
+      kInvalidHypernode, current_batch_index, batch_pos };
+  }
+
+  const size_t _max_batch_size;
+  AtomicCounter _high_water_mark;
+  parallel::scalable_vector<AtomicCounter> _current_batch_counter;
+  parallel::scalable_vector<AtomicCounter> _current_batch_sizes;
+};
 
 class ContractionTree {
 
@@ -253,6 +373,96 @@ class ContractionTree {
     node(v).setVersion(version);
   }
 
+  template<typename A, typename R>
+  bool registerContraction(const HypernodeID u, const HypernodeID v, const size_t version, A acquire, R release) {
+    // Acquires ownership of vertex v that gives the calling thread exclusive rights
+    // to modify the contraction tree entry of v
+    acquire(v);
+
+    // If there is no other contraction registered for vertex v
+    // we try to determine its representative in the contraction tree
+    if ( parent(v) == v ) {
+
+      HypernodeID w = u;
+      bool cycle_detected = false;
+      while ( true ) {
+        // Search for representative of u in the contraction tree.
+        // It is either a root of the contraction tree or a vertex
+        // with a reference count greater than zero, which indicates
+        // that there are still ongoing contractions on this node that
+        // have to be processed.
+        while ( parent(w) != w && pendingContractions(w) == 0 ) {
+          w = parent(w);
+          if ( w == v ) {
+            cycle_detected = true;
+            break;
+          }
+        }
+
+        if ( !cycle_detected ) {
+          // In case contraction of u and v does not induce any
+          // cycle in the contraction tree we try to acquire vertex w
+          if ( w < v ) {
+            // Acquire ownership in correct order to prevent deadlocks
+            release(v);
+            acquire(w);
+            acquire(v);
+            if ( parent(v) != v ) {
+              release(v);
+              release(w);
+              return false;
+            }
+          } else {
+            acquire(w);
+          }
+
+          // Double-check condition of while loop above after acquiring
+          // ownership of w
+          if ( parent(w) != w && pendingContractions(w) == 0 ) {
+            // In case something changed, we release ownership of w and
+            // search again for the representative of u.
+            release(w);
+          } else {
+            // Otherwise we perform final cycle check to verify that
+            // contraction of u and v will not introduce any new cycle.
+            HypernodeID x = w;
+            do {
+              x = parent(x);
+              if ( x == v ) {
+                cycle_detected = true;
+                break;
+              }
+            } while ( parent(x) != x );
+
+            if ( cycle_detected ) {
+              release(w);
+              release(v);
+              return false;
+            }
+
+            // All checks succeded, we can safely increment the
+            // reference count of w and update the contraction tree
+            break;
+          }
+        } else {
+          release(v);
+          return false;
+        }
+      }
+
+      // Increment reference count of w indicating that there pending
+      // contraction at vertex w and update contraction tree.
+      registerContraction(w, v, version);
+
+      release(w);
+      release(v);
+      return true;
+    } else {
+      release(v);
+      return false;
+    }
+  }
+
   // ! Unregisters a contraction in the contraction tree
   void unregisterContraction(const HypernodeID u, const HypernodeID v,
                              const Timepoint start, const Timepoint end,
@@ -267,6 +477,9 @@ class ContractionTree {
       node(v).setInterval(start, end);
     }
   }
+
+  BatchVector createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
+                                                          const size_t version);
 
   // ! Only for testing
   void setParent(const HypernodeID u, const HypernodeID v, const size_t version = 0) {
@@ -293,10 +506,10 @@ class ContractionTree {
   // ####################### Copy #######################
 
   // ! Copy contraction tree in parallel
-  ContractionTree copy(parallel_tag_t);
+  ContractionTree copy(parallel_tag_t) const;
 
   // ! Copy contraction tree sequentially
-  ContractionTree copy();
+  ContractionTree copy() const;
 
   // ! Resets internal data structures
   void reset();
@@ -317,6 +530,10 @@ class ContractionTree {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Node& node(const HypernodeID u) {
     return const_cast<Node&>(static_cast<const ContractionTree&>(*this).node(u));
   }
+
+  bool verifyBatchIndexAssignments(
+    const BatchIndexAssigner& batch_assigner,
+    const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
 
   HypernodeID _num_hypernodes;
   bool _finalized;

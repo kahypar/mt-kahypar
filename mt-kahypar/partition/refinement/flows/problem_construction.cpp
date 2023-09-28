@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 
@@ -25,14 +31,19 @@
 
 #include "tbb/parallel_for.h"
 
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+
 namespace mt_kahypar {
 
-void ProblemConstruction::BFSData::clearQueue() {
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::clearQueue() {
   while ( !queue.empty() ) queue.pop();
   while ( !next_queue.empty() ) next_queue.pop();
 }
 
-void ProblemConstruction::BFSData::reset() {
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::reset() {
   current_distance = 0;
   queue_weight_block_0 = 0;
   queue_weight_block_1 = 0;
@@ -44,14 +55,16 @@ void ProblemConstruction::BFSData::reset() {
   std::fill(locked_blocks.begin(), locked_blocks.end(), false);
 }
 
-HypernodeID ProblemConstruction::BFSData::pop_hypernode() {
+template<typename TypeTraits>
+HypernodeID ProblemConstruction<TypeTraits>::BFSData::pop_hypernode() {
   ASSERT(!queue.empty());
   const HypernodeID hn = queue.front();
   queue.pop();
   return hn;
 }
 
-void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
   const size_t max_bfs_distance,
@@ -86,9 +99,10 @@ namespace {
   using assert_map = std::unordered_map<HyperedgeID, bool>;
 }
 
-Subhypergraph ProblemConstruction::construct(const SearchID search_id,
-                                             QuotientGraph& quotient_graph,
-                                             const PartitionedHypergraph& phg) {
+template<typename TypeTraits>
+Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_id,
+                                                         QuotientGraph<TypeTraits>& quotient_graph,
+                                                         const PartitionedHypergraph& phg) {
   Subhypergraph sub_hg;
   BFSData& bfs = _local_bfs.local();
   bfs.reset();
@@ -122,23 +136,28 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
     PartitionID block = phg.partID(hn);
     const bool is_block_contained = block == sub_hg.block_0 || block == sub_hg.block_1;
     if ( is_block_contained && !bfs.locked_blocks[block] ) {
-      if ( sub_hg.block_0  == block ) {
-        sub_hg.nodes_of_block_0.push_back(hn);
-        sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
-      } else {
-        ASSERT(sub_hg.block_1 == block);
-        sub_hg.nodes_of_block_1.push_back(hn);
-        sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+      const bool is_fixed = phg.isFixed(hn);
+      // We do not add fixed vertices to the flow problem, but still
+      // expand the BFS to its neighbors
+      if ( !is_fixed ) {
+        if ( sub_hg.block_0  == block ) {
+          sub_hg.nodes_of_block_0.push_back(hn);
+          sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+        } else {
+          ASSERT(sub_hg.block_1 == block);
+          sub_hg.nodes_of_block_1.push_back(hn);
+          sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+        }
+        sub_hg.num_pins += phg.nodeDegree(hn);
       }
-      sub_hg.num_pins += phg.nodeDegree(hn);
 
       // Push all neighbors of the added vertex into the queue
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
         bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
           max_weight_block_0, max_weight_block_1);
-        if ( !bfs.contained_hes[he] ) {
+        if ( !is_fixed && !bfs.contained_hes[phg.uniqueEdgeID(he)] ) {
           sub_hg.hes.push_back(he);
-          bfs.contained_hes[he] = true;
+          bfs.contained_hes[phg.uniqueEdgeID(he)] = true;
         }
       }
     }
@@ -147,37 +166,39 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
       bfs.swap_with_next_queue();
     }
   }
-
   DBG << "Search ID:" << search_id << "-" << sub_hg;
 
   // Check if all touched hyperedges are contained in subhypergraph
   ASSERT([&]() {
     assert_map expected_hes;
     for ( const HyperedgeID& he : sub_hg.hes ) {
-      if ( expected_hes.count(he) > 0 ) {
+      const HyperedgeID id = phg.uniqueEdgeID(he);
+      if ( expected_hes.count(id) > 0 ) {
         LOG << "Hyperedge" << he << "is contained multiple times in subhypergraph!";
         return false;
       }
-      expected_hes[he] = true;
+      expected_hes[id] = true;
     }
 
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-        if ( expected_hes.count(he) == 0 ) {
+        const HyperedgeID id = phg.uniqueEdgeID(he);
+        if ( expected_hes.count(id) == 0 ) {
           LOG << "Hyperedge" << he << "not contained in subhypergraph!";
           return false;
         }
-        expected_hes[he] = false;
+        expected_hes[id] = false;
       }
     }
 
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-        if ( expected_hes.count(he) == 0 ) {
+        const HyperedgeID id = phg.uniqueEdgeID(he);
+        if ( expected_hes.count(id) == 0 ) {
           LOG << "Hyperedge" << he << "not contained in subhypergraph!";
           return false;
         }
-        expected_hes[he] = false;
+        expected_hes[id] = false;
       }
     }
 
@@ -195,7 +216,18 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   return sub_hg;
 }
 
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSizeReached(
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::changeNumberOfBlocks(const PartitionID new_k) {
+  ASSERT(new_k == _context.partition.k);
+  for ( BFSData& data : _local_bfs ) {
+    if ( static_cast<size_t>(new_k) > data.locked_blocks.size() ) {
+      data.locked_blocks.assign(new_k, false);
+    }
+  }
+}
+
+template<typename TypeTraits>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction<TypeTraits>::isMaximumProblemSizeReached(
   const Subhypergraph& sub_hg,
   const HypernodeWeight max_weight_block_0,
   const HypernodeWeight max_weight_block_1,
@@ -213,5 +245,7 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSiz
 
   return locked_blocks[sub_hg.block_0] && locked_blocks[sub_hg.block_1];
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(ProblemConstruction)
 
 } // namespace mt_kahypar

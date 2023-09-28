@@ -1,33 +1,41 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include <atomic>
 
 #include "gmock/gmock.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
+
+#include "tests/definitions.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
@@ -35,28 +43,19 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedGraphTypeTraits {
-  using PartitionedGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
-
 template<typename TypeTraits>
 class APartitionedGraph : public Test {
 
- using PartitionedGraph = typename TypeTraits::PartitionedGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
- using Hypergraph = typename TypeTraits::Hypergraph;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedGraph = typename TypeTraits::PartitionedHypergraph;
+  using Factory = typename Hypergraph::Factory;
 
   APartitionedGraph() :
     hypergraph(Factory::construct(7 , 6,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
-    partitioned_hypergraph(3, hypergraph) {
+    partitioned_hypergraph(3, hypergraph),
+    gain_cache() {
     initializePartition();
   }
 
@@ -90,7 +89,7 @@ class APartitionedGraph : public Test {
     const PartitionID part_id = partitioned_hypergraph.partID(node);
     for (PartitionID block = 0; block < 3; ++block) {
       if (block != part_id) {
-        ASSERT_EQ(expected_gains[block], partitioned_hypergraph.km1Gain(node, part_id, block)) << V(node) << V(block);
+        ASSERT_EQ(expected_gains[block], gain_cache.gain(node, part_id, block)) << V(node) << V(block);
       }
     }
   }
@@ -127,7 +126,7 @@ class APartitionedGraph : public Test {
       for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
         if ( from != to ) {
           const HyperedgeWeight km1_before = compute_km1();
-          const HyperedgeWeight km1_gain = partitioned_hypergraph.km1Gain(hn, from, to);
+          const HyperedgeWeight km1_gain = gain_cache.gain(hn, from, to);
           partitioned_hypergraph.changeNodePart(hn, from, to);
           const HyperedgeWeight km1_after = compute_km1();
           ASSERT_EQ(km1_gain, km1_before - km1_after);
@@ -139,6 +138,7 @@ class APartitionedGraph : public Test {
 
   Hypergraph hypergraph;
   PartitionedGraph partitioned_hypergraph;
+  GraphCutGainCache gain_cache;
 };
 
 template <class F1, class F2>
@@ -154,15 +154,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
     f2();
   });
 }
-
-using PartitionedGraphTestTypes =
-  ::testing::Types<
-          PartitionedGraphTypeTraits<
-                          PartitionedGraph<StaticGraph, StaticGraphFactory>,
-                          StaticGraph,
-                          StaticGraphFactory>>;
-
-TYPED_TEST_CASE(APartitionedGraph, PartitionedGraphTestTypes);
+TYPED_TEST_CASE(APartitionedGraph, tests::GraphTestTypeTraits);
 
 TYPED_TEST(APartitionedGraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
@@ -286,9 +278,9 @@ TYPED_TEST(APartitionedGraph, HasCorrectInitialBorderNodes) {
 
 
 TYPED_TEST(APartitionedGraph, ExtractBlockZero) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -301,8 +293,8 @@ TYPED_TEST(APartitionedGraph, ExtractBlockZero) {
 
 
 TYPED_TEST(APartitionedGraph, ExtractBlockOne) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(0, hg.initialNumEdges());
@@ -310,9 +302,9 @@ TYPED_TEST(APartitionedGraph, ExtractBlockOne) {
 }
 
 TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -320,6 +312,35 @@ TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
   ASSERT_EQ(2, hg.maxEdgeSize());
 
   this->verifyPins(hg, {0, 1},
+    { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
+}
+
+TYPED_TEST(APartitionedGraph, ExtractsAllBlocks) {
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, true, true);
+  auto& graphs = extracted_hg.first;
+  auto& mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, graphs[0].hg.initialNumNodes());
+  ASSERT_EQ(2, graphs[0].hg.initialNumEdges());
+  ASSERT_EQ(2, graphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[0].hg.maxEdgeSize());
+
+  this->verifyPins(graphs[0].hg, {0, 1},
+    { {mapping[1], mapping[2]}, {mapping[1], mapping[2]} });
+
+  ASSERT_EQ(2, graphs[1].hg.initialNumNodes());
+  ASSERT_EQ(0, graphs[1].hg.initialNumEdges());
+  ASSERT_EQ(0, graphs[1].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[1].hg.maxEdgeSize());
+
+  this->verifyPins(graphs[1].hg, {}, { });
+
+  ASSERT_EQ(2, graphs[2].hg.initialNumNodes());
+  ASSERT_EQ(2, graphs[2].hg.initialNumEdges());
+  ASSERT_EQ(2, graphs[2].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[2].hg.maxEdgeSize());
+
+  this->verifyPins(graphs[2].hg, {0, 1},
     { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
 }
 
@@ -332,9 +353,9 @@ TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(0, hg.communityID(mapping[0]));
   ASSERT_EQ(1, hg.communityID(mapping[1]));
@@ -358,7 +379,7 @@ TYPED_TEST(APartitionedGraph, ComputesPartInfoCorrectlyIfNodePartsAreSetOnly) {
 }
 
 TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
-  this->partitioned_hypergraph.initializeGainCache();
+  this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
   this->verifyGains(0, {0, 0, 0});
   this->verifyGains(1, {0, 0, -1});
@@ -370,27 +391,25 @@ TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
 }
 
 TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcurrently) {
-  this->partitioned_hypergraph.initializeGainCache();
+  this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
   CAtomic<HyperedgeWeight> delta(0);
-  auto delta_fun = [&](auto, auto, auto,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const HypernodeID pin_count_in_to_part_after) {
-      delta.fetch_add(cutDelta(0, 1, 2, pin_count_in_from_part_after, pin_count_in_to_part_after));
+  auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
+      delta.fetch_add(CutAttributedGains::gain(sync_update));
   };
 
   executeConcurrent([&] {
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(3, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 3, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 2, 1, 5, []{}, delta_fun));
   }, [&] {
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(5, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(6, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(0, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 5, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 6, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 0, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, 5, []{}, delta_fun));
   });
 
   ASSERT_EQ(-2, delta.load());

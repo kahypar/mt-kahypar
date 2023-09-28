@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 
@@ -25,19 +31,22 @@
 
 #include "tbb/parallel_sort.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 
 
 namespace mt_kahypar {
 
-void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
-                                                     const HyperedgeWeight weight) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
+                                                                 const HyperedgeWeight weight) {
   cut_hes.push_back(he);
   cut_he_weight += weight;
   ++num_cut_hes;
 }
 
-void QuotientGraph::QuotientGraphEdge::reset() {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::QuotientGraphEdge::reset() {
   cut_hes.clear();
   ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
@@ -45,7 +54,8 @@ void QuotientGraph::QuotientGraphEdge::reset() {
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
-bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair& blocks) {
+template<typename TypeTraits>
+bool QuotientGraph<TypeTraits>::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.i = kInvalidPartition;
   blocks.j = kInvalidPartition;
   if ( _unscheduled_blocks.try_pop(blocks) ) {
@@ -54,11 +64,11 @@ bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair&
   return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
 }
 
-
-void QuotientGraph::ActiveBlockSchedulingRound::finalizeSearch(const BlockPair& blocks,
-                                                               const HyperedgeWeight improvement,
-                                                               bool& block_0_becomes_active,
-                                                               bool& block_1_becomes_active) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::ActiveBlockSchedulingRound::finalizeSearch(const BlockPair& blocks,
+                                                                           const HyperedgeWeight improvement,
+                                                                           bool& block_0_becomes_active,
+                                                                           bool& block_1_becomes_active) {
   _round_improvement += improvement;
   --_remaining_blocks;
   if ( improvement > 0 ) {
@@ -71,7 +81,8 @@ void QuotientGraph::ActiveBlockSchedulingRound::finalizeSearch(const BlockPair& 
   }
 }
 
-bool QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const BlockPair& blocks) {
+template<typename TypeTraits>
+bool QuotientGraph<TypeTraits>::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const BlockPair& blocks) {
   QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
   if ( qg_edge.markAsInQueue() ) {
     _unscheduled_blocks.push(blocks);
@@ -82,8 +93,9 @@ bool QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const Blo
   }
 }
 
-void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_blocks,
-                                                     const bool is_input_hypergraph) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_blocks,
+                                                                 const bool is_input_hypergraph) {
   reset();
   _is_input_hypergraph = is_input_hypergraph;
 
@@ -125,7 +137,8 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
   }
 }
 
-bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& blocks, size_t& round) {
+template<typename TypeTraits>
+bool QuotientGraph<TypeTraits>::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& blocks, size_t& round) {
   bool success = false;
   round = _first_active_round;
   while ( !_terminate && round < _num_rounds ) {
@@ -150,7 +163,8 @@ bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& block
   return success;
 }
 
-void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
                                                          const size_t round,
                                                          const HyperedgeWeight improvement) {
   ASSERT(round < _rounds.size());
@@ -226,9 +240,9 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
   }
 }
 
-
-bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
-                                                            const PartitionID j) const {
+template<typename TypeTraits>
+bool QuotientGraph<TypeTraits>::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
+                                                                        const PartitionID j) const {
   const bool skip_small_cuts = !_is_input_hypergraph &&
     _context.refinement.flows.skip_small_cuts;
   const bool contains_enough_cut_hes =
@@ -240,7 +254,8 @@ bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
   return contains_enough_cut_hes && is_promising_blocks_pair;
 }
 
-SearchID QuotientGraph::requestNewSearch(FlowRefinerAdapter& refiner) {
+template<typename TypeTraits>
+SearchID QuotientGraph<TypeTraits>::requestNewSearch(FlowRefinerAdapter<TypeTraits>& refiner) {
   ASSERT(_phg);
   SearchID search_id = INVALID_SEARCH_ID;
   BlockPair blocks { kInvalidPartition, kInvalidPartition };
@@ -268,8 +283,9 @@ SearchID QuotientGraph::requestNewSearch(FlowRefinerAdapter& refiner) {
   return search_id;
 }
 
-void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
-                                       const PartitionID block) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::addNewCutHyperedge(const HyperedgeID he,
+                                                   const PartitionID block) {
   ASSERT(_phg);
   ASSERT(_phg->pinCountInPart(he, block) > 0);
   // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
@@ -281,15 +297,17 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
   }
 }
 
-void QuotientGraph::finalizeConstruction(const SearchID search_id) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::finalizeConstruction(const SearchID search_id) {
   ASSERT(search_id < _searches.size());
   _searches[search_id].is_finalized = true;
   const BlockPair& blocks = _searches[search_id].blocks;
   _quotient_graph[blocks.i][blocks.j].release(search_id);
 }
 
-void QuotientGraph::finalizeSearch(const SearchID search_id,
-                                   const HyperedgeWeight total_improvement) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::finalizeSearch(const SearchID search_id,
+                                               const HyperedgeWeight total_improvement) {
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
@@ -309,7 +327,8 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   --_num_active_searches;
 }
 
-void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::initialize(const PartitionedHypergraph& phg) {
   _phg = &phg;
 
   // Reset internal members
@@ -337,16 +356,36 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
 }
 
-size_t QuotientGraph::numActiveBlockPairs() const {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::changeNumberOfBlocks(const PartitionID new_k) {
+  // Reset improvement history as the number of blocks had changed
+  for ( size_t i = 0; i < _quotient_graph.size(); ++i ) {
+    for ( size_t j = 0; j < _quotient_graph.size(); ++j ) {
+      _quotient_graph[i][j].num_improvements_found.store(0, std::memory_order_relaxed);
+      _quotient_graph[i][j].total_improvement.store(0, std::memory_order_relaxed);
+    }
+  }
+
+  if ( static_cast<size_t>(new_k) > _quotient_graph.size() ) {
+    _quotient_graph.clear();
+    _quotient_graph.assign(new_k, vec<QuotientGraphEdge>(new_k));
+  }
+}
+
+template<typename TypeTraits>
+size_t QuotientGraph<TypeTraits>::numActiveBlockPairs() const {
   return _active_block_scheduler.numRemainingBlocks() + _num_active_searches;
 }
 
-void QuotientGraph::resetQuotientGraphEdges() {
+template<typename TypeTraits>
+void QuotientGraph<TypeTraits>::resetQuotientGraphEdges() {
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].reset();
     }
   }
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(QuotientGraph)
 
 } // namespace mt_kahypar

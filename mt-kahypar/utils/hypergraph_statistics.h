@@ -1,30 +1,33 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include <vector>
 
 #include "tbb/parallel_reduce.h"
-
-#include "mt-kahypar/definitions.h"
-
 
 namespace mt_kahypar {
 namespace utils {
@@ -32,7 +35,7 @@ namespace utils {
 template<typename T>
 double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
     return std::sqrt(tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
             [&](tbb::blocked_range<size_t>& range, double init) -> double {
             double tmp_stdev = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {
@@ -45,7 +48,7 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
 template<typename T>
 double parallel_avg(const std::vector<T>& data, const size_t n) {
     return tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
             [&](tbb::blocked_range<size_t>& range, double init) -> double {
             double tmp_avg = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {
@@ -55,10 +58,15 @@ double parallel_avg(const std::vector<T>& data, const size_t n) {
             }, std::plus<double>()) / static_cast<double>(n);
 }
 
+template<typename Hypergraph>
 static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
+    if (Hypergraph::is_graph) {
+        return 2;
+    }
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 
+template<typename Hypergraph>
 static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }

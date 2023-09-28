@@ -1,9 +1,11 @@
-set(CoarseningSources
+set(MultilevelCoarseningSources
         deterministic_multilevel_coarsener.cpp
-        multilevel_uncoarsener.cpp
-        nlevel_uncoarsener.cpp
-        )
+        multilevel_uncoarsener.cpp)
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${CoarseningSources})
+set(NLevelCoarseningSources
+        nlevel_uncoarsener.cpp)
+
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+    target_sources(${modtarget} PRIVATE ${MultilevelCoarseningSources})
+    target_sources(${modtarget} PRIVATE ${NLevelCoarseningSources})
 endforeach()

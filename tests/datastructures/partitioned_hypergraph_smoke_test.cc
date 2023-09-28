@@ -1,27 +1,32 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 
 #include <boost/range/irange.hpp>
-#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
@@ -30,7 +35,9 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -38,15 +45,20 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-template <PartitionID k,
-          kahypar::Objective objective>
+template <typename TypeTraitsT,
+          PartitionID k,
+          Objective objective>
 struct TestConfig {
+  using TypeTraits = TypeTraitsT;
   static constexpr PartitionID K = k;
-  static constexpr kahypar::Objective OBJECTIVE = objective;
+  static constexpr Objective OBJECTIVE = objective;
 };
 
 template <typename Config>
 class AConcurrentHypergraph : public Test {
+
+  using Hypergraph = typename Config::TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename Config::TypeTraits::PartitionedHypergraph;
 
  public:
   AConcurrentHypergraph() :
@@ -55,16 +67,14 @@ class AConcurrentHypergraph : public Test {
     underlying_hypergraph(),
     hypergraph()
   {
-    int cpu_id = sched_getcpu();
-    underlying_hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_ibm01.hgr");
-    hypergraph = mt_kahypar::PartitionedHypergraph(k, underlying_hypergraph, parallel_tag_t());
+    int cpu_id = THREAD_ID;
+    underlying_hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
+    hypergraph = PartitionedHypergraph(k, underlying_hypergraph, parallel_tag_t());
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);
     }
-
-    hypergraph.initializeGainCache();
   }
 
   static void SetUpTestSuite() {
@@ -72,54 +82,76 @@ class AConcurrentHypergraph : public Test {
   }
 
   PartitionID k;
-  kahypar::Objective objective;
+  Objective objective;
   Hypergraph underlying_hypergraph;
-  mt_kahypar::PartitionedHypergraph hypergraph;
+  PartitionedHypergraph hypergraph;
 };
 
-typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
-                         TestConfig<4, kahypar::Objective::cut>,
-                         TestConfig<8, kahypar::Objective::cut>,
-                         TestConfig<16, kahypar::Objective::cut>,
-                         TestConfig<32, kahypar::Objective::cut>,
-                         TestConfig<64, kahypar::Objective::cut>,
-                         TestConfig<128, kahypar::Objective::cut>,
-                         TestConfig<2, kahypar::Objective::km1>,
-                         TestConfig<4, kahypar::Objective::km1>,
-                         TestConfig<8, kahypar::Objective::km1>,
-                         TestConfig<16, kahypar::Objective::km1>,
-                         TestConfig<32, kahypar::Objective::km1>,
-                         TestConfig<64, kahypar::Objective::km1>,
-                         TestConfig<128, kahypar::Objective::km1>> TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 16, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 16 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 32, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 32 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 64, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 64 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 128, Objective::cut>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::cut>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 128 COMMA Objective::cut>)
+                         , TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 8 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 16, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 16 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 32, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 32 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 64, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 64 COMMA Objective::km1>)
+                         , TestConfig<StaticHypergraphTypeTraits, 128, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)> TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
 
 template<typename HyperGraph>
 void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                                     const PartitionID k,
-                                    const kahypar::Objective objective,
+                                    const Objective objective,
                                     const bool show_timings) {
 
   tbb::enumerable_thread_specific<HyperedgeWeight> deltas(0);
 
-  auto objective_delta = [&](const HyperedgeID he,
-                             const HyperedgeWeight edge_weight,
-                             const HypernodeID edge_size,
-                             const HypernodeID pin_count_in_from_part_after,
-                             const HypernodeID pin_count_in_to_part_after) {
-                           if (objective == kahypar::Objective::km1) {
-                             deltas.local() += km1Delta(
-                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-                           } else if (objective == kahypar::Objective::cut) {
-                             deltas.local() += cutDelta(
-                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+  auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+                           if (objective == Objective::km1) {
+                             deltas.local() += Km1AttributedGains::gain(sync_update);
+                           } else if (objective == Objective::cut) {
+                             deltas.local() += CutAttributedGains::gain(sync_update);
                            }
                          };
 
-  HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_before = metrics::quality(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
-    int cpu_id = sched_getcpu();
+    int cpu_id = THREAD_ID;
     const PartitionID from = hypergraph.partID(hn);
     PartitionID to = -1;
     while (to == -1 || to == from) {
@@ -139,7 +171,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     delta += local_delta;
   }
 
-  HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_after = metrics::quality(hypergraph, objective);
   ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
   if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);

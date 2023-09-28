@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gmock/gmock.h"
@@ -26,16 +32,22 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
+namespace {
+using TypeTraits = StaticHypergraphTypeTraits;
+using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+}
+
+class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergraph> {
  private:
-  using Base = ds::HypergraphFixture<Hypergraph, HypergraphFactory>;
+  using Base = ds::HypergraphFixture<Hypergraph>;
 
  public:
   AInitialPartitioningDataContainer() :
@@ -43,10 +55,11 @@ class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergrap
     context() {
     context.partition.k = 2;
     context.partition.epsilon = 0.2;
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
     // Max Part Weight = 4
     context.setupPartWeights(hypergraph.totalWeight());
-    utils::Timer::instance().disable();
+    utils::Utilities::instance().getTimer(context.utility_id).disable();
   }
 
   using Base::hypergraph;
@@ -56,7 +69,7 @@ class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergrap
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -67,7 +80,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -89,7 +102,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -111,7 +124,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -133,7 +146,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
 TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodesAreAssigned) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -150,7 +163,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodes
 TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfPartitionIsResetted) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   std::mt19937 prng(420);
@@ -170,7 +183,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfParti
 TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
@@ -187,7 +200,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -200,7 +213,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
@@ -227,7 +240,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -240,7 +253,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph1) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
@@ -266,7 +279,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -279,7 +292,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph2) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
@@ -305,7 +318,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));
@@ -318,7 +331,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph3) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
@@ -344,7 +357,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(1, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(1, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(1, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));
@@ -357,7 +370,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel1) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
 
   std::atomic<size_t> cnt(0);
@@ -391,7 +404,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -404,7 +417,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel2) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
 
   std::atomic<size_t> cnt(0);
@@ -438,7 +451,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -451,7 +464,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel3) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
-  InitialPartitioningDataContainer ip_data(
+  InitialPartitioningDataContainer<TypeTraits> ip_data(
     partitioned_hypergraph, context, true);
 
   std::atomic<size_t> cnt(0);
@@ -485,7 +498,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));

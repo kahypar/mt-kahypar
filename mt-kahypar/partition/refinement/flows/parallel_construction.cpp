@@ -1,35 +1,45 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "tbb/concurrent_queue.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 namespace mt_kahypar {
 
-ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDetection::get(const size_t he_hash,
-                                                                                           const vec<whfc::Node>& pins) {
+template<typename TypeTraits, typename GainTypes>
+typename ParallelConstruction<TypeTraits, GainTypes>::TmpHyperedge
+ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::get(
+  const size_t he_hash, const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) == _threshold ) {
     // There exists already some hyperedges with the same hash
@@ -55,7 +65,8 @@ ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDete
   return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
-void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
+template<typename TypeTraits, typename GainTypes>
+void ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
   const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
   uint32_t expected = __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED);
   uint32_t desired = _threshold - 1;
@@ -70,11 +81,12 @@ void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge&
   _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
 }
 
-FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                          const Subhypergraph& sub_hg,
-                                                          const PartitionID block_0,
-                                                          const PartitionID block_1,
-                                                          vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                                 const Subhypergraph& sub_hg,
+                                                                                 const PartitionID block_0,
+                                                                                 const PartitionID block_1,
+                                                                                 vec<HypernodeID>& whfc_to_node) {
   FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
@@ -114,12 +126,13 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   return flow_problem;
 }
 
-FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                          const Subhypergraph& sub_hg,
-                                                          const PartitionID block_0,
-                                                          const PartitionID block_1,
-                                                          vec<HypernodeID>& whfc_to_node,
-                                                          const bool default_construction) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                                 const Subhypergraph& sub_hg,
+                                                                                 const PartitionID block_0,
+                                                                                 const PartitionID block_1,
+                                                                                 vec<HypernodeID>& whfc_to_node,
+                                                                                 const bool default_construction) {
   FlowProblem flow_problem;
   if ( default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
@@ -157,11 +170,12 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   return flow_problem;
 }
 
-FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& phg,
-                                                   const Subhypergraph& sub_hg,
-                                                   const PartitionID block_0,
-                                                   const PartitionID block_1,
-                                                   vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructDefault(const PartitionedHypergraph& phg,
+                                                                          const Subhypergraph& sub_hg,
+                                                                          const PartitionID block_0,
+                                                                          const PartitionID block_1,
+                                                                          vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -190,7 +204,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
     whfc_to_node[flow_problem.source] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(
       std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
-    tbb::parallel_for(0UL, sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_0[i];
       const whfc::Node u(1 + i);
       whfc_to_node[u] = hn;
@@ -203,7 +217,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
     whfc_to_node[flow_problem.sink] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(
       std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
-    tbb::parallel_for(0UL, sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_1[i];
       const whfc::Node u(flow_problem.sink + 1 + i);
       whfc_to_node[u] = hn;
@@ -232,7 +246,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
 
   _flow_hg.setNumCSRBuckets(NUM_CSR_BUCKETS);
   const size_t step = max_hyperedges / NUM_CSR_BUCKETS + (max_hyperedges % NUM_CSR_BUCKETS != 0);
-  tbb::parallel_for(0UL, NUM_CSR_BUCKETS, [&](const size_t idx) {
+  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS, [&](const size_t idx) {
     const size_t start = std::min(step * idx, static_cast<size_t>(max_hyperedges));
     const size_t end = std::min(step * (idx + 1), static_cast<size_t>(max_hyperedges));
     const size_t num_hes = end - start;
@@ -248,13 +262,14 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
     vec<whfc::Node>& tmp_pins = _tmp_pins.local();
     for ( size_t i = start; i < end; ++i ) {
       const HyperedgeID he = sub_hg.hes[i];
-      if ( !canHyperedgeBeDropped(phg, he, block_0, block_1) ) {
+      if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
         tmp_pins.clear();
         size_t he_hash = 0;
-        bool connectToSource = false;
-        bool connectToSink = false;
-        const HyperedgeWeight he_weight = phg.edgeWeight(he);
-        if ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
+        bool connectToSource = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
+        bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
+        const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
+        if ( ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) ||
+               FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
           __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
         }
         for ( const HypernodeID& pin : phg.pins(he) ) {
@@ -311,7 +326,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
     }
   });
 
-  tbb::parallel_for(0UL, NUM_CSR_BUCKETS, [&](const size_t idx) {
+  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS, [&](const size_t idx) {
     _flow_hg.finalizeCSRBucket(idx);
   });
   _flow_hg.finalizeHyperedges();
@@ -319,12 +334,12 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
   return flow_problem;
 }
 
-
-FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
-                                                                const Subhypergraph& sub_hg,
-                                                                const PartitionID block_0,
-                                                                const PartitionID block_1,
-                                                                vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+                                                                                       const Subhypergraph& sub_hg,
+                                                                                       const PartitionID block_0,
+                                                                                       const PartitionID block_1,
+                                                                                       vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -334,7 +349,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
   tbb::parallel_invoke([&]() {
     _he_to_whfc.clear();
     _he_to_whfc.setMaxSize(sub_hg.hes.size());
-    tbb::parallel_for(0UL, sub_hg.hes.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), sub_hg.hes.size(), [&](const size_t i) {
       const HyperedgeID he = sub_hg.hes[i];
       _he_to_whfc[he] = i;
     });
@@ -360,7 +375,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
     whfc_to_node[flow_problem.source] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(
       std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
-    tbb::parallel_for(0UL, sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_0[i];
       const whfc::Node u(1 + i);
       whfc_to_node[u] = hn;
@@ -377,7 +392,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
     whfc_to_node[flow_problem.sink] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(
       std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
-    tbb::parallel_for(0UL, sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_1[i];
       const whfc::Node u(flow_problem.sink + 1 + i);
       whfc_to_node[u] = hn;
@@ -428,13 +443,16 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
         ASSERT(start_idx < end_idx);
         tmp_pins.clear();
         const HyperedgeID he = sub_hg.hes[last_he];
-        if ( !canHyperedgeBeDropped(phg, he, block_0, block_1) ) {
-          const HyperedgeWeight he_weight = phg.edgeWeight(he);
+        if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
+          const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
           const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
           const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
-          const bool connect_to_source = pin_count_in_block_0 < actual_pin_count_block_0;
-          const bool connect_to_sink = pin_count_in_block_1 < actual_pin_count_block_1;
-          if ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
+          bool connect_to_source = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
+          bool connect_to_sink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
+          connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
+          connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
+          if ( ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) ||
+                 FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
             __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
           }
 
@@ -498,7 +516,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
     _pins.clear(idx);
   });
 
-  tbb::parallel_for(0UL, num_buckets, [&](const size_t idx) {
+  tbb::parallel_for(UL(0), num_buckets, [&](const size_t idx) {
     _flow_hg.finalizeCSRBucket(idx);
   });
   _flow_hg.finalizeHyperedges();
@@ -547,12 +565,13 @@ class BFSQueue {
 };
 }
 
-void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph& phg,
-                                                    const whfc::Node source,
-                                                    const whfc::Node sink,
-                                                    const PartitionID block_0,
-                                                    const PartitionID block_1,
-                                                    const vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+void ParallelConstruction<TypeTraits, GainTypes>::determineDistanceFromCut(const PartitionedHypergraph& phg,
+                                                                           const whfc::Node source,
+                                                                           const whfc::Node sink,
+                                                                           const PartitionID block_0,
+                                                                           const PartitionID block_1,
+                                                                           const vec<HypernodeID>& whfc_to_node) {
   auto& distances = _hfc.cs.border_nodes.distance;
   distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
@@ -562,12 +581,15 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
 
   // Initialize bfs queue with vertices contained in cut hyperedges
   size_t q_idx = 0;
-  vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(_context.shared_memory.num_threads));
-  tbb::parallel_for(0UL, _cut_hes.size(), [&](const size_t i) {
+
+  const size_t num_threads = std::thread::hardware_concurrency();
+  vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(num_threads));
+  tbb::parallel_for(UL(0), _cut_hes.size(), [&](const size_t i) {
+    const int thread_idx = tbb::this_task_arena::current_thread_index();
     const whfc::Hyperedge he = _flow_hg.originalHyperedgeID(_cut_hes[i].bucket, _cut_hes[i].e);
     for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
       if ( _visited_hns.compare_and_set_to_true(pin.pin) ) {
-        q[q_idx].push(pin.pin, tbb::this_task_arena::current_thread_index());
+        q[q_idx].push(pin.pin, thread_idx);
       }
     }
     _visited_hns.set(_flow_hg.numNodes() + he, true);
@@ -580,7 +602,7 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
   while ( !q[q_idx].empty() ) {
     bool reached_source_side = false;
     bool reached_sink_side = false;
-    tbb::parallel_for(0UL, _context.shared_memory.num_threads, [&](const size_t idx) {
+    tbb::parallel_for(UL(0), num_threads, [&](const size_t idx) {
       while ( !q[q_idx].empty(idx) ) {
         whfc::Node u = q[q_idx].front(idx);
         q[q_idx].pop(idx);
@@ -616,5 +638,11 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
   distances[source] = -(max_dist_source + 1);
   distances[sink] = max_dist_sink + 1;
 }
+
+namespace {
+#define PARALLEL_CONSTRUCTION(X, Y) ParallelConstruction<X, Y>
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(PARALLEL_CONSTRUCTION)
 
 } // namespace mt_kahypar

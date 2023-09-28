@@ -1,33 +1,41 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <algorithm>
 
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace utils {
-class StatsT {
+class Stats {
   static constexpr bool debug = false;
 
  public:
@@ -116,16 +124,24 @@ class StatsT {
   };
 
  public:
-  StatsT(const StatsT&) = delete;
-  StatsT & operator= (const StatsT &) = delete;
+  explicit Stats() :
+    _stat_mutex(),
+    _stats(),
+    _enable(true) { }
 
-  StatsT(StatsT&&) = delete;
-  StatsT & operator= (StatsT &&) = delete;
+  Stats(const Stats& other) :
+    _stat_mutex(),
+    _stats(other._stats),
+    _enable(other._enable) { }
 
-  static StatsT& instance() {
-    static StatsT instance;
-    return instance;
-  }
+  Stats & operator= (const Stats &) = delete;
+
+  Stats(Stats&& other) :
+    _stat_mutex(),
+    _stats(std::move(other._stats)),
+    _enable(std::move(other._enable)) { }
+
+  Stats & operator= (Stats &&) = delete;
 
   void enable() {
     std::lock_guard<std::mutex> lock(_stat_mutex);
@@ -168,34 +184,29 @@ class StatsT {
     _stats.clear();
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const StatsT& stats);
+  friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
 
  private:
-  explicit StatsT() :
-    _stat_mutex(),
-    _stats(),
-    _enable(true) { }
-
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
   bool _enable;
 };
 
-inline std::ostream & operator<< (std::ostream& str, const StatsT::Stat& stat) {
+inline std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   switch (stat._type) {
-    case StatsT::Type::BOOLEAN:
+    case Stats::Type::BOOLEAN:
       str << std::boolalpha << stat._value_1;
       break;
-    case StatsT::Type::INT32:
+    case Stats::Type::INT32:
       str << stat._value_2;
       break;
-    case StatsT::Type::INT64:
+    case Stats::Type::INT64:
       str << stat._value_3;
       break;
-    case StatsT::Type::FLOAT:
+    case Stats::Type::FLOAT:
       str << stat._value_4;
       break;
-    case StatsT::Type::DOUBLE:
+    case Stats::Type::DOUBLE:
       str << stat._value_5;
       break;
     default:
@@ -204,7 +215,7 @@ inline std::ostream & operator<< (std::ostream& str, const StatsT::Stat& stat) {
   return str;
 }
 
-inline std::ostream & operator<< (std::ostream& str, const StatsT& stats) {
+inline std::ostream & operator<< (std::ostream& str, const Stats& stats) {
   std::vector<std::string> keys;
   for (const auto& stat : stats._stats) {
     keys.emplace_back(stat.first);
@@ -216,44 +227,6 @@ inline std::ostream & operator<< (std::ostream& str, const StatsT& stats) {
   }
   return str;
 }
-
-class DoNothingStats {
- public:
-  DoNothingStats(const DoNothingStats&) = delete;
-  DoNothingStats & operator= (const DoNothingStats &) = delete;
-
-  DoNothingStats(DoNothingStats&&) = delete;
-  DoNothingStats & operator= (DoNothingStats &&) = delete;
-
-  static DoNothingStats& instance() {
-    static DoNothingStats instance;
-    return instance;
-  }
-
-  void enable() { }
-  void disable() { }
-
-  template <typename T>
-  void add_stat(const std::string&, const T) { }
-
-  template <typename T>
-  void update_stat(const std::string&, const T) { }
-
-  friend std::ostream & operator<< (std::ostream& str, const DoNothingStats& stats);
-
- private:
-  explicit DoNothingStats() { }
-};
-
-inline std::ostream & operator<< (std::ostream& str, const DoNothingStats&) {
-  return str;
-}
-
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-using Stats = DoNothingStats;
-#else
-using Stats = StatsT;
-#endif
 
 }  // namespace utils
 }  // namespace mt_kahypar

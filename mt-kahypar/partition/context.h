@@ -1,46 +1,54 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-
-#include "kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
+
+// Forward Declartion
+class TargetGraph;
+
 struct PartitioningParameters {
-  #ifdef USE_STRONG_PARTITIONER
-  Paradigm paradigm = Paradigm::nlevel;
-  #else
-  Paradigm paradigm = Paradigm::multilevel;
-  #endif
   Mode mode = Mode::UNDEFINED;
-  kahypar::Objective objective = kahypar::Objective::UNDEFINED;
+  Objective objective = Objective::UNDEFINED;
+  GainPolicy gain_policy = GainPolicy::none;
   FileFormat file_format = FileFormat::hMetis;
-  InstanceType instance_type = InstanceType::UNDEFINED;
+  InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
+  mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
+  bool perform_parallel_recursion_in_deep_multilevel = true;
 
   int time_limit = 0;
   bool use_individual_part_weights = false;
@@ -48,6 +56,7 @@ struct PartitioningParameters {
   std::vector<HypernodeWeight> max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
+  HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
 
   bool verbose_output = true;
@@ -64,6 +73,7 @@ struct PartitioningParameters {
   bool deterministic = false;
 
   std::string graph_filename { };
+  std::string fixed_vertex_filename { };
   std::string graph_partition_output_folder {};
   std::string graph_partition_filename { };
   std::string graph_community_filename { };
@@ -104,10 +114,8 @@ struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
+  HypernodeID deep_ml_contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
-  bool use_adaptive_max_allowed_node_weight = false;
-  double max_allowed_weight_fraction = std::numeric_limits<double>::max();
-  double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
@@ -127,7 +135,9 @@ struct LabelPropagationParameters {
   size_t maximum_iterations = 1;
   bool rebalancing = true;
   bool execute_sequential = false;
+  bool unconstrained = false;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
+  double relative_improvement_threshold = -1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
@@ -148,6 +158,19 @@ struct FMParameters {
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
+
+  double treshold_border_node_inclusion = 0.75;
+  double unconstrained_upper_bound = 0.0;
+
+  // unconstrained
+  size_t unconstrained_rounds = 1;
+  double imbalance_penalty_min = 0.2;
+  double imbalance_penalty_max = 1.0;
+  double unconstrained_upper_bound_min = 0.0;
+
+  bool activate_unconstrained_dynamically = false;
+  double penalty_for_activation_test = 0.5;
+  double unconstrained_min_improvement = -1.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
@@ -175,6 +198,7 @@ struct FlowParameters {
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
   bool pierce_in_bulk = false;
+  SteinerTreeFlowValuePolicy steiner_tree_policy = SteinerTreeFlowValuePolicy::UNDEFINED;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
@@ -193,6 +217,7 @@ struct RefinementParameters {
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
   FlowParameters flows;
+  RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
@@ -200,20 +225,6 @@ struct RefinementParameters {
 };
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);
-
-struct SparsificationParameters {
-  bool use_degree_zero_contractions = false;
-  bool use_heavy_net_removal = false;
-  bool use_similiar_net_removal = false;
-  double hyperedge_pin_weight_fraction = 0.0;
-  size_t min_hash_footprint_size = 0;
-  double jaccard_threshold = 1.0;
-  SimiliarNetCombinerStrategy similiar_net_combiner_strategy = SimiliarNetCombinerStrategy::UNDEFINED;
-  // Those will be determined dynamically
-  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
-};
-
-std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params);
 
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
@@ -236,7 +247,21 @@ struct InitialPartitioningParameters {
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
+struct MappingParameters {
+  std::string target_graph_file = "";
+  OneToOneMappingStrategy strategy = OneToOneMappingStrategy::identity;
+  bool use_local_search = false;
+  bool use_two_phase_approach = false;
+  size_t max_steiner_tree_size = 0;
+  double largest_he_fraction = 0.0;
+  double min_pin_coverage_of_largest_hes = 1.0;
+  HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
+};
+
+std::ostream & operator<< (std::ostream& str, const MappingParameters& params);
+
 struct SharedMemoryParameters {
+  size_t original_num_threads = 1;
   size_t num_threads = 1;
   size_t static_balancing_work_packages = 128;
   bool use_localized_random_shuffle = false;
@@ -253,16 +278,23 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
-  SparsificationParameters sparsification { };
+  MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
-  kahypar::ContextType type = kahypar::ContextType::main;
+  ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
+  size_t utility_id = std::numeric_limits<size_t>::max();
 
-  Context() { }
+  Context(const bool register_utilities = true) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
+  }
 
-  bool useSparsification() const ;
+  bool isNLevelPartitioning() const;
+
+  bool forceGainCacheUpdates() const;
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
@@ -270,11 +302,24 @@ class Context {
 
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
 
-  void setupSparsificationParameters();
-
   void setupThreadsPerFlowSearch();
 
-  void sanityCheck();
+  void setupGainPolicy();
+
+  void sanityCheck(const TargetGraph* target_graph);
+
+  void load_default_preset();
+
+  void load_quality_preset();
+
+  void load_highest_quality_preset();
+
+  void load_deterministic_preset();
+
+  void load_large_k_preset();
+
+ private:
+  void load_n_level_preset();
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);

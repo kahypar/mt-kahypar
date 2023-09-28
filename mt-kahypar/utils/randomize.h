@@ -1,23 +1,30 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <limits>
@@ -129,7 +136,7 @@ class Randomize {
   template <typename T>
   void shuffleVector(std::vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
-      cpu_id = sched_getcpu();
+      cpu_id = THREAD_ID;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
@@ -137,7 +144,7 @@ class Randomize {
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
-      cpu_id = sched_getcpu();
+      cpu_id = THREAD_ID;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
@@ -174,17 +181,17 @@ class Randomize {
     const size_t step = N / P;
 
     if ( _perform_localized_random_shuffle ) {
-      tbb::parallel_for(0UL, P, [&](const size_t k) {
+      tbb::parallel_for(UL(0), P, [&](const size_t k) {
         const size_t start = i + k * step;
         const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
-        localizedShuffleVector(vector, start, end, sched_getcpu());
+        localizedShuffleVector(vector, start, end, THREAD_ID);
       });
     } else {
       // Compute blocks that should be swapped before
       // random shuffling
       parallel::scalable_vector<SwapBlock> swap_blocks;
       parallel::scalable_vector<bool> matched_blocks(P, false);
-      int cpu_id = sched_getcpu();
+      int cpu_id = THREAD_ID;
       for ( size_t a = 0; a < P; ++a ) {
         if ( !matched_blocks[a] ) {
           matched_blocks[a] = true;
@@ -198,14 +205,14 @@ class Randomize {
       }
       ASSERT(swap_blocks.size() == P / 2, V(swap_blocks.size()) << V(P));
 
-      tbb::parallel_for(0UL, P / 2, [&](const size_t k) {
+      tbb::parallel_for(UL(0), P / 2, [&](const size_t k) {
         const size_t block_1 = swap_blocks[k].first;
         const size_t block_2 = swap_blocks[k].second;
         const size_t start_1 = i + block_1 * step;
         const size_t end_1 = i + (block_1 == P - 1 ? N : (block_1 + 1) * step);
         const size_t start_2 = i + block_2 * step;
         const size_t end_2 = i + (block_2 == P - 1 ? N : (block_2 + 1) * step);
-        const int cpu_id = sched_getcpu();
+        const int cpu_id = THREAD_ID;
         swapBlocks(vector, start_1, end_1, start_2, end_2);
         std::shuffle(vector.begin() + start_1, vector.begin() + end_1, _rand[cpu_id].getGenerator());
         std::shuffle(vector.begin() + start_2, vector.begin() + end_2, _rand[cpu_id].getGenerator());
@@ -231,7 +238,7 @@ class Randomize {
   }
 
   std::mt19937& getGenerator() {
-    int cpu_id = sched_getcpu();
+    int cpu_id = THREAD_ID;
     return _rand[cpu_id].getGenerator();
   }
 

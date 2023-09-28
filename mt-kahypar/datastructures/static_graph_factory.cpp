@@ -1,23 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "static_graph_factory.h"
@@ -28,6 +34,7 @@
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::ds {
   void StaticGraphFactory::sort_incident_edges(StaticGraph& graph) {
@@ -68,16 +75,17 @@ namespace mt_kahypar::ds {
     ASSERT(edge_vector.size() == num_edges);
 
     EdgeVector edges;
-    edges.reserve(num_edges);
-    for (const auto& e : edge_vector) {
+    edges.resize(num_edges);
+    tbb::parallel_for(UL(0), edge_vector.size(), [&](const size_t i) {
+      const auto& e = edge_vector[i];
       if (e.size() != 2) {
-        ERROR("Using graph data structure; but the input hypergraph is not a graph.");
+        throw InvalidInputException(
+          "Using graph data structure; but the input hypergraph is not a graph.");
       }
-      edges.push_back({e[0], e[1]});
-    }
+      edges[i] = std::make_pair(e[0], e[1]);
+    });
     return construct_from_graph_edges(num_nodes, num_edges, edges,
-                                      edge_weight, node_weight,
-                                      stable_construction_of_incident_edges);
+      edge_weight, node_weight, stable_construction_of_incident_edges);
   }
 
   StaticGraph StaticGraphFactory::construct_from_graph_edges(
@@ -97,7 +105,6 @@ namespace mt_kahypar::ds {
     ASSERT(edge_vector.size() == num_edges);
 
     // Compute degree for each vertex
-    utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     ThreadLocalCounter local_degree_per_vertex(num_nodes);
     tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
       Counter& num_degree_per_vertex = local_degree_per_vertex.local();
@@ -116,16 +123,12 @@ namespace mt_kahypar::ds {
         num_degree_per_vertex[pos] += c[pos];
       });
     }
-    utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the degrees. The prefix sum is used than
     // as start position for each node in the edge array.
-    utils::Timer::instance().start_timer("compute_prefix_sums", "Compute Prefix Sums", true);
     parallel::TBBPrefixSum<size_t> degree_prefix_sum(num_degree_per_vertex);
-    tbb::parallel_scan(tbb::blocked_range<size_t>( 0UL, UI64(num_nodes)), degree_prefix_sum);
-    utils::Timer::instance().stop_timer("compute_prefix_sums");
+    tbb::parallel_scan(tbb::blocked_range<size_t>( UL(0), UI64(num_nodes)), degree_prefix_sum);
 
-    utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
     ASSERT(degree_prefix_sum.total_sum() == 2 * num_edges);
 
     AtomicCounter incident_edges_position(num_nodes,
@@ -180,7 +183,6 @@ namespace mt_kahypar::ds {
       sort_incident_edges(graph);
     }
     graph.computeAndSetTotalNodeWeight(parallel_tag_t());
-    utils::Timer::instance().stop_timer("setup_hypergraph");
     return graph;
   }
 }

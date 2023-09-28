@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 
@@ -24,42 +30,55 @@
 #include "mt-kahypar/datastructures/buffered_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/km1_gains.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
 public:
-  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph,
+  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
+                                                const Context& context,
+                                                gain_cache_t /* only relevant for other refiners */,
+                                                IRebalancer& /* only relevant for other refiners */) :
+    DeterministicLabelPropagationRefiner(num_hypernodes, num_hyperedges, context) { }
+
+  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
-      compute_gains(context.partition.k),
-      moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
-      cumulative_node_weights(hypergraph.initialNumNodes()),
-      sorted_moves(hypergraph.initialNumNodes()),
+      cumulative_node_weights(num_hypernodes),
+      compute_gains(context),
+      moves(num_hypernodes),
+      sorted_moves(num_hypernodes),
       prng(context.partition.seed),
       active_nodes(0),
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
-      max_num_nodes(hypergraph.initialNumNodes()),
-      max_num_edges(hypergraph.initialNumEdges())
-  {
+      max_num_nodes(num_hypernodes),
+      max_num_edges(num_hyperedges) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
-      active_nodes.adapt_capacity(hypergraph.initialNumNodes());
-      last_moved_in_round.resize(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0));
+      active_nodes.adapt_capacity(num_hypernodes);
+      last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
     }
-
   }
 
 private:
   static constexpr bool debug = false;
   static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max() / 2;
 
-  bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                  const vec<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics, double) final ;
 
-  void initializeImpl(PartitionedHypergraph&) final { /* nothing to do */ }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { /* nothing to do */ }
 
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);

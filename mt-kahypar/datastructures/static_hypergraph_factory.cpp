@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "static_hypergraph_factory.h"
@@ -48,7 +54,7 @@ namespace mt_kahypar::ds {
     // of incident nets per vertex
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
-    tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+    tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
@@ -82,10 +88,10 @@ namespace mt_kahypar::ds {
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hyperedges)), pin_prefix_sum);
+              UL(0), UI64(num_hyperedges)), pin_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hypernodes)), incident_net_prefix_sum);
+              UL(0), UI64(num_hypernodes)), incident_net_prefix_sum);
     });
 
     ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());
@@ -154,7 +160,6 @@ namespace mt_kahypar::ds {
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
-
     return hypergraph;
   }
 

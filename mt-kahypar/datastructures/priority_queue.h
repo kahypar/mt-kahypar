@@ -1,24 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
-
 #pragma once
 
 #include <vector>
@@ -42,7 +47,11 @@ static constexpr bool enable_heavy_assert = false;
 public:
   static_assert(arity > 1);
 
-  explicit Heap(PosT* positions, size_t positions_size) : comp(), heap(), positions(positions), positions_size(positions_size) { }
+  explicit Heap(PosT* positions, size_t positions_size) :
+    comp(),
+    heap(),
+    positions(positions),
+    positions_size(positions_size) { }
 
   IdT top() const {
     return heap[0].id;
@@ -153,6 +162,12 @@ public:
 
   IdT at(const PosT pos) const {
     return heap[pos].id;
+  }
+
+  void setHandle(PosT* pos, size_t pos_size) {
+    clear();
+    positions = pos;
+    positions_size = pos_size;
   }
 
   void print() {
@@ -291,17 +306,29 @@ protected:
 
 // used to initialize handles in ExclusiveHandleHeap before handing a ref to Heap
 struct HandlesPBase {
-  explicit HandlesPBase(size_t n) : handles(n, invalid_position) { }
+  explicit HandlesPBase(size_t n) :
+    handles(n, invalid_position) { }
   vec<PosT> handles;
 };
 
 template<typename HeapT>
 class ExclusiveHandleHeap : protected HandlesPBase, public HeapT {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles.data(), this->handles.size()) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) :
+    HandlesPBase(nHandles),
+    HeapT(this->handles.data(), this->handles.size()) { }
 
                                                                               //at this point this->handles is already a deep copy of other.handles
-  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles.data(), this->handles.size()) { }
+  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) :
+    HandlesPBase(other),
+    HeapT(this->handles.data(), this->handles.size()) { }
+
+  void resize(const size_t new_n) {
+    if ( this->handles.size() < new_n ) {
+      this->handles.assign(new_n, invalid_position);
+      this->setHandle(this->handles.data(), new_n);
+    }
+  }
 };
 
 template<typename KeyT, typename IdT>

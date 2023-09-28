@@ -1,28 +1,33 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
@@ -33,9 +38,12 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class ProblemConstruction {
 
   static constexpr bool debug = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   /**
    * Contains data required to grow two region around
@@ -97,12 +105,21 @@ class ProblemConstruction {
   };
 
  public:
-  explicit ProblemConstruction(const Hypergraph& hg,
+  explicit ProblemConstruction(const HypernodeID num_hypernodes,
+                               const HyperedgeID num_hyperedges,
                                const Context& context) :
     _context(context),
     _scaling(1.0 + _context.refinement.flows.alpha *
       std::min(0.05, _context.partition.epsilon)),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges(), context.partition.k) { }
+    _num_hypernodes(num_hypernodes),
+    _num_hyperedges(num_hyperedges),
+    _local_bfs([&] {
+        // If the number of blocks changes, BFSData needs to be initialized
+        // differently. Thus we use a lambda that reads the current number of
+        // blocks from the context
+        return constructBFSData();
+      }
+    ) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
@@ -111,10 +128,15 @@ class ProblemConstruction {
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
   Subhypergraph construct(const SearchID search_id,
-                          QuotientGraph& quotient_graph,
+                          QuotientGraph<TypeTraits>& quotient_graph,
                           const PartitionedHypergraph& phg);
 
+  void changeNumberOfBlocks(const PartitionID new_k);
+
  private:
+  BFSData constructBFSData() const {
+    return BFSData(_num_hypernodes, _num_hyperedges, _context.partition.k);
+  }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isMaximumProblemSizeReached(
     const Subhypergraph& sub_hg,
@@ -124,6 +146,8 @@ class ProblemConstruction {
 
   const Context& _context;
   double _scaling;
+  HypernodeID _num_hypernodes;
+  HyperedgeID _num_hyperedges;
 
   // ! Contains data required for BFS construction algorithm
   tbb::enumerable_thread_specific<BFSData> _local_bfs;

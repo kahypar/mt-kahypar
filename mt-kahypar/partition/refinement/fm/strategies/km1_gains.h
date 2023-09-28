@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -24,7 +30,9 @@
 
 namespace mt_kahypar {
 struct Km1GainComputer {
-  Km1GainComputer(PartitionID k) : gains(k, 0) { }
+  Km1GainComputer(const Context& context) :
+    context(context),
+    gains(context.partition.k, 0) { }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -52,7 +60,7 @@ struct Km1GainComputer {
         }
       } else {
         // case for deltaPhg since maintaining connectivity sets is too slow
-        for (size_t i = 0; i < gains.size(); ++i) {
+        for (PartitionID i = 0; i < context.partition.k; ++i) {
           if (phg.pinCountInPart(e, i) > 0) {
             gains[i] += edge_weight;
           }
@@ -77,7 +85,7 @@ struct Km1GainComputer {
     PartitionID best_target = kInvalidPartition;
     HypernodeWeight best_target_weight = std::numeric_limits<HypernodeWeight>::max();
     Gain best_gain = std::numeric_limits<Gain>::min();
-    for (PartitionID target = 0; target < int(gains.size()); ++target) {
+    for (PartitionID target = 0; target < context.partition.k; ++target) {
       if (target != from) {
         const HypernodeWeight target_weight = phg.partWeight(target);
         const Gain gain = gains[target];
@@ -95,13 +103,14 @@ struct Km1GainComputer {
     return std::make_pair(best_target, best_gain);
   }
 
-  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PartitionedHypergraph& phg,
+  template<typename PHG>
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PHG& phg,
                                                                                 const HypernodeID u) {
     const PartitionID from = phg.partID(u);
     const Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
     PartitionID best_target = kInvalidPartition;
     Gain best_gain = std::numeric_limits<Gain>::min();
-    for (PartitionID target = 0; target < int(gains.size()); ++target) {
+    for (PartitionID target = 0; target < context.partition.k; ++target) {
       if (target != from && gains[target] > best_gain) {
         best_gain = gains[target];
         best_target = target;
@@ -112,12 +121,13 @@ struct Km1GainComputer {
     return std::make_pair(best_target, best_gain);
   }
 
-
+  const Context& context;
   vec<Gain> gains;
 };
 
 struct TwoWayGainComputer {
-  static Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) {
+  template<typename PHG>
+  static Gain gainToOtherBlock(const PHG& phg, const HypernodeID u) {
     Gain gain = 0;
     const PartitionID from = phg.partID(u);
     for (HyperedgeID e : phg.incidentEdges(u)) {

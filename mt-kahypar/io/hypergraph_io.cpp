@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "hypergraph_io.h"
@@ -29,66 +35,150 @@
 #include <vector>
 #include <fcntl.h>
 #include <sys/stat.h>
+
+#ifdef __linux__
 #include <sys/mman.h>
+#include <unistd.h>
+#elif _WIN32
+#include <windows.h>
+#include <process.h>
+#include <memoryapi.h>
+#endif
+
 
 #include "tbb/parallel_for.h"
+
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::io {
 
-  int open_file(const std::string& filename) {
-    int fd = open(filename.c_str(), O_RDONLY);
-    if ( fd == -1 ) {
-      ERROR("Could not open:" << filename);
-    }
-    return fd;
-  }
+  #ifdef __linux__
+  struct FileHandle {
+    int fd;
+    char* mapped_file;
+    size_t length;
 
-  size_t file_size(int fd) {
-    struct stat file_info;
-    if ( fstat(fd, &file_info) == -1 ) {
-      ERROR("Error while getting file stats");
-    }
-    return static_cast<size_t>(file_info.st_size);
-  }
-
-  char* mmap_file(int fd, const size_t length) {
-    char* mapped_file = (char*) mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
-    if ( mapped_file == MAP_FAILED ) {
+    void closeHandle() {
       close(fd);
-      ERROR("Error while mapping file to memory");
     }
-    return mapped_file;
+  };
+  #elif _WIN32
+  struct FileHandle {
+    HANDLE hFile;
+    HANDLE hMem;
+    char* mapped_file;
+    size_t length;
+
+    void closeHandle() {
+      CloseHandle(hFile);
+      CloseHandle(hMem);
+    }
+  };
+  #endif
+
+  size_t file_size(const std::string& filename) {
+    struct stat stat_buf;
+    const int res = stat( filename.c_str(), &stat_buf);
+    if (res < 0) {
+      throw InvalidInputException("Could not open:" + filename);
+    }
+    return static_cast<size_t>(stat_buf.st_size);
   }
 
-  void munmap_file(char* mapped_file, int fd, const size_t length) {
-    if ( munmap(mapped_file, length) == -1 ) {
-      close(fd);
-      ERROR("Error while unmapping file from memory");
-    }
-  }
+  FileHandle mmap_file(const std::string& filename) {
+    FileHandle handle;
+    handle.length = file_size(filename);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
-    for ( ; ; ++pos ) {
-      if ( pos == length || mapped_file[pos] == '\n' ) {
-        ++pos;
-        break;
+    #ifdef _WIN32
+      PSECURITY_DESCRIPTOR pSD;
+      SECURITY_ATTRIBUTES  sa;
+
+      /* create security descriptor (needed for Windows NT) */
+      pSD = (PSECURITY_DESCRIPTOR) malloc( SECURITY_DESCRIPTOR_MIN_LENGTH );
+      if( pSD == NULL ) {
+        throw SystemException("Error while creating security descriptor!");
       }
-    }
+
+      InitializeSecurityDescriptor(pSD, SECURITY_DESCRIPTOR_REVISION);
+      SetSecurityDescriptorDacl(pSD, TRUE, (PACL) NULL, FALSE);
+
+      sa.nLength = sizeof(sa);
+      sa.lpSecurityDescriptor = pSD;
+      sa.bInheritHandle = TRUE;
+
+      // open file
+      handle.hFile = CreateFile ( filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
+        &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+      if (handle.hFile == INVALID_HANDLE_VALUE) {
+        free( pSD);
+        throw InvalidInputException("Invalid file handle when opening: " + filename);
+      }
+
+      // Create file mapping
+      handle.hMem = CreateFileMapping( handle.hFile, &sa, PAGE_READONLY, 0, handle.length, NULL);
+      free(pSD);
+      if (handle.hMem == NULL) {
+        throw InvalidInputException("Invalid file mapping when opening: " + filename);
+      }
+
+      // map file to memory
+      handle.mapped_file = (char*) MapViewOfFile(handle.hMem, FILE_MAP_READ, 0, 0, 0);
+      if ( handle.mapped_file == NULL ) {
+        throw SystemException("Failed to map file to main memory:" + filename);
+      }
+    #elif __linux__
+      handle.fd = open(filename.c_str(), O_RDONLY);
+      if ( handle.fd < -1 ) {
+        throw InvalidInputException("Could not open: " + filename);
+      }
+      handle.mapped_file = (char*) mmap(0, handle.length, PROT_READ, MAP_SHARED, handle.fd, 0);
+      if ( handle.mapped_file == MAP_FAILED ) {
+        close(handle.fd);
+        throw SystemException("Error while mapping file to memory");
+      }
+    #endif
+
+    return handle;
   }
 
+  void munmap_file(FileHandle& handle) {
+    #ifdef _WIN32
+    UnmapViewOfFile(handle.mapped_file);
+    #elif __linux__
+    munmap(handle.mapped_file, handle.length);
+    #endif
+    handle.closeHandle();
+  }
+
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool is_line_ending(char* mapped_file, size_t& pos) {
-    return mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
+  bool is_line_ending(char* mapped_file, size_t pos) {
+    return mapped_file[pos] == '\r' || mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void do_line_ending(char* mapped_file, size_t& pos) {
     ASSERT(is_line_ending(mapped_file, pos));
     if (mapped_file[pos] != '\0') {
+      if (mapped_file[pos] == '\r') {     // windows line ending
+        ++pos;
+        ASSERT(mapped_file[pos] == '\n');
+      }
       ++pos;
+    }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
+    for ( ; ; ++pos ) {
+      if ( pos == length || is_line_ending(mapped_file, pos) ) {
+        do_line_ending(mapped_file, pos);
+        break;
+      }
     }
   }
 
@@ -124,7 +214,7 @@ namespace mt_kahypar::io {
 
     num_hyperedges = read_number(mapped_file, pos, length);
     num_hypernodes = read_number(mapped_file, pos, length);
-    if ( mapped_file[pos] != '\n' ) {
+    if (!is_line_ending(mapped_file, pos)) {
       type = static_cast<mt_kahypar::Type>(read_number(mapped_file, pos, length));
     }
     do_line_ending(mapped_file, pos);
@@ -143,7 +233,7 @@ namespace mt_kahypar::io {
                                           const bool has_hyperedge_weights) {
     size_t num_spaces = 0;
     for ( ; pos < length; ++pos ) {
-      if ( mapped_file[pos] == '\n' ) {
+      if (is_line_ending(mapped_file, pos)) {
         break;
       } else if ( mapped_file[pos] == ' ' ) {
         ++num_spaces;
@@ -156,19 +246,31 @@ namespace mt_kahypar::io {
     return has_hyperedge_weights ? num_spaces == 1 : num_spaces == 0;
   }
 
-  HyperedgeID readHyperedges(char* mapped_file,
-                             size_t& pos,
-                             const size_t length,
-                             const HyperedgeID num_hyperedges,
-                             const mt_kahypar::Type type,
-                             HyperedgeVector& hyperedges,
-                             parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
-    HyperedgeID num_removed_single_pin_hyperedges = 0;
+  struct HyperedgeReadResult {
+    HyperedgeReadResult() :
+      num_removed_single_pin_hyperedges(0),
+      num_duplicated_pins(0),
+      num_hes_with_duplicated_pins(0) { }
+
+    size_t num_removed_single_pin_hyperedges;
+    size_t num_duplicated_pins;
+    size_t num_hes_with_duplicated_pins;
+  };
+
+  HyperedgeReadResult readHyperedges(char* mapped_file,
+                                     size_t& pos,
+                                     const size_t length,
+                                     const HyperedgeID num_hyperedges,
+                                     const mt_kahypar::Type type,
+                                     HyperedgeVector& hyperedges,
+                                     vec<HyperedgeWeight>& hyperedges_weight,
+                                     const bool remove_single_pin_hes) {
+    HyperedgeReadResult res;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                        true : false;
 
-    parallel::scalable_vector<HyperedgeRange> hyperedge_ranges;
+    vec<HyperedgeRange> hyperedge_ranges;
     tbb::parallel_invoke([&] {
       // Sequential pass over all hyperedges to determine ranges in the
       // input file that are read in parallel.
@@ -186,11 +288,12 @@ namespace mt_kahypar::io {
           ASSERT(pos < length);
         }
 
+        // This check is fine even with windows line endings!
         ASSERT(mapped_file[pos - 1] == '\n');
-        if ( !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
+        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
           ++current_range_num_hyperedges;
         } else {
-          ++num_removed_single_pin_hyperedges;
+          ++res.num_removed_single_pin_hyperedges;
         }
         ++current_num_hyperedges;
         goto_next_line(mapped_file, pos, length);
@@ -217,14 +320,14 @@ namespace mt_kahypar::io {
       }
     });
 
-    const HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
+    const HyperedgeID tmp_num_hyperedges = num_hyperedges - res.num_removed_single_pin_hyperedges;
     hyperedges.resize(tmp_num_hyperedges);
     if ( has_hyperedge_weights ) {
       hyperedges_weight.resize(tmp_num_hyperedges);
     }
 
     // Process all ranges in parallel and build hyperedge vector
-    tbb::parallel_for(0UL, hyperedge_ranges.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), hyperedge_ranges.size(), [&](const size_t i) {
       HyperedgeRange& range = hyperedge_ranges[i];
       size_t current_pos = range.start;
       const size_t current_end = range.end;
@@ -234,12 +337,12 @@ namespace mt_kahypar::io {
       while ( current_id < last_id ) {
         // Skip Comments
         ASSERT(current_pos < current_end);
-        while ( mapped_file[pos] == '%' ) {
+        while ( mapped_file[current_pos] == '%' ) {
           goto_next_line(mapped_file, current_pos, current_end);
           ASSERT(current_pos < current_end);
         }
 
-        if ( !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
+        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
           ASSERT(current_id < hyperedges.size());
           if ( has_hyperedge_weights ) {
             hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_end);
@@ -250,12 +353,30 @@ namespace mt_kahypar::io {
           HypernodeID pin = read_number(mapped_file, current_pos, current_end);
           ASSERT(pin > 0, V(current_id));
           hyperedge.push_back(pin - 1);
-          while ( mapped_file[current_pos] != '\n' ) {
+          while ( !is_line_ending(mapped_file, current_pos) ) {
             pin = read_number(mapped_file, current_pos, current_end);
             ASSERT(pin > 0, V(current_id));
             hyperedge.push_back(pin - 1);
           }
           do_line_ending(mapped_file, current_pos);
+
+          // Detect duplicated pins
+          std::sort(hyperedge.begin(), hyperedge.end());
+          size_t j = 1;
+          for ( size_t i = 1; i < hyperedge.size(); ++i ) {
+            if ( hyperedge[j - 1] != hyperedge[i] ) {
+              std::swap(hyperedge[i], hyperedge[j++]);
+            }
+          }
+          if ( j < hyperedge.size() ) {
+            // Remove duplicated pins
+            __atomic_fetch_add(&res.num_hes_with_duplicated_pins, 1, __ATOMIC_RELAXED);
+            __atomic_fetch_add(&res.num_duplicated_pins, hyperedge.size() - j, __ATOMIC_RELAXED);
+            for ( size_t i = j; i < hyperedge.size(); ++i ) {
+              hyperedge.pop_back();
+            }
+          }
+
           ASSERT(hyperedge.size() >= 2);
           ++current_id;
         } else {
@@ -263,7 +384,7 @@ namespace mt_kahypar::io {
         }
       }
     });
-    return num_removed_single_pin_hyperedges;
+    return res;
   }
 
   void readHypernodeWeights(char* mapped_file,
@@ -271,7 +392,7 @@ namespace mt_kahypar::io {
                             const size_t length,
                             const HypernodeID num_hypernodes,
                             const mt_kahypar::Type type,
-                            parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                            vec<HypernodeWeight>& hypernodes_weight) {
     bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                  type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                  true : false;
@@ -292,86 +413,34 @@ namespace mt_kahypar::io {
                           HypernodeID& num_hypernodes,
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
-                          parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                          vec<HyperedgeWeight>& hyperedges_weight,
+                          vec<HypernodeWeight>& hypernodes_weight,
+                          const bool remove_single_pin_hes) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-    int fd = open_file(filename);
-    const size_t length = file_size(fd);
-    char* mapped_file = mmap_file(fd, length);
+    FileHandle handle = mmap_file(filename);
     size_t pos = 0;
 
     // Read Hypergraph Header
     mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
-    readHGRHeader(mapped_file, pos, length, num_hyperedges, num_hypernodes, type);
+    readHGRHeader(handle.mapped_file, pos, handle.length, num_hyperedges, num_hypernodes, type);
 
     // Read Hyperedges
-    num_removed_single_pin_hyperedges =
-            readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
-    num_hyperedges -= num_removed_single_pin_hyperedges;
+    HyperedgeReadResult res =
+            readHyperedges(handle.mapped_file, pos, handle.length, num_hyperedges,
+              type, hyperedges, hyperedges_weight, remove_single_pin_hes);
+    num_hyperedges -= res.num_removed_single_pin_hyperedges;
+    num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
+
+    if ( res.num_hes_with_duplicated_pins > 0 ) {
+      WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
+        << res.num_hes_with_duplicated_pins << "hyperedges!");
+    }
 
     // Read Hypernode Weights
-    readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
-    ASSERT(pos == length);
+    readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes, type, hypernodes_weight);
+    ASSERT(pos == handle.length);
 
-    munmap_file(mapped_file, fd, length);
-    close(fd);
-  }
-
-  Hypergraph readHypergraphFile(const std::string& filename,
-                                const bool stable_construction_of_incident_edges) {
-    // Read Hypergraph File
-    HyperedgeID num_hyperedges = 0;
-    HypernodeID num_hypernodes = 0;
-    HyperedgeID num_removed_single_pin_hyperedges = 0;
-    HyperedgeVector hyperedges;
-    parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
-    parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
-    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
-    readHypergraphFile(filename, num_hyperedges, num_hypernodes,
-                       num_removed_single_pin_hyperedges, hyperedges, hyperedges_weight, hypernodes_weight);
-    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
-
-    // Construct Hypergraph
-    utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-    Hypergraph hypergraph = HypergraphFactory::construct(
-            num_hypernodes, num_hyperedges,
-            hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
-            stable_construction_of_incident_edges);
-    hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
-    utils::Timer::instance().stop_timer("construct_hypergraph");
-    return hypergraph;
-  }
-
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
-    ASSERT(!filename.empty(), "No filename for partition file specified");
-    ASSERT(partition.empty(), "Partition vector is not empty");
-    std::ifstream file(filename);
-    if (file) {
-      int part;
-      while (file >> part) {
-        partition.push_back(part);
-      }
-      file.close();
-    } else {
-      std::cerr << "Error: File not found: " << std::endl;
-    }
-  }
-
-  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
-    if (filename.empty()) {
-      LOG << "No filename for partition file specified";
-    } else {
-      std::ofstream out_stream(filename.c_str());
-      std::vector<PartitionID> partition(phg.initialNumNodes(), -1);
-      for (const HypernodeID& hn : phg.nodes()) {
-        ASSERT(hn < partition.size());
-        partition[hn] = phg.partID(hn);
-      }
-      for (const PartitionID& part : partition) {
-        out_stream << part << std::endl;
-      }
-      out_stream.close();
-    }
+    munmap_file(handle);
   }
 
   void readMetisHeader(char* mapped_file,
@@ -389,7 +458,7 @@ namespace mt_kahypar::io {
     num_vertices = read_number(mapped_file, pos, length);
     num_edges = read_number(mapped_file, pos, length);
 
-    if ( mapped_file[pos] != '\n' ) {
+    if (!is_line_ending(mapped_file, pos)) {
       // read the (up to) three 0/1 format digits
       uint32_t format_num = read_number(mapped_file, pos, length);
       ASSERT(format_num < 100, "Vertex sizes in input file are not supported.");
@@ -416,10 +485,10 @@ namespace mt_kahypar::io {
                     const HypernodeID num_vertices,
                     const bool has_edge_weights,
                     const bool has_vertex_weights,
-                    EdgeVector& edges,
-                    parallel::scalable_vector<HyperedgeWeight>& edges_weight,
-                    parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
-    parallel::scalable_vector<VertexRange> vertex_ranges;
+                    HyperedgeVector& edges,
+                    vec<HyperedgeWeight>& edges_weight,
+                    vec<HypernodeWeight>& vertices_weight) {
+    vec<VertexRange> vertex_ranges;
     tbb::parallel_invoke([&] {
       // Sequential pass over all vertices to determine ranges in the
       // input file that are read in parallel.
@@ -449,7 +518,7 @@ namespace mt_kahypar::io {
           read_number(mapped_file, pos, length);
         }
         HyperedgeID vertex_degree = 0;
-        while (mapped_file[pos] != '\n' && pos < length) {
+        while (!is_line_ending(mapped_file, pos) && pos < length) {
           const HypernodeID source = current_range_vertex_id + current_range_num_vertices;
           const HypernodeID target = read_number(mapped_file, pos, length);
           ASSERT(source != target);
@@ -508,7 +577,7 @@ namespace mt_kahypar::io {
     );
 
     // Process all ranges in parallel, build edge vector and assign weights
-    tbb::parallel_for(0UL, vertex_ranges.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), vertex_ranges.size(), [&](const size_t i) {
       const VertexRange& range = vertex_ranges[i];
       size_t current_pos = range.start;
       const size_t current_end = range.end;
@@ -555,71 +624,82 @@ namespace mt_kahypar::io {
     });
   }
 
-  void readMetisFile(const std::string& filename,
+  void readGraphFile(const std::string& filename,
                      HyperedgeID& num_edges,
                      HypernodeID& num_vertices,
-                     EdgeVector& edges,
-                     parallel::scalable_vector<HyperedgeWeight>& edges_weight,
-                     parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
+                     HyperedgeVector& edges,
+                     vec<HyperedgeWeight>& edges_weight,
+                     vec<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
-    int fd = open_file(filename);
-    const size_t length = file_size(fd);
-    char* mapped_file = mmap_file(fd, length);
+    FileHandle handle = mmap_file(filename);
     size_t pos = 0;
 
     // Read Metis Header
     bool has_edge_weights = false;
     bool has_vertex_weights = false;
-    readMetisHeader(mapped_file, pos, length, num_edges,
+    readMetisHeader(handle.mapped_file, pos, handle.length, num_edges,
       num_vertices, has_edge_weights, has_vertex_weights);
 
     // Read Vertices
-    readVertices(mapped_file, pos, length, num_edges, num_vertices,
+    readVertices(handle.mapped_file, pos, handle.length, num_edges, num_vertices,
       has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
-    ASSERT(pos == length);
+    ASSERT(pos == handle.length);
 
-    munmap_file(mapped_file, fd, length);
-    close(fd);
+    munmap_file(handle);
   }
 
-  Hypergraph readMetisFile(const std::string& filename,
-                           const bool stable_construction_of_incident_edges) {
-    // Read Metis File
-    HyperedgeID num_edges = 0;
-    HypernodeID num_vertices = 0;
-    EdgeVector edges;
-    parallel::scalable_vector<HyperedgeWeight> edges_weight;
-    parallel::scalable_vector<HypernodeWeight> nodes_weight;
-    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
-    readMetisFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
-    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
-
-    // Construct Graph
-    utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-    #ifdef USE_GRAPH_PARTITIONER
-    Hypergraph graph = HypergraphFactory::construct_from_graph_edges(
-            num_vertices, num_edges, edges,
-            edges_weight.data(), nodes_weight.data(),
-            stable_construction_of_incident_edges);
-    #else
-    Hypergraph graph = HypergraphFactory::construct(
-            num_vertices, num_edges,
-            edges, edges_weight.data(), nodes_weight.data(),
-            stable_construction_of_incident_edges);
-    #endif
-    utils::Timer::instance().stop_timer("construct_hypergraph");
-    return graph;
-  }
-
-  Hypergraph readInputFile(const std::string& filename,
-                           const FileFormat format,
-                           const bool stable_construction_of_incident_edges) {
-    switch (format) {
-      case FileFormat::hMetis: return readHypergraphFile(filename, stable_construction_of_incident_edges);
-      case FileFormat::Metis: return readMetisFile(filename, stable_construction_of_incident_edges);
-        // omit default case to trigger compiler warning for missing cases
+  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
+    ASSERT(!filename.empty(), "No filename for partition file specified");
+    ASSERT(partition.empty(), "Partition vector is not empty");
+    std::ifstream file(filename);
+    if (file) {
+      int part;
+      while (file >> part) {
+        partition.push_back(part);
+      }
+      file.close();
+    } else {
+      std::cerr << "Error: File not found: " << std::endl;
     }
-    return Hypergraph();
   }
+
+  void readPartitionFile(const std::string& filename, PartitionID* partition) {
+    ASSERT(!filename.empty(), "No filename for partition file specified");
+    std::ifstream file(filename);
+    if (file) {
+      int part;
+      HypernodeID hn = 0;
+      while (file >> part) {
+        partition[hn++] = part;
+      }
+      file.close();
+    } else {
+      std::cerr << "Error: File not found: " << std::endl;
+    }
+  }
+
+  template<typename PartitionedHypergraph>
+  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
+    if (filename.empty()) {
+      LOG << "No filename for partition file specified";
+    } else {
+      std::ofstream out_stream(filename.c_str());
+      std::vector<PartitionID> partition(phg.initialNumNodes(), -1);
+      for (const HypernodeID& hn : phg.nodes()) {
+        ASSERT(hn < partition.size());
+        partition[hn] = phg.partID(hn);
+      }
+      for (const PartitionID& part : partition) {
+        out_stream << part << std::endl;
+      }
+      out_stream.close();
+    }
+  }
+
+  namespace {
+  #define WRITE_PARTITION_FILE(X) void writePartitionFile(const X& phg, const std::string& filename)
+  }
+
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(WRITE_PARTITION_FILE)
 
 } // namespace

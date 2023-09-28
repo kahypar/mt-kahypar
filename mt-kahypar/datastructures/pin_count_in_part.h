@@ -1,31 +1,41 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
+
 #pragma once
 
 #include <cmath>
 
+#include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/pin_count_snapshot.h"
 
 
 namespace mt_kahypar {
@@ -58,7 +68,8 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part() { }
+    _pin_count_in_part(),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) { }
 
   PinCountInPart(const HyperedgeID num_hyperedges,
                  const PartitionID k,
@@ -71,7 +82,8 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part() {
+    _pin_count_in_part(),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) {
     initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
@@ -86,7 +98,8 @@ class PinCountInPart {
     _entries_per_value(other._entries_per_value),
     _values_per_hyperedge(other._values_per_hyperedge),
     _extraction_mask(other._extraction_mask),
-    _pin_count_in_part(std::move(other._pin_count_in_part)) { }
+    _pin_count_in_part(std::move(other._pin_count_in_part)),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) { }
 
   PinCountInPart & operator= (PinCountInPart&& other) {
     _num_hyperedges = other._num_hyperedges;
@@ -97,6 +110,7 @@ class PinCountInPart {
     _values_per_hyperedge = other._values_per_hyperedge;
     _extraction_mask = other._extraction_mask;
     _pin_count_in_part = std::move(other._pin_count_in_part);
+    _ets_pin_counts = tbb::enumerable_thread_specific<PinCountSnapshot>([&] { return initPinCountSnapshot(); });
     return *this;
   }
 
@@ -113,14 +127,21 @@ class PinCountInPart {
       _bits_per_element = num_bits_per_element(max_value);
       _entries_per_value = num_entries_per_value(k, max_value);
       _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
-      _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
+      _extraction_mask = std::pow(2UL, _bits_per_element) - UL(1);
       _pin_count_in_part.resize("Refinement", "pin_count_in_part",
         num_hyperedges * _values_per_hyperedge, true, assign_parallel);
     }
   }
 
-  Array<Value>& data() {
-    return _pin_count_in_part;
+  void reset(const bool assign_parallel = true) {
+    _pin_count_in_part.assign(_pin_count_in_part.size(), 0, assign_parallel);
+  }
+
+  // ! Returns a snapshot of the connectivity set of hyperedge he
+  inline PinCountSnapshot& snapshot(const HyperedgeID he) {
+    PinCountSnapshot& cpy = _ets_pin_counts.local();
+    cpy.snapshot(_pin_count_in_part.data() + he * _values_per_hyperedge);
+    return cpy;
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -170,7 +191,7 @@ class PinCountInPart {
     const Value mask = _extraction_mask << bit_pos;
     Value& current_value = _pin_count_in_part[value_pos];
     Value pin_count_in_part = (current_value & mask) >> bit_pos;
-    ASSERT(pin_count_in_part > 0UL);
+    ASSERT(pin_count_in_part > UL(0));
     updateEntry(current_value, bit_pos, pin_count_in_part - 1);
     return pin_count_in_part - 1;
   }
@@ -178,6 +199,15 @@ class PinCountInPart {
   // ! Returns the size in bytes of this data structure
   size_t size_in_bytes() const {
     return sizeof(Value) * _pin_count_in_part.size();
+  }
+
+  void freeInternalData() {
+    parallel::free(_pin_count_in_part);
+  }
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    parent->addChild("Pin Count Values", sizeof(Value) * _pin_count_in_part.size());
   }
 
   static size_t num_elements(const HyperedgeID num_hyperedges,
@@ -194,6 +224,10 @@ class PinCountInPart {
     const Value zero_mask = ~(_extraction_mask << bit_pos);
     const Value value_mask = new_value << bit_pos;
     value = (value & zero_mask) | value_mask;
+  }
+
+  PinCountSnapshot initPinCountSnapshot() const {
+    return PinCountSnapshot(_k, _max_value);
   }
 
   static size_t num_values_per_hyperedge(const PartitionID k,
@@ -223,6 +257,8 @@ class PinCountInPart {
   size_t _values_per_hyperedge;
   Value _extraction_mask;
   Array<Value> _pin_count_in_part;
+  tbb::enumerable_thread_specific<PinCountSnapshot> _ets_pin_counts;
+
 };
 }  // namespace ds
 }  // namespace mt_kahypar

@@ -1,23 +1,30 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <cstddef>
@@ -26,7 +33,7 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -44,13 +51,14 @@ namespace ds {
 class IncidentNetArray;
 
 // Iterator over the incident nets of a vertex u
-class IncidentNetIterator :
-  public std::iterator<std::forward_iterator_tag,    // iterator_category
-                        HyperedgeID,   // value_type
-                        std::ptrdiff_t,   // difference_type
-                        const HyperedgeID*,   // pointer
-                        HyperedgeID> {   // reference
+class IncidentNetIterator {
   public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = HyperedgeID;
+  using reference = HyperedgeID&;
+  using pointer = const HyperedgeID*;
+  using difference_type = std::ptrdiff_t;
+
   IncidentNetIterator(const HypernodeID u,
                       const IncidentNetArray* incident_net_array,
                       const size_t pos,
@@ -169,8 +177,8 @@ class IncidentNetArray {
   IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
-      IncidentNetIterator(u, this, 0UL, false),
-      IncidentNetIterator(u, this, 0UL, true));
+      IncidentNetIterator(u, this, UL(0), false),
+      IncidentNetIterator(u, this, UL(0), true));
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -179,7 +187,7 @@ class IncidentNetArray {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
       IncidentNetIterator(u, this, pos, false),
-      IncidentNetIterator(u, this, 0UL, true));
+      IncidentNetIterator(u, this, UL(0), true));
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and
@@ -225,9 +233,9 @@ class IncidentNetArray {
   // ! be processed.
   void restoreIncidentNets(const HypernodeID u);
 
-  IncidentNetArray copy(parallel_tag_t);
+  IncidentNetArray copy(parallel_tag_t) const;
 
-  IncidentNetArray copy();
+  IncidentNetArray copy() const;
 
   void reset();
 

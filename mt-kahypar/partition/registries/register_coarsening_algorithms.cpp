@@ -1,53 +1,53 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
-#include "kahypar/meta/registrar.h"
+#include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 
 
-#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                      \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                    \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) {                  \
-    return dispatcher::create(                                                                  \
-      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                    \
-      __VA_ARGS__                                                                               \
-      );                                                                                        \
-  })
-
-#define REGISTER_COARSENER(id, coarsener)                                                       \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                     \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) -> ICoarsener* {   \
-    return new coarsener(hypergraph, context, uncoarseningData);                                       \
+#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                    \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                  \
+    id,                                                                                                       \
+    [](mt_kahypar_hypergraph_t hypergraph, const Context& context, uncoarsening_data_t* uncoarseningData) {   \
+    return dispatcher::create(                                                                                \
+      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                           \
+      __VA_ARGS__                                                                                             \
+      );                                                                                                      \
   })
 
 
 namespace mt_kahypar {
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               MultilevelCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
@@ -55,15 +55,22 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
 
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                               NLevelCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
+#endif
 
-REGISTER_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener, DeterministicMultilevelCoarsener);
+REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
+                              DeterministicCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type));
 
 }  // namespace mt_kahypar

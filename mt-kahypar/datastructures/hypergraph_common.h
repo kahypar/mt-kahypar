@@ -1,31 +1,47 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <cstdint>
 #include <limits>
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/hardware_topology.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
+
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
 #define UI64(X) static_cast<uint64_t>(X)
 
@@ -96,6 +112,13 @@ struct Memento {
   HypernodeID v; // contraction partner
 };
 
+template<typename Hypergraph>
+struct ExtractedHypergraph {
+  Hypergraph hg;
+  vec<HypernodeID> hn_mapping;
+  vec<uint8_t> already_cut;
+};
+
 using Batch = parallel::scalable_vector<Memento>;
 using BatchVector = parallel::scalable_vector<Batch>;
 using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
@@ -103,41 +126,72 @@ using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
+// Forward Declaration
+class TargetGraph;
+namespace ds {
+class Bitset;
+class StaticGraph;
+class PinCountSnapshot;
+class StaticHypergraph;
+class DynamicGraph;
+class DynamicHypergraph;
+class ConnectivityInfo;
+class SparseConnectivityInfo;
+}
+
+struct SynchronizedEdgeUpdate {
+  HyperedgeID he = kInvalidHyperedge;
+  PartitionID from = kInvalidPartition;
+  PartitionID to = kInvalidPartition;
+  HyperedgeID edge_weight = 0;
+  HypernodeID edge_size = 0;
+  HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
+  HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
+  PartitionID block_of_other_node = kInvalidPartition;
+  mutable ds::Bitset* connectivity_set_after = nullptr;
+  mutable ds::PinCountSnapshot* pin_counts_after = nullptr;
+  const TargetGraph* target_graph = nullptr;
+  ds::Array<SpinLock>* edge_locks = nullptr;
+};
+
 struct NoOpDeltaFunc {
-  void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+  void operator() (const SynchronizedEdgeUpdate&) { }
 };
 
-
-struct ParallelHyperedge {
-  HyperedgeID removed_hyperedge;
-  HyperedgeID representative;
+template<typename Hypergraph, typename ConInfo>
+struct PartitionedHypergraphType {
+  static constexpr mt_kahypar_partition_type_t TYPE = NULLPTR_PARTITION;
 };
 
-// ! Helper function to compute delta for cut-metric after changeNodePart
-static HyperedgeWeight cutDelta(const HyperedgeID,
-                                const HyperedgeWeight edge_weight,
-                                const HypernodeID edge_size,
-                                const HypernodeID pin_count_in_from_part_after,
-                                const HypernodeID pin_count_in_to_part_after) {
-  if ( edge_size > 1 ) {
-    if (pin_count_in_to_part_after == edge_size) {
-      return -edge_weight;
-    } else if (pin_count_in_from_part_after == edge_size - 1 &&
-               pin_count_in_to_part_after == 1) {
-      return edge_weight;
-    }
-  }
-  return 0;
-}
+template<>
+struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
+};
 
-// ! Helper function to compute delta for km1-metric after changeNodePart
-static HyperedgeWeight km1Delta(const HyperedgeID,
-                                const HyperedgeWeight edge_weight,
-                                const HypernodeID,
-                                const HypernodeID pin_count_in_from_part_after,
-                                const HypernodeID pin_count_in_to_part_after) {
-  return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-         (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-}
+template<>
+struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = LARGE_K_PARTITIONING;
+};
+
+template<>
+struct PartitionedHypergraphType<ds::DynamicHypergraph, ds::ConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_HYPERGRAPH_PARTITIONING;
+};
+
+template<typename Graph>
+struct PartitionedGraphType {
+  static constexpr mt_kahypar_partition_type_t TYPE = NULLPTR_PARTITION;
+};
+
+template<>
+struct PartitionedGraphType<ds::StaticGraph> {
+  static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_GRAPH_PARTITIONING;
+};
+
+template<>
+struct PartitionedGraphType<ds::DynamicGraph> {
+  static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_GRAPH_PARTITIONING;
+};
+
 
 } // namespace mt_kahypar

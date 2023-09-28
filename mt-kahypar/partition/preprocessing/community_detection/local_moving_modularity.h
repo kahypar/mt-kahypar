@@ -1,23 +1,30 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 
 #pragma once
 
@@ -36,12 +43,13 @@
 #include "gtest/gtest_prod.h"
 
 namespace mt_kahypar::metrics {
-  double modularity(const Graph& graph, const ds::Clustering& communities);
+  template<typename Hypergraph>
+  double modularity(const Graph<Hypergraph>& graph, const ds::Clustering& communities);
 }
 
 namespace mt_kahypar::community_detection {
 
-
+template<typename Hypergraph>
 class ParallelLocalMovingModularity {
  private:
   using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
@@ -52,27 +60,26 @@ class ParallelLocalMovingModularity {
   static constexpr bool enable_heavy_assert = false;
 
   ParallelLocalMovingModularity(const Context& context,
-                                         size_t numNodes,
-                                         const bool disable_randomization = false) :
-          _context(context),
-          _max_degree(numNodes),
-          _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
-          _cluster_volumes(numNodes),
-          non_sampling_incident_cluster_weights(numNodes),
-          _disable_randomization(disable_randomization),
-          prng(context.partition.seed),
-          volume_updates_to(0),
-          volume_updates_from(0)
-  { }
+                                size_t numNodes,
+                                const bool disable_randomization = false) :
+    _context(context),
+    _max_degree(numNodes),
+    _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
+    _cluster_volumes(numNodes),
+    non_sampling_incident_cluster_weights(numNodes),
+    _disable_randomization(disable_randomization),
+    prng(context.partition.seed),
+    volume_updates_to(0),
+    volume_updates_from(0) { }
 
   ~ParallelLocalMovingModularity();
 
-  bool localMoving(Graph& graph, ds::Clustering& communities);
+  bool localMoving(Graph<Hypergraph>& graph, ds::Clustering& communities);
 
  private:
-  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
-  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
-  size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
+  size_t parallelNonDeterministicRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
+  size_t synchronousParallelRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
+  size_t sequentialRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
 
   struct ClearList {
     vec<double> weights;
@@ -81,7 +88,7 @@ class ParallelLocalMovingModularity {
   };
 
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph<Hypergraph>& graph,
                                                                        const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
     return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
@@ -93,15 +100,15 @@ class ParallelLocalMovingModularity {
   }
 
   // ! Only for testing
-  void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
+  void initializeClusterVolumes(const Graph<Hypergraph>& graph, ds::Clustering& communities);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph<Hypergraph>& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u) {
     return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph<Hypergraph>& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u,
                                                                        ClearList& incident_cluster_weights) {
@@ -165,10 +172,10 @@ class ParallelLocalMovingModularity {
   }
 
 
-  bool verifyGain(const Graph& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
+  bool verifyGain(const Graph<Hypergraph>& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
                   double weight_from, double weight_to);
 
-  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities);
+  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph<Hypergraph>& graph, const ds::Clustering& communities);
 
   const Context& _context;
   size_t _max_degree;

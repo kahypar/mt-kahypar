@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 
@@ -24,37 +30,27 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedHypergraphTypeTraits {
-  using PartitionedHyperGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
-
 template<typename TypeTraits>
 class APartitionedHypergraph : public Test {
 
- using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
  using Hypergraph = typename TypeTraits::Hypergraph;
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ using Factory = typename Hypergraph::Factory;
 
   APartitionedHypergraph() :
     hypergraph(Factory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    partitioned_hypergraph(3, hypergraph, parallel_tag_t()) {
+    partitioned_hypergraph() {
+    partitioned_hypergraph = PartitionedHypergraph(3, hypergraph, parallel_tag_t());
     initializePartition();
   }
 
@@ -113,13 +109,13 @@ class APartitionedHypergraph : public Test {
     return km1;
   }
 
-  void verifyAllKm1GainValues() {
+  void verifyAllKm1GainValues(Km1GainCache& gain_cache) {
     for ( const HypernodeID hn : hypergraph.nodes() ) {
       const PartitionID from = partitioned_hypergraph.partID(hn);
       for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
         if ( from != to ) {
           const HyperedgeWeight km1_before = compute_km1();
-          const HyperedgeWeight km1_gain = partitioned_hypergraph.km1Gain(hn, from, to);
+          const HyperedgeWeight km1_gain = gain_cache.gain(hn, from, to);
           partitioned_hypergraph.changeNodePart(hn, from, to);
           const HyperedgeWeight km1_after = compute_km1();
           ASSERT_EQ(km1_gain, km1_before - km1_after);
@@ -130,7 +126,7 @@ class APartitionedHypergraph : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
 };
 
 template <class F1, class F2>
@@ -148,19 +144,16 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 }
 
 
-using ADynamicPartitionedHypergraph = APartitionedHypergraph<
-                                        PartitionedHypergraphTypeTraits<
-                                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
-                                          DynamicHypergraph,
-                                          DynamicHypergraphFactory>>;
+using ADynamicPartitionedHypergraph = APartitionedHypergraph<DynamicHypergraphTypeTraits>;
 
 TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1) {
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-    partitioned_hypergraph.initializeGainCache();
-  verifyAllKm1GainValues();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
+  verifyAllKm1GainValues(gain_cache);
 }
 
 TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2) {
@@ -179,8 +172,9 @@ TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2
   ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
-  verifyAllKm1GainValues();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
+  verifyAllKm1GainValues(gain_cache);
 }
 
 TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets1) {
@@ -192,7 +186,8 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSingl
   ASSERT_EQ(0, removed_hyperedges[0].removed_hyperedge);
 
   initializePartition();
-  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  Km1GainCache gain_cache;
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges, gain_cache);
   verifyPartitionPinCounts(0, { 1, 0, 0 });
 }
 
@@ -208,7 +203,8 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSingl
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  Km1GainCache gain_cache;
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges, gain_cache);
   verifyPartitionPinCounts(0, { 1, 0, 0 });
   verifyPartitionPinCounts(1, { 1, 0, 1 });
   verifyPartitionPinCounts(2, { 0, 0, 1 });
@@ -222,15 +218,16 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
-  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
-  verifyAllKm1GainValues();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
+  ASSERT_EQ(1, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 2));
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges, gain_cache);
+  ASSERT_EQ(1, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 2));
+  verifyAllKm1GainValues(gain_cache);
 }
 
 TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets2) {
@@ -245,21 +242,22 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
-  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
-  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(6, 1));
-  verifyAllKm1GainValues();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
+  ASSERT_EQ(0, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(2, gain_cache.benefitTerm(0, 2));
+  ASSERT_EQ(0, gain_cache.penaltyTerm(6, kInvalidPartition));
+  ASSERT_EQ(2, gain_cache.benefitTerm(6, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(6, 1));
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges, gain_cache);
+  ASSERT_EQ(0, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(2, gain_cache.benefitTerm(0, 2));
+  ASSERT_EQ(0, gain_cache.penaltyTerm(6, kInvalidPartition));
+  ASSERT_EQ(2, gain_cache.benefitTerm(6, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(6, 1));
+  verifyAllKm1GainValues(gain_cache);
 }
 
 TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction1) {
@@ -270,7 +268,8 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-  partitioned_hypergraph.uncontract(hierarchy.back().back());
+  Km1GainCache gain_cache;
+  partitioned_hypergraph.uncontract(hierarchy.back().back(), gain_cache);
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
   verifyPartitionPinCounts(0, { 2, 0, 0 });
   verifyPartitionPinCounts(1, { 2, 2, 0 });
@@ -292,11 +291,12 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
 
   initializePartition();
 
+  Km1GainCache gain_cache;
   while ( !hierarchy.empty() ) {
     BatchVector& batches = hierarchy.back();
     while ( !batches.empty() ) {
       const Batch& batch = batches.back();
-      partitioned_hypergraph.uncontract(batch);
+      partitioned_hypergraph.uncontract(batch, gain_cache);
       batches.pop_back();
     }
     hierarchy.pop_back();
@@ -323,15 +323,16 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
-  partitioned_hypergraph.uncontract(hierarchy.back().back());
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
-  verifyAllKm1GainValues();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
+  partitioned_hypergraph.uncontract(hierarchy.back().back(), gain_cache);
+  ASSERT_EQ(2, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(0, gain_cache.benefitTerm(0, 2));
+  ASSERT_EQ(1, gain_cache.penaltyTerm(2, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(2, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(2, 2));
+  verifyAllKm1GainValues(gain_cache);
 }
 
 TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction2) {
@@ -347,40 +348,41 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(partitioned_hypergraph);
 
   while ( !hierarchy.empty() ) {
     BatchVector& batches = hierarchy.back();
     while ( !batches.empty() ) {
       const Batch& batch = batches.back();
-      partitioned_hypergraph.uncontract(batch);
+      partitioned_hypergraph.uncontract(batch, gain_cache);
       batches.pop_back();
     }
     hierarchy.pop_back();
   }
 
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(1, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(1, 2));
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(3));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(3, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(3, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(4));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(4, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(4, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(5));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(5, 0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(5, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
-  verifyAllKm1GainValues();
+  ASSERT_EQ(2, gain_cache.penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(0, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(0, 2));
+  ASSERT_EQ(1, gain_cache.penaltyTerm(1, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(1, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(1, 2));
+  ASSERT_EQ(1, gain_cache.penaltyTerm(2, kInvalidPartition));
+  ASSERT_EQ(0, gain_cache.benefitTerm(2, 1));
+  ASSERT_EQ(1, gain_cache.benefitTerm(2, 2));
+  ASSERT_EQ(2, gain_cache.penaltyTerm(3, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(3, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(3, 1));
+  ASSERT_EQ(2, gain_cache.penaltyTerm(4, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(4, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(4, 1));
+  ASSERT_EQ(1, gain_cache.penaltyTerm(5, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(5, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(5, 1));
+  ASSERT_EQ(2, gain_cache.penaltyTerm(6, kInvalidPartition));
+  ASSERT_EQ(1, gain_cache.benefitTerm(6, 0));
+  ASSERT_EQ(0, gain_cache.benefitTerm(6, 1));
+  verifyAllKm1GainValues(gain_cache);
 }
 
 

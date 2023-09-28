@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gtest/gtest.h"
@@ -26,6 +32,7 @@
 #include <cstring>
 #include <fstream>
 
+#include "tests/definitions.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/io/csv_output.h"
 
@@ -37,24 +44,25 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
+    "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
     "FlowParameters", "RefinementParameters", "SharedMemoryParameters", "DeterministicRefinement",
-    "FlowParameters" };
+    "FlowParameters", "MappingParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
-    {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
+    {"InitialPartitioningParameters", "initial_partitioning_"},
     {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
     {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
-    {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"} };
+    {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
-    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
-    "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism" };
+    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos", "original_num_threads",
+    "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
+    "mapping_target_graph_file" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
@@ -119,7 +127,7 @@ std::vector<std::string> get_all_members_in_context() {
     }
     context_file.close();
   } else {
-    ERROR("Context file not found");
+    ERR("Context file not found");
   }
 
   return members;
@@ -173,16 +181,19 @@ bool check_if_member_is_contained_in_result_line(const std::string& context_memb
 }
 
 TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  Hypergraph dummy_hypergraph;
-  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  tests::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  tests::Hypergraph dummy_hypergraph;
+  tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.graph_filename = "dummy.hgr";
+  dummy_context.partition.fixed_vertex_filename = "dummy.fix";
   dummy_context.partition.k = 0;
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  dummy_context.partition.objective = Objective::steiner_tree;
+  dummy_context.mapping.target_graph_file = "dummy.graph";
+  tests::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed_seconds(end - start);
 
   std::string result = serializer::serialize(dummy_partitioned_hypergraph, dummy_context, elapsed_seconds);
@@ -201,15 +212,14 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
 
 TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
   std::string header = csv::header();
-  Hypergraph dummy_hypergraph;
-  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  tests::Hypergraph dummy_hypergraph;
+  tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.k = 2;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
   std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));
   ASSERT_EQ(std::count(body.begin(), body.end(), ','), std::count(header.begin(), header.end(), ','));
-
 }
 
 }  // namespace io

@@ -1,23 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -25,12 +31,15 @@
 #include <atomic>
 #include <type_traits>
 
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
+#include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -40,7 +49,8 @@ namespace ds {
  * This is a variant of DeltaPartitionedHypergraph specialized for graphs.
  * See delte_partitioned_hypergraph.h for more details.
  */
-template <typename PartitionedGraph = Mandatory>
+template <typename PartitionedGraph = Mandatory,
+          bool maintain_connectivity_set = false>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -51,27 +61,21 @@ class DeltaPartitionedGraph {
   using HyperedgeIterator = typename PartitionedGraph::HyperedgeIterator;
   using IncidenceIterator = typename PartitionedGraph::IncidenceIterator;
   using IncidentNetsIterator = typename PartitionedGraph::IncidentNetsIterator;
+  using DummyConnectivitySet = DeltaConnectivitySet<ConnectivitySets>;
+  using ConnectivitySetIterator = typename DummyConnectivitySet::Iterator;
 
  public:
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedGraph::HIGH_DEGREE_THRESHOLD;
-
-  DeltaPartitionedGraph() :
-    _k(kInvalidPartition),
-    _pg(nullptr),
-    _part_weights_delta(0, 0),
-    _part_ids_delta(),
-    _incident_weight_in_part_delta() {}
 
   DeltaPartitionedGraph(const Context& context) :
     _k(context.partition.k),
     _pg(nullptr),
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
-    _incident_weight_in_part_delta() {
-      const bool top_level = context.type == kahypar::ContextType::main;
+    _dummy_connectivity_set() {
+      const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
-      _incident_weight_in_part_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
     }
 
   DeltaPartitionedGraph(const DeltaPartitionedGraph&) = delete;
@@ -84,6 +88,18 @@ class DeltaPartitionedGraph {
 
   void setPartitionedHypergraph(PartitionedGraph* pg) {
     _pg = pg;
+  }
+
+  // ####################### Mapping ######################
+
+  bool hasTargetGraph() const {
+    ASSERT(_pg);
+    return _pg->hasTargetGraph();
+  }
+
+  const TargetGraph* targetGraph() const {
+    ASSERT(_pg);
+    return _pg->targetGraph();
   }
 
   // ####################### Iterators #######################
@@ -131,9 +147,15 @@ class DeltaPartitionedGraph {
     return _pg->edgeTarget(e);
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return _pg->edgeSource(e);
+  }
+
+  // ! Returns true, if the edge is selfloop
+  bool isSinglePin(const HyperedgeID e) const {
+    ASSERT(_pg);
+    return _pg->isSinglePin(e);
   }
 
   // ! Number of pins of an edge
@@ -168,11 +190,18 @@ class DeltaPartitionedGraph {
       _part_weights_delta[to] += weight;
       _part_weights_delta[from] -= weight;
 
+      SynchronizedEdgeUpdate sync_update;
+      sync_update.from = from;
+      sync_update.to = to;
+      sync_update.target_graph = _pg->targetGraph();
       for (const HyperedgeID edge : _pg->incidentEdges(u)) {
         const PartitionID target_part = partID(_pg->edgeTarget(edge));
-        const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
-        const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
-        delta_func(edge, _pg->edgeWeight(edge), _pg->edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+        sync_update.he = edge;
+        sync_update.edge_weight = _pg->edgeWeight(edge);
+        sync_update.edge_size = _pg->edgeSize(edge);
+        sync_update.pin_count_in_from_part_after = target_part == from ? 1 : 0;
+        sync_update.pin_count_in_to_part_after = target_part == to ? 2 : 1;
+        delta_func(sync_update);
       }
       return true;
     } else {
@@ -199,33 +228,17 @@ class DeltaPartitionedGraph {
     }
   }
 
-  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
-                                         const PartitionID from,
-                                         const PartitionID to,
-                                         const HypernodeWeight max_weight_to) {
-    auto delta_gain_func = [&](HyperedgeID he, HyperedgeWeight edge_weight,
-                               HypernodeID ,HypernodeID pcip_from, HypernodeID pcip_to) {
-      gainCacheUpdate(he, edge_weight, from, pcip_from, to, pcip_to);
-    };
-    return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                       const PartitionID from, const HypernodeID /*pin_count_in_from_part_after*/,
-                       const PartitionID to, const HypernodeID /*pin_count_in_to_part_after*/) {
-    const HypernodeID target = _pg->edgeTarget(he);
-    const size_t index_in_from_part = incident_weight_index(target, from);
-    _incident_weight_in_part_delta[index_in_from_part] -= we;
-    const size_t index_in_to_part = incident_weight_index(target, to);
-    _incident_weight_in_part_delta[index_in_to_part] += we;
-  }
-
   // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
     ASSERT(_pg);
     const PartitionID* part_id = _part_ids_delta.get_if_contained(u);
     return part_id ? *part_id : _pg->partID(u);
+  }
+
+  // ! Returns if the node is a fixed vertex
+  bool isFixed(const HypernodeID u) const {
+    ASSERT(_pg);
+    return _pg->isFixed(u);
   }
 
   // ! Returns the total weight of block p
@@ -245,41 +258,28 @@ class DeltaPartitionedGraph {
     if (p == partID(edgeSource(e))) {
       count++;
     }
-    if (p == partID(edgeTarget(e))) {
+    if (!_pg->isSinglePin(e) && p == partID(edgeTarget(e))) {
       count++;
     }
     return count;
   }
 
-  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
-    ASSERT(_pg);
-    const PartitionID part_id = partID(u);
-    const HyperedgeWeight* incident_weight_delta_u =
-      _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, part_id));
-    const HyperedgeWeight incident_weight_u = _pg->incidentWeightInPart(u, part_id) +
-                                              (incident_weight_delta_u ? *incident_weight_delta_u : 0);
-    return -incident_weight_u;
+  // ! Returns an iterator over the connectivity set of hyperedge he (not supported)
+  IteratorRange<ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    throw NonSupportedOperationException("Not supported for graphs");
+    return _dummy_connectivity_set.connectivitySet(e);
   }
 
-  HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
-    ASSERT(_pg);
-    ASSERT(p != kInvalidPartition && p < _k);
-    const HyperedgeWeight* incident_weight_delta_p =
-      _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, p));
-    const HyperedgeWeight incident_weight_p = _pg->incidentWeightInPart(u, p) +
-                                              (incident_weight_delta_p ? *incident_weight_delta_p : 0);
-    return -incident_weight_p;
+  // ! Returns the number of blocks contained in hyperedge he (not supported)
+  PartitionID connectivity(const HyperedgeID e) const {
+    throw NonSupportedOperationException("Not supported for graphs");
+    return _dummy_connectivity_set.connectivity(e);
   }
 
-  Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
-    unused(from);
-    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
-    ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) - moveToPenalty(u, to);
-  }
-
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
-    _pg->initializeGainCacheEntry(u, penalty_aggregator);
+  // ! Creates a deep copy of the connectivity set of hyperedge he (not supported)
+  Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
+    throw NonSupportedOperationException("Not supported for graphs");
+    return _dummy_connectivity_set.deepCopy(he);
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph
@@ -288,24 +288,28 @@ class DeltaPartitionedGraph {
     _part_weights_delta.assign(_k, 0);
     // Constant Time
     _part_ids_delta.clear();
-    _incident_weight_in_part_delta.clear();
   }
 
   void dropMemory() {
     if (!_memory_dropped) {
       _memory_dropped = true;
       _part_ids_delta.freeInternalData();
-      _incident_weight_in_part_delta.freeInternalData();
     }
   }
 
   size_t combinedMemoryConsumption() const {
-    return _part_ids_delta.size_in_bytes()
-           + _incident_weight_in_part_delta.size_in_bytes();
+    return _part_ids_delta.size_in_bytes();
   }
 
   PartitionID k() const {
     return _k;
+  }
+
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    if ( new_k > _k ) {
+      _part_weights_delta.assign(new_k, 0);
+    }
+    _k = new_k;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
@@ -316,16 +320,9 @@ class DeltaPartitionedGraph {
     part_weights_node->updateSize(_part_weights_delta.capacity() * sizeof(HypernodeWeight));
     utils::MemoryTreeNode* part_ids_node = delta_pg_node->addChild("Delta Part IDs");
     part_ids_node->updateSize(_part_ids_delta.size_in_bytes());
-    utils::MemoryTreeNode* _incident_weight_in_part_node = delta_pg_node->addChild("Delta Incident Weight In Part");
-    _incident_weight_in_part_node->updateSize(_incident_weight_in_part_delta.size_in_bytes());
   }
 
  private:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t incident_weight_index(const HypernodeID u, const PartitionID p) const {
-    return size_t(u) * _k  + p;
-  }
-
   bool _memory_dropped = false;
 
   // ! Number of blocks
@@ -340,9 +337,10 @@ class DeltaPartitionedGraph {
   // ! Stores for each locally moved node its new block id
   DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
 
-  // ! Stores the delta of each locally touched incident weight in part entry
-  // ! relative to the _incident_weight_in_part member in '_pg'
-  DynamicFlatMap<size_t, HyperedgeWeight> _incident_weight_in_part_delta;
+  // ! Maintain the connectivity set is not supported in the delta partitioned graph.
+  // ! We therefore add here a dummy delta connectivity set to implement the same interface
+  // ! as the delta partitioned hypergraph
+  DummyConnectivitySet _dummy_connectivity_set;
 };
 
 } // namespace ds

@@ -1,22 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <atomic>
@@ -32,7 +39,7 @@
 
 namespace mt_kahypar {
 namespace utils {
-class TimerT {
+class Timer {
   static constexpr bool debug = false;
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -146,20 +153,46 @@ class TimerT {
   using LocalActiveTimingStack = tbb::enumerable_thread_specific<ActiveTimingStack>;
 
  public:
-  TimerT(const TimerT&) = delete;
-  TimerT & operator= (const TimerT &) = delete;
+  explicit Timer() :
+    _timing_mutex(),
+    _timings(),
+    _active_timings(),
+    _local_active_timings(),
+    _index(0),
+    _is_enabled(true),
+    _show_detailed_timings(false),
+    _max_output_depth(std::numeric_limits<size_t>::max()) { }
 
-  TimerT(TimerT&&) = delete;
-  TimerT & operator= (TimerT &&) = delete;
+  Timer(const Timer& other) :
+    _timing_mutex(),
+    _timings(other._timings),
+    _active_timings(other._active_timings),
+    _local_active_timings(other._local_active_timings),
+    _index(other._index.load(std::memory_order_relaxed)),
+    _is_enabled(other._is_enabled),
+    _show_detailed_timings(other._show_detailed_timings),
+    _max_output_depth(other._max_output_depth) { }
 
-  static TimerT& instance(bool show_detailed_timings = false) {
-    static TimerT instance;
-    instance._show_detailed_timings = show_detailed_timings;
-    return instance;
-  }
+  Timer & operator= (const Timer &) = delete;
+
+  Timer(Timer&& other) :
+    _timing_mutex(),
+    _timings(std::move(other._timings)),
+    _active_timings(std::move(other._active_timings)),
+    _local_active_timings(std::move(other._local_active_timings)),
+    _index(other._index.load(std::memory_order_relaxed)),
+    _is_enabled(std::move(other._is_enabled)),
+    _show_detailed_timings(std::move(other._show_detailed_timings)),
+    _max_output_depth(std::move(other._max_output_depth)) { }
+
+  Timer & operator= (Timer &&) = delete;
 
   void setMaximumOutputDepth(const size_t max_output_depth) {
     _max_output_depth = max_output_depth;
+  }
+
+  void showDetailedTimings(const bool show_detailed_timings) {
+    _show_detailed_timings = show_detailed_timings;
   }
 
   bool isEnabled() const {
@@ -280,7 +313,7 @@ class TimerT {
     }
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const TimerT& timer);
+  friend std::ostream & operator<< (std::ostream& str, const Timer& timer);
 
   double get(std::string key) const {
     for (const auto& x : _timings) {
@@ -293,16 +326,6 @@ class TimerT {
   }
 
  private:
-  explicit TimerT() :
-    _timing_mutex(),
-    _timings(),
-    _active_timings(),
-    _local_active_timings(),
-    _index(0),
-    _is_enabled(true),
-    _show_detailed_timings(false),
-    _max_output_depth(std::numeric_limits<size_t>::max()) { }
-
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, KeyHasher, KeyEqual> _timings;
   // Global Active Timing Stack
@@ -319,38 +342,38 @@ class TimerT {
   size_t _max_output_depth;
 };
 
-inline char TimerT::TOP_LEVEL_PREFIX[] = " + ";
-inline char TimerT::SUB_LEVEL_PREFIX[] = " + ";
+inline char Timer::TOP_LEVEL_PREFIX[] = " + ";
+inline char Timer::SUB_LEVEL_PREFIX[] = " + ";
 
-inline std::ostream & operator<< (std::ostream& str, const TimerT& timer) {
-  std::vector<TimerT::Timing> timings;
+inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
+  std::vector<Timer::Timing> timings;
   for (const auto& timing : timer._timings) {
     timings.emplace_back(timing.second);
   }
   std::sort(timings.begin(), timings.end(),
-            [&](const TimerT::Timing& lhs, const TimerT::Timing& rhs) {
+            [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
         return lhs.order() < rhs.order();
       });
 
-  auto print = [&](std::ostream& str, const TimerT::Timing& timing, int level) {
+  auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
                  std::string prefix = "";
-                 prefix += level == 0 ? std::string(TimerT::TOP_LEVEL_PREFIX, TimerT::TOP_LEVEL_PREFIX_LENGTH) :
-                           std::string(TimerT::TOP_LEVEL_PREFIX_LENGTH, ' ');
-                 prefix += level > 0 ? std::string(TimerT::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ') : "";
-                 prefix += level > 0 ? std::string(TimerT::SUB_LEVEL_PREFIX, TimerT::SUB_LEVEL_PREFIX_LENGTH) : "";
+                 prefix += level == 0 ? std::string(Timer::TOP_LEVEL_PREFIX, Timer::TOP_LEVEL_PREFIX_LENGTH) :
+                           std::string(Timer::TOP_LEVEL_PREFIX_LENGTH, ' ');
+                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ') : "";
+                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
                  size_t length = prefix.size() + timing.description().size();
                  str << prefix
                      << timing.description();
-                 if (length < TimerT::MAX_LINE_LENGTH) {
-                   str << std::string(TimerT::MAX_LINE_LENGTH - length, ' ');
+                 if (length < Timer::MAX_LINE_LENGTH) {
+                   str << std::string(Timer::MAX_LINE_LENGTH - length, ' ');
                  }
                  str << " = " << timing.timing() << " s\n";
                };
 
-  std::function<void(std::ostream&, const TimerT::Timing&, int)> dfs =
-    [&](std::ostream& str, const TimerT::Timing& parent, int level) {
-      if ( level <= timer._max_output_depth ) {
-        for (const TimerT::Timing& timing : timings) {
+  std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
+    [&](std::ostream& str, const Timer::Timing& parent, int level) {
+      if ( static_cast<size_t>(level) <= timer._max_output_depth ) {
+        for (const Timer::Timing& timing : timings) {
           if (timing.parent() == parent.key()) {
             print(str, timing, level);
             dfs(str, timing, level + 1);
@@ -359,7 +382,7 @@ inline std::ostream & operator<< (std::ostream& str, const TimerT& timer) {
       }
     };
 
-  for (const TimerT::Timing& timing : timings) {
+  for (const Timer::Timing& timing : timings) {
     if (timing.is_root()) {
       print(str, timing, 0);
       if (timer._show_detailed_timings) {
@@ -370,55 +393,6 @@ inline std::ostream & operator<< (std::ostream& str, const TimerT& timer) {
 
   return str;
 }
-
-class DoNothingTimer {
-
- public:
-  DoNothingTimer(const DoNothingTimer&) = delete;
-  DoNothingTimer & operator= (const DoNothingTimer &) = delete;
-
-  DoNothingTimer(DoNothingTimer&&) = delete;
-  DoNothingTimer & operator= (DoNothingTimer &&) = delete;
-
-  static DoNothingTimer& instance(bool show_detailed_timings = false) {
-    static DoNothingTimer instance;
-    return instance;
-  }
-
-  void setMaximumOutputDepth(const size_t) { }
-  bool isEnabled() const { return false; }
-  void enable() { }
-  void disable() { }
-  void clear() { }
-
-  void start_timer(const std::string&, const std::string&) { }
-  void start_timer(const std::string&, const std::string&, bool) { }
-  void start_timer(const std::string&, const std::string&, bool, bool) { }
-
-  void stop_timer(const std::string&) { }
-  void stop_timer(const std::string&, bool) { }
-
-  void serialize(std::ostream&) { }
-
-  friend std::ostream & operator<< (std::ostream& str, const DoNothingTimer&);
-
-  double get(std::string key) const {
-    return 0.0;
-  }
-
- private:
-  explicit DoNothingTimer() { }
-};
-
-inline std::ostream & operator<< (std::ostream& str, const DoNothingTimer&) {
-  return str;
-}
-
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-using Timer = DoNothingTimer;
-#else
-using Timer = TimerT;
-#endif
 
 }  // namespace utils
 }  // namespace mt_kahypar

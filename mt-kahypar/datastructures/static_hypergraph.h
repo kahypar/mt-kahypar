@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -24,14 +30,18 @@
 
 #include "tbb/parallel_for.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -39,7 +49,7 @@ namespace ds {
 // Forward
 class StaticHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory>
+          typename ConnectivityInformation>
 class PartitionedHypergraph;
 
 class StaticHypergraph {
@@ -259,14 +269,14 @@ class StaticHypergraph {
    *
    */
   template <typename ElementType>
-  class HypergraphElementIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         typename ElementType::IDType,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const typename ElementType::IDType*,   // pointer
-                         typename ElementType::IDType> {   // reference
+  class HypergraphElementIterator {
    public:
     using IDType = typename ElementType::IDType;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = IDType;
+    using reference = IDType&;
+    using pointer = const IDType*;
+    using difference_type = std::ptrdiff_t;
 
     /*!
      * Construct a HypergraphElementIterator
@@ -378,7 +388,10 @@ class StaticHypergraph {
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Hyperedge);
+  static constexpr mt_kahypar_hypergraph_type_t TYPE = STATIC_HYPERGRAPH;
 
+  // ! Factory
+  using Factory = StaticHypergraphFactory;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
   // ! Iterator to iterate over the hyperedges
@@ -387,6 +400,11 @@ class StaticHypergraph {
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
+
+  struct ParallelHyperedge {
+    HyperedgeID removed_hyperedge;
+    HyperedgeID representative;
+  };
 
   explicit StaticHypergraph() :
     _num_hypernodes(0),
@@ -403,6 +421,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
+    _fixed_vertices(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -423,7 +442,9 @@ class StaticHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _community_ids(std::move(other._community_ids)),
+    _fixed_vertices(std::move(other._fixed_vertices)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
+    _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
   }
 
@@ -441,7 +462,9 @@ class StaticHypergraph {
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
-    _community_ids = std::move(other._community_ids),
+    _community_ids = std::move(other._community_ids);
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -665,6 +688,45 @@ class StaticHypergraph {
     _community_ids[u] = community_id;
   }
 
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<StaticHypergraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+    _fixed_vertices.setMaxBlockWeight(max_block_weights);
+  }
+
+  const FixedVertexSupport<StaticHypergraph>& fixedVertexSupport() const {
+    return _fixed_vertices;
+  }
+
+  FixedVertexSupport<StaticHypergraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
+  }
+
   // ####################### Contract / Uncontract #######################
 
   /*!
@@ -679,14 +741,16 @@ class StaticHypergraph {
   StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
-    ERROR("registerContraction(u, v) is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "registerContraction(u, v) is not supported in static hypergraph");
     return false;
   }
 
   size_t contract(const HypernodeID,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
-    ERROR("contract(v, max_node_weight) is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "contract(v, max_node_weight) is not supported in static hypergraph");
     return 0;
   }
 
@@ -695,11 +759,13 @@ class StaticHypergraph {
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
     unused(case_one_func);
     unused(case_two_func);
-    ERROR("uncontract(batch) is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "uncontract(batch) is not supported in static hypergraph");
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERROR("createBatchUncontractionHierarchy(batch_size) is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "createBatchUncontractionHierarchy(batch_size) is not supported in static hypergraph");
     return { };
   }
 
@@ -756,12 +822,14 @@ class StaticHypergraph {
   }
 
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
-    ERROR("removeSinglePinAndParallelHyperedges() is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "removeSinglePinAndParallelHyperedges() is not supported in static hypergraph");
     return { };
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
-    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static hypergraph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -780,10 +848,10 @@ class StaticHypergraph {
   }
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph copy(parallel_tag_t);
+  StaticHypergraph copy(parallel_tag_t) const;
 
   // ! Copy static hypergraph sequential
-  StaticHypergraph copy();
+  StaticHypergraph copy() const;
 
   // ! Reset internal data structure
   void reset() { }
@@ -808,7 +876,8 @@ class StaticHypergraph {
 
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
-    ERROR("verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
+    throw NonSupportedOperationException(
+      "verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
     return false;
   }
 
@@ -817,7 +886,7 @@ class StaticHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory>
+            typename ConnectivityInformation>
   friend class PartitionedHypergraph;
 
   // ####################### Hypernode Information #######################
@@ -935,6 +1004,9 @@ class StaticHypergraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  // ! Fixed Vertex Support
+  FixedVertexSupport<StaticHypergraph> _fixed_vertices;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

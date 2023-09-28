@@ -1,29 +1,37 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;
 
@@ -31,6 +39,13 @@ using ::testing::Test;
 #define CAPACITY(X) whfc::Flow(X)
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
 template<typename C, typename F, bool is_default>
 struct Config {
@@ -61,7 +76,7 @@ class AFlowHypergraphConstructor : public Test {
     context.partition.k = 3;
     context.partition.perfect_balance_part_weights.assign(3, 5);
     context.partition.max_part_weights.assign(2, 4);
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
 
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
@@ -80,7 +95,8 @@ class AFlowHypergraphConstructor : public Test {
     phg.setOnlyNodePart(9, 2);
     phg.initializePartition();
 
-    constructor = std::make_unique<Constructor>(hg, flow_hg, hfc, context);
+    constructor = std::make_unique<Constructor>(
+      hg.initialNumEdges(), flow_hg, hfc, context);
   }
 
   bool is_default_construction() const {
@@ -97,10 +113,10 @@ class AFlowHypergraphConstructor : public Test {
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction, whfc::SequentialPushRelabel, true>,
-                         Config<SequentialConstruction, whfc::SequentialPushRelabel, false>,
-                         Config<ParallelConstruction, whfc::ParallelPushRelabel, true>,
-                         Config<ParallelConstruction, whfc::ParallelPushRelabel, false> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, true>,
+                         Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, false>,
+                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, true>,
+                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, false> > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 

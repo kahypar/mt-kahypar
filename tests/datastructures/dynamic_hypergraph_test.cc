@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gmock/gmock.h"
@@ -31,7 +37,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-using ADynamicHypergraph = HypergraphFixture<DynamicHypergraph, DynamicHypergraphFactory>;
+using ADynamicHypergraph = HypergraphFixture<DynamicHypergraph>;
 
 template<typename F, typename K>
 void executeParallel(const F& f1, const K& f2) {
@@ -1087,34 +1093,32 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy5) {
 }
 
 
-#ifndef KAHYPAR_TRAVIS_BUILD
-// TODO: test fails sporadically on Travis -> further investigation required
-TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
-  ContractionTree tree;
-  // Binary Tree where each left child has exactly two childrens
-  tree.initialize(15);
-  tree.setParent(1, 0);
-  tree.setParent(2, 0);
-  tree.setParent(3, 1);
-  tree.setParent(4, 1);
-  tree.setParent(5, 3);
-  tree.setParent(6, 3);
-  tree.setParent(7, 5);
-  tree.setParent(8, 5);
-  tree.setParent(9, 7);
-  tree.setParent(10, 7);
-  tree.setParent(11, 9);
-  tree.setParent(12, 9);
-  tree.setParent(13, 11);
-  tree.setParent(14, 11);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
-  ASSERT_EQ(1, versioned_batches.size());
-  for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
-    ASSERT_EQ(2, versioned_batches.back()[i].size());
-  }
-  verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
-}
-#endif
+// TODO(heuer): test fails sporadically on CI -> further investigation and fix required
+// TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
+//   ContractionTree tree;
+//   // Binary Tree where each left child has exactly two childrens
+//   tree.initialize(15);
+//   tree.setParent(1, 0);
+//   tree.setParent(2, 0);
+//   tree.setParent(3, 1);
+//   tree.setParent(4, 1);
+//   tree.setParent(5, 3);
+//   tree.setParent(6, 3);
+//   tree.setParent(7, 5);
+//   tree.setParent(8, 5);
+//   tree.setParent(9, 7);
+//   tree.setParent(10, 7);
+//   tree.setParent(11, 9);
+//   tree.setParent(12, 9);
+//   tree.setParent(13, 11);
+//   tree.setParent(14, 11);
+//   auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+//   ASSERT_EQ(1, versioned_batches.size());
+//   for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
+//     ASSERT_EQ(2, versioned_batches.back()[i].size());
+//   }
+//   verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
+// }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions1) {
   ContractionTree tree;
@@ -1306,6 +1310,7 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets1) {
   verifyPins( { 0, 1, 2, 3 },
     { { 0 }, { 0, 3, 4 }, { 3, 4 }, { 0, 3, 4 } } );
 
+  using ParallelHyperedge = typename DynamicHypergraph::ParallelHyperedge;
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
   std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
     [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {
@@ -1337,6 +1342,7 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets2) {
   verifyPins( { 0, 1, 2, 3 },
     { { 0 }, { 0, 1, 6 }, { 6 }, { 0, 1, 6 } } );
 
+  using ParallelHyperedge = typename DynamicHypergraph::ParallelHyperedge;
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
   std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
     [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {

@@ -1,28 +1,38 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
 #include <iostream>
 #include <string>
+#include <cstdint>
+
+#include "include/libmtkahypartypes.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
@@ -46,16 +56,16 @@ enum class InstanceType : int8_t {
 
 enum class PresetType : int8_t {
   deterministic,
+  large_k,
   default_preset,
-  default_flows,
-  quality_preset,
-  quality_flows,
+  quality,
+  highest_quality,
   UNDEFINED
 };
 
-enum class Paradigm : int8_t {
-  multilevel,
-  nlevel
+enum class ContextType : bool {
+  main,
+  initial_partitioning
 };
 
 enum class Mode : uint8_t {
@@ -63,6 +73,24 @@ enum class Mode : uint8_t {
   direct,
   deep_multilevel,
   UNDEFINED
+};
+
+enum class Objective : uint8_t {
+  cut,
+  km1,
+  soed,
+  steiner_tree,
+  UNDEFINED
+};
+
+enum class GainPolicy : uint8_t {
+  km1,
+  cut,
+  soed,
+  steiner_tree,
+  cut_for_graphs,
+  steiner_tree_for_graphs,
+  none
 };
 
 enum class LouvainEdgeWeight : uint8_t {
@@ -89,19 +117,19 @@ enum class CoarseningAlgorithm : uint8_t {
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
-  sameness,
+  ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
   UNDEFINED
 };
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
-  multiplicative_penalty,
-  additive,
+  ENABLE_EXPERIMENTAL_FEATURES(multiplicative_penalty COMMA)
+  ENABLE_EXPERIMENTAL_FEATURES(additive COMMA)
   UNDEFINED
 };
 
 enum class AcceptancePolicy : uint8_t {
-  best,
+  ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
   UNDEFINED
 };
@@ -120,17 +148,14 @@ enum class InitialPartitioningAlgorithm : uint8_t {
 };
 
 enum class LabelPropagationAlgorithm : uint8_t {
-  label_propagation_km1,
-  label_propagation_cut,
+  label_propagation,
   deterministic,
   do_nothing
 };
 
 enum class FMAlgorithm : uint8_t {
-  fm_gain_cache,
-  fm_gain_cache_on_demand,
-  fm_gain_delta,
-  fm_recompute_gain,
+  kway_fm,
+  unconstrained_fm,
   do_nothing
 };
 
@@ -138,6 +163,23 @@ enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
   do_nothing
+};
+
+enum class RebalancingAlgorithm : uint8_t {
+  simple_rebalancer,
+  advanced_rebalancer,
+  do_nothing
+};
+
+enum class OneToOneMappingStrategy : uint8_t {
+  greedy_mapping,
+  identity
+};
+
+enum class SteinerTreeFlowValuePolicy : uint8_t {
+  lower_bound,
+  upper_bound,
+  UNDEFINED
 };
 
 std::ostream & operator<< (std::ostream& os, const Type& type);
@@ -148,9 +190,15 @@ std::ostream & operator<< (std::ostream& os, const InstanceType& type);
 
 std::ostream & operator<< (std::ostream& os, const PresetType& type);
 
-std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
+std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type);
+
+std::ostream & operator<< (std::ostream& os, const ContextType& type);
 
 std::ostream & operator<< (std::ostream& os, const Mode& mode);
+
+std::ostream & operator<< (std::ostream& os, const Objective& objective);
+
+std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
 
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
@@ -172,11 +220,19 @@ std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
+
+std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
+
+std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
 
 PresetType presetTypeFromString(const std::string& type);
+
+Objective objectiveFromString(const std::string& obj);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -197,5 +253,11 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
+
+RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
+
+OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type);
+
+SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
 
 }  // namesapce mt_kahypar

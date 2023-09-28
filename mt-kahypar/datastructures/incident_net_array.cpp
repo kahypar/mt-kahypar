@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/datastructures/incident_net_array.h"
@@ -130,18 +136,7 @@ void IncidentNetArray::uncontract(const HypernodeID u,
                                   const HypernodeID v,
                                   const AcquireLockFunc& acquire_lock,
                                   const ReleaseLockFunc& release_lock) {
-  ASSERT(header(v)->prev != v);
-  Header* head_v = header(v);
-  acquire_lock(u);
-  // Restores the incident list of v to the time before it was appended
-  // to the double-linked list of u.
-  splice(u, v);
-  header(u)->degree -= head_v->degree;
-  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
-  release_lock(u);
-
-  // Restore all incident nets of v removed by the contraction of u and v
-  restoreIncidentNets(v);
+  uncontract(u, v, [](HyperedgeID) {}, [](HyperedgeID) {}, acquire_lock, release_lock);
 }
 
 // ! Uncontract two previously contracted vertices u and v.
@@ -208,42 +203,7 @@ void IncidentNetArray::removeIncidentNets(const HypernodeID u,
 // ! between two consecutive calls to removeIncidentNets(...) must
 // ! be processed.
 void IncidentNetArray::restoreIncidentNets(const HypernodeID u) {
-  Header* head_u = header(u);
-  HypernodeID current_u = u;
-  HypernodeID last_non_empty_entry = kInvalidHypernode;
-  do {
-    Header* head = header(current_u);
-    ASSERT(head->current_version > 0);
-    const HypernodeID new_version = --head->current_version;
-    const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_u + 1));
-    // Iterate over non-active entries (and activate them) until the version number
-    // is not equal to the new version of the list
-    for ( Entry* current_entry = lastEntry(current_u); current_entry != last_entry; ++current_entry ) {
-      if ( current_entry->version == new_version ) {
-        ++head->size;
-        ++head_u->degree;
-      } else {
-        break;
-      }
-    }
-
-    // Restore iterator double-linked list which only contains
-    // non-empty incident net lists
-    if ( head->size > 0 || current_u == u ) {
-      if ( last_non_empty_entry != kInvalidHypernode &&
-           head->it_prev != last_non_empty_entry ) {
-        header(last_non_empty_entry)->it_next = current_u;
-        head->it_prev = last_non_empty_entry;
-      }
-      last_non_empty_entry = current_u;
-    }
-    current_u = head->next;
-  } while ( current_u != u );
-
-  ASSERT(last_non_empty_entry != kInvalidHypernode);
-  head_u->it_prev = last_non_empty_entry;
-  header(last_non_empty_entry)->it_next = u;
-  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
+  restoreIncidentNets(u, [](HyperedgeID) {}, [](HyperedgeID) {});
 }
 
 // ! Restores all previously removed incident nets
@@ -304,7 +264,7 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 }
 
-IncidentNetArray IncidentNetArray::copy(parallel_tag_t) {
+IncidentNetArray IncidentNetArray::copy(parallel_tag_t) const {
   IncidentNetArray incident_nets;
   incident_nets._num_hypernodes = _num_hypernodes;
   incident_nets._size_in_bytes = _size_in_bytes;
@@ -321,7 +281,7 @@ IncidentNetArray IncidentNetArray::copy(parallel_tag_t) {
   return incident_nets;
 }
 
-IncidentNetArray IncidentNetArray::copy() {
+IncidentNetArray IncidentNetArray::copy() const {
   IncidentNetArray incident_nets;
   incident_nets._num_hypernodes = _num_hypernodes;
   incident_nets._size_in_bytes = _size_in_bytes;
@@ -435,7 +395,7 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
   // Compute start positon of the incident nets of each vertex via a parallel prefix sum
   parallel::TBBPrefixSum<size_t, Array> incident_net_prefix_sum(_index_array);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
-          0UL, UI64(_num_hypernodes + 1)), incident_net_prefix_sum);
+          UL(0), UI64(_num_hypernodes + 1)), incident_net_prefix_sum);
   _size_in_bytes = incident_net_prefix_sum.total_sum();
   _incident_net_array = parallel::make_unique<char>(_size_in_bytes);
 

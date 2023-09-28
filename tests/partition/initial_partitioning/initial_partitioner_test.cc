@@ -1,48 +1,57 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-
-#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
 
-template <class InitialPartitioner, Mode mode, PartitionID k>
+template <typename TypeTraitsT, Mode mode, PartitionID k>
 struct TestConfig {
-  using Partitioner = InitialPartitioner;
+  using TypeTraits = TypeTraitsT;
   static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
 template <typename Config>
 class AInitialPartitionerTest : public Test {
-  using InitialPartitioner = typename Config::Partitioner;
+
+  using TypeTraits = typename Config::TypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   static size_t num_threads;
 
@@ -51,34 +60,40 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    if ( context.partition.paradigm == Paradigm::multilevel ) {
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
+    if ( !context.isNLevelPartitioning() ) {
       parseIniToContext(context, "../config/default_preset.ini");
     } else {
-      parseIniToContext(context, "../config/quality_preset.ini");
+      parseIniToContext(context, "../config/highest_quality_preset.ini");
     }
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
-    context.partition.objective = kahypar::Objective::km1;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+      PresetType::default_preset : PresetType::highest_quality;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
+    context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
-    context.partition.verbose_output = true;
+    context.partition.verbose_output = false;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
 
     // Coarsening
-    if ( context.partition.paradigm == Paradigm::nlevel ) {
+    if ( context.isNLevelPartitioning() ) {
       context.refinement.max_batch_size = 100;
     }
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
-    context.sparsification.use_degree_zero_contractions = false;
-    context.sparsification.use_heavy_net_removal = false;
-    context.sparsification.use_similiar_net_removal = false;
-    context.sparsification.use_degree_zero_contractions = false;
     context.initial_partitioning.mode = Config::MODE;
     context.initial_partitioning.remove_degree_zero_hns_before_ip = false;
 
@@ -95,15 +110,13 @@ class AInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_unweighted_ibm01.hgr");
+    hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
-
-    initial_partitioner = std::make_unique<InitialPartitioner>(partitioned_hypergraph, context);
   }
 
   void assignCommunities() {
@@ -115,10 +128,21 @@ class AInitialPartitionerTest : public Test {
     }
   }
 
+  void runInitialPartitioning() {
+    switch ( context.initial_partitioning.mode ) {
+      case Mode::recursive_bipartitioning:
+        RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context); break;
+      case Mode::deep_multilevel:
+        DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context); break;
+      case Mode::direct:
+      case Mode::UNDEFINED:
+        ERR("Undefined initial partitioning algorithm.");
+    }
+  }
+
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<InitialPartitioner> initial_partitioner;
 };
 
 template <typename Config>
@@ -126,17 +150,23 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 2>,
-                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 3>,
-                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 4>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 2>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 3>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
-  this->initial_partitioner->initialPartition();
+  this->runInitialPartitioning();
 
   // Check that each vertex is assigned to a block
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {

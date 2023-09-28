@@ -1,25 +1,33 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/datastructures/contraction_tree.h"
+
+#include <queue>
 
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_invoke.h>
@@ -68,7 +76,7 @@ void ContractionTree::finalize(const size_t num_versions) {
   parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, parallel::scalable_vector>
     out_degree_prefix_sum(_out_degrees);
   tbb::parallel_invoke([&] {
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _out_degrees.size()), out_degree_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _out_degrees.size()), out_degree_prefix_sum);
   }, [&] {
     incidence_array_pos.assign(_num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeID>(0));
   });
@@ -128,13 +136,13 @@ void ContractionTree::finalize(const size_t num_versions) {
     }
   });
   _version_roots.resize(num_versions);
-  tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+  tbb::parallel_for(UL(0), num_versions, [&](const size_t i) {
     _version_roots[i] = tmp_version_roots[i].copy_parallel();
     tmp_version_roots[i].clear_parallel();
   });
 
   // Compute subtree sizes of each root in parallel via dfs
-  tbb::parallel_for(0UL, _roots.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), _roots.size(), [&](const size_t i) {
     parallel::scalable_vector<HypernodeID> dfs;
     dfs.push_back(_roots[i]);
     while( !dfs.empty() ) {
@@ -168,7 +176,7 @@ void ContractionTree::finalize(const size_t num_versions) {
 // ####################### Copy #######################
 
 // ! Copy contraction tree in parallel
-ContractionTree ContractionTree::copy(parallel_tag_t) {
+ContractionTree ContractionTree::copy(parallel_tag_t) const {
   ContractionTree tree;
 
   tree._num_hypernodes = _num_hypernodes;
@@ -187,7 +195,7 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
   }, [&] {
     const size_t num_versions = _version_roots.size();
     tree._version_roots.resize(num_versions);
-    tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_versions, [&](const size_t i) {
       if (!_version_roots[i].empty()) {
         tree._version_roots[i].resize(_version_roots[i].size());
         memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
@@ -211,7 +219,7 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
 }
 
 // ! Copy contraction tree sequentially
-ContractionTree ContractionTree::copy() {
+ContractionTree ContractionTree::copy() const {
   ContractionTree tree;
 
   tree._num_hypernodes = _num_hypernodes;
@@ -278,6 +286,218 @@ void ContractionTree::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Roots", sizeof(HypernodeID) * _roots.size());
   parent->addChild("Out-Degrees", sizeof(HypernodeID) * _out_degrees.size());
   parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
+}
+
+
+using ContractionInterval = typename ContractionTree::Interval;
+using ChildIterator = typename ContractionTree::ChildIterator;
+
+struct PQBatchUncontractionElement {
+  int64_t _objective;
+  std::pair<ChildIterator, ChildIterator> _iterator;
+};
+
+struct PQElementComparator {
+  bool operator()(const PQBatchUncontractionElement& lhs, const PQBatchUncontractionElement& rhs){
+      return lhs._objective < rhs._objective;
+  }
+};
+
+bool ContractionTree::verifyBatchIndexAssignments(
+  const BatchIndexAssigner& batch_assigner,
+  const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const {
+  parallel::scalable_vector<BatchAssignment> assignments;
+  for ( size_t i = 0; i < local_batch_assignments.size(); ++i ) {
+    for ( const BatchAssignment& batch_assign : local_batch_assignments[i] ) {
+      assignments.push_back(batch_assign);
+    }
+  }
+  std::sort(assignments.begin(), assignments.end(),
+    [&](const BatchAssignment& lhs, const BatchAssignment& rhs) {
+      return lhs.batch_index < rhs.batch_index ||
+        (lhs.batch_index == rhs.batch_index && lhs.batch_pos < rhs.batch_pos);
+    });
+
+  if ( assignments.size() > 0 ) {
+    if ( assignments[0].batch_index != 0 || assignments[0].batch_pos != 0 ) {
+      LOG << "First uncontraction should start at batch 0 at position 0"
+          << V(assignments[0].batch_index) << V(assignments[0].batch_pos);
+      return false;
+    }
+
+    for ( size_t i = 1; i < assignments.size(); ++i ) {
+      if ( assignments[i - 1].batch_index == assignments[i].batch_index ) {
+        if ( assignments[i - 1].batch_pos + 1 != assignments[i].batch_pos ) {
+          LOG << "Batch positions are not consecutive"
+              << V(i) << V(assignments[i - 1].batch_pos) << V(assignments[i].batch_pos);
+          return false;
+        }
+      } else {
+        if ( assignments[i - 1].batch_index + 1 != assignments[i].batch_index ) {
+          LOG << "Batch indices are not consecutive"
+              << V(i) << V(assignments[i - 1].batch_index) << V(assignments[i].batch_index);
+          return false;
+        }
+        if ( assignments[i].batch_pos != 0 ) {
+          LOG << "First uncontraction of each batch should start at position 0"
+              << V(assignments[i].batch_pos);
+          return false;
+        }
+        if ( assignments[i - 1].batch_pos + 1 != batch_assigner.batchSize(assignments[i - 1].batch_index) ) {
+          LOG << "Position of last uncontraction in batch" << assignments[i - 1].batch_index
+              << "does not match size of batch"
+              << V(assignments[i - 1].batch_pos) << V(batch_assigner.batchSize(assignments[i - 1].batch_index));
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
+                                                                         const size_t version) {
+
+  using PQ = std::priority_queue<PQBatchUncontractionElement,
+                                 parallel::scalable_vector<PQBatchUncontractionElement>,
+                                 PQElementComparator>;
+
+  // Checks if two contraction intervals intersect
+  auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
+    if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
+      return false;
+    }
+    return (i1.start <= i2.end && i1.end >= i2.end) ||
+            (i2.start <= i1.end && i2.end >= i1.end);
+  };
+
+  auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
+    auto it = childs(u);
+    auto current = it.begin();
+    auto end = it.end();
+    while ( current != end && this->version(*current) != version ) {
+      ++current;
+    }
+    if ( current != end ) {
+      prio_q.push(PQBatchUncontractionElement {
+        subtreeSize(*current), std::make_pair(current, end) } );
+    }
+  };
+
+  // Distribute roots of the contraction tree to local priority queues of
+  // each thread.
+  const size_t num_hardware_threads = std::thread::hardware_concurrency();
+  parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
+  const parallel::scalable_vector<HypernodeID>& roots = roots_of_version(version);
+  tbb::parallel_for(UL(0), roots.size(), [&](const size_t i) {
+    const int cpu_id = THREAD_ID;
+    push_into_pq(local_pqs[cpu_id], roots[i]);
+  });
+
+  using LocalBatchAssignments = parallel::scalable_vector<BatchAssignment>;
+  parallel::scalable_vector<LocalBatchAssignments> local_batch_assignments(num_hardware_threads);
+  parallel::scalable_vector<size_t> local_batch_indices(num_hardware_threads, 0);
+  tbb::parallel_for(UL(0), num_hardware_threads, [&](const size_t i) {
+    size_t& current_batch_index = local_batch_indices[i];
+    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
+    PQ& pq = local_pqs[i];
+    PQ next_pq;
+
+    while ( !pq.empty() ) {
+      // Iterator over the childs of a active vertex
+      auto it = pq.top()._iterator;
+      ASSERT(it.first != it.second);
+      const HypernodeID v = *it.first;
+      ASSERT(this->version(v) == version);
+      pq.pop();
+
+      const size_t start_idx = batch_assignments.size();
+      size_t num_uncontractions = 1;
+      const HypernodeID u = parent(v);
+      batch_assignments.push_back(BatchAssignment { u, v, UL(0), UL(0) });
+      // Push contraction partner into pq for the next BFS level
+      push_into_pq(next_pq, v);
+
+      // Insert all childs of u that intersect the contraction time interval of
+      // (u,v) into the current batch
+      ++it.first;
+      ContractionInterval current_ival = interval(v);
+      while ( it.first != it.second && this->version(*it.first) == version ) {
+        const HypernodeID w = *it.first;
+        const ContractionInterval w_ival = interval(w);
+        if ( does_interval_intersect(current_ival, w_ival) ) {
+          ASSERT(parent(w) == u);
+          ++num_uncontractions;
+          batch_assignments.push_back(BatchAssignment { u, w, UL(0), UL(0) });
+          current_ival.start = std::min(current_ival.start, w_ival.start);
+          current_ival.end = std::max(current_ival.end, w_ival.end);
+          push_into_pq(next_pq, w);
+        } else {
+          break;
+        }
+        ++it.first;
+      }
+
+      // If there are still childs left of u, we push the iterator again into the
+      // priority queue of the current BFS level.
+      if ( it.first != it.second && this->version(*it.first) == version ) {
+        pq.push(PQBatchUncontractionElement { subtreeSize(*it.first), it });
+      }
+
+      // Request batch index and its position within that batch
+      BatchAssignment assignment = batch_assigner.getBatchIndex(
+        current_batch_index, num_uncontractions);
+      for ( size_t j = start_idx; j < start_idx + num_uncontractions; ++j ) {
+        batch_assignments[j].batch_index = assignment.batch_index;
+        batch_assignments[j].batch_pos = assignment.batch_pos + (j - start_idx);
+      }
+      current_batch_index = assignment.batch_index;
+
+      if ( pq.empty() ) {
+        std::swap(pq, next_pq);
+        // Compute minimum batch index to which a thread assigned last.
+        // Afterwards, transmit information to batch assigner to speed up
+        // batch index computation.
+        ++current_batch_index;
+        size_t min_batch_index = current_batch_index;
+        for ( const size_t& batch_index : local_batch_indices ) {
+          min_batch_index = std::min(min_batch_index, batch_index);
+        }
+        batch_assigner.increaseHighWaterMark(min_batch_index);
+      }
+    }
+  });
+
+  ASSERT(verifyBatchIndexAssignments(batch_assigner, local_batch_assignments), "Batch asisignment failed");
+
+  // In the previous step we have calculated for each uncontraction a batch index and
+  // its position within that batch. We have to write the uncontractions
+  // into the global batch uncontraction vector.
+  const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
+  BatchVector batches(num_batches);
+  tbb::parallel_for(UL(0), num_batches, [&](const size_t batch_index) {
+    batches[batch_index].resize(batch_assigner.batchSize(batch_index));
+  });
+
+  tbb::parallel_for(UL(0), num_hardware_threads, [&](const size_t i) {
+    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
+    for ( const BatchAssignment& batch_assignment : batch_assignments ) {
+      const size_t batch_index = batch_assignment.batch_index;
+      const size_t batch_pos = batch_assignment.batch_pos;
+      ASSERT(batch_index < batches.size());
+      ASSERT(batch_pos < batches[batch_index].size());
+      batches[batch_index][batch_pos].u = batch_assignment.u;
+      batches[batch_index][batch_pos].v = batch_assignment.v;
+    }
+  });
+
+  while ( !batches.empty() && batches.back().empty() ) {
+    batches.pop_back();
+  }
+  std::reverse(batches.begin(), batches.end());
+
+  return batches;
 }
 
 }  // namespace ds

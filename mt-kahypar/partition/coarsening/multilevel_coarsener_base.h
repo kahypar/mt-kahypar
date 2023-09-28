@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -25,21 +31,26 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/utils/timer.h"
 
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class MultilevelCoarsenerBase {
  private:
 
   static constexpr bool debug = false;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
-                          UncoarseningData& uncoarseningData) :
+                          UncoarseningData<TypeTraits>& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
+          _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData) {}
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
@@ -75,6 +86,7 @@ class MultilevelCoarsenerBase {
  protected:
   Hypergraph& _hg;
   const Context& _context;
-  UncoarseningData& _uncoarseningData;
+  utils::Timer& _timer;
+  UncoarseningData<TypeTraits>& _uncoarseningData;
 };
 }  // namespace mt_kahypar

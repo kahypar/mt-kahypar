@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "static_hypergraph.h"
@@ -90,12 +96,12 @@ namespace mt_kahypar::ds {
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
       ASSERT(static_cast<size_t>(communities[hn]) < mapping.size());
-      mapping[communities[hn]] = 1UL;
+      mapping[communities[hn]] = UL(1);
     });
 
     // Prefix sum determines vertex ids in coarse hypergraph
     parallel::TBBPrefixSum<size_t, Array> mapping_prefix_sum(mapping);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_hypernodes), mapping_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _num_hypernodes), mapping_prefix_sum);
     HypernodeID num_hypernodes = mapping_prefix_sum.total_sum();
 
     // Remap community ids
@@ -201,7 +207,7 @@ namespace mt_kahypar::ds {
               tmp_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_invoke([&] {
         tbb::parallel_scan(tbb::blocked_range<size_t>(
-                0UL, UI64(num_hypernodes)), tmp_incident_nets_prefix_sum);
+                UL(0), UI64(num_hypernodes)), tmp_incident_nets_prefix_sum);
       }, [&] {
         tmp_incident_nets_pos.assign(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
       });
@@ -266,7 +272,7 @@ namespace mt_kahypar::ds {
 
           // Process each bucket in parallel and remove duplicates
           std::atomic<size_t> incident_nets_pos(incident_nets_start);
-          tbb::parallel_for(0UL, duplicate_incident_nets_map.numBuckets(), [&](const size_t bucket) {
+          tbb::parallel_for(UL(0), duplicate_incident_nets_map.numBuckets(), [&](const size_t bucket) {
             auto& incident_net_bucket = duplicate_incident_nets_map.getBucket(bucket);
             std::sort(incident_net_bucket.begin(), incident_net_bucket.end());
             auto first_invalid_entry_it = std::unique(incident_net_bucket.begin(), incident_net_bucket.end());
@@ -319,7 +325,7 @@ namespace mt_kahypar::ds {
       }
     };
 
-    tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
+    tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
@@ -397,7 +403,7 @@ namespace mt_kahypar::ds {
           }
         });
 
-        tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, UI64(_num_hyperedges)), num_pins_prefix_sum);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), UI64(_num_hyperedges)), num_pins_prefix_sum);
 
         const size_t num_pins = num_pins_prefix_sum.total_sum();
         hypergraph._num_pins = num_pins;
@@ -407,7 +413,7 @@ namespace mt_kahypar::ds {
       });
 
       // Write hyperedges from temporary buffers to incidence array
-      tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+      tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
         if ( he_mapping.value(id) > 0 /* hyperedge is valid */ ) {
           const size_t he_pos = he_mapping[id];
@@ -453,7 +459,7 @@ namespace mt_kahypar::ds {
       parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
               num_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hypernodes)), num_incident_nets_prefix_sum);
+              UL(0), UI64(num_hypernodes)), num_incident_nets_prefix_sum);
       const size_t total_degree = num_incident_nets_prefix_sum.total_sum();
       hypergraph._total_degree = total_degree;
       hypergraph._incident_nets.resize(total_degree);
@@ -472,6 +478,19 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
 
+    if ( hasFixedVertices() ) {
+      // Map fixed vertices to coarse hypergraph
+      FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
+        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+      coarse_fixed_vertices.setHypergraph(&hypergraph);
+      doParallelForAllNodes([&](const HypernodeID hn) {
+        if ( isFixed(hn) ) {
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+        }
+      });
+      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
+    }
+
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
@@ -480,7 +499,7 @@ namespace mt_kahypar::ds {
 
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph StaticHypergraph::copy(parallel_tag_t) {
+  StaticHypergraph StaticHypergraph::copy(parallel_tag_t) const {
     StaticHypergraph hypergraph;
 
     hypergraph._num_hypernodes = _num_hypernodes;
@@ -510,12 +529,14 @@ namespace mt_kahypar::ds {
              sizeof(HypernodeID) * _incidence_array.size());
     }, [&] {
       hypergraph._community_ids = _community_ids;
+    }, [&] {
+      hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
     });
     return hypergraph;
   }
 
   // ! Copy static hypergraph sequential
-  StaticHypergraph StaticHypergraph::copy() {
+  StaticHypergraph StaticHypergraph::copy() const {
     StaticHypergraph hypergraph;
 
     hypergraph._num_hypernodes = _num_hypernodes;
@@ -542,12 +563,10 @@ namespace mt_kahypar::ds {
            sizeof(HypernodeID) * _incidence_array.size());
 
     hypergraph._community_ids = _community_ids;
+    hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
 
     return hypergraph;
   }
-
-
-
 
   void StaticHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
@@ -556,6 +575,9 @@ namespace mt_kahypar::ds {
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
+    if ( hasFixedVertices() ) {
+      parent->addChild("Fixed Vertex Support", _fixed_vertices.size_in_bytes());
+    }
   }
 
   // ! Computes the total node weight of the hypergraph

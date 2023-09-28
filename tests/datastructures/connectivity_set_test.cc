@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include <atomic>
@@ -25,6 +31,7 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
 
 using ::testing::Test;
 
@@ -52,19 +59,22 @@ void executeConcurrent(F f1, K f2) {
   group.wait();
 }
 
-void add(ConnectivitySets& conn_set, const std::set<PartitionID>& ids) {
+template<typename ConnectivitySet>
+void add(ConnectivitySet& conn_set, const std::set<PartitionID>& ids) {
   for (const PartitionID& id : ids) {
     conn_set.add(0, id);
   }
 }
 
-void remove(ConnectivitySets& conn_set, const std::set<PartitionID>& ids) {
+template<typename ConnectivitySet>
+void remove(ConnectivitySet& conn_set, const std::set<PartitionID>& ids) {
   for (const PartitionID& id : ids) {
     conn_set.remove(0, id);
   }
 }
 
-void verify(const ConnectivitySets& conn_set,
+template<typename ConnectivitySet>
+void verify(const ConnectivitySet& conn_set,
             const PartitionID k,
             const std::set<PartitionID>& contained) {
   // Verify bitset in connectivity set
@@ -658,8 +668,6 @@ TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyRemoveElements) 
   }
 }
 
-
-
 TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyAddAndRemoveElements) {
   ConnectivitySets conn_set(1, 32);
   add(conn_set, { 1, 2, 6, 10, 15, 22, 24, 28, 31 });
@@ -728,6 +736,51 @@ TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyAddAndRemoveElem
   for (const PartitionID& id : conn_set.connectivitySet(0)) {
     ASSERT_EQ(expected[i++], id);
   }
+}
+
+TEST(ADeltaConnectivitySet, IsEqualToConnectivitySetWhenInitialized) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  std::set<PartitionID> added = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+  add(con_set, added);
+
+  verify(con_set, 32, added);
+  verify(delta_con_set, 32, added);
+}
+
+TEST(ADeltaConnectivitySet, AddsSomeBlocksToConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  add(delta_con_set, { 29, 30, 31 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 29, 30, 31 });
+}
+
+TEST(ADeltaConnectivitySet, RemovesSomeBlocksFromConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  remove(delta_con_set, { 11, 12, 13 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 14, 15, 16, 17, 18 });
+}
+
+TEST(ADeltaConnectivitySet, AddAndRemovesSomeBlocksFromConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  remove(delta_con_set, { 11, 12, 13 });
+  add(delta_con_set, { 29, 30, 31 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 14, 15, 16, 17, 18, 29, 30, 31 });
 }
 
 }  // namespace ds

@@ -1,23 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "static_graph.h"
@@ -69,12 +75,11 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse graph with a parallel prefix sum
-    utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
     mapping.assign(_num_nodes, 0);
 
     doParallelForAllNodes([&](const HypernodeID& node) {
       ASSERT(static_cast<size_t>(communities[node]) < mapping.size());
-      mapping[communities[node]] = 1UL;
+      mapping[communities[node]] = UL(1);
     });
 
     // Prefix sum determines vertex ids in coarse graph
@@ -115,14 +120,12 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });
-    utils::Timer::instance().stop_timer("preprocess_contractions");
 
     // #################### STAGE 2 ####################
     // In this step the incident edges of vertices are processed and stored inside the temporary
     // buffer. The vertex ids of the targets are remapped and edges that are contained inside
     // one community after contraction are marked as invalid. Note that parallel edges are not
     // invalidated yet.
-    utils::Timer::instance().start_timer("tmp_copy_incident_edges", "Tmp Copy Incident Edges", true);
 
     // Compute start position the incident nets of a coarse vertex in the
     // temporary incident nets array with a parallel prefix sum
@@ -158,7 +161,6 @@ namespace mt_kahypar::ds {
       }
     });
 
-    utils::Timer::instance().stop_timer("tmp_copy_incident_edges");
 
     // #################### STAGE 3 ####################
     // In this step, we deduplicate parallel edges. To this end, the incident edges
@@ -166,7 +168,6 @@ namespace mt_kahypar::ds {
     // for vertices with extremely high degree, as they might become a bottleneck
     // otherwise. Afterwards, for all parallel edges all but one are invalidated and
     // the weight of the remaining edge is set to the sum of the weights.
-    utils::Timer::instance().start_timer("remove_parallel_edges", "Remove Parallel Edges", true);
 
     // A list of high degree vertices that are processed afterwards
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
@@ -291,15 +292,12 @@ namespace mt_kahypar::ds {
       }
     }
 
-    utils::Timer::instance().stop_timer("remove_parallel_edges");
-
     // #################### STAGE 4 ####################
     // Coarsened graph is constructed here by writting data from temporary
     // buffers to corresponding members in coarsened graph. We compute
     // a prefix sum over the vertex sizes to determine the start index
     // of the edges in the edge array, removing all invalid edges.
     // Additionally, we need to calculate new unique edge ids.
-    utils::Timer::instance().start_timer("contract_hypergraph", "Contract Hypergraph");
 
     StaticGraph hypergraph;
 
@@ -326,7 +324,6 @@ namespace mt_kahypar::ds {
     );
 
     tbb::parallel_invoke([&] {
-      utils::Timer::instance().start_timer("setup_edges", "Setup Edges", true);
       // Copy edges
       edge_id_mapping.assign(_num_edges / 2, 0);
       hypergraph._edges.resize(coarsened_num_edges);
@@ -343,7 +340,7 @@ namespace mt_kahypar::ds {
           edge.setWeight(tmp_edge.getWeight());
           hypergraph._unique_edge_ids[edges_start + index] = tmp_edge.getID();
           ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
-          edge_id_mapping[tmp_edge.getID()] = 1UL;
+          edge_id_mapping[tmp_edge.getID()] = UL(1);
         };
 
         if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD) {
@@ -354,7 +351,6 @@ namespace mt_kahypar::ds {
           }
         }
       });
-      utils::Timer::instance().stop_timer("setup_edges");
     }, [&] {
       hypergraph._nodes.resize(coarsened_num_nodes + 1);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
@@ -371,8 +367,6 @@ namespace mt_kahypar::ds {
       });
     });
 
-    utils::Timer::instance().start_timer("remap_edge_ids", "Remap Edge IDs", true);
-
     // Remap unique edge ids via prefix sum
     parallel::TBBPrefixSum<HyperedgeID, Array> edge_id_prefix_sum(edge_id_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_edges / 2), edge_id_prefix_sum);
@@ -383,9 +377,18 @@ namespace mt_kahypar::ds {
       unique_id = edge_id_prefix_sum[unique_id];
     });
 
-    utils::Timer::instance().stop_timer("remap_edge_ids");
-
-    utils::Timer::instance().stop_timer("contract_hypergraph");
+    if ( hasFixedVertices() ) {
+      // Map fixed vertices to coarse graph
+      FixedVertexSupport<StaticGraph> coarse_fixed_vertices(
+        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+      coarse_fixed_vertices.setHypergraph(&hypergraph);
+      doParallelForAllNodes([&](const HypernodeID hn) {
+        if ( isFixed(hn) ) {
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+        }
+      });
+      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
+    }
 
     HEAVY_COARSENING_ASSERT(
       [&](){
@@ -425,7 +428,7 @@ namespace mt_kahypar::ds {
 
 
   // ! Copy static hypergraph in parallel
-  StaticGraph StaticGraph::copy(parallel_tag_t) {
+  StaticGraph StaticGraph::copy(parallel_tag_t) const {
     StaticGraph hypergraph;
 
     hypergraph._num_nodes = _num_nodes;
@@ -447,12 +450,14 @@ namespace mt_kahypar::ds {
              sizeof(HyperedgeID) * _unique_edge_ids.size());
     }, [&] {
       hypergraph._community_ids = _community_ids;
+    }, [&] {
+      hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
     });
     return hypergraph;
   }
 
   // ! Copy static hypergraph sequential
-  StaticGraph StaticGraph::copy() {
+  StaticGraph StaticGraph::copy() const {
     StaticGraph hypergraph;
 
     hypergraph._num_nodes = _num_nodes;
@@ -473,18 +478,19 @@ namespace mt_kahypar::ds {
            sizeof(HyperedgeID) * _unique_edge_ids.size());
 
     hypergraph._community_ids = _community_ids;
+    hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
 
     return hypergraph;
   }
-
-
-
 
   void StaticGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     parent->addChild("Hypernodes", sizeof(Node) * _nodes.size());
     parent->addChild("Hyperedges", 2 * sizeof(Edge) * _edges.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
+    if ( hasFixedVertices() ) {
+      parent->addChild("Fixed Vertex Support", _fixed_vertices.size_in_bytes());
+    }
   }
 
   // ! Computes the total node weight of the hypergraph

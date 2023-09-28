@@ -1,30 +1,42 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Noah Wahl <noah.wahl@student.kit.edu>
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar {
+
+template<typename TypeTraits>
 class Level {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
 
 public:
   explicit Level(Hypergraph&& contracted_hypergraph,
@@ -72,7 +84,14 @@ private:
   double _coarsening_time;
 };
 
+template<typename TypeTraits>
 class UncoarseningData {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
+
 public:
   explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
     nlevel(n_level),
@@ -82,51 +101,64 @@ public:
         compactified_hg = std::make_unique<Hypergraph>();
         compactified_phg = std::make_unique<PartitionedHypergraph>();
       } else {
-        size_t estimated_number_of_levels = 1UL;
+        size_t estimated_number_of_levels = UL(1);
         if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
           estimated_number_of_levels = std::ceil( std::log2(
               static_cast<double>(hg.initialNumNodes()) /
               static_cast<double>(context.coarsening.contraction_limit)) /
-            std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
+            std::log2(context.coarsening.maximum_shrink_factor) ) + UL(1);
         }
         hierarchy.reserve(estimated_number_of_levels);
       }
+      is_phg_initialized = false;
       partitioned_hg = std::make_unique<PartitionedHypergraph>();
     }
 
   ~UncoarseningData() noexcept {
-    tbb::parallel_for(0UL, hierarchy.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), hierarchy.size(), [&](const size_t i) {
       (hierarchy)[i].freeInternalData();
     }, tbb::static_partitioner());
   }
 
+  void setPartitionedHypergraph(PartitionedHypergraph&& phg) {
+    ASSERT(!is_phg_initialized);
+    partitioned_hg = std::make_unique<PartitionedHypergraph>(std::move(phg));
+    is_phg_initialized = true;
+  }
+
   void finalizeCoarsening() {
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     if (nlevel) {
       // Create compactified hypergraph containing only enabled vertices and hyperedges
       // with consecutive IDs => Less complexity in initial partitioning.
-      utils::Timer::instance().start_timer("compactify_hypergraph", "Compactify Hypergraph");
+      timer.start_timer("compactify_hypergraph", "Compactify Hypergraph");
       auto compactification = HypergraphFactory::compactify(_hg);
       *compactified_hg = std::move(compactification.first);
       compactified_hn_mapping = std::move(compactification.second);
       *compactified_phg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
-      utils::Timer::instance().stop_timer("compactify_hypergraph");
+      timer.stop_timer("compactify_hypergraph");
     } else {
-      utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
-      // Construct partitioned hypergraph for initial partitioning
-      *partitioned_hg = PartitionedHypergraph(
-        _context.partition.k, _hg, parallel_tag_t());
-      if (!hierarchy.empty()) {
-        partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-      }
-
+      timer.start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
       // Free memory of temporary contraction buffer and
       // release coarsening memory in memory pool
-      partitioned_hg->hypergraph().freeTmpContractionBuffer();
-      if (_context.type == kahypar::ContextType::main) {
+      if (!hierarchy.empty()) {
+        hierarchy.back().contractedHypergraph().freeTmpContractionBuffer();
+      } else {
+        _hg.freeTmpContractionBuffer();
+      }
+      if (_context.type == ContextType::main) {
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 
-      utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
+      // Construct partitioned hypergraph for initial partitioning
+      if ( !is_phg_initialized ) {
+        *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
+      }
+      if (!hierarchy.empty()) {
+        partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
+      }
+      is_phg_initialized = true;
+      timer.stop_timer("finalize_multilevel_hierarchy");
     }
     is_finalized = true;
   }
@@ -152,7 +184,7 @@ public:
   }
 
   // Multilevel Data
-  vec<Level> hierarchy;
+  vec<Level<TypeTraits>> hierarchy;
 
   // NLevel Data
   // ! Once coarsening terminates we generate a compactified hypergraph
@@ -172,6 +204,7 @@ public:
   vec<double> round_coarsening_times;
 
   // Both
+  bool is_phg_initialized;
   std::unique_ptr<PartitionedHypergraph> partitioned_hg;
   bool is_finalized = false;
   bool nlevel;
@@ -180,4 +213,19 @@ private:
   Hypergraph& _hg;
   const Context& _context;
 };
+
+typedef struct uncoarsening_data_s uncoarsening_data_t;
+
+namespace uncoarsening {
+  template<typename TypeTraits>
+  uncoarsening_data_t* to_pointer(UncoarseningData<TypeTraits>& ip_data) {
+    return reinterpret_cast<uncoarsening_data_t*>(&ip_data);
+  }
+
+  template<typename TypeTraits>
+  UncoarseningData<TypeTraits>& to_reference(uncoarsening_data_t* ptr) {
+    return *reinterpret_cast<UncoarseningData<TypeTraits>*>(ptr);
+  }
+}
+
 }

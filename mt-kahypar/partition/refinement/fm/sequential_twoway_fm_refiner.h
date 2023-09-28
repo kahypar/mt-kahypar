@@ -1,26 +1,35 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
-#include "kahypar/datastructure/kway_priority_queue.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#include "kahypar-resources/datastructure/kway_priority_queue.h"
+#pragma GCC diagnostic pop
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -33,12 +42,14 @@ namespace mt_kahypar {
  * in a multilevel context. It is used after each bisection during initial partitioning to refine
  * a given bipartition.
  */
+template<typename TypeTraits>
 class SequentialTwoWayFmRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   using KWayRefinementPQ = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain> >;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   /**
    * A hyperedge can be in three states during FM refinement: FREE, LOOSE and LOCKED.
@@ -101,7 +112,6 @@ class SequentialTwoWayFmRefiner {
                             const parallel::scalable_vector<VertexState>& vertex_state) {
       // assertion doesn't hold for graph structure, because edge pin counts
       // are not updated until the move is completed
-      ASSERT_FOR_HG_ONLY(phg.connectivity(he) > 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
         ASSERT(_num_incident_cut_hes[pin] <= phg.nodeDegree(pin));
@@ -117,7 +127,6 @@ class SequentialTwoWayFmRefiner {
                                const parallel::scalable_vector<VertexState>& vertex_state) {
       // assertion doesn't hold for graph structure, because edge pin counts
       // are not updated until the move is completed
-      ASSERT_FOR_HG_ONLY(phg.connectivity(he) == 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
         ASSERT(_num_incident_cut_hes[pin] > 0);

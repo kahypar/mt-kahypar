@@ -1,81 +1,135 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
-#include <chrono>
-#include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_initializer.h"
+#include "kahypar-resources/meta/policy_registry.h"
+#include "kahypar-resources/meta/typelist.h"
 
-#ifdef USE_GRAPH_PARTITIONER
-#ifdef USE_STRONG_PARTITIONER
-// not supported yet
-static_assert(false);
-#else
+#include "include/libmtkahypartypes.h"
+#include "mt-kahypar/macros.h"
+
+#include "mt-kahypar/datastructures/dynamic_graph.h"
+#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
-#endif
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
-#else
-#ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#else
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
-#endif
 
 namespace mt_kahypar {
 
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
+using StaticPartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
+using DynamicPartitionedGraph = ds::PartitionedGraph<ds::DynamicGraph>;
+using StaticPartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::ConnectivityInfo>;
+using DynamicPartitionedHypergraph = ds::PartitionedHypergraph<ds::DynamicHypergraph, ds::ConnectivityInfo>;
+using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::SparseConnectivityInfo>;
 
-#ifdef USE_GRAPH_PARTITIONER
-#ifdef USE_STRONG_PARTITIONER
-// not supported yet
-static_assert(false);
-#else
-using Hypergraph = ds::StaticGraph;
-using HypergraphFactory = ds::StaticGraphFactory;
-#endif
-using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
-using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
-#else
-#ifdef USE_STRONG_PARTITIONER
-using Hypergraph = ds::DynamicHypergraph;
-using HypergraphFactory = ds::DynamicHypergraphFactory;
-#else
-using Hypergraph = ds::StaticHypergraph;
-using HypergraphFactory = ds::StaticHypergraphFactory;
-#endif
-using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
-using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
-#endif
-#ifdef USE_GRAPH_PARTITIONER
-using PartIdType = CAtomic<PartitionID>;
-#else
-using PartIdType = PartitionID;
-#endif
+struct StaticGraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticGraph;
+  using PartitionedHypergraph = StaticPartitionedGraph;
+};
+
+struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::DynamicGraph;
+  using PartitionedHypergraph = DynamicPartitionedGraph;
+};
+
+struct StaticHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticHypergraph;
+  using PartitionedHypergraph = StaticPartitionedHypergraph;
+};
+
+struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::DynamicHypergraph;
+  using PartitionedHypergraph = DynamicPartitionedHypergraph;
+};
+
+struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticHypergraph;
+  using PartitionedHypergraph = StaticSparsePartitionedHypergraph;
+};
+
+using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
+                                               ENABLE_GRAPHS(COMMA StaticGraphTypeTraits)
+                                               ENABLE_HIGHEST_QUALITY(COMMA DynamicHypergraphTypeTraits)
+                                               ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA DynamicGraphTypeTraits)
+                                               ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
+
+#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)                      \
+  template FUNC(ds::StaticHypergraph);                               \
+  ENABLE_GRAPHS(template FUNC(ds::StaticGraph);)                     \
+  ENABLE_HIGHEST_QUALITY(template FUNC(ds::DynamicHypergraph);)       \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template FUNC(ds::DynamicGraph);)
+
+#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C)                           \
+  template class C<ds::StaticHypergraph>;                               \
+  ENABLE_GRAPHS(template class C<ds::StaticGraph>;)                     \
+  ENABLE_HIGHEST_QUALITY(template class C<ds::DynamicHypergraph>;)       \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C<ds::DynamicGraph>;)
+
+#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)                           \
+  template FUNC(StaticPartitionedHypergraph);                                \
+  ENABLE_GRAPHS(template FUNC(StaticPartitionedGraph);)                      \
+  ENABLE_LARGE_K(template FUNC(StaticSparsePartitionedHypergraph);)          \
+  ENABLE_HIGHEST_QUALITY(template FUNC(DynamicPartitionedHypergraph);)        \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template FUNC(DynamicPartitionedGraph);)
+
+#define INSTANTIATE_CLASS_WITH_PARTITIONED_HG(C)                                \
+  template class C<StaticPartitionedHypergraph>;                                \
+  ENABLE_GRAPHS(template class C<StaticPartitionedGraph>;)                      \
+  ENABLE_LARGE_K(template class C<StaticSparsePartitionedHypergraph>;)          \
+  ENABLE_HIGHEST_QUALITY(template class C<DynamicPartitionedHypergraph>;)        \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C<DynamicPartitionedGraph>;)
+
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C)                            \
+  template class C(StaticHypergraphTypeTraits);                                \
+  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits);)                      \
+  ENABLE_HIGHEST_QUALITY(template class C(DynamicHypergraphTypeTraits);)        \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C(DynamicGraphTypeTraits);)  \
+  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits);)
+
+#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)                                   \
+  template class C<StaticHypergraphTypeTraits>;                                 \
+  ENABLE_GRAPHS(template class C<StaticGraphTypeTraits>;)                       \
+  ENABLE_HIGHEST_QUALITY(template class C<DynamicHypergraphTypeTraits>;)         \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C<DynamicGraphTypeTraits>;)   \
+  ENABLE_LARGE_K(template class C<LargeKHypergraphTypeTraits>;)
+
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Other)            \
+  template class C(StaticHypergraphTypeTraits, Other);                                \
+  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits, Other);)                      \
+  ENABLE_HIGHEST_QUALITY(template class C(DynamicHypergraphTypeTraits, Other);)        \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C(DynamicGraphTypeTraits, Other);)  \
+  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits, Other);)
 
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;

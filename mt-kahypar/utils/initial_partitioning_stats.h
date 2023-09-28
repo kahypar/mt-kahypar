@@ -1,29 +1,36 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <mutex>
 #include <string>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace utils {
@@ -47,11 +54,11 @@ struct InitialPartitionerSummary {
   }
 
   double average_quality() const {
-    return static_cast<double>(total_sum_quality) / std::max(total_calls, 1UL);
+    return static_cast<double>(total_sum_quality) / std::max(total_calls, UL(1));
   }
 
   double average_running_time() const {
-    return static_cast<double>(total_time) / std::max(total_calls, 1UL);
+    return static_cast<double>(total_time) / std::max(total_calls, UL(1));
   }
 
   double percentage_best(const size_t total_ip_calls) const {
@@ -72,19 +79,37 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitionerSum
   return str;
 }
 
-class InitialPartitioningStatsT {
+class InitialPartitioningStats {
 
  public:
-  InitialPartitioningStatsT(const InitialPartitioningStatsT&) = delete;
-  InitialPartitioningStatsT & operator= (const InitialPartitioningStatsT &) = delete;
-
-  InitialPartitioningStatsT(InitialPartitioningStatsT&&) = delete;
-  InitialPartitioningStatsT & operator= (InitialPartitioningStatsT &&) = delete;
-
-  static InitialPartitioningStatsT& instance() {
-    static InitialPartitioningStatsT instance;
-    return instance;
+  explicit InitialPartitioningStats() :
+    _stat_mutex(),
+    _num_initial_partitioner(static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED)),
+    _ip_summary(),
+    _total_ip_calls(0),
+    _total_sum_number_of_threads(0) {
+    for ( uint8_t algo = 0; algo < _num_initial_partitioner; ++algo ) {
+      _ip_summary.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
+    }
   }
+
+  InitialPartitioningStats(const InitialPartitioningStats& other) :
+    _stat_mutex(),
+    _num_initial_partitioner(other._num_initial_partitioner),
+    _ip_summary(other._ip_summary),
+    _total_ip_calls(other._total_ip_calls),
+    _total_sum_number_of_threads(other._total_sum_number_of_threads) { }
+
+  InitialPartitioningStats & operator= (const InitialPartitioningStats &) = delete;
+
+  InitialPartitioningStats(InitialPartitioningStats&& other) :
+    _stat_mutex(),
+    _num_initial_partitioner(std::move(other._num_initial_partitioner)),
+    _ip_summary(std::move(other._ip_summary)),
+    _total_ip_calls(std::move(other._total_ip_calls)),
+    _total_sum_number_of_threads(std::move(other._total_sum_number_of_threads)) { }
+
+  InitialPartitioningStats & operator= (InitialPartitioningStats &&) = delete;
 
   void add_initial_partitioning_result(const InitialPartitioningAlgorithm best_algorithm,
                                        const size_t number_of_threads,
@@ -127,20 +152,9 @@ class InitialPartitioningStatsT {
     }
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const InitialPartitioningStatsT& stats);
+  friend std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats);
 
  private:
-  explicit InitialPartitioningStatsT() :
-    _stat_mutex(),
-    _num_initial_partitioner(static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED)),
-    _ip_summary(),
-    _total_ip_calls(0),
-    _total_sum_number_of_threads(0) {
-    for ( uint8_t algo = 0; algo < _num_initial_partitioner; ++algo ) {
-      _ip_summary.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
-    }
-  }
-
   std::mutex _stat_mutex;
   const uint8_t _num_initial_partitioner;
   parallel::scalable_vector<InitialPartitionerSummary> _ip_summary;
@@ -148,7 +162,7 @@ class InitialPartitioningStatsT {
   size_t _total_sum_number_of_threads;
 };
 
-inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningStatsT& stats) {
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats) {
   str << " average_number_of_threads_per_ip_call="
       << stats.average_number_of_threads_per_ip_call();
   for ( const InitialPartitionerSummary& summary : stats._ip_summary ) {
@@ -156,46 +170,6 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningSt
   }
   return str;
 }
-
-class DoNothingInitialPartitioningStats {
-
- public:
-  DoNothingInitialPartitioningStats(const DoNothingInitialPartitioningStats&) = delete;
-  DoNothingInitialPartitioningStats & operator= (const DoNothingInitialPartitioningStats &) = delete;
-
-  DoNothingInitialPartitioningStats(DoNothingInitialPartitioningStats&&) = delete;
-  DoNothingInitialPartitioningStats & operator= (DoNothingInitialPartitioningStats &&) = delete;
-
-  static DoNothingInitialPartitioningStats& instance() {
-    static DoNothingInitialPartitioningStats instance;
-    return instance;
-  }
-
-  void add_initial_partitioning_result(const InitialPartitioningAlgorithm,
-                                       const size_t,
-                                       const parallel::scalable_vector<InitialPartitionerSummary>&) { }
-
-  double average_number_of_threads_per_ip_call() const {
-    return 0.0;
-  }
-
-  void printInitialPartitioningStats() { }
-
-  friend std::ostream & operator<< (std::ostream& str, const DoNothingInitialPartitioningStats& stats);
-
- private:
-  explicit DoNothingInitialPartitioningStats() { }
-};
-
-inline std::ostream & operator<< (std::ostream& str, const DoNothingInitialPartitioningStats&) {
-  return str;
-}
-
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-using InitialPartitioningStats = DoNothingInitialPartitioningStats;
-#else
-using InitialPartitioningStats = InitialPartitioningStatsT;
-#endif
 
 }  // namespace utils
 }  // namespace mt_kahypar

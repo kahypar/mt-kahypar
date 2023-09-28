@@ -1,37 +1,50 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "context.h"
+
+#include <algorithm>
+
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
     str << "Partitioning Parameters:" << std::endl;
     str << "  Hypergraph:                         " << params.graph_filename << std::endl;
+    if ( params.fixed_vertex_filename != "" ) {
+      str << "  Fixed Vertex File:                  " << params.fixed_vertex_filename << std::endl;
+    }
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }
-    str << "  Paradigm:                           " << params.paradigm << std::endl;
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
+    str << "  Gain Policy:                        " << params.gain_policy << std::endl;
     str << "  Input File Format:                  " << params.file_format << std::endl;
     if ( params.instance_type != InstanceType::UNDEFINED ) {
       str << "  Instance Type:                      " << params.instance_type << std::endl;
@@ -39,6 +52,7 @@ namespace mt_kahypar {
     if ( params.preset_type != PresetType::UNDEFINED ) {
       str << "  Preset Type:                        " << params.preset_type << std::endl;
     }
+    str << "  Partition Type:                     " << params.partition_type << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
@@ -51,6 +65,10 @@ namespace mt_kahypar {
         str << w << " ";
       }
       str << std::endl;
+    }
+    if ( params.mode == Mode::deep_multilevel ) {
+      str << "  Perform Parallel Recursion:         " << std::boolalpha
+          << params.perform_parallel_recursion_in_deep_multilevel << std::endl;
     }
     return str;
   }
@@ -68,9 +86,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
     str << "Preprocessing Parameters:" << std::endl;
     str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
-    #ifdef USE_GRAPH_PARTITIONER
     str << "  Disable C. D. for Mesh Graphs:      " << std::boolalpha << params.disable_community_detection_for_mesh_graphs << std::endl;
-    #endif
     if (params.use_community_detection) {
       str << std::endl << params.community_detection;
     }
@@ -89,18 +105,10 @@ namespace mt_kahypar {
     str << "Coarsening Parameters:" << std::endl;
     str << "  Algorithm:                          " << params.algorithm << std::endl;
     str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
-#endif
-    if ( params.use_adaptive_max_allowed_node_weight ) {
-      str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
-      str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
-      str << "  Initial Max Hypernode Weight:       " << params.max_allowed_node_weight << std::endl;
-    } else {
-      str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
-      str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
-    }
+    str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+    str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
+    str << "  Deep ML Contraction Limit Multi.:   " << params.deep_ml_contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
@@ -166,6 +174,7 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
+      out << "    Steiner Tree Policy:              " << params.steiner_tree_policy << std::endl;
       out << std::flush;
     }
     return out;
@@ -181,35 +190,17 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
+    str << "  Rebalancing Algorithm:              " << params.rebalancer << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
-#ifdef USE_STRONG_PARTITIONER
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
-#endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-#ifdef USE_STRONG_PARTITIONER
-    str << "\n" << params.global_fm;
-#endif
+    if ( params.global_fm.use_global_fm ) {
+      str << "\n" << params.global_fm;
+    }
     str << "\n" << params.flows;
-    return str;
-  }
-
-  std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
-    str << "Sparsification Parameters:" << std::endl;
-    str << "  Use Degree-Zero HN Contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
-    str << "  Use Heavy Net Removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
-    str << "  Use Similiar Net Removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
-    if ( params.use_heavy_net_removal ) {
-      str << "  Hyperedge Pin Weight Fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
-      str << "  Maximum Hyperedge Pin Weight:       " << params.max_hyperedge_pin_weight << std::endl;
-    }
-    if ( params.use_similiar_net_removal ) {
-      str << "  Min-Hash Footprint Size:            " << params.min_hash_footprint_size << std::endl;
-      str << "  Jaccard Threshold:                  " << params.jaccard_threshold << std::endl;
-      str << "  Similiar Net Combiner Strategy:     " << params.similiar_net_combiner_strategy << std::endl;
-    }
     return str;
   }
 
@@ -231,6 +222,17 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const MappingParameters& params) {
+    str << "Mapping Parameters:                   " << std::endl;
+    str << "  Target Graph File:                  " << params.target_graph_file << std::endl;
+    str << "  One-To-One Mapping Strategy:        " << params.strategy << std::endl;
+    str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
+    str << "  Use Two-Phase Approach:             " << std::boolalpha << params.use_two_phase_approach << std::endl;
+    str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
+    str << "  Large HE Size Threshold:            " << params.large_he_threshold << std::endl;
+    return str;
+  }
+
   std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
@@ -240,11 +242,15 @@ namespace mt_kahypar {
     return str;
   }
 
+  bool Context::isNLevelPartitioning() const {
+    return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
+      partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
+  }
 
-  bool Context::useSparsification() const {
-    return sparsification.use_degree_zero_contractions ||
-           sparsification.use_heavy_net_removal ||
-           sparsification.use_similiar_net_removal;
+  bool Context::forceGainCacheUpdates() const {
+    return isNLevelPartitioning() ||
+      partition.mode == Mode::deep_multilevel ||
+      refinement.refine_until_no_improvement;
   }
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
@@ -262,9 +268,11 @@ namespace mt_kahypar {
       }
 
       if (max_part_weights_sum < total_hypergraph_weight) {
-        ERROR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
-                << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
-                << "Sum of part weights:     " << max_part_weights_sum);
+        throw InvalidInputException(
+          "Sum of individual part weights is less than the total hypergraph weight. "
+          "Finding a valid partition is not possible.\n"
+          "Total hypergraph weight: " + std::to_string(total_hypergraph_weight) + "\n"
+          "Sum of part weights:     " + std::to_string(max_part_weights_sum));
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
@@ -286,16 +294,14 @@ namespace mt_kahypar {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }
     }
-
-    setupSparsificationParameters();
   }
 
   void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
     // Setup contraction limit
     if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
-              2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
-              coarsening.contraction_limit_multiplier;
+        std::max(2 * shared_memory.num_threads, static_cast<size_t>(partition.k)) *
+          coarsening.contraction_limit_multiplier;
     } else {
       coarsening.contraction_limit =
               coarsening.contraction_limit_multiplier * partition.k;
@@ -320,99 +326,21 @@ namespace mt_kahypar {
             std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
-  void Context::setupSparsificationParameters() {
-    if ( sparsification.use_heavy_net_removal ) {
-      HypernodeWeight max_block_weight = 0;
-      for ( PartitionID block = 0; block < partition.k; ++block ) {
-        max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
-      }
-
-      sparsification.max_hyperedge_pin_weight = max_block_weight /
-                                                sparsification.hyperedge_pin_weight_fraction;
-    }
-  }
-
-  void Context::sanityCheck() {
-    if ( partition.paradigm == Paradigm::nlevel &&
-         coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+  void Context::sanityCheck(const TargetGraph* target_graph) {
+    if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
                     "Partitioning with" << coarsening.algorithm
                                         << "coarsener in n-level mode is not supported!",
                     coarsening.algorithm,
                     CoarseningAlgorithm::nlevel_coarsener);
-    } else if ( partition.paradigm == Paradigm::multilevel &&
-                coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener ) {
+    } else if ( !isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in n-Level mode."
                                            << "Do you want to use the multilevel version instead (Y/N)?",
                     "Partitioning with" << coarsening.algorithm
                                         << "coarsener in multilevel mode is not supported!",
                     coarsening.algorithm,
                     CoarseningAlgorithm::multilevel_coarsener);
-    }
-
-    if (partition.objective == kahypar::Objective::cut) {
-      if ( refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
-        ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for km1 metric."
-                                           << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
-                    "Partitioning with" << refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    refinement.label_propagation.algorithm,
-                    LabelPropagationAlgorithm::label_propagation_cut);
-      }
-
-      if ( refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        ALGO_SWITCH("Refinement algorithm" << refinement.fm.algorithm << "only works for km1 metric."
-                                           << "Do you want to disable FM refinement (Y/N)?",
-                    "Partitioning with" << refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    refinement.fm.algorithm,
-                    FMAlgorithm::do_nothing);
-      }
-    } else if (partition.objective == kahypar::Objective::km1 &&
-               refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut) {
-      ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for cut metric."
-                                         << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
-                  "Partitioning with" << refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not supported!",
-                  refinement.label_propagation.algorithm,
-                  LabelPropagationAlgorithm::label_propagation_km1);
-    }
-
-    if (partition.objective == kahypar::Objective::cut) {
-      if ( initial_partitioning.refinement.label_propagation.algorithm ==
-           LabelPropagationAlgorithm::label_propagation_km1 ) {
-        ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                            << initial_partitioning.refinement.label_propagation.algorithm
-                            << "only works for km1 metric."
-                            << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
-                    "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    initial_partitioning.refinement.label_propagation.algorithm,
-                    LabelPropagationAlgorithm::label_propagation_cut);
-      }
-
-      if ( initial_partitioning.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                            << initial_partitioning.refinement.fm.algorithm
-                            << "only works for km1 metric."
-                            << "Do you want to disable FM refinement (Y/N)?",
-                    "Partitioning with" << initial_partitioning.refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    initial_partitioning.refinement.fm.algorithm,
-                    FMAlgorithm::do_nothing);
-      }
-    } else if (partition.objective == kahypar::Objective::km1 &&
-               initial_partitioning.refinement.label_propagation.algorithm ==
-               LabelPropagationAlgorithm::label_propagation_cut) {
-      ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                          << initial_partitioning.refinement.label_propagation.algorithm
-                          << "only works for cut metric."
-                          << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
-                  "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not supported!",
-                  initial_partitioning.refinement.label_propagation.algorithm,
-                  LabelPropagationAlgorithm::label_propagation_km1);
     }
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
@@ -425,6 +353,62 @@ namespace mt_kahypar {
     }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+
+    if ( partition.objective == Objective::steiner_tree ) {
+      if ( !target_graph ) {
+        partition.objective = Objective::km1;
+        INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
+      } else {
+        if ( partition.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for steiner tree metric."
+                                          << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Partitioning mode" << partition.mode
+                                          << "is not supported for steiner tree metric!",
+                      partition.mode, Mode::direct);
+        }
+        if ( initial_partitioning.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Initial partitioning mode" << partition.mode << "is not supported for steiner tree metric."
+                                            << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Initial partitioning mode" << partition.mode
+                                            << "is not supported for steiner tree metric!",
+                      partition.mode, Mode::direct);
+        }
+      }
+    }
+
+
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
+
+    if ( partition.deterministic ) {
+      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+
+      // disable FM until we have a deterministic version
+      refinement.fm.algorithm = FMAlgorithm::do_nothing;
+      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+      // disable adaptive IP
+      initial_partitioning.use_adaptive_ip_runs = false;
+
+
+      // switch silently
+      auto lp_algo = refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+
+      lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+    }
+
+    // Set correct gain policy type
+    setupGainPolicy();
+
+    if ( partition.preset_type == PresetType::large_k ) {
+      // Silently switch to deep multilevel scheme for large k partitioning
+      partition.mode = Mode::deep_multilevel;
+    }
   }
 
   void Context::setupThreadsPerFlowSearch() {
@@ -433,10 +417,506 @@ namespace mt_kahypar {
       // t = number of threads
       // k * (k - 1) / 2 = maximum number of edges in the quotient graph
       refinement.flows.num_parallel_searches = partition.k == 2 ? 1 :
-        std::min(shared_memory.num_threads, std::min(std::max(1UL, static_cast<size_t>(
+        std::min(shared_memory.num_threads, std::min(std::max(UL(1), static_cast<size_t>(
           refinement.flows.parallel_searches_multiplier * partition.k)),
             static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
     }
+  }
+
+  void Context::setupGainPolicy() {
+    #ifndef KAHYPAR_ENABLE_SOED_METRIC
+    if ( partition.objective == Objective::soed ) {
+      throw InvalidParameterException(
+        "SOED metric is deactivated. Add -DKAHYPAR_ENABLE_SOED_METRIC=ON to the "
+        "cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
+    #ifndef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    if ( partition.objective == Objective::steiner_tree ) {
+      throw InvalidParameterException(
+        "Steiner tree metric is deactivated. Add -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
+    if ( partition.instance_type == InstanceType::hypergraph ) {
+      switch ( partition.objective ) {
+        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
+        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
+        case Objective::steiner_tree: partition.gain_policy = GainPolicy::steiner_tree; break;
+        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
+      }
+    } else if ( partition.instance_type == InstanceType::graph ) {
+      if ( partition.objective != Objective::cut && partition.objective != Objective::steiner_tree ) {
+        partition.objective = Objective::cut;
+        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
+      }
+      if ( partition.objective == Objective::cut ) {
+        partition.gain_policy = GainPolicy::cut_for_graphs;
+      } else {
+        partition.gain_policy = GainPolicy::steiner_tree_for_graphs;
+      }
+    }
+  }
+
+  void Context::load_default_preset() {
+    // General
+    partition.preset_type = PresetType::default_preset;
+    partition.mode = Mode::direct;
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // mapping
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.disable_community_detection_for_mesh_graphs = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
+    coarsening.use_adaptive_edge_size= true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::recursive_bipartitioning;
+    initial_partitioning.runs = 20;
+    initial_partitioning.use_adaptive_ip_runs = true;
+    initial_partitioning.min_adaptive_ip_runs = 5;
+    initial_partitioning.perform_refinement_on_best_partitions = true;
+    initial_partitioning.fm_refinment_rounds = 1;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = false;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.rebalancing = true;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    initial_partitioning.refinement.fm.multitry_rounds = 5;
+    initial_partitioning.refinement.fm.perform_moves_global = false;
+    initial_partitioning.refinement.fm.rollback_parallel = true;
+    initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1;
+    initial_partitioning.refinement.fm.num_seed_nodes = 25;
+    initial_partitioning.refinement.fm.obey_minimal_parallelism = false;
+    initial_partitioning.refinement.fm.release_nodes = true;
+    initial_partitioning.refinement.fm.time_limit_factor = 0.25;
+    initial_partitioning.refinement.fm.iter_moves_on_recalc = true;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
+    refinement.refine_until_no_improvement = false;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    refinement.label_propagation.unconstrained = true;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.rebalancing = false;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+    refinement.label_propagation.relative_improvement_threshold = 0.001;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
+    refinement.fm.multitry_rounds = 10;
+    refinement.fm.unconstrained_rounds = 8;
+    refinement.fm.perform_moves_global = false;
+    refinement.fm.rollback_parallel = true;
+    refinement.fm.rollback_balance_violation_factor = 1.0;
+    refinement.fm.treshold_border_node_inclusion = 0.7;
+    refinement.fm.imbalance_penalty_min = 0.2;
+    refinement.fm.imbalance_penalty_max = 1.0;
+    refinement.fm.num_seed_nodes = 25;
+    refinement.fm.obey_minimal_parallelism = true;
+    refinement.fm.release_nodes = true;
+    refinement.fm.time_limit_factor = 0.25;
+    refinement.fm.min_improvement = -1;
+    refinement.fm.unconstrained_min_improvement = 0.002;
+    refinement.fm.iter_moves_on_recalc = true;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+  }
+
+  void Context::load_quality_preset() {
+    load_default_preset();
+
+    // General
+    partition.preset_type = PresetType::quality;
+
+    // refinement
+    refinement.refine_until_no_improvement = true;
+    refinement.relative_improvement_threshold = 0.0025;
+
+    // refinement -> label propagation
+    refinement.label_propagation.rebalancing = true;
+
+    // refinement -> flows;
+    refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
+    refinement.flows.alpha = 16;
+    refinement.flows.max_num_pins = 4294967295;
+    refinement.flows.find_most_balanced_cut = true;
+    refinement.flows.determine_distance_from_cut = true;
+    refinement.flows.parallel_searches_multiplier = 1.0;
+    refinement.flows.max_bfs_distance = 2;
+    refinement.flows.time_limit_factor = 8;
+    refinement.flows.skip_small_cuts = true;
+    refinement.flows.skip_unpromising_blocks = true;
+    refinement.flows.pierce_in_bulk = true;
+    refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
+  }
+
+  void Context::load_deterministic_preset() {
+    // General
+    partition.preset_type = PresetType::deterministic;
+    partition.mode = Mode::direct;
+    partition.deterministic = true;
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.disable_community_detection_for_mesh_graphs = true;
+    preprocessing.stable_construction_of_incident_edges = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+    preprocessing.community_detection.low_memory_contraction = true;
+    preprocessing.community_detection.num_sub_rounds_deterministic = 16;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+    coarsening.use_adaptive_edge_size= true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+    coarsening.num_sub_rounds_deterministic = 3;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::recursive_bipartitioning;
+    initial_partitioning.runs = 20;
+    initial_partitioning.use_adaptive_ip_runs = false;
+    initial_partitioning.perform_refinement_on_best_partitions = false;
+    initial_partitioning.fm_refinment_rounds = 3;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.population_size = 64;
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = false;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> deterministic
+    initial_partitioning.refinement.deterministic_refinement.num_sub_rounds_sync_lp = 1;
+    initial_partitioning.refinement.deterministic_refinement.use_active_node_set = true;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
+    refinement.refine_until_no_improvement = false;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // refinement -> deterministic
+    refinement.deterministic_refinement.num_sub_rounds_sync_lp = 1;
+    refinement.deterministic_refinement.use_active_node_set = true;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+  }
+
+  void Context::load_n_level_preset() {
+    // General
+    partition.mode = Mode::direct;
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // mapping
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.disable_community_detection_for_mesh_graphs = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::nlevel_coarsener;
+    coarsening.use_adaptive_edge_size = true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 100.0;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::recursive_bipartitioning;
+    initial_partitioning.runs = 20;
+    initial_partitioning.use_adaptive_ip_runs = true;
+    initial_partitioning.min_adaptive_ip_runs = 5;
+    initial_partitioning.perform_refinement_on_best_partitions = true;
+    initial_partitioning.fm_refinment_rounds = 2147483647;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = true;
+    initial_partitioning.refinement.max_batch_size = 1000;
+    initial_partitioning.refinement.min_border_vertices_per_thread = 0;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.rebalancing = true;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    initial_partitioning.refinement.fm.multitry_rounds = 5;
+    initial_partitioning.refinement.fm.perform_moves_global = false;
+    initial_partitioning.refinement.fm.rollback_parallel = false;
+    initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1;
+    initial_partitioning.refinement.fm.num_seed_nodes = 5;
+    initial_partitioning.refinement.fm.obey_minimal_parallelism = false;
+    initial_partitioning.refinement.fm.release_nodes = true;
+    initial_partitioning.refinement.fm.time_limit_factor = 0.25;
+    initial_partitioning.refinement.fm.iter_moves_on_recalc = false;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // initial partitioning -> refinement -> global fm
+    initial_partitioning.refinement.global_fm.use_global_fm = false;
+
+    // refinement
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
+    refinement.refine_until_no_improvement = true;
+    refinement.max_batch_size = 1000;
+    refinement.min_border_vertices_per_thread = 50;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.rebalancing = true;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    refinement.fm.multitry_rounds = 10;
+    refinement.fm.perform_moves_global = false;
+    refinement.fm.rollback_parallel = false;
+    refinement.fm.rollback_balance_violation_factor = 1.25;
+    refinement.fm.num_seed_nodes = 5;
+    refinement.fm.obey_minimal_parallelism = false;
+    refinement.fm.release_nodes = true;
+    refinement.fm.time_limit_factor = 0.25;
+    refinement.fm.min_improvement = -1;
+    refinement.fm.iter_moves_on_recalc = true;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement -> global fm
+    refinement.global_fm.use_global_fm = true;
+    refinement.global_fm.refine_until_no_improvement = false;
+    refinement.global_fm.num_seed_nodes = 5;
+    refinement.global_fm.obey_minimal_parallelism = true;
+  }
+
+  void Context::load_highest_quality_preset() {
+    load_n_level_preset();
+
+    // General
+    partition.preset_type = PresetType::highest_quality;
+
+    // refinement
+    refinement.relative_improvement_threshold = 0.0025;
+
+    // refinement -> fm
+    refinement.fm.iter_moves_on_recalc = false;
+
+    // refinement -> flows;
+    refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
+    refinement.flows.alpha = 16;
+    refinement.flows.max_num_pins = 4294967295;
+    refinement.flows.find_most_balanced_cut = true;
+    refinement.flows.determine_distance_from_cut = true;
+    refinement.flows.parallel_searches_multiplier = 1.0;
+    refinement.flows.max_bfs_distance = 2;
+    refinement.flows.time_limit_factor = 8;
+    refinement.flows.skip_small_cuts = true;
+    refinement.flows.skip_unpromising_blocks = true;
+    refinement.flows.pierce_in_bulk = true;
+    refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
+
+    // refinement -> global fm
+    refinement.global_fm.refine_until_no_improvement = true;
+  }
+
+  void Context::load_large_k_preset() {
+    // General
+    partition.preset_type = PresetType::large_k;
+    partition.mode = Mode::deep_multilevel;
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.disable_community_detection_for_mesh_graphs = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
+    coarsening.use_adaptive_edge_size= true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 500;
+    coarsening.deep_ml_contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::direct;
+    initial_partitioning.runs = 5;
+    initial_partitioning.use_adaptive_ip_runs = true;
+    initial_partitioning.min_adaptive_ip_runs = 3;
+    initial_partitioning.perform_refinement_on_best_partitions = true;
+    initial_partitioning.fm_refinment_rounds = 1;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.enabled_ip_algos = {1, 1, 0, 1, 1, 0, 1, 0, 1};
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = false;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.rebalancing = true;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement
+    refinement.rebalancer = RebalancingAlgorithm::advanced_rebalancer;
+    refinement.refine_until_no_improvement = false;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.rebalancing = true;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {
@@ -452,14 +932,13 @@ namespace mt_kahypar {
         << context.initial_partitioning
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
-        << "-------------------------------------------------------------------------------\n"
-        #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-        << context.sparsification
-        << "-------------------------------------------------------------------------------\n"
-        #endif
-        << context.shared_memory
+        << "-------------------------------------------------------------------------------\n";
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      str << context.mapping
+          << "-------------------------------------------------------------------------------\n";
+    }
+    str << context.shared_memory
         << "-------------------------------------------------------------------------------";
     return str;
   }
-
 }

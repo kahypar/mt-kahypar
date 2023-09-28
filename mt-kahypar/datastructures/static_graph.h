@@ -1,23 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -26,23 +32,26 @@
 
 #include "tbb/parallel_for.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
 
 // Forward
 class StaticGraphFactory;
-template <typename Hypergraph,
-          typename HypergraphFactory>
-class PartitionedHypergraph;
+template <typename Hypergraph>
+class PartitionedGraph;
 
 class StaticGraph {
 
@@ -63,6 +72,7 @@ class StaticGraph {
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
   using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
   /**
@@ -209,13 +219,14 @@ class StaticGraph {
    * internal representation. Instead only handles to the respective elements
    * are returned, i.e. the IDs of the corresponding hypernodes/hyperedges.
    */
-  class NodeIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HypernodeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HypernodeID*,   // pointer
-                         HypernodeID> {   // reference
+  class NodeIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * If start_element is invalid, the iterator advances to the first valid
      * element.
@@ -277,13 +288,14 @@ class StaticGraph {
    *
    * Note that because this is a graph, each edge has exactly two pins.
    */
-  class PinIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HypernodeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HypernodeID*,   // pointer
-                         HypernodeID> {   // reference
+  class PinIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * Constructs a pin iterator based on the IDs of the two nodes
      */
@@ -427,8 +439,11 @@ class StaticGraph {
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Node);
-  static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Edge);
+  static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(TmpEdgeInformation);
+  static constexpr mt_kahypar_hypergraph_type_t TYPE = STATIC_GRAPH;
 
+  // ! Factory
+  using Factory = StaticGraphFactory;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = NodeIterator;
   // ! Iterator to iterate over the hyperedges
@@ -437,6 +452,12 @@ class StaticGraph {
   using IncidenceIterator = PinIterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = boost::range_detail::integer_iterator<HyperedgeID>;
+
+  // ! static graph does not support explicit parallel edge detection
+  struct ParallelHyperedge {
+    HyperedgeID edge_id;
+    HyperedgeID old_id;
+  };
 
   explicit StaticGraph() :
     _num_nodes(0),
@@ -447,6 +468,7 @@ class StaticGraph {
     _edges(),
     _unique_edge_ids(),
     _community_ids(),
+    _fixed_vertices(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticGraph(const StaticGraph&) = delete;
@@ -461,7 +483,9 @@ class StaticGraph {
     _edges(std::move(other._edges)),
     _unique_edge_ids(std::move(other._unique_edge_ids)),
     _community_ids(std::move(other._community_ids)),
+    _fixed_vertices(std::move(other._fixed_vertices)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
+    _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
   }
 
@@ -474,6 +498,8 @@ class StaticGraph {
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
     _community_ids = std::move(other._community_ids),
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -577,9 +603,11 @@ class StaticGraph {
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
     const Edge& e = edge(id);
+    const HypernodeID source = e.source();
+    const HypernodeID target = e.target();
     return IteratorRange<IncidenceIterator>(
-      IncidenceIterator(e.source(), e.target(), 0),
-      IncidenceIterator(e.source(), e.target(), 2));
+      IncidenceIterator(source, target, 0),
+      IncidenceIterator(source, target, 2));
   }
 
     // ####################### Node Information #######################
@@ -624,9 +652,13 @@ class StaticGraph {
     return edge(e).target();
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return edge(e).source();
+  }
+
+  bool isSinglePin(const HyperedgeID) const {
+    return false;
   }
 
   // ! Weight of a hyperedge
@@ -640,6 +672,11 @@ class StaticGraph {
     const HyperedgeID id = _unique_edge_ids[e];
     ASSERT(id < initialNumEdges() / 2);
     return id;
+  }
+
+  // ! Range of unique id edge ids
+  HyperedgeID maxUniqueID() const {
+    return initialNumEdges() / 2;
   }
 
   // ! Sets the weight of a hyperedge
@@ -666,7 +703,8 @@ class StaticGraph {
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID) {
-    ERROR("enableHyperedge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "enableHyperedge() is not supported in static graph");
   }
 
   // ! Community id which hypernode u is assigned to
@@ -677,6 +715,45 @@ class StaticGraph {
   // ! Assign a community to a hypernode
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     _community_ids[u] = community_id;
+  }
+
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<StaticGraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+    _fixed_vertices.setMaxBlockWeight(max_block_weights);
+  }
+
+  const FixedVertexSupport<StaticGraph>& fixedVertexSupport() const {
+    return _fixed_vertices;
+  }
+
+  FixedVertexSupport<StaticGraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
   }
 
   // ####################### Contract / Uncontract #######################
@@ -693,27 +770,33 @@ class StaticGraph {
   StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
-    ERROR("registerContraction(u, v) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "registerContraction(u, v) is not supported in static graph");
     return false;
   }
 
   size_t contract(const HypernodeID,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
-    ERROR("contract(v, max_node_weight) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "contract(v, max_node_weight) is not supported in static graph");
     return 0;
   }
 
   void uncontract(const Batch&,
+                  const MarkEdgeFunc& mark_edge,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
+    unused(mark_edge);
     unused(case_one_func);
     unused(case_two_func);
-    ERROR("uncontract(batch) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "uncontract(batch) is not supported in static graph");
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERROR("createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
     return { };
   }
 
@@ -728,23 +811,27 @@ class StaticGraph {
   * setting.
   */
   void removeLargeEdge(const HyperedgeID) {
-    ERROR("removeLargeEdge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "removeLargeEdge() is not supported in static graph");
   }
 
   /*!
    * Restores a large hyperedge previously removed from the hypergraph.
    */
   void restoreLargeEdge(const HyperedgeID&) {
-    ERROR("restoreLargeEdge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "restoreLargeEdge() is not supported in static graph");
   }
 
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
-    ERROR("removeSinglePinAndParallelHyperedges() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "removeSinglePinAndParallelHyperedges() is not supported in static graph");
     return { };
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
-    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -763,10 +850,10 @@ class StaticGraph {
   }
 
   // ! Copy static hypergraph in parallel
-  StaticGraph copy(parallel_tag_t);
+  StaticGraph copy(parallel_tag_t) const;
 
   // ! Copy static hypergraph sequential
-  StaticGraph copy();
+  StaticGraph copy() const;
 
   // ! Reset internal data structure
   void reset() { }
@@ -791,7 +878,8 @@ class StaticGraph {
 
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
-    ERROR("verifyIncidenceArrayAndIncidentNets() not supported in static graph");
+    throw NonSupportedOperationException(
+      "verifyIncidenceArrayAndIncidentNets() not supported in static graph");
     return false;
   }
 
@@ -799,8 +887,7 @@ class StaticGraph {
   friend class StaticGraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
-  template <typename Hypergraph,
-            typename HypergraphFactory>
+  template <typename Hypergraph>
   friend class PartitionedGraph;
 
   // ####################### Node Information #######################
@@ -863,6 +950,9 @@ class StaticGraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  // ! Fixed Vertex Support
+  FixedVertexSupport<StaticGraph> _fixed_vertices;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

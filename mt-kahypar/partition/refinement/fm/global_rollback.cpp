@@ -1,31 +1,44 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 #include "tbb/parallel_scan.h"
+
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/datastructures/bitset.h"
+#include "mt-kahypar/datastructures/pin_count_snapshot.h"
 
 namespace mt_kahypar {
 
+  template<typename PartitionedHypergraph>
   struct BalanceAndBestIndexScan {
     const PartitionedHypergraph& phg;
     const vec<Move>& moves;
@@ -142,32 +155,8 @@ namespace mt_kahypar {
     }
   };
 
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefix(
-          PartitionedHypergraph& phg, FMSharedData& sharedData,
-          const vec<HypernodeWeight>& partWeights) {
-    std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
-    if (max_part_weight_scaling == 0.0) {
-      for (PartitionID i = 0; i < num_parts; ++i) {
-        maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
-      }
-    } else {
-      for (PartitionID i = 0; i < num_parts; ++i) {
-        maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
-      }
-    }
-
-    if (context.refinement.fm.rollback_parallel) {
-      return revertToBestPrefixParallel<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
-    } else {
-      return revertToBestPrefixSequential<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
-    }
-
-  }
-
-
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefixParallel(
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
@@ -176,91 +165,232 @@ namespace mt_kahypar {
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     recalculateGains(phg, sharedData);
-    HEAVY_REFINEMENT_ASSERT(verifyGains<update_gain_cache>(phg, sharedData));
+    HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
 
-    BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
+    BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order, partWeights, maxPartWeights);
     // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
-    BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
+    typename BalanceAndBestIndexScan<PartitionedHypergraph>::Prefix b = s.finalize(partWeights);
 
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
-    // recompute moveFromBenefit values since they are potentially invalid
-    tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
-      phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-    });
+    // recompute penalty term values since they are potentially invalid
+    if constexpr (GainCache::invalidates_entries) {
+      tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
+        gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
+      });
+    }
 
     sharedData.moveTracker.reset();
 
-    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     return b.gain;
   }
 
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedge(PartitionedHypergraph& phg,
+                                                                          FMSharedData& sharedData,
+                                                                          const HyperedgeID& e) {
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    auto& r = ets_recalc_data.local();
 
-  void GlobalRollback::recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+    // compute auxiliary data
+    for (HypernodeID v : phg.pins(e)) {
+      if (tracker.wasNodeMovedInThisRound(v)) {
+        const MoveID m_id = tracker.moveOfNode[v];
+        const Move& m = tracker.getMove(m_id);
+        Rollback::updateMove(m_id, m, r);
+        // no change for remaining pins!
+      } else {
+        Rollback::updateNonMovedPinInBlock(phg.partID(v), r);
+      }
+    }
+
+    // distribute gains to pins
+    for (HypernodeID v : phg.pins(e)) {
+      if (tracker.wasNodeMovedInThisRound(v)) {
+        const MoveID m_id = tracker.moveOfNode[v];
+        Move& m = tracker.getMove(m_id);
+
+        const HyperedgeWeight benefit = Rollback::benefit(phg, e, m_id, m, r);;
+        const HyperedgeWeight penalty = Rollback::penalty(phg, e, m_id, m, r);
+
+        if ( benefit > 0 ) {
+          // increase gain of v by benefit
+          __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
+        }
+
+        if ( penalty > 0 ) {
+          // decrease gain of v by penalty
+          __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
+        }
+      }
+    }
+
+    if (context.partition.k <= static_cast<int>(2 * phg.edgeSize(e))) {
+      // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        r[i].reset();
+      }
+    } else {
+      for (HypernodeID v : phg.pins(e)) {
+        if (tracker.wasNodeMovedInThisRound(v)) {
+          const Move& m = tracker.getMove(tracker.moveOfNode[v]);
+          r[m.from].reset();
+          r[m.to].reset();
+        } else {
+          r[phg.partID(v)].reset();
+        }
+      }
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                            FMSharedData& sharedData,
+                                                                                            const HyperedgeID& e) {
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(e);
+    ds::PinCountSnapshot pin_counts(phg.k(), phg.hypergraph().maxEdgeSize());
+    for ( const PartitionID& block : phg.connectivitySet(e) ) {
+      pin_counts.setPinCountInPart(block, phg.pinCountInPart(e, block));
+    }
+    SynchronizedEdgeUpdate sync_update;
+    sync_update.he = e;
+    sync_update.edge_weight = phg.edgeWeight(e);
+    sync_update.edge_size = phg.edgeSize(e);
+    sync_update.target_graph = phg.targetGraph();
+    sync_update.connectivity_set_after = &connectivity_set;
+    sync_update.pin_counts_after = &pin_counts;
+
+    // Find all pins of hyperedge that were moved in this round
+    vec<HypernodeID> moved_pins;
+    for ( const HypernodeID& pin : phg.pins(e) ) {
+      if ( tracker.wasNodeMovedInThisRound(pin) ) {
+        moved_pins.push_back(pin);
+      }
+    }
+
+    // Sort moves in decreasing order of execution
+    // => first entry is the node that was moved last in the hyperedge
+    std::sort(moved_pins.begin(), moved_pins.end(),
+      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        return tracker.moveOfNode[lhs] > tracker.moveOfNode[rhs];
+      });
+
+    // Revert moves and compute attributed gain
+    for ( const HypernodeID& u : moved_pins ) {
+      const MoveID m_id = tracker.moveOfNode[u];
+      Move& m = tracker.getMove(m_id);
+      sync_update.from = m.to;
+      sync_update.to = m.from;
+      sync_update.pin_count_in_from_part_after = pin_counts.decrementPinCountInPart(sync_update.from);
+      sync_update.pin_count_in_to_part_after = pin_counts.incrementPinCountInPart(sync_update.to);
+      if ( sync_update.pin_count_in_from_part_after == 0 ) {
+        ASSERT(connectivity_set.isSet(sync_update.from));
+        connectivity_set.unset(sync_update.from);
+      }
+      if ( sync_update.pin_count_in_to_part_after == 1 ) {
+        ASSERT(!connectivity_set.isSet(sync_update.to));
+        connectivity_set.set(sync_update.to);
+      }
+      // This is the gain for reverting the move.
+      const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+      // For recomputed gains, a postive gain means improvement. However, the opposite
+      // is the case for attributed gains.
+      __atomic_fetch_add(&m.gain, attributed_gain, __ATOMIC_RELAXED);
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                            FMSharedData& sharedData,
+                                                                                            const HyperedgeID& e) {
+    if ( !phg.isSinglePin(e) ) {
+      GlobalMoveTracker& tracker = sharedData.moveTracker;
+      SynchronizedEdgeUpdate sync_update;
+      sync_update.he = e;
+      sync_update.edge_weight = phg.edgeWeight(e);
+      sync_update.edge_size = phg.edgeSize(e);
+      sync_update.target_graph = phg.targetGraph();
+
+      HypernodeID first_move = phg.edgeSource(e);
+      HypernodeID second_move = phg.edgeTarget(e);
+      if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+           !tracker.wasNodeMovedInThisRound(second_move) ) {
+        // Both nodes were not moved in this round => nothing to do
+        return;
+      } else if ( tracker.wasNodeMovedInThisRound(first_move) &&
+                  tracker.wasNodeMovedInThisRound(second_move) ) {
+        if ( tracker.moveOfNode[first_move] > tracker.moveOfNode[second_move] ) {
+          std::swap(first_move, second_move);
+        }
+      } else if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+                   tracker.wasNodeMovedInThisRound(second_move) ) {
+        std::swap(first_move, second_move);
+      }
+
+      ASSERT(tracker.wasNodeMovedInThisRound(first_move));
+      ASSERT(!tracker.wasNodeMovedInThisRound(second_move) ||
+        (tracker.moveOfNode[first_move] < tracker.moveOfNode[second_move]));
+      Move& first_m = tracker.getMove(tracker.moveOfNode[first_move]);
+      // sentinel in case second node was not moved
+      Move tmp_second_m = Move { phg.partID(second_move),
+        phg.partID(second_move), second_move, 0 };
+      Move& second_m = tracker.wasNodeMovedInThisRound(second_move) ?
+        tracker.getMove(tracker.moveOfNode[second_move]) : tmp_second_m;
+
+      // Compute gain of first move
+      sync_update.from = first_m.from;
+      sync_update.to = first_m.to;
+      sync_update.pin_count_in_from_part_after =
+        first_m.from == second_m.from ? 1 : 0;
+      sync_update.pin_count_in_to_part_after =
+        first_m.to == second_m.from ? 2 : 1;
+      sync_update.block_of_other_node = second_m.from;
+      const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+      __atomic_fetch_add(&first_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+
+      if ( tracker.wasNodeMovedInThisRound(second_move) )  {
+        // Compute gain of second move
+        sync_update.from = second_m.from;
+        sync_update.to = second_m.to;
+        sync_update.pin_count_in_from_part_after =
+          first_m.to == second_m.from ? 1 : 0;
+        sync_update.pin_count_in_to_part_after =
+          first_m.to == second_m.to ? 2 : 1;
+        sync_update.block_of_other_node = first_m.to;
+        const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+        __atomic_fetch_add(&second_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+      }
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
+                                                               FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
-      // TODO reduce .local() calls using the blocked_range interface
-      auto& r = ets_recalc_data.local();
-
-      // compute auxiliary data
-      for (HypernodeID v : phg.pins(e)) {
-        if (tracker.wasNodeMovedInThisRound(v)) {
-          const MoveID m_id = tracker.moveOfNode[v];
-          const Move& m = tracker.getMove(m_id);
-          r[m.to].first_in = std::min(r[m.to].first_in, m_id);
-          r[m.from].last_out = std::max(r[m.from].last_out, m_id);
-          // no change for remaining pins!
-        } else {
-          r[phg.partID(v)].remaining_pins++;
-        }
-      }
-
-      // distribute gains to pins
-      const HyperedgeWeight we = phg.edgeWeight(e);
-      for (HypernodeID v : phg.pins(e)) {
-        if (tracker.wasNodeMovedInThisRound(v)) {
-          const MoveID m_id = tracker.moveOfNode[v];
-          Move& m = tracker.getMove(m_id);
-
-          const bool benefit = r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
-          const bool penalty = r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
-
-          if (benefit && !penalty) {    // only apply update if they're mutually exclusive
-            // increase gain of v by w(e)
-            __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
-          }
-
-          if (!benefit && penalty) {
-            // decrease gain of v by w(e)
-            __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
-          }
-        }
-      }
-
-      if (num_parts <= static_cast<int>(2 * phg.edgeSize(e))) {
-        // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
-        for (PartitionID i = 0; i < num_parts; ++i) {
-          r[i] = RecalculationData();
-        }
+      if constexpr ( Rollback::supports_parallel_rollback ) {
+        recalculateGainForHyperedge(phg, sharedData, e);
       } else {
-        for (HypernodeID v : phg.pins(e)) {
-          if (tracker.wasNodeMovedInThisRound(v)) {
-            const Move& m = tracker.getMove(tracker.moveOfNode[v]);
-            r[m.from] = RecalculationData();
-            r[m.to] = RecalculationData();
-          } else {
-            r[phg.partID(v)].remaining_pins = 0;
-          }
+        if constexpr ( PartitionedHypergraph::is_graph ) {
+          recalculateGainForGraphEdgeViaAttributedGains(phg, sharedData, e);
+        } else {
+          recalculateGainForHyperedgeViaAttributedGains(phg, sharedData, e);
         }
       }
     };
+
+    tbb::parallel_for(MoveID(0), tracker.numPerformedMoves(), [&](MoveID m_id) {
+      tracker.moveOrder[m_id].gain = 0;
+    });
 
     if (context.refinement.fm.iter_moves_on_recalc) {
       tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const MoveID local_move_id) {
@@ -282,16 +412,16 @@ namespace mt_kahypar {
         last_recalc_round.assign(phg.initialNumEdges(), CAtomic<uint32_t>(0));
       }
     } else{
-      // TODO(maas): might be a problem?
       tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     }
   }
 
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefixSequential(PartitionedHypergraph& phg,
-                                               FMSharedData& sharedData,
-                                               const vec<HypernodeWeight>&,
-                                               const std::vector<HypernodeWeight>& maxPartWeights) {
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixSequential(
+    PartitionedHypergraph& phg,
+    FMSharedData& sharedData,
+    const vec<HypernodeWeight>&,
+    const std::vector<HypernodeWeight>& maxPartWeights) {
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     const MoveID numMoves = tracker.numPerformedMoves();
@@ -301,7 +431,7 @@ namespace mt_kahypar {
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
@@ -309,7 +439,7 @@ namespace mt_kahypar {
     size_t num_unbalanced_slots = 0;
 
     size_t overloaded = 0;
-    for (PartitionID i = 0; i < num_parts; ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (phg.partWeight(i) > maxPartWeights[i]) {
         overloaded++;
       }
@@ -318,24 +448,17 @@ namespace mt_kahypar {
     // roll forward sequentially
     Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
+    auto attributed_gains = [&](const SynchronizedEdgeUpdate& sync_update) {
+      gain_sum -= AttributedGains::gain(sync_update);
+    };
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!m.isValid()) continue;
 
-      Gain gain = 0;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        if (phg.pinCountInPart(e, m.from) == 1) {
-          gain += phg.edgeWeight(e);
-        }
-        if (phg.pinCountInPart(e, m.to) == 0) {
-          gain -= phg.edgeWeight(e);
-        }
-      }
-      gain_sum += gain;
-
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      moveVertex<update_gain_cache>(phg, m.node, m.from, m.to);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -357,13 +480,13 @@ namespace mt_kahypar {
     tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
       const Move& m = move_order[i];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
-    if constexpr (update_gain_cache) {
+    if constexpr (GainCache::invalidates_entries) {
       tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-        phg.recomputeMoveFromBenefit(move_order[i].node);
+        gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
       });
     }
 
@@ -373,31 +496,29 @@ namespace mt_kahypar {
   }
 
 
-
-  template<bool update_gain_cache>
-  bool GlobalRollback::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  template<typename TypeTraits, typename GainTypes>
+  bool GlobalRollback<TypeTraits, GainTypes>::verifyGains(PartitionedHypergraph& phg,
+                                                          FMSharedData& sharedData) {
     vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
-    auto recompute_move_from_benefits = [&] {
-      if constexpr (update_gain_cache) {
-        for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-          phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-        }
+    auto recompute_penalty_terms = [&] {
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        gain_cache.recomputeInvalidTerms(phg, move_order[localMoveID].node);
       }
     };
 
-    recompute_move_from_benefits();
-    phg.checkTrackedPartitionInformation();
+    recompute_penalty_terms();
+    phg.checkTrackedPartitionInformation(gain_cache);
 
     // revert all moves
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     }
 
-    recompute_move_from_benefits();
+    recompute_penalty_terms();
 
     // roll forward sequentially and check gains
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -406,44 +527,38 @@ namespace mt_kahypar {
         continue;
 
       Gain gain = 0;
-      for (HyperedgeID e: phg.incidentEdges(m.node)) {
-        if (phg.pinCountInPart(e, m.from) == 1) gain += phg.edgeWeight(e);
-        if (phg.pinCountInPart(e, m.to) == 0) gain -= phg.edgeWeight(e);
-      }
+      auto attributed_gains = [&](const SynchronizedEdgeUpdate& sync_update) {
+        gain -= AttributedGains::gain(sync_update);
+      };
 
-      if constexpr (update_gain_cache) {
-        const Gain gain_from_cache = phg.km1Gain(m.node, m.from, m.to); unused(gain_from_cache);
-        ASSERT(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
-        ASSERT(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
-        ASSERT(gain == gain_from_cache);
-      }
+      ASSERT(gain_cache.penaltyTerm(m.node, phg.partID(m.node)) == gain_cache.recomputePenaltyTerm(phg, m.node));
+      ASSERT(gain_cache.benefitTerm(m.node, m.to) == gain_cache.recomputeBenefitTerm(phg, m.node, m.to));
+      const Gain gain_in_cache = gain_cache.gain(m.node, m.from, m.to);
+      unused(gain_in_cache);
 
-      const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
-      moveVertex<update_gain_cache>(phg, m.node, m.from, m.to);
-      const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
+      // const HyperedgeWeight objective_before_move =
+      //   metrics::quality(phg, context, false);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
+      // const HyperedgeWeight objective_after_move =
+      //   metrics::quality(phg, context, false);
 
-      ASSERT(km1_after_move + gain == km1_before_move);
-      ASSERT(km1_after_move + m.gain == km1_before_move);
-      ASSERT(gain == m.gain);
-      unused(gain); unused(km1_before_move); unused(km1_after_move);  // for release mode
+      // ASSERT(objective_after_move + gain == objective_before_move,
+      //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      // ASSERT(objective_after_move + m.gain == objective_before_move,
+      //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      ASSERT(gain == gain_in_cache);
+      ASSERT(gain == m.gain, V(gain) << V(m.gain));
+      unused(gain); // unused(objective_before_move); unused(objective_after_move);  // for release mode
     }
 
-    recompute_move_from_benefits();
+    recompute_penalty_terms();
     return true;
   }
 
+  namespace {
+  #define GLOBAL_ROLLBACK(X, Y) GlobalRollback<X, Y>
+  }
 
-  // template instantiations
-  template HyperedgeWeight GlobalRollback::revertToBestPrefix<false>
-          (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
-
-  template HyperedgeWeight GlobalRollback::revertToBestPrefix<true>
-          (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
-
-  template bool GlobalRollback::verifyGains<false>
-          (PartitionedHypergraph& , FMSharedData& );
-
-  template bool GlobalRollback::verifyGains<true>
-          (PartitionedHypergraph& , FMSharedData& );
-
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(GLOBAL_ROLLBACK)
 }

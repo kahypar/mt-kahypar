@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
@@ -25,7 +31,7 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/utils/timer.h"
@@ -33,12 +39,13 @@
 namespace mt_kahypar {
 namespace ds {
 
-DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hypernodes,
-                                                      const HyperedgeID num_hyperedges,
-                                                      const HyperedgeVector& edge_vector,
-                                                      const HyperedgeWeight* hyperedge_weight,
-                                                      const HypernodeWeight* hypernode_weight,
-                                                      const bool) {
+DynamicHypergraph DynamicHypergraphFactory::construct(
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const HyperedgeWeight* hyperedge_weight,
+        const HypernodeWeight* hypernode_weight,
+        const bool) {
   DynamicHypergraph hypergraph;
   hypergraph._num_hypernodes = num_hypernodes;
   hypergraph._num_hyperedges = num_hyperedges;
@@ -59,7 +66,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
 
   // Compute number of pins per hyperedge
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
-  tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+  tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
     num_pins_per_hyperedge[pos] = edge_vector[pos].size();
     local_max_edge_size.local() = std::max(
@@ -75,7 +82,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
   // start position for each hyperedge in the incidence array.
   parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
-    0UL, UI64(num_hyperedges)), pin_prefix_sum);
+    UL(0), UI64(num_hyperedges)), pin_prefix_sum);
 
   hypergraph._num_pins = pin_prefix_sum.total_sum();
   hypergraph._total_degree = pin_prefix_sum.total_sum();
@@ -154,7 +161,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
     parallel::TBBPrefixSum<HypernodeID, parallel::scalable_vector> hn_mapping_prefix_sum(hn_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, hypergraph._num_hypernodes + 1), hn_mapping_prefix_sum);
+      UL(0), hypergraph._num_hypernodes + 1), hn_mapping_prefix_sum);
     num_hypernodes = hn_mapping_prefix_sum.total_sum();
     hn_mapping.resize(hypergraph._num_hypernodes);
   }, [&] {
@@ -165,7 +172,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
     parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, hypergraph._num_hyperedges + 1), he_mapping_prefix_sum);
+      UL(0), hypergraph._num_hyperedges + 1), he_mapping_prefix_sum);
     num_hyperedges = he_mapping_prefix_sum.total_sum();
     he_mapping.resize(hypergraph._num_hyperedges);
   });
@@ -201,10 +208,26 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
   compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
 
-  // Set community ids
-  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-    const HypernodeID mapped_hn = hn_mapping[hn];
-    compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
+  tbb::parallel_invoke([&] {
+    // Set community ids
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const HypernodeID mapped_hn = hn_mapping[hn];
+      compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
+    });
+  }, [&] {
+    if ( hypergraph.hasFixedVertices() ) {
+      // Set fixed vertices
+      ds::FixedVertexSupport<DynamicHypergraph> fixed_vertices(
+        compactified_hypergraph.initialNumNodes(), hypergraph._fixed_vertices.numBlocks());
+      fixed_vertices.setHypergraph(&compactified_hypergraph);
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( hypergraph.isFixed(hn) ) {
+          const HypernodeID mapped_hn = hn_mapping[hn];
+          fixed_vertices.fixToBlock(mapped_hn, hypergraph.fixedVertexBlock(hn));
+        }
+      });
+      compactified_hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
+    }
   });
 
   tbb::parallel_invoke([&] {

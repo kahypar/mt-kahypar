@@ -1,28 +1,35 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "csv_output.h"
 
 #include <sstream>
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/stats.h"
@@ -36,8 +43,10 @@ namespace mt_kahypar::io::csv {
            "\n";
   }
 
-  std::string serialize(const PartitionedHypergraph& phg, const Context& context,
-                                      const std::chrono::duration<double>& elapsed_seconds) {
+  template<typename PartitionedHypergraph>
+  std::string serialize(const PartitionedHypergraph& phg,
+                        const Context& context,
+                        const std::chrono::duration<double>& elapsed_seconds) {
     const char sep = ',';
     std::stringstream s;
 
@@ -60,12 +69,13 @@ namespace mt_kahypar::io::csv {
     s << metrics::imbalance(phg, context) << sep;
 
     s << context.partition.objective << sep;
-    s << metrics::km1(phg) << sep;
-    s << metrics::hyperedgeCut(phg) << sep;
+    s << metrics::quality(phg, Objective::km1) << sep;
+    s << metrics::quality(phg, Objective::cut) << sep;
     s << context.initial_km1 << sep;
     s << elapsed_seconds.count() << sep;
 
-    utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.showDetailedTimings(context.partition.show_detailed_timings);
     s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;
@@ -74,4 +84,12 @@ namespace mt_kahypar::io::csv {
 
     return s.str();
   }
+
+  namespace {
+  #define SERIALIZE(X) std::string serialize(const X& phg,                                          \
+                                             const Context& context,                                \
+                                             const std::chrono::duration<double>& elapsed_seconds)
+  }
+
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
 }

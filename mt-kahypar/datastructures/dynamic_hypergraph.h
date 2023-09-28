@@ -1,22 +1,28 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -26,16 +32,20 @@
 
 #include "tbb/parallel_for.h"
 
-#include "kahypar/meta/mandatory.h"
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/utils/math.h"
+#include "include/libmtkahypartypes.h"
+
+#include "kahypar-resources/meta/mandatory.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/incident_net_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -43,9 +53,8 @@ namespace ds {
 // Forward
 class DynamicHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory>
+          typename ConnectivityInformation>
 class PartitionedHypergraph;
-
 
 class DynamicHypergraph {
 
@@ -72,120 +81,6 @@ class DynamicHypergraph {
     size_t hash = kEdgeHashSeed;
     size_t size = std::numeric_limits<size_t>::max();
     bool valid = false;
-  };
-
-  // Represents a uncontraction that is assigned to a certain batch
-  // and within that batch to a certain position.
-  struct BatchAssignment {
-    HypernodeID u;
-    HypernodeID v;
-    size_t batch_index;
-    size_t batch_pos;
-  };
-
-  /*!
-   * Helper class that synchronizes assignements of uncontractions
-   * to batches. A batch has a certain maximum allowed batch size. The
-   * class provides functionality to compute such an assignment in a
-   * thread-safe manner. Several threads can request a batch index
-   * and a position within that batch for its uncontraction it wants
-   * to assign. The class guarantees that each combination of
-   * (batch_index, batch_position) is unique and consecutive.
-   * Furthermore, it is ensured that batch_position is always
-   * smaller than max_batch_size.
-   */
-  class BatchIndexAssigner {
-
-    using AtomicCounter = parallel::IntegralAtomicWrapper<size_t>;
-
-   public:
-    explicit BatchIndexAssigner(const HypernodeID num_hypernodes,
-                                const size_t max_batch_size) :
-      _max_batch_size(max_batch_size),
-      _high_water_mark(0),
-      _current_batch_counter(num_hypernodes, AtomicCounter(0)),
-      _current_batch_sizes(num_hypernodes, AtomicCounter(0)) { }
-
-    BatchAssignment getBatchIndex(const size_t min_required_batch,
-                                  const size_t num_uncontractions = 1) {
-      if ( min_required_batch <= _high_water_mark ) {
-        size_t current_high_water_mark = _high_water_mark.load();
-        const BatchAssignment assignment = findBatchAssignment(
-          current_high_water_mark, num_uncontractions);
-
-        // Update high water mark in case batch index is greater than
-        // current high water mark
-        size_t current_batch_index = assignment.batch_index;
-        increaseHighWaterMark(current_batch_index);
-        return assignment;
-      } else {
-        return findBatchAssignment(min_required_batch, num_uncontractions);
-      }
-    }
-
-    size_t batchSize(const size_t batch_index) const {
-      ASSERT(batch_index < _current_batch_sizes.size());
-      return _current_batch_sizes[batch_index];
-    }
-
-    void increaseHighWaterMark(size_t new_high_water_mark) {
-      size_t current_high_water_mark = _high_water_mark.load();
-      while ( new_high_water_mark > current_high_water_mark ) {
-        _high_water_mark.compare_exchange_strong(
-          current_high_water_mark, new_high_water_mark);
-      }
-    }
-
-    size_t numberOfNonEmptyBatches() {
-      size_t current_batch = _high_water_mark;
-      if ( _current_batch_sizes[_high_water_mark] == 0 )  {
-        while ( current_batch > 0 && _current_batch_sizes[current_batch] == 0 ) {
-          --current_batch;
-        }
-        if ( _current_batch_sizes[current_batch] > 0 ) {
-          ++current_batch;
-        }
-      } else {
-        while ( _current_batch_sizes[current_batch] > 0 ) {
-          ++current_batch;
-        }
-      }
-      return current_batch;
-    }
-
-    void reset(const size_t num_batches) {
-      ASSERT(num_batches <= _current_batch_sizes.size());
-      _high_water_mark = 0;
-      tbb::parallel_for(0UL, num_batches, [&](const size_t i) {
-        _current_batch_counter[i] = 0;
-        _current_batch_sizes[i] = 0;
-      });
-    }
-
-   private:
-    BatchAssignment findBatchAssignment(const size_t start_batch_index,
-                                        const size_t num_uncontractions) {
-      size_t current_batch_index = start_batch_index;
-      size_t batch_pos = _current_batch_counter[current_batch_index].fetch_add(
-        num_uncontractions, std::memory_order_relaxed);
-      // Search for batch in which atomic update of the batch counter
-      // return a position smaller than max_batch_size.
-      while ( batch_pos >= _max_batch_size ) {
-        ++current_batch_index;
-        ASSERT(current_batch_index < _current_batch_counter.size());
-        batch_pos = _current_batch_counter[current_batch_index].fetch_add(
-          num_uncontractions, std::memory_order_relaxed);
-      }
-      ASSERT(batch_pos < _max_batch_size);
-      _current_batch_sizes[current_batch_index] += num_uncontractions;
-      return BatchAssignment { kInvalidHypernode,
-        kInvalidHypernode, current_batch_index, batch_pos };
-    }
-
-    const size_t _max_batch_size;
-    AtomicCounter _high_water_mark;
-    parallel::scalable_vector<AtomicCounter> _current_batch_counter;
-    parallel::scalable_vector<AtomicCounter> _current_batch_sizes;
   };
 
  private:
@@ -392,14 +287,14 @@ class DynamicHypergraph {
    *
    */
   template <typename ElementType>
-  class HypergraphElementIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         typename ElementType::IDType,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const typename ElementType::IDType*,   // pointer
-                         typename ElementType::IDType> {   // reference
+  class HypergraphElementIterator {
    public:
     using IDType = typename ElementType::IDType;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = IDType;
+    using reference = IDType&;
+    using pointer = const IDType*;
+    using difference_type = std::ptrdiff_t;
 
     /*!
      * Construct a HypergraphElementIterator
@@ -466,7 +361,8 @@ class DynamicHypergraph {
   enum class ContractionResult : uint8_t {
     CONTRACTED = 0,
     PENDING_CONTRACTIONS = 1,
-    WEIGHT_LIMIT_REACHED = 2
+    WEIGHT_LIMIT_REACHED = 2,
+    INVALID_FIXED_VERTEX_CONTRACTION = 3
   };
 
   using ContractionInterval = typename ContractionTree::Interval;
@@ -495,7 +391,10 @@ class DynamicHypergraph {
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Hyperedge);
+  static constexpr mt_kahypar_hypergraph_type_t TYPE = DYNAMIC_HYPERGRAPH;
 
+  // ! Factory
+  using Factory = DynamicHypergraphFactory;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
   // ! Iterator to iterate over the hyperedges
@@ -504,6 +403,11 @@ class DynamicHypergraph {
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNetArray::const_iterator;
+
+  struct ParallelHyperedge {
+    HyperedgeID removed_hyperedge;
+    HyperedgeID representative;
+  };
 
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
@@ -527,7 +431,8 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(),
     _failed_hyperedge_contractions(),
     _he_bitset(),
-    _removable_single_pin_and_parallel_nets() { }
+    _removable_single_pin_and_parallel_nets(),
+    _fixed_vertices() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
   DynamicHypergraph & operator= (const DynamicHypergraph &) = delete;
@@ -554,7 +459,10 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(std::move(other._hes_to_resize_flag_array)),
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _he_bitset(std::move(other._he_bitset)),
-    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)) { }
+    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
+    _fixed_vertices(std::move(other._fixed_vertices)) {
+    _fixed_vertices.setHypergraph(this);
+  }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -579,6 +487,8 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _he_bitset = std::move(other._he_bitset);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     return *this;
   }
 
@@ -823,10 +733,50 @@ class DynamicHypergraph {
     return hypernode(u).setCommunityID(community_id);
   }
 
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<DynamicHypergraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+    _fixed_vertices.setMaxBlockWeight(max_block_weights);
+  }
+
+  const FixedVertexSupport<DynamicHypergraph>& fixedVertexSupport() const {
+    return _fixed_vertices;
+  }
+
+  FixedVertexSupport<DynamicHypergraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
+  }
+
   // ####################### Contract / Uncontract #######################
 
   DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&) {
-    ERROR("contract(c, id) is not supported in dynamic hypergraph");
+    throw NonSupportedOperationException(
+      "contract(c, id) is not supported in dynamic hypergraph");
     return DynamicHypergraph();
   }
 
@@ -982,10 +932,10 @@ class DynamicHypergraph {
   // ####################### Copy #######################
 
   // ! Copy dynamic hypergraph in parallel
-  DynamicHypergraph copy(parallel_tag_t);
+  DynamicHypergraph copy(parallel_tag_t) const;
 
   // ! Copy dynamic hypergraph sequential
-  DynamicHypergraph copy();
+  DynamicHypergraph copy() const;
 
   // ! Reset internal data structure
   void reset() {
@@ -1001,7 +951,8 @@ class DynamicHypergraph {
   }
 
   void freeTmpContractionBuffer() {
-    ERROR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
+    throw NonSupportedOperationException(
+      "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
@@ -1014,7 +965,7 @@ class DynamicHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory>
+            typename ConnectivityInformation>
   friend class PartitionedHypergraph;
 
   // ####################### Acquiring / Releasing Ownership #######################
@@ -1114,17 +1065,15 @@ class DynamicHypergraph {
                                                             kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v);
 
   // ! Restore the size of the hyperedge to the size before the batch with
-  // ! index batch_index was contracted.
+  // ! index batch_index was contracted. After each size increment, we call case_one_func
+  // ! that triggers updates in the partitioned hypergraph and gain cache
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreHyperedgeSizeForBatch(const HyperedgeID he,
-                                                                       const HypernodeID batch_index);
+                                                                       const HypernodeID batch_index,
+                                                                       const UncontractionFunction& case_one_func);
 
   // ! Search for the position of pin u in hyperedge he in the incidence array
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,
                                                                               const HyperedgeID he);
-
-  bool verifyBatchIndexAssignments(
-    const BatchIndexAssigner& batch_assigner,
-    const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
 
   /**
    * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
@@ -1210,6 +1159,8 @@ class DynamicHypergraph {
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
 
+  // ! Fixed Vertex Support
+  FixedVertexSupport<DynamicHypergraph> _fixed_vertices;
 };
 
 } // namespace ds

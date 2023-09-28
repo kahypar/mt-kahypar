@@ -1,28 +1,33 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
 
 #include "gmock/gmock.h"
 
-#include "kahypar/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
@@ -35,19 +40,22 @@ namespace ds {
 
 static auto identity = [](const HypernodeID& id) { return id; };
 
-template<typename HyperGraph, typename HyperGraphFactory, bool useGraphStructure = false>
+template<typename Hypergraph, bool useGraphStructure = false>
 class HypergraphFixture : public Test {
+
+  using HypergraphFactory = typename Hypergraph::Factory;
+
  public:
   HypergraphFixture() :
     hypergraph(useGraphStructure ?
-      HyperGraphFactory::construct(
+      HypergraphFactory::construct(
         7 , 6, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true) :
-      HyperGraphFactory::construct(
+      HypergraphFactory::construct(
         7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 
   template <typename K = decltype(identity)>
-  void verifyIncidentNets(const HyperGraph& hg,
+  void verifyIncidentNets(const Hypergraph& hg,
                           const HypernodeID hn,
                           const std::set<HypernodeID>& reference,
                           K map_func = identity,
@@ -69,7 +77,7 @@ class HypergraphFixture : public Test {
     verifyIncidentNets(hypergraph, hn, reference, map_func, log);
   }
 
-  void verifyPins(const HyperGraph& hg,
+  void verifyPins(const Hypergraph& hg,
                   const std::vector<HyperedgeID> hyperedges,
                   const std::vector< std::set<HypernodeID> >& references,
                   bool log = false) {
@@ -103,7 +111,7 @@ class HypergraphFixture : public Test {
     hypergraph.setCommunityID(6, 2);
   }
 
-  HyperGraph hypergraph;
+  Hypergraph hypergraph;
 };
 
 }  // namespace ds

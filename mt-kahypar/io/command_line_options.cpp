@@ -1,34 +1,44 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "command_line_options.h"
 
 #include <boost/program_options.hpp>
+#ifdef __linux__
 #include <sys/ioctl.h>
+#elif _WIN32
+#include <windows.h>
+#include <process.h>
+#endif
 
 #include <fstream>
 #include <limits>
 
-#include "mt-kahypar/io/partitioning_output.h"
-
+#include "mt-kahypar/utils/exception.h"
 
 namespace po = boost::program_options;
 
@@ -36,14 +46,24 @@ namespace mt_kahypar {
   namespace platform {
     int getTerminalWidth() {
       int columns = 0;
+      #if defined(_WIN32)
+      CONSOLE_SCREEN_BUFFER_INFO csbi;
+      GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+      columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+      #else
       struct winsize w = { };
       ioctl(0, TIOCGWINSZ, &w);
       columns = w.ws_col;
+      #endif
       return columns;
     }
 
     int getProcessID() {
+      #if defined(_WIN32)
+      return _getpid();
+      #else
       return getpid();
+      #endif
     }
   }  // namespace platform
 
@@ -56,12 +76,24 @@ namespace mt_kahypar {
              "Coarsening and refinement routines must still be set to the deterministic versions.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
+            ("fixed,f",
+             po::value<std::string>(&context.partition.fixed_vertex_filename)->value_name("<string>"),
+             "Fixed vertex filename")
             ("write-partition-file",
              po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(false),
              "If true, then partition output file is generated")
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
              "Output folder for partition file")
+            ("mode,m",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& mode) {
+                       context.partition.mode = modeFromString(mode);
+                     }),
+             "Partitioning mode: \n"
+             " - direct: direct k-way partitioning\n"
+             " - rb: recursive bipartitioning\n"
+             " - deep: deep multilevel partitioning")
             ("input-file-format",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
                if (s == "hmetis") {
@@ -84,22 +116,29 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
                context.partition.preset_type = presetTypeFromString(type);
              }),
-             "Preset Type: \n"
-             " - deterministic (Mt-KaHyPar-Det)\n"
-             " - default (Mt-KaHyPar-D)\n"
-             " - default_flows (Mt-KaHyPar-D-F)\n"
-             " - quality (Mt-KaHyPar-Q)\n"
-             " - quality_flows (Mt-KaHyPar-Q-F)\n")
+             "Preset Types: \n"
+             " - deterministic\n"
+             " - large_k\n"
+             " - default\n"
+             " - quality\n"
+             " - highest_quality"
+             )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")
-            ("maxnet-remove-factor",
+            ("perform-parallel-recursion-in-deep-multilevel",
+             po::value<bool>(&context.partition.perform_parallel_recursion_in_deep_multilevel)->value_name("<bool>")->default_value(true),
+             "If true, then we perform parallel recursion within the deep multilevel scheme.")
+            ("smallest-maxnet-threshold",
+            po::value<uint32_t>(&context.partition.smallest_large_he_size_threshold)->value_name("<uint32_t>"),
+            "No hyperedge whose size is smaller than this threshold is removed in the large hyperedge removal step (see maxnet-removal-factor)")
+            ("maxnet-removal-factor",
              po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name(
                      "<double>")->default_value(0.01),
-             "Hyperedges larger than |V| * (this factor) are removed before partitioning.")
+             "Hyperedges larger than max(|V| * (this factor), p-smallest-maxnet-threshold) are removed before partitioning.")
             ("maxnet-ignore",
              po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name(
                      "<uint64_t>")->default_value(1000),
@@ -158,11 +197,9 @@ namespace mt_kahypar {
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
              "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
-            #ifdef USE_GRAPH_PARTITIONER
             ("p-disable-community-detection-on-mesh-graphs",
              po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
-            #endif
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -215,20 +252,6 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
-            #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                        ("c-use-adaptive-max-node-weight",
-                po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
-                "If true, we double the maximum allowed node weight each time if we are not able\n"
-                "to significantly reduce the size of the hypergraph during coarsening.")
-                ("c-adaptive-s",
-                po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
-                "The maximum allowed node weight is not allowed to become greater than\n"
-                "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
-                ("c-adaptive-threshold",
-                po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
-                "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
-                "is lower than this threshold\n")
-            #endif
             ("c-s",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name(
                      "<double>")->default_value(1),
@@ -238,6 +261,9 @@ namespace mt_kahypar {
              po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name(
                      "<int>")->default_value(160),
              "Coarsening stops when there are no more than t * k hypernodes left")
+            ("c-deep-t",
+             po::value<HypernodeID>(&context.coarsening.deep_ml_contraction_limit_multiplier)->value_name("<int>"),
+             "Deep multilevel performs coarsening until 2 * deep-t hypernodes are left for bipartitioning calls")
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")
@@ -249,8 +275,12 @@ namespace mt_kahypar {
                      [&](const std::string& rating_score) {
                        context.coarsening.rating.rating_function =
                                mt_kahypar::ratingFunctionFromString(rating_score);
-                     })->default_value("heavy_edge"), "Rating function used to calculate scores for vertex pairs:\n"
-                                                      "- heavy_edge")
+                     })->default_value("heavy_edge"),
+             "Rating function used to calculate scores for vertex pairs:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             "- sameness\n"
+             #endif
+             "- heavy_edge")
             ("c-rating-heavy-node-penalty",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& penalty) {
@@ -258,9 +288,11 @@ namespace mt_kahypar {
                                heavyNodePenaltyFromString(penalty);
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- multiplicative\n"
-             "- no_penalty\n"
-             "- edge_frequency_penalty")
+             "- edge_frequency_penalty\n"
+             #endif
+             "- no_penalty")
             ("c-rating-acceptance-criterion",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& crit) {
@@ -268,7 +300,9 @@ namespace mt_kahypar {
                                acceptanceCriterionFromString(crit);
                      })->default_value("best_prefer_unmatched"),
              "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- best\n"
+             #endif
              "- best_prefer_unmatched")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
@@ -314,10 +348,9 @@ namespace mt_kahypar {
                          context.refinement.label_propagation.algorithm =
                                  labelPropagationAlgorithmFromString(type);
                        }
-                     })->default_value("label_propagation_km1"),
+                     })->default_value("label_propagation"),
              "Label Propagation Algorithm:\n"
-             "- label_propagation_km1\n"
-             "- label_propagation_cut\n"
+             "- label_propagation\n"
              "- deterministic\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
@@ -345,6 +378,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
                      "<bool>")->default_value(true),
              "If true, then zero gain moves are only performed if they improve the balance of the solution (only in label propagation)")
+            ((initial_partitioning ? "i-r-lp-unconstrained" : "r-lp-unconstrained"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.unconstrained :
+                              &context.initial_partitioning.refinement.label_propagation.unconstrained))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, then unconstrained label propagation (including rebalancing) is used.")
             ((initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold
@@ -352,6 +390,11 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name(
                      "<size_t>")->default_value(100),
              "LP refiner activates only neighbors of moved vertices that are part of hyperedges with a size less than this threshold")
+            ((initial_partitioning ? "i-r-lp-relative-improvement-threshold" : "r-lp-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.label_propagation.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(-1.0),
+             "Relative improvement threshold for label propagation.")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
@@ -360,12 +403,10 @@ namespace mt_kahypar {
                        } else {
                          context.refinement.fm.algorithm = fmAlgorithmFromString(type);
                        }
-                     })->default_value("fm_gain_cache"),
+                     })->default_value("kway_fm"),
              "FM Algorithm:\n"
-             "- fm_gain_cache\n"
-             "- fm_gain_cache_on_demand\n"
-             "- fm_gain_delta\n"
-             "- fm_recompute_gain\n"
+             "- kway_fm\n"
+             "- unconstrained_fm\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
@@ -409,6 +450,42 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
                               &context.refinement.fm.release_nodes))->value_name("<bool>")->default_value(true),
              "FM releases nodes that weren't moved, so they might be found by another search.")
+            ((initial_partitioning ? "i-r-fm-threshold-border-node-inclusion" : "r-fm-threshold-border-node-inclusion"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
+                              &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
+             "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound" : "r-fm-unconstrained-upper-bound"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound :
+                              &context.refinement.fm.unconstrained_upper_bound))->value_name("<double>")->default_value(0.0),
+             "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
+            ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
+                              &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(8),
+             "Unconstrained FM: Number of rounds that are unconstrained.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-min" : "r-fm-imbalance-penalty-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_min :
+                              &context.refinement.fm.imbalance_penalty_min))->value_name("<double>")->default_value(0.2),
+             "Unconstrained FM: Minimum (starting) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-max" : "r-fm-imbalance-penalty-max"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_max :
+                              &context.refinement.fm.imbalance_penalty_max))->value_name("<double>")->default_value(1.0),
+             "Unconstrained FM: Maximum (final) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound-min" : "r-fm-unconstrained-upper-bound-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
+                              &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
+             "Unconstrained FM: Minimum (final) upper bound (default = 0 = equal to start).")
+            ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
+                              &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
+             "Decide dynamically (based on first two rounds) whether to use unconstrained FM.")
+            ((initial_partitioning ? "i-r-fm-penalty-for-activation-test" : "r-fm-penalty-for-activation-test"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_activation_test :
+                              &context.refinement.fm.penalty_for_activation_test))->value_name("<double>")->default_value(0.5),
+             "If unconstrained FM is activated dynamically, determines the penalty factor used for the test round.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-min-improvement" : "r-fm-unconstrained-min-improvement"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_min_improvement :
+                              &context.refinement.fm.unconstrained_min_improvement))->value_name("<double>")->default_value(-1.0),
+             "Switch to constrained FM if relative improvement of unconstrained FM is below this treshold.")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
@@ -420,7 +497,6 @@ namespace mt_kahypar {
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
              "the next finer level.")
-            #ifdef USE_STRONG_PARTITIONER
             ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
                               &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
@@ -441,8 +517,19 @@ namespace mt_kahypar {
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
-            #endif
-            ;
+            ((initial_partitioning ? "i-r-rebalancer-type" : "r-rebalancer-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       } else {
+                         context.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Rebalancer Algorithm:\n"
+             "- simple_rebalancer\n"
+             "- advanced_rebalancer\n"
+             "- do_nothing");
     return options;
   }
 
@@ -507,7 +594,24 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-flow-determine-distance-from-cut" : "r-flow-determine-distance-from-cut"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.determine_distance_from_cut :
                       &context.refinement.flows.determine_distance_from_cut))->value_name("<bool>"),
-             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.");
+             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.")
+            ((initial_partitioning ? "i-r-flow-process-mapping-policy" : "r-flow-process-mapping-policy"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& policy) {
+                       if ( initial_partitioning ) {
+                        context.initial_partitioning.refinement.flows.steiner_tree_policy =
+                          steinerTreeFlowValuePolicyFromString(policy);
+                       } else {
+                        context.refinement.flows.steiner_tree_policy =
+                          steinerTreeFlowValuePolicyFromString(policy);
+                       }
+                     }),
+             "This option is only important for the Steiner tree metric. For flow-based refinement on hypergraphs, we cannot.\n"
+             "guarantee that the improvement found by solving the flow problem matches the exact improvement when we\n"
+             "applied on the hypergraph. However, we can either guarantee that improvement is an lower or upper bound for\n"
+             "the actual improvement. Therefore, the supported options are:\n"
+             "- lower_bound\n"
+             "- upper_bound");
     return options;
   }
 
@@ -575,50 +679,54 @@ namespace mt_kahypar {
     return options;
   }
 
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  po::options_description createSparsificationOptionsDescription(Context& context,
-                                                               const int num_columns) {
-  po::options_description sparsification_options("Sparsification Options", num_columns);
-  sparsification_options.add_options()
-    ("sp-use-degree-zero-contractions",
-    po::value<bool>(&context.sparsification.use_degree_zero_contractions)->value_name("<bool>"),
-    "If true, then vertices with degree zero are contracted to supervertices")
-    ("sp-use-heavy-net-removal",
-    po::value<bool>(&context.sparsification.use_heavy_net_removal)->value_name("<bool>"),
-    "If true, then hyperedges with a weight greater than a certain threshold are removed before IP")
-    ("sp-use-similiar-net-removal",
-    po::value<bool>(&context.sparsification.use_similiar_net_removal)->value_name("<bool>"),
-    "If true, then hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
-    ("sp-hyperedge-pin-weight-fraction",
-    po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
-    ("sp-min-hash-footprint-size",
-    po::value<size_t>(&context.sparsification.min_hash_footprint_size)->value_name("<size_t>"),
-    "Number of locality sensitive hash functions used for similiar hyperedge removal")
-    ("sp-jaccard-threshold",
-    po::value<double>(&context.sparsification.jaccard_threshold)->value_name("<double>"),
-    "Jaccard threshold for which to hyperedges are considered as similiar")
-    ("sp-similiar-net-combiner-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.sparsification.similiar_net_combiner_strategy =
-        similiarNetCombinerStrategyFromString(strategy);
-    }),
-    "Determines how similiar nets are combined:\n"
-    "- union: set union of both nets\n"
-    "- max_size: largest net\n"
-    "- importance: net with most 'important' pins");
-
-  return sparsification_options;
-}
-#endif
+  po::options_description createMappingOptionsDescription(Context& context,
+                                                          const int num_columns) {
+    po::options_description mapping_options("Mapping Options", num_columns);
+    mapping_options.add_options()
+            ("target-graph-file,g",
+             po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>"),
+             "Path to a target architecture graph in Metis file format.")
+            ("one-to-one-mapping-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.mapping.strategy = oneToOneMappingStrategyFromString(strategy);
+                     }),
+             "Strategy for solving the one-to-one mapping problem after initial partitioning.\n"
+             "Available strategies:\n"
+             " - greedy_mapping\n"
+             " - identity")
+            ("mapping-use-local-search",
+             po::value<bool>(&context.mapping.use_local_search)->value_name("<bool>"),
+             "If true, uses local search to improve the initial mapping.")
+            ("use-two-phase-approach",
+             po::value<bool>(&context.mapping.use_two_phase_approach)->value_name("<bool>"),
+             "If true, then we first compute a k-way partition via optimizing the connectivity metric.\n"
+             "Afterwards, each block of the partition is mapped onto a block of the target architecture graph.")
+            ("max-steiner-tree-size",
+             po::value<size_t>(&context.mapping.max_steiner_tree_size)->value_name("<size_t>"),
+             "We precompute all optimal steiner trees up to this size in the target graph.")
+            ("mapping-largest-he-fraction",
+             po::value<double>(&context.mapping.largest_he_fraction)->value_name("<double>"),
+             "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
+             "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
+             "when counting adjacent blocks of a node.")
+            ("mapping-min-pin-coverage",
+             po::value<double>(&context.mapping.min_pin_coverage_of_largest_hes)->value_name("<double>"),
+             "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
+             "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
+             "when counting adjacent blocks of a node.");
+    return mapping_options;
+  }
 
   po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                                const int num_columns) {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
     shared_memory_options.add_options()
             ("s-num-threads,t",
-             po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
+             po::value<size_t>()->value_name("<size_t>")->notifier([&](const size_t num_threads) {
+               context.shared_memory.num_threads = num_threads;
+               context.shared_memory.original_num_threads = num_threads;
+             }),
              "Number of Threads")
             ("s-static-balancing-work-packages",
              po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),
@@ -657,25 +765,13 @@ namespace mt_kahypar {
              "Imbalance parameter epsilon")
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
-               if (s == "cut") {
-                 context.partition.objective = kahypar::Objective::cut;
-               } else if (s == "km1") {
-                 context.partition.objective = kahypar::Objective::km1;
-               }
+               context.partition.objective = objectiveFromString(s);
              }),
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
-             " - km1 : (lambda-1) metric")
-            ("mode,m",
-             po::value<std::string>()->value_name("<string>")->required()->notifier(
-                     [&](const std::string& mode) {
-                       context.partition.mode = modeFromString(mode);
-                     }),
-             "Partitioning mode: \n"
-             " - direct: direct k-way partitioning\n"
-             " - rb: recursive bipartitioning\n"
-             " - deep: deep multilevel partitioning"
-             );
+             " - km1 : (lambda-1) metric\n"
+             " - soed: sum-of-external-degree metric\n"
+             " - steiner_tree: maps a (hyper)graph onto a graph and optimizes the Steiner tree metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()
@@ -695,10 +791,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    po::options_description sparsification_options =
-    createSparsificationOptionsDescription(context, num_columns);
-#endif
+    po::options_description mapping_options =
+            createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -712,9 +806,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                    .add(sparsification_options)
-#endif
+            .add(mapping_options)
             .add(shared_memory_options);
 
     po::variables_map cmd_vm;
@@ -723,9 +815,6 @@ namespace mt_kahypar {
     // placing vm.count("help") here prevents required attributes raising an
     // error if only help was supplied
     if (cmd_vm.count("help") != 0 || argc == 1) {
-      if (context.partition.verbose_output) {
-        mt_kahypar::io::printBanner();
-      }
       LOG << cmd_line_options;
       exit(0);
     }
@@ -735,7 +824,8 @@ namespace mt_kahypar {
     if ( context.partition.preset_file != "" ) {
       std::ifstream file(context.partition.preset_file.c_str());
       if (!file) {
-        ERROR("Could not load context file at: " + context.partition.preset_file);
+        throw InvalidInputException(
+          "Could not load context file at: " + context.partition.preset_file);
       }
 
       po::options_description ini_line_options;
@@ -745,9 +835,7 @@ namespace mt_kahypar {
               .add(initial_paritioning_options)
               .add(refinement_options)
               .add(flow_options)
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-              .add(sparsification_options)
-  #endif
+              .add(mapping_options)
               .add(shared_memory_options);
 
       po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -787,7 +875,8 @@ namespace mt_kahypar {
   void parseIniToContext(Context& context, const std::string& ini_filename) {
     std::ifstream file(ini_filename.c_str());
     if (!file) {
-      ERROR("Could not load context file at: " << ini_filename);
+      throw InvalidInputException(
+        "Could not load context file at: " + ini_filename);
     }
     const int num_columns = 80;
 
@@ -803,10 +892,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    po::options_description sparsification_options =
-    createSparsificationOptionsDescription(context, num_columns);
-#endif
+    po::options_description mapping_options =
+            createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -818,9 +905,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                    .add(sparsification_options)
-#endif
+            .add(mapping_options)
             .add(shared_memory_options);
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

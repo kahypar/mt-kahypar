@@ -1,12 +1,10 @@
 set(InitialPartitioningSources
-        flat/pool_initial_partitioner.cpp
-        flat/random_initial_partitioner.cpp
-        flat/bfs_initial_partitioner.cpp
-        flat/label_propagation_initial_partitioner.cpp
-        recursive_bipartitioning_initial_partitioner.cpp
-        deep_initial_partitioner.cpp
+        pool_initial_partitioner.cpp
+        random_initial_partitioner.cpp
+        bfs_initial_partitioner.cpp
+        label_propagation_initial_partitioner.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${InitialPartitioningSources})
 endforeach()

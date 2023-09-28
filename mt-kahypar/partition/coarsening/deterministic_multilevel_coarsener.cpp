@@ -1,117 +1,113 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #include "deterministic_multilevel_coarsener.h"
-#include "mt-kahypar/utils/progress_bar.h"
 
 #include <tbb/parallel_sort.h>
 
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 
-void DeterministicMultilevelCoarsener::coarsenImpl() {
-  auto& timer = utils::Timer::instance();
-  HypernodeID initial_num_nodes = currentNumNodes();
-  utils::ProgressBar progress_bar(initial_num_nodes, 0,
-                                  _context.partition.verbose_output && _context.partition.enable_progress_bar);
+template<typename TypeTraits>
+bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
+  auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  const auto pass_start_time = std::chrono::high_resolution_clock::now();
+  timer.start_timer("coarsening_pass", "Clustering");
 
-  constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
-  const size_t num_sub_rounds = _context.coarsening.num_sub_rounds_deterministic;
-  const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
+  const Hypergraph& hg = Base::currentHypergraph();
+  size_t num_nodes = Base::currentNumNodes();
+  const double num_nodes_before_pass = num_nodes;
+  vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
+  tbb::parallel_for(UL(0), num_nodes, [&](HypernodeID u) {
+    cluster_weight[u] = hg.nodeWeight(u);
+    opportunistic_cluster_weight[u] = cluster_weight[u];
+    propositions[u] = u;
+    clusters[u] = u;
+  });
 
+  permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
+  for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+    auto [first_bucket, last_bucket] = parallel::chunking::bounds(
+      sub_round, config.num_buckets, config.num_buckets_per_sub_round);
+    size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
 
-  std::mt19937 prng(_context.partition.seed);
-  size_t pass = 0;
-  while (currentNumNodes() > _context.coarsening.contraction_limit) {
-    const auto pass_start_time = std::chrono::high_resolution_clock::now();
-    timer.start_timer("coarsening_pass", "Clustering");
-
-    const Hypergraph& hg = currentHypergraph();
-    size_t num_nodes = currentNumNodes();
-    const double num_nodes_before_pass = num_nodes;
-    vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
-    tbb::parallel_for(0UL, num_nodes, [&](HypernodeID u) {
-      cluster_weight[u] = hg.nodeWeight(u);
-      opportunistic_cluster_weight[u] = cluster_weight[u];
-      propositions[u] = u;
-      clusters[u] = u;
+    // each vertex finds a cluster it wants to join
+    tbb::parallel_for(first, last, [&](size_t pos) {
+      const HypernodeID u = permutation.at(pos);
+      if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+        calculatePreferredTargetCluster(u, clusters);
+      }
     });
 
-    permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, prng());
-    for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-      auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
-      size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
+    tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
-      // each vertex finds a cluster it wants to join
-      tbb::parallel_for(first, last, [&](size_t pos) {
-        const HypernodeID u = permutation.at(pos);
-        if (hg.nodeIsEnabled(u) && cluster_weight[u] == hg.nodeWeight(u)) {
-          calculatePreferredTargetCluster(u, clusters);
-        }
-      });
-
-      tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
-
-      // already approve if we can grant all requests for proposed cluster
-      // otherwise insert to shared vector so that we can group vertices by cluster
-      tbb::parallel_for(first, last, [&](size_t pos) {
-        HypernodeID u = permutation.at(pos);
-        HypernodeID target = propositions[u];
-        if (target != u) {
-          if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
-            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-              num_contracted_nodes.local() += 1;
-            }
-            clusters[u] = target;
-            cluster_weight[target] = opportunistic_cluster_weight[target];
-          } else {
-            nodes_in_too_heavy_clusters.push_back_buffered(u);
+    // already approve if we can grant all requests for proposed cluster
+    // otherwise insert to shared vector so that we can group vertices by cluster
+    tbb::parallel_for(first, last, [&](size_t pos) {
+      HypernodeID u = permutation.at(pos);
+      HypernodeID target = propositions[u];
+      if (target != u) {
+        if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+          // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+          if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+            num_contracted_nodes.local() += 1;
           }
+          clusters[u] = target;
+          cluster_weight[target] = opportunistic_cluster_weight[target];
+        } else {
+          nodes_in_too_heavy_clusters.push_back_buffered(u);
         }
-      });
-      num_nodes -= num_contracted_nodes.combine(std::plus<>());
-      nodes_in_too_heavy_clusters.finalize();
-
-      if (nodes_in_too_heavy_clusters.size() > 0) {
-        num_nodes -= approveVerticesInTooHeavyClusters(clusters);
       }
-      nodes_in_too_heavy_clusters.clear();
-    }
+    });
 
-    timer.stop_timer("coarsening_pass");
-    ++pass;
-    if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
-      break;
+    num_nodes -= num_contracted_nodes.combine(std::plus<>());
+    nodes_in_too_heavy_clusters.finalize();
+
+    if (nodes_in_too_heavy_clusters.size() > 0) {
+      num_nodes -= approveVerticesInTooHeavyClusters(clusters);
     }
 
     _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
-    ASSERT(currentNumNodes() == num_nodes - hg.numRemovedHypernodes());
+    ASSERT(currentNumberOfNodes() == num_nodes - hg.numRemovedHypernodes());
+    nodes_in_too_heavy_clusters.clear();
   }
 
-  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100%
-  progress_bar.disable();
-  _uncoarseningData.finalizeCoarsening();
+  timer.stop_timer("coarsening_pass");
+  ++pass;
+  if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
+    return false;
+  }
+  _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
+  return true;
 }
 
-void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
-  const Hypergraph& hg = currentHypergraph();
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = Base::currentHypergraph();
   auto& ratings = default_rating_maps.local();
   ratings.clear();
 
@@ -165,8 +161,9 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
   }
 }
 
-size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
-  const Hypergraph& hg = currentHypergraph();
+template<typename TypeTraits>
+size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = Base::currentHypergraph();
   tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
   // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
@@ -176,7 +173,7 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
   };
   tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
 
-  tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
+  tbb::parallel_for(UL(0), nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
     HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
     // the first vertex for this cluster handles the approval
     size_t num_contracted_local = 0;
@@ -206,5 +203,7 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
 
   return num_contracted_nodes.combine(std::plus<>());
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)
 
 }

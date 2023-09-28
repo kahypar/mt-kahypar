@@ -1,27 +1,35 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <thread>
 #include <memory>
+#include <iterator>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -30,6 +38,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -37,15 +46,14 @@ namespace ds {
 template <typename T>
 class Array {
 
-  class ArrayIterator : public std::iterator<std::random_access_iterator_tag, T> {
-
-    using Base = std::iterator<std::random_access_iterator_tag, T>;
+  class ArrayIterator {
 
     public:
-      using value_type = typename Base::value_type;
-      using reference = typename Base::reference;
-      using pointer = typename Base::pointer;
-      using difference_type = typename Base::difference_type;
+      using iterator_category = std::random_access_iterator_tag;
+      using value_type = T;
+      using reference = T&;
+      using pointer = T*;
+      using difference_type = std::ptrdiff_t;
 
       ArrayIterator() : _ptr(nullptr) { }
       ArrayIterator(T* ptr) : _ptr(ptr) { }
@@ -286,7 +294,7 @@ class Array {
               const value_type init_value = value_type(),
               const bool assign_parallel = true) {
     if ( _data || _underlying_data ) {
-      ERROR("Memory of vector already allocated");
+      throw SystemException("Memory of vector already allocated");
     }
     allocate_data(size);
     assign(size, init_value, assign_parallel);
@@ -334,8 +342,8 @@ class Array {
     if ( _underlying_data ) {
       ASSERT(count <= _size);
       if ( assign_parallel ) {
-        const size_t step = std::max(count / std::thread::hardware_concurrency(), 1UL);
-        tbb::parallel_for(0UL, count, step, [&](const size_type i) {
+        const size_t step = std::max(count / std::thread::hardware_concurrency(), UL(1));
+        tbb::parallel_for(UL(0), count, step, [&](const size_type i) {
           for ( size_t j = i; j < std::min(i + step, count); ++j ) {
             _underlying_data[j] = value;
           }

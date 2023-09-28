@@ -1,33 +1,41 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
-
 
 #pragma once
 
-#include <mt-kahypar/definitions.h>
+#include <limits>
+
+#include <mt-kahypar/datastructures/concurrent_bucket_map.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
 
-#include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
+#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
@@ -47,7 +55,7 @@ struct GlobalMoveTracker {
   // Returns true if stored move IDs should be reset
   bool reset() {
     if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
-      tbb::parallel_for(0UL, moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
+      tbb::parallel_for(UL(0), moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
       firstMoveID = 1;
       runningMoveID.store(1);
       return true;
@@ -61,7 +69,6 @@ struct GlobalMoveTracker {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
     assert(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
-    moveOrder[move_id - firstMoveID].gain = 0;      // set to zero so the recalculation can safely distribute
     moveOfNode[m.node] = move_id;
     return move_id;
   }
@@ -73,9 +80,11 @@ struct GlobalMoveTracker {
 
   bool wasNodeMovedInThisRound(HypernodeID u) const {
     const MoveID m_id = moveOfNode[u];
-    return m_id >= firstMoveID
-           && m_id < runningMoveID.load(std::memory_order_relaxed)  // active move ID
-           && moveOrder[m_id - firstMoveID].isValid();      // not reverted already
+    if (m_id >= firstMoveID && m_id < runningMoveID.load(std::memory_order_relaxed)) {   // active move ID
+      ASSERT(moveOrder[m_id - firstMoveID].node == u);
+      return moveOrder[m_id - firstMoveID].isValid();  // not reverted already
+    }
+    return false;
   }
 
   MoveID numPerformedMoves() const {
@@ -100,7 +109,7 @@ struct NodeTracker {
   void deactivateNode(HypernodeID u, SearchID search_id) {
     assert(searchOfNode[u].load() == search_id);
     unused(search_id);
-    searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
+    searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_release);
   }
 
   bool isLocked(HypernodeID u) {
@@ -120,14 +129,14 @@ struct NodeTracker {
   }
 
   bool tryAcquireNode(HypernodeID u, SearchID new_search) {
-    SearchID current_search = searchOfNode[u].load(std::memory_order_acq_rel);
+    SearchID current_search = searchOfNode[u].load(std::memory_order_relaxed);
     return isSearchInactive(current_search)
             && searchOfNode[u].compare_exchange_strong(current_search, new_search, std::memory_order_acq_rel);
   }
 
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
-      tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), searchOfNode.size(), [&](const size_t i) {
         searchOfNode[i].store(0, std::memory_order_relaxed);
       });
       highestActiveSearchID.store(1, std::memory_order_relaxed);
@@ -138,16 +147,116 @@ struct NodeTracker {
 };
 
 
+// Contains data required for unconstrained FM: We group non-border nodes in buckets based on their
+// incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
+// gain for moves that violate the balance constraint
+class UnconstrainedFMData {
+  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using BucketID = uint32_t;
+  using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
+
+  template<typename TypeTraits, typename GainTypes>
+  struct InitializationHelper {
+    static void initialize(UnconstrainedFMData& data, const Context& context,
+                           const typename TypeTraits::PartitionedHypergraph& phg,
+                           const typename GainTypes::GainCache& gain_cache);
+  };
+
+  static constexpr BucketID NUM_BUCKETS = 16;
+  static constexpr double BUCKET_FACTOR = 1.5;
+  static constexpr double FALLBACK_TRESHOLD = 0.75;
+
+ public:
+  explicit UnconstrainedFMData(HypernodeID num_nodes):
+    initialized(false),
+    current_k(0),
+    bucket_weights(),
+    virtual_weight_delta(),
+    local_bucket_weights(),
+    rebalancing_nodes(num_nodes) { }
+
+  template<typename TypeTraits, typename GainTypes>
+  void initialize(const Context& context,
+                  const typename TypeTraits::PartitionedHypergraph& phg,
+                  const typename GainTypes::GainCache& gain_cache) {
+    changeNumberOfBlocks(context.partition.k);
+    reset();
+
+    InitializationHelper<TypeTraits, GainTypes>::initialize(*this, context, phg, gain_cache);
+  }
+
+  Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
+
+  AtomicWeight& virtualWeightDelta(PartitionID block) {
+    ASSERT(block >= 0 && static_cast<size_t>(block) < virtual_weight_delta.size());
+    return virtual_weight_delta[block];
+  }
+
+  bool isRebalancingNode(HypernodeID hn) const {
+    return initialized && rebalancing_nodes[hn];
+  }
+
+  void reset();
+
+  void changeNumberOfBlocks(PartitionID new_k) {
+    if (new_k != current_k) {
+      current_k = new_k;
+      local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
+      initialized = false;
+    }
+  }
+
+ private:
+  template<typename TypeTraits, typename GainTypes>
+  friend class InitializationHelper;
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
+    ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
+    return block * NUM_BUCKETS + bucketId;
+  }
+
+  // upper bound of gain values in bucket
+  static double gainPerWeightForBucket(BucketID bucketId) {
+    if (bucketId > 1) {
+      return std::pow(BUCKET_FACTOR, bucketId - 2);
+    } else if (bucketId == 1) {
+      return 0.5;
+    } else {
+      return 0;
+    }
+  }
+
+  static BucketID bucketForGainPerWeight(double gainPerWeight) {
+    if (gainPerWeight >= 1) {
+      return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR));
+    } else if (gainPerWeight > 0.5) {
+      return 2;
+    } else if (gainPerWeight > 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+
+  bool initialized = false;
+  PartitionID current_k;
+  parallel::scalable_vector<HypernodeWeight> bucket_weights;
+  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
+  kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
+};
+
+
 struct FMSharedData {
+  // ! Number of Nodes
+  size_t numberOfNodes;
 
   // ! Nodes to initialize the localized FM searches with
   WorkContainer<HypernodeID> refinementNodes;
 
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
-
-  // ! num parts
-  PartitionID numParts;
 
   // ! Stores the sequence of performed moves and assigns IDs to moves that can be used in the global rollback code
   GlobalMoveTracker moveTracker;
@@ -157,6 +266,9 @@ struct FMSharedData {
 
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
+
+  // ! Additional data for unconstrained FM algorithm
+  UnconstrainedFMData unconstrained;
 
   // ! Stop parallel refinement if finishedTasks > finishedTasksLimit to avoid long-running single searches
   CAtomic<size_t> finishedTasks;
@@ -169,18 +281,18 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
-          refinementNodes(), //numNodes, numThreads),
-          vertexPQHandles(), //numPQHandles, invalid_position),
-          numParts(numParts),
-          moveTracker(), //numNodes),
-          nodeTracker(), //numNodes),
-          targetPart()
-  {
+  FMSharedData(size_t numNodes, size_t numThreads) :
+    numberOfNodes(numNodes),
+    refinementNodes(), //numNodes, numThreads),
+    vertexPQHandles(), //numPQHandles, invalid_position),
+    moveTracker(), //numNodes),
+    nodeTracker(), //numNodes),
+    targetPart(),
+    unconstrained(numNodes) {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
-    deltaMemoryLimitPerThread = 128UL * (1UL << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
+    deltaMemoryLimitPerThread = 128UL * (UL(1) << 30) * 3 / ( 2 * std::max(UL(1), numThreads) );
 
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
@@ -189,7 +301,7 @@ struct FMSharedData {
     }, [&] {
       nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
     }, [&] {
-      vertexPQHandles.resize(numPQHandles, invalid_position);
+      vertexPQHandles.resize(numNodes, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
@@ -197,22 +309,13 @@ struct FMSharedData {
     });
   }
 
-  FMSharedData(size_t numNodes, const Context& context) :
-        FMSharedData(
-                numNodes,
-                context.partition.k,
-                TBBInitializer::instance().total_number_of_threads(),
-                getNumberOfPQHandles(context, numNodes)
-                )  { }
+  FMSharedData(size_t numNodes) :
+    FMSharedData(
+      numNodes,
+      TBBInitializer::instance().total_number_of_threads())  { }
 
-
-  size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
-    if (context.refinement.fm.algorithm == FMAlgorithm::fm_gain_delta) {
-      return numNodes * context.partition.k;
-    } else {
-      return numNodes;
-    }
-  }
+  FMSharedData() :
+    FMSharedData(0, 0) { }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
@@ -267,7 +370,8 @@ struct FMStats {
   std::string serialize() const {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
-        << V(moves) << " " << V(local_reverts) << " " << V(best_prefix_mismatch);
+        << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
+        << V(best_prefix_mismatch);
     return os.str();
   }
 };

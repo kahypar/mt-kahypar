@@ -1,45 +1,58 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/utils/utilities.h"
 
 #include "tbb/concurrent_queue.h"
 
+#include "mt-kahypar/definitions.h"
+
 namespace mt_kahypar {
 
-MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
-                                     const Subhypergraph& sub_hg,
-                                     const HighResClockTimepoint& start) {
+template<typename TypeTraits, typename GainTypes>
+MoveSequence FlowRefiner<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
+                                                            const Subhypergraph& sub_hg,
+                                                            const HighResClockTimepoint& start) {
+  const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
   MoveSequence sequence { { }, 0 };
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   // Construct flow network that contains all vertices given in refinement nodes
-  utils::Timer::instance().start_timer("construct_flow_network", "Construct Flow Network", true);
+  timer.start_timer("construct_flow_network", "Construct Flow Network", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
-  utils::Timer::instance().stop_timer("construct_flow_network");
+  timer.stop_timer("construct_flow_network");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
 
     // Solve max-flow min-cut problem
     bool time_limit_reached = false;
-    utils::Timer::instance().start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
+    timer.start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
     bool flowcutter_succeeded = runFlowCutter(flow_problem, start, time_limit_reached);
-    utils::Timer::instance().stop_timer("hyper_flow_cutter");
+    timer.stop_timer("hyper_flow_cutter");
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
@@ -88,9 +101,10 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
-bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
-                                const HighResClockTimepoint& start,
-                                bool& time_limit_reached) {
+template<typename TypeTraits, typename GainTypes>
+bool FlowRefiner<TypeTraits, GainTypes>::runFlowCutter(const FlowProblem& flow_problem,
+                                                       const HighResClockTimepoint& start,
+                                                       bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
   bool result = false;
@@ -132,8 +146,9 @@ bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
   return result;
 }
 
-FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                 const Subhypergraph& sub_hg) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem FlowRefiner<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                        const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
@@ -156,4 +171,11 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
 
   return flow_problem;
 }
+
+namespace {
+#define FLOW_REFINER(X, Y) FlowRefiner<X, Y>
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(FLOW_REFINER)
+
 } // namespace mt_kahypar

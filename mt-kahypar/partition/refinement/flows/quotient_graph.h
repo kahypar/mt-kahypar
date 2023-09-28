@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -24,10 +30,10 @@
 #include "tbb/concurrent_vector.h"
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
@@ -36,10 +42,13 @@ struct BlockPair {
   PartitionID j = kInvalidPartition;
 };
 
+template<typename TypeTraits>
 class QuotientGraph {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
@@ -282,11 +291,11 @@ class QuotientGraph {
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
-  explicit QuotientGraph(const Hypergraph& hg,
+  explicit QuotientGraph(const HyperedgeID num_hyperedges,
                          const Context& context) :
     _phg(nullptr),
     _context(context),
-    _initial_num_edges(hg.initialNumEdges()),
+    _initial_num_edges(num_hyperedges),
     _current_num_edges(kInvalidHyperedge),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
@@ -315,7 +324,7 @@ public:
    * associated with the search. If there are currently no block pairs
    * available then INVALID_SEARCH_ID is returned.
    */
-  SearchID requestNewSearch(FlowRefinerAdapter& refiner);
+  SearchID requestNewSearch(FlowRefinerAdapter<TypeTraits>& refiner);
 
   // ! Returns the block pair on which the corresponding search operates on
   BlockPair getBlockPair(const SearchID search_id) const {
@@ -332,8 +341,9 @@ public:
   void doForAllCutHyperedgesOfSearch(const SearchID search_id, const F& f) {
     const BlockPair& blocks = _searches[search_id].blocks;
     const size_t num_cut_hes = _quotient_graph[blocks.i][blocks.j].num_cut_hes.load();
-    std::random_shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
-                        _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes);
+    std::shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
+                 _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes,
+                 utils::Randomize::instance().getGenerator());
     for ( size_t i = 0; i < num_cut_hes; ++i ) {
       const HyperedgeID he = _quotient_graph[blocks.i][blocks.j].cut_hes[i];
       if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
@@ -385,6 +395,8 @@ public:
     ASSERT(0 <= j && j < _context.partition.k);
     return _quotient_graph[i][j].cut_he_weight;
   }
+
+  void changeNumberOfBlocks(const PartitionID new_k);
 
  private:
 

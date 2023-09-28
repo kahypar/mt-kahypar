@@ -1,38 +1,50 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar::community_detection {
 
-class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+}
 
- using Base = ds::HypergraphFixture<Hypergraph, HypergraphFactory>;
+class ALouvain : public ds::HypergraphFixture<Hypergraph> {
+
+ using Base = ds::HypergraphFixture<Hypergraph>;
 
  public:
 
@@ -48,17 +60,17 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
     context.preprocessing.community_detection.min_vertex_move_fraction = 0.0001;
     context.shared_memory.num_threads = 1;
 
-    graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
-    karate_club_hg = io::readHypergraphFile(
-      context.partition.graph_filename);
-    karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+    graph = std::make_unique<Graph<Hypergraph>>(hypergraph, LouvainEdgeWeight::uniform);
+    karate_club_hg = io::readInputFile<Hypergraph>(
+      context.partition.graph_filename, FileFormat::hMetis, true);
+    karate_club_graph = std::make_unique<Graph<Hypergraph>>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   }
 
   using Base::hypergraph;
-  std::unique_ptr<Graph> graph;
+  std::unique_ptr<Graph<Hypergraph>> graph;
   Context context;
   Hypergraph karate_club_hg;
-  std::unique_ptr<Graph> karate_club_graph;
+  std::unique_ptr<Graph<Hypergraph>> karate_club_graph;
 };
 
 ds::Clustering clustering(const std::vector<PartitionID>& communities) {
@@ -70,7 +82,7 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove1) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -79,7 +91,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove2) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -88,7 +100,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove3) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -97,7 +109,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove4) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -106,7 +118,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove5) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -115,7 +127,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove6) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -124,7 +136,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove7) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -133,7 +145,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove8) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -142,7 +154,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove9) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -151,7 +163,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove10) {
-  ParallelLocalMovingModularity plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -174,7 +186,8 @@ TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
-  karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+  karate_club_graph = std::make_unique<Graph<Hypergraph>>(
+    karate_club_hg, LouvainEdgeWeight::uniform, true);
   ASSERT_EQ(expected_comm, communities);
   ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),
             metrics::modularity(*karate_club_graph, expected_comm));

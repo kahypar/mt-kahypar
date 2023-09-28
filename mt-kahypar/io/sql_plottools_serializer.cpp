@@ -1,57 +1,71 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "sql_plottools_serializer.h"
 
 #include <sstream>
 
-
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::io::serializer {
 
+template<typename PartitionedHypergraph>
 std::string serialize(const PartitionedHypergraph& hypergraph,
-                                    const Context& context,
-                                    const std::chrono::duration<double>& elapsed_seconds) {
+                      const Context& context,
+                      const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {
     std::stringstream oss;
     oss << "RESULT"
         << " algorithm=" << context.algorithm_name
         << " graph=" << context.partition.graph_filename.substr(
-            context.partition.graph_filename.find_last_of('/') + 1)
-        << " numHNs=" << hypergraph.initialNumNodes()
-        << " numHEs=" << hypergraph.initialNumEdges()
-        << " paradigm=" << context.partition.paradigm
+            context.partition.graph_filename.find_last_of('/') + 1);
+    if ( context.partition.fixed_vertex_filename != "" ) {
+      oss << " fixed_vertex_filename=" << context.partition.fixed_vertex_filename.substr(
+              context.partition.fixed_vertex_filename.find_last_of('/') + 1);
+    }
+    oss << " numHNs=" << hypergraph.initialNumNodes()
+        << " numHEs=" << (PartitionedHypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
+        << " gain_policy=" << context.partition.gain_policy
         << " file_format=" << context.partition.file_format
+        << " partition_type=" << context.partition.partition_type
         << " k=" << context.partition.k
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
         << " num_vcycles=" << context.partition.num_vcycles
-        << " deterministic=" << context.partition.deterministic;
+        << " deterministic=" << context.partition.deterministic
+        << " perform_parallel_recursion_in_deep_multilevel=" << context.partition.perform_parallel_recursion_in_deep_multilevel;
     oss << " large_hyperedge_size_threshold_factor=" << context.partition.large_hyperedge_size_threshold_factor
+        << " smallest_large_he_size_threshold=" << context.partition.smallest_large_he_size_threshold
         << " large_hyperedge_size_threshold=" << context.partition.large_hyperedge_size_threshold
         << " ignore_hyperedge_size_threshold=" << context.partition.ignore_hyperedge_size_threshold
         << " time_limit=" << context.partition.time_limit
@@ -69,10 +83,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " community_low_memory_contraction=" << context.preprocessing.community_detection.low_memory_contraction;
     oss << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
+        << " coarsening_deep_ml_contraction_limit_multiplier=" << context.coarsening.deep_ml_contraction_limit_multiplier
         << " coarsening_use_adaptive_edge_size=" << std::boolalpha << context.coarsening.use_adaptive_edge_size
-        << " coarsening_use_adaptive_max_allowed_node_weight=" << std::boolalpha << context.coarsening.use_adaptive_max_allowed_node_weight
-        << " coarsening_max_allowed_weight_fraction=" << context.coarsening.max_allowed_weight_fraction
-        << " coarsening_adaptive_node_weight_shrink_factor_threshold=" << context.coarsening.adaptive_node_weight_shrink_factor_threshold
         << " coarsening_max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
@@ -93,21 +105,16 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " initial_partitioning_population_size=" << context.initial_partitioning.population_size;
-    oss << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions
-        << " sparsification_use_heavy_net_removal=" << std::boolalpha << context.sparsification.use_heavy_net_removal
-        << " sparsification_use_similiar_net_removal=" << std::boolalpha << context.sparsification.use_similiar_net_removal
-        << " sparsification_hyperedge_pin_weight_fraction=" << context.sparsification.hyperedge_pin_weight_fraction
-        << " sparsification_max_hyperedge_pin_weight=" << context.sparsification.max_hyperedge_pin_weight
-        << " sparsification_min_hash_footprint_size=" << context.sparsification.min_hash_footprint_size
-        << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
-        << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy;
-    oss << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
+    oss << " rebalancer=" << std::boolalpha << context.refinement.rebalancer
+        << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
         << " relative_improvement_threshold=" << context.refinement.relative_improvement_threshold
         << " max_batch_size=" << context.refinement.max_batch_size
         << " min_border_vertices_per_thread=" << context.refinement.min_border_vertices_per_thread
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
+        << " lp_unconstrained=" << std::boolalpha << context.refinement.label_propagation.unconstrained
+        << " lp_relative_improvement_threshold=" << context.refinement.label_propagation.relative_improvement_threshold
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
         << " sync_lp_num_sub_rounds_sync_lp=" << context.refinement.deterministic_refinement.num_sub_rounds_sync_lp
         << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
@@ -125,6 +132,15 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
         << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
+        << " fm_unconstrained_rounds=" << context.refinement.fm.unconstrained_rounds
+        << " fm_treshold_border_node_inclusion=" << context.refinement.fm.treshold_border_node_inclusion
+        << " fm_unconstrained_min_improvement=" << context.refinement.fm.unconstrained_min_improvement
+        << " fm_unconstrained_upper_bound=" << context.refinement.fm.unconstrained_upper_bound
+        << " fm_unconstrained_upper_bound_min=" << context.refinement.fm.unconstrained_upper_bound_min
+        << " fm_imbalance_penalty_min=" << context.refinement.fm.imbalance_penalty_min
+        << " fm_imbalance_penalty_max=" << context.refinement.fm.imbalance_penalty_max
+        << " fm_activate_unconstrained_dynamically=" << std::boolalpha << context.refinement.fm.activate_unconstrained_dynamically
+        << " fm_penalty_for_activation_test=" << context.refinement.fm.penalty_for_activation_test
         << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
         << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
@@ -141,33 +157,70 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " flow_alpha=" << context.refinement.flows.alpha
         << " flow_max_num_pins=" << context.refinement.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.flows.find_most_balanced_cut
-        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut;
+        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut
+        << " flow_steiner_tree_policy=" << context.refinement.flows.steiner_tree_policy;
     oss << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      oss << " target_graph_file=" << context.mapping.target_graph_file.substr(
+            context.mapping.target_graph_file.find_last_of('/') + 1)
+          << " mapping_strategy=" << context.mapping.strategy
+          << " mapping_use_local_search=" << std::boolalpha << context.mapping.use_local_search
+          << " mapping_use_two_phase_approach=" << std::boolalpha << context.mapping.use_two_phase_approach
+          << " mapping_max_steiner_tree_size=" << context.mapping.max_steiner_tree_size
+          << " mapping_largest_he_fraction=" << context.mapping.largest_he_fraction
+          << " mapping_min_pin_coverage_of_largest_hes=" << context.mapping.min_pin_coverage_of_largest_hes
+          << " mapping_large_he_threshold=" << context.mapping.large_he_threshold;
+      if ( TargetGraph::TRACK_STATS ) {
+        hypergraph.targetGraph()->printStats(oss);
+      }
+    }
+
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
-      oss << " cut=" << metrics::hyperedgeCut(hypergraph)
-          << " soed=" << metrics::soed(hypergraph)
-          << " km1=" << metrics::km1(hypergraph)
-          << " imbalance=" << metrics::imbalance(hypergraph, context);
+      oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);
+      if ( context.partition.objective == Objective::steiner_tree ) {
+        oss << " approximation_factor=" << metrics::approximationFactorForProcessMapping(hypergraph, context);
+      }
+      if ( context.partition.objective != Objective::cut ) {
+        oss << " cut=" << metrics::quality(hypergraph, Objective::cut);
+      }
+      if ( context.partition.objective != Objective::km1 ) {
+        oss << " km1=" << metrics::quality(hypergraph, Objective::km1);
+      }
+      if ( context.partition.objective != Objective::soed ) {
+        oss << " soed=" << metrics::quality(hypergraph, Objective::soed);
+      }
+      oss << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Timings
-    utils::Timer::instance(context.partition.show_detailed_timings).serialize(oss);
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.showDetailedTimings(context.partition.show_detailed_timings);
+    timer.serialize(oss);
 
     // Stats
-    oss << utils::Stats::instance();
+    oss << utils::Utilities::instance().getStats(context.utility_id);
 
     // Initial Partitioning Stats
-    oss << utils::InitialPartitioningStats::instance();
+    oss << utils::Utilities::instance().getInitialPartitioningStats(context.utility_id);
 
     return oss.str();
   } else {
     return "";
   }
 }
+
+namespace {
+#define SERIALIZE(X) std::string serialize(const X& hypergraph,                                  \
+                                           const Context& context,                               \
+                                           const std::chrono::duration<double>& elapsed_seconds)
+} // namespace
+
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
+
 }  // namespace

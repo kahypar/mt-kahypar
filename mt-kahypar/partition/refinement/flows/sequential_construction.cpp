@@ -1,34 +1,42 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 namespace mt_kahypar {
 
-whfc::Hyperedge SequentialConstruction::DynamicIdenticalNetDetection::add_if_not_contained(const whfc::Hyperedge he,
-                                                                                           const size_t he_hash,
-                                                                                           const vec<whfc::Node>& pins) {
+template<typename TypeTraits, typename GainTypes>
+whfc::Hyperedge SequentialConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::add_if_not_contained(
+  const whfc::Hyperedge he, const size_t he_hash, const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
     // There exists already some hyperedges with the same hash
@@ -56,11 +64,12 @@ whfc::Hyperedge SequentialConstruction::DynamicIdenticalNetDetection::add_if_not
   return whfc::invalidHyperedge;
 }
 
-FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                            const Subhypergraph& sub_hg,
-                                                            const PartitionID block_0,
-                                                            const PartitionID block_1,
-                                                            vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem SequentialConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                                   const Subhypergraph& sub_hg,
+                                                                                   const PartitionID block_0,
+                                                                                   const PartitionID block_1,
+                                                                                   vec<HypernodeID>& whfc_to_node) {
   FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
@@ -100,12 +109,13 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   return flow_problem;
 }
 
-FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                            const Subhypergraph& sub_hg,
-                                                            const PartitionID block_0,
-                                                            const PartitionID block_1,
-                                                            vec<HypernodeID>& whfc_to_node,
-                                                            const bool default_construction) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem SequentialConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                                   const Subhypergraph& sub_hg,
+                                                                                   const PartitionID block_0,
+                                                                                   const PartitionID block_1,
+                                                                                   vec<HypernodeID>& whfc_to_node,
+                                                                                   const bool default_construction) {
   FlowProblem flow_problem;
   if ( default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
@@ -143,11 +153,12 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   return flow_problem;
 }
 
-FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph& phg,
-                                                     const Subhypergraph& sub_hg,
-                                                     const PartitionID block_0,
-                                                     const PartitionID block_1,
-                                                     vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem SequentialConstruction<TypeTraits, GainTypes>::constructDefault(const PartitionedHypergraph& phg,
+                                                                            const Subhypergraph& sub_hg,
+                                                                            const PartitionID block_0,
+                                                                            const PartitionID block_1,
+                                                                            vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -198,14 +209,15 @@ FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph
   // Add hyperedge to flow network and configure source and sink
   whfc::Hyperedge current_he(0);
   for ( const HyperedgeID& he : sub_hg.hes ) {
-    if ( !canHyperedgeBeDropped(phg, he, block_0, block_1) ) {
+    if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
       size_t he_hash = 0;
       _tmp_pins.clear();
-      const HyperedgeWeight he_weight = phg.edgeWeight(he);
+      const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
       _flow_hg.startHyperedge(whfc::Flow(he_weight));
-      bool connectToSource = false;
-      bool connectToSink = false;
-      if ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
+      bool connectToSource = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
+      bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
+      if ( ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) ||
+             FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
         flow_problem.total_cut += he_weight;
       }
       for ( const HypernodeID& pin : phg.pins(he) ) {
@@ -262,11 +274,12 @@ FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph
   return flow_problem;
 }
 
-FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
-                                                                  const Subhypergraph& sub_hg,
-                                                                  const PartitionID block_0,
-                                                                  const PartitionID block_1,
-                                                                  vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+FlowProblem SequentialConstruction<TypeTraits, GainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+                                                                                         const Subhypergraph& sub_hg,
+                                                                                         const PartitionID block_0,
+                                                                                         const PartitionID block_1,
+                                                                                         vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -330,13 +343,16 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
       ASSERT(start_idx < end_idx);
       _tmp_pins.clear();
       const HyperedgeID he = sub_hg.hes[last_he];
-      if ( !canHyperedgeBeDropped(phg, he, block_0, block_1) ) {
-        const HyperedgeWeight he_weight = phg.edgeWeight(he);
+      if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
+        const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
         const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
         const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
-        const bool connect_to_source = pin_count_in_block_0 < actual_pin_count_block_0;
-        const bool connect_to_sink = pin_count_in_block_1 < actual_pin_count_block_1;
-        if ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
+        bool connect_to_source = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
+        bool connect_to_sink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
+        connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
+        connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
+        if ( ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) ||
+               FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
           flow_problem.total_cut += he_weight;
         }
 
@@ -398,12 +414,13 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
   return flow_problem;
 }
 
-void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergraph& phg,
-                                                      const whfc::Node source,
-                                                      const whfc::Node sink,
-                                                      const PartitionID block_0,
-                                                      const PartitionID block_1,
-                                                      const vec<HypernodeID>& whfc_to_node) {
+template<typename TypeTraits, typename GainTypes>
+void SequentialConstruction<TypeTraits, GainTypes>::determineDistanceFromCut(const PartitionedHypergraph& phg,
+                                                                             const whfc::Node source,
+                                                                             const whfc::Node sink,
+                                                                             const PartitionID block_0,
+                                                                             const PartitionID block_1,
+                                                                             const vec<HypernodeID>& whfc_to_node) {
   auto& distances = _hfc.cs.border_nodes.distance;
   distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
@@ -459,5 +476,11 @@ void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergrap
   distances[source] = -(max_dist_source + 1);
   distances[sink] = max_dist_sink + 1;
 }
+
+namespace {
+#define SEQUENTIAL_CONSTRUCTION(X, Y) SequentialConstruction<X, Y>
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(SEQUENTIAL_CONSTRUCTION)
 
 } // namespace mt_kahypar

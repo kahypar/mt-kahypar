@@ -1,21 +1,27 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #pragma once
@@ -33,16 +39,21 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/parallel/stl/zero_allocator.h"
 
 namespace mt_kahypar {
 
 struct FlowProblem;
 
+template<typename TypeTraits, typename GainTypes>
 class ParallelConstruction {
 
   static constexpr bool debug = false;
 
   static constexpr size_t NUM_CSR_BUCKETS = 1024;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using FlowNetworkConstruction = typename GainTypes::FlowNetworkConstruction;
 
   struct TmpPin {
     HyperedgeID e;
@@ -64,7 +75,7 @@ class ParallelConstruction {
     };
 
     using IdenticalNetVector = tbb::concurrent_vector<
-      ThresholdHyperedge, tbb::zero_allocator<ThresholdHyperedge>>;
+      ThresholdHyperedge, parallel::zero_allocator<ThresholdHyperedge>>;
 
     struct HashBucket {
       HashBucket() :
@@ -76,13 +87,13 @@ class ParallelConstruction {
     };
 
    public:
-    explicit DynamicIdenticalNetDetection(const Hypergraph& hg,
+    explicit DynamicIdenticalNetDetection(const HyperedgeID num_hyperedges,
                                           FlowHypergraphBuilder& flow_hg,
                                           const Context& context) :
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(2) {
-      _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() /
+      _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
         context.refinement.flows.num_parallel_searches));
     }
 
@@ -102,7 +113,7 @@ class ParallelConstruction {
   };
 
  public:
-  explicit ParallelConstruction(const Hypergraph& hg,
+  explicit ParallelConstruction(const HyperedgeID num_hyperedges,
                                 FlowHypergraphBuilder& flow_hg,
                                 whfc::HyperFlowCutter<whfc::ParallelPushRelabel>& hfc,
                                 const Context& context) :
@@ -115,7 +126,7 @@ class ParallelConstruction {
     _cut_hes(),
     _pins(),
     _he_to_whfc(),
-    _identical_nets(hg, flow_hg, context) { }
+    _identical_nets(num_hyperedges, flow_hg, context) { }
 
   ParallelConstruction(const ParallelConstruction&) = delete;
   ParallelConstruction(ParallelConstruction&&) = delete;
@@ -158,14 +169,6 @@ class ParallelConstruction {
                                 const PartitionID block_0,
                                 const PartitionID block_1,
                                 const vec<HypernodeID>& whfc_to_node);
-
-  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
-                             const HyperedgeID he,
-                             const PartitionID block_0,
-                             const PartitionID block_1) {
-    return _context.partition.objective == kahypar::Objective::cut &&
-      phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he);
-  }
 
   const Context& _context;
 

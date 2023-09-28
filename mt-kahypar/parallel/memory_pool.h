@@ -1,23 +1,30 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 #pragma once
 
 #include <mutex>
@@ -27,6 +34,11 @@
 #include <atomic>
 #include <vector>
 #include <algorithm>
+#ifdef __linux__
+#include <unistd.h>
+#elif _WIN32
+#include <sysinfoapi.h>
+#endif
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -267,7 +279,7 @@ class MemoryPoolT {
       optimize_memory_allocations();
     }
     const size_t num_memory_segments = _memory_chunks.size();
-    tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_memory_segments, [&](const size_t i) {
       if (_memory_chunks[i].allocate()) {
         DBG << "Allocate memory chunk of size"
             << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
@@ -328,7 +340,7 @@ class MemoryPoolT {
             size_t memory_id = _active_memory_chunks[i];
             ASSERT(memory_id < _memory_chunks.size());
             char *data = _memory_chunks[memory_id].request_unused_chunk(
-                    size_in_bytes, align_with_page_size ? _page_size : 1UL);
+                    size_in_bytes, align_with_page_size ? _page_size : UL(1));
             if (data) {
               DBG << "Memory chunk request for an unsed memory chunk was successful";
               if (_use_round_robin_assignment) {
@@ -452,7 +464,7 @@ class MemoryPoolT {
   void free_memory_chunks() {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     const size_t num_memory_segments = _memory_chunks.size();
-    tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_memory_segments, [&](const size_t i) {
       _memory_chunks[i].free();
     });
     _memory_chunks.clear();
@@ -469,6 +481,10 @@ class MemoryPoolT {
   // ! Only for testing
   void deactivate_minimum_allocation_size() {
     _use_minimum_allocation_size = false;
+  }
+
+  bool is_unused_memory_allocations_activated() const {
+    return _use_unused_memory_chunks;
   }
 
   void activate_unused_memory_allocations() {
@@ -506,7 +522,7 @@ class MemoryPoolT {
         const size_t memory_id = element.second;
         ASSERT(memory_id < _memory_chunks.size());
         group_node->addChild(key,
-          std::max(_memory_chunks[memory_id].size_in_bytes(), 1UL));
+          std::max(_memory_chunks[memory_id].size_in_bytes(), UL(1)));
       }
     }
   }
@@ -568,14 +584,22 @@ class MemoryPoolT {
   explicit MemoryPoolT() :
     _memory_mutex(),
     _is_initialized(false),
-    _page_size(sysconf(_SC_PAGE_SIZE)),
+    _page_size(0),
     _memory_groups(),
     _memory_chunks(),
     _next_active_memory_chunk(0),
     _active_memory_chunks(),
     _use_round_robin_assignment(true),
     _use_minimum_allocation_size(true),
-    _use_unused_memory_chunks(true) { }
+    _use_unused_memory_chunks(true) {
+    #ifdef __linux__
+      _page_size = sysconf(_SC_PAGE_SIZE);
+    #elif _WIN32
+      SYSTEM_INFO sysInfo;
+      GetSystemInfo(&sysInfo);
+      _page_size = sysInfo.dwPageSize;
+    #endif
+  }
 
   // ! Returns a pointer to memory chunk under the corresponding group with
   // ! the specified key.

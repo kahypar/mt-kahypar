@@ -1,38 +1,50 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "deterministic_label_propagation.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/utils/cast.h"
 
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 
-  bool DeterministicLabelPropagationRefiner::refineImpl(PartitionedHypergraph& phg,
-                                                        const vec<HypernodeID>&,
-                                                        Metrics& best_metrics,
-                                                        const double) {
+  template<typename TypeTraits>
+  bool DeterministicLabelPropagationRefiner<TypeTraits>::refineImpl(
+          mt_kahypar_partitioned_hypergraph_t& hypergraph,
+          const vec<HypernodeID>&,
+          Metrics& best_metrics,
+          const double) {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     Gain overall_improvement = 0;
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
@@ -104,10 +116,10 @@ namespace mt_kahypar {
       }
     }
 
-    best_metrics.km1 -= overall_improvement;
+    best_metrics.quality -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
-    if (context.type == kahypar::ContextType::main) {
-      DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
+    if (context.type == ContextType::main) {
+      DBG << V(best_metrics.quality) << V(best_metrics.imbalance);
     }
     return overall_improvement > 0;
   }
@@ -115,12 +127,12 @@ namespace mt_kahypar {
 /*
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
  */
-  Gain DeterministicLabelPropagationRefiner::performMoveWithAttributedGain(
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::performMoveWithAttributedGain(
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
-    auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
-                               HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
-      attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      attributed_gain -= Km1AttributedGains::gain(sync_update);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);
     if (context.refinement.deterministic_refinement.use_active_node_set && activate_neighbors && was_moved) {
@@ -144,10 +156,11 @@ namespace mt_kahypar {
     return attributed_gain;
   }
 
+  template<typename TypeTraits>
   template<typename Predicate>
-  Gain DeterministicLabelPropagationRefiner::applyMovesIf(
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesIf(
           PartitionedHypergraph& phg, const vec<Move>& my_moves, size_t end, Predicate&& predicate) {
-    auto range = tbb::blocked_range<size_t>(0UL, end);
+    auto range = tbb::blocked_range<size_t>(UL(0), end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
       Gain my_gain = init;
       for (size_t i = r.begin(); i < r.end(); ++i) {
@@ -160,6 +173,7 @@ namespace mt_kahypar {
     return tbb::parallel_reduce(range, 0, accum, std::plus<>());
   }
 
+  template<typename PartitionedHypergraph>
   vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<vec< HypernodeWeight>>
@@ -171,7 +185,7 @@ namespace mt_kahypar {
         part_weights[moves[i].to] += phg.nodeWeight(moves[i].node);
       }
     };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, end), accum);
+    tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
     vec<HypernodeWeight> res(phg.k(), 0);
     auto combine = [&](const vec<HypernodeWeight>& a) {
       for (size_t i = 0; i < res.size(); ++i) {
@@ -182,7 +196,8 @@ namespace mt_kahypar {
     return res;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
     const size_t num_moves = moves.size();
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
@@ -272,7 +287,8 @@ namespace mt_kahypar {
     return gain;
   }
 
-  std::pair<Gain, bool> DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  std::pair<Gain, bool> DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
     PartitionID k = phg.k();
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
@@ -381,7 +397,8 @@ namespace mt_kahypar {
     return std::make_pair(actual_gain, revert_all);
   }
 
-  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesRecursive(
+  template<typename TypeTraits>
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<TypeTraits>::findBestPrefixesRecursive(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
           size_t p1_invalid, size_t p2_invalid,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
@@ -456,7 +473,8 @@ namespace mt_kahypar {
     }
   }
 
-  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesSequentially(
+  template<typename TypeTraits>
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<TypeTraits>::findBestPrefixesSequentially(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
@@ -484,7 +502,8 @@ namespace mt_kahypar {
     return std::make_pair(invalid_pos, invalid_pos);
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
     if (last_recalc_round.empty() || ++recalc_round == std::numeric_limits<uint32_t>::max()) {
       last_recalc_round.assign(max_num_edges, CAtomic<uint32_t>(0));
     }
@@ -498,7 +517,7 @@ namespace mt_kahypar {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
 
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
+    tbb::parallel_for(UL(0), num_moves, [&](size_t pos) {
       move_pos_of_node[moves[pos].node] = pos + 1;    // pos + 1 to handle zero init of last_out
       moves[pos].gain = 0;
     });
@@ -506,7 +525,7 @@ namespace mt_kahypar {
     auto was_node_moved_in_this_round = [&](HypernodeID u) { return move_pos_of_node[u] != invalid_move_id; };
 
     // recalculate gains
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
+    tbb::parallel_for(UL(0), num_moves, [&](size_t pos) {
       auto& r = ets_recalc_data.local();
 
       HypernodeID u = moves[pos].node;
@@ -563,6 +582,7 @@ namespace mt_kahypar {
     for (size_t pos = 0; pos < num_moves; ++pos) {
       const Move& m = moves[pos];
       Gain move_gain = performMoveWithAttributedGain(phg, m, false);
+      unused(move_gain);
       ASSERT(move_gain == m.gain);
     }
 
@@ -570,6 +590,7 @@ namespace mt_kahypar {
       Move reverse_move = moves[pos];
       std::swap(reverse_move.from, reverse_move.to);
       Gain move_gain = performMoveWithAttributedGain(phg, reverse_move, false);
+      unused(move_gain);
       ASSERT(move_gain == -moves[pos].gain);
     }
 #endif
@@ -614,4 +635,5 @@ namespace mt_kahypar {
     return best_gain;
   }
 
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicLabelPropagationRefiner)
 } // namespace mt_kahypar

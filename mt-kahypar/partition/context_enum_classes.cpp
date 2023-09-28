@@ -1,27 +1,35 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
 
 #include "context_enum_classes.h"
 
+#include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -58,23 +66,36 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
+      case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
-      case PresetType::default_flows: return os << "default_flows";
-      case PresetType::quality_preset: return os << "quality";
-      case PresetType::quality_flows: return os << "quality_flows";
+      case PresetType::quality: return os << "quality";
+      case PresetType::highest_quality: return os << "highest_quality";
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(type);
   }
 
-  std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
-    switch (paradigm) {
-      case Paradigm::multilevel: return os << "multilevel";
-      case Paradigm::nlevel: return os << "nlevel";
+  std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
+    switch (type) {
+      case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
+      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
+      case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
+      case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
-    return os << static_cast<uint8_t>(paradigm);
+    return os << static_cast<uint8_t>(type);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const ContextType& type) {
+    if (type == ContextType::main) {
+      return os << "main";
+    } else {
+      return os << "ip";
+    }
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream & operator<< (std::ostream& os, const Mode& mode) {
@@ -86,6 +107,32 @@ namespace mt_kahypar {
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(mode);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const Objective& objective) {
+    switch (objective) {
+      case Objective::cut: return os << "cut";
+      case Objective::km1: return os << "km1";
+      case Objective::soed: return os << "soed";
+      case Objective::steiner_tree: return os << "steiner_tree";
+      case Objective::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(objective);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
+    switch (type) {
+      case GainPolicy::km1: return os << "km1";
+      case GainPolicy::cut: return os << "cut";
+      case GainPolicy::soed: return os << "soed";
+      case GainPolicy::steiner_tree: return os << "steiner_tree";
+      case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";
+      case GainPolicy::steiner_tree_for_graphs: return os << "steiner_tree_for_graphs";
+      case GainPolicy::none: return os << "none";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
@@ -124,9 +171,9 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
-      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
-      case HeavyNodePenaltyPolicy::additive: return os << "additive";
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::additive: return os << "additive";)
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";)
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -134,7 +181,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
     switch (acceptance_policy) {
-      case AcceptancePolicy::best: return os << "best";
+      ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -145,7 +192,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
-      case RatingFunction::sameness: return os << "sameness";
+      ENABLE_EXPERIMENTAL_FEATURES(case RatingFunction::sameness: return os << "sameness";)
       case RatingFunction::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -171,8 +218,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
     switch (algo) {
-      case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
-      case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
+      case LabelPropagationAlgorithm::label_propagation: return os << "label_propagation";
       case LabelPropagationAlgorithm::deterministic: return os << "deterministic";
       case LabelPropagationAlgorithm::do_nothing: return os << "lp_do_nothing";
         // omit default case to trigger compiler warning for missing cases
@@ -182,10 +228,8 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
-      case FMAlgorithm::fm_gain_cache: return os << "fm_gain_cache";
-      case FMAlgorithm::fm_gain_cache_on_demand : return os << "fm_gain_cache_on_demand";
-      case FMAlgorithm::fm_gain_delta: return os << "fm_gain_delta";
-      case FMAlgorithm::fm_recompute_gain: return os << "fm_recompute_gain";
+      case FMAlgorithm::kway_fm: return os << "kway_fm";
+      case FMAlgorithm::unconstrained_fm: return os << "unconstrained_fm";
       case FMAlgorithm::do_nothing: return os << "fm_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -202,6 +246,36 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+
+  std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
+      switch (algo) {
+        case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
+        case RebalancingAlgorithm::advanced_rebalancer: return os << "advanced_rebalancer";
+        case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo) {
+      switch (algo) {
+        case OneToOneMappingStrategy::greedy_mapping: return os << "greedy_mapping";
+        case OneToOneMappingStrategy::identity: return os << "identity";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy) {
+      switch (policy) {
+        case SteinerTreeFlowValuePolicy::lower_bound: return os << "lower_bound";
+        case SteinerTreeFlowValuePolicy::upper_bound: return os << "upper_bound";
+        case SteinerTreeFlowValuePolicy::UNDEFINED: return os << "UNDEFINED";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(policy);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -210,7 +284,7 @@ namespace mt_kahypar {
     } else if (mode == "deep") {
       return Mode::deep_multilevel;
     }
-    ERROR("Illegal option: " + mode);
+    throw InvalidParameterException("Illegal option: " + mode);
     return Mode::UNDEFINED;
   }
 
@@ -220,24 +294,39 @@ namespace mt_kahypar {
     } else if (type == "hypergraph") {
       return InstanceType::hypergraph;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return InstanceType::UNDEFINED;
   }
 
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
+    } else if (type == "large_k") {
+      return PresetType::large_k;
     } else if (type == "default") {
       return PresetType::default_preset;
-    } else if (type == "default_flows") {
-      return PresetType::default_flows;
     } else if (type == "quality") {
-      return PresetType::quality_preset;
-    } else if (type == "quality_flows") {
-      return PresetType::quality_flows;
+      return PresetType::quality;
+    } else if (type == "highest_quality") {
+      return PresetType::highest_quality;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return PresetType::UNDEFINED;
+  }
+
+
+  Objective objectiveFromString(const std::string& obj) {
+    if (obj == "cut") {
+      return Objective::cut;
+    } else if (obj == "km1") {
+      return Objective::km1;
+    } else if (obj == "soed") {
+      return Objective::soed;
+    } else if (obj == "steiner_tree") {
+      return Objective::steiner_tree;
+    }
+    throw InvalidParameterException("No valid objective function.");
+    return Objective::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
@@ -250,7 +339,7 @@ namespace mt_kahypar {
     } else if (type == "degree") {
       return LouvainEdgeWeight::degree;
     }
-    ERROR("No valid louvain edge weight.");
+    throw InvalidParameterException("No valid louvain edge weight.");
     return LouvainEdgeWeight::UNDEFINED;
   }
 
@@ -262,7 +351,7 @@ namespace mt_kahypar {
     } else if (type == "importance") {
       return SimiliarNetCombinerStrategy::importance;
     }
-    ERROR("No valid similiar net unifier strategy.");
+    throw InvalidParameterException("No valid similiar net unifier strategy.");
     return SimiliarNetCombinerStrategy::UNDEFINED;
   }
 
@@ -274,39 +363,48 @@ namespace mt_kahypar {
     } else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return CoarseningAlgorithm::UNDEFINED;
   }
 
   HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
-    if (penalty == "multiplicative") {
-      return HeavyNodePenaltyPolicy::multiplicative_penalty;
-    } else if (penalty == "no_penalty") {
+    if (penalty == "no_penalty") {
       return HeavyNodePenaltyPolicy::no_penalty;
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (penalty == "multiplicative") {
+      return HeavyNodePenaltyPolicy::multiplicative_penalty;
     } else if (penalty == "additive") {
       return HeavyNodePenaltyPolicy::additive;
       // omit default case to trigger compiler warning for missing cases
     }
-    ERROR("No valid edge penalty policy for rating.");
+    #endif
+    throw InvalidParameterException("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
   }
 
   AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
-    if (crit == "best") {
-      return AcceptancePolicy::best;
-    } else if (crit == "best_prefer_unmatched") {
+    if (crit == "best_prefer_unmatched") {
       return AcceptancePolicy::best_prefer_unmatched;
     }
-    ERROR("No valid acceptance criterion for rating.");
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (crit == "best") {
+      return AcceptancePolicy::best;
+    }
+    #endif
+    throw InvalidParameterException("No valid acceptance criterion for rating.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
     if (function == "heavy_edge") {
       return RatingFunction::heavy_edge;
-    } else  if (function == "sameness") {
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else  if (function == "sameness") {
       return RatingFunction::sameness;
     }
-    ERROR("No valid rating function for rating.");
+    #endif
+    throw InvalidParameterException("No valid rating function for rating.");
     return RatingFunction::UNDEFINED;
   }
 
@@ -330,37 +428,31 @@ namespace mt_kahypar {
     } else if (algo == "label_propagation") {
       return InitialPartitioningAlgorithm::label_propagation;
     }
-    ERROR("Illegal option: " + algo);
+    throw InvalidParameterException("Illegal option: " + algo);
     return InitialPartitioningAlgorithm::UNDEFINED;
   }
 
   LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {
-    if (type == "label_propagation_km1") {
-      return LabelPropagationAlgorithm::label_propagation_km1;
-    } else if (type == "label_propagation_cut") {
-      return LabelPropagationAlgorithm::label_propagation_cut;
+    if (type == "label_propagation") {
+      return LabelPropagationAlgorithm::label_propagation;
     } else if (type == "deterministic") {
       return LabelPropagationAlgorithm::deterministic;
     } else if (type == "do_nothing") {
       return LabelPropagationAlgorithm::do_nothing;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return LabelPropagationAlgorithm::do_nothing;
   }
 
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
-    if (type == "fm_gain_cache") {
-      return FMAlgorithm::fm_gain_cache;
-    } else if (type == "fm_gain_cache_on_demand") {
-      return FMAlgorithm::fm_gain_cache_on_demand;
-    } else if (type == "fm_gain_delta") {
-      return FMAlgorithm::fm_gain_delta;
-    } else if (type == "fm_recompute_gain") {
-      return FMAlgorithm::fm_recompute_gain;
+    if (type == "kway_fm") {
+      return FMAlgorithm::kway_fm;
+    } else if (type == "unconstrained_fm") {
+      return FMAlgorithm::unconstrained_fm;
     } else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
   }
 
@@ -370,7 +462,39 @@ namespace mt_kahypar {
     } else if (type == "do_nothing") {
       return FlowAlgorithm::do_nothing;
     }
-    ERROR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;
+  }
+
+  RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type) {
+    if (type == "simple_rebalancer") {
+      return RebalancingAlgorithm::simple_rebalancer;
+    } else if (type == "advanced_rebalancer") {
+      return RebalancingAlgorithm::advanced_rebalancer;
+    } else if (type == "do_nothing") {
+      return RebalancingAlgorithm::do_nothing;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return RebalancingAlgorithm::do_nothing;
+  }
+
+  OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type) {
+    if (type == "greedy_mapping") {
+      return OneToOneMappingStrategy::greedy_mapping;
+    } else if (type == "identity") {
+      return OneToOneMappingStrategy::identity;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return OneToOneMappingStrategy::identity;
+  }
+
+  SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy) {
+    if (policy == "lower_bound") {
+      return SteinerTreeFlowValuePolicy::lower_bound;
+    } else if (policy == "upper_bound") {
+      return SteinerTreeFlowValuePolicy::upper_bound;
+    }
+    throw InvalidParameterException("Illegal option: " + policy);
+    return SteinerTreeFlowValuePolicy::UNDEFINED;
   }
 }

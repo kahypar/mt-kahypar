@@ -1,22 +1,29 @@
 /*******************************************************************************
+ * MIT License
+ *
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * Mt-KaHyPar is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Mt-KaHyPar is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  ******************************************************************************/
+
 
 
 #include <atomic>
@@ -24,32 +31,21 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "tests/definitions.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedHypergraphTypeTraits {
-  using PartitionedHyperGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
 
 template<typename TypeTraits>
 class APartitionedHypergraph : public Test {
 
- using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
  using Hypergraph = typename TypeTraits::Hypergraph;
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ using Factory = typename Hypergraph::Factory;
 
   APartitionedHypergraph() :
     hypergraph(Factory::construct(
@@ -130,7 +126,7 @@ class APartitionedHypergraph : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
 };
 
 template <class F1, class F2>
@@ -147,20 +143,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-using PartitionedHypergraphTestTypes =
-  ::testing::Types<
-          PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                          StaticHypergraph,
-                          StaticHypergraphFactory>
-                          ,
-          PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
-                          DynamicHypergraph,
-                          DynamicHypergraphFactory>
-                          >;
-
-TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
+TYPED_TEST_CASE(APartitionedHypergraph, tests::HypergraphTestTypeTraits);
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
@@ -465,9 +448,9 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurre
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -489,9 +472,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -511,9 +494,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -535,9 +518,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -560,9 +543,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(6, 2, 1);
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -584,9 +567,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(2, 0, 2);
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -606,6 +589,73 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
     { {node_id[0], node_id[1], node_id[2]} });
 }
 
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, true, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].hg.initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[0].hg.initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].hg.maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0].hg, {0, 1},
+    { { node_id[0], node_id[2] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[1].hg.initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[1].hg.initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[1].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[1].hg.maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4] };
+  this->verifyPins(hypergraphs[1].hg, {0, 1},
+    { { node_id[0], node_id[1] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[2].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[2].hg.initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[2].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[2].hg.maxEdgeSize());
+
+  node_id = { hn_mapping[5], hn_mapping[6] };
+  this->verifyPins(hypergraphs[2].hg, { 0 },
+    { { node_id[0], node_id[1] } });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetRemoval) {
+  this->partitioned_hypergraph.changeNodePart(6, 2, 1);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, false, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[0].hg.initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].hg.maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0].hg, {0},
+    { { node_id[0], node_id[2] } });
+
+  ASSERT_EQ(3, hypergraphs[1].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[1].hg.initialNumEdges());
+  ASSERT_EQ(3, hypergraphs[1].hg.initialNumPins());
+  ASSERT_EQ(3, hypergraphs[1].hg.maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4], hn_mapping[6] };
+  this->verifyPins(hypergraphs[1].hg, {0},
+    { { node_id[0], node_id[1], node_id[2] } });
+
+  ASSERT_EQ(1, hypergraphs[2].hg.initialNumNodes());
+  ASSERT_EQ(0, hypergraphs[2].hg.initialNumEdges());
+  ASSERT_EQ(0, hypergraphs[2].hg.initialNumPins());
+  ASSERT_EQ(0, hypergraphs[2].hg.maxEdgeSize());
+
+  this->verifyPins(hypergraphs[2].hg, { }, { });
+}
+
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(0, 0);
   this->hypergraph.setCommunityID(1, 1);
@@ -615,9 +665,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];
@@ -637,9 +687,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];
@@ -658,9 +708,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];
