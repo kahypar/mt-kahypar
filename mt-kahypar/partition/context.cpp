@@ -123,8 +123,10 @@ namespace mt_kahypar {
     str << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != LabelPropagationAlgorithm::do_nothing ) {
       str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+      str << "    Unconstrained:                    " << std::boolalpha << params.unconstrained << std::endl;
       str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
       str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
     }
     return str;
   }
@@ -143,6 +145,19 @@ namespace mt_kahypar {
       out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+    }
+    if ( params.algorithm == FMAlgorithm::unconstrained_fm ) {
+      out << "    Unconstrained Rounds:             " << params.unconstrained_rounds << std::endl;
+      out << "    Threshold Border Node Inclusion:  " << params.treshold_border_node_inclusion << std::endl;
+      out << "    Minimum Imbalance Penalty Factor: " << params.imbalance_penalty_min << std::endl;
+      out << "    Maximum Imbalance Penalty Factor: " << params.imbalance_penalty_max << std::endl;
+      out << "    Start Upper Bound for Unc.:       " << params.unconstrained_upper_bound << std::endl;
+      out << "    Final Upper Bound for Unc.:       " << params.unconstrained_upper_bound_min << std::endl;
+      out << "    Unc. Minimum Improvement Factor:  " << params.unconstrained_min_improvement << std::endl;
+      out << "    Activate Unc. Dynamically:        " << std::boolalpha << params.activate_unconstrained_dynamically << std::endl;
+      if ( params.activate_unconstrained_dynamically ) {
+        out << "    Penalty for Activation Test:      " << params.penalty_for_activation_test << std::endl;
+      }
     }
     out << std::flush;
     return out;
