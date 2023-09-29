@@ -206,7 +206,7 @@ using ValidTraitCombinations = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINAT
     case GainPolicy::steiner_tree:                                                            \
       ENABLE_STEINER_TREE(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeGainTypes))         \
     default: {                                                                                \
-      ERROR("Invalid gain policy type");                                                      \
+      ERR("Invalid gain policy type");                                                      \
     }                                                                                         \
   }                                                                                           \
 }
@@ -218,7 +218,7 @@ using ValidTraitCombinations = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINAT
     case GainPolicy::steiner_tree_for_graphs:                                                                 \
       ENABLE_STEINER_TREE(ENABLE_GRAPHS(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeForGraphsTypes)))     \
     default: {                                                                                                \
-      ERROR("Invalid gain policy type");                                                                      \
+      ERR("Invalid gain policy type");                                                                      \
     }                                                                                                         \
   }                                                                                                           \
 }

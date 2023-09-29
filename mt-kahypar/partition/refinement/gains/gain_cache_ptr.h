@@ -86,7 +86,7 @@ class GainCachePtr {
       #endif
       case GainPolicy::none: break;
     }
-    ERROR("No gain policy set");
+    ERR("No gain policy set");
   }
 
   template<typename Hypergraph, typename F>
@@ -120,7 +120,7 @@ class GainCachePtr {
         default: break;
       }
     }
-    ERROR("No gain policy set");
+    ERR("No gain policy set");
   }
 
   static gain_cache_t constructGainCache(const Context& context) {
