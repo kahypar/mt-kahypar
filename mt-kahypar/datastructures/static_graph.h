@@ -767,7 +767,7 @@ class StaticGraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities);
+  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw NonSupportedOperationException(

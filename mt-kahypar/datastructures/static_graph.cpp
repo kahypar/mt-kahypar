@@ -46,14 +46,14 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
+  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
     ASSERT(communities.size() == _num_nodes);
 
     if ( !_tmp_contraction_buffer ) {
       allocateTmpContractionBuffer();
     }
 
-    // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
+    // AUXILIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
     Array<HypernodeID>& mapping = _tmp_contraction_buffer->mapping;
     Array<Node>& tmp_nodes = _tmp_contraction_buffer->tmp_nodes;
     Array<HyperedgeID>& node_sizes = _tmp_contraction_buffer->node_sizes;
