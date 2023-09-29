@@ -218,6 +218,12 @@ TEST_F(DeterminismTest, Refinement) {
   performRepeatedRefinement();
 }
 
+TEST_F(DeterminismTest, RefinementOnSmallImbalance) {
+  context.partition.epsilon = 0.03;
+  context.setupPartWeights(hypergraph.totalWeight());
+  performRepeatedRefinement();
+}
+
 TEST_F(DeterminismTest, RefinementWithActiveNodeSet) {
   context.refinement.deterministic_refinement.use_active_node_set = true;
   performRepeatedRefinement();

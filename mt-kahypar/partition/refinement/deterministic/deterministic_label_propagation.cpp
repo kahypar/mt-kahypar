@@ -377,6 +377,7 @@ namespace mt_kahypar {
       if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
         return true;
       } else {
+        // save non-applied moves as backup, to try to apply them in a second step.
         moves.push_back_buffered(sorted_moves[pos]);
         return false;
       }
