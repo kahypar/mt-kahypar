@@ -492,9 +492,6 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.initial_partitioning.refinement.deterministic_refinement.num_sub_rounds_sync_lp);
   ASSERT_EQ(actual.initial_partitioning.refinement.deterministic_refinement.use_active_node_set,
             expected.initial_partitioning.refinement.deterministic_refinement.use_active_node_set);
-  ASSERT_EQ(actual.initial_partitioning.refinement.deterministic_refinement.recalculate_gains_on_second_apply,
-            expected.initial_partitioning.refinement.deterministic_refinement.recalculate_gains_on_second_apply);
-
 
   // initial partitioning -> refinement -> fm
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.algorithm,
