@@ -83,7 +83,7 @@ namespace mt_kahypar {
           ASSERT(position < permutation.permutation.size());
           const HypernodeID u = permutation.at(position);
           ASSERT(u < phg.initialNumNodes());
-          if (phg.isFixedVertex(u) || !phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
+          if (phg.isFixed(u) || !phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
           Move move = gain_computation.computeMaxGainMove(phg, u, /*rebalance=*/false, /*consider_non_adjacent_blocks=*/false, /*allow_imbalance=*/true);
           move.gain = -move.gain;
           if (move.gain > 0 && move.to != phg.partID(u)) {
