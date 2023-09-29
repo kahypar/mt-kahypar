@@ -45,6 +45,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_degree_similarity_policy.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -178,11 +179,13 @@ class MultilevelCoarsener : public ICoarsener,
     NumNodesTracker num_nodes_tracker(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
     ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
     fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
+    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes(), _context);
+    similarity_policy.initialize(current_hg);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
 
     _clustering_algo.template performClustering<has_fixed_vertices>(
                      current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-                     _rater, _clustering_data, num_nodes_tracker, fixed_vertices);
+                     _rater, _clustering_data, num_nodes_tracker, fixed_vertices, similarity_policy);
 
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));

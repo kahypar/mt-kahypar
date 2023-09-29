@@ -122,6 +122,12 @@ struct CoarseningParameters {
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 
+  // Similarity policy
+  int32_t incident_weight_scaling_constant = 0;
+  double preserve_nodes_scaling_factor = 1.0;
+  double preserve_nodes_relative_weight_limit = 0.001;
+  bool use_similarity_penalty = false;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

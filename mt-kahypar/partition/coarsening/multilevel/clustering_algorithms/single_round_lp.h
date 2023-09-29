@@ -46,7 +46,7 @@ class SingleRoundLP {
   SingleRoundLP(const Context& context):
     _context(context) { }
 
-  template<bool has_fixed_vertices, typename Hypergraph>
+  template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
                          const HypernodeID hierarchy_contraction_limit,
@@ -54,7 +54,8 @@ class SingleRoundLP {
                          MultilevelVertexPairRater& rater,
                          ConcurrentClusteringData& clustering_data,
                          NumNodesTracker& num_nodes_tracker,
-                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
+                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                         const DegreeSimilarityPolicy& similarity_policy) {
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
@@ -65,8 +66,8 @@ class SingleRoundLP {
           && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
           && clustering_data.vertexIsUnmatched(hn)) {
         const Rating rating = rater.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                                     hg, hn, cluster_ids, clustering_data.clusterWeight(),
-                                     fixed_vertices, _context.coarsening.max_allowed_node_weight);
+                                     hg, hn, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
+                                     similarity_policy, _context.coarsening.max_allowed_node_weight);
         if (rating.target != kInvalidHypernode) {
           bool success = clustering_data.template matchVertices<has_fixed_vertices>(
             hg, hn, rating.target, cluster_ids, rater, fixed_vertices);
