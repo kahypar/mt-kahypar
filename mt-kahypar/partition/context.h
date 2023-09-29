@@ -106,6 +106,12 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
+
+  // Similarity policy
+  int32_t incident_weight_scaling_constant = 0;
+  double preserve_nodes_scaling_factor = 0.25;
+  double preserve_nodes_relative_weight_limit = 0.001;
+  bool use_similarity_penalty = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
