@@ -69,7 +69,7 @@ class ConcurrentBucketMap {
  public:
 
   ConcurrentBucketMap() :
-    _num_buckets(align_to_next_power_of_two(BUCKET_FACTOR * BUCKET_FACTOR)),
+    _num_buckets(align_to_next_power_of_two(BUCKET_FACTOR * std::thread::hardware_concurrency())),
     _mod_mask(_num_buckets - 1),
     _spin_locks(_num_buckets),
     _buckets(_num_buckets) { }
@@ -78,7 +78,7 @@ class ConcurrentBucketMap {
   ConcurrentBucketMap & operator= (const ConcurrentBucketMap &) = delete;
 
   ConcurrentBucketMap(ConcurrentBucketMap&& other) :
-    _num_buckets(align_to_next_power_of_two(BUCKET_FACTOR * BUCKET_FACTOR)),
+    _num_buckets(other._num_buckets),
     _mod_mask(_num_buckets - 1),
     _spin_locks(_num_buckets),
     _buckets(std::move(other._buffer)) { }
