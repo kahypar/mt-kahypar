@@ -738,7 +738,7 @@ class StaticHypergraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities);
+  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw NonSupportedOperationException(

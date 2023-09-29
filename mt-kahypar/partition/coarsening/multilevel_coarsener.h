@@ -213,7 +213,7 @@ class MultilevelCoarsener : public ICoarsener,
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
-    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
+    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), /*deterministic=*/false, round_start);
     _timer.stop_timer("contraction");
 
     ++_pass_nr;

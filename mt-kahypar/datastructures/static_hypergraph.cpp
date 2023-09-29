@@ -58,7 +58,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -287,9 +287,11 @@ namespace mt_kahypar::ds {
           const size_t contracted_size = incident_nets_pos.load() - incident_nets_start;
           tmp_hypernodes[coarse_hn].setSize(contracted_size);
 
-          // sort for determinism
-          tbb::parallel_sort(tmp_incident_nets.begin() + incident_nets_start,
-                             tmp_incident_nets.begin() + incident_nets_start + contracted_size);
+          if (deterministic) {
+            // sort for determinism
+            tbb::parallel_sort(tmp_incident_nets.begin() + incident_nets_start,
+                               tmp_incident_nets.begin() + incident_nets_start + contracted_size);
+          }
         }
         duplicate_incident_nets_map.free();
       }
