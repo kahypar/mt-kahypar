@@ -99,7 +99,7 @@ class GainComputationBase {
       }
     }
 
-    if ( consider_non_adjacent_blocks && best_move.from == from ) {
+    if ( consider_non_adjacent_blocks && best_move.to == from ) {
       // This is important for our rebalancer as the last fallback strategy
       vec<PartitionID> non_adjacent_block;
       for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
