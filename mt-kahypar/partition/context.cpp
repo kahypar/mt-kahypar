@@ -183,8 +183,6 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params) {
     out << "    Number of sub-rounds for Sync LP:  " << params.num_sub_rounds_sync_lp << std::endl;
     out << "    Use active node set:               " << std::boolalpha << params.use_active_node_set << std::endl;
-    out << "    recalculate gains on second apply: " << std::boolalpha
-        << params.recalculate_gains_on_second_apply << std::endl;
     return out;
   }
 

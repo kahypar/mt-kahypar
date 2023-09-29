@@ -59,7 +59,6 @@ public:
       sorted_moves(num_hypernodes),
       prng(context.partition.seed),
       active_nodes(0),
-      ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
       max_num_nodes(num_hypernodes),
       max_num_edges(num_hyperedges) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
@@ -81,7 +80,6 @@ private:
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   std::pair<Gain, bool> applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
-  Gain applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg);
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
   template<typename Predicate>
   Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate);
@@ -96,16 +94,6 @@ private:
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
-  struct RecalculationData {
-    MoveID first_in, last_out;
-    HypernodeID remaining_pins;
-    RecalculationData() :
-            first_in(std::numeric_limits<MoveID>::max()),
-            last_out(std::numeric_limits<MoveID>::min()),
-            remaining_pins(0)
-    { }
-  };
-
   const Context& context;
   vec<HypernodeWeight> cumulative_node_weights;
   ds::BufferedVector<Move> moves;
@@ -117,10 +105,8 @@ private:
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
 
-  tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
   vec<CAtomic<uint32_t>> last_recalc_round;
   vec<MoveID> move_pos_of_node;
-  uint32_t recalc_round = 1;
   size_t max_num_nodes = 0, max_num_edges = 0;
 
 };
