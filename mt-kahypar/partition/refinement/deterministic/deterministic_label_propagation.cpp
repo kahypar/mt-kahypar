@@ -406,12 +406,12 @@ namespace mt_kahypar {
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
-      assert(p1_ind == p1_invalid || p1_ind < p1_end);
-      assert(p1_ind >= p1_invalid || p1_invalid == (size_t(0) - 1));
-      assert(p2_ind == p2_invalid || p2_ind < p2_end);
-      assert(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
-      assert(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
-      assert(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
+      ASSERT(p1_ind == p1_invalid || p1_ind < p1_end);
+      ASSERT(p1_ind >= p1_invalid || p1_invalid == (size_t(0) - 1));
+      ASSERT(p2_ind == p2_invalid || p2_ind < p2_end);
+      ASSERT(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
+      ASSERT(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
+      ASSERT(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
       const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
       const auto b = (p2_ind == p2_invalid) ? 0 : cumulative_node_weights[p2_ind];
       return a - b;
