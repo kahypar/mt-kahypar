@@ -143,7 +143,9 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type));
+                                        context.partition.partition_type),
+                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                        context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,

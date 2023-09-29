@@ -93,7 +93,7 @@ using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                   DeterministicLabelPropagationRefiner,
                                                   IRefiner,
-                                                  kahypar::meta::Typelist<TypeTraitsList>>;
+                                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;

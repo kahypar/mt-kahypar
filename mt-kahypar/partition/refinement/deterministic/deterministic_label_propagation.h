@@ -38,7 +38,7 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainTypes>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -55,7 +55,6 @@ public:
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
-      compute_gains(context),
       cumulative_node_weights(num_hypernodes),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
@@ -98,26 +97,6 @@ private:
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
-    assert(u < phg.initialNumNodes());
-    if (!phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
-    //auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
-    auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
-    if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
-      moves.push_back_buffered( { phg.partID(u), to, u, gain } );
-    }
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void calculateAndSaveBestMoveTwoWay(PartitionedHypergraph& phg, HypernodeID u) {
-    if (!phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
-    const Gain gain = TwoWayGainComputer::gainToOtherBlock(phg, u);
-    if (gain > 0) {
-      moves.push_back_buffered({ phg.partID(u), 1 - phg.partID(u), u, gain });
-    }
-  }
-
   struct RecalculationData {
     MoveID first_in, last_out;
     HypernodeID remaining_pins;
@@ -129,13 +108,12 @@ private:
   };
 
   const Context& context;
-  tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
   vec<HypernodeWeight> cumulative_node_weights;
   ds::BufferedVector<Move> moves;
   vec<Move> sorted_moves;
 
   std::mt19937 prng;
-  utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
+  utils::ParallelPermutation<HypernodeID> permutation;
   ds::BufferedVector<HypernodeID> active_nodes;
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
