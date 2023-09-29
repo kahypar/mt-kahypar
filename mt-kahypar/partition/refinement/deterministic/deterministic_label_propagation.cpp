@@ -51,7 +51,7 @@ namespace mt_kahypar {
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
     using GainComputation = typename GainTypes::GainComputation;
-    GainComputation gain_computation(context);
+    GainComputation gain_computation(context, true);
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       if (context.refinement.deterministic_refinement.use_active_node_set && ++round == 0) {
