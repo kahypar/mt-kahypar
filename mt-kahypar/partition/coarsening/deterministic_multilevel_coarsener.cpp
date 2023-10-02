@@ -99,7 +99,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
     return false;
   }
-  _uncoarseningData.performMultilevelContraction(std::move(clusters), /*deterministic=*/true, pass_start_time);
+  _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
   return true;
 }
 
