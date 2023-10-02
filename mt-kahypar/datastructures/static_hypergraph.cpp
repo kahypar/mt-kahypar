@@ -397,7 +397,7 @@ namespace mt_kahypar::ds {
       // Compute start position of each hyperedge in incidence array
       parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
-        tbb::parallel_for(size_t(0), size_t(_num_hyperedges), [&](const HyperedgeID& id) {
+        tbb::parallel_for(HyperedgeID(0), _num_hyperedges, [&](HyperedgeID id) {
           if ( he_mapping.value(id) ) {
             he_sizes[id] = tmp_hyperedges[id].size();
           } else {
