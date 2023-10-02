@@ -61,9 +61,7 @@ public:
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
       prng(context.partition.seed),
-      active_nodes(0),
-      max_num_nodes(num_hypernodes),
-      max_num_edges(num_hyperedges) {
+      active_nodes(0) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(num_hypernodes);
       last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
