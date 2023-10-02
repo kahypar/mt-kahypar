@@ -107,11 +107,6 @@ private:
   ds::BufferedVector<HypernodeID> active_nodes;
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
-
-  vec<CAtomic<uint32_t>> last_recalc_round;
-  vec<MoveID> move_pos_of_node;
-  size_t max_num_nodes = 0, max_num_edges = 0;
-
 };
 
 }
