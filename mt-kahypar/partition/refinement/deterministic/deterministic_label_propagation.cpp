@@ -31,7 +31,6 @@
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
@@ -50,7 +49,6 @@ namespace mt_kahypar {
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
-    using GainComputation = typename GainTypes::GainComputation;
     GainComputation gain_computation(context, true);
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
@@ -133,7 +131,6 @@ namespace mt_kahypar {
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
-      using AttributedGains = typename GainTypes::AttributedGains;
       attributed_gain -= AttributedGains::gain(sync_update);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);

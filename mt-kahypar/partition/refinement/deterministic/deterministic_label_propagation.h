@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 
@@ -41,6 +42,8 @@ template<typename TypeTraits, typename GainTypes>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainComputation = typename GainTypes::GainComputation;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
 public:
   explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
