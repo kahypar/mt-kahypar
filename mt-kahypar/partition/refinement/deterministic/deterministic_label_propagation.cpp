@@ -180,7 +180,7 @@ namespace mt_kahypar {
   vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<vec< HypernodeWeight>>
-    ets_part_weight_diffs(phg.k(), 0);
+    ets_part_weight_diffs(current_k, 0);
     auto accum = [&](const tbb::blocked_range<size_t>& r) {
       auto& part_weights = ets_part_weight_diffs.local();
       for (size_t i = r.begin(); i < r.end(); ++i) {
@@ -189,7 +189,7 @@ namespace mt_kahypar {
       }
     };
     tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
-    vec<HypernodeWeight> res(phg.k(), 0);
+    vec<HypernodeWeight> res(current_k, 0);
     auto combine = [&](const vec<HypernodeWeight>& a) {
       for (size_t i = 0; i < res.size(); ++i) {
         res[i] += a[i];
@@ -209,7 +209,7 @@ namespace mt_kahypar {
     const auto& max_part_weights = context.partition.max_part_weights;
     size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
     vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves.getData(), num_moves);
-    for (PartitionID i = 0; i < phg.k(); ++i) {
+    for (PartitionID i = 0; i < current_k; ++i) {
       part_weights[i] += phg.partWeight(i);
       if (part_weights[i] > max_part_weights[i]) {
         num_overloaded_blocks++;
@@ -292,7 +292,7 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   std::pair<Gain, bool> DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
-    PartitionID k = phg.k();
+    PartitionID k = current_k;
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
     auto get_key = [&](const Move& m) { return index(m.from, m.to); };
