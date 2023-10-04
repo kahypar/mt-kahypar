@@ -128,6 +128,10 @@ struct CoarseningParameters {
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 
+  // Two-Hop Coarsening
+  double twin_required_similarity = 0.75;
+  double twin_min_relative_connectivity = 0.1;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

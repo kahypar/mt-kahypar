@@ -311,6 +311,14 @@ namespace mt_kahypar {
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
              "Number of sub-rounds used for deterministic coarsening.")
+            ("c-two-hop-required-similarity",
+             po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
+                     "<double>")->default_value(0.75),
+             "Required neighborhood similarity for two-hop coarsening.")
+            ("c-twin-min-relative-connectivity",
+             po::value<double>(&context.coarsening.twin_min_relative_connectivity)->value_name(
+                     "<double>")->default_value(0.1),
+             "Required relative connectivity to a cluster to include this neighbor in the twin matching neighborhood.")
             ("c-sim-incident-weight-scaling",
              po::value<int32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
                      "<int32_t>")->default_value(0),
