@@ -32,6 +32,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
@@ -41,8 +42,12 @@
 
 namespace mt_kahypar {
 
+typedef struct ip_data_container_s ip_data_container_t;
+
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
                                                 ICoarsener* (*)(mt_kahypar_hypergraph_t, const Context&, uncoarsening_data_t*)>;
+using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+  IInitialPartitioner* (*)(const InitialPartitioningAlgorithm, ip_data_container_t*, const Context&, const int, const int)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                   IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;

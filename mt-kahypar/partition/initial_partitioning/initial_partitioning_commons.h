@@ -32,24 +32,16 @@
 #pragma GCC diagnostic pop
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
-#include "kahypar-resources/meta/abstract_factory.h"
 
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 
 namespace mt_kahypar {
-
-typedef struct ip_data_container_s ip_data_container_t;
 
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, false>;
 using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
-
-using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
-  IInitialPartitioner* (*)(const InitialPartitioningAlgorithm, ip_data_container_t*, const Context&, const int, const int)>;
 
 }
