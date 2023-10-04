@@ -38,19 +38,19 @@
 namespace mt_kahypar {
 
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class LocalizedKWayFM {
 public:
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
 
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
   static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
 
-  using GainCache = typename CombinedTraits::GainCache;
-  using DeltaGainCache = typename CombinedTraits::DeltaGainCache;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using DeltaGainCache = typename GraphAndGainTypes::DeltaGainCache;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
-  using AttributedGains = typename CombinedTraits::AttributedGains;
+  using AttributedGains = typename GraphAndGainTypes::AttributedGains;
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
   using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 

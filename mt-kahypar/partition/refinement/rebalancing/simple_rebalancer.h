@@ -39,12 +39,12 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
-template <typename CombinedTraits>
+template <typename GraphAndGainTypes>
 class SimpleRebalancer final : public IRebalancer {
  private:
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
-  using GainCache = typename CombinedTraits::GainCache;
-  using GainCalculator = typename CombinedTraits::GainComputation;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using GainCalculator = typename GraphAndGainTypes::GainComputation;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;

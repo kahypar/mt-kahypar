@@ -34,14 +34,14 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class UnconstrainedStrategy: public IFMStrategy {
   using Base = IFMStrategy;
   static constexpr bool debug = false;
 
  public:
-  using LocalFM = LocalizedKWayFM<CombinedTraits>;
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
+  using LocalFM = LocalizedKWayFM<GraphAndGainTypes>;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
 
   UnconstrainedStrategy(const Context& context, FMSharedData& sharedData):
       Base(context, sharedData),

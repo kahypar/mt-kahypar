@@ -34,9 +34,9 @@
 
 namespace mt_kahypar {
 
-  template<typename CombinedTraits>
+  template<typename GraphAndGainTypes>
   template<typename DispatchedFMStrategy>
-  bool LocalizedKWayFM<CombinedTraits>::findMoves(DispatchedFMStrategy& fm_strategy, PartitionedHypergraph& phg,
+  bool LocalizedKWayFM<GraphAndGainTypes>::findMoves(DispatchedFMStrategy& fm_strategy, PartitionedHypergraph& phg,
                                                   size_t taskID, size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
@@ -73,10 +73,10 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename CombinedTraits>
+  template<typename GraphAndGainTypes>
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<CombinedTraits>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
+  void LocalizedKWayFM<GraphAndGainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
                                                                  DispatchedFMStrategy& fm_strategy) {
     auto updateOrAcquire = [&](const HypernodeID v) {
       SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
@@ -119,9 +119,9 @@ namespace mt_kahypar {
   }
 
 
-  template<typename CombinedTraits>
+  template<typename GraphAndGainTypes>
   template<typename DispatchedFMStrategy>
-  void LocalizedKWayFM<CombinedTraits>::internalFindMoves(PartitionedHypergraph& phg,
+  void LocalizedKWayFM<GraphAndGainTypes>::internalFindMoves(PartitionedHypergraph& phg,
                                                           DispatchedFMStrategy& fm_strategy) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
@@ -225,8 +225,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename CombinedTraits>
-  void LocalizedKWayFM<CombinedTraits>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename GraphAndGainTypes>
+  void LocalizedKWayFM<GraphAndGainTypes>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     blockPQ.resize(new_k);
     for ( VertexPriorityQueue& pq : vertexPQs ) {
@@ -237,8 +237,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename CombinedTraits>
-  void LocalizedKWayFM<CombinedTraits>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename GraphAndGainTypes>
+  void LocalizedKWayFM<GraphAndGainTypes>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");

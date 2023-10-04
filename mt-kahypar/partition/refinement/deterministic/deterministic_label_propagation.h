@@ -38,12 +38,12 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
-  using GainComputation = typename CombinedTraits::GainComputation;
-  using AttributedGains = typename CombinedTraits::AttributedGains;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using GainComputation = typename GraphAndGainTypes::GainComputation;
+  using AttributedGains = typename GraphAndGainTypes::AttributedGains;
 
 public:
   explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,

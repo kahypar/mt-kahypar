@@ -45,15 +45,15 @@ namespace mt_kahypar {
 
 struct FlowProblem;
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class ParallelConstruction {
 
   static constexpr bool debug = false;
 
   static constexpr size_t NUM_CSR_BUCKETS = 1024;
 
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
-  using FlowNetworkConstruction = typename CombinedTraits::FlowNetworkConstruction;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using FlowNetworkConstruction = typename GraphAndGainTypes::FlowNetworkConstruction;
 
   struct TmpPin {
     HyperedgeID e;

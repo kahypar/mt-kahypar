@@ -34,8 +34,8 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
-whfc::Hyperedge SequentialConstruction<CombinedTraits>::DynamicIdenticalNetDetection::add_if_not_contained(
+template<typename GraphAndGainTypes>
+whfc::Hyperedge SequentialConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add_if_not_contained(
   const whfc::Hyperedge he, const size_t he_hash, const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
@@ -64,8 +64,8 @@ whfc::Hyperedge SequentialConstruction<CombinedTraits>::DynamicIdenticalNetDetec
   return whfc::invalidHyperedge;
 }
 
-template<typename CombinedTraits>
-FlowProblem SequentialConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                             const Subhypergraph& sub_hg,
                                                                             const PartitionID block_0,
                                                                             const PartitionID block_1,
@@ -109,8 +109,8 @@ FlowProblem SequentialConstruction<CombinedTraits>::constructFlowHypergraph(cons
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem SequentialConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                             const Subhypergraph& sub_hg,
                                                                             const PartitionID block_0,
                                                                             const PartitionID block_1,
@@ -153,8 +153,8 @@ FlowProblem SequentialConstruction<CombinedTraits>::constructFlowHypergraph(cons
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem SequentialConstruction<CombinedTraits>::constructDefault(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const PartitionedHypergraph& phg,
                                                                      const Subhypergraph& sub_hg,
                                                                      const PartitionID block_0,
                                                                      const PartitionID block_1,
@@ -274,8 +274,8 @@ FlowProblem SequentialConstruction<CombinedTraits>::constructDefault(const Parti
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem SequentialConstruction<CombinedTraits>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                                                                   const Subhypergraph& sub_hg,
                                                                                   const PartitionID block_0,
                                                                                   const PartitionID block_1,
@@ -414,8 +414,8 @@ FlowProblem SequentialConstruction<CombinedTraits>::constructOptimizedForLargeHE
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-void SequentialConstruction<CombinedTraits>::determineDistanceFromCut(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+void SequentialConstruction<GraphAndGainTypes>::determineDistanceFromCut(const PartitionedHypergraph& phg,
                                                                       const whfc::Node source,
                                                                       const whfc::Node sink,
                                                                       const PartitionID block_0,

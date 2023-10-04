@@ -35,8 +35,8 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
-void FlowRefinementScheduler<CombinedTraits>::RefinementStats::update_global_stats() {
+template<typename GraphAndGainTypes>
+void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_stats() {
   _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
   _stats.update_stat("num_flow_improvement",
@@ -57,8 +57,8 @@ void FlowRefinementScheduler<CombinedTraits>::RefinementStats::update_global_sta
     total_improvement.load(std::memory_order_relaxed));
 }
 
-template<typename CombinedTraits>
-bool FlowRefinementScheduler<CombinedTraits>::refineImpl(
+template<typename GraphAndGainTypes>
+bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const parallel::scalable_vector<HypernodeID>&,
                 Metrics& best_metrics,
@@ -150,8 +150,8 @@ bool FlowRefinementScheduler<CombinedTraits>::refineImpl(
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
-template<typename CombinedTraits>
-void FlowRefinementScheduler<CombinedTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
+template<typename GraphAndGainTypes>
+void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   _phg = &phg;
   resizeDataStructuresForCurrentK();
@@ -175,8 +175,8 @@ void FlowRefinementScheduler<CombinedTraits>::initializeImpl(mt_kahypar_partitio
   _refiner.initialize(max_parallism);
 }
 
-template<typename CombinedTraits>
-void FlowRefinementScheduler<CombinedTraits>::resizeDataStructuresForCurrentK() {
+template<typename GraphAndGainTypes>
+void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
   if ( _current_k != _context.partition.k ) {
     _current_k = _context.partition.k;
     // Note that in general changing the number of blocks should not resize
@@ -269,8 +269,8 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph<TypeTraits>& quotient_graph,
 
 } // namespace
 
-template<typename CombinedTraits>
-HyperedgeWeight FlowRefinementScheduler<CombinedTraits>::applyMoves(const SearchID search_id, MoveSequence& sequence) {
+template<typename GraphAndGainTypes>
+HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const SearchID search_id, MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -359,9 +359,9 @@ HyperedgeWeight FlowRefinementScheduler<CombinedTraits>::applyMoves(const Search
   return improvement;
 }
 
-template<typename CombinedTraits>
-typename FlowRefinementScheduler<CombinedTraits>::PartWeightUpdateResult
-FlowRefinementScheduler<CombinedTraits>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
+template<typename GraphAndGainTypes>
+typename FlowRefinementScheduler<GraphAndGainTypes>::PartWeightUpdateResult
+FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                                           const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;

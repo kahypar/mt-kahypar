@@ -39,9 +39,9 @@
 
 namespace mt_kahypar {
 
-  template <typename CombinedTraits>
+  template <typename GraphAndGainTypes>
   template<bool unconstrained, typename F>
-  bool LabelPropagationRefiner<CombinedTraits>::moveVertex(PartitionedHypergraph& hypergraph,
+  bool LabelPropagationRefiner<GraphAndGainTypes>::moveVertex(PartitionedHypergraph& hypergraph,
                                                            const HypernodeID hn,
                                                            NextActiveNodes& next_active_nodes,
                                                            const F& objective_delta) {
@@ -98,8 +98,8 @@ namespace mt_kahypar {
     return is_moved;
   }
 
-  template <typename CombinedTraits>
-  bool LabelPropagationRefiner<CombinedTraits>::refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
                                                            const vec<HypernodeID>& refinement_nodes,
                                                            Metrics& best_metrics,
                                                            const double)  {
@@ -130,8 +130,8 @@ namespace mt_kahypar {
   }
 
 
-  template <typename CombinedTraits>
-  void LabelPropagationRefiner<CombinedTraits>::labelPropagation(PartitionedHypergraph& hypergraph,
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::labelPropagation(PartitionedHypergraph& hypergraph,
                                                                  Metrics& best_metrics) {
     NextActiveNodes next_active_nodes;
     vec<Move> rebalance_moves;
@@ -150,8 +150,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename CombinedTraits>
-  bool LabelPropagationRefiner<CombinedTraits>::labelPropagationRound(PartitionedHypergraph& hypergraph,
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::labelPropagationRound(PartitionedHypergraph& hypergraph,
                                                                       NextActiveNodes& next_active_nodes,
                                                                       Metrics& best_metrics,
                                                                       vec<Move>& rebalance_moves,
@@ -215,9 +215,9 @@ namespace mt_kahypar {
                           _context.refinement.label_propagation.relative_improvement_threshold * old_quality;
   }
 
-  template <typename CombinedTraits>
+  template <typename GraphAndGainTypes>
   template<bool unconstrained>
-  void LabelPropagationRefiner<CombinedTraits>::moveActiveNodes(PartitionedHypergraph& phg,
+  void LabelPropagationRefiner<GraphAndGainTypes>::moveActiveNodes(PartitionedHypergraph& phg,
                                                                 NextActiveNodes& next_active_nodes) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -251,8 +251,8 @@ namespace mt_kahypar {
   }
 
 
-  template <typename CombinedTraits>
-  bool LabelPropagationRefiner<CombinedTraits>::applyRebalancing(PartitionedHypergraph& hypergraph,
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::applyRebalancing(PartitionedHypergraph& hypergraph,
                                                                  Metrics& best_metrics,
                                                                  Metrics& current_metrics,
                                                                  vec<Move>& rebalance_moves) {
@@ -294,9 +294,9 @@ namespace mt_kahypar {
     return false;
   }
 
-  template <typename CombinedTraits>
+  template <typename GraphAndGainTypes>
   template<typename F>
-  void LabelPropagationRefiner<CombinedTraits>::forEachMovedNode(F node_fn) {
+  void LabelPropagationRefiner<GraphAndGainTypes>::forEachMovedNode(F node_fn) {
     if ( _context.refinement.label_propagation.execute_sequential ) {
       for (size_t j = 0; j < _active_nodes.size(); j++) {
         if (_active_node_was_moved[j]) {
@@ -312,13 +312,13 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename CombinedTraits>
-  void LabelPropagationRefiner<CombinedTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
     unused(phg);
   }
 
-  template <typename CombinedTraits>
-  void LabelPropagationRefiner<CombinedTraits>::initializeActiveNodes(PartitionedHypergraph& hypergraph,
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::initializeActiveNodes(PartitionedHypergraph& hypergraph,
                                                                       const vec<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
     if ( refinement_nodes.empty() ) {

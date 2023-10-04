@@ -33,13 +33,13 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class GainCacheStrategy: public IFMStrategy {
   using Base = IFMStrategy;
 
  public:
-  using LocalFM = LocalizedKWayFM<CombinedTraits>;
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
+  using LocalFM = LocalizedKWayFM<GraphAndGainTypes>;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
 
   GainCacheStrategy(const Context& context, FMSharedData& sharedData):
       Base(context, sharedData) { }

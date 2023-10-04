@@ -41,13 +41,13 @@ namespace mt_kahypar {
 
 struct FlowProblem;
 
-template<typename CombinedTraits>
+template<typename GraphAndGainTypes>
 class SequentialConstruction {
 
   static constexpr bool debug = false;
 
-  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
-  using FlowNetworkConstruction = typename CombinedTraits::FlowNetworkConstruction;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using FlowNetworkConstruction = typename GraphAndGainTypes::FlowNetworkConstruction;
 
   struct TmpPin {
     HyperedgeID e;

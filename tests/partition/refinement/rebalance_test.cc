@@ -43,7 +43,7 @@ namespace {
   using TypeTraits = StaticHypergraphTypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Km1Rebalancer = SimpleRebalancer<CombinedTraits<TypeTraits, Km1GainTypes>>;
+  using Km1Rebalancer = SimpleRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
 }
 
 

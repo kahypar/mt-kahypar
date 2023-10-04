@@ -70,11 +70,11 @@ namespace mt_kahypar {
   }
 
 
-  template<typename CombinedTraits>
-  void UnconstrainedFMData::InitializationHelper<CombinedTraits>::initialize(
+  template<typename GraphAndGainTypes>
+  void UnconstrainedFMData::InitializationHelper<GraphAndGainTypes>::initialize(
             UnconstrainedFMData& data, const Context& context,
-            const typename CombinedTraits::PartitionedHypergraph& phg,
-            const typename CombinedTraits::GainCache& gain_cache) {
+            const typename GraphAndGainTypes::PartitionedHypergraph& phg,
+            const typename GraphAndGainTypes::GainCache& gain_cache) {
     auto get_node_stats = [&](const HypernodeID hypernode) {
       // TODO(maas): we might want to save the total incident weight in the hypergraph data structure
       // at some point in the future

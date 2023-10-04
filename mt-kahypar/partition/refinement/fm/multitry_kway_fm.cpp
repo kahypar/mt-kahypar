@@ -40,8 +40,8 @@
 namespace mt_kahypar {
   using ds::StreamingVector;
 
-  template<typename CombinedTraits>
-  MultiTryKWayFM<CombinedTraits>::MultiTryKWayFM(const HypernodeID num_hypernodes,
+  template<typename GraphAndGainTypes>
+  MultiTryKWayFM<GraphAndGainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,
                                                  const HyperedgeID num_hyperedges,
                                                  const Context& c,
                                                  GainCache& gainCache,
@@ -77,8 +77,8 @@ namespace mt_kahypar {
     return max_part_weights;
   }
 
-  template<typename CombinedTraits>
-  bool MultiTryKWayFM<CombinedTraits>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  template<typename GraphAndGainTypes>
+  bool MultiTryKWayFM<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                   const vec<HypernodeID>& refinement_nodes,
                                                   Metrics& metrics,
                                                   const double time_limit) {
@@ -108,7 +108,7 @@ namespace mt_kahypar {
       const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
       if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
-        sharedData.unconstrained.initialize<CombinedTraits>(context, phg, gain_cache);
+        sharedData.unconstrained.initialize<GraphAndGainTypes>(context, phg, gain_cache);
         timer.stop_timer("initialize_data_unconstrained");
       }
 
@@ -225,8 +225,8 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -274,8 +274,8 @@ namespace mt_kahypar {
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
   }
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::interleaveMoveSequenceWithRebalancingMoves(
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::interleaveMoveSequenceWithRebalancingMoves(
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
@@ -383,8 +383,8 @@ namespace mt_kahypar {
     }, tbb::static_partitioner());
   }
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
                                                                         const PartitionID block,
                                                                         const std::vector<HypernodeWeight>& max_part_weights,
                                                                         const vec<vec<Move>>& rebalancing_moves_by_part,
@@ -413,8 +413,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
@@ -422,8 +422,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::resizeDataStructuresForCurrentK() {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -441,8 +441,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename CombinedTraits>
-  void MultiTryKWayFM<CombinedTraits>::printMemoryConsumption() {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {

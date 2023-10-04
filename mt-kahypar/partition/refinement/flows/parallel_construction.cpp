@@ -36,9 +36,9 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
-typename ParallelConstruction<CombinedTraits>::TmpHyperedge
-ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::get(const size_t he_hash,
+template<typename GraphAndGainTypes>
+typename ParallelConstruction<GraphAndGainTypes>::TmpHyperedge
+ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const size_t he_hash,
                                                                         const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) == _threshold ) {
@@ -65,8 +65,8 @@ ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::get(const si
   return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
-template<typename CombinedTraits>
-void ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
+template<typename GraphAndGainTypes>
+void ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
   const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
   uint32_t expected = __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED);
   uint32_t desired = _threshold - 1;
@@ -81,8 +81,8 @@ void ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::add(con
   _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
 }
 
-template<typename CombinedTraits>
-FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                           const Subhypergraph& sub_hg,
                                                                           const PartitionID block_0,
                                                                           const PartitionID block_1,
@@ -126,8 +126,8 @@ FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const 
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                           const Subhypergraph& sub_hg,
                                                                           const PartitionID block_0,
                                                                           const PartitionID block_1,
@@ -170,8 +170,8 @@ FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const 
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem ParallelConstruction<CombinedTraits>::constructDefault(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const PartitionedHypergraph& phg,
                                                                    const Subhypergraph& sub_hg,
                                                                    const PartitionID block_0,
                                                                    const PartitionID block_1,
@@ -334,8 +334,8 @@ FlowProblem ParallelConstruction<CombinedTraits>::constructDefault(const Partiti
   return flow_problem;
 }
 
-template<typename CombinedTraits>
-FlowProblem ParallelConstruction<CombinedTraits>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                                                                 const Subhypergraph& sub_hg,
                                                                                 const PartitionID block_0,
                                                                                 const PartitionID block_1,
@@ -565,8 +565,8 @@ class BFSQueue {
 };
 }
 
-template<typename CombinedTraits>
-void ParallelConstruction<CombinedTraits>::determineDistanceFromCut(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const PartitionedHypergraph& phg,
                                                                     const whfc::Node source,
                                                                     const whfc::Node sink,
                                                                     const PartitionID block_0,

@@ -57,7 +57,7 @@ class RebalancerTest : public Test {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using HypergraphFactory = typename Hypergraph::Factory;
   using GainCache = typename GainTypes::GainCache;
-  using Rebalancer = AdvancedRebalancer<CombinedTraits<TypeTraits, GainTypes>>;
+  using Rebalancer = AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>;
 
   RebalancerTest() :
           hypergraph(),

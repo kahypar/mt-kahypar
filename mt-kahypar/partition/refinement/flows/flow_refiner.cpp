@@ -35,8 +35,8 @@
 
 namespace mt_kahypar {
 
-template<typename CombinedTraits>
-MoveSequence FlowRefiner<CombinedTraits>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
+template<typename GraphAndGainTypes>
+MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
                                                      const Subhypergraph& sub_hg,
                                                      const HighResClockTimepoint& start) {
   const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
@@ -101,8 +101,8 @@ MoveSequence FlowRefiner<CombinedTraits>::refineImpl(mt_kahypar_partitioned_hype
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
-template<typename CombinedTraits>
-bool FlowRefiner<CombinedTraits>::runFlowCutter(const FlowProblem& flow_problem,
+template<typename GraphAndGainTypes>
+bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_problem,
                                                 const HighResClockTimepoint& start,
                                                 bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
@@ -146,8 +146,8 @@ bool FlowRefiner<CombinedTraits>::runFlowCutter(const FlowProblem& flow_problem,
   return result;
 }
 
-template<typename CombinedTraits>
-FlowProblem FlowRefiner<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+template<typename GraphAndGainTypes>
+FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                  const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;

@@ -42,8 +42,8 @@
 
 namespace mt_kahypar {
 
-  template <typename CombinedTraits>
-  bool SimpleRebalancer<CombinedTraits>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  template <typename GraphAndGainTypes>
+  bool SimpleRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                     const vec<HypernodeID>&,
                                                     Metrics& best_metrics,
                                                     double) {
@@ -185,8 +185,8 @@ namespace mt_kahypar {
     return improvement;
   }
 
-  template <typename CombinedTraits>
-  vec<Move> SimpleRebalancer<CombinedTraits>::repairEmptyBlocks(PartitionedHypergraph& phg) {
+  template <typename GraphAndGainTypes>
+  vec<Move> SimpleRebalancer<GraphAndGainTypes>::repairEmptyBlocks(PartitionedHypergraph& phg) {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
