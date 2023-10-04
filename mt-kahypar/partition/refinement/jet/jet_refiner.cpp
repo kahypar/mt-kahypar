@@ -232,7 +232,7 @@ namespace mt_kahypar {
                                               pin_count_in_from_part_after, pin_count_in_to_part_after);
         }
 
-        if (total_gain < 0) {
+        if (total_gain <= 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
           if (_context.refinement.jet.exactly_as_in_jet_paper) {
             _locks.set(hn);
@@ -327,6 +327,7 @@ namespace mt_kahypar {
       if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
         accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
       }
+      _gains_and_target[hn] = {0, hypergraph.partID(hn)};
       if (accept_border && accept_locked) {
         processNode<precomputed>(hypergraph, hn, add_node_fn, top_level);
       }
@@ -353,7 +354,7 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
   void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
-                                                                                    const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+                                                                       const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
 
     if (_precomputed) {
@@ -458,10 +459,13 @@ namespace mt_kahypar {
       RatingMap& tmp_scores = _gain.localScores();
       Gain isolated_block_gain = 0;
       _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
-      Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
-                                                          hn, true, false, true);
+      // Note: rebalance=true is important here to allow negative gain moves
+      Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain, hn,
+                                                         /*rebalance=*/true,
+                                                         /*consider_non_adjacent_blocks=*/false,
+                                                         /*allow_imbalance=*/true);
       tmp_scores.clear();
-      bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain)
+      bool accept_node = (best_move.gain <= 0 || best_move.gain < std::floor(gain_factor * isolated_block_gain))
                          && best_move.to != hypergraph.partID(hn);
       if (accept_node) {
         add_node_fn();
