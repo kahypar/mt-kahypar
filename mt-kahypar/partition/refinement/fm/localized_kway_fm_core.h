@@ -50,7 +50,6 @@ public:
   using GainCache = typename GraphAndGainTypes::GainCache;
   using DeltaGainCache = typename GraphAndGainTypes::DeltaGainCache;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
-  using AttributedGains = typename GraphAndGainTypes::AttributedGains;
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
   using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
@@ -75,7 +74,7 @@ public:
 
   template<typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE DispatchedFMStrategy initializeDispatchedStrategy() {
-    return DispatchedFMStrategy(context, sharedData, blockPQ, vertexPQs, runStats);
+    return DispatchedFMStrategy(context, sharedData, blockPQ, vertexPQs);
   }
 
   template<typename DispatchedFMStrategy>
@@ -84,8 +83,6 @@ public:
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
 
   void changeNumberOfBlocks(const PartitionID new_k);
-
-  FMStats stats;
 
 private:
   template<typename DispatchedFMStrategy>
@@ -117,8 +114,6 @@ private:
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;
-
-  FMStats runStats;
 
   GainCache& gain_cache;
 

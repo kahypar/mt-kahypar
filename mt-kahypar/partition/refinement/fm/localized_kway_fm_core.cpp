@@ -42,13 +42,15 @@ namespace mt_kahypar {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     HypernodeID seedNode;
-    while (runStats.pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
+    HypernodeID pushes = 0;
+    while (pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
         fm_strategy.insertIntoPQ(phg, gain_cache, seedNode);
+        pushes++;
       }
     }
 
-    if (runStats.pushes > 0) {
+    if (pushes > 0) {
       deltaPhg.clear();
       deltaPhg.setPartitionedHypergraph(&phg);
       delta_gain_cache.clear();
@@ -178,7 +180,6 @@ namespace mt_kahypar {
       }
 
       if (moved) {
-        runStats.moves++;
         estimatedImprovement += move.gain;
         localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
@@ -220,8 +221,6 @@ namespace mt_kahypar {
     }
 
     fm_strategy.reset();
-    runStats.estimated_improvement = bestImprovement;
-    runStats.merge(stats);
   }
 
 

@@ -181,13 +181,9 @@ namespace mt_kahypar {
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
       if (debug && context.type == ContextType::main) {
-        FMStats stats;
-        for (auto& fm : ets_fm) {
-          fm.stats.merge(stats);
-        }
         LOG << V(round) << V(improvement) << V(metrics::quality(phg, context))
             << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
-            << V(elapsed_time) << V(current_time_limit) << stats.serialize();
+            << V(elapsed_time) << V(current_time_limit);
       }
 
       // Enforce a time limit (based on k and coarsening time).

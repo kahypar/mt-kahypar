@@ -325,48 +325,4 @@ struct FMSharedData {
   }
 };
 
-struct FMStats {
-  size_t retries = 0;
-  size_t extractions = 0;
-  size_t pushes = 0;
-  size_t moves = 0;
-  size_t local_reverts = 0;
-  size_t task_queue_reinsertions = 0;
-  size_t best_prefix_mismatch = 0;
-  Gain estimated_improvement = 0;
-
-
-  void clear() {
-    retries = 0;
-    extractions = 0;
-    pushes = 0;
-    moves = 0;
-    local_reverts = 0;
-    task_queue_reinsertions = 0;
-    best_prefix_mismatch = 0;
-    estimated_improvement = 0;
-  }
-
-  void merge(FMStats& other) {
-    other.retries += retries;
-    other.extractions += extractions;
-    other.pushes += pushes;
-    other.moves += moves;
-    other.local_reverts += local_reverts;
-    other.task_queue_reinsertions += task_queue_reinsertions;
-    other.best_prefix_mismatch += best_prefix_mismatch;
-    other.estimated_improvement += estimated_improvement;
-    clear();
-  }
-
-  std::string serialize() const {
-    std::stringstream os;
-    os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
-        << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
-        << V(best_prefix_mismatch);
-    return os.str();
-  }
-};
-
-
 }
