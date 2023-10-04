@@ -26,12 +26,74 @@
  ******************************************************************************/
 
 #include "kahypar-resources/meta/registrar.h"
+#include "kahypar-resources/meta/static_multi_dispatch_factory.h"
+#include "kahypar-resources/meta/typelist.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+
+
+namespace mt_kahypar {
+using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   LabelPropagationRefiner,
+                                   IRefiner,
+                                   kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                DeterministicLabelPropagationRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                            MultiTryKWayFM,
+                            IRefiner,
+                            kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using UnconstrainedFMDispatcher = DefaultFMDispatcher;
+
+using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                      GainCacheStrategy,
+                                      IFMStrategy,
+                                      kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                          UnconstrainedStrategy,
+                                          IFMStrategy,
+                                          kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                FlowRefinementScheduler,
+                                IRefiner,
+                                kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   SimpleRebalancer,
+                                   IRebalancer,
+                                   kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                     AdvancedRebalancer,
+                                     IRebalancer,
+                                     kahypar::meta::Typelist<ValidTraitCombinations>>;
+
+using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                 FlowRefiner,
+                                 IFlowRefiner,
+                                 kahypar::meta::Typelist<ValidTraitCombinations>>;
+
 
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
@@ -134,7 +196,7 @@
     return new refiner(num_Hyperedges, context);                                                \
   })
 
-namespace mt_kahypar {
+
 kahypar::meta::PolicyBase& getCombinedTraitsPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
   switch ( partition_type ) {
     case MULTILEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(StaticHypergraphTypeTraits, gain_policy);

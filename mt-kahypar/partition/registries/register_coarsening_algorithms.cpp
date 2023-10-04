@@ -26,10 +26,41 @@
  ******************************************************************************/
 
 #include "kahypar-resources/meta/registrar.h"
+#include "kahypar-resources/meta/static_multi_dispatch_factory.h"
+#include "kahypar-resources/meta/typelist.h"
 
+#include "mt-kahypar/definitions.h"
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
+#endif
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
+
+namespace mt_kahypar {
+using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
+                                                                                ICoarsener,
+                                                                                kahypar::meta::Typelist<TypeTraitsList,
+                                                                                                        RatingScorePolicies,
+                                                                                                        HeavyNodePenaltyPolicies,
+                                                                                                        AcceptancePolicies> >;
+
+using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
+                                                                                   ICoarsener,
+                                                                                   kahypar::meta::Typelist<TypeTraitsList>>;
+
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
+                                                                            ICoarsener,
+                                                                            kahypar::meta::Typelist<TypeTraitsList,
+                                                                                                    RatingScorePolicies,
+                                                                                                    HeavyNodePenaltyPolicies,
+                                                                                                    AcceptancePolicies> >;
+#endif
 
 
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                    \
@@ -43,7 +74,6 @@
   })
 
 
-namespace mt_kahypar {
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               MultilevelCoarsenerDispatcher,
                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
