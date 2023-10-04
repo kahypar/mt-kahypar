@@ -57,9 +57,11 @@ public:
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
+      gain_computation(context, true /* disable_randomization */),
       cumulative_node_weights(num_hypernodes),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
+      current_k(context.partition.k),
       prng(context.partition.seed),
       active_nodes(0) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
@@ -96,10 +98,12 @@ private:
           HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
   const Context& context;
+  GainComputation gain_computation;
   vec<HypernodeWeight> cumulative_node_weights;
   ds::BufferedVector<Move> moves;
   vec<Move> sorted_moves;
 
+  PartitionID current_k;
   std::mt19937 prng;
   utils::ParallelPermutation<HypernodeID> permutation;
   ds::BufferedVector<HypernodeID> active_nodes;

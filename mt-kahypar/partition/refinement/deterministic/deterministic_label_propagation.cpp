@@ -46,10 +46,14 @@ namespace mt_kahypar {
           const double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     Gain overall_improvement = 0;
+
+    if (context.partition.k != current_k) {
+      current_k = context.partition.k;
+      gain_computation.changeNumberOfBlocks(current_k);
+    }
+
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
-
-    GainComputation gain_computation(context, true);
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       if (context.refinement.deterministic_refinement.use_active_node_set && ++round == 0) {
