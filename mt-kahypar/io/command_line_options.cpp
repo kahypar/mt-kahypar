@@ -72,8 +72,7 @@ namespace mt_kahypar {
     options.add_options()
             ("help", "show help message")
             ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
-             "Shortcut to enables deterministic partitioning mode, where results are reproducible across runs. "
-             "If set, the specific deterministic subroutines don't need to be set manually.")
+             "Enables deterministic mode.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
             ("fixed,f",
@@ -367,7 +366,7 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.use_active_node_set :
                                 &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
                      "<bool>")->default_value(true),
-             "Number of sub-rounds for deterministic synchronous label propagation")
+             "Use active nodeset in synchronous label propagation")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(

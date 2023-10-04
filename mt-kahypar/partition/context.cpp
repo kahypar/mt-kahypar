@@ -183,8 +183,6 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params) {
     out << "    Number of sub-rounds for Sync LP:  " << params.num_sub_rounds_sync_lp << std::endl;
     out << "    Use active node set:               " << std::boolalpha << params.use_active_node_set << std::endl;
-    out << "    recalculate gains on second apply: " << std::boolalpha
-        << params.recalculate_gains_on_second_apply << std::endl;
     return out;
   }
 
@@ -351,6 +349,8 @@ namespace mt_kahypar {
                   partition.k,
                   partition.max_part_weights.size());
     }
+
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, size_t(4), size_t(256));
 
     if ( partition.objective == Objective::steiner_tree ) {
       if ( !target_graph ) {

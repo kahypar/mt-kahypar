@@ -32,16 +32,18 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
-#include "mt-kahypar/partition/refinement/fm/strategies/km1_gains.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainTypes>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainComputation = typename GainTypes::GainComputation;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
 public:
   explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
@@ -55,14 +57,13 @@ public:
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
-      compute_gains(context),
+      gain_computation(context, true /* disable_randomization */),
+      cumulative_node_weights(num_hypernodes),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
+      current_k(context.partition.k),
       prng(context.partition.seed),
-      active_nodes(0),
-      ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
-      max_num_nodes(num_hypernodes),
-      max_num_edges(num_hyperedges) {
+      active_nodes(0) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(num_hypernodes);
       last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
@@ -71,6 +72,7 @@ public:
 
 private:
   static constexpr bool debug = false;
+  static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max() / 2;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const vec<HypernodeID>& refinement_nodes,
@@ -80,60 +82,33 @@ private:
 
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
-  Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
-  Gain applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg);
+  std::pair<Gain, bool> applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
   template<typename Predicate>
   Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
-    assert(u < phg.initialNumNodes());
-    if (!phg.isBorderNode(u)) return;
-    //auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
-    auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
-    if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
-      moves.push_back_buffered( { phg.partID(u), to, u, gain } );
-    }
-  }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void calculateAndSaveBestMoveTwoWay(PartitionedHypergraph& phg, HypernodeID u) {
-    if (!phg.isBorderNode(u)) return;
-    const Gain gain = TwoWayGainComputer::gainToOtherBlock(phg, u);
-    if (gain > 0) {
-      moves.push_back_buffered({ phg.partID(u), 1 - phg.partID(u), u, gain });
-    }
-  }
+  std::pair<size_t, size_t> findBestPrefixesRecursive(
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
-  struct RecalculationData {
-    MoveID first_in, last_out;
-    HypernodeID remaining_pins;
-    RecalculationData() :
-            first_in(std::numeric_limits<MoveID>::max()),
-            last_out(std::numeric_limits<MoveID>::min()),
-            remaining_pins(0)
-    { }
-  };
+  // used for verification
+  std::pair<size_t, size_t> findBestPrefixesSequentially(
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
   const Context& context;
-  tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
+  GainComputation gain_computation;
+  vec<HypernodeWeight> cumulative_node_weights;
   ds::BufferedVector<Move> moves;
   vec<Move> sorted_moves;
 
+  PartitionID current_k;
   std::mt19937 prng;
-  utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
+  utils::ParallelPermutation<HypernodeID> permutation;
   ds::BufferedVector<HypernodeID> active_nodes;
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
-
-
-  tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
-  vec<CAtomic<uint32_t>> last_recalc_round;
-  vec<MoveID> move_pos_of_node;
-  uint32_t recalc_round = 1;
-  size_t max_num_nodes = 0, max_num_edges = 0;
 };
 
 }
-

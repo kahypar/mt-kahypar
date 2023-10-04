@@ -46,7 +46,6 @@ class GainComputationBase {
  public:
   using RatingMap = ds::SparseMap<PartitionID, Gain>;
   using TmpScores = tbb::enumerable_thread_specific<RatingMap>;
-  using Penalty = tbb::enumerable_thread_specific<Gain>;
 
   GainComputationBase(const Context& context,
                       const bool disable_randomization) :
@@ -55,8 +54,7 @@ class GainComputationBase {
     _deltas(0),
     _tmp_scores([&] {
       return constructLocalTmpScores();
-    }),
-    _isolated_block_gain(0) { }
+    }) { }
 
   template<typename PartitionedHypergraph>
   Move computeMaxGainMove(const PartitionedHypergraph& phg,
@@ -66,7 +64,7 @@ class GainComputationBase {
                           const bool allow_imbalance = false) {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
-    Gain& isolated_block_gain = _isolated_block_gain.local();
+    Gain isolated_block_gain = 0;
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, consider_non_adjacent_blocks);
 
     PartitionID from = phg.partID(hn);
@@ -120,7 +118,6 @@ class GainComputationBase {
       }
     }
 
-    isolated_block_gain = 0;
     tmp_scores.clear();
     return best_move;
   }
@@ -172,7 +169,6 @@ private:
   const bool _disable_randomization;
   DeltaGain _deltas;
   TmpScores _tmp_scores;
-  Penalty _isolated_block_gain;
 };
 
 }  // namespace mt_kahypar

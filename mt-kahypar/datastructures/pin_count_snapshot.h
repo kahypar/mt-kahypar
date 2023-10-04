@@ -151,7 +151,7 @@ class PinCountSnapshot {
   static size_t num_entries_per_value(const PartitionID k,
                                       const HypernodeID max_value) {
     const size_t bits_per_element = num_bits_per_element(max_value);
-    const size_t bits_per_value = sizeof(Value) * 8UL;
+    const size_t bits_per_value = sizeof(Value) * size_t(8);
     ASSERT(bits_per_element <= bits_per_value);
     return std::min(bits_per_value / bits_per_element, static_cast<size_t>(k));
   }

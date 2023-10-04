@@ -89,7 +89,6 @@ public:
     context.refinement.deterministic_refinement.num_sub_rounds_sync_lp = 2;
     context.refinement.label_propagation.maximum_iterations = 5;
     context.refinement.deterministic_refinement.use_active_node_set = false;
-    context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = false;
 
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
@@ -130,7 +129,7 @@ public:
       }
 
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-      DeterministicLabelPropagationRefiner<TypeTraits> refiner(
+      DeterministicLabelPropagationRefiner<TypeTraits, Km1GainTypes> refiner(
         hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context);
       refiner.initialize(phg);
       vec<HypernodeID> dummy_refinement_nodes;
@@ -219,6 +218,12 @@ TEST_F(DeterminismTest, Refinement) {
   performRepeatedRefinement();
 }
 
+TEST_F(DeterminismTest, RefinementOnSmallImbalance) {
+  context.partition.epsilon = 0.03;
+  context.setupPartWeights(hypergraph.totalWeight());
+  performRepeatedRefinement();
+}
+
 TEST_F(DeterminismTest, RefinementWithActiveNodeSet) {
   context.refinement.deterministic_refinement.use_active_node_set = true;
   performRepeatedRefinement();
@@ -241,19 +246,6 @@ TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
   hypergraph = utils::cast<Hypergraph>(coarsener.coarsestHypergraph()).copy();
   partitioned_hypergraph = PartitionedHypergraph(
           context.partition.k, hypergraph, parallel_tag_t());
-  performRepeatedRefinement();
-}
-
-TEST_F(DeterminismTest, RefinementOnCoarseHypergraphWithSecondaryGainRecalculation) {
-  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph, context);
-  uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
-  mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
-  DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
-  coarsener.coarsen();
-  hypergraph = utils::cast<Hypergraph>(coarsener.coarsestHypergraph()).copy();
-  partitioned_hypergraph = PartitionedHypergraph(
-          context.partition.k, hypergraph, parallel_tag_t());
-  context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = true;
   performRepeatedRefinement();
 }
 

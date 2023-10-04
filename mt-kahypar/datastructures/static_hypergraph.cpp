@@ -33,6 +33,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 namespace mt_kahypar::ds {
 
@@ -57,7 +58,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -131,9 +132,6 @@ namespace mt_kahypar::ds {
       ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
       // Weight vector is atomic => thread-safe
       hn_weights[coarse_hn] += nodeWeight(hn);
-      // In case community detection is enabled all vertices matched to one vertex
-      // in the contracted hypergraph belong to same community. Otherwise, all communities
-      // are default assigned to community 0
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
@@ -288,6 +286,12 @@ namespace mt_kahypar::ds {
           // Update number of incident nets of high degree vertex
           const size_t contracted_size = incident_nets_pos.load() - incident_nets_start;
           tmp_hypernodes[coarse_hn].setSize(contracted_size);
+
+          if (deterministic) {
+            // sort for determinism
+            tbb::parallel_sort(tmp_incident_nets.begin() + incident_nets_start,
+                               tmp_incident_nets.begin() + incident_nets_start + contracted_size);
+          }
         }
         duplicate_incident_nets_map.free();
       }
@@ -373,8 +377,7 @@ namespace mt_kahypar::ds {
     // Compute number of hyperedges in coarse graph (those flagged as valid)
     parallel::TBBPrefixSum<size_t, Array> he_mapping(valid_hyperedges);
     tbb::parallel_invoke([&] {
-      tbb::parallel_scan(tbb::blocked_range<size_t>(
-              UL(0), UI64(_num_hyperedges)), he_mapping);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(size_t(0), size_t(_num_hyperedges)), he_mapping);
     }, [&] {
       hypergraph._hypernodes.resize(num_hypernodes);
     });
@@ -394,7 +397,7 @@ namespace mt_kahypar::ds {
       // Compute start position of each hyperedge in incidence array
       parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
-        tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
+        tbb::parallel_for(HyperedgeID(0), _num_hyperedges, [&](HyperedgeID id) {
           if ( he_mapping.value(id) ) {
             he_sizes[id] = tmp_hyperedges[id].size();
           } else {
@@ -414,11 +417,11 @@ namespace mt_kahypar::ds {
       // Write hyperedges from temporary buffers to incidence array
       tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
-        if ( he_mapping.value(id) /* hyperedge is valid */ ) {
+        if ( he_mapping.value(id) > 0 /* hyperedge is valid */ ) {
           const size_t he_pos = he_mapping[id];
           const size_t incidence_array_start = num_pins_prefix_sum[id];
           Hyperedge& he = hypergraph._hyperedges[he_pos];
-          he = std::move(tmp_hyperedges[id]);
+          he = tmp_hyperedges[id];
           const size_t tmp_incidence_array_start = he.firstEntry();
           const size_t edge_size = he.size();
           local_max_edge_size.local() = std::max(local_max_edge_size.local(), edge_size);
@@ -442,7 +445,7 @@ namespace mt_kahypar::ds {
         size_t incident_nets_end = tmp_hypernodes[id].firstInvalidEntry();
         for ( size_t pos = incident_nets_start; pos < incident_nets_end; ++pos ) {
           const HyperedgeID he = tmp_incident_nets[pos];
-          if ( he_mapping.value(he) ) {
+          if ( he_mapping.value(he) > 0 /* hyperedge is valid */ ) {
             tmp_incident_nets[pos] = he_mapping[he];
           } else {
             std::swap(tmp_incident_nets[pos--], tmp_incident_nets[--incident_nets_end]);
@@ -466,7 +469,7 @@ namespace mt_kahypar::ds {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
         const size_t incident_nets_start = num_incident_nets_prefix_sum[id];
         Hypernode& hn = hypergraph._hypernodes[id];
-        hn = std::move(tmp_hypernodes[id]);
+        hn = tmp_hypernodes[id];
         const size_t tmp_incident_nets_start = hn.firstEntry();
         std::memcpy(hypergraph._incident_nets.data() + incident_nets_start,
                     tmp_incident_nets.data() + tmp_incident_nets_start,

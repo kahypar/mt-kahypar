@@ -83,12 +83,14 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
       }
     });
+
     num_nodes -= num_contracted_nodes.combine(std::plus<>());
     nodes_in_too_heavy_clusters.finalize();
 
     if (nodes_in_too_heavy_clusters.size() > 0) {
       num_nodes -= approveVerticesInTooHeavyClusters(clusters);
     }
+
     nodes_in_too_heavy_clusters.clear();
   }
 
@@ -97,7 +99,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
     return false;
   }
-  _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
+  _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
   return true;
 }
 
