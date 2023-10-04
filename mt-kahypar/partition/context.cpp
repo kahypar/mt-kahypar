@@ -123,8 +123,10 @@ namespace mt_kahypar {
     str << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != LabelPropagationAlgorithm::do_nothing ) {
       str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+      str << "    Unconstrained:                    " << std::boolalpha << params.unconstrained << std::endl;
       str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
       str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
     }
     return str;
   }
@@ -134,7 +136,6 @@ namespace mt_kahypar {
     out << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != FMAlgorithm::do_nothing ) {
       out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
-      out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
       out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.rollback_parallel << std::endl;
       out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
       out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
@@ -143,6 +144,19 @@ namespace mt_kahypar {
       out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+    }
+    if ( params.algorithm == FMAlgorithm::unconstrained_fm ) {
+      out << "    Unconstrained Rounds:             " << params.unconstrained_rounds << std::endl;
+      out << "    Threshold Border Node Inclusion:  " << params.treshold_border_node_inclusion << std::endl;
+      out << "    Minimum Imbalance Penalty Factor: " << params.imbalance_penalty_min << std::endl;
+      out << "    Maximum Imbalance Penalty Factor: " << params.imbalance_penalty_max << std::endl;
+      out << "    Start Upper Bound for Unc.:       " << params.unconstrained_upper_bound << std::endl;
+      out << "    Final Upper Bound for Unc.:       " << params.unconstrained_upper_bound_min << std::endl;
+      out << "    Unc. Minimum Improvement Factor:  " << params.unconstrained_min_improvement << std::endl;
+      out << "    Activate Unc. Dynamically:        " << std::boolalpha << params.activate_unconstrained_dynamically << std::endl;
+      if ( params.activate_unconstrained_dynamically ) {
+        out << "    Penalty for Activation Test:      " << params.penalty_for_activation_test << std::endl;
+      }
     }
     out << std::flush;
     return out;
@@ -525,7 +539,6 @@ namespace mt_kahypar {
     // initial partitioning -> refinement -> fm
     initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     initial_partitioning.refinement.fm.multitry_rounds = 5;
-    initial_partitioning.refinement.fm.perform_moves_global = false;
     initial_partitioning.refinement.fm.rollback_parallel = true;
     initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1;
     initial_partitioning.refinement.fm.num_seed_nodes = 25;
@@ -553,7 +566,6 @@ namespace mt_kahypar {
     refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
     refinement.fm.multitry_rounds = 10;
     refinement.fm.unconstrained_rounds = 8;
-    refinement.fm.perform_moves_global = false;
     refinement.fm.rollback_parallel = true;
     refinement.fm.rollback_balance_violation_factor = 1.0;
     refinement.fm.treshold_border_node_inclusion = 0.7;
@@ -756,7 +768,6 @@ namespace mt_kahypar {
     // initial partitioning -> refinement -> fm
     initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     initial_partitioning.refinement.fm.multitry_rounds = 5;
-    initial_partitioning.refinement.fm.perform_moves_global = false;
     initial_partitioning.refinement.fm.rollback_parallel = false;
     initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1;
     initial_partitioning.refinement.fm.num_seed_nodes = 5;
@@ -786,7 +797,6 @@ namespace mt_kahypar {
     // refinement -> fm
     refinement.fm.algorithm = FMAlgorithm::kway_fm;
     refinement.fm.multitry_rounds = 10;
-    refinement.fm.perform_moves_global = false;
     refinement.fm.rollback_parallel = false;
     refinement.fm.rollback_balance_violation_factor = 1.25;
     refinement.fm.num_seed_nodes = 5;

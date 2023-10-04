@@ -46,7 +46,7 @@ template <typename TypeTraitsT, PartitionID k, bool unconstrained>
 struct TestConfig<TypeTraitsT, k, unconstrained, Objective::km1> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = Km1GainTypes;
-  using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
+  using Refiner = LabelPropagationRefiner<GraphAndGainTypes<TypeTraits, GainTypes>>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
@@ -57,7 +57,7 @@ template <typename TypeTraitsT, PartitionID k, bool unconstrained>
 struct TestConfig<TypeTraitsT, k, unconstrained, Objective::cut> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = CutGainTypes;
-  using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
+  using Refiner = LabelPropagationRefiner<GraphAndGainTypes<TypeTraits, GainTypes>>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
@@ -122,7 +122,8 @@ class ALabelPropagationRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<AdvancedRebalancer<TypeTraits, GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
+      hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(
       hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);

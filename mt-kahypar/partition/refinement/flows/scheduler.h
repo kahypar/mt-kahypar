@@ -54,15 +54,16 @@ namespace {
   }
 }
 
-template<typename TypeTraits, typename GainTypes>
+template<typename GraphAndGainTypes>
 class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCache = typename GainTypes::GainCache;
-  using AttributedGains = typename GainTypes::AttributedGains;
+  using TypeTraits = typename GraphAndGainTypes::TypeTraits;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using AttributedGains = typename GraphAndGainTypes::AttributedGains;
 
   struct RefinementStats {
     RefinementStats(utils::Stats& stats) :

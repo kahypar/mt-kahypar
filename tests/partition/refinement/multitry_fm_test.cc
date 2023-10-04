@@ -54,7 +54,7 @@ class MultiTryFMTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainTypes>;
+  using Refiner = MultiTryKWayFM<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
 
   MultiTryFMTest() :
           hypergraph(),
@@ -108,7 +108,8 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<AdvancedRebalancer<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<AdvancedRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>(
+      hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
       hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
@@ -188,7 +189,6 @@ TYPED_TEST(MultiTryFMTest, DoesNotWorsenSolutionQuality) {
 TYPED_TEST(MultiTryFMTest, AlsoWorksWithNonDefaultFeatures) {
   this->context.refinement.fm.obey_minimal_parallelism = true;
   this->context.refinement.fm.rollback_parallel = false;
-  this->context.refinement.fm.perform_moves_global = true;
   HyperedgeWeight objective_before = metrics::quality(this->partitioned_hypergraph, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
@@ -275,7 +275,7 @@ TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
   gain_cache.initializeGainCache(phg);
 
   UnconstrainedFMData ufm_data(4);
-  ufm_data.initialize<TypeTraits, Km1GainTypes>(context, phg, gain_cache);
+  ufm_data.initialize<GraphAndGainTypes<TypeTraits, Km1GainTypes>>(context, phg, gain_cache);
 
   ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(0, -1, -1));
   ASSERT_LE(1.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));

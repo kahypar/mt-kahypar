@@ -65,7 +65,7 @@ struct GlobalMoveTracker {
     }
   }
 
-  MoveID insertMove(Move &m) {
+  MoveID insertMove(const Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
     assert(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
@@ -155,11 +155,11 @@ class UnconstrainedFMData {
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename GraphAndGainTypes>
   struct InitializationHelper {
     static void initialize(UnconstrainedFMData& data, const Context& context,
-                           const typename TypeTraits::PartitionedHypergraph& phg,
-                           const typename GainTypes::GainCache& gain_cache);
+                           const typename GraphAndGainTypes::PartitionedHypergraph& phg,
+                           const typename GraphAndGainTypes::GainCache& gain_cache);
   };
 
   static constexpr BucketID NUM_BUCKETS = 16;
@@ -175,14 +175,14 @@ class UnconstrainedFMData {
     local_bucket_weights(),
     rebalancing_nodes(num_nodes) { }
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename GraphAndGainTypes>
   void initialize(const Context& context,
-                  const typename TypeTraits::PartitionedHypergraph& phg,
-                  const typename GainTypes::GainCache& gain_cache) {
+                  const typename GraphAndGainTypes::PartitionedHypergraph& phg,
+                  const typename GraphAndGainTypes::GainCache& gain_cache) {
     changeNumberOfBlocks(context.partition.k);
     reset();
 
-    InitializationHelper<TypeTraits, GainTypes>::initialize(*this, context, phg, gain_cache);
+    InitializationHelper<GraphAndGainTypes>::initialize(*this, context, phg, gain_cache);
   }
 
   Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
@@ -207,7 +207,7 @@ class UnconstrainedFMData {
   }
 
  private:
-  template<typename TypeTraits, typename GainTypes>
+  template<typename GraphAndGainTypes>
   friend class InitializationHelper;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
@@ -274,12 +274,7 @@ struct FMSharedData {
   CAtomic<size_t> finishedTasks;
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
 
-  // ! Switch to applying moves directly if the use of local delta partitions exceeded a memory limit
-  bool deltaExceededMemoryConstraints = false;
-  size_t deltaMemoryLimitPerThread = 0;
-
   bool release_nodes = true;
-  bool perform_moves_global = true;
 
   FMSharedData(size_t numNodes, size_t numThreads) :
     numberOfNodes(numNodes),
@@ -290,9 +285,6 @@ struct FMSharedData {
     targetPart(),
     unconstrained(numNodes) {
     finishedTasks.store(0, std::memory_order_relaxed);
-
-    // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
-    deltaMemoryLimitPerThread = 128UL * (UL(1) << 30) * 3 / ( 2 * std::max(UL(1), numThreads) );
 
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
@@ -332,49 +324,5 @@ struct FMSharedData {
     refinementNodes.memoryConsumption(shared_fm_data_node);
   }
 };
-
-struct FMStats {
-  size_t retries = 0;
-  size_t extractions = 0;
-  size_t pushes = 0;
-  size_t moves = 0;
-  size_t local_reverts = 0;
-  size_t task_queue_reinsertions = 0;
-  size_t best_prefix_mismatch = 0;
-  Gain estimated_improvement = 0;
-
-
-  void clear() {
-    retries = 0;
-    extractions = 0;
-    pushes = 0;
-    moves = 0;
-    local_reverts = 0;
-    task_queue_reinsertions = 0;
-    best_prefix_mismatch = 0;
-    estimated_improvement = 0;
-  }
-
-  void merge(FMStats& other) {
-    other.retries += retries;
-    other.extractions += extractions;
-    other.pushes += pushes;
-    other.moves += moves;
-    other.local_reverts += local_reverts;
-    other.task_queue_reinsertions += task_queue_reinsertions;
-    other.best_prefix_mismatch += best_prefix_mismatch;
-    other.estimated_improvement += estimated_improvement;
-    clear();
-  }
-
-  std::string serialize() const {
-    std::stringstream os;
-    os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
-        << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
-        << V(best_prefix_mismatch);
-    return os.str();
-  }
-};
-
 
 }

@@ -31,9 +31,9 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
-
 #include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -129,7 +129,7 @@ public:
       }
 
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-      DeterministicLabelPropagationRefiner<TypeTraits, Km1GainTypes> refiner(
+      DeterministicLabelPropagationRefiner<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
         hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context);
       refiner.initialize(phg);
       vec<HypernodeID> dummy_refinement_nodes;

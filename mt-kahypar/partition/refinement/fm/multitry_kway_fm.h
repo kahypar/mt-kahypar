@@ -40,16 +40,16 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainTypes>
+template<typename GraphAndGainTypes>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCache = typename GainTypes::GainCache;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainTypes>;
-  using Rollback = GlobalRollback<TypeTraits, GainTypes>;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using LocalizedFMSearch = LocalizedKWayFM<GraphAndGainTypes>;
+  using Rollback = GlobalRollback<GraphAndGainTypes>;
 
   static_assert(GainCache::TYPE != GainPolicy::none);
 
@@ -117,7 +117,6 @@ class MultiTryKWayFM final : public IRefiner {
 
   void resizeDataStructuresForCurrentK();
 
-  bool is_initialized = false;
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;

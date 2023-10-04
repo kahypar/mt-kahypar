@@ -714,8 +714,6 @@ class InitialPartitioningDataContainer {
   vec< std::pair<PartitioningResult, vec<PartitionID>>  > _best_partitions;
 };
 
-typedef struct ip_data_container_s ip_data_container_t;
-
 namespace ip {
   template<typename TypeTraits>
   ip_data_container_t* to_pointer(InitialPartitioningDataContainer<TypeTraits>& ip_data) {

@@ -37,9 +37,8 @@
 
 namespace mt_kahypar {
 
-
-  template<typename TypeTraits, typename GainTypes>
-  bool DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::refineImpl(
+  template<typename GraphAndGainTypes>
+  bool DeterministicLabelPropagationRefiner<GraphAndGainTypes>::refineImpl(
           mt_kahypar_partitioned_hypergraph_t& hypergraph,
           const vec<HypernodeID>&,
           Metrics& best_metrics,
@@ -130,8 +129,8 @@ namespace mt_kahypar {
 /*
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
  */
-  template<typename TypeTraits, typename GainTypes>
-  Gain DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::performMoveWithAttributedGain(
+  template<typename GraphAndGainTypes>
+  Gain DeterministicLabelPropagationRefiner<GraphAndGainTypes>::performMoveWithAttributedGain(
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -159,9 +158,9 @@ namespace mt_kahypar {
     return attributed_gain;
   }
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename GraphAndGainTypes>
   template<typename Predicate>
-  Gain DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::applyMovesIf(
+  Gain DeterministicLabelPropagationRefiner<GraphAndGainTypes>::applyMovesIf(
           PartitionedHypergraph& phg, const vec<Move>& my_moves, size_t end, Predicate&& predicate) {
     auto range = tbb::blocked_range<size_t>(UL(0), end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
@@ -199,8 +198,8 @@ namespace mt_kahypar {
     return res;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  Gain DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
+  template<typename GraphAndGainTypes>
+  Gain DeterministicLabelPropagationRefiner<GraphAndGainTypes>::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
     const size_t num_moves = moves.size();
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
@@ -290,8 +289,8 @@ namespace mt_kahypar {
     return gain;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  std::pair<Gain, bool> DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
+  template<typename GraphAndGainTypes>
+  std::pair<Gain, bool> DeterministicLabelPropagationRefiner<GraphAndGainTypes>::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
     PartitionID k = current_k;
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
@@ -401,8 +400,8 @@ namespace mt_kahypar {
     return std::make_pair(actual_gain, revert_all);
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::findBestPrefixesRecursive(
+  template<typename GraphAndGainTypes>
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<GraphAndGainTypes>::findBestPrefixesRecursive(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
           size_t p1_invalid, size_t p2_invalid,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
@@ -477,8 +476,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<TypeTraits, GainTypes>::findBestPrefixesSequentially(
+  template<typename GraphAndGainTypes>
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<GraphAndGainTypes>::findBestPrefixesSequentially(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
@@ -507,9 +506,9 @@ namespace mt_kahypar {
   }
 
   namespace {
-    #define DETERMINISTIC_LABEL_PROPAGATION_REFINER(X, Y) DeterministicLabelPropagationRefiner<X, Y>
+    #define DETERMINISTIC_LABEL_PROPAGATION_REFINER(X) DeterministicLabelPropagationRefiner<X>
   }
 
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(DETERMINISTIC_LABEL_PROPAGATION_REFINER)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(DETERMINISTIC_LABEL_PROPAGATION_REFINER)
 } // namespace mt_kahypar

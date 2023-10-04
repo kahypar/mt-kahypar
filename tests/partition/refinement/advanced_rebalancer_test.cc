@@ -57,7 +57,7 @@ class RebalancerTest : public Test {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using HypergraphFactory = typename Hypergraph::Factory;
   using GainCache = typename GainTypes::GainCache;
-  using Km1Rebalancer = AdvancedRebalancer<TypeTraits, GainTypes>;
+  using Rebalancer = AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>;
 
   RebalancerTest() :
           hypergraph(),
@@ -102,7 +102,7 @@ class RebalancerTest : public Test {
     partitioned_hypergraph = PartitionedHypergraph(context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
 
-    rebalancer = std::make_unique<Km1Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     rebalancer->initialize(phg);
   }
@@ -111,7 +111,7 @@ class RebalancerTest : public Test {
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
   GainCache gain_cache;
-  std::unique_ptr<Km1Rebalancer> rebalancer;
+  std::unique_ptr<Rebalancer> rebalancer;
 };
 
 

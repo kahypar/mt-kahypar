@@ -155,8 +155,8 @@ namespace mt_kahypar {
     }
   };
 
-  template<typename TypeTraits, typename GainTypes>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixParallel(
+  template<typename GraphAndGainTypes>
+  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
@@ -192,10 +192,10 @@ namespace mt_kahypar {
     return b.gain;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedge(PartitionedHypergraph& phg,
-                                                                          FMSharedData& sharedData,
-                                                                          const HyperedgeID& e) {
+  template<typename GraphAndGainTypes>
+  void GlobalRollback<GraphAndGainTypes>::recalculateGainForHyperedge(PartitionedHypergraph& phg,
+                                                                   FMSharedData& sharedData,
+                                                                   const HyperedgeID& e) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     auto& r = ets_recalc_data.local();
 
@@ -250,10 +250,10 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
-                                                                                            FMSharedData& sharedData,
-                                                                                            const HyperedgeID& e) {
+  template<typename GraphAndGainTypes>
+  void GlobalRollback<GraphAndGainTypes>::recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                     FMSharedData& sharedData,
+                                                                                     const HyperedgeID& e) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(e);
     ds::PinCountSnapshot pin_counts(phg.k(), phg.hypergraph().maxEdgeSize());
@@ -307,10 +307,10 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
-                                                                                            FMSharedData& sharedData,
-                                                                                            const HyperedgeID& e) {
+  template<typename GraphAndGainTypes>
+  void GlobalRollback<GraphAndGainTypes>::recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                     FMSharedData& sharedData,
+                                                                                     const HyperedgeID& e) {
     if ( !phg.isSinglePin(e) ) {
       GlobalMoveTracker& tracker = sharedData.moveTracker;
       SynchronizedEdgeUpdate sync_update;
@@ -371,9 +371,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
-                                                               FMSharedData& sharedData) {
+  template<typename GraphAndGainTypes>
+  void GlobalRollback<GraphAndGainTypes>::recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
@@ -416,8 +415,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixSequential(
+  template<typename GraphAndGainTypes>
+  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(
     PartitionedHypergraph& phg,
     FMSharedData& sharedData,
     const vec<HypernodeWeight>&,
@@ -496,9 +495,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  bool GlobalRollback<TypeTraits, GainTypes>::verifyGains(PartitionedHypergraph& phg,
-                                                          FMSharedData& sharedData) {
+  template<typename GraphAndGainTypes>
+  bool GlobalRollback<GraphAndGainTypes>::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     auto recompute_penalty_terms = [&] {
@@ -557,8 +555,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define GLOBAL_ROLLBACK(X, Y) GlobalRollback<X, Y>
+  #define GLOBAL_ROLLBACK(X) GlobalRollback<X>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(GLOBAL_ROLLBACK)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(GLOBAL_ROLLBACK)
 }

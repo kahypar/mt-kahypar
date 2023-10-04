@@ -25,14 +25,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#pragma once
-
-#include "kahypar-resources/meta/abstract_factory.h"
 #include "kahypar-resources/meta/static_multi_dispatch_factory.h"
 #include "kahypar-resources/meta/typelist.h"
 #include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
@@ -42,10 +40,6 @@
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pq_selection_policy.h"
 
-namespace mt_kahypar {
-using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
-  IInitialPartitioner* (*)(const InitialPartitioningAlgorithm, ip_data_container_t*, const Context&, const int, const int)>;
-}
 
 #define REGISTER_DISPATCHED_INITIAL_PARTITIONER(id, dispatcher, ...)                                  \
   static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## dispatcher(                 \

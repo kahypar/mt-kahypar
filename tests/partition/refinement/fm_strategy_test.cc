@@ -53,9 +53,8 @@ struct AFMStrategy : public Test {
                                      Km1GainCache& gain_cache,
                                      FMSharedData& sd,
                                      BlockPriorityQueue& blockPQ,
-                                     vec<VertexPriorityQueue>& vertexPQs,
-                                     FMStats& fm_stats) {
-    Strategy strategy(context, sd, blockPQ, vertexPQs, fm_stats);
+                                     vec<VertexPriorityQueue>& vertexPQs) {
+    Strategy strategy(context, sd, blockPQ, vertexPQs);
 
     Move m;
     vec<Gain> gains;
@@ -100,13 +99,10 @@ TYPED_TEST(AFMStrategy, FindNextMove) {
   context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
   FMSharedData sd(hg.initialNumNodes(), false);
-  FMStats fm_stats;
-  fm_stats.moves = 1;
-
   BlockPriorityQueue blockPQ(k);
   vec<VertexPriorityQueue> vertexPQs(k, VertexPriorityQueue(sd.vertexPQHandles.data(), sd.numberOfNodes));
 
-  vec<Gain> gains_cached = this->insertAndExtractAllMoves(phg, context, gain_cache, sd, blockPQ, vertexPQs, fm_stats);
+  vec<Gain> gains_cached = this->insertAndExtractAllMoves(phg, context, gain_cache, sd, blockPQ, vertexPQs);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
 }
 

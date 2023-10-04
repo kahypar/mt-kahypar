@@ -132,8 +132,6 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.initial_partitioning.refinement.fm.min_improvement);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.time_limit_factor,
             expected.initial_partitioning.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.perform_moves_global,
-            expected.initial_partitioning.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.rollback_parallel,
             expected.initial_partitioning.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.iter_moves_on_recalc,
@@ -179,8 +177,6 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.refinement.fm.min_improvement);
   ASSERT_EQ(actual.refinement.fm.time_limit_factor,
             expected.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.refinement.fm.perform_moves_global,
-            expected.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.refinement.fm.rollback_parallel,
             expected.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.refinement.fm.iter_moves_on_recalc,
@@ -300,8 +296,6 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.initial_partitioning.refinement.fm.min_improvement);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.time_limit_factor,
             expected.initial_partitioning.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.perform_moves_global,
-            expected.initial_partitioning.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.rollback_parallel,
             expected.initial_partitioning.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.iter_moves_on_recalc,
@@ -349,8 +343,6 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.refinement.fm.min_improvement);
   ASSERT_EQ(actual.refinement.fm.time_limit_factor,
             expected.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.refinement.fm.perform_moves_global,
-            expected.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.refinement.fm.rollback_parallel,
             expected.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.refinement.fm.iter_moves_on_recalc,
@@ -645,8 +637,6 @@ TEST(AContext, LoadsHighestQualityPresetCorrectly) {
             expected.initial_partitioning.refinement.fm.min_improvement);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.time_limit_factor,
             expected.initial_partitioning.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.perform_moves_global,
-            expected.initial_partitioning.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.rollback_parallel,
             expected.initial_partitioning.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.initial_partitioning.refinement.fm.iter_moves_on_recalc,
@@ -702,8 +692,6 @@ TEST(AContext, LoadsHighestQualityPresetCorrectly) {
             expected.refinement.fm.min_improvement);
   ASSERT_EQ(actual.refinement.fm.time_limit_factor,
             expected.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.refinement.fm.perform_moves_global,
-            expected.refinement.fm.perform_moves_global);
   ASSERT_EQ(actual.refinement.fm.rollback_parallel,
             expected.refinement.fm.rollback_parallel);
   ASSERT_EQ(actual.refinement.fm.iter_moves_on_recalc,

@@ -28,120 +28,40 @@
 #pragma once
 
 #include "kahypar-resources/meta/abstract_factory.h"
-#include "kahypar-resources/meta/static_multi_dispatch_factory.h"
-#include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
-#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
-#endif
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
-#include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
-#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
-#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
+typedef struct ip_data_container_s ip_data_container_t;
+
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
                                                 ICoarsener* (*)(mt_kahypar_hypergraph_t, const Context&, uncoarsening_data_t*)>;
-
-using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
-                                                                                ICoarsener,
-                                                                                kahypar::meta::Typelist<TypeTraitsList,
-                                                                                                        RatingScorePolicies,
-                                                                                                        HeavyNodePenaltyPolicies,
-                                                                                                        AcceptancePolicies> >;
-
-using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
-                                                                                   ICoarsener,
-                                                                                   kahypar::meta::Typelist<TypeTraitsList>>;
-
-#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
-                                                                            ICoarsener,
-                                                                            kahypar::meta::Typelist<TypeTraitsList,
-                                                                                                    RatingScorePolicies,
-                                                                                                    HeavyNodePenaltyPolicies,
-                                                                                                    AcceptancePolicies> >;
-#endif
+using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+  IInitialPartitioner* (*)(const InitialPartitioningAlgorithm, ip_data_container_t*, const Context&, const int, const int)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                   IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                        LabelPropagationRefiner,
-                                        IRefiner,
-                                        kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                                  DeterministicLabelPropagationRefiner,
-                                                  IRefiner,
-                                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                            MultiTryKWayFM,
-                            IRefiner,
-                            kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using UnconstrainedFMDispatcher = DefaultFMDispatcher;
-
 using FMStrategyFactory = kahypar::meta::Factory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
-
-using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                      GainCacheStrategy,
-                                      IFMStrategy,
-                                      kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                          UnconstrainedStrategy,
-                                          IFMStrategy,
-                                          kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
 
-using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                  FlowRefinementScheduler,
-                                  IRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
 using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
-
-using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                   SimpleRebalancer,
-                                   IRebalancer,
-                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                     AdvancedRebalancer,
-                                     IRebalancer,
-                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
-
-using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                  FlowRefiner,
-                                  IFlowRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 }  // namespace mt_kahypar
