@@ -48,7 +48,8 @@ class NumNodesTracker {
   }
 
   HypernodeID finalNumNodes() {
-    return _initial_num_nodes - _contracted_nodes.combine(std::plus<HypernodeID>());
+    _current_num_nodes = _initial_num_nodes - _contracted_nodes.combine(std::plus<HypernodeID>());
+    return _current_num_nodes;
   }
 
   void subtractNode(size_t num_threads, HypernodeID hierarchy_contraction_limit) {

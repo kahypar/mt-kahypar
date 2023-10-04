@@ -128,6 +128,10 @@ struct CoarseningParameters {
   double preserve_nodes_relative_weight_limit = 0.001;
   bool use_similarity_penalty = false;
 
+  // Two-Hop Coarsening
+  double twin_required_similarity = 0.75;
+  double twin_min_relative_connectivity = 0.1;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

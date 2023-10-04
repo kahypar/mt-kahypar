@@ -43,7 +43,7 @@ class SingleRoundLP {
   using Rating = MultilevelVertexPairRater::Rating;
 
  public:
-  SingleRoundLP(const Context& context):
+  SingleRoundLP(const HypernodeID /*num_nodes*/, const Context& context):
     _context(context) { }
 
   template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
