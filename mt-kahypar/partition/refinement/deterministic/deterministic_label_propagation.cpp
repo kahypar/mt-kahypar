@@ -177,7 +177,7 @@ namespace mt_kahypar {
   }
 
   template<typename PartitionedHypergraph>
-  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
+  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, PartitionID current_k, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<vec< HypernodeWeight>>
     ets_part_weight_diffs(current_k, 0);
@@ -208,7 +208,7 @@ namespace mt_kahypar {
 
     const auto& max_part_weights = context.partition.max_part_weights;
     size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
-    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves.getData(), num_moves);
+    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, current_k, moves.getData(), num_moves);
     for (PartitionID i = 0; i < current_k; ++i) {
       part_weights[i] += phg.partWeight(i);
       if (part_weights[i] > max_part_weights[i]) {
