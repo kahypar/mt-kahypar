@@ -174,7 +174,6 @@ class ThreePhaseCoarsener : public ICoarsener,
     if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
       return false;
     }
-    _progress_bar += (num_hns_before_pass - current_num_nodes);
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction

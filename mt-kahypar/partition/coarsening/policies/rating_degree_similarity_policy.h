@@ -99,7 +99,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
         return hypergraph.edgeWeight(he);
       } else {
         return static_cast<double>(hypergraph.edgeWeight(he)) /
-          (hypergraph.edgeSize(he) + context.coarsening.incident_weight_scaling_constant);
+          (hypergraph.edgeSize(he) + context.coarsening.rating.incident_weight_scaling_constant);
       }
     };
 
@@ -115,7 +115,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     if constexpr (Hypergraph::is_graph) {
       // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
       // This could be acceptable, though
-      const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.preserve_nodes_relative_weight_limit
+      const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
                                                           * hypergraph.totalWeight());
       tbb::enumerable_thread_specific<parallel::scalable_vector<NeighborData>> local_neighbor_list;
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -149,7 +149,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
             break;
           }
         }
-        _acceptance_limit[hn] = context.coarsening.preserve_nodes_scaling_factor * current_min;
+        _acceptance_limit[hn] = context.coarsening.rating.preserve_nodes_scaling_factor * current_min;
         DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
             << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
       });
@@ -178,7 +178,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
                                                               const Context& context,
                                                               const HypernodeID u,
                                                               const HypernodeID v) const {
-    if (context.coarsening.use_similarity_penalty) {
+    if (context.coarsening.rating.use_similarity_penalty) {
       double ratio_u = _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
       double ratio_v = _incident_weight[v] / std::max(hypergraph.nodeWeight(v), 1);
       return std::max(ratio_u / ratio_v, ratio_v / ratio_u);

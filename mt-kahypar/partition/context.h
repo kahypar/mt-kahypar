@@ -107,6 +107,12 @@ struct RatingParameters {
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
   DegreeSimilarityPolicy degre_similarity_policy = DegreeSimilarityPolicy::UNDEFINED;
+
+  // Similarity policy
+  int32_t incident_weight_scaling_constant = 0;
+  double preserve_nodes_scaling_factor = 0.25;
+  double preserve_nodes_relative_weight_limit = 0.001;
+  bool use_similarity_penalty = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
@@ -122,12 +128,6 @@ struct CoarseningParameters {
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
-
-  // Similarity policy
-  int32_t incident_weight_scaling_constant = 0;
-  double preserve_nodes_scaling_factor = 1.0;
-  double preserve_nodes_relative_weight_limit = 0.001;
-  bool use_similarity_penalty = false;
 
   // Two-Hop Coarsening
   double twin_required_similarity = 0.75;

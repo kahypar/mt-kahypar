@@ -319,7 +319,31 @@ namespace mt_kahypar {
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic coarsening.");
+             "Number of sub-rounds used for deterministic coarsening.")
+            ("c-two-hop-required-similarity",
+             po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
+                     "<double>")->default_value(0.75),
+             "Required neighborhood similarity for two-hop coarsening.")
+            ("c-twin-min-relative-connectivity",
+             po::value<double>(&context.coarsening.twin_min_relative_connectivity)->value_name(
+                     "<double>")->default_value(0.1),
+             "Required relative connectivity to a cluster to include this neighbor in the twin matching neighborhood.")
+            ("c-sim-incident-weight-scaling",
+             po::value<int32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
+                     "<int32_t>")->default_value(0),
+             "Scales how incident weight is computed when determining similarity thresholds.")
+            ("c-sim-preserve-nodes-scaling-factor",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_scaling_factor)->value_name(
+                     "<double>")->default_value(0.25),
+             "Scales the similarity threshold for rejecting contractions (lower = more accepting).")
+            ("c-sim-preserve-nodes-relative-weight-limit",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_relative_weight_limit)->value_name(
+                     "<double>")->default_value(0.001),
+             "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster.")
+            ("c-use-sim-penalty",
+             po::value<bool>(&context.coarsening.rating.use_similarity_penalty)->value_name(
+                     "<bool>")->default_value(false),
+             "Whether a similarity penalty is used for LP coarsening.");
     return options;
   }
 
