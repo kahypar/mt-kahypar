@@ -106,6 +106,7 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
+  DegreeSimilarityPolicy degree_similarity_policy = DegreeSimilarityPolicy::UNDEFINED;
 
   // Similarity policy
   uint32_t incident_weight_scaling_constant = 1;
