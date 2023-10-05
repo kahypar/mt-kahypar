@@ -87,6 +87,8 @@ class TwoHopClustering {
       }
     });
 
+    // TODO: fixed vertices!
+
     // insert degree one nodes and candidates for twins into buckets
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
@@ -97,7 +99,7 @@ class TwoHopClustering {
         for (const HyperedgeID& he : hg.incidentEdges(hn)) {
           for (const HypernodeID& pin: hg.pins(he)) {
             if (pin != hn) {
-              PartitionID target_cluster = cluster_ids[hg.edgeTarget(he)];
+              HypernodeID target_cluster = cluster_ids[pin];
               ASSERT(target_cluster != cluster_ids[hn]);  // holds since we only consider unmatched nodes
               incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / (hg.edgeSize(he) - 1);
             }
@@ -109,9 +111,8 @@ class TwoHopClustering {
         bool is_degree_one_node = false;
         const HypernodeWeight incident_weight_sum = _total_incident_weight[hn];
         for (const auto& entry: incidence_map) {
-          const PartitionID target_cluster = entry.key;
+          const HypernodeID target_cluster = entry.key;
           const double connectivity = entry.value;
-          ASSERT(target_cluster >= 0 && target_cluster != kInvalidPartition);
           if (connectivity >= _context.coarsening.twin_required_similarity * incident_weight_sum) {
             // we consider this to be a degree one node
             _degree_one_map.insert(target_cluster, MatchingEntry{target_cluster, hn});
@@ -135,13 +136,19 @@ class TwoHopClustering {
     tbb::parallel_for(UL(0), _degree_one_map.numBuckets(), [&](const size_t bucket_id) {
       auto& bucket = _degree_one_map.getBucket(bucket_id);
       std::sort(bucket.begin(), bucket.end(), [&](const MatchingEntry& lhs, const MatchingEntry& rhs) {
-        return lhs.key < rhs.key ||
-          (lhs.key == rhs.key && similarity_policy.weightRatioForNode(hg, lhs.hn)
-           < similarity_policy.weightRatioForNode(hg, rhs.hn));
+        if (lhs.key == rhs.key) {
+          const PartitionID community_lhs = hg.communityID(lhs.hn);
+          const PartitionID community_rhs = hg.communityID(rhs.hn);
+          return community_lhs < community_rhs ||
+            (community_lhs == community_rhs && similarity_policy.weightRatioForNode(hg, lhs.hn)
+            < similarity_policy.weightRatioForNode(hg, rhs.hn));
+          } else {
+            return lhs.key < rhs.key;
+          }
       });
       for (size_t i = 0; i + 1 < bucket.size(); ++i) {
         // TODO: match more than 2 nodes?
-        if (bucket[i].key == bucket[i + 1].key) {
+        if (bucket[i].key == bucket[i + 1].key && hg.communityID(bucket[i].hn) == hg.communityID(bucket[i + 1].hn)) {
           ASSERT(clustering_data.vertexIsUnmatched(bucket[i].hn)
                  && clustering_data.vertexIsUnmatched(bucket[i + 1].hn));
           bool success = clustering_data.template matchVertices<has_fixed_vertices>(
@@ -155,6 +162,9 @@ class TwoHopClustering {
         }
       }
     });
+
+    _degree_one_map.clearParallel();
+    _twins_map.clearParallel();
 
     // tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
     //   ASSERT(id < node_mapping.size());
