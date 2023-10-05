@@ -146,8 +146,7 @@ class MultilevelCoarsener : public ICoarsener,
                             "Parallel clustering computed invalid cluster ids and weights");
 
     const double reduction_vertices_percentage =
-      static_cast<double>(num_hns_before_pass) /
-      static_cast<double>(current_num_nodes);
+      static_cast<double>(num_hns_before_pass) / static_cast<double>(current_num_nodes);
     if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
       return false;
     }
@@ -164,10 +163,6 @@ class MultilevelCoarsener : public ICoarsener,
 
   template<bool has_fixed_vertices>
   HypernodeID performClustering(const Hypergraph& current_hg, vec<HypernodeID>& cluster_ids) {
-    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
-    // Matched vertices are linked in a concurrent union find data structure, that also aggregates
-    // weights of the resulting clusters and keep track of the number of nodes left, if we would
-    // contract all matched vertices.
     _timer.start_timer("clustering", "Clustering");
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));

@@ -56,6 +56,7 @@ class SingleRoundLP {
                          NumNodesTracker& num_nodes_tracker,
                          ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                          const DegreeSimilarityPolicy& similarity_policy) {
+    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
