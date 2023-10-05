@@ -117,6 +117,7 @@ struct CoarseningParameters {
   bool use_adaptive_edge_size = false;
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
+  double min_accepted_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 
