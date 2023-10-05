@@ -42,26 +42,28 @@ namespace mt_kahypar {
 
 class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
  public:
-  AlwaysAcceptPolicy(const HypernodeID, const Context&) { }
+  AlwaysAcceptPolicy() { }
+
+  explicit AlwaysAcceptPolicy(const HypernodeID) { }
 
   template<typename Hypergraph>
-  void initialize(const Hypergraph&) { }
+  void initialize(const Hypergraph&, const Context&) { }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool acceptContraction(const Hypergraph&, HypernodeID, HypernodeID) const {
+  bool acceptContraction(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
     return true;
   }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double similarityPenalty(const Hypergraph&, HypernodeID, HypernodeID) const {
+  double similarityPenalty(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
     return 1.0;
   }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double weightRatioForNode(const Hypergraph& hypergraph, const HypernodeID u) {
+  double weightRatioForNode(const Hypergraph& hypergraph, const HypernodeID u) const {
     return 1.0;
   }
 };
@@ -71,11 +73,18 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   static constexpr bool debug = false;
 
  public:
-  PreserveRebalancingNodesPolicy(const HypernodeID num_nodes, const Context& context):
-    _context(context), _incident_weight(num_nodes, 0), _acceptance_limit(num_nodes, 0) {}
+  PreserveRebalancingNodesPolicy(): PreserveRebalancingNodesPolicy(0) {}
+
+  explicit PreserveRebalancingNodesPolicy(const HypernodeID num_nodes):
+    _incident_weight(num_nodes, 0), _acceptance_limit(num_nodes, 0) {}
+
+  PreserveRebalancingNodesPolicy(const PreserveRebalancingNodesPolicy&) = delete;
+  PreserveRebalancingNodesPolicy(PreserveRebalancingNodesPolicy&&) = delete;
+  PreserveRebalancingNodesPolicy & operator= (const PreserveRebalancingNodesPolicy &) = delete;
+  PreserveRebalancingNodesPolicy & operator= (PreserveRebalancingNodesPolicy &&) = delete;
 
   template<typename Hypergraph>
-  void initialize(const Hypergraph& hypergraph) {
+  void initialize(const Hypergraph& hypergraph, const Context& context) {
     ASSERT(_incident_weight.size() >= hypergraph.initialNumNodes()
            && _acceptance_limit.size() >= hypergraph.initialNumNodes());
 
@@ -90,7 +99,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
         return hypergraph.edgeWeight(he);
       } else {
         return static_cast<double>(hypergraph.edgeWeight(he)) /
-          (hypergraph.edgeSize(he) + _context.coarsening.incident_weight_scaling_constant);
+          (hypergraph.edgeSize(he) + context.coarsening.incident_weight_scaling_constant);
       }
     };
 
@@ -106,7 +115,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     if constexpr (Hypergraph::is_graph) {
       // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
       // This could be acceptable, though
-      const HypernodeWeight max_summed_weight = std::ceil(_context.coarsening.preserve_nodes_relative_weight_limit
+      const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.preserve_nodes_relative_weight_limit
                                                           * hypergraph.totalWeight());
       tbb::enumerable_thread_specific<parallel::scalable_vector<NeighborData>> local_neighbor_list;
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -140,7 +149,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
             break;
           }
         }
-        _acceptance_limit[hn] = _context.coarsening.preserve_nodes_scaling_factor * current_min;
+        _acceptance_limit[hn] = context.coarsening.preserve_nodes_scaling_factor * current_min;
         DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
             << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
       });
@@ -152,6 +161,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   // this function decides if contracting v onto u is allowed
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptContraction(const Hypergraph& hypergraph,
+                                                            const Context&,
                                                             const HypernodeID u,
                                                             const HypernodeID v) const {
     double ratio_u = _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
@@ -165,9 +175,10 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double similarityPenalty(const Hypergraph& hypergraph,
+                                                              const Context& context,
                                                               const HypernodeID u,
                                                               const HypernodeID v) const {
-    if (_context.coarsening.use_similarity_penalty) {
+    if (context.coarsening.use_similarity_penalty) {
       double ratio_u = _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
       double ratio_v = _incident_weight[v] / std::max(hypergraph.nodeWeight(v), 1);
       return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
@@ -176,12 +187,12 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   }
 
   template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph& hypergraph, const HypernodeID u) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph& hypergraph,
+                                                               const HypernodeID u) const {
     return _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
   }
 
  private:
-  const Context& _context;
   parallel::scalable_vector<float> _incident_weight;   // TODO: use ints for graphs??
   parallel::scalable_vector<float> _acceptance_limit;
 };

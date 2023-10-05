@@ -174,8 +174,8 @@ class MultilevelCoarsener : public ICoarsener,
     NumNodesTracker num_nodes_tracker(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
     ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
     fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
-    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes(), _context);
-    similarity_policy.initialize(current_hg);
+    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes());
+    similarity_policy.initialize(current_hg, _context);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
 
     _clustering_algo.template performClustering<has_fixed_vertices>(
