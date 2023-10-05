@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel/nlevel_coarsener.h"
 #endif
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/three_phase_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
@@ -48,6 +49,13 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                                         RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
+using ThreePhaseCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<ThreePhaseCoarsener,
+                                                                                ICoarsener,
+                                                                                kahypar::meta::Typelist<TypeTraitsList,
+                                                                                                        RatingScorePolicies,
+                                                                                                        HeavyNodePenaltyPolicies,
+                                                                                                        AcceptancePolicies,
+                                                                                                        DegreeSimilarityPolicies> >;
 
 using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
                                                                                    ICoarsener,
@@ -84,6 +92,20 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
+
+
+REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::three_phase_coarsener,
+                              ThreePhaseCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
+                              kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
+                                context.coarsening.rating.rating_function),
+                              kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
+                                context.coarsening.rating.heavy_node_penalty_policy),
+                              kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
+                                context.coarsening.rating.acceptance_policy),
+                              kahypar::meta::PolicyRegistry<DegreeSimilarityPolicy>::getInstance().getPolicy(
+                                context.coarsening.rating.degre_similarity_policy));
 
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,

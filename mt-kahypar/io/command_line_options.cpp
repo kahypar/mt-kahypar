@@ -244,6 +244,7 @@ namespace mt_kahypar {
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
              " - multilevel_coarsener"
+             " - three_phase_coarsener"
              " - nlevel_coarsener"
              " - deterministic_multilevel_coarsener"
              )
@@ -303,6 +304,14 @@ namespace mt_kahypar {
              "- best\n"
              #endif
              "- best_prefer_unmatched")
+            ("c-rating-degree-similarity-policy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& ds) {
+                       context.coarsening.rating.degre_similarity_policy =
+                               degreeSimilarityFromString(ds);
+                     })->default_value("preserve_rebalancing_nodes"),
+             "Policy that determines which contractions between low and high degree nodes are accepted:\n"
+             "- preserve_rebalancing_nodes")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
