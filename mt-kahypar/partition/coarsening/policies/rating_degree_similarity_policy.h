@@ -186,4 +186,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   parallel::scalable_vector<float> _acceptance_limit;
 };
 
+
+using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy>;
+
 }  // namespace mt_kahypar
