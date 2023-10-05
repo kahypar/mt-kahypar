@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_degree_similarity_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -87,6 +88,9 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
 #endif
+
+REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::preserve_rebalancing_nodes,
+                PreserveRebalancingNodesPolicy);
 
 // //////////////////////////////////////////////////////////////////////////////
 //                            Gain Type Policies

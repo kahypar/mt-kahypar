@@ -110,6 +110,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
+  three_phase_coarsener,
   deterministic_multilevel_coarsener,
   nlevel_coarsener,
   UNDEFINED
@@ -131,6 +132,11 @@ enum class HeavyNodePenaltyPolicy : uint8_t {
 enum class AcceptancePolicy : uint8_t {
   ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
+  UNDEFINED
+};
+
+enum class DegreeSimilarityPolicy : uint8_t {
+  preserve_rebalancing_nodes,
   UNDEFINED
 };
 
@@ -210,6 +216,8 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
 
+std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy);
+
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
@@ -243,6 +251,8 @@ CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 
 AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
+
+DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds);
 
 RatingFunction ratingFunctionFromString(const std::string& function);
 

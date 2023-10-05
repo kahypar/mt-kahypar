@@ -37,7 +37,9 @@ namespace mt_kahypar {
 
 class NumNodesTracker {
  public:
-  NumNodesTracker(HypernodeID initial_num_nodes):
+  explicit NumNodesTracker(): NumNodesTracker(0) { }
+
+  explicit NumNodesTracker(HypernodeID initial_num_nodes):
     _initial_num_nodes(initial_num_nodes),
     _current_num_nodes(initial_num_nodes),
     _contracted_nodes(0),
@@ -50,6 +52,13 @@ class NumNodesTracker {
   HypernodeID finalNumNodes() {
     _current_num_nodes = _initial_num_nodes - _contracted_nodes.combine(std::plus<HypernodeID>());
     return _current_num_nodes;
+  }
+
+  void initialize(HypernodeID initial_num_nodes) {
+    _initial_num_nodes = initial_num_nodes;
+    _current_num_nodes = initial_num_nodes;
+    _contracted_nodes = 0;
+    _num_nodes_update_threshold = 0;
   }
 
   void subtractNode(size_t num_threads, HypernodeID hierarchy_contraction_limit) {
