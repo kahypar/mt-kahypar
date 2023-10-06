@@ -125,26 +125,12 @@ class TwoHopClustering {
     ASSERT(_context.coarsening.twin_required_similarity >= 0.5);
     _degree_one_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
     _twins_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
-    _total_incident_weight.resize(hg.initialNumNodes());
 
-    tbb::enumerable_thread_specific<HypernodeID> degree_zero_nodes(0);
-    hg.doParallelForAllNodes([&](const HypernodeID hn) {  // can this be done on the fly?
-      if (clustering_data.vertexIsUnmatched(hn)) {
-        HyperedgeWeight incident_weight_sum = 0;
-        for (const HyperedgeID& he: hg.incidentEdges(hn)) {
-          incident_weight_sum += hg.edgeWeight(he);
-        }
-        _total_incident_weight[hn] = incident_weight_sum;
-        if (incident_weight_sum == 0) {
-          degree_zero_nodes.local()++;
-        }
-      }
-    });
-
-    // TODO: fixed vertices!
     auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn) {
       // TODO: can we do this more efficiently for graphs?
+      HyperedgeWeight incident_weight_sum = 0;
       for (const HyperedgeID& he : hg.incidentEdges(hn)) {
+        incident_weight_sum += hg.edgeWeight(he);
         for (const HypernodeID& pin: hg.pins(he)) {
           if (pin != hn) {
             HypernodeID target_cluster = cluster_ids[pin];
@@ -153,6 +139,7 @@ class TwoHopClustering {
           }
         }
       }
+      return incident_weight_sum;
     };
 
     // insert degree one nodes and candidates for twins into buckets
@@ -162,12 +149,11 @@ class TwoHopClustering {
       if (hg.nodeIsEnabled(hn) && clustering_data.vertexIsUnmatched(hn)
           && hg.nodeDegree(hn) <= HIGH_DEGREE_THRESHOLD) {
         IncidenceMap& incidence_map = _local_incidence_map.local();
-        fill_incidence_map_for_node(incidence_map, hn);
+        const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn);
 
         HypernodeID key = 0;
         HyperedgeWeight considered_connectivity = 0;
         bool is_degree_one_node = false;
-        const HyperedgeWeight incident_weight_sum = _total_incident_weight[hn];
         for (const auto& entry: incidence_map) {
           const HypernodeID target_cluster = entry.key;
           const double connectivity = entry.value;
@@ -236,6 +222,7 @@ class TwoHopClustering {
     // match twins
     tbb::parallel_for(UL(0), _twins_map.numBuckets(), [&](const size_t bucket_id) {
       auto& bucket = _twins_map.getBucket(bucket_id);
+      IncidenceMap& incidence_map = _local_incidence_map.local();
       std::sort(bucket.begin(), bucket.end(), bucket_comparator);
 
       for (size_t i = 0; i + 1 < bucket.size(); ++i) {
@@ -243,10 +230,8 @@ class TwoHopClustering {
           continue;
         }
 
-        IncidenceMap& incidence_map = _local_incidence_map.local();
-        fill_incidence_map_for_node(incidence_map, bucket[i].hn);
+        const HyperedgeWeight incident_weight_sum_u = fill_incidence_map_for_node(incidence_map, bucket[i].hn);
         NeighborhoodData neighbor_data;
-        const HyperedgeWeight incident_weight_sum_u = _total_incident_weight[bucket[i].hn];
         for (const auto& entry: incidence_map) {
           const HypernodeID target_cluster = entry.key;
           const double connectivity = entry.value;
@@ -262,9 +247,8 @@ class TwoHopClustering {
             continue;
           }
 
-          // we compute the jaccard similarity of the two nodes
-          const HyperedgeWeight incident_weight_sum_v = _total_incident_weight[bucket[j].hn];
-          fill_incidence_map_for_node(incidence_map, bucket[j].hn);
+          // we compute a "relative" jaccard similarity of the two nodes
+          const HyperedgeWeight incident_weight_sum_v = fill_incidence_map_for_node(incidence_map, bucket[j].hn);
           double relative_weight_of_intersection = 0;
           for (const auto& entry: incidence_map) {
             const double connectivity_v = entry.value;
@@ -283,7 +267,6 @@ class TwoHopClustering {
 
           // decide whether the neighborhood similarity is sufficiently high
           if (relative_weight_of_intersection >= _context.coarsening.twin_required_similarity) {
-            // LOG << "Success: " << V(bucket[i].hn) << V(bucket[j].hn) << V(weight_of_intersection) << V(weight_of_union);
             bool success = clustering_data.template matchVertices<has_fixed_vertices>(
               hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
             if (success) {
@@ -291,9 +274,6 @@ class TwoHopClustering {
               num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
               matched_twins.local()++;
             }
-          } else {
-            // LOG << "Not a match: " << V(bucket[i].hn) << V(bucket[j].hn) << V(weight_of_intersection) << V(weight_of_union)
-            //     << V(incident_weight_sum_v) << V(incident_weight_sum_u);
           }
         }
       }
@@ -306,7 +286,6 @@ class TwoHopClustering {
 
  private:
   const Context& _context;
-  parallel::scalable_vector<HyperedgeWeight> _total_incident_weight;
   ds::ConcurrentBucketMap<MatchingEntry> _degree_one_map;
   ds::ConcurrentBucketMap<MatchingEntry> _twins_map;
   tbb::enumerable_thread_specific<IncidenceMap> _local_incidence_map;
