@@ -197,14 +197,17 @@ class ThreePhaseCoarsener : public ICoarsener,
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
 
+    auto weight_ratio_fn = [&](const HypernodeID hn) {
+      return _similarity_policy.weightRatioForNode(current_hg, hn);
+    };
     if ( current_hg.hasFixedVertices() ) {
       algo.template performClustering<true>(
           current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity);
+          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity, weight_ratio_fn);
     } else {
       algo.template performClustering<false>(
           current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity);
+          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity, weight_ratio_fn);
     }
 
     if ( _context.partition.show_detailed_clustering_timings ) {
