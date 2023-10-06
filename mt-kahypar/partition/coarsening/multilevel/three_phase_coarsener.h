@@ -156,6 +156,7 @@ class ThreePhaseCoarsener : public ICoarsener,
 
     // Phase 2: Two-hop coarsening for low degree nodes
     if (current_num_nodes > hierarchy_contraction_limit) {
+      DBG << "Start Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(hierarchy_contraction_limit);
       coarseningRound("first_two_hop_round", "First two-hop round",
                      current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
@@ -167,12 +168,14 @@ class ThreePhaseCoarsener : public ICoarsener,
     cc.contract_aggressively = true;
     cc.hierarchy_contraction_limit = target_contraction_size;
     if (current_num_nodes > target_contraction_size) {
+      DBG << "Start Second LP round: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
       coarseningRound("second_lp_round", "Second LP round",
                       current_hg, _lp_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
     }
     if (current_num_nodes > target_contraction_size) {
+      DBG << "Start Second Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
       coarseningRound("second_two_hop_round", "Second two-hop round",
                      current_hg, _two_hop_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
