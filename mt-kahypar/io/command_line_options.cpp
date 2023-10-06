@@ -267,6 +267,9 @@ namespace mt_kahypar {
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")
+            ("c-min-accepted-shrink-factor",
+             po::value<double>(&context.coarsening.min_accepted_shrink_factor)->value_name("<double>")->default_value(1.75),
+             "Minimum factor a hypergraph should shrink in a multilevel pass. Sub-optimal contractions might be used to reach it.")
             ("c-max-shrink-factor",
              po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>")->default_value(2.5),
              "Maximum factor a hypergraph is allowed to shrink in a clustering pass")
@@ -324,6 +327,10 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
                      "<double>")->default_value(0.75),
              "Required neighborhood similarity for two-hop coarsening.")
+            ("c-two-hop-reduced-similarity",
+             po::value<double>(&context.coarsening.twin_reduced_required_similarity)->value_name(
+                     "<double>")->default_value(0.4),
+             "Required neighborhood similarity for two-hop coarsening if no other contractions are possible.")
             ("c-twin-min-relative-connectivity",
              po::value<double>(&context.coarsening.twin_min_relative_connectivity)->value_name(
                      "<double>")->default_value(0.1),
