@@ -50,7 +50,9 @@ class NumNodesTracker {
   }
 
   HypernodeID finalNumNodes() {
+    // update state / reset
     _current_num_nodes = _initial_num_nodes - _contracted_nodes.combine(std::plus<HypernodeID>());
+    _num_nodes_update_threshold = tbb::enumerable_thread_specific<HypernodeID>(0);
     return _current_num_nodes;
   }
 

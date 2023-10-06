@@ -104,6 +104,9 @@ class TwoHopClustering {
         ERR("Value for twin-min-relative-connectivity too small, must be at least"
              << (1.0 / NeighborhoodData::MAX_NEIGHBORHOOD_SIZE));
       }
+      if (_context.coarsening.degree_one_node_cluster_size < 2) {
+        ERR("Value for c-degree-one-node-cluster-size too small, must be at least 2");
+      }
     }
 
   TwoHopClustering(const TwoHopClustering&) = delete;
@@ -112,7 +115,7 @@ class TwoHopClustering {
   TwoHopClustering & operator= (const TwoHopClustering &) = delete;
   TwoHopClustering & operator= (TwoHopClustering &&) = delete;
 
-  template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
+  template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy, typename F>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
                          const HypernodeID hierarchy_contraction_limit,
@@ -121,7 +124,8 @@ class TwoHopClustering {
                          ConcurrentClusteringData& clustering_data,
                          NumNodesTracker& num_nodes_tracker,
                          ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                         const DegreeSimilarityPolicy& similarity_policy) {
+                         const DegreeSimilarityPolicy& similarity_policy,
+                         F weight_ratio_for_node_fn) {
     ASSERT(_context.coarsening.twin_required_similarity >= 0.5);
     _degree_one_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
     _twins_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
@@ -181,15 +185,16 @@ class TwoHopClustering {
         const PartitionID community_lhs = hg.communityID(lhs.hn);
         const PartitionID community_rhs = hg.communityID(rhs.hn);
         return community_lhs < community_rhs ||
-          (community_lhs == community_rhs && similarity_policy.weightRatioForNode(hg, lhs.hn)
-          < similarity_policy.weightRatioForNode(hg, rhs.hn));
+          (community_lhs == community_rhs && weight_ratio_for_node_fn(lhs.hn) < weight_ratio_for_node_fn(rhs.hn));
         } else {
           return lhs.key < rhs.key;
         }
     };
+    const auto& cluster_weight = clustering_data.clusterWeight();
     auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
+      ASSERT(clustering_data.vertexIsUnmatched(v));
       bool same_community = hg.communityID(u) == hg.communityID(v);
-      bool weight_allowed = hg.nodeWeight(u) + hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
+      bool weight_allowed = cluster_weight[cluster_ids[u]] +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
       bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);
       // TODO fixed vertices
       return same_community && weight_allowed && accept_similarity;
@@ -202,82 +207,90 @@ class TwoHopClustering {
       auto& bucket = _degree_one_map.getBucket(bucket_id);
       std::sort(bucket.begin(), bucket.end(), bucket_comparator);
 
-      for (size_t i = 0; i + 1 < bucket.size(); ++i) {
-        // TODO: match more than 2 nodes?
-        if (bucket[i].key == bucket[i + 1].key && accept_contraction(bucket[i].hn, bucket[i + 1].hn)) {
-          ASSERT(clustering_data.vertexIsUnmatched(bucket[i].hn)
-                 && clustering_data.vertexIsUnmatched(bucket[i + 1].hn));
+      for (size_t i = 0; i + 1 < bucket.size() && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit; ++i) {
+        HypernodeID num_matches = 0;
+        for (size_t j = i + 1; j < i + _context.coarsening.degree_one_node_cluster_size && j < bucket.size()
+             && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
+             && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
+          ASSERT((j > i + 1 || clustering_data.vertexIsUnmatched(bucket[i].hn))
+                 && clustering_data.vertexIsUnmatched(bucket[j].hn));
           bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-            hg, bucket[i].hn, bucket[i + 1].hn, cluster_ids, rater, fixed_vertices);
+            hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
           if (success) {
             // update the number of nodes in a way that minimizes synchronization overhead
             num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
-            matched_d1_nodes.local()++;
-            ++i;
+            num_matches++;
+          } else {
+            break;
           }
         }
+        i += num_matches;
+        matched_d1_nodes.local() += num_matches;
       }
     });
 
     // match twins
-    tbb::parallel_for(UL(0), _twins_map.numBuckets(), [&](const size_t bucket_id) {
-      auto& bucket = _twins_map.getBucket(bucket_id);
-      IncidenceMap& incidence_map = _local_incidence_map.local();
-      std::sort(bucket.begin(), bucket.end(), bucket_comparator);
+    if (num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit) {
+      tbb::parallel_for(UL(0), _twins_map.numBuckets(), [&](const size_t bucket_id) {
+        auto& bucket = _twins_map.getBucket(bucket_id);
+        IncidenceMap& incidence_map = _local_incidence_map.local();
+        std::sort(bucket.begin(), bucket.end(), bucket_comparator);
 
-      for (size_t i = 0; i + 1 < bucket.size(); ++i) {
-        if (!clustering_data.vertexIsUnmatched(bucket[i].hn)) {
-          continue;
-        }
-
-        const HyperedgeWeight incident_weight_sum_u = fill_incidence_map_for_node(incidence_map, bucket[i].hn);
-        NeighborhoodData neighbor_data;
-        for (const auto& entry: incidence_map) {
-          const HypernodeID target_cluster = entry.key;
-          const double connectivity = entry.value;
-          if (connectivity >= _context.coarsening.twin_min_relative_connectivity * incident_weight_sum_u) {
-            neighbor_data.insert(target_cluster, connectivity);
-          }
-        }
-        incidence_map.clear();
-
-        for (size_t j = i + 1; j < i + TWIN_MATCHING_MAX_ATTEMPTS + 1 && j < bucket.size()
-             && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
-          if (!clustering_data.vertexIsUnmatched(bucket[j].hn)) {
+        for (size_t i = 0; i + 1 < bucket.size() && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit; ++i) {
+          if (!clustering_data.vertexIsUnmatched(bucket[i].hn)) {
             continue;
           }
 
-          // we compute a "relative" jaccard similarity of the two nodes
-          const HyperedgeWeight incident_weight_sum_v = fill_incidence_map_for_node(incidence_map, bucket[j].hn);
-          double relative_weight_of_intersection = 0;
+          // prepare neighborhood data for current node
+          const HyperedgeWeight incident_weight_sum_u = fill_incidence_map_for_node(incidence_map, bucket[i].hn);
+          NeighborhoodData neighbor_data;
           for (const auto& entry: incidence_map) {
-            const double connectivity_v = entry.value;
-            if (connectivity_v >= _context.coarsening.twin_min_relative_connectivity * incident_weight_sum_v) {
-              double connectivity_u = neighbor_data.get(entry.key);
-              if (connectivity_u > 0) {
-                relative_weight_of_intersection += std::min(connectivity_u / incident_weight_sum_u,
-                                                            connectivity_v / incident_weight_sum_v);
-              } else {
-                break;
+            const HypernodeID target_cluster = entry.key;
+            const double connectivity = entry.value;
+            if (connectivity >= _context.coarsening.twin_min_relative_connectivity * incident_weight_sum_u) {
+              neighbor_data.insert(target_cluster, connectivity);
+            }
+          }
+          incidence_map.clear();
+
+          for (size_t j = i + 1; j < i + TWIN_MATCHING_MAX_ATTEMPTS + 1 && j < bucket.size()
+              && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
+            if (!clustering_data.vertexIsUnmatched(bucket[j].hn)) {
+              continue;
+            }
+
+            // we compute a "relative" jaccard similarity of the two nodes
+            const HyperedgeWeight incident_weight_sum_v = fill_incidence_map_for_node(incidence_map, bucket[j].hn);
+            double relative_weight_of_intersection = 0;
+            for (const auto& entry: incidence_map) {
+              const double connectivity_v = entry.value;
+              if (connectivity_v >= _context.coarsening.twin_min_relative_connectivity * incident_weight_sum_v) {
+                double connectivity_u = neighbor_data.get(entry.key);
+                if (connectivity_u > 0) {
+                  relative_weight_of_intersection += std::min(connectivity_u / incident_weight_sum_u,
+                                                              connectivity_v / incident_weight_sum_v);
+                } else {
+                  break;
+                }
+              }
+            }
+            ASSERT(relative_weight_of_intersection <= 1.0001);
+            incidence_map.clear();
+
+            // decide whether the neighborhood similarity is sufficiently high
+            if (relative_weight_of_intersection >= _context.coarsening.twin_required_similarity) {
+              bool success = clustering_data.template matchVertices<has_fixed_vertices>(
+                hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
+              if (success) {
+                // update the number of nodes in a way that minimizes synchronization overhead
+                num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
+                matched_twins.local()++;
               }
             }
           }
-          ASSERT(relative_weight_of_intersection <= 1.0001);
-          incidence_map.clear();
-
-          // decide whether the neighborhood similarity is sufficiently high
-          if (relative_weight_of_intersection >= _context.coarsening.twin_required_similarity) {
-            bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-              hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
-            if (success) {
-              // update the number of nodes in a way that minimizes synchronization overhead
-              num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
-              matched_twins.local()++;
-            }
-          }
         }
-      }
-    });
+      });
+    }
 
     _degree_one_map.clearParallel();
     _twins_map.clearParallel();

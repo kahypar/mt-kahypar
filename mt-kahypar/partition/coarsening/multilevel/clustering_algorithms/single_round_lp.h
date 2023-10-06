@@ -55,7 +55,10 @@ class SingleRoundLP {
                          ConcurrentClusteringData& clustering_data,
                          NumNodesTracker& num_nodes_tracker,
                          ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                         const DegreeSimilarityPolicy& similarity_policy) {
+                         const DegreeSimilarityPolicy& similarity_policy,
+                         std::function<double (HypernodeID)> weight_ratio_for_node_fn = [](const HypernodeID) { return 1.0; }) {
+    unused(weight_ratio_for_node_fn);  // parameter only exists for compatibility with TwoHopClustering
+
     // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
