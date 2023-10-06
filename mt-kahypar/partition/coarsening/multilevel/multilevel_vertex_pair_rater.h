@@ -119,23 +119,24 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const DegreeSimilarityPolicy& similarity_policy,
-                        const HypernodeWeight max_allowed_node_weight) {
+                        const HypernodeWeight max_allowed_node_weight,
+                        const bool may_ignore_communities) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, _local_cache_efficient_rating_map.local(),
-        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, false);
+        hypergraph, u, _local_cache_efficient_rating_map.local(), cluster_ids, cluster_weight,
+        fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, _local_vertex_degree_bounded_rating_map.local(),
-        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, true);
+        hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), cluster_ids, cluster_weight,
+        fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, large_tmp_rating_map,
-        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, false);
+        hypergraph, u, large_tmp_rating_map, cluster_ids, cluster_weight,
+        fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, false);
     }
   }
 
@@ -166,6 +167,7 @@ class MultilevelVertexPairRater {
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const DegreeSimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
+                        const bool may_ignore_communities,
                         const bool use_vertex_degree_sampling) {
 
     if ( use_vertex_degree_sampling ) {
@@ -174,9 +176,26 @@ class MultilevelVertexPairRater {
       fillRatingMap<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids);
     }
 
-    int cpu_id = THREAD_ID;
     const HypernodeWeight weight_u = cluster_weight[u];
     const PartitionID community_u_id = hypergraph.communityID(u);
+    bool ignore_communities = false;
+    if (may_ignore_communities) {
+      ignore_communities = true;
+      // ignore communities if no contraction within the community is possible
+      for (const auto& entry: tmp_ratings) {
+        const HypernodeID tmp_target = entry.key;
+        const HypernodeWeight target_weight = cluster_weight[entry.key];
+          if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight
+               && similarity_policy.acceptContraction(hypergraph, _context, u, tmp_target)
+               && community_u_id == hypergraph.communityID(tmp_target) ) {
+            // TODO: fixed vertices?!
+            ignore_communities = false;
+            break;
+          }
+      }
+    }
+
+    int cpu_id = THREAD_ID;
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
@@ -201,7 +220,7 @@ class MultilevelVertexPairRater {
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
         if ( accept_fixed_vertex_contraction &&
-             community_u_id == hypergraph.communityID(tmp_target) &&
+             (ignore_communities || community_u_id == hypergraph.communityID(tmp_target)) &&
              AcceptancePolicy::acceptRating( tmp_rating, max_rating,
                target_id, tmp_target_id, cpu_id, _already_matched) ) {
           max_rating = tmp_rating;

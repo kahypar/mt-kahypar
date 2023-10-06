@@ -135,6 +135,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     });
 
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    const HypernodeID target_contraction_size = targetContractionSize(current_hg);
+    ASSERT(target_contraction_size >= hierarchy_contraction_limit);
     const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = num_hns_before_pass;
 
@@ -152,15 +154,32 @@ class ThreePhaseCoarsener : public ICoarsener,
     _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
 
+    // Phase 2: Two-hop coarsening for low degree nodes
     if (current_num_nodes > hierarchy_contraction_limit) {
-      // Phase 2: Two-hop coarsening for low degree nodes
+      coarseningRound("first_two_hop_round", "First two-hop round",
+                     current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
     }
 
-    // TODO: community ids
+    // Phase 3: LP and two-hop coarsening with all contractions allowed (as well as contracting size 1 communities)
+    cc.may_ignore_communities = true;
+    cc.contract_aggressively = true;
+    cc.hierarchy_contraction_limit = target_contraction_size;
+    if (current_num_nodes > target_contraction_size) {
+      coarseningRound("second_lp_round", "Second LP round",
+                      current_hg, _lp_clustering, _always_accept_policy, cc);
+      _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
+      current_num_nodes = _num_nodes_tracker.currentNumNodes();
+    }
+    if (current_num_nodes > target_contraction_size) {
+      coarseningRound("second_two_hop_round", "Second two-hop round",
+                     current_hg, _two_hop_clustering, _always_accept_policy, cc);
+      _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
+      current_num_nodes = _num_nodes_tracker.currentNumNodes();
+    }
 
-    DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
+    DBG << V(current_num_nodes) << V(target_contraction_size) << V(hierarchy_contraction_limit);
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {
       return false;
@@ -228,6 +247,12 @@ class ThreePhaseCoarsener : public ICoarsener,
   HypernodeID hierarchyContractionLimit(const Hypergraph& hypergraph) const {
     return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
       hypergraph.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor ),
+      _context.coarsening.contraction_limit );
+  }
+
+  HypernodeID targetContractionSize(const Hypergraph& hypergraph) const {
+    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
+      hypergraph.numRemovedHypernodes()) / _context.coarsening.min_accepted_shrink_factor ),
       _context.coarsening.contraction_limit );
   }
 

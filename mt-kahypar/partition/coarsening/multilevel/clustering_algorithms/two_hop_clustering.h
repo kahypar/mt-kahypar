@@ -143,6 +143,8 @@ class TwoHopClustering {
     };
 
     // insert degree one nodes and candidates for twins into buckets
+    const double required_similarity = cc.contract_aggressively ?
+        _context.coarsening.twin_reduced_required_similarity : _context.coarsening.twin_required_similarity;
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
@@ -157,7 +159,7 @@ class TwoHopClustering {
         for (const auto& entry: incidence_map) {
           const HypernodeID target_cluster = entry.key;
           const double connectivity = entry.value;
-          if (connectivity >= _context.coarsening.twin_required_similarity * incident_weight_sum) {
+          if (connectivity >= required_similarity * incident_weight_sum) {
             // we consider this to be a degree one node
             _degree_one_map.insert(target_cluster, MatchingEntry{target_cluster, hn});
             is_degree_one_node = true;
@@ -169,7 +171,7 @@ class TwoHopClustering {
           }
         }
         if (!is_degree_one_node && incident_weight_sum > 0
-            && considered_connectivity >= _context.coarsening.twin_required_similarity * incident_weight_sum) {
+            && considered_connectivity >= required_similarity * incident_weight_sum) {
           _twins_map.insert(key, MatchingEntry{key, hn});
         }
         incidence_map.clear();
@@ -188,11 +190,11 @@ class TwoHopClustering {
     };
     auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
       ASSERT(cc.vertexIsUnmatched(v));
-      bool same_community = hg.communityID(u) == hg.communityID(v);
+      bool accept_community = cc.may_ignore_communities || (hg.communityID(u) == hg.communityID(v));
       bool weight_allowed = cc.clusterWeight(u) +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
       bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);
       // TODO fixed vertices
-      return same_community && weight_allowed && accept_similarity;
+      return accept_community && weight_allowed && accept_similarity;
     };
 
     tbb::enumerable_thread_specific<HypernodeID> matched_d1_nodes(0);
@@ -208,7 +210,7 @@ class TwoHopClustering {
         for (size_t j = i + 1; j < i + max_size && j < bucket.size() && cc.shouldContinue()
              && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
           ASSERT((j > i + 1 || cc.vertexIsUnmatched(bucket[i].hn)) && cc.vertexIsUnmatched(bucket[j].hn));
-          bool success = cc.matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
+          bool success = cc.template matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
           if (success) {
             num_matches++;
           } else {
@@ -269,8 +271,8 @@ class TwoHopClustering {
             incidence_map.clear();
 
             // decide whether the neighborhood similarity is sufficiently high
-            if (relative_weight_of_intersection >= _context.coarsening.twin_required_similarity) {
-              bool success = cc.matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
+            if (relative_weight_of_intersection >= required_similarity) {
+              bool success = cc.template matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
               if (success) {
                 matched_twins.local()++;
               }

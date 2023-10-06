@@ -125,12 +125,14 @@ struct CoarseningParameters {
   bool use_adaptive_edge_size = false;
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
+  double min_accepted_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 
   // Two-Hop Coarsening
   double twin_required_similarity = 0.75;
+  double twin_reduced_required_similarity = 0.4;
   double twin_min_relative_connectivity = 0.1;
   HypernodeID degree_one_node_cluster_size = 4;
 
