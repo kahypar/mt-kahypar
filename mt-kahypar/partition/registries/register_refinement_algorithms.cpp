@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
@@ -54,6 +55,11 @@ using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicLabelPropagationRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                DeterministicJetRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -217,6 +223,9 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic_jet,
+                               DeterministicJetDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 

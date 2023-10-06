@@ -405,12 +405,12 @@ namespace mt_kahypar {
 
       // switch silently
       auto lp_algo = refinement.label_propagation.algorithm;
-      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet) {
         refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
 
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
-      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
     }
