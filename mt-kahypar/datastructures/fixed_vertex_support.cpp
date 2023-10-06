@@ -147,28 +147,28 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
 }
 
 template<typename Hypergraph>
-bool FixedVertexSupport<Hypergraph>::verifyClustering(const Hypergraph& hg, const vec<HypernodeID>& cluster_ids) const {
-  vec<PartitionID> fixed_vertex_blocks(hg.initialNumNodes(), kInvalidPartition);
-  for ( const HypernodeID& hn : hg.nodes() ) {
-    if ( hg.isFixed(hn) ) {
+bool FixedVertexSupport<Hypergraph>::verifyClustering(const vec<HypernodeID>& cluster_ids) const {
+  vec<PartitionID> fixed_vertex_blocks(_hg->initialNumNodes(), kInvalidPartition);
+  for ( const HypernodeID& hn : _hg->nodes() ) {
+    if ( _hg->isFixed(hn) ) {
       if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition &&
-            fixed_vertex_blocks[cluster_ids[hn]] != hg.fixedVertexBlock(hn)) {
+            fixed_vertex_blocks[cluster_ids[hn]] != _hg->fixedVertexBlock(hn)) {
         LOG << "There are two nodes assigned to same cluster that belong to different fixed vertex blocks";
         return false;
       }
-      fixed_vertex_blocks[cluster_ids[hn]] = hg.fixedVertexBlock(hn);
+      fixed_vertex_blocks[cluster_ids[hn]] = _hg->fixedVertexBlock(hn);
     }
   }
 
   vec<HypernodeWeight> expected_block_weights(_k, 0);
-  for ( const HypernodeID& hn : hg.nodes() ) {
+  for ( const HypernodeID& hn : _hg->nodes() ) {
     if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
       if ( !isFixed(cluster_ids[hn]) ) {
         LOG << "Cluster" << cluster_ids[hn] << "should be fixed to block"
             << fixed_vertex_blocks[cluster_ids[hn]];
         return false;
       }
-      expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += hg.nodeWeight(hn);
+      expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += _hg->nodeWeight(hn);
     }
   }
 

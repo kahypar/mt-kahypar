@@ -126,31 +126,44 @@ class MultilevelCoarsener : public ICoarsener,
     tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
       _current_vertices[hn] = hn;
     });
-    _clustering_data.initializeCoarseningPass(current_hg, cluster_ids);
 
+    // initialization of various things
+    const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
+    const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    NumNodesTracker num_nodes_tracker(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
+    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes());
+    similarity_policy.initialize(current_hg, _context);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
+                                     _rater, _clustering_data, num_nodes_tracker);
+    cc.initializeCoarseningPass(current_hg, _context);
+
+    _timer.start_timer("clustering", "Clustering");
+    if ( _context.partition.show_detailed_clustering_timings ) {
+      _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
+    }
+
+    // the actual coarsening pass
     if ( _enable_randomization ) {
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
-
-    const HypernodeID num_hns_before_pass =
-      current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    HypernodeID current_num_nodes = 0;
     if ( current_hg.hasFixedVertices() ) {
-      current_num_nodes = performClustering<true>(current_hg, cluster_ids);
+      _clustering_algo.template performClustering<true>(current_hg, _current_vertices, similarity_policy, cc);
     } else {
-      current_num_nodes = performClustering<false>(current_hg, cluster_ids);
+      _clustering_algo.template performClustering<false>(current_hg, _current_vertices, similarity_policy, cc);
     }
-    DBG << V(current_num_nodes);
+    HypernodeID current_num_nodes = num_nodes_tracker.finalNumNodes();
+    _progress_bar += (num_hns_before_pass - current_num_nodes);
 
-    HEAVY_COARSENING_ASSERT(_clustering_data.verifyClustering(current_hg, cluster_ids),
-                            "Parallel clustering computed invalid cluster ids and weights");
+    if ( _context.partition.show_detailed_clustering_timings ) {
+      _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
+    }
+    _timer.stop_timer("clustering");
 
-    const double reduction_vertices_percentage =
-      static_cast<double>(num_hns_before_pass) / static_cast<double>(current_num_nodes);
-    if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
+    DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
+    bool should_continue = cc.finalize(current_hg, _context);
+    if (!should_continue) {
       return false;
     }
-    _progress_bar += (num_hns_before_pass - current_num_nodes);
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
@@ -159,37 +172,6 @@ class MultilevelCoarsener : public ICoarsener,
 
     ++_pass_nr;
     return true;
-  }
-
-  template<bool has_fixed_vertices>
-  HypernodeID performClustering(const Hypergraph& current_hg, vec<HypernodeID>& cluster_ids) {
-    _timer.start_timer("clustering", "Clustering");
-    if ( _context.partition.show_detailed_clustering_timings ) {
-      _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
-    }
-
-    _rater.resetMatches();
-    _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
-    const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
-    NumNodesTracker num_nodes_tracker(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
-    ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
-    fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
-    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes());
-    similarity_policy.initialize(current_hg, _context);
-    DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
-
-    _clustering_algo.template performClustering<has_fixed_vertices>(
-                     current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-                     _rater, _clustering_data, num_nodes_tracker, fixed_vertices, similarity_policy);
-
-    if ( _context.partition.show_detailed_clustering_timings ) {
-      _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
-    }
-    _timer.stop_timer("clustering");
-    if constexpr ( has_fixed_vertices ) {
-      ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
-    }
-    return num_nodes_tracker.finalNumNodes();
   }
 
   void terminateImpl() override {

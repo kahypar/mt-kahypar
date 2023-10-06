@@ -35,6 +35,7 @@
 
 #include "include/libmtkahypartypes.h"
 
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
@@ -67,6 +68,10 @@ class ThreePhaseCoarsener : public ICoarsener,
   using LPClustering = SingleRoundLP<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Base::_hg;
+  using Base::_context;
+  using Base::_timer;
+  using Base::_uncoarseningData;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -78,18 +83,17 @@ class ThreePhaseCoarsener : public ICoarsener,
     Base(utils::cast<Hypergraph>(hypergraph),
          context,
          uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
-    _lp_clustering(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), context),
-    _two_hop_clustering(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), context),
-    _similarity_policy(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    _always_accept_policy(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    _rater(utils::cast<Hypergraph>(hypergraph).initialNumNodes(),
-           utils::cast<Hypergraph>(hypergraph).maxEdgeSize(), context),
+    _lp_clustering(_hg.initialNumNodes(), context),
+    _two_hop_clustering(_hg.initialNumNodes(), context),
+    _similarity_policy(_hg.initialNumNodes()),
+    _always_accept_policy(_hg.initialNumNodes()),
+    _rater(_hg.initialNumNodes(), _hg.maxEdgeSize(), context),
     _clustering_data(_hg.initialNumNodes(), context),
     _num_nodes_tracker(),
-    _initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    _initial_num_nodes(_hg.initialNumNodes()),
     _current_vertices(),
     _pass_nr(0),
-    _progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+    _progress_bar(_hg.initialNumNodes(), 0, false),
     _enable_randomization(true) {
     _progress_bar += _hg.numRemovedHypernodes();
     _current_vertices.resize(_hg.initialNumNodes());
@@ -129,49 +133,36 @@ class ThreePhaseCoarsener : public ICoarsener,
     tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
       _current_vertices[hn] = hn;
     });
-    _clustering_data.initializeCoarseningPass(current_hg, cluster_ids);
 
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = num_hns_before_pass;
 
     // initialization of various things
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
+                                     _rater, _clustering_data, _num_nodes_tracker);
+    cc.initializeCoarseningPass(current_hg, _context);
     _similarity_policy.initialize(current_hg, _context);
     _always_accept_policy.initialize(current_hg, _context);
-    _num_nodes_tracker.initialize(num_hns_before_pass);
-    _rater.resetMatches();
-    _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
-    ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
-    fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
 
+    // TODO: degree zero nodes?!
     // Phase 1: LP coarsening, but forbid contraction of low degree nodes onto high degree nodes
-    coarseningPass("first_lp_round", "First LP round",
-                    current_hg, _lp_clustering, _similarity_policy,
-                    cluster_ids, fixed_vertices, hierarchy_contraction_limit);
+    coarseningRound("first_lp_round", "First LP round",
+                    current_hg, _lp_clustering, _similarity_policy, cc);
     _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
 
-    if (_num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit) {
+    if (current_num_nodes > hierarchy_contraction_limit) {
       // Phase 2: Two-hop coarsening for low degree nodes
-      coarseningPass("two_hop_coarsening", "Two-Hop coarsening",
-                     current_hg, _two_hop_clustering, _similarity_policy,
-                     cluster_ids, fixed_vertices, hierarchy_contraction_limit);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
     }
 
     // TODO: community ids
 
-    if ( current_hg.hasFixedVertices() ) {
-      ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
-    }
-    HEAVY_COARSENING_ASSERT(_clustering_data.verifyClustering(current_hg, cluster_ids),
-                            "Parallel clustering computed invalid cluster ids and weights");
     DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
-
-    const double reduction_vertices_percentage =
-      static_cast<double>(num_hns_before_pass) / static_cast<double>(current_num_nodes);
-    if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
+    bool should_continue = cc.finalize(current_hg, _context);
+    if (!should_continue) {
       return false;
     }
 
@@ -185,14 +176,13 @@ class ThreePhaseCoarsener : public ICoarsener,
   }
 
   template<typename ClusteringAlgo, typename CurrentSimilarityPolicy>
-  HypernodeID coarseningPass(const char* timer_key, const char* timer_name, const Hypergraph& current_hg,
-                             ClusteringAlgo& algo, const CurrentSimilarityPolicy& similarity, vec<HypernodeID>& cluster_ids,
-                             ds::FixedVertexSupport<Hypergraph>& fixed_vertices, HypernodeID hierarchy_contraction_limit) {
+  HypernodeID coarseningRound(const char* timer_key, const char* timer_name,
+                              const Hypergraph& current_hg, ClusteringAlgo& algo,
+                              const CurrentSimilarityPolicy& similarity, ClusteringContext<Hypergraph>& cc) {
     _timer.start_timer(timer_key, timer_name);
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer(timer_key + std::string("_level_") + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
     }
-
     if ( _enable_randomization ) {
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
@@ -201,13 +191,9 @@ class ThreePhaseCoarsener : public ICoarsener,
       return _similarity_policy.weightRatioForNode(current_hg, hn);
     };
     if ( current_hg.hasFixedVertices() ) {
-      algo.template performClustering<true>(
-          current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity, weight_ratio_fn);
+      algo.template performClustering<true>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn);
     } else {
-      algo.template performClustering<false>(
-          current_hg, _current_vertices, hierarchy_contraction_limit, cluster_ids,
-          _rater, _clustering_data, _num_nodes_tracker, fixed_vertices, similarity, weight_ratio_fn);
+      algo.template performClustering<false>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn);
     }
 
     if ( _context.partition.show_detailed_clustering_timings ) {
@@ -245,10 +231,6 @@ class ThreePhaseCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
-  using Base::_hg;
-  using Base::_context;
-  using Base::_timer;
-  using Base::_uncoarseningData;
   LPClustering _lp_clustering;
   TwoHopClustering _two_hop_clustering;
   SimilarityPolicy _similarity_policy;

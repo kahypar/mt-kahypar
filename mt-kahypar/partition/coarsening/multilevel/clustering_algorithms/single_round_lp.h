@@ -31,6 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/multilevel/num_nodes_tracker.h"
@@ -49,13 +50,8 @@ class SingleRoundLP {
   template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
-                         const HypernodeID hierarchy_contraction_limit,
-                         vec<HypernodeID>& cluster_ids,
-                         MultilevelVertexPairRater& rater,
-                         ConcurrentClusteringData& clustering_data,
-                         NumNodesTracker& num_nodes_tracker,
-                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                          const DegreeSimilarityPolicy& similarity_policy,
+                         ClusteringContext<Hypergraph>& cc,
                          std::function<double (HypernodeID)> weight_ratio_for_node_fn = [](const HypernodeID) { return 1.0; }) {
     unused(weight_ratio_for_node_fn);  // parameter only exists for compatibility with TwoHopClustering
 
@@ -66,19 +62,11 @@ class SingleRoundLP {
       // We perform rating if ...
       //  1.) The contraction limit of the current level is not reached
       //  2.) Vertex hn is not matched before
-      if (hg.nodeIsEnabled(hn)
-          && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
-          && clustering_data.vertexIsUnmatched(hn)) {
-        const Rating rating = rater.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                                     hg, hn, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
-                                     similarity_policy, _context.coarsening.max_allowed_node_weight);
+      if (hg.nodeIsEnabled(hn) && cc.shouldContinue() && cc.vertexIsUnmatched(hn)) {
+        const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy,
+                                               AcceptancePolicy, has_fixed_vertices>(hg, hn, similarity_policy);
         if (rating.target != kInvalidHypernode) {
-          bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-            hg, hn, rating.target, cluster_ids, rater, fixed_vertices);
-          if (success) {
-            // update the number of nodes in a way that minimizes synchronization overhead
-            num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
-          }
+          cc.template matchVertices<has_fixed_vertices>(hg, hn, rating.target);
         }
       }
     });

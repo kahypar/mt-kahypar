@@ -35,6 +35,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/num_nodes_tracker.h"
 
@@ -118,17 +119,12 @@ class TwoHopClustering {
   template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy, typename F>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
-                         const HypernodeID hierarchy_contraction_limit,
-                         vec<HypernodeID>& cluster_ids,
-                         MultilevelVertexPairRater& rater,
-                         ConcurrentClusteringData& clustering_data,
-                         NumNodesTracker& num_nodes_tracker,
-                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                          const DegreeSimilarityPolicy& similarity_policy,
+                         ClusteringContext<Hypergraph>& cc,
                          F weight_ratio_for_node_fn) {
     ASSERT(_context.coarsening.twin_required_similarity >= 0.5);
-    _degree_one_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
-    _twins_map.reserve_for_estimated_number_of_insertions(num_nodes_tracker.currentNumNodes() / 3);
+    _degree_one_map.reserve_for_estimated_number_of_insertions(cc.currentNumNodes() / 3);
+    _twins_map.reserve_for_estimated_number_of_insertions(cc.currentNumNodes() / 3);
 
     auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn) {
       // TODO: can we do this more efficiently for graphs?
@@ -137,8 +133,8 @@ class TwoHopClustering {
         incident_weight_sum += hg.edgeWeight(he);
         for (const HypernodeID& pin: hg.pins(he)) {
           if (pin != hn) {
-            HypernodeID target_cluster = cluster_ids[pin];
-            ASSERT(target_cluster != cluster_ids[hn]);  // holds since we only consider unmatched nodes
+            HypernodeID target_cluster = cc.clusterID(pin);
+            ASSERT(target_cluster != cc.clusterID(hn));  // holds since we only consider unmatched nodes
             incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / (hg.edgeSize(he) - 1);
           }
         }
@@ -150,7 +146,7 @@ class TwoHopClustering {
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
-      if (hg.nodeIsEnabled(hn) && clustering_data.vertexIsUnmatched(hn)
+      if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn)
           && hg.nodeDegree(hn) <= HIGH_DEGREE_THRESHOLD) {
         IncidenceMap& incidence_map = _local_incidence_map.local();
         const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn);
@@ -190,11 +186,10 @@ class TwoHopClustering {
           return lhs.key < rhs.key;
         }
     };
-    const auto& cluster_weight = clustering_data.clusterWeight();
     auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
-      ASSERT(clustering_data.vertexIsUnmatched(v));
+      ASSERT(cc.vertexIsUnmatched(v));
       bool same_community = hg.communityID(u) == hg.communityID(v);
-      bool weight_allowed = cluster_weight[cluster_ids[u]] +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
+      bool weight_allowed = cc.clusterWeight(u) +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
       bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);
       // TODO fixed vertices
       return same_community && weight_allowed && accept_similarity;
@@ -207,18 +202,14 @@ class TwoHopClustering {
       auto& bucket = _degree_one_map.getBucket(bucket_id);
       std::sort(bucket.begin(), bucket.end(), bucket_comparator);
 
-      for (size_t i = 0; i + 1 < bucket.size() && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit; ++i) {
+      const HypernodeID max_size = _context.coarsening.degree_one_node_cluster_size;
+      for (size_t i = 0; i + 1 < bucket.size() && cc.shouldContinue(); ++i) {
         HypernodeID num_matches = 0;
-        for (size_t j = i + 1; j < i + _context.coarsening.degree_one_node_cluster_size && j < bucket.size()
-             && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
+        for (size_t j = i + 1; j < i + max_size && j < bucket.size() && cc.shouldContinue()
              && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
-          ASSERT((j > i + 1 || clustering_data.vertexIsUnmatched(bucket[i].hn))
-                 && clustering_data.vertexIsUnmatched(bucket[j].hn));
-          bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-            hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
+          ASSERT((j > i + 1 || cc.vertexIsUnmatched(bucket[i].hn)) && cc.vertexIsUnmatched(bucket[j].hn));
+          bool success = cc.matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
           if (success) {
-            // update the number of nodes in a way that minimizes synchronization overhead
-            num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
             num_matches++;
           } else {
             break;
@@ -230,14 +221,14 @@ class TwoHopClustering {
     });
 
     // match twins
-    if (num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit) {
+    if (cc.shouldContinue()) {
       tbb::parallel_for(UL(0), _twins_map.numBuckets(), [&](const size_t bucket_id) {
         auto& bucket = _twins_map.getBucket(bucket_id);
         IncidenceMap& incidence_map = _local_incidence_map.local();
         std::sort(bucket.begin(), bucket.end(), bucket_comparator);
 
-        for (size_t i = 0; i + 1 < bucket.size() && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit; ++i) {
-          if (!clustering_data.vertexIsUnmatched(bucket[i].hn)) {
+        for (size_t i = 0; i + 1 < bucket.size() && cc.shouldContinue(); ++i) {
+          if (!cc.vertexIsUnmatched(bucket[i].hn)) {
             continue;
           }
 
@@ -255,7 +246,7 @@ class TwoHopClustering {
 
           for (size_t j = i + 1; j < i + TWIN_MATCHING_MAX_ATTEMPTS + 1 && j < bucket.size()
               && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
-            if (!clustering_data.vertexIsUnmatched(bucket[j].hn)) {
+            if (!cc.vertexIsUnmatched(bucket[j].hn)) {
               continue;
             }
 
@@ -279,11 +270,8 @@ class TwoHopClustering {
 
             // decide whether the neighborhood similarity is sufficiently high
             if (relative_weight_of_intersection >= _context.coarsening.twin_required_similarity) {
-              bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-                hg, bucket[i].hn, bucket[j].hn, cluster_ids, rater, fixed_vertices);
+              bool success = cc.matchVertices<has_fixed_vertices>(hg, bucket[i].hn, bucket[j].hn);
               if (success) {
-                // update the number of nodes in a way that minimizes synchronization overhead
-                num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
                 matched_twins.local()++;
               }
             }

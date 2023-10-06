@@ -157,7 +157,7 @@ class FixedVertexSupport {
   // ####################### Miscellaneous #######################
 
   // ! Only for testing
-  bool verifyClustering(const Hypergraph& hg, const vec<HypernodeID>& cluster_ids) const;
+  bool verifyClustering(const vec<HypernodeID>& cluster_ids) const;
 
   FixedVertexSupport<Hypergraph> copy() const {
     FixedVertexSupport<Hypergraph> cpy;
