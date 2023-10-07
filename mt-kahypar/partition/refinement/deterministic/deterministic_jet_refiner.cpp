@@ -93,7 +93,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     };
     _current_partition_is_best = true;
     size_t rounds_without_improvement = 0;
-    ds::StreamingVector<HypernodeID> tmp_final_moves; // TODO: Use actual moves to be able to revert
+    ds::StreamingVector<HypernodeID> tmp_final_moves; // TODO: Use actual moves to be able to revert?
     const size_t max_rounds = _context.refinement.deterministic_refinement.jet.fixed_n_iterations;
     const size_t max_rounds_without_improvement = _context.refinement.deterministic_refinement.jet.num_iterations;
     for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
@@ -144,12 +144,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         // TODO: Find out whether saving partitions or reverting moves is the better option
         ++rounds_without_improvement;
         if (current_metrics.quality < best_metrics.quality && metrics::isBalanced(phg, _context)) {
-            best_metrics = current_metrics;
-            _current_partition_is_best = true;
             if (best_metrics.quality - current_metrics.quality > _context.refinement.deterministic_refinement.jet.relative_improvement_threshold * best_metrics.quality) {
-                DBG << "[JET] not enough improvement";
                 rounds_without_improvement = 0;
             }
+            best_metrics = current_metrics;
+            _current_partition_is_best = true;
         } else {
             _current_partition_is_best = false;
         }
