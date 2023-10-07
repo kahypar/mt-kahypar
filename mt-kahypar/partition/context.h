@@ -146,14 +146,8 @@ struct JetParameters {
   size_t num_iterations = 12;
   size_t fixed_n_iterations = 0;
   double relative_improvement_threshold = 0.001;
-  bool execute_sequential = false;
-  bool restrict_to_border_nodes = true;
-  bool rollback_after_each_iteration = false;
-  bool exactly_as_in_jet_paper = false;
-  double vertex_locking = 1.0;
   double negative_gain_factor_coarse = 0.75;
   double negative_gain_factor_fine = 0.25;
-  size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
 };
 
 std::ostream & operator<< (std::ostream& str, const JetParameters& params);

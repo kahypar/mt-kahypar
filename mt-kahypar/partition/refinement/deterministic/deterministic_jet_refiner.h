@@ -64,15 +64,11 @@ public:
     _gains_and_target(num_hypernodes),
     _prng(context.partition.seed),
     _active_nodes(),
-    _locks(_context.refinement.deterministic_refinement.jet.exactly_as_in_jet_paper ? num_hypernodes : 0) {
-    // if (context.refinement.deterministic_refinement.use_active_node_set) {
-    //   active_nodes.adapt_capacity(num_hypernodes);
-    //   last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
-    // }
-  }
+    _locks(num_hypernodes) {}
 
 private:
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
     const vec<HypernodeID>& refinement_nodes,
@@ -84,9 +80,11 @@ private:
 
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
 
+  void storeCurrentPartition(const PartitionedHypergraph& hypergraph, parallel::scalable_vector<PartitionID>& parts);
+
+  void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
 
   const Context& _context;
-  GainCache& _gain_cache;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
@@ -97,8 +95,6 @@ private:
   parallel::scalable_vector<PartitionID> _current_partition;
   GainComputation _gain_computation;
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
-  //ds::ThreadSafeFastResetFlagArray<> _next_active;
- // kahypar::ds::FastResetFlagArray<> _visited_he;
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
 };
