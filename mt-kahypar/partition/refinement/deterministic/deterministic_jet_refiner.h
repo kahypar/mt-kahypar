@@ -43,52 +43,71 @@ class DeterministicJetRefiner final : public IRefiner {
 
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
   using GainComputation = typename GraphAndGainTypes::GainComputation;
-  using RatingMap = typename GainComputation::RatingMap;
   using AttributedGains = typename GraphAndGainTypes::AttributedGains;
   using GainCache = typename GraphAndGainTypes::GainCache;
   using ActiveNodes = typename parallel::scalable_vector<HypernodeID>;
+  using RatingMap = typename GainComputation::RatingMap;
+
 
 public:
+
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID num_hyperedges,
     const Context& context,
     gain_cache_t,
-    IRebalancer&) :
+    IRebalancer& rebalancer) : DeterministicJetRefiner(num_hypernodes, num_hyperedges, context, rebalancer) {}
+
+  explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
+    const HyperedgeID,
+    const Context& context,
+    IRebalancer& rebalancer) :
     _context(context),
-    _gain_computation(context, true /* disable_randomization */),
     _current_k(context.partition.k),
     _top_level_num_nodes(num_hypernodes),
     _current_partition_is_best(true),
+    _active_nodes(),
+    _moves(),
     _best_partition(num_hypernodes, kInvalidPartition),
     _current_partition(num_hypernodes, kInvalidPartition),
+    _gain_computation(context, true /* disable_randomization */),
     _gains_and_target(num_hypernodes),
-    _prng(context.partition.seed),
-    _active_nodes(),
-    _locks(num_hypernodes) {}
+    _locks(num_hypernodes),
+    _rebalancer(rebalancer) {}
 
 private:
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-    const vec<HypernodeID>& refinement_nodes,
+    const vec<HypernodeID>&,
     Metrics& best_metrics, double) final;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg);
 
   void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph, bool first_round);
 
-  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
+  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const HypernodeID hn);
 
   void storeCurrentPartition(const PartitionedHypergraph& hypergraph, parallel::scalable_vector<PartitionID>& parts);
 
   void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
 
+  template<typename F>
+  void changeNodePart(PartitionedHypergraph& phg,
+    const HypernodeID hn,
+    const PartitionID from,
+    const PartitionID to,
+    const F& objective_delta) {
+    bool success = false;
+    success = phg.changeNodePart(hn, from, to, objective_delta);
+    ASSERT(success);
+    unused(success);
+  }
+
   const Context& _context;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
-  std::mt19937 _prng;
   ActiveNodes _active_nodes;
   parallel::scalable_vector<HypernodeID> _moves;
   parallel::scalable_vector<PartitionID> _best_partition;

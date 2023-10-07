@@ -43,12 +43,11 @@ namespace mt_kahypar {
 
 template<typename GraphAndGainTypes>
 bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-    const vec<HypernodeID>& refinement_nodes,
+    const vec<HypernodeID>&,
     Metrics& best_metrics, const double time_limit) {
     Metrics current_metrics = best_metrics;
     const HyperedgeWeight input_quality = best_metrics.quality;
-    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(phg);
-    Gain overall_improvement = 0;
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     // resize data structures for current k
     if (_context.partition.k != _current_k) {
@@ -78,8 +77,13 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     }
                 }
             }
-            total_gain += AttributedGains::gain(he, phg.edgeWeight(he), phg.edgeSize(he),
-                pin_count_in_from_part_after, pin_count_in_to_part_after);
+            SynchronizedEdgeUpdate sync_update;
+            sync_update.he = he;
+            sync_update.edge_weight = phg.edgeWeight(he);
+            sync_update.edge_size = phg.edgeSize(he);
+            sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
+            sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
+            total_gain += AttributedGains::gain(sync_update);
         }
 
         if (total_gain <= 0) {
@@ -95,16 +99,17 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
 
         if (_current_partition_is_best) {
-            storeCurrentPartition(hypergraph, _best_partition);
+            storeCurrentPartition(phg, _best_partition);
         } else {
-            storeCurrentPartition(hypergraph, _current_partition);
+            storeCurrentPartition(phg, _current_partition);
         }
 
         computeActiveNodesFromGraph(phg, true);
         // label prop round
         _locks.reset();
         tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
-            afterburner(_active_nodes[j], tmp_final_moves.stream(_active_nodes[j]));
+            const auto n = _active_nodes[j];
+            afterburner(n, [&] {tmp_final_moves.stream(n);});
         });
 
         _moves = tmp_final_moves.copy_parallel();
@@ -115,7 +120,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
             Gain my_gain = init;
             for (size_t i = r.begin(); i < r.end(); ++i) {
-                my_gain += performMoveWithAttributedGain(phg, _moves[i], true);
+                my_gain += performMoveWithAttributedGain(phg, _moves[i]);
             }
             return my_gain;
         };
@@ -131,16 +136,18 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         // rebalance
         if (!metrics::isBalanced(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
-            _rebalancer.refine(phg, {}, current_metrics, time_limit);
-            DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
+            mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
+            _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+            DBG << "[JET] finished rebalancing with quality " << metrics::quality(phg, _context, false) << " and imbalance " << metrics::imbalance(phg, _context);
         }
         // TODO: Probably rollback here
         // TODO: Find out whether saving partitions or reverting moves is the better option
         ++rounds_without_improvement;
-        if (current_metrics.quality < best_metrics.quality && metrics::isBalanced(hypergraph, _context)) {
+        if (current_metrics.quality < best_metrics.quality && metrics::isBalanced(phg, _context)) {
             best_metrics = current_metrics;
             _current_partition_is_best = true;
             if (best_metrics.quality - current_metrics.quality > _context.refinement.deterministic_refinement.jet.relative_improvement_threshold * best_metrics.quality) {
+                DBG << "[JET] not enough improvement";
                 rounds_without_improvement = 0;
             }
         } else {
@@ -151,7 +158,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
     if (!_current_partition_is_best) {
         DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
-        rollbackToBestPartition(hypergraph);
+        rollbackToBestPartition(phg);
     }
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
@@ -193,7 +200,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
     ds::StreamingVector<HypernodeID> tmp_active_nodes;
     // compute gain for every node 
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        process_node(hn, tmp_active_nodes.stream(hn));
+        process_node(hn, [&] {tmp_active_nodes.stream(hn);});
     });
     _active_nodes = tmp_active_nodes.copy_parallel();
 }
@@ -208,13 +215,14 @@ void DeterministicJetRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
  */
 template<typename GraphAndGainTypes>
 Gain DeterministicJetRefiner<GraphAndGainTypes>::performMoveWithAttributedGain(
-    PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
+    PartitionedHypergraph& phg, const HypernodeID hn) {
+    const auto from = phg.partID(hn);
+    const auto [gain, to] = _gains_and_target[hn];
     Gain attributed_gain = 0;
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
         attributed_gain -= AttributedGains::gain(sync_update);
     };
-    ASSERT(m.from == phg.partID(m.node));
-    phg.changeNodePart(m.node, m.from, m.to, objective_delta);
+    phg.changeNodePart(hn, from, to, objective_delta);
     return attributed_gain;
 }
 
@@ -230,23 +238,25 @@ template <typename GraphAndGainTypes>
 void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(PartitionedHypergraph& phg) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
-    auto objective_delta = [&](const HyperedgeID he,
-        const HyperedgeWeight edge_weight,
-        const HypernodeID edge_size,
-        const HypernodeID pin_count_in_from_part_after,
-        const HypernodeID pin_count_in_to_part_after) {
-        _gain_computation.computeDeltaForHyperedge(he, edge_weight, edge_size,
-            pin_count_in_from_part_after, pin_count_in_to_part_after);
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+        _gain_computation.computeDeltaForHyperedge(sync_update);
     };
 
     auto reset_node = [&](const HypernodeID hn) {
         const PartitionID part_id = phg.partID(hn);
         if (part_id != _best_partition[hn]) {
             ASSERT(_best_partition[hn] != kInvalidPartition);
-            changeNodePart(phg, hn, part_id, _best_partition[hn], objective_delta);
+            phg.changeNodePart(hn, part_id, _best_partition[hn], objective_delta);
         }
     };
     phg.doParallelForAllNodes(reset_node);
     _current_partition_is_best = true;
 }
-};
+
+namespace {
+#define DETERMINISTIC_JET_REFINER(X) DeterministicJetRefiner<X>
+}
+
+
+INSTANTIATE_CLASS_WITH_VALID_TRAITS(DETERMINISTIC_JET_REFINER)
+}; // namespace
