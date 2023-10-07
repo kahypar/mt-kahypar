@@ -173,7 +173,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
                 _context.refinement.deterministic_refinement.jet.negative_gain_factor_coarse;
             RatingMap& tmp_scores = _gain_computation.localScores();
             Gain isolated_block_gain = 0;
-            _gain_computation.precomputeGains(phg, hn, tmp_scores, isolated_block_gain);
+            _gain_computation.precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
             // Note: rebalance=true is important here to allow negative gain moves
             Move best_move = _gain_computation.computeMaxGainMoveForScores(phg, tmp_scores, isolated_block_gain, hn,
                 /*rebalance=*/true,
