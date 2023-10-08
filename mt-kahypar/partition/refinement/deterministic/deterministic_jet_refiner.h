@@ -75,8 +75,8 @@ public:
     _rebalancer(rebalancer) {}
 
 private:
-  static constexpr bool debug = true;
-  static constexpr bool enable_heavy_assert = true;
+  static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
     const vec<HypernodeID>&,
@@ -103,6 +103,8 @@ private:
     ASSERT(success);
     unused(success);
   }
+
+  bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
   const Context& _context;
   PartitionID _current_k;
