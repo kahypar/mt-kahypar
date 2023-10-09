@@ -136,6 +136,7 @@ struct CoarseningParameters {
   size_t num_sub_rounds_deterministic = 16;
 
   // Two-Hop Coarsening
+  bool delayed_two_hop_coarsening = false;
   double twin_required_similarity = 0.75;
   double twin_reduced_required_similarity = 0.4;
   double twin_min_relative_connectivity = 0.1;

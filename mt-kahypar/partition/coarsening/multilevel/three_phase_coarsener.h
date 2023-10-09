@@ -157,7 +157,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
 
     // Phase 2: Two-hop coarsening for low degree nodes
-    if (current_num_nodes > hierarchy_contraction_limit) {
+    if (current_num_nodes > (_context.coarsening.delayed_two_hop_coarsening ?
+          target_contraction_size : hierarchy_contraction_limit)) {
       DBG << "Start Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(hierarchy_contraction_limit);
       coarseningRound("first_two_hop_round", "First two-hop round",
                      current_hg, _two_hop_clustering, _similarity_policy, cc);

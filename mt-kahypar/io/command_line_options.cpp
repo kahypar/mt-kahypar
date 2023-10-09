@@ -324,6 +324,10 @@ namespace mt_kahypar {
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
              "Number of sub-rounds used for deterministic coarsening.")
+            ("c-delayed-two-hop",
+             po::value<bool>(&context.coarsening.delayed_two_hop_coarsening)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, only use two hop coarsening if target shrink factor is not reached.")
             ("c-two-hop-required-similarity",
              po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
                      "<double>")->default_value(0.75),
