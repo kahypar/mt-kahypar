@@ -189,7 +189,6 @@ class TwoHopClustering {
         }
     };
     auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
-      ASSERT(cc.vertexIsUnmatched(v));
       bool accept_community = cc.may_ignore_communities || (hg.communityID(u) == hg.communityID(v));
       bool weight_allowed = cc.clusterWeight(u) +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
       bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);

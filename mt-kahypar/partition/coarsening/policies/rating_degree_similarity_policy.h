@@ -137,10 +137,12 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
             < static_cast<double>(rhs.edge_weight_contribution) / rhs.node_weight;
         });
 
+        const HypernodeID max_iterations = context.coarsening.rating.max_considered_neighbors;
         double summed_contribution = _incident_weight[hn];
         HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
         double current_min = summed_contribution / summed_weight;
-        for (const NeighborData& neighbor: neighbor_list) {
+        for (size_t i = 0; i < neighbor_list.size() && (max_iterations == 0 || i < max_iterations); ++i) {
+          const NeighborData& neighbor = neighbor_list[i];
           summed_contribution += neighbor.edge_weight_contribution;
           summed_weight += neighbor.node_weight;
           if (summed_contribution / summed_weight <= current_min && summed_weight <= max_summed_weight) {
@@ -149,7 +151,9 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
             break;
           }
         }
-        _acceptance_limit[hn] = context.coarsening.rating.preserve_nodes_scaling_factor * current_min;
+        _acceptance_limit[hn] = std::min(
+          context.coarsening.rating.preserve_nodes_scaling_factor * current_min,
+          context.coarsening.rating.acceptance_limit_bound * _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1));
         DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
             << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
       });
