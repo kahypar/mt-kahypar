@@ -48,18 +48,20 @@ class DeterministicJetRefiner final : public IRefiner {
   using ActiveNodes = typename parallel::scalable_vector<HypernodeID>;
   using RatingMap = typename GainComputation::RatingMap;
 
-
 public:
 
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID num_hyperedges,
     const Context& context,
-    gain_cache_t,
-    IRebalancer& rebalancer) : DeterministicJetRefiner(num_hypernodes, num_hyperedges, context, rebalancer) {}
+    gain_cache_t gain_cache,
+    IRebalancer& rebalancer) :
+    DeterministicJetRefiner(num_hypernodes, num_hyperedges, context,
+      GainCachePtr::cast<GainCache>(gain_cache), rebalancer) {}
 
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID,
     const Context& context,
+    GainCache& gain_cache,
     IRebalancer& rebalancer) :
     _context(context),
     _current_k(context.partition.k),
@@ -72,7 +74,8 @@ public:
     _gain_computation(context, true /* disable_randomization */),
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
-    _rebalancer(rebalancer) {}
+    _rebalancer(rebalancer),
+    _gain_cache(gain_cache) {}
 
 private:
   static constexpr bool debug = false;
@@ -104,6 +107,8 @@ private:
     unused(success);
   }
 
+  void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
+
   bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
   const Context& _context;
@@ -118,6 +123,8 @@ private:
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
+  GainCache& _gain_cache;
+
 };
 
 }
