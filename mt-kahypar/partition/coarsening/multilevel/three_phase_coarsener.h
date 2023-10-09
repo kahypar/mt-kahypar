@@ -144,7 +144,9 @@ class ThreePhaseCoarsener : public ICoarsener,
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data, _num_nodes_tracker);
     cc.initializeCoarseningPass(current_hg, _context);
+    _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context);
+    _timer.stop_timer("init_similarity");
     _always_accept_policy.initialize(current_hg, _context);
 
     // TODO: degree zero nodes?!
