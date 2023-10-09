@@ -111,6 +111,8 @@ private:
 
   bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
+  bool noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts);
+
   const Context& _context;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
