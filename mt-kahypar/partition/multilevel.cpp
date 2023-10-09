@@ -198,7 +198,9 @@ namespace {
     }
     partitioned_hg = uncoarsener->uncoarsen();
 
+    timer.start_timer("print_results", "Print Partitioning Results");
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
+    timer.stop_timer("print_results");
     timer.stop_timer("refinement");
 
     return partitioned_hg;
