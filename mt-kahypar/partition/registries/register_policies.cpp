@@ -91,6 +91,8 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 
 REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::preserve_rebalancing_nodes,
                 PreserveRebalancingNodesPolicy);
+REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::compare_degrees,
+                DegreeComparisonPolicy);
 
 // //////////////////////////////////////////////////////////////////////////////
 //                            Gain Type Policies

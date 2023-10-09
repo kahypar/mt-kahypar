@@ -168,8 +168,8 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
                                                             const Context&,
                                                             const HypernodeID u,
                                                             const HypernodeID v) const {
-    double ratio_u = _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
-    double ratio_v = _incident_weight[v] / std::max(hypergraph.nodeWeight(v), 1);
+    double ratio_u = weightRatioForNode(hypergraph, u);
+    double ratio_v = weightRatioForNode(hypergraph, v);
     if (ratio_u >= ratio_v) {
       return ratio_v >= _acceptance_limit[u] || hypergraph.nodeWeight(v) == 0;
     } else {
@@ -183,8 +183,8 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID u,
                                                               const HypernodeID v) const {
     if (context.coarsening.rating.use_similarity_penalty) {
-      double ratio_u = _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
-      double ratio_v = _incident_weight[v] / std::max(hypergraph.nodeWeight(v), 1);
+      double ratio_u = weightRatioForNode(hypergraph, u);
+      double ratio_v = weightRatioForNode(hypergraph, v);
       return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
     }
     return 1.0;
@@ -202,6 +202,83 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
 };
 
 
-using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy>;
+class DegreeComparisonPolicy final : public kahypar::meta::PolicyBase {
+
+ public:
+  DegreeComparisonPolicy(): DegreeComparisonPolicy(0) {}
+
+  explicit DegreeComparisonPolicy(const HypernodeID num_nodes):
+    _incident_weight(num_nodes, 0) {}
+
+  DegreeComparisonPolicy(const DegreeComparisonPolicy&) = delete;
+  DegreeComparisonPolicy(DegreeComparisonPolicy&&) = delete;
+  DegreeComparisonPolicy & operator= (const DegreeComparisonPolicy &) = delete;
+  DegreeComparisonPolicy & operator= (DegreeComparisonPolicy &&) = delete;
+
+  template<typename Hypergraph>
+  void initialize(const Hypergraph& hypergraph, const Context& context) {
+    ASSERT(_incident_weight.size() >= hypergraph.initialNumNodes());
+
+    auto scaled_edge_weight = [&](const HyperedgeID he) {
+      if constexpr (Hypergraph::is_graph) {
+        return hypergraph.edgeWeight(he);
+      } else {
+        return static_cast<double>(hypergraph.edgeWeight(he)) /
+          (hypergraph.edgeSize(he) + context.coarsening.rating.incident_weight_scaling_constant);
+      }
+    };
+
+    // compute incident weights
+    hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      // TODO(maas): save the total incident weight in the hypergraph data structure?
+      double incident_weight_sum = 0;
+      for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+        incident_weight_sum += scaled_edge_weight(he);
+      }
+      _incident_weight[hn] = incident_weight_sum;
+    });
+  }
+
+  // this function decides if contracting v onto u is allowed
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptContraction(const Hypergraph& hypergraph,
+                                                            const Context& context,
+                                                            const HypernodeID u,
+                                                            const HypernodeID v) const {
+    double ratio_u = weightRatioForNode(hypergraph, u);
+    double ratio_v = weightRatioForNode(hypergraph, v);
+    if (ratio_u >= ratio_v) {
+      return context.coarsening.rating.degree_comparison_bound * ratio_v >= ratio_u;
+    } else {
+      return context.coarsening.rating.degree_comparison_bound * ratio_u >= ratio_v;
+    }
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double similarityPenalty(const Hypergraph& hypergraph,
+                                                              const Context& context,
+                                                              const HypernodeID u,
+                                                              const HypernodeID v) const {
+    if (context.coarsening.rating.use_similarity_penalty) {
+      double ratio_u = weightRatioForNode(hypergraph, u);
+      double ratio_v = weightRatioForNode(hypergraph, v);
+      return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
+    }
+    return 1.0;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph& hypergraph,
+                                                               const HypernodeID u) const {
+    return _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
+  }
+
+ private:
+  parallel::scalable_vector<float> _incident_weight;   // TODO: use ints for graphs??
+  parallel::scalable_vector<float> _acceptance_limit;
+};
+
+
+using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy, DegreeComparisonPolicy>;
 
 }  // namespace mt_kahypar

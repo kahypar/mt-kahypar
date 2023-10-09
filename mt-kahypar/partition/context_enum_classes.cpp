@@ -193,6 +193,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy) {
     switch (ds_policy) {
       case DegreeSimilarityPolicy::preserve_rebalancing_nodes: return os << "preserve_rebalancing_nodes";
+      case DegreeSimilarityPolicy::compare_degrees: return os << "compare_degrees";
       case DegreeSimilarityPolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -410,6 +411,8 @@ namespace mt_kahypar {
   DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds) {
     if (ds == "preserve_rebalancing_nodes") {
       return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
+    } else if (ds == "compare_degrees") {
+      return DegreeSimilarityPolicy::compare_degrees;
     }
     throw InvalidParameterException("No valid degree similarity policy for rating.");
   }

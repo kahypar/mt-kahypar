@@ -314,7 +314,8 @@ namespace mt_kahypar {
                                degreeSimilarityFromString(ds);
                      })->default_value("preserve_rebalancing_nodes"),
              "Policy that determines which contractions between low and high degree nodes are accepted:\n"
-             "- preserve_rebalancing_nodes")
+             "- preserve_rebalancing_nodes\n"
+             "- compare_degrees")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),

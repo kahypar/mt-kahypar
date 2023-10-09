@@ -115,6 +115,9 @@ struct RatingParameters {
   double acceptance_limit_bound = 1.0;
   HypernodeID max_considered_neighbors = 0;
   bool use_similarity_penalty = false;
+
+  // degree comparison
+  double degree_comparison_bound = 4.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);

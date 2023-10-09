@@ -40,8 +40,12 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::initializeImpl() {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
+    _timer.start_timer("initialize_metrics", "Initialize Metrics");
     _current_metrics = Base::initializeMetrics(partitioned_hg);
+    _timer.stop_timer("initialize_metrics");
+    _timer.start_timer("initialize_refiners", "Initialize Refiners");
     Base::initializeRefinementAlgorithms();
+    _timer.stop_timer("initialize_refiners");
 
     if (_context.type == ContextType::main) {
       _context.initial_km1 = _current_metrics.quality;
