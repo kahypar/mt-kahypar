@@ -48,12 +48,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     Metrics current_metrics = best_metrics;
     const HyperedgeWeight input_quality = best_metrics.quality;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    _gain_cache.reset();
-    // resize data structures for current k
-    if (_context.partition.k != _current_k) {
-        _current_k = _context.partition.k;
-        _gain_computation.changeNumberOfBlocks(_current_k);
-    }
+    resizeDataStructuresForCurrentK();
 
     auto afterburner = [&](const HypernodeID hn, auto add_node_fn) {
         const PartitionID from = phg.partID(hn);
@@ -137,15 +132,15 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
         // rebalance
         // TODO: This is not deterministic yet
-        //recomputePenalties(phg, false);
+        recomputePenalties(phg, false);
         if (!metrics::isBalanced(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
-            // recomputePenalties(phg, true);
-            // HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+            recomputePenalties(phg, true);
+            HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
         }
         ASSERT(current_metrics.quality == metrics::quality(phg, _context, false));
         ++rounds_without_improvement;
@@ -164,8 +159,8 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     if (!_current_partition_is_best) {
         DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
         rollbackToBestPartition(phg);
-        //recomputePenalties(phg, true);
-        //HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+        recomputePenalties(phg, true);
+        HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     }
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
@@ -226,9 +221,8 @@ Gain DeterministicJetRefiner<GraphAndGainTypes>::performMoveWithAttributedGain(
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
         attributed_gain -= AttributedGains::gain(sync_update);
     };
-    const bool success = phg.changeNodePart(hn, from, to, objective_delta);
-    unused(success);
-    ASSERT(success);
+    ASSERT(to >= 0 && to < _current_k);
+    changeNodePart(phg, hn, from, to, objective_delta);
     return attributed_gain;
 }
 
@@ -252,7 +246,8 @@ void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(Partiti
         const PartitionID part_id = phg.partID(hn);
         if (part_id != _best_partition[hn]) {
             ASSERT(_best_partition[hn] != kInvalidPartition);
-            phg.changeNodePart(hn, part_id, _best_partition[hn], objective_delta);
+            ASSERT(_best_partition[hn] >= 0 && _best_partition[hn] < _current_k);
+            changeNodePart(phg, hn, part_id, _best_partition[hn], objective_delta);
         }
     };
     phg.doParallelForAllNodes(reset_node);
@@ -300,6 +295,7 @@ template <typename GraphAndGainTypes>
 bool DeterministicJetRefiner<GraphAndGainTypes>::noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts) {
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
         ASSERT(parts[hn] != kInvalidPartition);
+        ASSERT(parts[hn] < _current_k);
         unused(hn);
     });
     unused(parts);

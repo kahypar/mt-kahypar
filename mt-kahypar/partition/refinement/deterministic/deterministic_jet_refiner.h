@@ -102,7 +102,12 @@ private:
     const PartitionID to,
     const F& objective_delta) {
     bool success = false;
-    success = phg.changeNodePart(hn, from, to, objective_delta);
+    constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
+    if (_gain_cache.isInitialized()) {
+      success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
+    } else {
+      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    }
     ASSERT(success);
     unused(success);
   }
@@ -112,6 +117,18 @@ private:
   bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
   bool noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts);
+
+  void resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if (_current_k != _context.partition.k) {
+      _current_k = _context.partition.k;
+      _gain_computation.changeNumberOfBlocks(_current_k);
+      if (_gain_cache.isInitialized()) {
+        _gain_cache.changeNumberOfBlocks(_current_k);
+      }
+    }
+  }
 
   const Context& _context;
   PartitionID _current_k;

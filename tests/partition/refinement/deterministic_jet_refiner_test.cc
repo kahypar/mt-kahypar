@@ -34,30 +34,33 @@
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/utils/cast.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <PartitionID k, Objective objective>
+template <PartitionID k, Objective objective, RebalancingAlgorithm rebalancing>
 struct TestConfig {};
 
-template < PartitionID k>
-struct TestConfig< k, Objective::km1> {
+template < PartitionID k, RebalancingAlgorithm rebalancing>
+struct TestConfig< k, Objective::km1, rebalancing> {
     using TypeTraits = StaticHypergraphTypeTraits;
     using GainTypes = Km1GainTypes;
     using Refiner = DeterministicJetRefiner<GraphAndGainTypes<TypeTraits, GainTypes>>;
     static constexpr PartitionID K = k;
     static constexpr Objective OBJECTIVE = Objective::km1;
+    static constexpr RebalancingAlgorithm REBALANCER = rebalancing;
 };
 
-template <PartitionID k>
-struct TestConfig<k, Objective::cut> {
+template <PartitionID k, RebalancingAlgorithm rebalancing>
+struct TestConfig<k, Objective::cut, rebalancing> {
     using TypeTraits = StaticHypergraphTypeTraits;
     using GainTypes = CutGainTypes;
     using Refiner = DeterministicJetRefiner<GraphAndGainTypes<TypeTraits, GainTypes>>;
     static constexpr PartitionID K = k;
     static constexpr Objective OBJECTIVE = Objective::cut;
+    static constexpr RebalancingAlgorithm REBALANCER = rebalancing;
 };
 
 template <typename Config>
@@ -100,7 +103,7 @@ public:
         context.initial_partitioning.runs = 1;
 
         // Jet
-        context.refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+        context.refinement.rebalancer = Config::REBALANCER;
         context.refinement.deterministic_refinement.jet.num_iterations = 12;
         context.refinement.deterministic_refinement.jet.fixed_n_iterations = 0;
         context.refinement.deterministic_refinement.jet.relative_improvement_threshold = 0.001;
@@ -115,8 +118,13 @@ public:
             context.partition.k, hypergraph, parallel_tag_t());
         context.setupPartWeights(hypergraph.totalWeight());
         initialPartition();
-        rebalancer = std::make_unique<SimpleRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
-            context);
+        if (context.refinement.rebalancer == RebalancingAlgorithm::simple_rebalancer) {
+            rebalancer = std::make_unique<SimpleRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
+                context);
+        } else {
+            rebalancer = std::make_unique<AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
+                hypergraph.initialNumNodes(), context, gain_cache);
+        }
         refiner = std::make_unique<Refiner>(
             hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
         mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
@@ -150,12 +158,18 @@ size_t ADeterministicJetRefiner<Config>::num_threads = HardwareTopology::instanc
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<2, Objective::cut>,
-    TestConfig<4, Objective::cut>,
-    TestConfig<8, Objective::cut>,
-    TestConfig< 2, Objective::km1>,
-    TestConfig< 4, Objective::km1>,
-    TestConfig< 8, Objective::km1>> TestConfigs;
+typedef ::testing::Types<TestConfig<2, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig<4, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig<8, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig< 2, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig< 4, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig< 8, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
+    TestConfig<2, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
+    TestConfig<4, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
+    TestConfig<8, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
+    TestConfig< 2, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>,
+    TestConfig< 4, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>,
+    TestConfig< 8, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>> TestConfigs;
 
 TYPED_TEST_CASE(ADeterministicJetRefiner, TestConfigs);
 
@@ -187,47 +201,48 @@ TYPED_TEST(ADeterministicJetRefiner, DoesNotWorsenSolutionQuality) {
 
 
 TYPED_TEST(ADeterministicJetRefiner, IncreasesTheNumberOfBlocks) {
-    using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
-    HyperedgeWeight objective_before = metrics::quality(this->partitioned_hypergraph, this->context.partition.objective);
-    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
-    this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-    ASSERT_LE(this->metrics.quality, objective_before);
+  using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
+  HyperedgeWeight objective_before = metrics::quality(this->partitioned_hypergraph, this->context.partition.objective);
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
+  ASSERT_LE(this->metrics.quality, objective_before);
 
-    // Initialize partition with larger K
-    const PartitionID old_k = this->context.partition.k;
-    this->context.partition.k = 2 * old_k;
-    this->context.setupPartWeights(this->hypergraph.totalWeight());
-    PartitionedHypergraph phg_with_larger_k(
-        this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
-    utils::Randomize& rand = utils::Randomize::instance();
-    vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
-    this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
-        const PartitionID block = this->partitioned_hypergraph.partID(hn);
-        phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(THREAD_ID) ? 2 * block : 2 * block + 1);
-        non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
-    });
-    phg_with_larger_k.initializePartition();
-    this->metrics.quality = metrics::quality(phg_with_larger_k, this->context);
-    this->metrics.imbalance = metrics::imbalance(phg_with_larger_k, this->context);
+  // Initialize partition with smaller K
+  const PartitionID old_k = this->context.partition.k;
+  this->context.partition.k = std::max(old_k / 2, 2);
+  this->context.setupPartWeights(this->hypergraph.totalWeight());
+  PartitionedHypergraph phg_with_new_k(
+    this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
+  vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
+  this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    // create a semi-random partition
+    const PartitionID block = this->partitioned_hypergraph.partID(hn);
+    phg_with_new_k.setOnlyNodePart(hn, (block + hn) % this->context.partition.k);
+    non_optimized_partition[hn] = phg_with_new_k.partID(hn);
+  });
+  phg_with_new_k.initializePartition();
+  this->metrics.quality = metrics::quality(phg_with_new_k, this->context);
+  this->metrics.imbalance = metrics::imbalance(phg_with_new_k, this->context);
 
-    objective_before = metrics::quality(phg_with_larger_k, this->context.partition.objective);
-    mt_kahypar_partitioned_hypergraph_t phg_larger_k = utils::partitioned_hg_cast(phg_with_larger_k);
-    this->refiner->initialize(phg_larger_k);
-    this->refiner->refine(phg_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
-    ASSERT_LE(this->metrics.quality, objective_before);
-    ASSERT_EQ(metrics::quality(phg_with_larger_k, this->context.partition.objective),
-        this->metrics.quality);
+  objective_before = metrics::quality(phg_with_new_k, this->context.partition.objective);
+  mt_kahypar_partitioned_hypergraph_t phg_new_k = utils::partitioned_hg_cast(phg_with_new_k);
+  this->gain_cache.reset();
+  this->refiner->initialize(phg_new_k);
+  this->rebalancer->initialize(phg_new_k);
+  this->refiner->refine(phg_new_k, {}, this->metrics, std::numeric_limits<double>::max());
+  ASSERT_LE(this->metrics.quality, objective_before);
+  ASSERT_EQ(metrics::quality(phg_with_new_k, this->context.partition.objective),
+            this->metrics.quality);
 
-    // Check if refiner has moved some nodes from new blocks
-    bool has_moved_nodes = false;
-    for (const HypernodeID hn : phg_with_larger_k.nodes()) {
-        if (non_optimized_partition[hn] >= old_k &&
-            non_optimized_partition[hn] != phg_with_larger_k.partID(hn)) {
-            has_moved_nodes = true;
-            break;
-        }
+  // Check if refiner has moved some nodes
+  bool has_moved_nodes = false;
+  for ( const HypernodeID hn : phg_with_new_k.nodes() ) {
+    if ( non_optimized_partition[hn] != phg_with_new_k.partID(hn) ) {
+      has_moved_nodes = true;
+      break;
     }
-    ASSERT_TRUE(has_moved_nodes);
+  }
+  ASSERT_TRUE(has_moved_nodes);
 }
 
 }  // namespace mt_kahypar
