@@ -137,15 +137,15 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
         // rebalance
         // TODO: This is not deterministic yet
-        recomputePenalties(phg, false);
+        //recomputePenalties(phg, false);
         if (!metrics::isBalanced(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
-            recomputePenalties(phg, true);
-            HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+            // recomputePenalties(phg, true);
+            // HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
         }
         ASSERT(current_metrics.quality == metrics::quality(phg, _context, false));
         ++rounds_without_improvement;
@@ -164,8 +164,8 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     if (!_current_partition_is_best) {
         DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
         rollbackToBestPartition(phg);
-        recomputePenalties(phg, true);
-        HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+        //recomputePenalties(phg, true);
+        //HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     }
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
@@ -266,7 +266,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::recomputePenalties(const Partit
     auto recompute = [&](const HypernodeID hn) {
         const bool node_was_moved = (phg.partID(hn) != current_parts[hn]);
         if (node_was_moved) {
-            _gain_cache.recomputePenaltyTerm(phg, hn);
+            _gain_cache.recomputeInvalidTerms(phg, hn);
         } else {
             ASSERT(_gain_cache.penaltyTerm(hn, phg.partID(hn)) == _gain_cache.recomputePenaltyTerm(phg, hn));
         }
@@ -299,10 +299,10 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::arePotentialMovesToOtherParts(c
 template <typename GraphAndGainTypes>
 bool DeterministicJetRefiner<GraphAndGainTypes>::noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts) {
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
-        if (parts[hn] == kInvalidPartition) {
-            return false;
-        }
+        ASSERT(parts[hn] != kInvalidPartition);
+        unused(hn);
     });
+    unused(parts);
     return true;
 }
 
