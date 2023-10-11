@@ -60,6 +60,7 @@ class LabelPropagationRefiner final : public IRefiner {
                                    GainCache& gain_cache,
                                    IRebalancer& rb) :
     _might_be_uninitialized(false),
+    _old_partition_is_balanced(true),
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
@@ -195,6 +196,7 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   bool _might_be_uninitialized;
+  bool _old_partition_is_balanced;
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;

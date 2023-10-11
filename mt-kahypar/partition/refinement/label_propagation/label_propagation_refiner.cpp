@@ -76,18 +76,14 @@ namespace mt_kahypar {
           Gain move_delta = _gain.localDelta() - delta_before;
           bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
           if (accept_move) {
-            DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-                << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
             if constexpr (!unconstrained) {
               // in unconstrained case, we don't want to activate neighbors if the move is undone
               // by the rebalancing
               activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, true);
             }
           } else {
-            DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-                << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
-            // In case, the real gain is not equal with the computed gain and
-            // worsen the solution quality we revert the move.
+            // If the real gain is not equal with the computed gain and
+            // worsens the solution quality we revert the move.
             ASSERT(hypergraph.partID(hn) == to);
             changeNodePart<unconstrained>(hypergraph, hn, to, from, objective_delta);
           }
@@ -162,6 +158,7 @@ namespace mt_kahypar {
     _gain.reset();
 
     if (unconstrained_lp) {
+      _old_partition_is_balanced = metrics::isBalanced(hypergraph, _context);
       moveActiveNodes<true>(hypergraph, next_active_nodes);
     } else {
       moveActiveNodes<false>(hypergraph, next_active_nodes);
@@ -278,7 +275,13 @@ namespace mt_kahypar {
     timer.stop_timer("rebalance_lp");
     DBG << "[LP] Imbalance after rebalancing: " << current_metrics.imbalance << ", quality: " << current_metrics.quality;
 
-    if (current_metrics.quality > best_metrics.quality) { // rollback and stop LP
+    bool was_imbalanced_and_improved_balance = !_old_partition_is_balanced
+                                               && current_metrics.imbalance < best_metrics.imbalance;
+    bool is_imbalanced_and_worsened_balance = (!metrics::isBalanced(hypergraph, _context)
+                                              && current_metrics.imbalance > best_metrics.imbalance);
+    if (!was_imbalanced_and_improved_balance
+        && (current_metrics.quality > best_metrics.quality || is_imbalanced_and_worsened_balance)) {
+      // rollback and stop LP
       auto noop_obj_fn = [](const SynchronizedEdgeUpdate&) { };
       current_metrics = best_metrics;
 
