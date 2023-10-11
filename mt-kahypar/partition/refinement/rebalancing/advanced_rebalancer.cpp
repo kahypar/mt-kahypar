@@ -102,6 +102,9 @@ namespace impl {
     Gain gain = std::numeric_limits<Gain>::min();
     if (to != kInvalidPartition) {
       gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
+    } else {
+      // edge case: if u does not fit in any of the three considered blocks we need to check all blocks
+      return computeBestTargetBlock(phg, context, gain_cache, u, from);
     }
     return std::make_pair(to, transformGain(gain, wu));
   }
