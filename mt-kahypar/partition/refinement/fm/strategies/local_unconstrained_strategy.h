@@ -281,7 +281,7 @@ private:
                                                       HypernodeID u,
                                                       PartitionID from,
                                                       std::array<PartitionID, 3> parts) const {
-
+    const PartitionID designatedTargetU = sharedData.targetPart[u];
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
@@ -296,6 +296,13 @@ private:
         } else if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
           const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
+            if (i == designatedTargetU) {
+              // Edge case: the cached target block for u is overloaded (infinite penalty) and no longer valid.
+              // We need to check all blocks, since otherwise the updated node might get a very low priority.
+              // Note: Since the penalties increase monotonically during a round, this can happen at most once
+              // for each target part of a node
+              return computeBestTargetBlock(phg, gain_cache, u, from);
+            }
             continue;
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
