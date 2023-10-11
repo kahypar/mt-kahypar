@@ -173,8 +173,8 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
-      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::additive: return os << "additive";)
-      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";)
+      case HeavyNodePenaltyPolicy::additive: return os << "additive";
+      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -384,14 +384,12 @@ namespace mt_kahypar {
     if (penalty == "no_penalty") {
       return HeavyNodePenaltyPolicy::no_penalty;
     }
-    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     else if (penalty == "multiplicative") {
       return HeavyNodePenaltyPolicy::multiplicative_penalty;
     } else if (penalty == "additive") {
       return HeavyNodePenaltyPolicy::additive;
       // omit default case to trigger compiler warning for missing cases
     }
-    #endif
     throw InvalidParameterException("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
   }

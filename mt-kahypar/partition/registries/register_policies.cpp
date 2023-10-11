@@ -75,12 +75,10 @@ REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
                 AdditivePenalty);
-#endif
 
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);

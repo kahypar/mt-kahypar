@@ -124,8 +124,8 @@ enum class RatingFunction : uint8_t {
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
-  ENABLE_EXPERIMENTAL_FEATURES(multiplicative_penalty COMMA)
-  ENABLE_EXPERIMENTAL_FEATURES(additive COMMA)
+  multiplicative_penalty COMMA
+  additive COMMA
   UNDEFINED
 };
 
