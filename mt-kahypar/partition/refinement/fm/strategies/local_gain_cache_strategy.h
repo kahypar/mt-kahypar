@@ -42,7 +42,7 @@ namespace mt_kahypar {
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
-   * applyMove(phg, gain_cache, move, global)
+   * applyMove(phg, gain_cache, move)
    * reset()
    * deltaGainUpdates(phg, gain_cache, sync_update)
    *
@@ -142,13 +142,7 @@ public:
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
-    // nothing to do here
-  }
-
-  template<typename PartitionedHypergraph, typename GainCache>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void revertMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
+  void applyMove(const PartitionedHypergraph&, const GainCache&, Move) {
     // nothing to do here
   }
 
