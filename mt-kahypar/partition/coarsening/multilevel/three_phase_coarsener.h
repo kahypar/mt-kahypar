@@ -149,6 +149,16 @@ class ThreePhaseCoarsener : public ICoarsener,
     _timer.stop_timer("init_similarity");
     _always_accept_policy.initialize(current_hg, _context);
 
+    HypernodeWeight max_allowed_node_weight = cc.max_allowed_node_weight;
+    if (_context.coarsening.scale_allowed_node_weight) {
+      double hypernode_weight_fraction =
+              _context.coarsening.max_allowed_weight_multiplier / hierarchy_contraction_limit;
+      max_allowed_node_weight = std::ceil(hypernode_weight_fraction * current_hg.totalWeight());
+      max_allowed_node_weight = std::min(max_allowed_node_weight, _context.coarsening.max_allowed_node_weight);
+    }
+    cc.max_allowed_node_weight = (_context.coarsening.max_allowed_weight_multiplier_soft
+                                  / _context.coarsening.max_allowed_weight_multiplier) * max_allowed_node_weight;
+
     // TODO: degree zero nodes?!
     // Phase 1: LP coarsening, but forbid contraction of low degree nodes onto high degree nodes
     coarseningRound("first_lp_round", "First LP round",
@@ -170,6 +180,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     cc.may_ignore_communities = true;
     cc.contract_aggressively = true;
     cc.hierarchy_contraction_limit = target_contraction_size;
+    cc.max_allowed_node_weight = max_allowed_node_weight;
     if (current_num_nodes > target_contraction_size) {
       DBG << "Start Second LP round: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
       coarseningRound("second_lp_round", "Second LP round",

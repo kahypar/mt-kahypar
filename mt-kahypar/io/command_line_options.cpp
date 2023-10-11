@@ -264,6 +264,16 @@ namespace mt_kahypar {
             ("c-deep-t",
              po::value<HypernodeID>(&context.coarsening.deep_ml_contraction_limit_multiplier)->value_name("<int>"),
              "Deep multilevel performs coarsening until 2 * deep-t hypernodes are left for bipartitioning calls")
+            ("c-scale-allowed-node-weight",
+             po::value<bool>(&context.coarsening.scale_allowed_node_weight)->value_name(
+                     "<bool>")->default_value(false),
+             "Scale maximum allowed weight for contractions to current level (currently only 3phase-coarsener).")
+            ("c-s-soft",
+             po::value<double>(&context.coarsening.max_allowed_weight_multiplier_soft)->value_name(
+                     "<double>")->default_value(1),
+             "Soft limit for first two phases of 3phase-coarsener.\n"
+             "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
+             "(s * w(H)) / (t * k)\n")
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")
