@@ -103,8 +103,6 @@ class RebalancerTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
 
     rebalancer = std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
-    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-    rebalancer->initialize(phg);
   }
 
   Hypergraph hypergraph;
@@ -132,6 +130,7 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
   this->partitioned_hypergraph.setOnlyNodePart(2, 0);
   this->partitioned_hypergraph.initializePartition();
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->rebalancer->initialize(phg);
 
   Metrics metrics;
   metrics.quality = metrics::quality(this->partitioned_hypergraph, this->context);
@@ -158,6 +157,7 @@ TYPED_TEST(RebalancerTest, ProducesBalancedResult) {
 
   this->partitioned_hypergraph.initializePartition();
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->rebalancer->initialize(phg);
 
   Metrics metrics;
   metrics.quality = metrics::quality(this->partitioned_hypergraph, this->context);

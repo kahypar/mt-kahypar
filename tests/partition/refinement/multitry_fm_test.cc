@@ -113,6 +113,7 @@ class MultiTryFMTest : public Test {
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
       hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
+    rebalancer->initialize(phg);
     refiner->initialize(phg);
   }
 
