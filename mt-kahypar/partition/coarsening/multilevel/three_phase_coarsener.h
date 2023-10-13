@@ -159,6 +159,10 @@ class ThreePhaseCoarsener : public ICoarsener,
     cc.max_allowed_node_weight = (_context.coarsening.max_allowed_weight_multiplier_soft
                                   / _context.coarsening.max_allowed_weight_multiplier) * max_allowed_node_weight;
 
+    bool did_two_hop = false;
+    bool did_second_lp = false;
+    bool did_second_two_hop = false;
+
     // TODO: degree zero nodes?!
     // Phase 1: LP coarsening, but forbid contraction of low degree nodes onto high degree nodes
     coarseningRound("first_lp_round", "First LP round",
@@ -174,6 +178,7 @@ class ThreePhaseCoarsener : public ICoarsener,
                      current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
+      did_two_hop = true;
     }
 
     // Phase 3: LP and two-hop coarsening with all contractions allowed (as well as contracting size 1 communities)
@@ -187,6 +192,7 @@ class ThreePhaseCoarsener : public ICoarsener,
                       current_hg, _lp_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
+      did_second_lp = true;
     }
     if (current_num_nodes > target_contraction_size) {
       DBG << "Start Second Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
@@ -194,6 +200,20 @@ class ThreePhaseCoarsener : public ICoarsener,
                      current_hg, _two_hop_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
+      did_second_two_hop = true;
+    }
+
+    // collect stats regarding coarsening effectiveness
+    if (_context.type == ContextType::main) {
+      utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
+      auto report = [&](auto name, bool val) {
+        std::stringstream ss;
+        ss << "level_" << _pass_nr << "_" << name;
+        stats.add_stat(ss.str(), val);
+      };
+      report("two_hop_active", did_two_hop);
+      report("second_lp_active", did_second_lp);
+      report("second_two_hop_active", did_second_two_hop);
     }
 
     DBG << V(current_num_nodes) << V(target_contraction_size) << V(hierarchy_contraction_limit);
@@ -227,9 +247,9 @@ class ThreePhaseCoarsener : public ICoarsener,
       return _similarity_policy.weightRatioForNode(current_hg, hn);
     };
     if ( current_hg.hasFixedVertices() ) {
-      algo.template performClustering<true>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn);
+      algo.template performClustering<true>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn, _pass_nr);
     } else {
-      algo.template performClustering<false>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn);
+      algo.template performClustering<false>(current_hg, _current_vertices, similarity, cc, weight_ratio_fn, _pass_nr);
     }
 
     if ( _context.partition.show_detailed_clustering_timings ) {
