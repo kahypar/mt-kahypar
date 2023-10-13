@@ -424,10 +424,6 @@ namespace impl {
                                                                   Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
-    if (!_gain_cache.isInitialized()) {
-      _gain_cache.initializeGainCache(phg);
-    }
-
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
     for (PartitionID k = 0; k < _context.partition.k; ++k) {
@@ -505,7 +501,10 @@ bool AdvancedRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hy
 template <typename GraphAndGainTypes>
 void AdvancedRebalancer<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
   auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-  unused(phg);
+
+  if (!_gain_cache.isInitialized()) {
+    _gain_cache.initializeGainCache(phg);
+  }
 }
 
 template <typename GraphAndGainTypes>
