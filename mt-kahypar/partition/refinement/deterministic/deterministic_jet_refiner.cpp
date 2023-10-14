@@ -129,11 +129,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         current_metrics.imbalance = metrics::imbalance(phg, _context);
         HEAVY_REFINEMENT_ASSERT(current_metrics.quality == metrics::quality(phg, _context, false),
             V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
-
         // rebalance
         // TODO: This is not deterministic yet
         recomputePenalties(phg, false);
         if (!metrics::isBalanced(phg, _context)) {
+            auto gc = tbb::global_control(tbb::global_control::max_allowed_parallelism, 1);
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
@@ -209,7 +209,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
 
 template <typename GraphAndGainTypes>
 void DeterministicJetRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
-    _rebalancer.initialize(phg);
+    //_rebalancer.initialize(phg);
 }
 
 template<typename GraphAndGainTypes>

@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -171,14 +172,17 @@ public:
       for (HypernodeID u : hypergraph.nodes()) {
         partitioned_hypergraph.setNodePart(u, initial_partition[u]);
       }
-
+      gain_cache.reset();
+      gain_cache.initializeGainCache(partitioned_hypergraph);
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-      auto rebalancer = std::make_unique<DoNothingRefiner>(context);
+      auto rebalancer = std::make_unique<AdvancedRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>(hypergraph.initialNumNodes(), context, gain_cache);
       DeterministicJetRefiner<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
         hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
+      rebalancer->initialize(phg);
       refiner.initialize(phg);
       vec<HypernodeID> dummy_refinement_nodes;
       Metrics my_metrics = metrics;
+
       refiner.refine(phg, dummy_refinement_nodes, my_metrics, 0.0);
 
       if (i == 0) {
