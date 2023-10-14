@@ -413,6 +413,11 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
+
+      if (lp_algo == LabelPropagationAlgorithm::deterministic_jet) {
+        initial_partitioning.refinement.rebalancer = RebalancingAlgorithm::deterministic;
+        refinement.rebalancer = RebalancingAlgorithm::deterministic;
+      }
     }
 
     if ( partition.instance_type == InstanceType::UNDEFINED ) {
