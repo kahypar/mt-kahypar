@@ -45,6 +45,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+#include "mt-kahypar/partition/refinement/deterministic/rebalancing/deterministic_rebalancer.h"
 
 
 namespace mt_kahypar {
@@ -84,6 +85,11 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   DeterministicRebalancer,
+                                   IRebalancer,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    SimpleRebalancer,
@@ -249,6 +255,9 @@ REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
+REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::deterministic,
+                               DeterministicRebalancerDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                SimpleRebalancerDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
