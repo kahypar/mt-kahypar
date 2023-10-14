@@ -150,6 +150,7 @@ enum class InitialPartitioningAlgorithm : uint8_t {
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation,
   deterministic,
+  deterministic_jet,
   do_nothing
 };
 

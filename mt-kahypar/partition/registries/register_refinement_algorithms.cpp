@@ -54,6 +54,11 @@ using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                DeterministicLabelPropagationRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicJetRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
@@ -218,6 +223,9 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic_jet,
+                               DeterministicJetDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
