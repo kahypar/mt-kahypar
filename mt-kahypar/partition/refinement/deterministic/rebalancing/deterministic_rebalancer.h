@@ -39,12 +39,21 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+
+namespace rebalancer {
+struct RebalancingMove {
+    HypernodeID hn;
+    PartitionID to;
+    float priority;
+};
+}; // namespace rebalancer
 template <typename GraphAndGainTypes>
 class DeterministicRebalancer final : public IRebalancer {
 private:
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using GainCache = typename GraphAndGainTypes::GainCache;
     using GainComputation = typename GraphAndGainTypes::GainComputation;
+    using RatingMap = typename GainComputation::RatingMap;
     using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
     static constexpr bool debug = false;
@@ -52,14 +61,18 @@ private:
 
 public:
 
-    explicit DeterministicRebalancer(const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context) :
         _context(context),
+        _max_part_weights(nullptr),
         _current_k(context.partition.k),
         _gain_computation(context),
-        _part_weights(_context.partition.k) {}
+        _num_imbalanced_parts(0),
+        _num_valid_targets(0),
+        _part_weights(_context.partition.k),
+        _moves(num_nodes) { std::cout << "SO DETERMINSITC " << std::endl;}
 
-    explicit DeterministicRebalancer(HypernodeID, const Context& context, GainCache&) :
-        DeterministicRebalancer(context) {}
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
+        DeterministicRebalancer(num_nodes, context) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -104,10 +117,75 @@ private:
         }
     }
 
+    void initializeDataStructures(const PartitionedHypergraph& phg);
+
+    void updateImbalance(const PartitionedHypergraph& hypergraph, bool read_weights_from_graph);
+
+    bool mayMoveNode(PartitionID block, HypernodeWeight hn_weight) const {
+        double allowed_weight = _part_weights[block].load(std::memory_order_relaxed)
+            - _context.partition.perfect_balance_part_weights[block];
+        allowed_weight *= _context.refinement.deterministic_refinement.jet.heavy_vertex_exclusion_factor;
+        return hn_weight <= allowed_weight;
+    }
+
+    HypernodeWeight imbalance(PartitionID block) const {
+        return _part_weights[block].load(std::memory_order_relaxed) - _max_part_weights[block];
+    }
+
+    HypernodeWeight deadzoneForPart(PartitionID block) const {
+        const HypernodeWeight balanced = _context.partition.perfect_balance_part_weights[block];
+        const HypernodeWeight max = _max_part_weights[block];
+        return max - _context.refinement.deterministic_refinement.jet.relative_deadzone_size * (max - balanced);
+    }
+
+    bool isValidTarget(const PartitionedHypergraph& hypergraph,
+        PartitionID block,
+        HypernodeWeight hn_weight,
+        bool use_precise_part_weights) const {
+        const HypernodeWeight block_weight = use_precise_part_weights ?
+            hypergraph.partWeight(block) : _part_weights[block].load(std::memory_order_relaxed);
+        return (block_weight < deadzoneForPart(block)) &&
+            block_weight + hn_weight <= _max_part_weights[block];
+    }
+
+    rebalancer::RebalancingMove computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
+        const HypernodeID hn,
+        bool non_adjacent_blocks,
+        bool use_precise_part_weights);
+
+    bool changeNodePart(PartitionedHypergraph& phg,
+        const HypernodeID hn,
+        const PartitionID from,
+        const PartitionID to,
+        bool ensure_balanced) {
+        // it happens spuriously that from == to, not entirely sure why (possibly due to moving heavy nodes)
+        if (from == to || to == kInvalidPartition) {
+            return false;
+        }
+
+        // This function is passed as lambda to the changeNodePart function and used
+        // to calculate the "real" delta of a move (in terms of the used objective function).
+        auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+            _gain_computation.computeDeltaForHyperedge(sync_update);
+        };
+
+        HypernodeWeight max_weight = ensure_balanced ? _max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
+        bool success = false;
+        success = phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
+        ASSERT(success || ensure_balanced);
+        return success;
+    }
+
+    void weakRebalancingRound(PartitionedHypergraph& phg);
+
     const Context& _context;
+    const HypernodeWeight* _max_part_weights;
     PartitionID _current_k;
     GainComputation _gain_computation;
+    PartitionID _num_imbalanced_parts;
+    PartitionID _num_valid_targets;
     parallel::scalable_vector<AtomicWeight> _part_weights;
+    parallel::scalable_vector<rebalancer::RebalancingMove> _moves;
 };
 
 }  // namespace kahypar

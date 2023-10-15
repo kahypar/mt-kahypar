@@ -148,6 +148,10 @@ struct JetParameters {
   double relative_improvement_threshold = 0.001;
   double negative_gain_factor_coarse = 0.75;
   double negative_gain_factor_fine = 0.25;
+
+  // rebalancing
+  double heavy_vertex_exclusion_factor = 1.5;
+  double relative_deadzone_size = 1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const JetParameters& params);
