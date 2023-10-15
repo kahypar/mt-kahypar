@@ -47,9 +47,9 @@ namespace mt_kahypar {
 float transformGain(Gain gain_, HypernodeWeight wu) {
   float gain = gain_;
   if (gain > 0) {
-    gain *= wu;
-  } else if (gain < 0) {
     gain /= wu;
+  } else if (gain < 0) {
+    gain *= wu;
   }
   return gain;
 }
@@ -169,13 +169,16 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   tbb::parallel_sort(_moves.begin(), _moves.end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
     return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
   });
+  // for (size_t i = 0; i < std::min(_moves.size(), 100UL); ++i) {
+  //   std::cout << _moves[i].priority << std::endl;
+  // }
   // apply moves
   for (const auto& move : _moves) {
     const PartitionID from = phg.partID(move.hn);
     const HypernodeWeight weight = phg.nodeWeight(move.hn);
     if (phg.partWeight(from) > _max_part_weights[from] && isValidTarget(phg, move.to, weight, true)) {
       changeNodePart(phg, move.hn, from, move.to, true);
-      if (phg.partWeight(from) <= _max_part_weights[from] && --_num_imbalanced_parts == 0){
+      if (phg.partWeight(from) <= _max_part_weights[from] && --_num_imbalanced_parts == 0) {
         break;
       }
     }
