@@ -128,7 +128,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
   // if no adjacent block with free capacity exists, we need to consider non-adjacent blocks
   if (non_adjacent_blocks && best_target == kInvalidPartition) {
-    utils::Randomize& rand = utils::Randomize::instance();
+    //utils::Randomize& rand = utils::Randomize::instance();
     // we start with a block that is chosen by random, to ensure a reasonable distribution of nodes
     // to target blocks (note: this does not always result in a uniform distribution since some blocks
     // are not an acceptable target, but it should be good enough)
@@ -183,7 +183,6 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       }
     }
   }
-
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
