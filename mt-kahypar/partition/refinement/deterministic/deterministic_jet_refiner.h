@@ -61,7 +61,7 @@ public:
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID,
     const Context& context,
-    GainCache& gain_cache,
+    GainCache&,
     IRebalancer& rebalancer) :
     _context(context),
     _current_k(context.partition.k),
@@ -75,7 +75,7 @@ public:
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
     _rebalancer(rebalancer),
-    _gain_cache(gain_cache) {}
+    tmp_active_nodes() {}
 
 private:
   static constexpr bool debug = false;
@@ -87,7 +87,7 @@ private:
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg);
 
-  void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph, bool first_round);
+  void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
 
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const HypernodeID hn);
 
@@ -101,13 +101,8 @@ private:
     const PartitionID from,
     const PartitionID to,
     const F& objective_delta) {
-    bool success = false;
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    if (_gain_cache.isInitialized()) {
-      success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
-    } else {
-      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
-    }
+    const bool success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
     ASSERT(success);
     unused(success);
   }
@@ -124,9 +119,6 @@ private:
     if (_current_k != _context.partition.k) {
       _current_k = _context.partition.k;
       _gain_computation.changeNumberOfBlocks(_current_k);
-      if (_gain_cache.isInitialized()) {
-        _gain_cache.changeNumberOfBlocks(_current_k);
-      }
     }
   }
 
@@ -142,8 +134,7 @@ private:
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
-  GainCache& _gain_cache;
-
+  ds::StreamingVector<HypernodeID> tmp_active_nodes;
 };
 
 }
