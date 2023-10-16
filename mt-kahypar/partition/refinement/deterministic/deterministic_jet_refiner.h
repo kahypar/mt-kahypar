@@ -61,7 +61,7 @@ public:
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID,
     const Context& context,
-    GainCache& gain_cache,
+    GainCache&,
     IRebalancer& rebalancer) :
     _context(context),
     _current_k(context.partition.k),
@@ -74,8 +74,9 @@ public:
     _gain_computation(context, true /* disable_randomization */),
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
-    _rebalancer(rebalancer),
-    _gain_cache(gain_cache) {}
+    _rebalancer(rebalancer)
+    // _gain_cache(gain_cache) 
+  {}
 
 private:
   static constexpr bool debug = false;
@@ -103,11 +104,11 @@ private:
     const F& objective_delta) {
     bool success = false;
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    if (_gain_cache.isInitialized()) {
-      success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
-    } else {
-      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
-    }
+    // if (_gain_cache.isInitialized()) {
+    //   success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
+    // } else {
+    success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    // }
     ASSERT(success);
     unused(success);
   }
@@ -124,9 +125,9 @@ private:
     if (_current_k != _context.partition.k) {
       _current_k = _context.partition.k;
       _gain_computation.changeNumberOfBlocks(_current_k);
-      if (_gain_cache.isInitialized()) {
-        _gain_cache.changeNumberOfBlocks(_current_k);
-      }
+      // if (_gain_cache.isInitialized()) {
+      //   _gain_cache.changeNumberOfBlocks(_current_k);
+      // }
     }
   }
 
@@ -142,7 +143,7 @@ private:
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
-  GainCache& _gain_cache;
+  // GainCache& _gain_cache;
 
 };
 
