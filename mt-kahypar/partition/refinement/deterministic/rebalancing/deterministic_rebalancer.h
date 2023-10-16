@@ -69,7 +69,7 @@ public:
         _num_imbalanced_parts(0),
         _num_valid_targets(0),
         _part_weights(_context.partition.k),
-        _moves(num_nodes) { std::cout << "SO DETERMINSITC " << std::endl;}
+        _moves(num_nodes) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
         DeterministicRebalancer(num_nodes, context) {}
