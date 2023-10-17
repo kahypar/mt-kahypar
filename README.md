@@ -194,12 +194,6 @@ We provide a simple C-style interface to use Mt-KaHyPar as a library.  The libra
 make install.mtkahypar # use sudo (Linux) or run shell as an adminstrator (Windows) to install system-wide
 ```
 
-The library can optionally be built statically by setting `BUILD_SHARED_LIBS` to `OFF` while configuring:
-
-```sh
-cmake -DBUILD_SHARED_LIBS=OFF ...
-```
-
 Note: When installing locally, the build will exit with an error due to missing permissions.
 However, the library is still built successfully and is available in the build folder.
 
@@ -304,6 +298,25 @@ if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
   mt_kahypar_partitioned_hypergraph_t partitioned_hg =
     mt_kahypar_partition(hypergraph, context);
 }
+```
+
+### Static library
+
+**Note:** It is strongly discouraged to build Mt-KaHyPar as a static library.
+Mt-KaHyPar depends on [TBB][tbb] which does not recommend using a static version of it.
+
+Building a static version requires Boost, TBB and hwloc to be available in a static version.
+
+To build the library statically, set `BUILD_SHARED_LIBS` to `OFF` while configuring:
+
+```sh
+cmake -DBUILD_SHARED_LIBS=OFF ...
+```
+
+In case the static version of TBB is placed at a non-standard path, it can be specified using `TBB_ROOT`:
+
+```sh
+cmake -DBUILD_SHARED_LIBS=OFF -DTBB_ROOT=/path/to/tbb ...
 ```
 
 The Python Library Interface
