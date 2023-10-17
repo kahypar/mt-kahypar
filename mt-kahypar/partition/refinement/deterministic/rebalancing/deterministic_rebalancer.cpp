@@ -178,7 +178,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const HypernodeWeight weight = phg.nodeWeight(move.hn);
     if (phg.partWeight(from) > _max_part_weights[from] && isValidTarget(phg, move.to, weight, true)) {
       changeNodePart(phg, move.hn, from, move.to, true);
-      if (phg.partWeight(from) <= _max_part_weights[from] && --_num_imbalanced_parts == 0) {
+      if (phg.partWeight(from) <= _max_part_weights[from]) {
+        --_num_imbalanced_parts;
         break;
       }
     }
