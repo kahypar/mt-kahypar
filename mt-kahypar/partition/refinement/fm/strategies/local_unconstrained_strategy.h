@@ -62,10 +62,8 @@ class LocalUnconstrainedStrategy {
   LocalUnconstrainedStrategy(const Context& context,
                              FMSharedData& sharedData,
                              BlockPriorityQueue& blockPQ,
-                             vec<VertexPriorityQueue>& vertexPQs,
-                             FMStats& runStats) :
+                             vec<VertexPriorityQueue>& vertexPQs) :
       context(context),
-      runStats(runStats),
       sharedData(sharedData),
       blockPQ(blockPQ),
       vertexPQs(vertexPQs),
@@ -84,7 +82,6 @@ class LocalUnconstrainedStrategy {
     ASSERT(target < context.partition.k);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-    runStats.pushes++;
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -152,11 +149,9 @@ class LocalUnconstrainedStrategy {
       if (apply_move) {
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
-        runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
         return true;
       } else {
-        runStats.retries++;
         vertexPQs[from].adjustKey(u, gain);
         sharedData.targetPart[u] = to;
         if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
@@ -207,10 +202,7 @@ class LocalUnconstrainedStrategy {
 
   void reset() {
     // release all nodes that were not moved
-    const bool release = sharedData.release_nodes
-                         && runStats.moves > 0;
-
-    if (release) {
+    if (sharedData.release_nodes) {
       // Release all nodes contained in PQ
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
@@ -348,8 +340,6 @@ private:
   }
 
   const Context& context;
-
-  FMStats& runStats;
 
   FMSharedData& sharedData;
 

@@ -130,10 +130,6 @@ namespace mt_kahypar {
 
     // Check fixed vertex support compatibility
     if ( hypergraph.hasFixedVertices() ) {
-      if ( context.partition.preset_type == PresetType::deterministic ) {
-        throw NonSupportedOperationException(
-          "Deterministic partitioning mode does not support fixed vertices!");
-      }
       if ( context.partition.mode == Mode::deep_multilevel ||
            context.initial_partitioning.mode == Mode::deep_multilevel ) {
         throw NonSupportedOperationException(

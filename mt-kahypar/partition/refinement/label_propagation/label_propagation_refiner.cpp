@@ -39,12 +39,12 @@
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, typename GainTypes>
+  template <typename GraphAndGainTypes>
   template<bool unconstrained, typename F>
-  bool LabelPropagationRefiner<TypeTraits, GainTypes>::moveVertex(PartitionedHypergraph& hypergraph,
-                                                                  const HypernodeID hn,
-                                                                  NextActiveNodes& next_active_nodes,
-                                                                  const F& objective_delta) {
+  bool LabelPropagationRefiner<GraphAndGainTypes>::moveVertex(PartitionedHypergraph& hypergraph,
+                                                           const HypernodeID hn,
+                                                           NextActiveNodes& next_active_nodes,
+                                                           const F& objective_delta) {
     bool is_moved = false;
     ASSERT(hn != kInvalidHypernode);
     if ( hypergraph.isBorderNode(hn) && !hypergraph.isFixed(hn) ) {
@@ -98,12 +98,11 @@ namespace mt_kahypar {
     return is_moved;
   }
 
-  template <typename TypeTraits, typename GainTypes>
-  bool LabelPropagationRefiner<TypeTraits, GainTypes>::refineImpl(
-                  mt_kahypar_partitioned_hypergraph_t& phg,
-                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                  Metrics& best_metrics,
-                  const double)  {
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
+                                                           const vec<HypernodeID>& refinement_nodes,
+                                                           Metrics& best_metrics,
+                                                           const double)  {
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     resizeDataStructuresForCurrentK();
     _gain.reset();
@@ -131,9 +130,9 @@ namespace mt_kahypar {
   }
 
 
-  template <typename TypeTraits, typename GainTypes>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::labelPropagation(PartitionedHypergraph& hypergraph,
-                                                                        Metrics& best_metrics) {
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::labelPropagation(PartitionedHypergraph& hypergraph,
+                                                                 Metrics& best_metrics) {
     NextActiveNodes next_active_nodes;
     vec<Move> rebalance_moves;
     bool should_stop = false;
@@ -151,13 +150,12 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes>
-  bool LabelPropagationRefiner<TypeTraits, GainTypes>::labelPropagationRound(
-                              PartitionedHypergraph& hypergraph,
-                              NextActiveNodes& next_active_nodes,
-                              Metrics& best_metrics,
-                              vec<Move>& rebalance_moves,
-                              bool unconstrained_lp) {
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::labelPropagationRound(PartitionedHypergraph& hypergraph,
+                                                                      NextActiveNodes& next_active_nodes,
+                                                                      Metrics& best_metrics,
+                                                                      vec<Move>& rebalance_moves,
+                                                                      bool unconstrained_lp) {
     Metrics current_metrics = best_metrics;
     _visited_he.reset();
     _next_active.reset();
@@ -217,10 +215,10 @@ namespace mt_kahypar {
                           _context.refinement.label_propagation.relative_improvement_threshold * old_quality;
   }
 
-  template <typename TypeTraits, typename GainTypes>
+  template <typename GraphAndGainTypes>
   template<bool unconstrained>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::moveActiveNodes(PartitionedHypergraph& phg,
-                                                                       NextActiveNodes& next_active_nodes) {
+  void LabelPropagationRefiner<GraphAndGainTypes>::moveActiveNodes(PartitionedHypergraph& phg,
+                                                                NextActiveNodes& next_active_nodes) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -253,11 +251,11 @@ namespace mt_kahypar {
   }
 
 
-  template <typename TypeTraits, typename GainTypes>
-  bool LabelPropagationRefiner<TypeTraits, GainTypes>::applyRebalancing(PartitionedHypergraph& hypergraph,
-                                                                        Metrics& best_metrics,
-                                                                        Metrics& current_metrics,
-                                                                        vec<Move>& rebalance_moves) {
+  template <typename GraphAndGainTypes>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::applyRebalancing(PartitionedHypergraph& hypergraph,
+                                                                 Metrics& best_metrics,
+                                                                 Metrics& current_metrics,
+                                                                 vec<Move>& rebalance_moves) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("rebalance_lp", "Rebalance");
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
@@ -296,9 +294,9 @@ namespace mt_kahypar {
     return false;
   }
 
-  template <typename TypeTraits, typename GainTypes>
+  template <typename GraphAndGainTypes>
   template<typename F>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::forEachMovedNode(F node_fn) {
+  void LabelPropagationRefiner<GraphAndGainTypes>::forEachMovedNode(F node_fn) {
     if ( _context.refinement.label_propagation.execute_sequential ) {
       for (size_t j = 0; j < _active_nodes.size(); j++) {
         if (_active_node_was_moved[j]) {
@@ -314,15 +312,14 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
-    _rebalancer.initialize(phg);  // TODO: probably wrong place for this
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
+    unused(phg);
   }
 
-  template <typename TypeTraits, typename GainTypes>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::initializeActiveNodes(
-                              PartitionedHypergraph& hypergraph,
-                              const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::initializeActiveNodes(PartitionedHypergraph& hypergraph,
+                                                                      const vec<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
     if ( refinement_nodes.empty() ) {
       _might_be_uninitialized = false;
@@ -379,9 +376,9 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define LABEL_PROPAGATION_REFINER(X, Y) LabelPropagationRefiner<X, Y>
+  #define LABEL_PROPAGATION_REFINER(X) LabelPropagationRefiner<X>
   }
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LABEL_PROPAGATION_REFINER)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(LABEL_PROPAGATION_REFINER)
 }

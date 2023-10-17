@@ -133,9 +133,9 @@ std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
+  bool unconstrained = false;
   bool rebalancing = true;
   bool execute_sequential = false;
-  bool unconstrained = false;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
   double relative_improvement_threshold = -1.0;
 };
@@ -152,25 +152,23 @@ struct FMParameters {
   double min_improvement = -1.0;
   double time_limit_factor = std::numeric_limits<double>::max();
 
-  bool perform_moves_global = false;
   bool rollback_parallel = true;
   bool iter_moves_on_recalc = false;
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
 
-  double treshold_border_node_inclusion = 0.75;
-  double unconstrained_upper_bound = 0.0;
-
   // unconstrained
   size_t unconstrained_rounds = 1;
+  double treshold_border_node_inclusion = 0.75;
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
+  double unconstrained_upper_bound = 0.0;
   double unconstrained_upper_bound_min = 0.0;
+  double unconstrained_min_improvement = -1.0;
 
   bool activate_unconstrained_dynamically = false;
   double penalty_for_activation_test = 0.5;
-  double unconstrained_min_improvement = -1.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
@@ -206,7 +204,6 @@ std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = false;
-  bool recalculate_gains_on_second_apply = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);

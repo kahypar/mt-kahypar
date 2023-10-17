@@ -38,19 +38,18 @@
 namespace mt_kahypar {
 
 
-template<typename TypeTraits, typename GainTypes>
+template<typename GraphAndGainTypes>
 class LocalizedKWayFM {
 public:
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
 
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
   static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
 
-  using GainCache = typename GainTypes::GainCache;
-  using DeltaGainCache = typename GainTypes::DeltaGainCache;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using DeltaGainCache = typename GraphAndGainTypes::DeltaGainCache;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
-  using AttributedGains = typename GainTypes::AttributedGains;
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
   using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
@@ -62,7 +61,7 @@ public:
     context(context),
     thisSearch(0),
     deltaPhg(context),
-    neighborDeduplicator(numNodes, 0),
+    neighborDeduplicator(PartitionedHypergraph::is_graph ? 0 : numNodes, 0),
     gain_cache(gainCache),
     delta_gain_cache(gainCache),
     sharedData(sharedData),
@@ -75,7 +74,7 @@ public:
 
   template<typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE DispatchedFMStrategy initializeDispatchedStrategy() {
-    return DispatchedFMStrategy(context, sharedData, blockPQ, vertexPQs, runStats);
+    return DispatchedFMStrategy(context, sharedData, blockPQ, vertexPQs);
   }
 
   template<typename DispatchedFMStrategy>
@@ -85,27 +84,14 @@ public:
 
   void changeNumberOfBlocks(const PartitionID new_k);
 
-  FMStats stats;
-
 private:
-  template<bool use_delta, bool has_fixed_vertices, typename DispatchedFMStrategy>
+  template<typename DispatchedFMStrategy>
   void internalFindMoves(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy);
 
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move, DispatchedFMStrategy& fm_strategy);
 
-
-  // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
-  template<typename DispatchedFMStrategy>
-  void applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
-                                             DispatchedFMStrategy& fm_strategy,
-                                             const size_t best_index_locally_observed);
-
-  // ! Rollback to the best improvement found during local search in case we applied moves
-  // ! directly on the global partitioned hypergraph.
-  template<typename DispatchedFMStrategy>
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy, size_t bestGainIndex);
 
  private:
 
@@ -124,12 +110,10 @@ private:
 
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> neighborDeduplicator;
-  HypernodeID deduplicationTime = 0;
+  HypernodeID deduplicationTime = 1;
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;
-
-  FMStats runStats;
 
   GainCache& gain_cache;
 

@@ -454,7 +454,7 @@ class PartitionedHypergraph {
     // Recalculate pin count in parts
     const size_t incidence_array_start = _hg->hyperedge(he).firstEntry();
     const size_t incidence_array_end = _hg->hyperedge(he).firstInvalidEntry();
-    tls_enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
+    tbb::enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
     tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
       const HypernodeID pin = _hg->_incidence_array[pos];
       const PartitionID block = partID(pin);

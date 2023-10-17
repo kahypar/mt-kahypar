@@ -680,7 +680,7 @@ class DynamicGraph {
 
   // ####################### Contract / Uncontract #######################
 
-  DynamicGraph contract(parallel::scalable_vector<HypernodeID>&) {
+  DynamicGraph contract(parallel::scalable_vector<HypernodeID>&, bool deterministic = false) {
     throw NonSupportedOperationException(
       "contract(c, id) is not supported in dynamic graph");
     return DynamicGraph();

@@ -40,12 +40,12 @@
 namespace mt_kahypar {
   using ds::StreamingVector;
 
-  template<typename TypeTraits, typename GainTypes>
-  MultiTryKWayFM<TypeTraits, GainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,
-                                                        const HyperedgeID num_hyperedges,
-                                                        const Context& c,
-                                                        GainCache& gainCache,
-                                                        IRebalancer& rb) :
+  template<typename GraphAndGainTypes>
+  MultiTryKWayFM<GraphAndGainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,
+                                                 const HyperedgeID num_hyperedges,
+                                                 const Context& c,
+                                                 GainCache& gainCache,
+                                                 IRebalancer& rb) :
     initial_num_nodes(num_hypernodes),
     context(c),
     gain_cache(gainCache),
@@ -77,22 +77,18 @@ namespace mt_kahypar {
     return max_part_weights;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
-              mt_kahypar_partitioned_hypergraph_t& hypergraph,
-              const vec<HypernodeID>& refinement_nodes,
-              Metrics& metrics,
-              const double time_limit) {
+  template<typename GraphAndGainTypes>
+  bool MultiTryKWayFM<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                  const vec<HypernodeID>& refinement_nodes,
+                                                  Metrics& metrics,
+                                                  const double time_limit) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-
-    if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
     resizeDataStructuresForCurrentK();
 
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
-    sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
@@ -112,7 +108,7 @@ namespace mt_kahypar {
       const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
       if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
-        sharedData.unconstrained.initialize<TypeTraits, GainTypes>(context, phg, gain_cache);
+        sharedData.unconstrained.initialize<GraphAndGainTypes>(context, phg, gain_cache);
         timer.stop_timer("initialize_data_unconstrained");
       }
 
@@ -185,13 +181,9 @@ namespace mt_kahypar {
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
       if (debug && context.type == ContextType::main) {
-        FMStats stats;
-        for (auto& fm : ets_fm) {
-          fm.stats.merge(stats);
-        }
         LOG << V(round) << V(improvement) << V(metrics::quality(phg, context))
             << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
-            << V(elapsed_time) << V(current_time_limit) << stats.serialize();
+            << V(elapsed_time) << V(current_time_limit);
       }
 
       // Enforce a time limit (based on k and coarsening time).
@@ -200,7 +192,6 @@ namespace mt_kahypar {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
           sharedData.release_nodes = false;
-          sharedData.perform_moves_global = true;
           current_time_limit *= 2;
           enable_light_fm = true;
         } else {
@@ -221,10 +212,6 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    if ( !context.isNLevelPartitioning() ) {
-      is_initialized = false;
-    }
-
     metrics.quality -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
@@ -234,8 +221,8 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -283,8 +270,8 @@ namespace mt_kahypar {
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::interleaveMoveSequenceWithRebalancingMoves(
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::interleaveMoveSequenceWithRebalancingMoves(
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
@@ -392,8 +379,8 @@ namespace mt_kahypar {
     }, tbb::static_partitioner());
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
                                                                         const PartitionID block,
                                                                         const std::vector<HypernodeWeight>& max_part_weights,
                                                                         const vec<vec<Move>>& rebalancing_moves_by_part,
@@ -422,20 +409,17 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
       gain_cache.initializeGainCache(phg);
     }
-    rebalancer.initialize(hypergraph);
-
-    is_initialized = true;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::resizeDataStructuresForCurrentK() {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -453,8 +437,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::printMemoryConsumption() {
+  template<typename GraphAndGainTypes>
+  void MultiTryKWayFM<GraphAndGainTypes>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -468,8 +452,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
+  #define MULTITRY_KWAY_FM(X) MultiTryKWayFM<X>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(MULTITRY_KWAY_FM)
 } // namespace mt_kahypar

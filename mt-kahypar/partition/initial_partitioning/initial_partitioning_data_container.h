@@ -593,9 +593,9 @@ class InitialPartitioningDataContainer {
       best_flat_algo = _best_partitions[best_index].first._algorithm;
       best_feasible_objective = _best_partitions[best_index].first._objective;
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
-      assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
+        ASSERT(node < best_partition.size() && best_partition[node] != kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
       });
 
@@ -713,8 +713,6 @@ class InitialPartitioningDataContainer {
   SpinLock _pop_lock;
   vec< std::pair<PartitioningResult, vec<PartitionID>>  > _best_partitions;
 };
-
-typedef struct ip_data_container_s ip_data_container_t;
 
 namespace ip {
   template<typename TypeTraits>

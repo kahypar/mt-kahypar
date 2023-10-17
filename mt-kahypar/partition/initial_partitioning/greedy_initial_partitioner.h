@@ -31,35 +31,31 @@
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits,
-         template<typename> typename GainPolicyT,
-         template<typename> typename PQSelectionPolicyT>
-class GreedyInitialPartitioner : public IInitialPartitioner {
+template<typename TypeTraits, template<typename> typename GainPolicyT>
+class GreedyInitialPartitionerBase {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainComputationPolicy = GainPolicyT<TypeTraits>;
-  using PQSelectionPolicy = PQSelectionPolicyT<TypeTraits>;
-  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
-  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
-                           ip_data_container_t* ip_data,
-                           const Context& context,
-                           const int seed, const int tag) :
+  GreedyInitialPartitionerBase(const InitialPartitioningAlgorithm algorithm,
+                               ip_data_container_t* ip_data,
+                               const Context& context,
+                               const PartitionID default_block,
+                               const int seed, const int tag) :
     _algorithm(algorithm),
     _ip_data(ip::to_reference<TypeTraits>(ip_data)),
     _context(context),
-    _default_block(PQSelectionPolicy::getDefaultBlock()),
+    _default_block(default_block),
     _rng(seed),
     _tag(tag)
     { }
 
- private:
-  void partitionImpl() final {
+  template<typename PQSelectionPolicy>
+  void partitionWithSelectionPolicy() {
     if ( _ip_data.should_initial_partitioner_run(_algorithm) ) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
@@ -67,37 +63,8 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
 
-      // Experiments have shown that some pq selection policies work better
-      // if we preassign all vertices to a block and than execute the greedy
-      // initial partitioner. E.g. the round-robin variant leaves the hypernode
-      // unassigned, but the global and sequential strategy both preassign
-      // all vertices to block 1 before initial partitioning.
-      _ip_data.preassignFixedVertices(hg);
-      if ( _default_block != kInvalidPartition ) {
-        ASSERT(_default_block < _context.partition.k);
-        kway_pq.disablePart(_default_block);
-        for ( const HypernodeID& hn : hg.nodes() ) {
-          if ( !hg.isFixed(hn) ) {
-            hg.setNodePart(hn, _default_block);
-          }
-        }
-      }
+      initializeVertices();
 
-      // Insert start vertices into its corresponding PQs
-      _ip_data.reset_unassigned_hypernodes(_rng);
-      vec<vec<HypernodeID>> start_nodes =
-        PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, _default_block, _rng);
-      ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
-      kway_pq.clear();
-      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-        if ( block != _default_block ) {
-          for ( const HypernodeID& hn : start_nodes[block] ) {
-            insertVertexIntoPQ(hg, kway_pq, hn, block);
-          }
-        }
-      }
-
-      hyperedges_in_queue.reset();
       PartitionID to = kInvalidPartition;
       bool use_perfect_balanced_as_upper_bound = true;
       bool allow_overfitting = false;
@@ -151,11 +118,48 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
         }
       }
 
-
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();
       _ip_data.commit(_algorithm, _rng, _tag, time);
     }
+  }
+
+ private:
+  void initializeVertices() {
+    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
+    KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
+
+    // Experiments have shown that some pq selection policies work better
+    // if we preassign all vertices to a block and than execute the greedy
+    // initial partitioner. E.g. the round-robin variant leaves the hypernode
+    // unassigned, but the global and sequential strategy both preassign
+    // all vertices to block 1 before initial partitioning.
+    _ip_data.preassignFixedVertices(hg);
+    if ( _default_block != kInvalidPartition ) {
+      ASSERT(_default_block < _context.partition.k);
+      kway_pq.disablePart(_default_block);
+      for ( const HypernodeID& hn : hg.nodes() ) {
+        if ( !hg.isFixed(hn) ) {
+          hg.setNodePart(hn, _default_block);
+        }
+      }
+    }
+
+    // Insert start vertices into its corresponding PQs
+    _ip_data.reset_unassigned_hypernodes(_rng);
+    vec<vec<HypernodeID>> start_nodes =
+      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, _default_block, _rng);
+    ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
+    kway_pq.clear();
+    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+      if ( block != _default_block ) {
+        for ( const HypernodeID& hn : start_nodes[block] ) {
+          insertVertexIntoPQ(hg, kway_pq, hn, block);
+        }
+      }
+    }
+
+    _ip_data.local_hyperedge_fast_reset_flag_array().reset();
   }
 
   bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
@@ -255,6 +259,31 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
   const PartitionID _default_block;
   std::mt19937 _rng;
   const int _tag;
+};
+
+
+// the split into base and subclass serves to reduce the compile time, since the base class
+// is only instantiated once for all PQ selection policies
+template<typename TypeTraits,
+         template<typename> typename GainPolicyT,
+         template<typename> typename PQSelectionPolicyT>
+class GreedyInitialPartitioner : public IInitialPartitioner, GreedyInitialPartitionerBase<TypeTraits, GainPolicyT> {
+
+  using Base = GreedyInitialPartitionerBase<TypeTraits, GainPolicyT>;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using PQSelectionPolicy = PQSelectionPolicyT<TypeTraits>;
+
+ public:
+  GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
+                           ip_data_container_t* ip_data,
+                           const Context& context,
+                           const int seed, const int tag) :
+    Base(algorithm, ip_data, context, PQSelectionPolicy::getDefaultBlock(), seed, tag) { }
+
+ private:
+  void partitionImpl() final {
+    Base::template partitionWithSelectionPolicy<PQSelectionPolicy>();
+  }
 };
 
 } // namespace mt_kahypar

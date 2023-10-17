@@ -10,10 +10,8 @@ target_sources(mt_kahypar_tests PRIVATE
          rebalance_test.cc
          advanced_rebalancer_test.cc
          twoway_fm_refiner_test.cc
-         gain_test.cc
          gain_cache_test.cc
          multitry_fm_test.cc
          fm_strategy_test.cc
          flow_construction_test.cc
          )
-

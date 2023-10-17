@@ -104,7 +104,7 @@ void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
 
 TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -120,7 +120,7 @@ TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
 
 TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -138,7 +138,7 @@ TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) 
 
 TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -154,7 +154,7 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
 
 TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -171,7 +171,7 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
 TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
   context.partition.max_part_weights.assign(2, 5);
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -198,7 +198,7 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
 
 TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBalanceConstraint) {
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> refiner(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
   refiner.initialize(partitioned_hg);
@@ -320,7 +320,7 @@ class AFlowRefinementEndToEnd : public Test {
 TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> scheduler(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> scheduler(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
 
   Metrics metrics;
@@ -356,7 +356,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   const bool debug = false;
   FlowRefinerMockControl::instance().max_num_blocks = 4;
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<TypeTraits, Km1GainTypes> scheduler(
+  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> scheduler(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
 
   Metrics metrics;

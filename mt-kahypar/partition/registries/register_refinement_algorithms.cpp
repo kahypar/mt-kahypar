@@ -26,11 +26,74 @@
  ******************************************************************************/
 
 #include "kahypar-resources/meta/registrar.h"
-#include "mt-kahypar/partition/context.h"
+#include "kahypar-resources/meta/static_multi_dispatch_factory.h"
+#include "kahypar-resources/meta/typelist.h"
 
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+
+
+namespace mt_kahypar {
+using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   LabelPropagationRefiner,
+                                   IRefiner,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                DeterministicLabelPropagationRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                            MultiTryKWayFM,
+                            IRefiner,
+                            kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using UnconstrainedFMDispatcher = DefaultFMDispatcher;
+
+using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                      GainCacheStrategy,
+                                      IFMStrategy,
+                                      kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                          UnconstrainedStrategy,
+                                          IFMStrategy,
+                                          kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                FlowRefinementScheduler,
+                                IRefiner,
+                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   SimpleRebalancer,
+                                   IRebalancer,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                     AdvancedRebalancer,
+                                     IRebalancer,
+                                     kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                 FlowRefiner,
+                                 IFlowRefiner,
+                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
 
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
@@ -133,73 +196,60 @@
     return new refiner(num_Hyperedges, context);                                                \
   })
 
-namespace mt_kahypar {
+
+kahypar::meta::PolicyBase& getGraphAndGainTypesPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
+  switch ( partition_type ) {
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(StaticHypergraphTypeTraits, gain_policy);
+    case MULTILEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(StaticGraphTypeTraits, gain_policy);
+    case N_LEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(DynamicHypergraphTypeTraits, gain_policy);
+    case N_LEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(DynamicGraphTypeTraits, gain_policy);
+    case LARGE_K_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(LargeKHypergraphTypeTraits, gain_policy);
+    default: {
+      LOG << "Invalid partition type";
+      std::exit(-1);
+    }
+  }
+}
+
+
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                LabelPropagationDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type));
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                DefaultFMDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::unconstrained_fm,
                                UnconstrainedFMDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 3);
 
 REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
                                 GainCacheFMStrategyDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                 context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                 context.partition.gain_policy));
+                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
                                 UnconstrainedFMStrategyDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                 context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                 context.partition.gain_policy));
+                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
-                                   kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                    context.partition.partition_type),
-                                   kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                     context.partition.gain_policy));
+                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                SimpleRebalancerDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
-                                 AdvancedRebalancerDispatcher,
-                                 kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                         context.partition.partition_type),
-                                 kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                         context.partition.gain_policy));
+                               AdvancedRebalancerDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
-                                  FlowRefinementDispatcher,
-                                  kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                   context.partition.partition_type),
-                                  kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                    context.partition.gain_policy));
+                                 FlowRefinementDispatcher,
+                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
 }  // namespace mt_kahypar

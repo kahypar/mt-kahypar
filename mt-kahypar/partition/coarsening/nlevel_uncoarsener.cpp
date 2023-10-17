@@ -95,6 +95,9 @@ namespace mt_kahypar {
     // Initialize Refiner
     mt_kahypar_partitioned_hypergraph_t phg =
       utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
+    if ( _rebalancer ) {
+      _rebalancer->initialize(phg);
+    }
     if ( _label_propagation ) {
       _label_propagation->initialize(phg);
     }

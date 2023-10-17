@@ -30,8 +30,6 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
-
 
 namespace mt_kahypar {
 

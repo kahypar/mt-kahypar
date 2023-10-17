@@ -74,13 +74,13 @@ namespace rebalancer {
 } // namespace rebalancer
 
 
-template <typename TypeTraits, typename GainTypes>
+template <typename GraphAndGainTypes>
 class AdvancedRebalancer final : public IRebalancer {
 private:
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCache = typename GainTypes::GainCache;
-  using GainCalculator = typename GainTypes::GainComputation;
-  using AttributedGains = typename GainTypes::AttributedGains;
+  using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using GainCache = typename GraphAndGainTypes::GainCache;
+  using GainCalculator = typename GraphAndGainTypes::GainComputation;
+  using AttributedGains = typename GraphAndGainTypes::AttributedGains;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

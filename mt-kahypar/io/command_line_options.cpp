@@ -72,8 +72,7 @@ namespace mt_kahypar {
     options.add_options()
             ("help", "show help message")
             ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
-             "Shortcut to enables deterministic partitioning mode, where results are reproducible across runs. "
-             "If set, the specific deterministic subroutines don't need to be set manually.")
+             "Enables deterministic mode.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
             ("fixed,f",
@@ -367,7 +366,7 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.use_active_node_set :
                                 &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
                      "<bool>")->default_value(true),
-             "Number of sub-rounds for deterministic synchronous label propagation")
+             "Use active nodeset in synchronous label propagation")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
@@ -407,11 +406,6 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
                                 &context.refinement.fm.multitry_rounds))->value_name("<size_t>")->default_value(10),
              "Number of FM rounds within one level of the multilevel hierarchy.")
-            ((initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
-                              &context.refinement.fm.perform_moves_global))->value_name("<bool>")->default_value(false),
-             "If true, then all moves performed during FM are immediately visible to other searches.\n"
-             "Otherwise, only move sequences that yield an improvement are applied to the global view of the partition.")
             ((initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
                                 &context.refinement.fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
