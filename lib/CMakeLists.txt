@@ -1,7 +1,15 @@
 include(GNUInstallDirs)
 
 add_library(mtkahypar libmtkahypar.cpp)
-target_link_libraries(mtkahypar ${Boost_LIBRARIES} TBB::tbb TBB::tbbmalloc_proxy)
+target_link_libraries(mtkahypar ${Boost_LIBRARIES} TBB::tbb)
+
+# Building shared libs uses malloc_proxy, static uses malloc.
+if(${BUILD_SHARED_LIBS})
+  target_link_libraries(mtkahypar TBB::tbbmalloc_proxy)
+else()
+  target_link_libraries(mtkahypar TBB::tbbmalloc)
+endif()
+
 target_compile_definitions(mtkahypar PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)

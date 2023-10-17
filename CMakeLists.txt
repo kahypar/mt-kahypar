@@ -152,6 +152,10 @@ include_directories(external_tools/growt)
 include_directories(external_tools/WHFC)
 include_directories(external_tools/pcg)
 
+if(NOT BUILD_SHARED_LIBS)
+  set(Boost_USE_STATIC_LIBS ON)
+endif()
+
 if(KAHYPAR_DOWNLOAD_BOOST)
   # Download Boost
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
@@ -207,7 +211,13 @@ if (TBB_FOUND)
     link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
     MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
     MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-    MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
+
+    # Building shared libs uses malloc_proxy, static uses malloc.
+    IF(${BUILD_SHARED_LIBS})
+      MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
+    ELSE()
+      MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
+    ENDIF()
   ELSE ()
     MESSAGE(FATAL_ERROR "
       Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum
@@ -228,9 +238,21 @@ ENDIF()
 # Find HWLOC Library
 FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
   HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
+
+# Find static version if not building shared libraries.
+# Store original cmake library suffixes to temporarily overwrite them.
+SET(_hwloc_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+
+IF(NOT ${BUILD_SHARED_LIBS})
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES .a .lib)
+ENDIF()
+
 FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
   HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
 )
+
+# Restore original cmake library suffixes.
+SET(CMAKE_FIND_LIBRARY_SUFFIXES ${_hwloc_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
 
 IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
   MESSAGE(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
