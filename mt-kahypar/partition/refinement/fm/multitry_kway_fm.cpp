@@ -62,6 +62,7 @@ namespace mt_kahypar {
   }
 
   // helper function for rebalancing
+  // TODO
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
     double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
     std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;

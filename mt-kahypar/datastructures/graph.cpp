@@ -307,6 +307,7 @@ namespace mt_kahypar::ds {
     // and aggregate weight of arcs with equal endpoints.
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
+      // TODO: could supposedly be optimized
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
       // commented out comparison is needed for deterministic arc weights
