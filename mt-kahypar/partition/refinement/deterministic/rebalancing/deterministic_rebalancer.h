@@ -45,7 +45,6 @@ struct RebalancingMove {
     HypernodeID hn;
     PartitionID to;
     float priority;
-    HypernodeWeight weight;
 };
 }; // namespace rebalancer
 template <typename GraphAndGainTypes>
@@ -71,7 +70,6 @@ public:
         _num_valid_targets(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k) {
-        std::cout << "SO DETERMINSITC " << std::endl;
     }
     explicit DeterministicRebalancer(HypernodeID, const Context& context) :
         DeterministicRebalancer(context) {}
@@ -180,6 +178,16 @@ private:
     }
 
     void weakRebalancingRound(PartitionedHypergraph& phg);
+
+    bool checkPreviouslyOverweightParts(const PartitionedHypergraph& phg)const {
+        for (size_t i = 0; i < _moves.size(); ++i) {
+            const auto partWeight = phg.partWeight(i);
+            if (_moves[i].size() > 0) {
+                ASSERT(partWeight >= deadzoneForPart(i) && partWeight <= _max_part_weights[i]);
+            }
+        }
+        return true;
+    }
 
     const Context& _context;
     const HypernodeWeight* _max_part_weights;

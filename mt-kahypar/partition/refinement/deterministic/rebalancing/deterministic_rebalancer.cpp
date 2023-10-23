@@ -69,6 +69,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
   while (_num_imbalanced_parts > 0) {
     weakRebalancingRound(phg);
+    HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
   }
 
@@ -123,12 +124,10 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
   // if no adjacent block with free capacity exists, we need to consider non-adjacent blocks
   if (non_adjacent_blocks && best_target == kInvalidPartition) {
-    //utils::Randomize& rand = utils::Randomize::instance();
     // we start with a block that is chosen by random, to ensure a reasonable distribution of nodes
     // to target blocks (note: this does not always result in a uniform distribution since some blocks
     // are not an acceptable target, but it should be good enough)
-    // TODO: This is probably a problem
-    const PartitionID start = 0;//rand.getRandomInt(0, static_cast<int>(_context.partition.k - 1), THREAD_ID);
+    const PartitionID start = hn % _current_k;
     PartitionID to = start;
     do {
       if (isValidTarget(phg, to, hn_weight)
@@ -147,7 +146,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
   }
   tmp_scores.clear();
   const HypernodeWeight weight = phg.nodeWeight(hn);
-  return { hn, best_target, transformGain(best_gain, weight), weight };
+  return { hn, best_target, transformGain(best_gain, weight) };
 }
 
 template <typename  GraphAndGainTypes>
@@ -163,7 +162,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     }
   });
   // sort the moves from each overweight part by priority
-  for (size_t i = 0; i < _moves.size(); ++i) {
+  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
     _moves[i] = tmp_potential_moves[i].copy_parallel();
     if (_moves[i].size() > 0) {
       tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
@@ -181,7 +180,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         changeNodePart(phg, move.hn, i, move.to, false);
       });
     }
-  }
+  });
+
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
