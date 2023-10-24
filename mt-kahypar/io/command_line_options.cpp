@@ -389,6 +389,20 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(-1.0),
              "Relative improvement threshold for label propagation.")
+            ((initial_partitioning ? "i-r-spectral-type" : "r-spectral-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.spectral.algorithm =
+                                 spectralAlgorithmFromString(type);
+                       } else {
+                         context.refinement.spectral.algorithm =
+                                 spectralAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Spectral Algorithm:\n"
+             "- spectral\n"
+             "- do_nothing")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

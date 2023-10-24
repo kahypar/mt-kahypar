@@ -226,6 +226,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const SpectralAlgorithm& algo) {
+    switch (algo) {
+      case SpectralAlgorithm::spectral: return os << "spectral";
+      case SpectralAlgorithm::do_nothing: return os << "spectral_do_nothing";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
       case FMAlgorithm::kway_fm: return os << "kway_fm";
@@ -442,6 +451,16 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + type);
     return LabelPropagationAlgorithm::do_nothing;
+  }
+
+  SpectralAlgorithm spectralAlgorithmFromString(const std::string& type) {
+    if (type == "spectral") {
+      return SpectralAlgorithm::spectral;
+    } else if (type == "do_nothing") {
+      return SpectralAlgorithm::do_nothing;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return SpectralAlgorithm::do_nothing;
   }
 
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {

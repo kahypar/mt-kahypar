@@ -142,6 +142,13 @@ struct LabelPropagationParameters {
 
 std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
 
+struct SpectralParameters {
+  SpectralAlgorithm algorithm = SpectralAlgorithm::do_nothing;
+  // TODO
+};
+
+std::ostream & operator<< (std::ostream& str, const SpectralParameters& params);
+
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
 
@@ -210,6 +217,7 @@ std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParamet
 
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
+  SpectralParameters spectral;
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;

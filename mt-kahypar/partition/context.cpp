@@ -131,6 +131,13 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const SpectralParameters& params) {
+    str << "  Spectral Parameters:" << std::endl;
+    str << "    Algorithm:                        " << params.algorithm << std::endl;
+    // TODO
+    return str;
+  }
+
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -208,6 +215,7 @@ namespace mt_kahypar {
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
+    str << "\n" << params.spectral;
     str << "\n" << params.fm;
     if ( params.global_fm.use_global_fm ) {
       str << "\n" << params.global_fm;
