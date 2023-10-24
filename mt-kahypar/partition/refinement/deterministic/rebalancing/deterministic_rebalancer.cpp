@@ -106,6 +106,8 @@ template <typename GraphAndGainTypes>
 rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& phg,
   const HypernodeID hn,
   bool non_adjacent_blocks) {
+  //utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  //timer.start_timer("pre_loop", "Pre-Loop");
   const HypernodeWeight hn_weight = phg.nodeWeight(hn);
   RatingMap& tmp_scores = _gain_computation.localScores();
   Gain isolated_block_gain = 0;
@@ -113,7 +115,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
   Gain best_gain = isolated_block_gain;
   PartitionID best_target = kInvalidPartition;
-  for (const auto& entry : tmp_scores) { // TODO: Why is that sequential? Answer: called inside parallel block
+  for (const auto& entry : tmp_scores) {
     const PartitionID to = entry.key;
     const Gain gain = _gain_computation.gain(entry.value, isolated_block_gain);
     if (gain <= best_gain && isValidTarget(phg, to, hn_weight)) {
@@ -121,7 +123,9 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
       best_target = to;
     }
   }
+  //timer.stop_timer("pre_loop");
 
+  //timer.start_timer("loop", "Loop");
   // if no adjacent block with free capacity exists, we need to consider non-adjacent blocks
   if (non_adjacent_blocks && best_target == kInvalidPartition) {
     // we start with a block that is chosen by random, to ensure a reasonable distribution of nodes
@@ -144,6 +148,8 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
     // assertion does not always hold with tight balance constraint or large node weights
     // ASSERT(best_target != kInvalidPartition);
   }
+  //timer.stop_timer("loop");
+
   tmp_scores.clear();
   const HypernodeWeight weight = phg.nodeWeight(hn);
   return { hn, best_target, transformGain(best_gain, weight) };
@@ -151,37 +157,64 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
-  parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves(_current_k);
+  // utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+   //timer.start_timer("alloc", "Tmp move allocation");
+  for (auto& moves : tmp_potential_moves){
+    moves.clear_parallel();
+  }
+  //timer.stop_timer("alloc");
+
   // calculate gain and target for each node in a overweight part
   // group moves by source part
+  // timer.start_timer("gain_computation", "Gain Computation");
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
+      // timer.start_timer("actual_gain_computation", "Actual Gain Computation");
+       //timer.stop_timer("actual_gain_computation");
+
+       //timer.start_timer("streaming", "Streaming");
       tmp_potential_moves[from].stream(computeGainAndTargetPart(phg, hn, true));
+      //timer.stop_timer("streaming");
+
     }
   });
+  // timer.stop_timer("gain_computation");
+   //timer.start_timer("rest", "Move Selection and Execution");
+
   tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+    //for (size_t i = 0; i < _moves.size(); ++i) {
+       //timer.start_timer("copy_moves", "Copy Moves");
     _moves[i] = tmp_potential_moves[i].copy_parallel();
+    //timer.stop_timer("copy_moves");
     if (_moves[i].size() > 0) {
       // sort the moves from each overweight part by priority
+      //timer.start_timer("sorting", "Sorting");
       tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
+      //timer.stop_timer("sorting");
       // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
+     // timer.start_timer("find_moves", "Find Moves");
       _move_weights[i].resize(_moves[i].size());
       tbb::parallel_for(0UL, _moves[i].size(), [&](const size_t j) {
         _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
       });
       parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].end(), _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
       const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].end(), phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
+      //  timer.stop_timer("find_moves");
+
+       // timer.start_timer("exe_moves", "Execute Moves");
       tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
         const auto move = _moves[i][j];
         changeNodePart(phg, move.hn, i, move.to, false);
       });
+      // timer.stop_timer("exe_moves");
     }
+    //  }
   });
-
+  //timer.stop_timer("rest");
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
