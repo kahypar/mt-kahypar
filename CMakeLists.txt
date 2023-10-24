@@ -65,16 +65,16 @@ option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   "Enables graph partitioning features. Can be turned off for faster compilation." ON)
 
 option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-  "Enables highest quality preset features. Can be turned off for faster compilation." ON)
+  "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  "Enables large k partitioning features. Can be turned off for faster compilation." ON)
+  "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_SOED_METRIC
-  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." ON)
+  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
-  "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
+  "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
