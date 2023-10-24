@@ -69,8 +69,7 @@ public:
         _num_imbalanced_parts(0),
         _num_valid_targets(0),
         _moves(context.partition.k),
-        _move_weights(context.partition.k) {
-    }
+        _move_weights(context.partition.k) {}
     explicit DeterministicRebalancer(HypernodeID, const Context& context) :
         DeterministicRebalancer(context) {}
 
@@ -182,6 +181,7 @@ private:
     bool checkPreviouslyOverweightParts(const PartitionedHypergraph& phg)const {
         for (size_t i = 0; i < _moves.size(); ++i) {
             const auto partWeight = phg.partWeight(i);
+            unused(partWeight);
             if (_moves[i].size() > 0) {
                 ASSERT(partWeight >= deadzoneForPart(i) && partWeight <= _max_part_weights[i]);
             }

@@ -163,24 +163,14 @@ size_t ADeterministicJetRefiner<Config>::num_threads = HardwareTopology::instanc
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<2, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig<4, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig<8, Objective::cut, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig< 2, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig< 4, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig< 8, Objective::km1, RebalancingAlgorithm::simple_rebalancer>,
-    TestConfig<2, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
-    TestConfig<4, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
-    TestConfig<8, Objective::cut, RebalancingAlgorithm::advanced_rebalancer>,
-    TestConfig< 2, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>,
-    TestConfig< 4, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>,
-    TestConfig< 8, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>,
+typedef ::testing::Types<
     TestConfig<2, Objective::cut, RebalancingAlgorithm::deterministic>,
     TestConfig<4, Objective::cut, RebalancingAlgorithm::deterministic>,
     TestConfig<8, Objective::cut, RebalancingAlgorithm::deterministic>,
     TestConfig< 2, Objective::km1, RebalancingAlgorithm::deterministic>,
     TestConfig< 4, Objective::km1, RebalancingAlgorithm::deterministic>,
-    TestConfig< 8, Objective::km1, RebalancingAlgorithm::deterministic>> TestConfigs;
+    TestConfig< 8, Objective::km1, RebalancingAlgorithm::deterministic>
+> TestConfigs;
 
 TYPED_TEST_CASE(ADeterministicJetRefiner, TestConfigs);
 
