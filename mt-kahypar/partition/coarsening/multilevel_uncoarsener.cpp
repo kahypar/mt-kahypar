@@ -225,6 +225,17 @@ namespace mt_kahypar {
         _timer.stop_timer("label_propagation");
       }
 
+      if ( _spectral && _context.refinement.spectral.algorithm != SpectralAlgorithm::do_nothing ) {
+        // TODO: you might want to change at which point the refiner is called
+        _timer.start_timer("initialize_spectral_refiner", "Initialize Spectral Refiner");
+        _spectral->initialize(phg);
+        _timer.stop_timer("initialize_spectral_refiner");
+
+        _timer.start_timer("spectral", "Spectral");
+        improvement_found |= _spectral->refine(phg, dummy, _current_metrics, time_limit);
+        _timer.stop_timer("spectral");
+      }
+
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         _fm->initialize(phg);

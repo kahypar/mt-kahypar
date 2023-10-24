@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/spectral/spectral_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
@@ -56,6 +57,10 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
                                                 DeterministicLabelPropagationRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+using SpectralDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   SpectralRefiner,
+                                   IRefiner,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFM,
@@ -112,6 +117,26 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
        const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
+  })
+
+
+#define REGISTER_DISPATCHED_SPECTRAL_REFINER(id, dispatcher, ...)                                      \
+  static kahypar::meta::Registrar<SpectralFactory> register_ ## dispatcher(                            \
+    id,                                                                                                \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache) {                                              \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
+#define REGISTER_SPECTRAL_REFINER(id, refiner, t)                                                \
+  static kahypar::meta::Registrar<SpectralFactory> JOIN(register_ ## refiner, t)(                \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
@@ -219,6 +244,11 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
+
+REGISTER_DISPATCHED_SPECTRAL_REFINER(SpectralAlgorithm::spectral,
+                                     SpectralDispatcher,
+                                     getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_SPECTRAL_REFINER(SpectralAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                DefaultFMDispatcher,

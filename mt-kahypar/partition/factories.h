@@ -52,6 +52,9 @@ using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgo
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                   IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
+using SpectralFactory = kahypar::meta::Factory<SpectralAlgorithm,
+                          IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
+
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
