@@ -166,10 +166,11 @@ public:
   void performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
           const HighResClockTimepoint& round_start) {
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
+    Hypergraph contracted_hg = current_hg.contract(communities, timer, deterministic);
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
     hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);

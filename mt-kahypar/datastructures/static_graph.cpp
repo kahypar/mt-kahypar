@@ -46,7 +46,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
+  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, utils::Timer& timer, bool /*deterministic*/) {
     ASSERT(communities.size() == _num_nodes);
 
     if ( !_tmp_contraction_buffer ) {
@@ -75,6 +75,7 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse graph with a parallel prefix sum
+    timer.start_timer("stage_1", "Contract Stage 1");
     mapping.assign(_num_nodes, 0);
 
     doParallelForAllNodes([&](const HypernodeID& node) {
@@ -120,6 +121,7 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });
+    timer.stop_timer("stage_1");
 
     // #################### STAGE 2 ####################
     // In this step the incident edges of vertices are processed and stored inside the temporary
@@ -129,6 +131,7 @@ namespace mt_kahypar::ds {
 
     // Compute start position the incident nets of a coarse vertex in the
     // temporary incident nets array with a parallel prefix sum
+    timer.start_timer("stage_2", "Contract Stage 2");
     parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_incident_edges_pos;
     parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>, Array>
             tmp_incident_edges_prefix_sum(tmp_num_incident_edges);
@@ -160,6 +163,7 @@ namespace mt_kahypar::ds {
         }
       }
     });
+    timer.stop_timer("stage_2");
 
 
     // #################### STAGE 3 ####################
@@ -170,6 +174,7 @@ namespace mt_kahypar::ds {
     // the weight of the remaining edge is set to the sum of the weights.
 
     // A list of high degree vertices that are processed afterwards
+    timer.start_timer("stage_3", "Contract Stage 3");
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
     std::mutex high_degree_vertex_mutex;
     tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
@@ -235,8 +240,10 @@ namespace mt_kahypar::ds {
       tmp_nodes[coarse_node].setWeight(node_weights[coarse_node]);
       tmp_nodes[coarse_node].setFirstEntry(incident_edges_start);
     });
+    timer.stop_timer("stage_3");
 
     if ( !high_degree_vertices.empty() ) {
+      timer.start_timer("stage_3_hd", "Contract Stage 3 (HD)");
       // High degree vertices are treated special, because sorting and afterwards
       // removing duplicates can become a major sequential bottleneck. Therefore,
       // we sum the parallel incident edges of a high degree vertex using an atomic
@@ -290,6 +297,7 @@ namespace mt_kahypar::ds {
         const size_t contracted_size = incident_edges_pos.total_sum();
         node_sizes[coarse_node] = contracted_size;
       }
+      timer.stop_timer("stage_3_hd");
     }
 
     // #################### STAGE 4 ####################
@@ -299,6 +307,7 @@ namespace mt_kahypar::ds {
     // of the edges in the edge array, removing all invalid edges.
     // Additionally, we need to calculate new unique edge ids.
 
+    timer.start_timer("stage_4", "Contract Stage 4");
     StaticGraph hypergraph;
 
     // Compute number of edges in coarse graph (those flagged as valid)
@@ -389,6 +398,7 @@ namespace mt_kahypar::ds {
       });
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
+    timer.stop_timer("stage_4");
 
     HEAVY_COARSENING_ASSERT(
       [&](){
