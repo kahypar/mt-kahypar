@@ -58,7 +58,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, utils::Timer& timer, bool deterministic) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -92,7 +92,6 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse hypergraph with a parallel prefix sum
-    timer.start_timer("stage_1", "Contract Stage 1");
     mapping.assign(_num_hypernodes, 0);
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -136,7 +135,6 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
-    timer.stop_timer("stage_1");
 
     // #################### STAGE 2 ####################
     // In this step hyperedges and incident nets of vertices are contracted inside the temporary
@@ -146,7 +144,6 @@ namespace mt_kahypar::ds {
     // graph are also aggregate in a consecutive memory range and duplicates are removed. Note
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
-    timer.start_timer("stage_2", "Contract Stage 2");
     auto cs2 = [](const HypernodeID x) { return x * x; };
     ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
@@ -299,7 +296,6 @@ namespace mt_kahypar::ds {
         duplicate_incident_nets_map.free();
       }
     });
-    timer.stop_timer("stage_2");
 
     // #################### STAGE 3 ####################
     // In the step before we aggregated hyperedges within a bucket data structure.
@@ -311,7 +307,6 @@ namespace mt_kahypar::ds {
 
     // Helper function that checks if two hyperedges are parallel
     // Note, pins inside the hyperedges are sorted.
-    timer.start_timer("stage_3", "Contract Stage 3");
     auto check_if_hyperedges_are_parallel = [&](const HyperedgeID lhs,
                                                 const HyperedgeID rhs) {
       const Hyperedge& lhs_he = tmp_hyperedges[lhs];
@@ -366,7 +361,6 @@ namespace mt_kahypar::ds {
       }
       hyperedge_hash_map.free(bucket);
     });
-    timer.stop_timer("stage_3");
 
     // #################### STAGE 4 ####################
     // Coarsened hypergraph is constructed here by writting data from temporary
@@ -378,7 +372,6 @@ namespace mt_kahypar::ds {
     // Incident nets are also written to the incident nets array with the help of a prefix
     // sum over the node degrees.
 
-    timer.start_timer("stage_4", "Contract Stage 4");
     StaticHypergraph hypergraph;
 
     // Compute number of hyperedges in coarse graph (those flagged as valid)
@@ -499,7 +492,6 @@ namespace mt_kahypar::ds {
       });
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
-    timer.stop_timer("stage_4");
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;

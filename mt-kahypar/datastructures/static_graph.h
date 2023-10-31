@@ -44,7 +44,6 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/exception.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -767,7 +766,7 @@ class StaticGraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities, utils::Timer& /*timer*/, bool deterministic = false);
+  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw NonSupportedOperationException(
