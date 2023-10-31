@@ -88,16 +88,14 @@ namespace mt_kahypar::ds {
 
         TmpEdgeInformation& valid_edge = edge_start[valid_edge_index];
         TmpEdgeInformation& next_edge = edge_start[tmp_edge_index];
-        if (next_edge.isValid()) {
-          if (valid_edge.getTarget() == next_edge.getTarget()) {
-            valid_edge.addWeight(next_edge.getWeight());
-            valid_edge.updateID(next_edge.getID());
-            next_edge.invalidate();
-          } else {
-            std::swap(edge_start[++valid_edge_index], next_edge);
-          }
-          ++tmp_edge_index;
+        if (valid_edge.getTarget() == next_edge.getTarget()) {
+          valid_edge.addWeight(next_edge.getWeight());
+          valid_edge.updateID(next_edge.getID());
+          next_edge.invalidate();
+        } else {
+          std::swap(edge_start[++valid_edge_index], next_edge);
         }
+        ++tmp_edge_index;
       }
       const bool is_non_empty = (std::distance(edge_start, edge_end) > 0) && edge_start[0].isValid();
       return is_non_empty ? (valid_edge_index + 1) : 0;
@@ -232,11 +230,11 @@ namespace mt_kahypar::ds {
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
     std::mutex high_degree_vertex_mutex;
     tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
-      // Remove duplicates
       const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
       const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
       if (tmp_degree <= HIGH_DEGREE_CONTRACTION_THRESHOLD) {
+        // if the degree is small enough, we directly deduplicate the edges
         node_sizes[coarse_node] = deduplicate_tmp_edges(tmp_edges.data() + incident_edges_start,
                                                         tmp_edges.data() + incident_edges_end);
       } else {
@@ -255,14 +253,12 @@ namespace mt_kahypar::ds {
       // removing duplicates can become a major sequential bottleneck
       ConcurrentBucketMap<TmpEdgeInformation> incident_edges_map;
       size_t max_degree = 0;
-      timer.start_timer("reserve", "Reserve");
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
         const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
         max_degree = std::max(max_degree, incident_edges_end - incident_edges_start);
       }
       incident_edges_map.reserve_for_estimated_number_of_insertions(max_degree);
-      timer.stop_timer("reserve");
 
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
@@ -270,12 +266,16 @@ namespace mt_kahypar::ds {
         const size_t size_of_range = incident_edges_end - incident_edges_start;
 
         // Insert incident edges into concurrent bucket map
-        timer.start_timer("step_1", "Step 1");
         const size_t num_chunks = std::thread::hardware_concurrency();
         const size_t chunk_size = (size_of_range + num_chunks - 1) / num_chunks;
         tbb::parallel_for(UL(0), num_chunks, [&](const size_t chunk_id) {
           const size_t start = incident_edges_start + chunk_id * chunk_size;
           const size_t end = std::min(incident_edges_start + (chunk_id + 1) * chunk_size, incident_edges_end);
+          // First, we apply a deduplication step to the thread-local range. The reason is that on large irregular
+          // graphs, extremely large clusters (thousands of nodes) can be created during coarsening. In this case,
+          // there can be thousands of edges with the same target, which creates a massive imbalance and thus high
+          // contention in the bucket map if we insert them directly. The local deduplication avoids this problem
+          // by ensuring that each edge appears at most t times.
           const HyperedgeID local_degree = deduplicate_tmp_edges(tmp_edges.data() + start, tmp_edges.data() + end);
           for (size_t pos = start; pos < start + local_degree; ++pos) {
             const TmpEdgeInformation& edge = tmp_edges[pos];
@@ -283,10 +283,8 @@ namespace mt_kahypar::ds {
             incident_edges_map.insert(edge.getTarget(), TmpEdgeInformation(edge));
           }
         }, tbb::static_partitioner());
-        timer.stop_timer("step_1");
 
-        // Process each bucket in parallel and remove duplicates
-        timer.start_timer("step_2", "Step 2");
+        // Process each bucket in parallel and deduplicate the edges
         std::atomic<size_t> incident_edges_pos(incident_edges_start);
         tbb::parallel_for(UL(0), incident_edges_map.numBuckets(), [&](const size_t bucket) {
           auto& incident_edges_bucket = incident_edges_map.getBucket(bucket);
@@ -297,15 +295,12 @@ namespace mt_kahypar::ds {
                  incident_edges_bucket.data(), sizeof(TmpEdgeInformation) * bucket_degree);
           incident_edges_map.clear(bucket);
         });
-        timer.stop_timer("step_2");
 
-        timer.start_timer("step_3", "Step 3");
         const size_t contracted_size = incident_edges_pos.load() - incident_edges_start;
         tbb::parallel_for(incident_edges_pos.load(), incident_edges_end, [&](size_t i) {
           tmp_edges[i].invalidate();
         });
         node_sizes[coarse_node] = contracted_size;
-        timer.stop_timer("step_3");
       }
       timer.stop_timer("stage_3_hd");
     }
