@@ -136,7 +136,7 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
-    timer.stop_timer("stage_2");
+    timer.stop_timer("stage_1");
 
     // #################### STAGE 2 ####################
     // In this step hyperedges and incident nets of vertices are contracted inside the temporary
