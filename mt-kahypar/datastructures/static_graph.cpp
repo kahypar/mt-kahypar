@@ -254,6 +254,7 @@ namespace mt_kahypar::ds {
         const size_t tmp_degree = incident_edges_end - incident_edges_start;
 
         // Insert incident edges into concurrent bucket map
+        timer.start_timer("step_1", "Step 1");
         incident_edges_map.reserve_for_estimated_number_of_insertions(tmp_degree);
         tbb::parallel_for(incident_edges_start, incident_edges_end, [&](const size_t pos) {
           const TmpEdgeInformation& edge = tmp_edges[pos];
@@ -261,8 +262,10 @@ namespace mt_kahypar::ds {
             incident_edges_map.insert(edge.getTarget(), TmpEdgeInformation(edge));
           }
         });
+        timer.stop_timer("step_1");
 
         // Process each bucket in parallel and remove duplicates
+        timer.start_timer("step_2", "Step 2");
         std::atomic<size_t> incident_edges_pos(incident_edges_start);
         tbb::parallel_for(UL(0), incident_edges_map.numBuckets(), [&](const size_t bucket) {
           auto& incident_edges_bucket = incident_edges_map.getBucket(bucket);
@@ -314,12 +317,15 @@ namespace mt_kahypar::ds {
                  incident_edges_bucket.data(), sizeof(TmpEdgeInformation) * bucket_degree);
           incident_edges_map.clear(bucket);
         });
+        timer.stop_timer("step_2");
 
+        timer.start_timer("step_3", "Step 3");
         const size_t contracted_size = incident_edges_pos.load() - incident_edges_start;
         tbb::parallel_for(incident_edges_pos.load(), incident_edges_end, [&](size_t i) {
           tmp_edges[i].invalidate();
         });
         node_sizes[coarse_node] = contracted_size;
+        timer.stop_timer("step_3");
       }
       timer.stop_timer("stage_3_hd");
     }
