@@ -271,6 +271,11 @@ namespace mt_kahypar::ds {
         });
         timer.stop_timer("step_1");
 
+        for (size_t i = 0; i < incident_edges_map.numBuckets(); ++i) {
+          std::cout << incident_edges_map.getBucket(i).size() << " ";
+        }
+        LOG << "";
+
         // Process each bucket in parallel and remove duplicates
         timer.start_timer("step_2", "Step 2");
         std::atomic<size_t> incident_edges_pos(incident_edges_start);
