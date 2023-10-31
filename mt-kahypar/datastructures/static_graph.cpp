@@ -357,7 +357,7 @@ namespace mt_kahypar::ds {
           edge_id_mapping[tmp_edge.getID()] = UL(1);
         };
 
-        if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD) {
+        if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD / 8) {
           tbb::parallel_for(ID(0), degree_mapping.value(coarse_node), handle_edge);
         } else {
           for (size_t index = 0; index < degree_mapping.value(coarse_node); ++index) {
