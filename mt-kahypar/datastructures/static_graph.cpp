@@ -250,12 +250,6 @@ namespace mt_kahypar::ds {
 
     if ( !high_degree_vertices.empty() ) {
       timer.start_timer("stage_3_hd", "Contract Stage 3 (HD)");
-      auto hash_fn = [](uint32_t x) {
-        x = ((x >> 16) ^ x) * 0x45d9f3b;
-        x = ((x >> 16) ^ x) * 0x45d9f3b;
-        x = (x >> 16) ^ x;
-        return x;
-      };
 
       // High degree vertices are treated special, because sorting and afterwards
       // removing duplicates can become a major sequential bottleneck
@@ -286,7 +280,7 @@ namespace mt_kahypar::ds {
           for (size_t pos = start; pos < start + local_degree; ++pos) {
             const TmpEdgeInformation& edge = tmp_edges[pos];
             ASSERT(edge.isValid());
-            incident_edges_map.insert(hash_fn(edge.getTarget()), TmpEdgeInformation(edge));
+            incident_edges_map.insert(edge.getTarget(), TmpEdgeInformation(edge));
           }
         }, tbb::static_partitioner());
         timer.stop_timer("step_1");
