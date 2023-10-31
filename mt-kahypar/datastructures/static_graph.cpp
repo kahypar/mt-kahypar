@@ -403,12 +403,12 @@ namespace mt_kahypar::ds {
     HEAVY_COARSENING_ASSERT(
       [&](){
         parallel::scalable_vector<bool> covered_ids(hypergraph.initialNumEdges() / 2, false);
-        for (HyperedgeID e : edges()) {
+        for (HyperedgeID e : hypergraph.edges()) {
           HyperedgeID id = hypergraph.uniqueEdgeID(e);
           covered_ids.at(id) = true;
           bool success = false;
-          for (HyperedgeID b_edge : hypergraph.incidentEdges(edgeTarget(e))) {
-            if (edgeTarget(b_edge) == edgeSource(e)) {
+          for (HyperedgeID b_edge : hypergraph.incidentEdges(hypergraph.edgeTarget(e))) {
+            if (hypergraph.edgeTarget(b_edge) == hypergraph.edgeSource(e)) {
               if (hypergraph.uniqueEdgeID(b_edge) != id) {
                 return false;
               }
