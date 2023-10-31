@@ -316,9 +316,9 @@ namespace mt_kahypar::ds {
         });
 
         const size_t contracted_size = incident_edges_pos.load() - incident_edges_start;
-        for (size_t i = incident_edges_pos.load(); i < incident_edges_end; ++i) {
+        tbb::parallel_for(incident_edges_pos.load(), incident_edges_end, [&](size_t i) {
           tmp_edges[i].invalidate();
-        }
+        });
         node_sizes[coarse_node] = contracted_size;
       }
       timer.stop_timer("stage_3_hd");
