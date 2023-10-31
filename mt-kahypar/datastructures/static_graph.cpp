@@ -33,6 +33,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 
 namespace mt_kahypar::ds {
@@ -45,7 +46,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
+  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
     ASSERT(communities.size() == _num_nodes);
 
     // helper function that is used in multiple places for edge deduplication
@@ -260,7 +261,7 @@ namespace mt_kahypar::ds {
         const size_t num_chunks = std::thread::hardware_concurrency();
         const size_t chunk_size = (size_of_range + num_chunks - 1) / num_chunks;
         tbb::parallel_for(UL(0), num_chunks, [&](const size_t chunk_id) {
-          const size_t start = incident_edges_start + chunk_id * chunk_size;
+          const size_t start = std::min(incident_edges_start + chunk_id * chunk_size, incident_edges_end);
           const size_t end = std::min(incident_edges_start + (chunk_id + 1) * chunk_size, incident_edges_end);
           // First, we apply a deduplication step to the thread-local range. The reason is that on large irregular
           // graphs, extremely large clusters (thousands of nodes) can be created during coarsening. In this case,
@@ -292,6 +293,14 @@ namespace mt_kahypar::ds {
           tmp_edges[i].invalidate();
         });
         node_sizes[coarse_node] = contracted_size;
+
+        if (deterministic) {
+          // sort for determinism
+          tbb::parallel_sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_pos.load(),
+            [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+              return e1._target < e2._target;
+            });
+        }
       }
     }
 
