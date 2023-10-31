@@ -247,15 +247,22 @@ namespace mt_kahypar::ds {
       // High degree vertices are treated special, because sorting and afterwards
       // removing duplicates can become a major sequential bottleneck
       ConcurrentBucketMap<TmpEdgeInformation> incident_edges_map;
+      size_t max_degree = 0;
+      for ( const HypernodeID& coarse_node : high_degree_vertices ) {
+        const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
+        const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
+        max_degree = std::max(max_degree, incident_edges_end - incident_edges_start);
+      }
+      timer.start_timer("reserve", "Reserve");
+      incident_edges_map.reserve_for_estimated_number_of_insertions(max_degree);
+      timer.stop_timer("reserve");
 
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
         const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
-        const size_t tmp_degree = incident_edges_end - incident_edges_start;
 
         // Insert incident edges into concurrent bucket map
         timer.start_timer("step_1", "Step 1");
-        incident_edges_map.reserve_for_estimated_number_of_insertions(tmp_degree);
         tbb::parallel_for(incident_edges_start, incident_edges_end, [&](const size_t pos) {
           const TmpEdgeInformation& edge = tmp_edges[pos];
           if (edge.isValid()) {
