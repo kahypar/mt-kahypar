@@ -185,6 +185,7 @@ private:
     _edge_sync_version(0),
     _edge_sync(
       "Refinement", "edge_sync", hypergraph.maxUniqueID(), false, false),
+    _edge_sync_is_dirty(false),
     _edge_locks(
       "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
@@ -206,6 +207,7 @@ private:
     _part_ids(),
     _edge_sync_version(0),
     _edge_sync(),
+    _edge_sync_is_dirty(false),
     _edge_locks(),
     _edge_markers() {
     tbb::parallel_invoke([&] {
@@ -557,27 +559,57 @@ private:
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePartNoSync(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to,
+                            HypernodeWeight max_weight_to,
+                            SuccessFunc&& report_success) {
+    return changeNodePartImpl<false, false>(u, from, to,
+      max_weight_to, report_success, NOOP_FUNC, NOOP_NOTIFY_FUNC);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePartNoSync(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to,
+                            const bool force_moving_fixed_vertices = false) {
+    return changeNodePartImpl<false, false>(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{},
+      NOOP_FUNC, NOOP_NOTIFY_FUNC, force_moving_fixed_vertices);
+  }
+
+  template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    return changeNodePartImpl<false>(u, from, to,
+    return changeNodePartImpl<true, false>(u, from, to,
       max_weight_to, report_success, delta_func, NOOP_NOTIFY_FUNC);
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePart(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to) {
+    return changeNodePartImpl<true, false>(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, NOOP_FUNC, NOOP_NOTIFY_FUNC);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC,
-                      const bool force_moving_fixed_vertices = false) {
-    return changeNodePartImpl<false>(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
-      delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertices);
+                      const DeltaFunction& delta_func) {
+    return changeNodePartImpl<true, false>(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, NOOP_NOTIFY_FUNC);
   }
 
   template<typename GainCache, typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
@@ -590,10 +622,10 @@ private:
       gain_cache.deltaGainUpdate(*this, sync_update);
     };
     if constexpr ( !GainCache::requires_notification_before_update ) {
-      return changeNodePartImpl<false>(u, from, to, max_weight_to,
+      return changeNodePartImpl<true, false>(u, from, to, max_weight_to,
         report_success, my_delta_func, NOOP_NOTIFY_FUNC);
     } else {
-      return changeNodePartImpl<true>(u, from, to, max_weight_to,
+      return changeNodePartImpl<true, true>(u, from, to, max_weight_to,
         report_success, my_delta_func, [&](SynchronizedEdgeUpdate& sync_update) {
           gain_cache.notifyBeforeDeltaGainUpdate(*this, sync_update);
         });
@@ -601,6 +633,7 @@ private:
   }
 
   template<typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
@@ -703,6 +736,12 @@ private:
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);
     }
+  }
+
+  // ! Reset synchronization. Necessary after changeNodePartNoSync (not thread-safe)
+  void resetEdgeSynchronization() {
+    ++_edge_sync_version;
+    _edge_sync_is_dirty = false;
   }
 
   // ! Only for testing
@@ -1044,7 +1083,8 @@ private:
   }
 
  private:
-  template<bool notify, typename SuccessFunc>
+  template<bool sync, bool notify, typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePartImpl(const HypernodeID u,
                           PartitionID from,
                           PartitionID to,
@@ -1054,6 +1094,7 @@ private:
                           const NotificationFunc& notify_func,
                           const bool force_moving_fixed_vertices = false) {
     unused(force_moving_fixed_vertices);
+    static_assert(!notify || sync);
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     ASSERT(force_moving_fixed_vertices || !isFixed(u));
@@ -1063,21 +1104,27 @@ private:
       _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
       report_success();
       DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
-      SynchronizedEdgeUpdate sync_update;
-      sync_update.from = from;
-      sync_update.to = to;
-      sync_update.target_graph = _target_graph;
-      sync_update.edge_locks = &_edge_locks;
-      for (const HyperedgeID edge : incidentEdges(u)) {
-        if (!isSinglePin(edge)) {
-          sync_update.he = edge;
-          sync_update.edge_weight = edgeWeight(edge);
-          sync_update.edge_size = edgeSize(edge);
-          synchronizeMoveOnEdge<notify>(sync_update, edge, u, to, notify_func);
-          sync_update.pin_count_in_from_part_after = sync_update.block_of_other_node == from ? 1 : 0;
-          sync_update.pin_count_in_to_part_after = sync_update.block_of_other_node == to ? 2 : 1;
-          delta_func(sync_update);
+      if constexpr (sync) {
+        ASSERT(!_edge_sync_is_dirty, "Missing call to resetEdgeSynchronization after changeNodePartNoSync!");
+        SynchronizedEdgeUpdate sync_update;
+        sync_update.from = from;
+        sync_update.to = to;
+        sync_update.target_graph = _target_graph;
+        sync_update.edge_locks = &_edge_locks;
+        for (const HyperedgeID edge : incidentEdges(u)) {
+          if (!isSinglePin(edge)) {
+            sync_update.he = edge;
+            sync_update.edge_weight = edgeWeight(edge);
+            sync_update.edge_size = edgeSize(edge);
+            synchronizeMoveOnEdge<notify>(sync_update, edge, u, to, notify_func);
+            sync_update.pin_count_in_from_part_after = sync_update.block_of_other_node == from ? 1 : 0;
+            sync_update.pin_count_in_to_part_after = sync_update.block_of_other_node == to ? 2 : 1;
+            delta_func(sync_update);
+          }
         }
+      } else {
+        // small hack to only set this when assertions are enabled
+        ASSERT(_edge_sync_is_dirty = true);
       }
       __atomic_store_n(&_part_ids[u], to, __ATOMIC_RELAXED);
       DBG << "Done changing node part: " << V(u) << " >>>";
@@ -1181,6 +1228,7 @@ private:
 
   // ! Used to syncronize moves on edges
   Array< EdgeMove > _edge_sync;
+  bool _edge_sync_is_dirty;
 
   // ! Lock to syncronize moves on edges
   Array< SpinLock > _edge_locks;
