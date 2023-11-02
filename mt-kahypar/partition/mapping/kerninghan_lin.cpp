@@ -36,7 +36,7 @@ namespace mt_kahypar {
 namespace {
 
 template<typename CommunicationHypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(CommunicationHypergraph& communication_hg,
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void vertex_swap(CommunicationHypergraph& communication_hg,
                                              const HypernodeID u,
                                              const HypernodeID v) {
   const PartitionID block_of_u = communication_hg.partID(u);
@@ -182,7 +182,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
       }
 
       // Perform swap
-      swap(communication_hg, u, v);
+      vertex_swap(communication_hg, u, v);
       current_objective -= gain;
       performed_swaps.push_back(elem);
       already_moved[u] = true;
@@ -199,7 +199,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
     // Rollback to best seen solution
     for ( int i = performed_swaps.size() - 1; i >= best_idx; --i ) {
       const PQElement& elem = performed_swaps[i];
-      swap(communication_hg, elem.swap.first, elem.swap.second);
+      vertex_swap(communication_hg, elem.swap.first, elem.swap.second);
       current_objective += elem.gain;
     }
     ASSERT(current_objective == metrics::quality(communication_hg, Objective::steiner_tree));
