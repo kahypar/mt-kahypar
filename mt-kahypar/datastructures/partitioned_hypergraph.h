@@ -572,6 +572,7 @@ class PartitionedHypergraph {
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
@@ -606,17 +607,38 @@ class PartitionedHypergraph {
   }
 
   // curry
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePartNoSync(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to,
+                            const bool force_moving_fixed_vertex = false) {
+    return changeNodePart(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{},
+        NOOP_FUNC, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
+  }
+
+  template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePartNoSync(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to,
+                            HypernodeWeight max_weight_to,
+                            SuccessFunc&& report_success) {
+    return changeNodePart(u, from, to,
+      max_weight_to, report_success, NOOP_FUNC, NOOP_NOTIFY_FUNC);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC,
-                      const bool force_moving_fixed_vertex = false) {
+                      const DeltaFunction& delta_func) {
     return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
-        delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
+      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, NOOP_NOTIFY_FUNC);
   }
 
   template<typename GainCache, typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
@@ -640,7 +662,17 @@ class PartitionedHypergraph {
     }
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePart(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to) {
+    return changeNodePart(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{},
+        NOOP_FUNC, NOOP_NOTIFY_FUNC, false);
+  }
+
   template<typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
@@ -729,6 +761,11 @@ class PartitionedHypergraph {
 
     // Reset pin count in part and connectivity set
     _con_info.reset(false);
+  }
+
+  // ! Reset synchronization. Necessary after changeNodePartNoSync (not thread-safe)
+  void resetEdgeSynchronization() {
+    // nothing to do here
   }
 
   // ! Only for testing

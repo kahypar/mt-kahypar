@@ -504,10 +504,11 @@ void apply_bipartitions_to_hypergraph(typename TypeTraits::PartitionedHypergraph
       if ( gain_cache.isInitialized() ) {
         partitioned_hg.changeNodePart(gain_cache, hn, from, to);
       } else {
-        partitioned_hg.changeNodePart(hn, from, to);
+        partitioned_hg.changeNodePartNoSync(hn, from, to);
       }
     }
   });
+  partitioned_hg.resetEdgeSynchronization();
 
   if ( GainCache::invalidates_entries && gain_cache.isInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
