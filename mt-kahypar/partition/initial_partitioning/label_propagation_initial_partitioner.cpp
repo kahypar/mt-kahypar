@@ -118,7 +118,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
               converged = false;
 
               #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-              hg.changeNodePart(hn, from, to);
+              hg.changeNodePartNoSync(hn, from, to);
               #else
               Gain expected_gain = 0;
               auto cut_delta = [&](const HyperedgeID he,
@@ -152,6 +152,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
       }
 
     }
+    hg.resetEdgeSynchronization();
 
     // If there are still unassigned vertices left, we assign them to the
     // block with minimum weight.
