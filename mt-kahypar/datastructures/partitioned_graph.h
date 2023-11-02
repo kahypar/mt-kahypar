@@ -558,6 +558,7 @@ private:
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePartNoSync(const HypernodeID u,
                             PartitionID from,
                             PartitionID to,
@@ -567,6 +568,7 @@ private:
       max_weight_to, report_success, NOOP_FUNC, NOOP_NOTIFY_FUNC);
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePartNoSync(const HypernodeID u,
                             PartitionID from,
                             PartitionID to,
@@ -577,6 +579,7 @@ private:
   }
 
   template<typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
@@ -587,6 +590,7 @@ private:
       max_weight_to, report_success, delta_func, NOOP_NOTIFY_FUNC);
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
@@ -596,6 +600,7 @@ private:
   }
 
   template<typename GainCache, typename SuccessFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
@@ -619,6 +624,7 @@ private:
   }
 
   template<typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
