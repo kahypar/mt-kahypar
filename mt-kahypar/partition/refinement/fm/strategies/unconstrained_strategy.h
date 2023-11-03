@@ -86,10 +86,6 @@ class UnconstrainedStrategy: public IFMStrategy {
     }
   }
 
-  virtual bool includesUnconstrainedImpl() const final {
-    return true;
-  }
-
   virtual void reportImprovementImpl(size_t round, Gain absolute_improvement, double relative_improvement) final {
     if (round == 0) {
       absolute_improvement_first_round = absolute_improvement;

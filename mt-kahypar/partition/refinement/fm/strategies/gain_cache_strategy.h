@@ -59,10 +59,6 @@ class GainCacheStrategy: public IFMStrategy {
   virtual bool isUnconstrainedRoundImpl(size_t) const final {
     return false;
   }
-
-  virtual bool includesUnconstrainedImpl() const final {
-    return false;
-  }
 };
 
 }
