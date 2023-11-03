@@ -277,10 +277,13 @@ namespace mt_kahypar {
 
     bool was_imbalanced_and_improved_balance = !_old_partition_is_balanced
                                                && current_metrics.imbalance < best_metrics.imbalance;
-    bool is_imbalanced_and_worsened_balance = (!metrics::isBalanced(hypergraph, _context)
-                                              && current_metrics.imbalance > best_metrics.imbalance);
-    if (!was_imbalanced_and_improved_balance
-        && (current_metrics.quality > best_metrics.quality || is_imbalanced_and_worsened_balance)) {
+    // We consider the new partition an improvement if either
+    // (1) the old partiton was imbalanced and balance is improved or
+    // (2) the quality is improved while still being balanced
+    if ( was_imbalanced_and_improved_balance
+         || (current_metrics.quality <= best_metrics.quality && metrics::isBalanced(hypergraph, _context)) ) {
+      return false;
+    } else {
       // rollback and stop LP
       auto noop_obj_fn = [](const SynchronizedEdgeUpdate&) { };
       current_metrics = best_metrics;
@@ -294,7 +297,6 @@ namespace mt_kahypar {
       });
       return true;
     }
-    return false;
   }
 
   template <typename GraphAndGainTypes>

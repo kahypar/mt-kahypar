@@ -232,7 +232,7 @@ private:
                                                       HypernodeID u,
                                                       PartitionID from,
                                                       std::array<PartitionID, 3> parts) {
-
+    // We ignore balance here to avoid recomputations that involve all blocks (see `updateGain` for details)
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
