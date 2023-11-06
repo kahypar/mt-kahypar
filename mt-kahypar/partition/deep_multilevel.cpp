@@ -661,7 +661,18 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
       actual_k = std::max(actual_k / 2, 2);
       const double hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
           static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier);
+#if 0
       context.coarsening.max_allowed_node_weight = std::ceil(hypernode_weight_fraction * hypergraph.totalWeight());
+#else
+      // We iterate over the hypernodes of the hypergraph and get the node with the maximum weight
+      double max_node_weight = 0;
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        max_node_weight = std::max(max_node_weight, static_cast<double>(hypergraph.nodeWeight(hn)));
+      }); 
+
+      context.coarsening.max_allowed_node_weight = std::max(hypernode_weight_fraction * hypergraph.totalWeight(),
+                                                            static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier * hypergraph.totalWeight()) + max_node_weight);
+#endif
       should_continue = true;
       DBG << "Set max allowed node weight to" << context.coarsening.max_allowed_node_weight
           << "( Current Number of Nodes =" << current_num_nodes << ")";
