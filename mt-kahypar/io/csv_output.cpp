@@ -80,8 +80,18 @@ namespace mt_kahypar::io::csv {
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;
     s << timer.get("initial_partitioning") << sep;
-    s << timer.get("preprocessing");
-
+    s << timer.get("preprocessing") << sep;
+    // refinement
+    s << timer.get("active_nodes") << sep;
+    s << timer.get("afterburner") << sep;
+    s << timer.get("apply_moves") << sep;
+    // rebalancing
+    s << timer.get("rebalance") << sep;
+    s << timer.get("gain_computation") << sep;
+    s << timer.get("copy_moves") << sep;
+    s << timer.get("sorting") << sep;
+    s << timer.get("find_moves") << sep;
+    s << timer.get("exe_moves");
     return s.str();
   }
 
