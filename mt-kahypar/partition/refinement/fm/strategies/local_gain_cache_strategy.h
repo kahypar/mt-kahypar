@@ -42,7 +42,7 @@ namespace mt_kahypar {
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
-   * applyMove(phg, gain_cache, move, global)
+   * applyMove(phg, gain_cache, move)
    * reset()
    * deltaGainUpdates(phg, gain_cache, sync_update)
    *
@@ -74,7 +74,7 @@ public:
                     const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
     ASSERT(pv < context.partition.k);
-    auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv);
+    auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv, true);
     ASSERT(target < context.partition.k, V(target) << V(context.partition.k));
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
@@ -92,10 +92,14 @@ public:
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
+    // Note: During gain updates, we ignore the balance constraint for determining the best target block.
+    // This allows to use the optimized `bestOfThree` function for priority updates, which would not always
+    // be valid if balance is included (the best of the three could be overloaded). As soon as the move is
+    // pulled from the PQ, only balanced targets are considered
     if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
       // penalty term of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
-      std::tie(newTarget, gain) = computeBestTargetBlock(phg, gain_cache, v, pv);
+      std::tie(newTarget, gain) = computeBestTargetBlock(phg, gain_cache, v, pv, true);
     } else {
       // penalty term of designatedTargetV is not affected.
       // only move.from and move.to may be better
@@ -123,7 +127,7 @@ public:
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
       ASSERT(estimated_gain == blockPQ.topKey());
-      auto [to, gain] = computeBestTargetBlock(phg, gain_cache, u, phg.partID(u));
+      auto [to, gain] = computeBestTargetBlock(phg, gain_cache, u, phg.partID(u), false);
 
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
@@ -142,13 +146,7 @@ public:
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
-    // nothing to do here
-  }
-
-  template<typename PartitionedHypergraph, typename GainCache>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void revertMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
+  void applyMove(const PartitionedHypergraph&, const GainCache&, Move) {
     // nothing to do here
   }
 
@@ -203,7 +201,8 @@ private:
   std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PartitionedHypergraph& phg,
                                                                  const GainCache& gain_cache,
                                                                  const HypernodeID u,
-                                                                 const PartitionID from) {
+                                                                 const PartitionID from,
+                                                                 bool ignore_balance) {
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
@@ -214,7 +213,7 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
         if ( ( penalty > to_benefit || ( penalty == to_benefit && to_weight < best_to_weight ) ) &&
-             to_weight + wu <= context.partition.max_part_weights[i] ) {
+             (ignore_balance || to_weight + wu <= context.partition.max_part_weights[i]) ) {
           to_benefit = penalty;
           to = i;
           best_to_weight = to_weight;
@@ -233,7 +232,7 @@ private:
                                                       HypernodeID u,
                                                       PartitionID from,
                                                       std::array<PartitionID, 3> parts) {
-
+    // We ignore balance here to avoid recomputations that involve all blocks (see `updateGain` for details)
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
@@ -243,8 +242,7 @@ private:
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
-        if ( ( penalty > to_benefit || ( penalty == to_benefit && to_weight < best_to_weight ) ) &&
-             to_weight + wu <= context.partition.max_part_weights[i] ) {
+        if ( ( penalty > to_benefit || (penalty == to_benefit && to_weight < best_to_weight) ) ) {
           to_benefit = penalty;
           to = i;
           best_to_weight = to_weight;

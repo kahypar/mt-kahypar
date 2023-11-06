@@ -176,7 +176,7 @@ namespace mt_kahypar {
           }
           delta_gain_cache.deltaGainUpdate(deltaPhg, sync_update);
         });
-        fm_strategy.applyMove(deltaPhg, delta_gain_cache, move, false);
+        fm_strategy.applyMove(deltaPhg, delta_gain_cache, move);
       }
 
       if (moved) {

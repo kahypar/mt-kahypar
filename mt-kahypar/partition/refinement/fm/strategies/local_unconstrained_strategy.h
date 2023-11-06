@@ -42,7 +42,7 @@ namespace mt_kahypar {
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
-   * applyMove(phg, gain_cache, move, global)
+   * applyMove(phg, gain_cache, move)
    * reset()
    * deltaGainUpdates(phg, gain_cache, sync_update)
    *
@@ -163,31 +163,13 @@ class LocalUnconstrainedStrategy {
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyMove(const PartitionedHypergraph& phg, const GainCache&, Move m, bool global) {
+  void applyMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
     if (sharedData.unconstrained.isRebalancingNode(m.node)) {
       // If a node is moved which is already in use for penalty estimation, we need to make
       // an adjustment so future estimations are not overly optimistic (since in reality, the
       // node is not available anymore). This is achieved by increasing the "virtual" weight of
       // the origin block, thus pessimizing future estimations
-      if (global) {
-        sharedData.unconstrained.virtualWeightDelta(m.from).fetch_add(
-            phg.nodeWeight(m.node), std::memory_order_relaxed);
-      } else {
-        localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node);
-      }
-    }
-  }
-
-  template<typename PartitionedHypergraph, typename GainCache>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void revertMove(const PartitionedHypergraph& phg, const GainCache&, Move m, bool global) {
-    if (sharedData.unconstrained.isRebalancingNode(m.node)) {
-      if (global) {
-        sharedData.unconstrained.virtualWeightDelta(m.from).fetch_sub(
-            phg.nodeWeight(m.node), std::memory_order_relaxed);
-      } else {
-        localVirtualWeightDelta[m.from] -= phg.nodeWeight(m.node);
-      }
+      localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node);
     }
   }
 
@@ -299,7 +281,7 @@ private:
                                                       HypernodeID u,
                                                       PartitionID from,
                                                       std::array<PartitionID, 3> parts) const {
-
+    const PartitionID designatedTargetU = sharedData.targetPart[u];
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
@@ -314,6 +296,13 @@ private:
         } else if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
           const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
+            if (i == designatedTargetU) {
+              // Edge case: the cached target block for u is overloaded (infinite penalty) and no longer valid.
+              // We need to check all blocks, since otherwise the updated node might get a very low priority.
+              // Note: Since the penalties increase monotonically during a round, this can happen at most once
+              // for each target part of a node
+              return computeBestTargetBlock(phg, gain_cache, u, from);
+            }
             continue;
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
