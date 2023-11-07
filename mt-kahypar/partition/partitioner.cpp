@@ -309,10 +309,11 @@ namespace mt_kahypar {
                   << ", but it is assigned to block" << from << "!"
                   << "It is now moved to its fixed vertex block." << END;
             }
-            partitioned_hg.changeNodePart(hn, from, to, NOOP_FUNC, true);
+            partitioned_hg.changeNodePartNoSync(hn, from, to, true);
           }
         }
       });
+      partitioned_hg.resetEdgeSynchronization();
     }
   }
 

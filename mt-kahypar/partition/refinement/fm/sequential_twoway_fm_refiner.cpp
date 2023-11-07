@@ -296,8 +296,9 @@ void SequentialTwoWayFmRefiner<TypeTraits>::rollback(const parallel::scalable_ve
     const HypernodeID hn = performed_moves[i];
     const PartitionID from = _phg.partID(hn);
     const PartitionID to = 1 - from;
-    _phg.changeNodePart(hn, from, to);
+    _phg.changeNodePartNoSync(hn, from, to);
   }
+  _phg.resetEdgeSynchronization();
 }
 
 template<typename TypeTraits>

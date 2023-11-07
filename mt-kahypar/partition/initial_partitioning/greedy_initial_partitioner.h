@@ -107,7 +107,7 @@ class GreedyInitialPartitionerBase {
 
         if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
           if ( _default_block != kInvalidPartition ) {
-            hg.changeNodePart(hn, _default_block, to);
+            hg.changeNodePartNoSync(hn, _default_block, to);
           } else {
             hg.setNodePart(hn, to);
           }
@@ -117,6 +117,7 @@ class GreedyInitialPartitionerBase {
           kway_pq.disablePart(to);
         }
       }
+      hg.resetEdgeSynchronization();
 
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();

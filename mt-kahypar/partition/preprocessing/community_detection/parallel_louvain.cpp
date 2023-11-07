@@ -44,11 +44,11 @@ namespace mt_kahypar::community_detection {
     timer.stop_timer("local_moving");
 
     if (communities_changed) {
-      timer.start_timer("contraction", "Contraction");
+      timer.start_timer("contraction_cd", "Contraction");
       // Contract Communities
       Graph<Hypergraph> coarse_graph = fine_graph.contract(communities, context.preprocessing.community_detection.low_memory_contraction);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
-      timer.stop_timer("contraction");
+      timer.stop_timer("contraction_cd");
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context);
