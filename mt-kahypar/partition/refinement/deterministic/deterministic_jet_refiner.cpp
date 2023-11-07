@@ -128,7 +128,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             return my_gain;
         };
         Gain gain = tbb::parallel_reduce(range, 0, accum, std::plus<>());
-        timer.stop_timer("apply moves");
+        timer.stop_timer("apply_moves");
 
         current_metrics.quality -= gain;
         current_metrics.imbalance = metrics::imbalance(phg, _context);
@@ -140,11 +140,12 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             timer.start_timer("rebalance", "Rebalance");
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+            phg.resetEdgeSynchronization();
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
         }
-        ASSERT(current_metrics.quality == metrics::quality(phg, _context, false));
+        ASSERT(current_metrics.quality == metrics::quality(phg, _context, false), V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
         ++rounds_without_improvement;
         if (current_metrics.quality < best_metrics.quality && metrics::isBalanced(phg, _context)) {
             if (best_metrics.quality - current_metrics.quality > _context.refinement.deterministic_refinement.jet.relative_improvement_threshold * best_metrics.quality) {

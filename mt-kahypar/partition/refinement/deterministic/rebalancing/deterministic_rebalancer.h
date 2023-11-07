@@ -173,7 +173,7 @@ private:
 
         HypernodeWeight max_weight = ensure_balanced ? _max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
         bool success = false;
-        success = phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
+        success = phg.changeNodePartNoSync(hn, from, to, max_weight);
         ASSERT(success || ensure_balanced);
         return success;
     }

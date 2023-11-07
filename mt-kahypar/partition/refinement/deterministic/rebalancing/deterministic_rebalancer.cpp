@@ -74,9 +74,12 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
 
   Gain delta = _gain_computation.delta();
-  HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
-    V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
-  best_metrics.quality += delta;
+  // HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
+  //   V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  timer.start_timer("reb_quality", "Quality after Rebalancing");
+  best_metrics.quality = metrics::quality(phg, _context, true); // TODO: This is giga slow, just for now
+  timer.stop_timer("reb_quality");
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   DBG << "[REBALANCE] " << V(delta) << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
@@ -106,8 +109,6 @@ template <typename GraphAndGainTypes>
 rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& phg,
   const HypernodeID hn,
   bool non_adjacent_blocks) {
-  //utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-  //timer.start_timer("pre_loop", "Pre-Loop");
   const HypernodeWeight hn_weight = phg.nodeWeight(hn);
   RatingMap& tmp_scores = _gain_computation.localScores();
   Gain isolated_block_gain = 0;
@@ -123,9 +124,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
       best_target = to;
     }
   }
-  //timer.stop_timer("pre_loop");
 
-  //timer.start_timer("loop", "Loop");
   // if no adjacent block with free capacity exists, we need to consider non-adjacent blocks
   if (non_adjacent_blocks && best_target == kInvalidPartition) {
     // we start with a block that is chosen by random, to ensure a reasonable distribution of nodes
@@ -148,7 +147,6 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
     // assertion does not always hold with tight balance constraint or large node weights
     // ASSERT(best_target != kInvalidPartition);
   }
-  //timer.stop_timer("loop");
 
   tmp_scores.clear();
   const HypernodeWeight weight = phg.nodeWeight(hn);
@@ -158,11 +156,9 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-  //timer.start_timer("alloc", "Tmp move allocation");
   for (auto& moves : tmp_potential_moves) {
     moves.clear_parallel();
   }
-  //timer.stop_timer("alloc");
 
   // calculate gain and target for each node in a overweight part
   // group moves by source part
@@ -171,19 +167,11 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      // timer.start_timer("actual_gain_computation", "Actual Gain Computation");
-       //timer.stop_timer("actual_gain_computation");
-
-       //timer.start_timer("streaming", "Streaming");
       tmp_potential_moves[from].stream(computeGainAndTargetPart(phg, hn, true));
-      //timer.stop_timer("streaming");
-
     }
   });
   timer.stop_timer("gain_computation");
-  //timer.start_timer("rest", "Move Selection and Execution");
-
- //tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+  //tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
   for (size_t i = 0; i < _moves.size(); ++i) {
     timer.start_timer("copy_moves", "Copy Moves");
     _moves[i] = tmp_potential_moves[i].copy_parallel();
@@ -212,9 +200,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       });
       timer.stop_timer("exe_moves");
     }
-  }
-  // });
-   //timer.stop_timer("rest");
+  }//);
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
