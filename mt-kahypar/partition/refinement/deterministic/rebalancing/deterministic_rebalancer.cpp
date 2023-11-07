@@ -66,21 +66,15 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
   _gain_computation.reset();
   initializeDataStructures(phg);
-
   while (_num_imbalanced_parts > 0) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
   }
-
-  Gain delta = _gain_computation.delta();
-  HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
-    V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
-  best_metrics.quality += delta;
   best_metrics.imbalance = metrics::imbalance(phg, _context);
-  DBG << "[REBALANCE] " << V(delta) << "  imbalance=" << best_metrics.imbalance;
+  DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
-  return delta < 0;
+  return true;
 }
 
 template <typename  GraphAndGainTypes>
@@ -165,7 +159,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     }
   });
   timer.stop_timer("gain_computation");
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+  for (size_t i = 0; i < _moves.size(); ++i) {
     _moves[i] = tmp_potential_moves[i].copy_parallel();
     if (_moves[i].size() > 0) {
       tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
@@ -183,8 +177,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         changeNodePart(phg, move.hn, i, move.to, false);
       });
     }
-  });
-
+  }
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file

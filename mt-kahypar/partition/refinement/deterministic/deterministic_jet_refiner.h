@@ -75,7 +75,8 @@ public:
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
     _rebalancer(rebalancer),
-    tmp_active_nodes() {}
+    tmp_active_nodes(),
+    _part_before_round(num_hypernodes) {}
 
 private:
   static constexpr bool debug = false;
@@ -95,14 +96,12 @@ private:
 
   void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
 
-  template<typename F>
   void changeNodePart(PartitionedHypergraph& phg,
     const HypernodeID hn,
     const PartitionID from,
-    const PartitionID to,
-    const F& objective_delta) {
+    const PartitionID to) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    const bool success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
     ASSERT(success);
     unused(success);
   }
@@ -122,6 +121,38 @@ private:
     }
   }
 
+  HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const {
+    tbb::enumerable_thread_specific<HyperedgeWeight> gain_delta(0);
+    phg.doParallelForAllNodes([&](const HypernodeID hn) {
+      const PartitionID from = _part_before_round[hn];
+      const PartitionID to = phg.partID(hn);
+      if (from != to) {
+        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+          HypernodeID pin_count_in_from_part_after = 0;
+          HypernodeID pin_count_in_to_part_after = 1;
+          for (const HypernodeID& pin : phg.pins(he)) {
+            if (pin != hn) {
+              const PartitionID part = pin < hn ? phg.partID(pin) : _part_before_round[pin];
+              if (part == from) {
+                pin_count_in_from_part_after++;
+              } else if (part == to) {
+                pin_count_in_to_part_after++;
+              }
+            }
+          }
+          SynchronizedEdgeUpdate sync_update;
+          sync_update.he = he;
+          sync_update.edge_weight = phg.edgeWeight(he);
+          sync_update.edge_size = phg.edgeSize(he);
+          sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
+          sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
+          gain_delta.local() += AttributedGains::gain(sync_update);
+        }
+      }
+    });
+    return gain_delta.combine(std::plus<>());
+  }
+
   const Context& _context;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
@@ -135,6 +166,8 @@ private:
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
   ds::StreamingVector<HypernodeID> tmp_active_nodes;
+  parallel::scalable_vector<PartitionID> _part_before_round;
+
 };
 
 }
