@@ -105,7 +105,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::three_phase_coarsener,
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy),
                               kahypar::meta::PolicyRegistry<DegreeSimilarityPolicy>::getInstance().getPolicy(
-                                context.coarsening.rating.degre_similarity_policy));
+                                context.coarsening.rating.degree_similarity_policy));
 
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,

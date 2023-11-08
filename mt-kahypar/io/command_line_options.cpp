@@ -322,7 +322,7 @@ namespace mt_kahypar {
             ("c-rating-degree-similarity-policy",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& ds) {
-                       context.coarsening.rating.degre_similarity_policy =
+                       context.coarsening.rating.degree_similarity_policy =
                                degreeSimilarityFromString(ds);
                      })->default_value("preserve_rebalancing_nodes"),
              "Policy that determines which contractions between low and high degree nodes are accepted:\n"
@@ -379,7 +379,11 @@ namespace mt_kahypar {
             ("c-use-sim-penalty",
              po::value<bool>(&context.coarsening.rating.use_similarity_penalty)->value_name(
                      "<bool>")->default_value(false),
-             "Whether a similarity penalty is used for LP coarsening.");
+             "Whether a similarity penalty is used for LP coarsening.")
+            ("c-sim-degree-comparison-bound",
+             po::value<double>(&context.coarsening.rating.degree_comparison_bound)->value_name(
+                     "<double>")->default_value(4),
+             "Compare degrees similarity policy: max allowed difference.");
     return options;
   }
 
