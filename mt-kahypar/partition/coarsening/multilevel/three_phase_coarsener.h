@@ -153,7 +153,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     if (_context.coarsening.scale_allowed_node_weight) {
       double hypernode_weight_fraction =
               _context.coarsening.max_allowed_weight_multiplier / hierarchy_contraction_limit;
-      max_allowed_node_weight = std::ceil(hypernode_weight_fraction * current_hg.totalWeight());
+      max_allowed_node_weight = std::ceil(_context.coarsening.scale_allowed_node_weight_factor
+                                          * hypernode_weight_fraction * current_hg.totalWeight());
       max_allowed_node_weight = std::min(max_allowed_node_weight, _context.coarsening.max_allowed_node_weight);
     }
     cc.max_allowed_node_weight = (_context.coarsening.max_allowed_weight_multiplier_soft

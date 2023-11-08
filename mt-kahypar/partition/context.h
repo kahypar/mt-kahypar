@@ -136,6 +136,7 @@ struct CoarseningParameters {
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
   bool scale_allowed_node_weight = false;
+  double scale_allowed_node_weight_factor = 1.0;
 
   // Two-Hop Coarsening
   bool delayed_two_hop_coarsening = false;

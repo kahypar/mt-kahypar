@@ -268,6 +268,10 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.scale_allowed_node_weight)->value_name(
                      "<bool>")->default_value(false),
              "Scale maximum allowed weight for contractions to current level (currently only 3phase-coarsener).")
+            ("c-scale-allowed-node-weight-factor",
+             po::value<double>(&context.coarsening.scale_allowed_node_weight_factor)->value_name(
+                     "<double>")->default_value(1.0),
+             "Additional factor for scaling maximum allowed weight for contractions to current level (currently only 3phase-coarsener).")
             ("c-s-soft",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier_soft)->value_name(
                      "<double>")->default_value(1),
