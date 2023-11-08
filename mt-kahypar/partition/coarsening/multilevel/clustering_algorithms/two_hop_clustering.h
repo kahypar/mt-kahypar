@@ -45,7 +45,7 @@ namespace mt_kahypar {
 namespace {
   class NeighborhoodData {
    public:
-    static constexpr size_t MAX_NEIGHBORHOOD_SIZE = 16;
+    static constexpr size_t MAX_NEIGHBORHOOD_SIZE = 32;
 
     NeighborhoodData() {
       reset();
