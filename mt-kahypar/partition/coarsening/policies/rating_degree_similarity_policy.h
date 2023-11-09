@@ -113,7 +113,7 @@ namespace {
           } else {
             // insert a new group and shift all following groups
             NeighborData tmp = NeighborData{edge_contribution, weight};
-            for (size_t j = i; j < _data.size(); ++j) {
+            for (size_t j = i; tmp.node_weight > 0 && j < _data.size(); ++j) {
               std::swap(tmp, _data[j]);
             }
           }
@@ -176,47 +176,48 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     if constexpr (Hypergraph::is_graph) {
       // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
       // This could be acceptable, though
+
+      // Step 1: Collect contributed edge weights and node weights of neighbors in into sorted aggregates
+      // (effectively a semi-sorting)
       const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
                                                           * hypergraph.totalWeight());
-      ds::StreamingVector<double> diffs;
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
         GroupedIncidenceData incidence_data;
-
+        const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
-          // TODO: we could filter the nodes that can not decrease the value
           float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
           HypernodeWeight weight = hypergraph.nodeWeight(v);
-          incidence_data.insert(edge_contribution, weight);
+          if (weight == 0 || edge_contribution / weight < ratio_of_u) {
+            incidence_data.insert(edge_contribution, weight);
+          }
         }
 
-        auto compute_min = [&](const auto& list, HypernodeID max_iterations) {
-          double summed_contribution = _incident_weight[hn];
-          HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
-          double current_min = summed_contribution / summed_weight;
-          auto it = list.cbegin();
-          for (; it != list.cend() && summed_weight <= max_summed_weight && (max_iterations == 0 || std::distance(list.cbegin(), it) < max_iterations); ++it) {
-            const NeighborData& neighbor = *it;
-            if (summed_weight + neighbor.node_weight > max_summed_weight) {
-              double fraction_of_last = static_cast<double>(max_summed_weight - summed_weight) / neighbor.node_weight;
-              summed_contribution += fraction_of_last * neighbor.edge_weight_contribution;
-              summed_weight = max_summed_weight;
-            } else {
-              summed_contribution += neighbor.edge_weight_contribution;
-              summed_weight += neighbor.node_weight;
-            }
-            if (summed_contribution / summed_weight <= current_min) {
-              current_min = summed_contribution / summed_weight;
-            } else {
-              break;
-            }
+        // Step 2: Iterate through aggregated neighbor values in sorted order and determine minimum
+        const auto& list = incidence_data.inner();
+        double summed_contribution = _incident_weight[hn];
+        HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
+        double min_value = summed_contribution / summed_weight;
+        for (size_t i = 0; i < list.size() && summed_weight <= max_summed_weight; ++i) {
+          const NeighborData& neighbor = list[i];
+          if (summed_weight + neighbor.node_weight > max_summed_weight) {
+            double fraction_of_last = static_cast<double>(max_summed_weight - summed_weight) / neighbor.node_weight;
+            summed_contribution += fraction_of_last * neighbor.edge_weight_contribution;
+            summed_weight = max_summed_weight;
+          } else {
+            summed_contribution += neighbor.edge_weight_contribution;
+            summed_weight += neighbor.node_weight;
           }
-          return current_min;
-        };
+          if (summed_contribution / summed_weight <= min_value) {
+            min_value = summed_contribution / summed_weight;
+          } else {
+            break;
+          }
+        }
 
-        double approximate_min = compute_min(incidence_data.inner(), 0);
+        // Step 3: Compute acceptance limit of v from minimum
         _acceptance_limit[hn] = std::min(
-          context.coarsening.rating.preserve_nodes_scaling_factor * approximate_min,
+          context.coarsening.rating.preserve_nodes_scaling_factor * min_value,
           context.coarsening.rating.acceptance_limit_bound * _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1));
         DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
             << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
