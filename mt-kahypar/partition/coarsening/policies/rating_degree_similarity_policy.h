@@ -68,6 +68,73 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   }
 };
 
+namespace {
+  struct NeighborData {
+    float edge_weight_contribution;
+    HypernodeWeight node_weight;
+  };
+
+  class GroupedIncidenceData {
+   public:
+    static constexpr size_t MAX_NUM_GROUPS = 16;
+    static constexpr double GROUP_FACTOR = 1.5;
+
+    using GroupedData = std::array<NeighborData, MAX_NUM_GROUPS>;
+
+    GroupedIncidenceData() {
+      reset();
+    }
+
+    void insert(float edge_contribution, HypernodeWeight weight) {
+      ASSERT(weight > 0);
+      if (edge_contribution <= 0) {
+        _data[0].edge_weight_contribution += edge_contribution;
+        _data[0].node_weight += weight;
+        return;
+      } else if (weight == 0) {
+        return;
+      }
+      const double ratio = static_cast<double>(edge_contribution) / static_cast<double>(weight);
+
+      size_t i = 1;
+      for (; i < _data.size(); ++i) {
+        auto [current_contribution, current_weight] = _data[i];
+        if (current_weight == 0) {
+          _data[i] = NeighborData{edge_contribution, weight};
+          return;
+        }
+
+        double current_ratio = static_cast<double>(current_contribution) / static_cast<double>(current_weight);
+        if (ratio <= GROUP_FACTOR * current_ratio) {
+          if (current_ratio <= GROUP_FACTOR * ratio) {
+            // add the values to the fitting group
+            _data[i].edge_weight_contribution += edge_contribution;
+            _data[i].node_weight += weight;
+          } else {
+            // insert a new group and shift all following groups
+            NeighborData tmp = NeighborData{edge_contribution, weight};
+            for (size_t j = i; j < _data.size(); ++j) {
+              std::swap(tmp, _data[j]);
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    const GroupedData& inner() const {
+      return _data;
+    }
+
+    void reset() {
+      _data.fill(NeighborData{0, 0});
+    }
+
+   private:
+    GroupedData _data;
+  };
+} // namespace
+
 
 class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   static constexpr bool debug = false;
@@ -87,12 +154,6 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   void initialize(const Hypergraph& hypergraph, const Context& context) {
     ASSERT(_incident_weight.size() >= hypergraph.initialNumNodes()
            && _acceptance_limit.size() >= hypergraph.initialNumNodes());
-
-    struct NeighborData {
-      HypernodeID hn;
-      float edge_weight_contribution;
-      HypernodeWeight node_weight;
-    };
 
     auto scaled_edge_weight = [&](const HyperedgeID he) {
       if constexpr (Hypergraph::is_graph) {
@@ -117,42 +178,45 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       // This could be acceptable, though
       const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
                                                           * hypergraph.totalWeight());
-      tbb::enumerable_thread_specific<parallel::scalable_vector<NeighborData>> local_neighbor_list;
+      ds::StreamingVector<double> diffs;
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
-        auto& neighbor_list = local_neighbor_list.local();
-        neighbor_list.clear();
+        GroupedIncidenceData incidence_data;
 
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
           // TODO: we could filter the nodes that can not decrease the value
-          neighbor_list.push_back(NeighborData{v, _incident_weight[v] - 2 * scaled_edge_weight(he), hypergraph.nodeWeight(v)});
+          float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
+          HypernodeWeight weight = hypergraph.nodeWeight(v);
+          incidence_data.insert(edge_contribution, weight);
         }
-        std::sort(neighbor_list.begin(), neighbor_list.end(), [](const NeighborData& lhs, const NeighborData& rhs) {
-          if (lhs.node_weight == 0) {
-            return false;
-          } else if (rhs.node_weight == 0) {
-            return true;
-          }
-          return static_cast<double>(lhs.edge_weight_contribution) / lhs.node_weight
-            < static_cast<double>(rhs.edge_weight_contribution) / rhs.node_weight;
-        });
 
-        const HypernodeID max_iterations = context.coarsening.rating.max_considered_neighbors;
-        double summed_contribution = _incident_weight[hn];
-        HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
-        double current_min = summed_contribution / summed_weight;
-        for (size_t i = 0; i < neighbor_list.size() && (max_iterations == 0 || i < max_iterations); ++i) {
-          const NeighborData& neighbor = neighbor_list[i];
-          summed_contribution += neighbor.edge_weight_contribution;
-          summed_weight += neighbor.node_weight;
-          if (summed_contribution / summed_weight <= current_min && summed_weight <= max_summed_weight) {
-            current_min = summed_contribution / summed_weight;
-          } else {
-            break;
+        auto compute_min = [&](const auto& list, HypernodeID max_iterations) {
+          double summed_contribution = _incident_weight[hn];
+          HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
+          double current_min = summed_contribution / summed_weight;
+          auto it = list.cbegin();
+          for (; it != list.cend() && summed_weight <= max_summed_weight && (max_iterations == 0 || std::distance(list.cbegin(), it) < max_iterations); ++it) {
+            const NeighborData& neighbor = *it;
+            if (summed_weight + neighbor.node_weight > max_summed_weight) {
+              double fraction_of_last = static_cast<double>(max_summed_weight - summed_weight) / neighbor.node_weight;
+              summed_contribution += fraction_of_last * neighbor.edge_weight_contribution;
+              summed_weight = max_summed_weight;
+            } else {
+              summed_contribution += neighbor.edge_weight_contribution;
+              summed_weight += neighbor.node_weight;
+            }
+            if (summed_contribution / summed_weight <= current_min) {
+              current_min = summed_contribution / summed_weight;
+            } else {
+              break;
+            }
           }
-        }
+          return current_min;
+        };
+
+        double approximate_min = compute_min(incidence_data.inner(), 0);
         _acceptance_limit[hn] = std::min(
-          context.coarsening.rating.preserve_nodes_scaling_factor * current_min,
+          context.coarsening.rating.preserve_nodes_scaling_factor * approximate_min,
           context.coarsening.rating.acceptance_limit_bound * _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1));
         DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
             << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
