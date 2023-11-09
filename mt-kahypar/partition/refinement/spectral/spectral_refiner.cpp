@@ -47,7 +47,12 @@ namespace mt_kahypar {
 
     // implementation goes here
     DBG << "Spectral Refiner called";
+    kSpecPartAlgorithm(hypergraph);
+    if constexpr (Hypergraph::is_graph) {
 
+    }
+
+    // recalculate metrics
 
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
@@ -62,6 +67,47 @@ namespace mt_kahypar {
     ASSERT(delta >= 0, "Refiner worsened solution quality");
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("spectral_improvement", delta);
     return delta > 0;
+  }
+
+
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::kSpecPartAlgorithm(PartitionedHypergraph& inputSolution) {
+    Hypergraph& inputHypergraph /* = TODO */;
+
+    // dehyperisation
+    SimpleGraph inputGraph; /* TODO allocation?? */
+    dehyperize(inputHypergraph, inputGraph);
+    /*auto inputLaplacian /* = TODO(inputGraph) */; /* TODO even possible as general Laplacian? see (8) in paper */
+
+    // weight-balance graph construction
+    SimpleGraph weightBalanceGraph; /* TODO allocation?? */
+    buildWeightBalanceGraph(inputHypergraph, weightBalanceGraph);
+    /*auto baseBalance /* = TODO(weightBalanceGraph) */; /* TODO same as l74 with (11) in paper */
+
+    // actual refinement
+    /* vec<PartitionedHypergraph>*///auto candidateSolutions;
+    /* candidateSolutions->reserve("beta"); */
+    /* candidateSolutions->pushBack(inputSolution); */
+    for (int i = 0; i < 1 /* TODO parameter "beta" */; i++) {
+      if (/* "k" == 2 */true) {
+        /* TODO returntype/result, header file entry, implementation *///solveGEVP(inputLaplacian, baseBalance, candidateSolutions->back());
+      } else {
+        /* TODO */
+      }
+    }
+  }
+
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::dehyperize(Hypergraph& hypergraph, SimpleGraph& target) {
+    // dehyperisation via clique expansion graph
+
+    /* TODO maybe directly/only compute laplacian */
+  }
+  
+  
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraph(Hypergraph& hypergraph, SimpleGraph& target) {
+    /* TODO maybe directly/only compute laplacian */
   }
 
 

@@ -37,10 +37,11 @@ class SpectralRefiner final : public IRefiner {
  private:
   using Hypergraph = typename GraphAndGainTypes::Hypergraph;
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
+  using SimpleGraph = typename GraphAndGainTypes::Hypergraph; /* TODO */
   using GainCache = typename GraphAndGainTypes::GainCache;
 
-  static constexpr bool debug = false;
-  static constexpr bool enable_heavy_assert = false;
+  static constexpr bool debug = true;
+  static constexpr bool enable_heavy_assert = true;
 
  public:
   explicit SpectralRefiner(const HypernodeID num_hypernodes,
@@ -73,6 +74,12 @@ class SpectralRefiner final : public IRefiner {
                   double) final;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
+
+  void kSpecPartAlgorithm(PartitionedHypergraph& hypergraph);
+
+  void dehyperize(Hypergraph& hypergraph, SimpleGraph& target); /* TODO: move to utils/hypergraph class? */
+
+  void buildWeightBalanceGraph(Hypergraph& hypergraph, SimpleGraph& target); /* TODO: move to utils/hypergraph class? */
 
   // void resizeDataStructuresForCurrentK() {
   //
