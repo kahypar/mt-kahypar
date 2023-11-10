@@ -219,6 +219,8 @@ std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& 
 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const MaxWeightFunction& func);
+
 std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
@@ -254,6 +256,8 @@ LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
 
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
+
+MaxWeightFunction maxWeightFunctionFromString(const std::string& function);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

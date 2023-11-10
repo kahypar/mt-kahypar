@@ -170,6 +170,16 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const MaxWeightFunction& function) {
+    switch (function) {
+      case MaxWeightFunction::L_max: return os << "L_max";
+      case MaxWeightFunction::L_kmax: return os << "L_kmax";
+      case MaxWeightFunction::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(function);
+  }
+
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
