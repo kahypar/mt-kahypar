@@ -380,6 +380,16 @@ namespace mt_kahypar {
     return CoarseningAlgorithm::UNDEFINED;
   }
 
+  MaxWeightFunction maxWeightFunctionFromString(const std::string& function) {
+    if (function == "L_max") {
+      return MaxWeightFunction::L_max;
+    } else if (function == "L_kmax") {
+      return MaxWeightFunction::L_kmax;
+    }
+    throw InvalidParameterException("Illegal option: " + function);
+    return MaxWeightFunction::UNDEFINED;
+  }
+
   HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
     if (penalty == "no_penalty") {
       return HeavyNodePenaltyPolicy::no_penalty;

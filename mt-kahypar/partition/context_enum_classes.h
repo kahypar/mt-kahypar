@@ -116,6 +116,12 @@ enum class CoarseningAlgorithm : uint8_t {
   UNDEFINED
 };
 
+enum class MaxWeightFunction : uint8_t {
+  L_max,
+  L_kmax,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
