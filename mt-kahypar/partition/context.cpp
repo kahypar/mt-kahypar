@@ -105,7 +105,7 @@ namespace mt_kahypar {
     str << "Coarsening Parameters:" << std::endl;
     str << "  Algorithm:                          " << params.algorithm << std::endl;
     str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
-    str << "  Maximum Node Weight Function:       " << params.max_node_weight_function << std::endl;
+    str << "  Maximum Node Weight Function:       " << params.max_weight_function << std::endl;
     str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
     str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
@@ -508,6 +508,7 @@ namespace mt_kahypar {
     coarsening.use_adaptive_edge_size= true;
     coarsening.minimum_shrink_factor = 1.01;
     coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_weight_function = MaxWeightFunction::L_max;
     coarsening.max_allowed_weight_multiplier = 1.0;
     coarsening.contraction_limit_multiplier = 160;
     coarsening.vertex_degree_sampling_threshold = 200000;
