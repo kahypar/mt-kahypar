@@ -222,7 +222,7 @@ public:
         size_t i = 0;
         while (i < sorted_values.size()) {
           size_t count = 0;
-          while (sorted_values[i] <= upper) {
+          while (i < sorted_values.size() && sorted_values[i] <= upper) {
             ++count;
             ++i;
           }
