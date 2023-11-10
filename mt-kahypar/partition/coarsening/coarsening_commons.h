@@ -28,7 +28,10 @@
 
 #pragma once
 
+#include "tbb/parallel_sort.h"
+
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
@@ -166,10 +169,88 @@ public:
   void performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
           const HighResClockTimepoint& round_start) {
+
+    auto output_stats = [](const Hypergraph& hypergraph) {
+      std::vector<HypernodeID> he_sizes;
+      std::vector<HyperedgeWeight> he_weights;
+      std::vector<HyperedgeID> hn_degrees;
+      std::vector<HypernodeWeight> hn_weights;
+
+      tbb::parallel_invoke([&] {
+        he_sizes.resize(hypergraph.initialNumEdges());
+      }, [&] {
+        he_weights.resize(hypergraph.initialNumEdges());
+      }, [&] {
+        hn_degrees.resize(hypergraph.initialNumNodes());
+      }, [&] {
+        hn_weights.resize(hypergraph.initialNumNodes());
+      });
+
+      HypernodeID num_hypernodes = hypergraph.initialNumNodes();
+      const double avg_hn_degree = utils::avgHypernodeDegree(hypergraph);
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        hn_degrees[hn] = hypergraph.nodeDegree(hn);
+        hn_weights[hn] = hypergraph.nodeWeight(hn);
+      });
+      const double avg_hn_weight = utils::parallel_avg(hn_weights, num_hypernodes);
+      const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
+      const double stdev_hn_weight = utils::parallel_stdev(hn_weights, avg_hn_weight, num_hypernodes);
+
+      HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
+      HypernodeID num_pins = hypergraph.initialNumPins();
+      const double avg_he_size = utils::avgHyperedgeDegree(hypergraph);
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+        he_sizes[he] = hypergraph.edgeSize(he);
+        he_weights[he] = hypergraph.edgeWeight(he);
+      });
+      const double avg_he_weight = utils::parallel_avg(he_weights, num_hyperedges);
+      const double stdev_he_size = utils::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);
+      const double stdev_he_weight = utils::parallel_stdev(he_weights, avg_he_weight, num_hyperedges);
+
+      tbb::parallel_invoke([&] {
+        tbb::parallel_sort(he_sizes.begin(), he_sizes.end());
+      }, [&] {
+        tbb::parallel_sort(he_weights.begin(), he_weights.end());
+      }, [&] {
+        tbb::parallel_sort(hn_degrees.begin(), hn_degrees.end());
+      }, [&] {
+        tbb::parallel_sort(hn_weights.begin(), hn_weights.end());
+      });
+
+      auto print_histogramm = [](const auto& sorted_values) {
+        uint32_t upper = 1;
+        size_t i = 0;
+        while (i < sorted_values.size()) {
+          size_t count = 0;
+          while (sorted_values[i] <= upper) {
+            ++count;
+            ++i;
+          }
+          std::cout << count << " [<=" << upper << "] ";
+          upper *= 2;
+        }
+        LOG << "";
+      };
+
+      LOG << "";
+      LOG << V(num_hypernodes) << V(num_hyperedges);
+      LOG << "HE weights distribution:";
+      print_histogramm(he_weights);
+      LOG << "HN degrees distribution:";
+      print_histogramm(hn_degrees);
+      LOG << "HN weights distribution:";
+      print_histogramm(hn_weights);
+    };
+
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
+    if (hierarchy.empty()) {
+      output_stats(current_hg);
+    }
     Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
+    output_stats(contracted_hg);
+
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
     hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
