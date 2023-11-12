@@ -54,6 +54,7 @@ struct ClusteringContext {
                              ConcurrentClusteringData& clustering_data,
                              NumNodesTracker& num_nodes_tracker):
     hierarchy_contraction_limit(hierarchy_contraction_limit),
+    max_weight_function(context.coarsening.max_weight_function),
     max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     original_num_threads(context.shared_memory.original_num_threads),
     num_hns_before_pass(0),
@@ -139,6 +140,7 @@ struct ClusteringContext {
   }
 
   HypernodeID hierarchy_contraction_limit;
+  MaxWeightFunction max_weight_function;
   HypernodeWeight max_allowed_node_weight;
   size_t original_num_threads;
   bool may_ignore_communities = false;

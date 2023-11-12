@@ -325,18 +325,35 @@ namespace mt_kahypar {
   }
 
   void Context::setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
-    HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
-    for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
-      min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
-    }
-
     double hypernode_weight_fraction =
-            coarsening.max_allowed_weight_multiplier
-            / coarsening.contraction_limit;
-    coarsening.max_allowed_node_weight =
-            std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
-    coarsening.max_allowed_node_weight =
-            std::min(coarsening.max_allowed_node_weight, min_block_weight);
+        coarsening.max_allowed_weight_multiplier
+        / coarsening.contraction_limit;
+    switch (coarsening.max_weight_function) {
+      case MaxWeightFunction::L_max:
+        {
+          HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
+          for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
+            min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
+          }
+          coarsening.max_allowed_node_weight =
+                  std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+          coarsening.max_allowed_node_weight =
+                  std::min(coarsening.max_allowed_node_weight, min_block_weight);
+          break;
+        }
+      case MaxWeightFunction::L_kmax:
+        {
+          HypernodeWeight max_block_weight = std::numeric_limits<HypernodeWeight>::min();
+          for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
+            max_block_weight = std::max(max_block_weight, partition.max_part_weights[part_id]);
+          }
+          coarsening.max_allowed_node_weight = 
+              std::max(hypernode_weight_fraction * total_hypergraph_weight, hypernode_weight_fraction + max_block_weight);
+          break;
+        }
+      case MaxWeightFunction::UNDEFINED:
+        break;
+    }
   }
 
   void Context::sanityCheck(const TargetGraph* target_graph) {
