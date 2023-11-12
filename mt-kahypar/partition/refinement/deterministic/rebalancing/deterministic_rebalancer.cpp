@@ -66,20 +66,18 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
   _gain_computation.reset();
   initializeDataStructures(phg);
-
   while (_num_imbalanced_parts > 0) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
   }
-
-  Gain delta = _gain_computation.delta();
-  // HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
-  //   V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
+  const Gain delta = calculateGainDelta(phg);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("reb_quality", "Quality after Rebalancing");
-  best_metrics.quality = metrics::quality(phg, _context, true); // TODO: This is giga slow, just for now
+  best_metrics.quality += delta;
   timer.stop_timer("reb_quality");
+  HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context),
+    V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   DBG << "[REBALANCE] " << V(delta) << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
@@ -89,6 +87,10 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer< GraphAndGainTypes>::initializeDataStructures(const PartitionedHypergraph& phg) {
   updateImbalance(phg);
+  ASSERT(_part_before_round.size() >= phg.initialNumNodes(), V(_part_before_round.size()) << V(phg.initialNumNodes()));
+  phg.doParallelForAllNodes([&](const HypernodeID hn) {
+    _part_before_round[hn] = phg.partID(hn);
+  });
 }
 
 

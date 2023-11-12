@@ -53,6 +53,7 @@ private:
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using GainCache = typename GraphAndGainTypes::GainCache;
     using GainComputation = typename GraphAndGainTypes::GainComputation;
+    using AttributedGains = typename GraphAndGainTypes::AttributedGains;
     using RatingMap = typename GainComputation::RatingMap;
     using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
@@ -61,7 +62,7 @@ private:
 
 public:
 
-    explicit DeterministicRebalancer(const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context) :
         _context(context),
         _max_part_weights(nullptr),
         _current_k(context.partition.k),
@@ -70,12 +71,11 @@ public:
         _num_valid_targets(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k),
-        tmp_potential_moves(context.partition.k) {}
-    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
-        DeterministicRebalancer(context) {}
+        tmp_potential_moves(context.partition.k),
+        _part_before_round(num_nodes) {}
 
-    explicit DeterministicRebalancer(HypernodeID, const Context& context, GainCache&) :
-        DeterministicRebalancer(context) {}
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
+        DeterministicRebalancer(num_nodes, context) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -167,9 +167,9 @@ private:
 
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
-        auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
-            _gain_computation.computeDeltaForHyperedge(sync_update);
-        };
+        // auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+        //     _gain_computation.computeDeltaForHyperedge(sync_update);
+        // };
 
         HypernodeWeight max_weight = ensure_balanced ? _max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
         bool success = false;
@@ -185,10 +185,42 @@ private:
             const auto partWeight = phg.partWeight(i);
             unused(partWeight);
             if (_moves[i].size() > 0) {
-                ASSERT(partWeight >= deadzoneForPart(i) && partWeight <= _max_part_weights[i]);
+                ASSERT(partWeight >= deadzoneForPart(i) && partWeight <= _max_part_weights[i], V(partWeight) << V(deadzoneForPart(i)) << V(_max_part_weights[i]));
             }
         }
         return true;
+    }
+
+    HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const {
+        tbb::enumerable_thread_specific<HyperedgeWeight> gain_delta(0);
+        phg.doParallelForAllNodes([&](const HypernodeID hn) {
+            const PartitionID from = _part_before_round[hn];
+            const PartitionID to = phg.partID(hn);
+            if (from != to) {
+                for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+                    HypernodeID pin_count_in_from_part_after = 0;
+                    HypernodeID pin_count_in_to_part_after = 1;
+                    for (const HypernodeID& pin : phg.pins(he)) {
+                        if (pin != hn) {
+                            const PartitionID part = pin < hn ? phg.partID(pin) : _part_before_round[pin];
+                            if (part == from) {
+                                pin_count_in_from_part_after++;
+                            } else if (part == to) {
+                                pin_count_in_to_part_after++;
+                            }
+                        }
+                    }
+                    SynchronizedEdgeUpdate sync_update;
+                    sync_update.he = he;
+                    sync_update.edge_weight = phg.edgeWeight(he);
+                    sync_update.edge_size = phg.edgeSize(he);
+                    sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
+                    sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
+                    gain_delta.local() += AttributedGains::gain(sync_update);
+                }
+            }
+        });
+        return gain_delta.combine(std::plus<>());
     }
 
     const Context& _context;
@@ -200,6 +232,7 @@ private:
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves;
+    parallel::scalable_vector<PartitionID> _part_before_round;
 };
 
 }  // namespace kahypar
