@@ -91,7 +91,8 @@ namespace mt_kahypar::io::csv {
     s << timer.get("copy_moves") << sep;
     s << timer.get("sorting") << sep;
     s << timer.get("find_moves") << sep;
-    s << timer.get("exe_moves");
+    s << timer.get("exe_moves") << sep;
+    s << timer.get("reb_quality");
     return s.str();
   }
 
