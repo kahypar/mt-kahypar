@@ -58,11 +58,11 @@ private:
     using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
     static constexpr bool debug = false;
-    static constexpr bool enable_heavy_assert = false;
+    static constexpr bool enable_heavy_assert = true;
 
 public:
 
-    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
         _context(context),
         _max_part_weights(nullptr),
         _current_k(context.partition.k),
@@ -71,8 +71,7 @@ public:
         _num_valid_targets(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k),
-        tmp_potential_moves(context.partition.k),
-        _part_before_round(num_nodes) {}
+        tmp_potential_moves(context.partition.k) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
         DeterministicRebalancer(num_nodes, context) {}
@@ -191,38 +190,6 @@ private:
         return true;
     }
 
-    HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const {
-        tbb::enumerable_thread_specific<HyperedgeWeight> gain_delta(0);
-        phg.doParallelForAllNodes([&](const HypernodeID hn) {
-            const PartitionID from = _part_before_round[hn];
-            const PartitionID to = phg.partID(hn);
-            if (from != to) {
-                for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-                    HypernodeID pin_count_in_from_part_after = 0;
-                    HypernodeID pin_count_in_to_part_after = 1;
-                    for (const HypernodeID& pin : phg.pins(he)) {
-                        if (pin != hn) {
-                            const PartitionID part = pin < hn ? phg.partID(pin) : _part_before_round[pin];
-                            if (part == from) {
-                                pin_count_in_from_part_after++;
-                            } else if (part == to) {
-                                pin_count_in_to_part_after++;
-                            }
-                        }
-                    }
-                    SynchronizedEdgeUpdate sync_update;
-                    sync_update.he = he;
-                    sync_update.edge_weight = phg.edgeWeight(he);
-                    sync_update.edge_size = phg.edgeSize(he);
-                    sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
-                    sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
-                    gain_delta.local() += AttributedGains::gain(sync_update);
-                }
-            }
-        });
-        return gain_delta.combine(std::plus<>());
-    }
-
     const Context& _context;
     const HypernodeWeight* _max_part_weights;
     PartitionID _current_k;
@@ -232,7 +199,7 @@ private:
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves;
-    parallel::scalable_vector<PartitionID> _part_before_round;
+    //parallel::scalable_vector<PartitionID> _part_before_round;
 };
 
 }  // namespace kahypar
