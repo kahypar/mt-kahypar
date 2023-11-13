@@ -248,6 +248,9 @@ namespace mt_kahypar {
              " - nlevel_coarsener"
              " - deterministic_multilevel_coarsener"
              )
+            ("c-prioritize-high-degree",
+             po::value<bool>(&context.coarsening.prioritize_high_degree)->value_name("<bool>")->default_value(false),
+             "If true, scan high degree nodes first when looking for contraction partners.")
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
