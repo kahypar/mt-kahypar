@@ -303,6 +303,153 @@ protected:
   size_t positions_size;
 };
 
+template<typename KeyT, typename IdT, typename Comparator = std::less<KeyT>, uint32_t arity = 4>
+class NonAddressableHeap {
+ public:
+  static_assert(arity > 1);
+
+  explicit NonAddressableHeap() :
+    comp(),
+    heap() { }
+
+  IdT top() const {
+    return heap[0].id;
+  }
+
+  KeyT topKey() const {
+    return heap[0].key;
+  }
+
+  void deleteTop() {
+    assert(!empty());
+    heap[0] = heap.back();
+    heap.pop_back();
+    siftDown(0);
+  }
+
+  void insert(const IdT e, const KeyT k) {;
+    const PosT pos = size();
+    heap.push_back({k, e});
+    siftUp(pos);
+  }
+
+  void clear() {
+    heap.clear();
+  }
+
+  PosT size() const {
+    return static_cast<PosT>(heap.size());
+  }
+
+  bool empty() const {
+    return size() == 0;
+  }
+
+  size_t size_in_bytes() const {
+    return heap.capacity() * sizeof(HeapElement);
+  }
+
+
+protected:
+
+  bool isHeap() const {
+    for (PosT i = 1; i < size(); ++i) {
+      if (comp(heap[parent(i)].key, heap[i].key)) {
+        LOG << "heap property violation" << V(i) << V(parent(i)) << V(arity) << V(heap[i].key) << V(heap[parent(i)].key);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  PosT parent(const PosT pos) const {
+    return (pos - 1) / arity;
+  }
+
+  PosT firstChild(const PosT pos) const {
+    return pos*arity + 1;
+  }
+
+  void siftUp(PosT pos) {
+    const KeyT k = heap[pos].key;
+    const IdT id = heap[pos].id;
+
+    PosT parent_pos = parent(pos);
+    while (pos > 0 && comp(heap[parent_pos].key, k)) {    // eliminate pos > 0 check by a sentinel at position zero?
+      heap[pos] = heap[parent_pos];
+      pos = parent_pos;
+      parent_pos = parent(pos);
+    }
+    heap[pos].id = id;
+    heap[pos].key = k;
+
+    //HEAVY_REFINEMENT_ASSERT(isHeap());
+    //HEAVY_REFINEMENT_ASSERT(positionsMatch());
+  }
+
+  void siftDown(PosT pos) {
+    const KeyT k = heap[pos].key;
+    const IdT id = heap[pos].id;
+    const PosT initial_pos = pos;
+
+    PosT first = firstChild(pos);
+    while (first < size() && first != pos) {
+      PosT largestChild;
+
+      if constexpr (arity > 2) {
+        largestChild = first;
+        KeyT largestChildKey = heap[largestChild].key;
+
+        // find child with largest key for MaxHeap / smallest key for MinHeap
+        const PosT firstInvalid = std::min(size(), firstChild(pos + 1));
+        for (PosT c = first + 1; c < firstInvalid; ++c) {
+          if ( comp(largestChildKey, heap[c].key) ) {
+            largestChildKey = heap[c].key;
+            largestChild = c;
+          }
+        }
+
+        if (comp(largestChildKey, k) || largestChildKey == k) {
+          break;
+        }
+
+      } else {
+        assert(arity == 2);
+
+        const PosT second = std::min(first + 1, size() - 1);    // TODO this branch is not cool. maybe make the while loop condition secondChild(pos) < size() ?
+        const KeyT k1 = heap[first].key, k2 = heap[second].key;
+        const bool c2IsLarger = comp(k1, k2);
+        const KeyT largestChildKey = c2IsLarger ? k2 : k1;
+        if (comp(largestChildKey, k) || largestChildKey == k) {
+          break;
+        }
+        largestChild = c2IsLarger ? second : first;
+      }
+
+      heap[pos] = heap[largestChild];
+      pos = largestChild;
+      first = firstChild(pos);
+    }
+
+    if (pos != initial_pos) {
+      heap[pos].key = k;
+      heap[pos].id = id;
+    }
+
+    //HEAVY_REFINEMENT_ASSERT(isHeap());
+    //HEAVY_REFINEMENT_ASSERT(positionsMatch());
+  }
+
+  struct HeapElement {
+    KeyT key;
+    IdT id;
+  };
+
+  Comparator comp;                // comp(heap[parent(pos)].key, heap[pos].key) returns true if the element at pos should move upward --> comp = std::less for MaxHeaps
+                                  // similarly comp(heap[child(pos)].key, heap[pos].key) returns false if the element at pos should move downward
+  vec<HeapElement> heap;
+};
+
 
 // used to initialize handles in ExclusiveHandleHeap before handing a ref to Heap
 struct HandlesPBase {
@@ -333,6 +480,9 @@ public:
 
 template<typename KeyT, typename IdT>
 using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 2>;
+
+template<typename KeyT, typename IdT>
+using MaxNAHeap = NonAddressableHeap<KeyT, IdT, std::less<KeyT>, 2>;
 
 }
 }
