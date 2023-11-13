@@ -71,9 +71,9 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
   }
-  const Gain delta = calculateGainDelta(phg);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("reb_quality", "Quality after Rebalancing");
+  const Gain delta = calculateGainDelta(phg);
   best_metrics.quality += delta;
   timer.stop_timer("reb_quality");
   HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context),
