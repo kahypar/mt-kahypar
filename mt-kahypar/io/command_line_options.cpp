@@ -368,6 +368,11 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
                      "<bool>")->default_value(true),
              "Use active nodeset in synchronous label propagation")
+            ((initial_partitioning ? "i-r-jet-num-iterations": "r-jet-num-iterations"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.num_iterations: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.num_iterations))->value_name(
+                    "<size_t>")->default_value(12),
+             "Number of iterations without significant improvement")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
