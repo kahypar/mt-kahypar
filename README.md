@@ -63,12 +63,15 @@ The Multi-Threaded Karlsruhe Graph and Hypergraph Partitioning Framework require
    on which we rely on which causes on our side a segmentation fault in really rare cases. If you want to ignore these
    warning, you can add `-DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF` to the cmake build command.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
+ - The [Scalable Library for Eigenvalue Problem Computations][slepc]
 
 ### Linux
 
 The following command will install most of the required dependencies on a Ubuntu machine:
 
     sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+
+For SLEPc, while following their [installation guide](https://slepc.upv.es/documentation/instal.htm), consider that installing PETSc from package managers may complicate things, just use the tarballs provided.
 
 ### Windows
 
@@ -552,6 +555,7 @@ feel free to contact us or create an issue on the
 [Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
+[SLEPc]: https://slepc.upv.es/
 [LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
