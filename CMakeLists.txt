@@ -76,6 +76,9 @@ option(KAHYPAR_ENABLE_SOED_METRIC
 option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
   "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
 
+option(KAHYPAR_PYTHON
+  "Build the Python interface. Can be turned off in case Python is not available." ON)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -394,7 +397,10 @@ add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
-add_subdirectory(python)
+
+if(KAHYPAR_PYTHON)
+  add_subdirectory(python)
+endif()
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
