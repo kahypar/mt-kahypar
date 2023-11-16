@@ -29,6 +29,8 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/matrix.h"
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
 
 
 namespace mt_kahypar {
@@ -37,7 +39,6 @@ class SpectralRefiner final : public IRefiner {
  private:
   using Hypergraph = typename GraphAndGainTypes::Hypergraph;
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
-  using SimpleGraph = typename GraphAndGainTypes::Hypergraph; /* TODO */
   using GainCache = typename GraphAndGainTypes::GainCache;
 
   static constexpr bool debug = true;
@@ -77,13 +78,13 @@ class SpectralRefiner final : public IRefiner {
 
   void kSpecPartAlgorithm(PartitionedHypergraph& hypergraph);
 
-  void dehyperize(Hypergraph& hypergraph, SimpleGraph& target); /* TODO: move to utils/hypergraph class? */
+  void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Matrix& target);
 
-  void buildWeightBalanceGraph(Hypergraph& hypergraph, SimpleGraph& target); /* TODO: move to utils/hypergraph class? */
+  void buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target);
 
-  // void resizeDataStructuresForCurrentK() {
-  //
-  // }
+  void resizeDataStructuresForCurrentK() {
+    /* TODO to be implemented far in the future */
+  }
 
   const Context& _context;
   GainCache& _gain_cache;

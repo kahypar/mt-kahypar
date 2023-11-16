@@ -39,7 +39,7 @@ namespace mt_kahypar {
 
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     Gain old_quality = best_metrics.quality;
-    // resizeDataStructuresForCurrentK();
+    resizeDataStructuresForCurrentK();
 
     // disable the gain cache for spectral partitioning
     _gain_cache.reset();
@@ -53,6 +53,7 @@ namespace mt_kahypar {
     }
 
     // recalculate metrics
+    /* TODO */
 
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
@@ -72,17 +73,16 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::kSpecPartAlgorithm(PartitionedHypergraph& inputSolution) {
-    Hypergraph& inputHypergraph /* = TODO */;
+    Hypergraph& inputHypergraph  = inputSolution.hypergraph();
+    size_t numNodes = inputHypergraph.initialNumNodes();
 
     // dehyperisation
-    SimpleGraph inputGraph; /* TODO allocation?? */
-    dehyperize(inputHypergraph, inputGraph);
-    /*auto inputLaplacian /* = TODO(inputGraph) */; /* TODO even possible as general Laplacian? see (8) in paper */
+    spectral::Matrix inputGraphLaplacian;
+    dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
 
     // weight-balance graph construction
-    SimpleGraph weightBalanceGraph; /* TODO allocation?? */
-    buildWeightBalanceGraph(inputHypergraph, weightBalanceGraph);
-    /*auto baseBalance /* = TODO(weightBalanceGraph) */; /* TODO same as l74 with (11) in paper */
+    spectral::Matrix weightBalanceLaplacian;
+    buildWeightBalanceGraphLaplacian(inputHypergraph, weightBalanceLaplacian);
 
     // actual refinement
     /* vec<PartitionedHypergraph>*///auto candidateSolutions;
@@ -98,16 +98,16 @@ namespace mt_kahypar {
   }
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::dehyperize(Hypergraph& hypergraph, SimpleGraph& target) {
+  void SpectralRefiner<GraphAndGainTypes>::dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Matrix& target) {
     // dehyperisation via clique expansion graph
 
-    /* TODO maybe directly/only compute laplacian */
+    /* TODO */
   }
   
   
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraph(Hypergraph& hypergraph, SimpleGraph& target) {
-    /* TODO maybe directly/only compute laplacian */
+  void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target) {
+    /* TODO */
   }
 
 
