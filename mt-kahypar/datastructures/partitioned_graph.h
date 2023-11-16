@@ -870,10 +870,7 @@ private:
         if (partID(source) == block && partID(target) == block && source < target) {
           ASSERT(he_mapping[edge] < num_edges);
           edge_weight[he_mapping[edge]] = edgeWeight(edge);
-          for (const HypernodeID& pin : pins(edge)) {
-            unused(pin);
-            edge_vector[he_mapping[edge]] = {node_mapping[source], node_mapping[target]};
-          }
+          edge_vector[he_mapping[edge]] = {node_mapping[source], node_mapping[target]};
         }
       });
     }, [&] {
