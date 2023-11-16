@@ -288,8 +288,8 @@ namespace mt_kahypar {
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
              #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             "- additive\n"
              "- multiplicative\n"
-             "- edge_frequency_penalty\n"
              #endif
              "- no_penalty")
             ("c-rating-acceptance-criterion",
