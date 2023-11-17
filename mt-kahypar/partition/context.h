@@ -41,7 +41,7 @@ struct PartitioningParameters {
   Objective objective = Objective::UNDEFINED;
   GainPolicy gain_policy = GainPolicy::none;
   FileFormat file_format = FileFormat::hMetis;
-  InstanceType instance_type = InstanceType::hypergraph;
+  InstanceType instance_type = InstanceType::UNDEFINED;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   double epsilon = std::numeric_limits<double>::max();

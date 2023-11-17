@@ -30,6 +30,7 @@
 #include <algorithm>
 
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/partition/conversion.h"
 
 namespace mt_kahypar {
 
@@ -412,6 +413,10 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
+    }
+
+    if ( partition.instance_type == InstanceType::UNDEFINED ) {
+      partition.instance_type = to_instance_type(partition.file_format);
     }
 
     // Set correct gain policy type
