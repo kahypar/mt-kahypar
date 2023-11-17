@@ -33,6 +33,8 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
+#include <algorithm>
+
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
 
@@ -47,7 +49,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
+  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
     ASSERT(communities.size() == _num_nodes);
 
     // helper function that is used in multiple places for edge deduplication
@@ -253,6 +255,7 @@ namespace mt_kahypar::ds {
       }
       incident_edges_map.reserve_for_estimated_number_of_insertions(max_degree);
 
+      parallel::scalable_vector<std::pair<size_t, size_t>> resulting_ranges;
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
         const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
@@ -295,14 +298,22 @@ namespace mt_kahypar::ds {
         });
         node_sizes[coarse_node] = contracted_size;
 
-        if (deterministic) {
-          // sort for determinism
-          tbb::parallel_sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_pos.load(),
-            [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
-              return e1._target < e2._target;
-            });
-        }
+        resulting_ranges.emplace_back(incident_edges_start, incident_edges_pos.load());
       }
+
+      // We still sort the adjacent edges since this results in better cache locality when accessing the neighbors
+      tbb::parallel_for(UL(0), resulting_ranges.size(), [&](const size_t i) {
+        auto [start, end] = resulting_ranges[i];
+        auto comparator = [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+          return e1._target < e2._target;
+        };
+        if (end - start > HIGH_DEGREE_CONTRACTION_THRESHOLD
+            || resulting_ranges.size() < 2 * std::thread::hardware_concurrency()) {
+          tbb::parallel_sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
+        } else {
+          std::sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
+        }
+      });
     }
 
     // #################### STAGE 4 ####################
