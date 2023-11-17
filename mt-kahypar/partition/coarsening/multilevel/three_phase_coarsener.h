@@ -171,7 +171,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     }
 
     // Phase 3: LP and two-hop coarsening with all contractions allowed (as well as contracting size 1 communities)
-    cc.may_ignore_communities = true;
+    cc.may_ignore_communities = true;  // TODO: test/disable this
     cc.contract_aggressively = true;
     cc.hierarchy_contraction_limit = target_contraction_size;
     if (current_num_nodes > target_contraction_size) {
