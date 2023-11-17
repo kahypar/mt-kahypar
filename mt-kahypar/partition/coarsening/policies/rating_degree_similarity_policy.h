@@ -184,6 +184,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
         GroupedIncidenceData incidence_data;
         const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
+        // TODO: this needs to be implemented differently for hypergraphs
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
           float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
