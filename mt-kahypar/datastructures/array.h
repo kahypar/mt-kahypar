@@ -300,6 +300,13 @@ class Array {
     assign(size, init_value, assign_parallel);
   }
 
+  void resizeNoAssign(const size_type size) {
+    if ( _data || _underlying_data ) {
+      throw SystemException("Memory of vector already allocated");
+    }
+    allocate_data(size);
+  }
+
   void resize(const std::string& group,
               const std::string& key,
               const size_type size,

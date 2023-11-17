@@ -350,8 +350,8 @@ namespace mt_kahypar::ds {
     tbb::parallel_invoke([&] {
       // Copy edges
       edge_id_mapping.assign(_num_edges / 2, 0);
-      hypergraph._edges.resize(coarsened_num_edges);
-      hypergraph._unique_edge_ids.resize(coarsened_num_edges);
+      hypergraph._edges.resizeNoAssign(coarsened_num_edges);
+      hypergraph._unique_edge_ids.resizeNoAssign(coarsened_num_edges);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
         const HyperedgeID tmp_edges_start = tmp_nodes[coarse_node].firstEntry();
         const HyperedgeID edges_start = degree_mapping[coarse_node];
