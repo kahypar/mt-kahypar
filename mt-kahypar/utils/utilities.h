@@ -45,19 +45,29 @@ class Utilities {
     UtilityObjects() :
       stats(),
       ip_stats(),
-      timer() { }
+      timer(),
+      robert_rounds_sum(0),
+      robert_rebalancer_calls(0),
+      robert_moves_sum(0),
+      rounds(),
+      moves() {}
 
     Stats stats;
     InitialPartitioningStats ip_stats;
     Timer timer;
+    size_t robert_rounds_sum;
+    size_t robert_rebalancer_calls;
+    size_t robert_moves_sum;
+    parallel::scalable_vector<size_t> rounds;
+    parallel::scalable_vector<size_t> moves;
   };
 
- public:
+public:
   Utilities(const Utilities&) = delete;
-  Utilities & operator= (const Utilities &) = delete;
+  Utilities& operator= (const Utilities&) = delete;
 
   Utilities(Utilities&&) = delete;
-  Utilities & operator= (Utilities &&) = delete;
+  Utilities& operator= (Utilities&&) = delete;
 
   static Utilities& instance() {
     static Utilities instance;
@@ -86,10 +96,14 @@ class Utilities {
     return _utilities[id].timer;
   }
 
- private:
+  UtilityObjects& getUtilityObj(const size_t id) {
+    return _utilities[id];
+  }
+
+private:
   explicit Utilities() :
     _utility_mutex(),
-    _utilities() { }
+    _utilities() {}
 
   std::mutex _utility_mutex;
   tbb::concurrent_vector<UtilityObjects> _utilities;

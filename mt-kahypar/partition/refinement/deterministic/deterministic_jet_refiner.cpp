@@ -46,6 +46,9 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     const vec<HypernodeID>&,
     Metrics& best_metrics, const double time_limit) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+
+    auto& a = utils::Utilities::instance().getUtilityObj(_context.utility_id);
+
     Metrics current_metrics = best_metrics;
     const HyperedgeWeight input_quality = best_metrics.quality;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
@@ -137,6 +140,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
+            a.robert_rebalancer_calls += 1;
         }
         timer.start_timer("reb_quality", "Quality after Rebalancing");
         current_metrics.quality += calculateGainDelta(phg);

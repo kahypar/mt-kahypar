@@ -377,7 +377,7 @@ namespace mt_kahypar {
             po::value<double>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.relative_deadzone_size: 
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.relative_deadzone_size))->value_name(
                     "<double>")->default_value(1.0),
-             "Number of iterations without significant improvement")
+             "Relative deadzone size when rebalancing")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
