@@ -252,7 +252,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
-
+        
                 //TODO: add to default configs?
             ("c-max-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
@@ -262,8 +262,13 @@ namespace mt_kahypar {
                      })->default_value("L_max"),
              "Max Weight Functions:\n"
              " - L_max\n"
-             " - L_kmax")
-
+             " - L_kmax\n"
+             " - L_n"
+             )
+             ("c-alpha",
+             po::value<double>(&context.coarsening.alpha)->value_name(
+            "<double>")->default_value(1),
+            "If L_n is choosen for the max weight function, alpha is the power of n\n")
             ("c-s",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name(
                      "<double>")->default_value(1),

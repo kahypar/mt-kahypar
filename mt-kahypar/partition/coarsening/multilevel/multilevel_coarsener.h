@@ -137,6 +137,10 @@ class MultilevelCoarsener : public ICoarsener,
                                      _rater, _clustering_data, num_nodes_tracker);
     cc.initializeCoarseningPass(current_hg, _context);
 
+    if (_context.coarsening.max_weight_function == MaxWeightFunction::L_n) {
+      cc.updateAdaptiveNodeWeight(_hg.totalWeight(), num_hns_before_pass, _context);
+    }
+
     _timer.start_timer("clustering", "Clustering");
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
@@ -169,7 +173,7 @@ class MultilevelCoarsener : public ICoarsener,
     // Perform parallel contraction
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
     _timer.stop_timer("contraction");
-
+    std::cout << cc.max_allowed_node_weight << std::endl;
     ++_pass_nr;
     return true;
   }

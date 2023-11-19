@@ -330,6 +330,7 @@ namespace mt_kahypar {
         / coarsening.contraction_limit;
     switch (coarsening.max_weight_function) {
       case MaxWeightFunction::L_max:
+      case MaxWeightFunction::L_n:
         {
           HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
           for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
