@@ -50,6 +50,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
 

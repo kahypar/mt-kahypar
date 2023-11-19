@@ -174,6 +174,7 @@ namespace mt_kahypar {
     switch (function) {
       case MaxWeightFunction::L_max: return os << "L_max";
       case MaxWeightFunction::L_kmax: return os << "L_kmax";
+      case MaxWeightFunction::L_n: return os << "L_n";
       case MaxWeightFunction::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -395,6 +396,8 @@ namespace mt_kahypar {
       return MaxWeightFunction::L_max;
     } else if (function == "L_kmax") {
       return MaxWeightFunction::L_kmax;
+    } else if (function == "L_n") {
+      return MaxWeightFunction::L_n;
     }
     throw InvalidParameterException("Illegal option: " + function);
     return MaxWeightFunction::UNDEFINED;

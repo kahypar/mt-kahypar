@@ -106,6 +106,13 @@ struct ClusteringContext {
     rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
   }
 
+  void updateAdaptiveNodeWeight(const HypernodeWeight total_hypergraph_weight, HypernodeID num_hns, const Context& context) {
+    double hypernode_weight_fraction =
+        context.coarsening.max_allowed_weight_multiplier / (context.partition.k * std::pow(static_cast<int>(num_hns), context.coarsening.alpha));
+    max_allowed_node_weight =
+        std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+  }
+
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
            bool has_fixed_vertices, typename DegreeSimilarityPolicy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
