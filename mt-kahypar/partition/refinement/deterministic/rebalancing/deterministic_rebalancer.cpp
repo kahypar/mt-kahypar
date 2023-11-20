@@ -66,22 +66,11 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
   _gain_computation.reset();
   initializeDataStructures(phg);
-
-  auto& a = utils::Utilities::instance().getUtilityObj(_context.utility_id);
-  _roundCount = 0;
-  _moveCount = 0;
   while (_num_imbalanced_parts > 0) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
-    _roundCount += 1;
   }
-  a.robert_rounds_sum += _roundCount.load();
-  a.rounds.push_back(_roundCount);
-
-  a.robert_moves_sum += _moveCount.load();
-  a.moves.push_back(_moveCount);
-
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
@@ -174,8 +163,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   });
   timer.stop_timer("gain_computation");
   tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
-    //for (size_t i = 0; i < _moves.size(); ++i) {
-      // timer.start_timer("copy_moves", "Copy Moves");
+  //for (size_t i = 0; i < _moves.size(); ++i) {
+    // timer.start_timer("copy_moves", "Copy Moves");
     _moves[i] = tmp_potential_moves[i].copy_parallel();
     // timer.stop_timer("copy_moves");
     if (_moves[i].size() > 0) {
@@ -195,7 +184,6 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].end(), phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
       // timer.stop_timer("find_moves");
 
-      _moveCount += last_move_idx;
       // timer.start_timer("exe_moves", "Execute Moves");
       tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
         const auto move = _moves[i][j];

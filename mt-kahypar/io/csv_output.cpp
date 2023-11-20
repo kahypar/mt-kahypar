@@ -49,7 +49,7 @@ namespace mt_kahypar::io::csv {
                         const std::chrono::duration<double>& elapsed_seconds) {
     const char sep = ',';
     std::stringstream s;
-  
+
     s << context.algorithm_name;
     if (context.algorithm_name == "MT-KaHyPar") {
       if (context.partition.preset_file.find("fast") != std::string::npos) {
@@ -73,6 +73,7 @@ namespace mt_kahypar::io::csv {
     s << metrics::quality(phg, Objective::cut) << sep;
     s << context.initial_km1 << sep;
     s << elapsed_seconds.count() << sep;
+
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.showDetailedTimings(context.partition.show_detailed_timings);
     s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
@@ -91,31 +92,7 @@ namespace mt_kahypar::io::csv {
     s << timer.get("sorting") << sep;
     s << timer.get("find_moves") << sep;
     s << timer.get("exe_moves") << sep;
-    s << timer.get("reb_quality") << sep;
-    auto& a = utils::Utilities::instance().getUtilityObj(context.utility_id);
-    std::sort(a.rounds.begin(), a.rounds.end());
-    auto min_rounds = a.rounds.size() > 0 ? a.rounds[0] : -1;
-    auto max_rounds = a.rounds.size() > 0 ? a.rounds[a.rounds.size()-1] : -1;
-    s << max_rounds << sep;
-    s << min_rounds << sep;
-    s << a.robert_rounds_sum << sep;
-    double avg_rounds = static_cast<double>(a.robert_rounds_sum) / a.robert_rebalancer_calls;
-    s << avg_rounds << sep;
-    auto mean_rounds = a.rounds.size() > 0 ? a.rounds[a.rounds.size() / 2] : 0;
-    s << mean_rounds << sep;
-
-        std::sort(a.moves.begin(), a.moves.end());
-    auto min_moves = a.moves.size() > 0 ? a.moves[0] : -1;
-    auto max_moves = a.moves.size() > 0 ? a.moves[a.moves.size()-1] : -1;
-    s << max_moves << sep;
-    s << min_moves << sep;
-    s << a.robert_moves_sum << sep;
-    double avg_moves = static_cast<double>(a.robert_moves_sum) / a.robert_rebalancer_calls;
-    s << avg_moves << sep;
-    auto mean_moves = a.moves.size() > 0 ? a.moves[a.moves.size() / 2] : 0;
-    s << mean_moves << sep;
-    s << a.robert_rebalancer_calls;
-
+    s << timer.get("reb_quality");
     return s.str();
   }
 

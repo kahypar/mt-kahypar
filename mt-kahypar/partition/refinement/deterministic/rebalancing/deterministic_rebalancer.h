@@ -71,9 +71,7 @@ public:
         _num_valid_targets(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k),
-        tmp_potential_moves(context.partition.k),
-        _roundCount(0),
-        _moveCount(0) {}
+        tmp_potential_moves(context.partition.k) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
         DeterministicRebalancer(num_nodes, context) {}
@@ -202,8 +200,6 @@ private:
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves;
     //parallel::scalable_vector<PartitionID> _part_before_round;
-    std::atomic<size_t> _roundCount;
-    std::atomic<size_t> _moveCount;
 };
 
 }  // namespace kahypar
