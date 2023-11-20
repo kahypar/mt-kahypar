@@ -43,7 +43,7 @@ namespace mt_kahypar {
 template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy>
 class SingleRoundLP {
   using Rating = MultilevelVertexPairRater::Rating;
-  using PQ = ds::MultiQueue<HyperedgeID, HypernodeID>;
+  using PQ = ds::MultiQueue<double, HypernodeID>;
 
  public:
   SingleRoundLP(const HypernodeID /*num_nodes*/, const Context& context):
@@ -75,7 +75,18 @@ class SingleRoundLP {
     if (_context.coarsening.prioritize_high_degree) {
       PQ parallel_pq(_context.shared_memory.num_threads);
       hg.doParallelForAllNodes([&](const HypernodeID hn) {
-        parallel_pq.insert(hg.nodeDegree(hn), hn);
+        double rating = 0;
+        if (_context.coarsening.prioritize_with_edge_weight) {
+          for (const HyperedgeID& he : hg.incidentEdges(hn)) {
+            rating += hg.edgeWeight(he);
+          }
+        } else {
+          rating = hg.nodeDegree(hn);
+        }
+        if (_context.coarsening.prioritize_with_node_weight) {
+          rating /= hg.nodeWeight(hn);
+        }
+        parallel_pq.insert(rating, hn);
       });
 
       auto task = [&]{

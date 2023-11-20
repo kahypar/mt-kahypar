@@ -129,6 +129,8 @@ struct CoarseningParameters {
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   HypernodeID deep_ml_contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool prioritize_high_degree = false;
+  bool prioritize_with_edge_weight = false;
+  bool prioritize_with_node_weight = false;
   bool use_adaptive_edge_size = false;
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier_soft = std::numeric_limits<double>::max();
