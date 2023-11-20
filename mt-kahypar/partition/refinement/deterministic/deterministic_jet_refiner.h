@@ -189,7 +189,7 @@ private:
         afterburnerBuffer[phg.partID(pin)]++;
       }
       // update pin-counts for each pin
-      for (size_t i = 1; i < edgeSize; ++i) {
+      for (size_t i = 0; i < edgeSize; ++i) {
         const HypernodeID pin = edgeBuffer[i];
         const PartitionID from = phg.partID(pin);
         const auto [gain, to] = _gains_and_target[pin];
