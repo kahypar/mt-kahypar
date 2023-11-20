@@ -76,7 +76,10 @@ public:
     _locks(num_hypernodes),
     _rebalancer(rebalancer),
     tmp_active_nodes(),
-    _part_before_round(num_hypernodes) {}
+    _part_before_round(num_hypernodes),
+    _afterburner_gain(num_hypernodes),
+    _afterburner_buffer(_current_k, 0),
+    _hyperedge_buffer() {}
 
 private:
   static constexpr bool debug = false;
@@ -153,6 +156,59 @@ private:
     return gain_delta.combine(std::plus<>());
   }
 
+  void hypergraphAfterburner(const PartitionedHypergraph& phg) {
+    tbb::parallel_for(0UL, _afterburner_gain.size(), [&](const size_t i) {
+      _afterburner_gain[i].store(0);
+    });
+    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+      auto& edgeBuffer = _hyperedge_buffer.local();
+      auto& afterburnerBuffer = _afterburner_buffer.local();
+      const HypernodeID edgeSize = phg.edgeSize(he);
+      if (edgeSize > edgeBuffer.size()) {
+        edgeBuffer.resize(edgeSize);
+      }
+      // materialize Hyperedge
+      size_t index = 0;
+      for (const auto pin : phg.pins(he)) {
+        edgeBuffer[index] = pin;
+        ++index;
+      }
+      // sort by afterburner order
+      std::sort(edgeBuffer.begin(), edgeBuffer.begin() + edgeSize, [&](const HypernodeID& a, const HypernodeID& b) {
+        auto [gain_a, to_a] = _gains_and_target[a];
+        auto [gain_b, to_b] = _gains_and_target[b];
+        return (gain_a < gain_b || (gain_a == gain_b && a < b));
+      });
+
+      // initial pin-counts
+      for (auto& pinCount : afterburnerBuffer) {
+        pinCount = 0;
+      }
+      for (size_t i = 0; i < edgeSize; ++i) {
+        const HypernodeID pin = edgeBuffer[i];
+        afterburnerBuffer[phg.partID(pin)]++;
+      }
+      // update pin-counts for each pin
+      for (size_t i = 0; i < edgeSize; ++i) {
+        const HypernodeID pin = edgeBuffer[i];
+        const PartitionID from = phg.partID(pin);
+        const auto [gain, to] = _gains_and_target[pin];
+        afterburnerBuffer[from]--;
+        afterburnerBuffer[to]++;
+        SynchronizedEdgeUpdate sync_update;
+        sync_update.he = he;
+        sync_update.edge_weight = phg.edgeWeight(he);
+        sync_update.edge_size = phg.edgeSize(he);
+        sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
+        sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
+        const Gain attributedGain = AttributedGains::gain(sync_update);
+        if (gain != 0) {
+          _afterburner_gain[pin] += attributedGain;
+        }
+      }
+    });
+  }
+
   const Context& _context;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
@@ -168,6 +224,10 @@ private:
   ds::StreamingVector<HypernodeID> tmp_active_nodes;
   parallel::scalable_vector<PartitionID> _part_before_round;
 
+  // hypergraph afterburner
+  parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
+  tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
+  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
 };
 
 }
