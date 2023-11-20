@@ -251,7 +251,12 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     if (context.coarsening.rating.use_similarity_penalty) {
       double ratio_u = weightRatioForNode(hypergraph, u);
       double ratio_v = weightRatioForNode(hypergraph, v);
-      return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
+      double relation = std::max(ratio_u / ratio_v, ratio_v / ratio_u);
+      if (context.coarsening.rating.log_similarity_penalty) {
+        return std::max(2.0, std::log2(relation));
+      } else {
+        return relation;
+      }
     }
     return 1.0;
   }
@@ -328,7 +333,12 @@ class DegreeComparisonPolicy final : public kahypar::meta::PolicyBase {
     if (context.coarsening.rating.use_similarity_penalty) {
       double ratio_u = weightRatioForNode(hypergraph, u);
       double ratio_v = weightRatioForNode(hypergraph, v);
-      return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
+      double relation = std::max(ratio_u / ratio_v, ratio_v / ratio_u);
+      if (context.coarsening.rating.log_similarity_penalty) {
+        return std::max(2.0, std::log2(relation));
+      } else {
+        return relation;
+      }
     }
     return 1.0;
   }

@@ -383,6 +383,10 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.rating.use_similarity_penalty)->value_name(
                      "<bool>")->default_value(false),
              "Whether a similarity penalty is used for LP coarsening.")
+            ("c-log-sim-penalty",
+             po::value<bool>(&context.coarsening.rating.log_similarity_penalty)->value_name(
+                     "<bool>")->default_value(false),
+             "Whether the similarity penalty for LP coarsening is logarithmic.")
             ("c-sim-degree-comparison-bound",
              po::value<double>(&context.coarsening.rating.degree_comparison_bound)->value_name(
                      "<double>")->default_value(4),
