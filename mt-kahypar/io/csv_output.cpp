@@ -92,7 +92,7 @@ namespace mt_kahypar::io::csv {
     s << timer.get("find_moves") << sep;
     s << timer.get("exe_moves") << sep;
     s << timer.get("reb_quality") << sep;
-    auto& a = utils::Utilities::instance().getUtilityObj(context.utility_id);
+    auto& a = utils::Utilities::instance().getRobert(context.utility_id);
     std::sort(a.rounds.begin(), a.rounds.end());
     auto min_rounds = a.rounds.size() > 0 ? a.rounds[0] : -1;
     auto max_rounds = a.rounds.size() > 0 ? a.rounds[a.rounds.size()-1] : -1;

@@ -67,7 +67,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   _gain_computation.reset();
   initializeDataStructures(phg);
 
-  auto& a = utils::Utilities::instance().getUtilityObj(_context.utility_id);
+  auto& a = utils::Utilities::instance().getRobert(_context.utility_id);
   _roundCount = 0;
   _moveCount = 0;
   while (_num_imbalanced_parts > 0) {
