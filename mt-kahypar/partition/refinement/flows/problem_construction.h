@@ -104,13 +104,20 @@ class ProblemConstruction {
     bool lock_queue;
   };
 
+  std::array<double, mt_kahypar::dimension> scaling(const Context& context){
+    std::array<double, mt_kahypar::dimension> scaling;
+    for(int i = 0; i < scaling.size(); i++){
+      scaling[i] = 1.0 + context.refinement.flows.alpha[i] * std::min(0.05, context.partition.epsilon[i]);
+    }
+    return scaling;
+  }
+
  public:
   explicit ProblemConstruction(const HypernodeID num_hypernodes,
                                const HyperedgeID num_hyperedges,
                                const Context& context) :
     _context(context),
-    _scaling(1.0 + _context.refinement.flows.alpha *
-      std::min(0.05, _context.partition.epsilon)),
+    _scaling(scaling(context)),
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(num_hyperedges),
     _local_bfs([&] {
@@ -145,7 +152,7 @@ class ProblemConstruction {
     vec<bool>& locked_blocks) const;
 
   const Context& _context;
-  double _scaling;
+  double _scaling[mt_kahypar::dimension];
   HypernodeID _num_hypernodes;
   HyperedgeID _num_hyperedges;
 

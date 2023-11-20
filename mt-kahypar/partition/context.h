@@ -36,7 +36,10 @@ namespace mt_kahypar {
 // Forward Declartion
 class TargetGraph;
 
+
+
 struct PartitioningParameters {
+  
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
   GainPolicy gain_policy = GainPolicy::none;
@@ -44,7 +47,7 @@ struct PartitioningParameters {
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
-  double epsilon = std::numeric_limits<double>::max();
+  double epsilon[mt_kahypar::dimension] = {std::numeric_limits<double>::max()};
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
@@ -184,7 +187,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 
 struct FlowParameters {
   FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
-  double alpha = 0.0;
+  double alpha[mt_kahypar::dimension] = {0.0};
   HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
   bool find_most_balanced_cut = false;
   bool determine_distance_from_cut = false;

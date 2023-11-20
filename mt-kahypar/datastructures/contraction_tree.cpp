@@ -374,7 +374,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
 
   auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
     auto it = childs(u);
-    auto current = it.begin();
+    auto current = it.begin(); 
     auto end = it.end();
     while ( current != end && this->version(*current) != version ) {
       ++current;
@@ -401,7 +401,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
   tbb::parallel_for(UL(0), num_hardware_threads, [&](const size_t i) {
     size_t& current_batch_index = local_batch_indices[i];
     LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
-    PQ& pq = local_pqs[i];
+    PQ& pq = local_pqs[i]; 
     PQ next_pq;
 
     while ( !pq.empty() ) {

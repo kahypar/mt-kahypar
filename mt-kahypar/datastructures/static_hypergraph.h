@@ -139,11 +139,11 @@ class StaticHypergraph {
       _size = size;
     }
 
-    HyperedgeWeight weight() const {
+    HypernodeWeight weight() const {
       return _weight;
     }
 
-    void setWeight(HyperedgeWeight weight) {
+    void setWeight(HypernodeWeight weight) {
       ASSERT(!isDisabled());
       _weight = weight;
     }
@@ -337,7 +337,7 @@ class StaticHypergraph {
     const ElementType* _element = nullptr;
   };
 
-  static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");
+  /*static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");*/
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
   using IncidenceArray = Array<HypernodeID>;

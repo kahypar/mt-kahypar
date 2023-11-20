@@ -107,7 +107,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, HypernodeWeight(0)),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _con_info(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
@@ -124,7 +124,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, HypernodeWeight(0)),
     _part_ids(),
     _con_info(),
     _pin_count_update_ownership() {
@@ -159,7 +159,7 @@ class PartitionedHypergraph {
     }, [&] {
       _con_info.reset();
     }, [&] {
-      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+      for (auto& x : _part_weights) x.store(0);
     });
   }
 
@@ -652,7 +652,7 @@ class PartitionedHypergraph {
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID p) const {
     ASSERT(p != kInvalidPartition && p < _k);
-    return _part_weights[p].load(std::memory_order_relaxed);
+    return _part_weights[p];
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
@@ -725,7 +725,7 @@ class PartitionedHypergraph {
   // ! Reset partition (not thread-safe)
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
-    for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    for (auto& x : _part_weights) x.store(0);
 
     // Reset pin count in part and connectivity set
     _con_info.reset(false);
@@ -851,7 +851,7 @@ class PartitionedHypergraph {
     utils::MemoryTreeNode* connectivity_info_node = parent->addChild("Connectivity Information");
     _con_info.memoryConsumption(connectivity_info_node);
 
-    parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
+    parent->addChild("Part Weights", sizeof(HypernodeWeight) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
   }
@@ -1226,7 +1226,7 @@ class PartitionedHypergraph {
   const TargetGraph* _target_graph;
 
   // ! Weight and information for all blocks.
-  vec< CAtomic<HypernodeWeight> > _part_weights;
+  vec< HypernodeWeight> _part_weights;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;

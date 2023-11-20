@@ -39,13 +39,226 @@
 #include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
+static constexpr size_t dimension = 3;
+static constexpr size_t padding_size = std::pow(2, std::ceil(std::log2(dimension))) - dimension;
+struct NodeWeight {
+  uint32_t weights[dimension];
+
+  NodeWeight(const NodeWeight& nw) {
+    for(int i = 0; i < dimension; i++){
+      weights[i] = nw.weights[i];
+    }
+  }
+
+  NodeWeight(NodeWeight& nw) {
+    for(int i = 0; i < dimension; i++){
+      weights[i] = nw.weights[i];
+    }
+  }
+  NodeWeight(){
+
+  }
+
+  NodeWeight(int value){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = value;
+    }
+  }
+
+  NodeWeight operator =(const NodeWeight nw){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = nw.weights[i];
+    }
+    return *this;
+  }
+
+  bool operator >(const NodeWeight nw){
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] < nw.weights[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  NodeWeight(uint32_t weight){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = 0;
+    }
+  }
+
+  NodeWeight operator +(NodeWeight ew){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = weights[i] + ew.weights[i];
+    }
+    return res;
+  }
+
+  NodeWeight operator +=(NodeWeight ew){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = weights[i] + ew.weights[i];
+    }
+  }
+
+  NodeWeight operator -=(NodeWeight ew){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = weights[i] + ew.weights[i];
+    }
+  }
+
+  NodeWeight operator -(NodeWeight ew){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = weights[i] - ew.weights[i];
+    }
+    return res;
+  }
+
+  NodeWeight operator * (NodeWeight ew){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = weights[i] * ew.weights[i];
+    }
+    return res;
+  }
+
+  NodeWeight operator / (NodeWeight ew){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = weights[i] / ew.weights[i];
+    }
+    return res;
+  }
+
+  bool operator <= (NodeWeight ew) const {
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] > ew.weights[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator >= (NodeWeight ew) const {
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] < ew.weights[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator > (int cmp) const { 
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] > cmp){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool operator == (int cmp) const {
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] != cmp){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void store(int val){
+    for(int i = 0; i < dimension; i++){
+        weights[i] = 0;
+    }
+      
+  }
+
+  bool existsSmaller(int cmp){
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] <= cmp){
+        return true;
+      }
+    }
+    return false;
+  }
+  
+
+  NodeWeight add_fetch(NodeWeight ew, std::memory_order order){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = __atomic_add_fetch(&weights[i], ew.weights[i], order);
+      
+    }
+    return res;
+  }
+
+  NodeWeight fetch_add(NodeWeight ew, std::memory_order order){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = __atomic_fetch_add(&weights[i], ew.weights[i], order);
+      
+    }
+    return res;
+  }
+
+  NodeWeight fetch_sub(NodeWeight ew, std::memory_order order){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = __atomic_fetch_sub(&weights[i], ew.weights[i], order);
+      
+    }
+    return res;
+  }
+
+  double* multiply(double d[]){
+    double res[dimension];
+    for(int i = 0; i < dimension; i++){
+      res[i] = static_cast<double>(weights[i]) * d[i];
+    }
+    return res;
+  }
+
+  uint32_t totalWeight() const{
+    uint32_t res = 0;
+    for(int i = 0; i < dimension; i++){
+      res += weights[i];
+    }
+    return res;
+  }
+
+  double* norm(){
+    double norm[dimension];
+    uint32_t weight = totalWeight();
+    for(int i = 0; i < dimension; i++){
+      norm[i] = weights[i] /weight;
+    }
+    return norm;
+  }  
+
+  NodeWeight multiply(double d){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = std::floor(d * weights[i]);
+    }
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, NodeWeight nw){
+    for(int i = 0; i < dimension; i++){
+      os << nw.weights[i] << ' ';
+    }
+  }
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
 #define UI64(X) static_cast<uint64_t>(X)
 
+#ifndef PARSER_H
+#define PARSER_H
 struct parallel_tag_t { };
+#endif
 using RatingType = double;
 #if KAHYPAR_USE_64_BIT_IDS
 #define ID(X) static_cast<uint64_t>(X)
@@ -56,10 +269,10 @@ using HyperedgeID = uint64_t;
 using HypernodeID = uint32_t;
 using HyperedgeID = uint32_t;
 #endif
-using HypernodeWeight = int32_t;
+using HypernodeWeight = NodeWeight;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
-using Gain = HyperedgeWeight;
+using Gain = int32_t;
 
 // Graph Types
 using NodeID = uint32_t;
@@ -79,6 +292,7 @@ struct Arc {
 };
 
 // Constant Declarations
+
 static constexpr PartitionID kInvalidPartition = -1;
 static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
@@ -90,6 +304,7 @@ static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
 
 namespace ds {
   using Clustering = vec<PartitionID>;
+  using Base=std::__atomic_base<uint32_t>;
 }
 
 struct Move {
@@ -106,6 +321,8 @@ struct Move {
     from = kInvalidPartition;
   }
 };
+
+
 
 struct Memento {
   HypernodeID u; // representative

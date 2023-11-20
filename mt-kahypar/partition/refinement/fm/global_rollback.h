@@ -69,7 +69,9 @@ public:
       }
     } else {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
+        for(int j = 0; j < mt_kahypar::dimension; j++){
+          maxPartWeights[i].weights[j] *= ( 1.0 + context.partition.epsilon[j] * max_part_weight_scaling );
+        }        
       }
     }
 

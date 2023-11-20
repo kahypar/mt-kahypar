@@ -179,7 +179,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, HypernodeWeight(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _edge_sync_version(0),
@@ -202,7 +202,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, HypernodeWeight(0)),
     _part_ids(),
     _edge_sync_version(0),
     _edge_sync(),
@@ -242,7 +242,7 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
-      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+      for (auto& x : _part_weights) x = HypernodeWeight(0);
     }, [&] {
       _edge_sync.assign(_hg->maxUniqueID(), EdgeMove());
     });
@@ -611,7 +611,7 @@ private:
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID p) const {
     ASSERT(p != kInvalidPartition && p < _k);
-    return _part_weights[p].load(std::memory_order_relaxed);
+    return _part_weights[p];
   }
 
   // ! Returns whether hypernode u is adjacent to a least one cut hyperedge.
@@ -700,14 +700,14 @@ private:
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     _edge_sync.assign(_hg->maxUniqueID(), EdgeMove(), false);
     for (auto& weight : _part_weights) {
-      weight.store(0, std::memory_order_relaxed);
+      weight.store(0);
     }
   }
 
   // ! Only for testing
   void recomputePartWeights() {
     for (PartitionID p = 0; p < _k; ++p) {
-      _part_weights[p].store(0);
+      _part_weights[p] = HypernodeWeight(0);
     }
 
     for (HypernodeID u : nodes()) {
@@ -809,7 +809,7 @@ private:
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
-    parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
+    parent->addChild("Part Weights", sizeof(HypernodeWeight) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("Edge Synchronization", sizeof(EdgeMove) * _edge_sync.size());
     parent->addChild("Edge Locks", sizeof(SpinLock) * _edge_locks.size());
@@ -1153,7 +1153,7 @@ private:
   const TargetGraph* _target_graph;
 
   // ! Weight and information for all blocks.
-  parallel::scalable_vector< CAtomic<HypernodeWeight> > _part_weights;
+  parallel::scalable_vector<HypernodeWeight> _part_weights;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;

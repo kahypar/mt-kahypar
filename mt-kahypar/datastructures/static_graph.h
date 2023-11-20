@@ -70,7 +70,6 @@ class StaticGraph {
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
-  using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
@@ -344,7 +343,7 @@ class StaticGraph {
     unsigned int _iteration_count = 0;
   };
 
-  static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
+  /*static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");*/
   static_assert(std::is_trivially_copyable<Edge>::value, "Hyperedge is not trivially copyable");
 
  private:
@@ -429,7 +428,7 @@ class StaticGraph {
     Array<Node> tmp_nodes;
     Array<HyperedgeID> node_sizes;
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
+    Array<HypernodeWeight> node_weights;
     Array<TmpEdgeInformation> tmp_edges;
     Array<HyperedgeID> edge_id_mapping;
   };

@@ -45,7 +45,6 @@ class SimpleRebalancer final : public IRebalancer {
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
   using GainCache = typename GraphAndGainTypes::GainCache;
   using GainCalculator = typename GraphAndGainTypes::GainComputation;
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

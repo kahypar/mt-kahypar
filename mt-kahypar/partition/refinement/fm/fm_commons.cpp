@@ -46,18 +46,95 @@ namespace mt_kahypar {
     return {key >> 32, key & std::numeric_limits<uint32_t>::max()};
   }
 
+  struct Node{
+    Node* prev;
+    Node* next;
+    size_t dimension;
+  };
+
+  struct DimensionList{
+    Node dimensions[mt_kahypar::dimension];
+    Node* head;
+    size_t size = mt_kahypar::dimension;
+
+    void remove(Node* node){
+      size--;
+      if(node->prev == node){
+        head = node->next;
+      }
+      else if(node->next == node){
+        node->prev->next = node->prev;
+      }
+      else{
+        node->prev->next = node->next;
+        node->next->prev=node->prev;
+      }
+    }
+
+    bool isEmpty(){
+      return size == 0;
+    }
+  };
+
   Gain UnconstrainedFMData::estimatePenaltyForImbalancedMove(PartitionID to,
                                                              HypernodeWeight initial_imbalance,
                                                              HypernodeWeight moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
     // TODO test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
-    while (bucketId < NUM_BUCKETS
+    BucketID bucketForDimension[mt_kahypar::dimension] = {0};
+    struct DimensionList list;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      list.dimensions[i].prev = list.dimensions + i - 1;
+      list.dimensions[i].next = list.dimensions + i + 1;
+      list.dimensions[i].dimension = i;
+    }
+    list.dimensions[0].prev = list.dimensions;
+    list.dimensions[mt_kahypar::dimension-1].next = list.dimensions + mt_kahypar::dimension-1;    
+    do{
+      Node* elem = list.head;
+      while(true){
+        if(initial_imbalance.weights[elem->dimension] + moved_weight.weights[elem->dimension] <= bucket_weights[indexForBucket(to, bucketId)].weights[elem->dimension]){
+          bucketForDimension[elem->dimension] = bucketId;
+          list.remove(elem);
+        }
+        if(elem->next == elem){
+          break;
+        }
+        elem = elem->next;
+      }
+      bucketId++;
+    }while(!list.isEmpty());
+    /**while (bucketId < NUM_BUCKETS
            && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
       ++bucketId;
+    }**/
+    double penalty = 0;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      if(bucketForDimension[i] < NUM_BUCKETS){
+        penalty += moved_weight.weights[i] * gainPerWeightForBucket(bucketId);
+      }
+      else{
+        BucketID bId = bucketId;
+        while (bId < NUM_BUCKETS + fallback_bucket_weights[to].size()
+           && initial_imbalance.weights[i] + moved_weight.weights[i] > fallback_bucket_weights[to][bId - NUM_BUCKETS].weights[i]) {
+      ++bId;
+        }
+        if((bId == NUM_BUCKETS + fallback_bucket_weights[to].size())) 
+          {return std::numeric_limits<Gain>::max();}
+        else{
+          penalty += moved_weight.weights[i] * gainPerWeightForBucket(bucketId);
+        }
+      }
     }
-    if (bucketId < NUM_BUCKETS) {
-      return std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
+    return std::ceil(penalty);
+    /**if (bucketId < NUM_BUCKETS) {
+      Gain gain = gainPerWeightForBucket(bucketId);
+      double res = 0;
+      for(int i = 0; i < mt_kahypar::dimension; i++){
+        res += moved_weight.weights[i] * gain;
+      }
+      return std::ceil(res);
     }
 
     // fallback case (it should be very unlikely that fallback_bucket_weights contains elements)
@@ -66,7 +143,7 @@ namespace mt_kahypar {
       ++bucketId;
     }
     return (bucketId == NUM_BUCKETS + fallback_bucket_weights[to].size()) ?
-              std::numeric_limits<Gain>::max() : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
+              std::numeric_limits<Gain>::max() : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));**/
   }
 
 
@@ -98,7 +175,7 @@ namespace mt_kahypar {
       auto [internal_weight, total_incident_weight] = get_node_stats(hn);
       if (static_cast<double>(internal_weight) >= bn_treshold * total_incident_weight) {
         local_considered_weight.local() += hn_weight;
-        const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
+        const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight.totalWeight());
         if (bucketId < NUM_BUCKETS) {
           local_inserted_weight.local() += hn_weight;
           auto& local_weights = data.local_bucket_weights.local();
@@ -128,7 +205,7 @@ namespace mt_kahypar {
 
     const HypernodeWeight considered_weight = local_considered_weight.combine(std::plus<>());
     const HypernodeWeight inserted_weight = local_inserted_weight.combine(std::plus<>());
-    if (static_cast<double>(inserted_weight) / considered_weight < FALLBACK_TRESHOLD) {
+    if (static_cast<double>(inserted_weight.totalWeight()) / considered_weight.totalWeight() < FALLBACK_TRESHOLD) {
       // Use fallback if fixed number of buckets per block is not sufficient:
       // For unweighted instances or instances with reasonable weight distribution this should almost never
       // be necessary. We use more expensive precomputations (hash maps instead of arrays) here in order to
@@ -143,7 +220,7 @@ namespace mt_kahypar {
 
         auto [internal_weight, total_incident_weight] = get_node_stats(hn);
         if (static_cast<double>(internal_weight) >= bn_treshold * total_incident_weight) {
-          const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
+          const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight.totalWeight());
           if (bucketId >= NUM_BUCKETS) {
             auto& map = local_accumulator.local();
             // hash by block id and bucket id
@@ -172,9 +249,9 @@ namespace mt_kahypar {
             ++it;
           }
           // scan backwards to find (approximately) an element with rank according to the fallback treshold
-          HypernodeWeight remaining_upper_weight = std::floor((1.0 - FALLBACK_TRESHOLD) * total_weight);
+          HypernodeWeight remaining_upper_weight = total_weight.multiply(1.0 - FALLBACK_TRESHOLD);
           auto backwards_it = it;
-          while (total_weight > 0 && remaining_upper_weight >= (--backwards_it)->value) {
+          while (!total_weight.existsSmaller(0) && remaining_upper_weight >= (--backwards_it)->value) {
             ASSERT(keyToPair(backwards_it->key).first == block);
             remaining_upper_weight -= backwards_it->value;
           }
@@ -197,7 +274,7 @@ namespace mt_kahypar {
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID block) {
         const HypernodeWeight handled_weight = bucket_weights[data.indexForBucket(block, NUM_BUCKETS - 1)];
         const HypernodeWeight fallback_weight = weight_per_block[block];
-        if (static_cast<double>(handled_weight) / (handled_weight + fallback_weight) >= FALLBACK_TRESHOLD) {
+        if (static_cast<double>(handled_weight.totalWeight()) / (handled_weight.totalWeight() + fallback_weight.totalWeight()) >= FALLBACK_TRESHOLD) {
           max_rank_per_block[block].store(0);
         } else {
           fallback_bucket_weights[block].resize(max_rank_per_block[block] + 1, 0);
@@ -216,7 +293,7 @@ namespace mt_kahypar {
           while (it < map.end() && keyToPair(it->key).first == block) {
             BucketID current_rank = keyToPair(it->key).second;
             if (current_rank < upper_limit) {
-              __atomic_fetch_add(&fallback_bucket_weights[block][current_rank], it->value, __ATOMIC_RELAXED);
+              fallback_bucket_weights[block][current_rank].fetch_add(it->value, std::memory_order_relaxed);
             }
             ++it;
           }

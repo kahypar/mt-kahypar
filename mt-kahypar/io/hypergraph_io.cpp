@@ -401,7 +401,9 @@ namespace mt_kahypar::io {
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
         ASSERT(pos > 0 && pos < length);
         ASSERT(mapped_file[pos - 1] == '\n');
-        hypernodes_weight[hn] = read_number(mapped_file, pos, length);
+        for(uint8_t j = 0; j < hypernode_weights[0].weights.length(); j++){
+          hypernodes_weight[hn].weights[j] = read_number(mapped_file, pos, length);
+        }
         do_line_ending(mapped_file, pos);
       }
     }
