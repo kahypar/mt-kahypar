@@ -76,16 +76,12 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     updateImbalance(phg);
     _roundCount += 1;
   }
-  try {
-    a.robert_rounds_sum += _roundCount.load();
-    a.rounds.push_back(_roundCount.load());
+  a.robert_rounds_sum += _roundCount.load();
+  a.rounds.push_back(_roundCount);
 
-    a.robert_moves_sum += _moveCount.load();
-    a.moves.push_back(_moveCount.load());
-  }
-  catch (...) {
-    std::cout << "ERROR while pushing" << std::endl;
-  }
+  a.robert_moves_sum += _moveCount.load();
+  a.moves.push_back(_moveCount);
+
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
