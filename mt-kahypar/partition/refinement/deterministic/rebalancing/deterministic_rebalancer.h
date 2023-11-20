@@ -58,7 +58,7 @@ private:
     using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
     static constexpr bool debug = false;
-    static constexpr bool enable_heavy_assert = false;
+    static constexpr bool enable_heavy_assert = true;
 
 public:
 
