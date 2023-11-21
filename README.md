@@ -300,6 +300,25 @@ if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
 }
 ```
 
+### Static library
+
+**Note:** It is strongly discouraged to build Mt-KaHyPar as a static library.
+Mt-KaHyPar depends on [TBB][tbb] which does not recommend using a static version of it.
+
+Building a static version requires Boost, TBB and hwloc to be available in a static version.
+
+To build the library statically, set `BUILD_SHARED_LIBS` to `OFF` while configuring:
+
+```sh
+cmake -DBUILD_SHARED_LIBS=OFF ...
+```
+
+In case the static version of TBB is placed at a non-standard path, it can be specified using `TBB_ROOT`:
+
+```sh
+cmake -DBUILD_SHARED_LIBS=OFF -DTBB_ROOT=/path/to/tbb ...
+```
+
 The Python Library Interface
 -----------
 
