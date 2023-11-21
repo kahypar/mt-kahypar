@@ -159,6 +159,9 @@ class GainComputationBase {
     static_cast<Derived*>(this)->changeNumberOfBlocksImpl(new_k);
   }
 
+  
+  
+
 private:
   RatingMap constructLocalTmpScores() const {
     return RatingMap(_context.partition.k);
