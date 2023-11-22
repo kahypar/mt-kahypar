@@ -43,7 +43,7 @@
 namespace mt_kahypar {
 
   bool improvesBalance(HypernodeWeight from, HypernodeWeight max_weights, HypernodeWeight moved_node){
-    for(int i = 0; i < from.weights.length(); i++){
+    for(int i = 0; i < mt_kahypar::dimension; i++){
       if(from.weights[i] > max_weights.weights[i] && max_weights.weights[i] >= from.weights[i] - moved_node.weights[i]){
         return true;
       }

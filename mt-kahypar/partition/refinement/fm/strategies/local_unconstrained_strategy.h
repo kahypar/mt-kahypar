@@ -261,7 +261,7 @@ private:
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
-        if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
+        if ( benefit > to_benefit || ( benefit == to_benefit && wu.chooseMoreBalanced(to_weight, best_to_weight, max_weight )) ) {
           to_benefit = benefit;
           to = i;
           best_to_weight = to_weight;
@@ -307,7 +307,7 @@ private:
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
-        if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
+        if ( benefit > to_benefit || ( benefit == to_benefit && wu.chooseMoreBalanced(to_weight, best_to_weight, context.partition.max_part_weights[i] ) ) ) {
           to_benefit = benefit;
           to = i;
           best_to_weight = to_weight;
@@ -322,7 +322,7 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   Gain estimatePenalty(PartitionID to, HypernodeWeight to_weight, HypernodeWeight wu) const {
-    HypernodeWeight virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
+    HypernodeWeight virtual_delta = sharedData.unconstrained.virtualWeightDelta(to)
                                     + localVirtualWeightDelta.getOrDefault(to);
     HypernodeWeight initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to];
     return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initial_imbalance, wu);

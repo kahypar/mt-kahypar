@@ -148,14 +148,14 @@ private:
     if ( _current_k != _context.partition.k ) {
       _current_k = _context.partition.k;
       _gain.changeNumberOfBlocks(_current_k);
-      _part_weights = parallel::scalable_vector<AtomicWeight>(_context.partition.k);
+      _part_weights = parallel::scalable_vector<HypernodeWeight>(_context.partition.k);
     }
   }
 
   const Context& _context;
   PartitionID _current_k;
   GainCalculator _gain;
-  parallel::scalable_vector<AtomicWeight> _part_weights;
+  parallel::scalable_vector<HypernodeWeight> _part_weights;
 };
 
 }  // namespace kahypar

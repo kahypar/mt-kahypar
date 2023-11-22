@@ -68,7 +68,7 @@ class InitialPartitioningDataContainer {
       _objective(objective),
       _imbalance(imbalance) { }
 
-    bool is_other_better(const PartitioningResult& other, const double epsilon) const {
+    bool is_other_better(const PartitioningResult& other, const double epsilon[mt_kahypar::dimension]) const {
       bool equal_metric = other._objective == _objective;
       bool improved_metric = other._objective < _objective;
       bool improved_imbalance = other._imbalance < _imbalance;
@@ -94,7 +94,7 @@ class InitialPartitioningDataContainer {
     InitialPartitioningAlgorithm _algorithm = InitialPartitioningAlgorithm::UNDEFINED;
     HyperedgeWeight _objective_ip = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight _objective = std::numeric_limits<HyperedgeWeight>::max();
-    double _imbalance = std::numeric_limits<double>::max();
+    std::array<double, mt_kahypar::dimension> _imbalance = std::array<double, mt_kahypar::dimension>(std::numeric_limits<double>::max());
     size_t _random_tag = std::numeric_limits<size_t>::max();
     size_t _deterministic_tag = std::numeric_limits<size_t>::max();
   };
@@ -495,7 +495,7 @@ class InitialPartitioningDataContainer {
     // already commits the result if non-deterministic
     auto& my_ip_data = _local_hg.local();
     auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
-    const double eps = _context.partition.epsilon;
+    const double eps[mt_kahypar::dimension] = _context.partition.epsilon;
 
     if ( _context.partition.deterministic ) {
       // apply result to shared pool

@@ -89,6 +89,10 @@ class Stats {
       _value_4(0.0),
       _value_5(value) { }
 
+    explicit Stat(const std::array<double, dimension>){
+
+    }
+
     template <typename T>
     void update(const T ) { }
 

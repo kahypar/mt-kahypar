@@ -67,10 +67,13 @@ namespace mt_kahypar {
     PartitionID p = kInvalidPartition;
     HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
     for (PartitionID i = 0; i < k; ++i) {
-      if (partition.partWeight(i) > w) {
-        w = partition.partWeight(i);
+      for(int j = 0; j < mt_kahypar::dimension; j++){
+        if (partition.partWeight(i).weights[j] > w.weights[j]) {
+        w.weights[j] = partition.partWeight(i).weights[j];
         p = i;
+        }
       }
+      
     }
     return std::make_pair(p, w);
   }
@@ -185,8 +188,8 @@ namespace mt_kahypar {
         stopRule.update(move.gain);
         bool improved_km1 = estimatedImprovement > bestImprovement;
         bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
-                                                     && fromWeight == heaviestPartWeight
-                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
+                                                     && equals_in_one_dimension(fromWeight, heaviestPartWeight)
+                                                     && !equals_in_one_dimension(toWeight + phg.nodeWeight(move.node), heaviestPartWeight);
         if (improved_km1 || improved_balance_less_equal_km1) {
           // Apply move sequence to global partition
           for (size_t i = 0; i < localMoves.size(); ++i) {

@@ -349,7 +349,7 @@ class PartitionedHypergraph {
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+  HyperedgeWeight edgeWeight(const HyperedgeID e) const {
     return _hg->edgeWeight(e);
   }
 

@@ -155,7 +155,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
   if (best_target != u) {
     propositions[u] = best_target;
-    __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+    opportunistic_cluster_weight[best_target].fetch_add(hg.nodeWeight(u), std::memory_order_relaxed);
   }
 }
 

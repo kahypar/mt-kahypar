@@ -62,7 +62,7 @@ using PQ = std::priority_queue<PQElement>;
 
 HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) {
   vec<HypernodeID> min_nodes;
-  HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
+  HyperedgeWeight min_weighted_degree = std::numeric_limits<HyperedgeWeight>::max();
   for ( const HypernodeID& hn : graph.nodes() ) {
     HyperedgeWeight weighted_degree = 0;
     for ( const HyperedgeID he : graph.incidentEdges(hn) ) {

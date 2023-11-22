@@ -352,8 +352,8 @@ namespace mt_kahypar {
 
       HypernodeWeight  budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                        budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
-      HypernodeWeight  lb_p1 = -(budget_p1 /std::max(size_t(1), involvements[p1])),
-                       ub_p2 = budget_p2 / std::max(size_t(1), involvements[p2]);
+      HypernodeWeight  lb_p1 = -(budget_p1.div(std::max(size_t(1), involvements[p1]))),
+                       ub_p2 = budget_p2.div(std::max(size_t(1), involvements[p2]));
 
       size_t p1_begin = positions[index(p1, p2)], p1_end = positions[index(p1, p2) + 1],
              p2_begin = positions[index(p2, p1)], p2_end = positions[index(p2, p1) + 1];

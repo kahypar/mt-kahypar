@@ -67,7 +67,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
 
   parallel::scalable_vector<HypernodeID> performed_moves;
   HyperedgeWeight current_cut = best_metrics.quality;
-  double current_imbalance = best_metrics.imbalance;
+  std::array<double, mt_kahypar::dimension> current_imbalance = best_metrics.imbalance;
   size_t min_cut_idx = 0;
   StopRule stopping_rule(_phg.initialNumNodes());
   while ( !_pq.empty() && !stopping_rule.searchShouldStop() ) {

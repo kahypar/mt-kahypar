@@ -113,9 +113,9 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
   sub_hg.weight_of_block_1 = 0;
   sub_hg.num_pins = 0;
   const HypernodeWeight max_weight_block_0 =
-    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1);
+    NodeWeight(_scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1));
   const HypernodeWeight max_weight_block_1 =
-    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
+   NodeWeight(_scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0));
   const size_t max_bfs_distance = _context.refinement.flows.max_bfs_distance;
 
 

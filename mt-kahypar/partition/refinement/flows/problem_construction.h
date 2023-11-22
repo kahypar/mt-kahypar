@@ -106,7 +106,7 @@ class ProblemConstruction {
 
   std::array<double, mt_kahypar::dimension> scaling(const Context& context){
     std::array<double, mt_kahypar::dimension> scaling;
-    for(int i = 0; i < scaling.size(); i++){
+    for(int i = 0; i < mt_kahypar::dimension; i++){
       scaling[i] = 1.0 + context.refinement.flows.alpha[i] * std::min(0.05, context.partition.epsilon[i]);
     }
     return scaling;
@@ -152,7 +152,7 @@ class ProblemConstruction {
     vec<bool>& locked_blocks) const;
 
   const Context& _context;
-  double _scaling[mt_kahypar::dimension];
+  std::array<double, mt_kahypar::dimension>_scaling;
   HypernodeID _num_hypernodes;
   HyperedgeID _num_hyperedges;
 

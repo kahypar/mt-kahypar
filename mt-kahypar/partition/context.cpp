@@ -270,11 +270,11 @@ namespace mt_kahypar {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
                                                                    partition.max_part_weights.cend(), 0);
-      double weight_fraction = total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
+      std::array<double,dimension> weight_fraction = total_hypergraph_weight / max_part_weights_sum;
       HypernodeWeight perfect_part_weights_sum = 0;
       partition.perfect_balance_part_weights.clear();
-      for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
-        const HypernodeWeight perfect_weight = ceil(weight_fraction * part_weight);
+      for (const HypernodeWeight& part_weight : partition.max_part_weights) {
+        const HypernodeWeight perfect_weight = NodeWeight(weight_fraction * part_weight, false);
         partition.perfect_balance_part_weights.push_back(perfect_weight);
         perfect_part_weights_sum += perfect_weight;
       }

@@ -42,7 +42,7 @@ namespace mt_kahypar {
 static constexpr size_t dimension = 3;
 static constexpr size_t padding_size = std::pow(2, std::ceil(std::log2(dimension))) - dimension;
 struct NodeWeight {
-  uint32_t weights[dimension];
+  int32_t weights[dimension];
 
   NodeWeight(const NodeWeight& nw) {
     for(int i = 0; i < dimension; i++){
@@ -65,6 +65,29 @@ struct NodeWeight {
     }
   }
 
+  NodeWeight(std::array<double, dimension> d){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = std::floor(d[i]);
+    }
+  }
+  NodeWeight(std::array<double, dimension> d, bool floor){
+    for(int i = 0; i < dimension; i++){
+      if(floor){
+        weights[i] = std::floor(d[i]);
+      }
+      else{
+        weights[i] = std::ceil(d[i]);
+      }
+    }
+  }
+
+  /*constexpr NodeWeight(const uint32_t value, bool b){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = value;
+    }
+  }*/
+
+
   NodeWeight operator =(const NodeWeight nw){
     for(int i = 0; i < dimension; i++){
       weights[i] = nw.weights[i];
@@ -72,7 +95,7 @@ struct NodeWeight {
     return *this;
   }
 
-  bool operator >(const NodeWeight nw){
+  bool operator >(const NodeWeight nw) const{
     for(int i = 0; i < dimension; i++){
       if(weights[i] < nw.weights[i]){
         return false;
@@ -81,13 +104,31 @@ struct NodeWeight {
     return true;
   }
 
+  bool operator <(const NodeWeight nw) const{
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] >= nw.weights[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  
+  NodeWeight cutToZero() const{
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = std::max(0, weights[i]);
+    }
+    return res;
+  }
+
   NodeWeight(uint32_t weight){
     for(int i = 0; i < dimension; i++){
       weights[i] = 0;
     }
   }
 
-  NodeWeight operator +(NodeWeight ew){
+  NodeWeight operator +(const NodeWeight ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] + ew.weights[i];
@@ -107,7 +148,14 @@ struct NodeWeight {
     }
   }
 
-  NodeWeight operator -(NodeWeight ew){
+  NodeWeight operator -(){
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = -weights[i];
+    }
+  }
+
+  NodeWeight operator -(NodeWeight ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] - ew.weights[i];
@@ -115,7 +163,7 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight operator * (NodeWeight ew){
+  NodeWeight operator * (NodeWeight ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] * ew.weights[i];
@@ -182,6 +230,8 @@ struct NodeWeight {
     }
     return false;
   }
+
+
   
 
   NodeWeight add_fetch(NodeWeight ew, std::memory_order order){
@@ -242,13 +292,161 @@ struct NodeWeight {
       res.weights[i] = std::floor(d * weights[i]);
     }
   }
+
+  bool operator>(std::array<double, dimension> d){
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] <= d[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  bool chooseMoreBalanced(const NodeWeight w1, const NodeWeight w2, const NodeWeight limit) const{
+    int max_w1 = 0;
+    int overflow_w1 = 0;
+    int max_w2 = 0;
+    int overflow_w2 = 0;
+    for(int i = 0; i < dimension; i++){
+      int overflow = weights[i] * (w1.weights[i] + weights[i] - limit.weights[i]);
+      if(overflow > 0){
+        overflow_w1 += overflow;
+        max_w1 = std::max(max_w1, overflow_w1);
+      }
+      overflow = weights[i] * (w2.weights[i] + weights[i] - limit.weights[i]);
+      if(overflow > 0){
+        overflow_w2 += overflow;
+        max_w2 = std::max(max_w2, overflow_w1);
+      }
+    }
+    if(max_w1 != max_w2){
+      return max_w1 < max_w2;
+    }
+    return overflow_w1 < overflow_w2;
+
+  }
+
+  bool isLighterPartition(const NodeWeight p1, const NodeWeight p2, const NodeWeight max) const{
+    double w1 = 0;
+    double w2 = 0;
+    for(int i = 0; i < dimension; i++){
+      w1 += (max.weights[i] - p1.weights[i]) / max.weights[i];
+      w2 += (max.weights[i] - p2.weights[i]) / max.weights[i];
+    }
+    return w1 > w2;
+  }
+
+  bool operator==(NodeWeight nw) const{
+    for(int i = 0; i < dimension; i++){
+      if(weights[i] != nw.weights[i]){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::array<double,dimension> operator/(const std::array<double,dimension> d)const{
+    std::array<double,dimension> res;
+    for(int i = 0; i < dimension; i++){
+      res[i] = weights[i] / d[i];
+    }
+    return res;
+  }
+
+  std::array<double, dimension> operator/(const NodeWeight nw) const{
+    std::array<double, dimension> res;
+    for(int i = 0; i < dimension; i++){
+      res[i] = weights[i] / static_cast<double>(nw.weights[i]);
+    }
+  }
+
+  NodeWeight div(size_t div) const{
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = std::floor(weights[i] / div);
+    }
+    return res;
+  }
+
 };
+
+uint32_t scalar(NodeWeight w1, NodeWeight w2){
+  uint32_t res = 0;
+  for(int i = 0; i < dimension; i++){
+    res += w1.weights[i]*w2.weights[i];
+  }
+  return res;
+}
+
+std::array<double, dimension> operator*(const double d, NodeWeight w){
+    std::array<double, dimension> res;
+    for(int i = 0; i < dimension; i++){
+      res[i] = d * w.weights[i];
+    }
+    return res;
+  }
 
 std::ostream& operator<<(std::ostream& os, NodeWeight nw){
     for(int i = 0; i < dimension; i++){
       os << nw.weights[i] << ' ';
     }
   }
+
+  void operator<<(std::ostringstream os, const std::array<double, dimension> arr){
+    for(int i = 0; i < dimension; i++){
+      os << arr[i] << ' ';
+    }
+  }
+
+bool equals_in_one_dimension(NodeWeight w1, NodeWeight w2){
+  for(int i = 0; i < dimension; i++){
+    if( w1.weights[i] == w2.weights[i]){
+      return true;
+    }
+  }
+  return false;
+}
+
+std::array<double, dimension> operator+(double d, std::array<double, dimension> nw){
+  std::array<double, dimension> res;
+  for(int i = 0; i < dimension; i++){
+    res[i] = d + static_cast<double>(nw[i]);
+  }
+  return res;
+}
+
+std::array<double, dimension> operator*(std::array<double, dimension> d, NodeWeight nw){
+  std::array<double, dimension> res;
+  for(int i = 0; i < dimension; i++){
+    res[i] = d[i] * nw.weights[i];
+  }
+  return res;
+}
+
+bool operator<=(const std::array<double, dimension> d1, const double d2[dimension]){
+  for(int i = 0; i < dimension; i++){
+    if(d1[i] > d2[i]){
+      return false;
+    }
+  }
+  return true;
+}
+
+std::array<double, dimension> operator-(std::array<double, dimension> d, NodeWeight nw){
+  std::array<double, dimension> res;
+  for(int i = 0; i < dimension; i++){
+    res[i] = d[i] - nw.weights[i];
+  }
+  return res;
+}
+
+std::array<double, dimension> divide_to_double(NodeWeight nw1, NodeWeight nw2){
+  std::array<double, dimension> res;
+  for(int i = 0; i < dimension; i++){
+    res[i] = static_cast<double>(nw1.weights[i]) / static_cast<double>(nw2.weights[i]);
+  }
+  return res;
+}
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;

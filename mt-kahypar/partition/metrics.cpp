@@ -160,11 +160,11 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
 }
 
 template<typename PartitionedHypergraph>
-double imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+std::array<double, mt_kahypar::dimension> imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
-  double max_balance = (hypergraph.partWeight(0) /
-                        static_cast<double>(context.partition.perfect_balance_part_weights[0]));
+  std::array<double,mt_kahypar::dimension> max_balance = (hypergraph.partWeight(0) /
+                        static_cast<std::array<double, mt_kahypar::dimension>(context.partition.perfect_balance_part_weights[0]));
 
   for (PartitionID i = 1; i < context.partition.k; ++i) {
     const double balance_i =

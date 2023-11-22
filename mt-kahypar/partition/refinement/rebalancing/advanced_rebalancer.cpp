@@ -38,12 +38,12 @@ namespace mt_kahypar {
 
 namespace impl {
 
-  float transformGain(Gain gain_, HypernodeWeight wu) {
-    float gain = gain_;
+  float transformGain(Gain gain, HypernodeWeight wu, HypernodeWeight block, HypernodeWeight max) {
+    uint32_t nw = scalar((max - block).cutToZero(), wu);
     if (gain > 0) {
-      gain *= wu;
+      gain *= nw;
     } else if (gain < 0) {
-      gain /= wu;
+      gain /= nw;
     }
     return gain;
   }
@@ -61,7 +61,7 @@ namespace impl {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
+        if ((benefit > to_benefit || (benefit == to_benefit && wu.isLighterPartition(to_weight, best_to_weight, context.partition.max_part_weights[i]))) &&
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
           to = i;
@@ -74,7 +74,7 @@ namespace impl {
     if (to != kInvalidPartition) {
       gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
     }
-    return std::make_pair(to, transformGain(gain, wu));
+    return std::make_pair(to, transformGain(gain, wu, to, context.partition.max_part_weights[to]));
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -90,7 +90,7 @@ namespace impl {
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
+        if (benefit > to_benefit || (benefit == to_benefit && wu.chooseMoreBalanced(to_weight, best_to_weight, context.partition.max_part_weights[i])) &&
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
           to = i;
@@ -101,7 +101,7 @@ namespace impl {
 
     if (to != kInvalidPartition) {
       Gain gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
-      return std::make_pair(to, transformGain(gain, wu));
+      return std::make_pair(to, transformGain(gain, wu, to, context.partition.max_part_weights[to]));
     } else {
       // edge case: if u does not fit in any of the three considered blocks we need to check all blocks
       return computeBestTargetBlock(phg, context, gain_cache, u, from);
@@ -390,7 +390,7 @@ namespace impl {
                 if (pq.contains(v)) {
                   if (_target_part[v] != kInvalidPartition) {
                     Gain new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
-                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
+                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(_target_part[v]), _context.partition.max_part_weights[_target_part[v]]);
                     pq.adjustKey(v, new_gain);
                   } else {
                     pq.remove(v);

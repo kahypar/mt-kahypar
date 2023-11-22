@@ -33,7 +33,7 @@ namespace mt_kahypar {
 
 struct Metrics {
   HyperedgeWeight quality;
-  double imbalance;
+  std::array<double,mt_kahypar::dimension> imbalance;
 };
 
 namespace metrics {
@@ -58,7 +58,7 @@ template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
 
 template<typename PartitionedHypergraph>
-double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
+std::array<double,mt_kahypar::dimension> imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
 template<typename PartitionedHypergraph>
 double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);
