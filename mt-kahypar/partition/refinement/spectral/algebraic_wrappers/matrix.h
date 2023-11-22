@@ -39,6 +39,10 @@ class Matrix {
 
   // ! apply matrix to vector
   spectral::Vector apply(spectral::Vector operand);
+
 };
+
+spectral::Matrix operator+ (spectral::Matrix& a, spectral::Matrix& b);
+
 }
 }

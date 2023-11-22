@@ -23,6 +23,8 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/spectral/spectral_refiner.h"
+#include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
+#include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp" /* TODO only makeshift */
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -75,6 +77,7 @@ namespace mt_kahypar {
   void SpectralRefiner<GraphAndGainTypes>::kSpecPartAlgorithm(PartitionedHypergraph& inputSolution) {
     Hypergraph& inputHypergraph  = inputSolution.hypergraph();
     size_t numNodes = inputHypergraph.initialNumNodes();
+    PartitionID k = inputSolution.k(); /* TODO extract from argv */
 
     // dehyperisation
     spectral::Matrix inputGraphLaplacian;
@@ -85,12 +88,15 @@ namespace mt_kahypar {
     buildWeightBalanceGraphLaplacian(inputHypergraph, weightBalanceLaplacian);
 
     // actual refinement
-    /* vec<PartitionedHypergraph>*///auto candidateSolutions;
-    /* candidateSolutions->reserve("beta"); */
-    /* candidateSolutions->pushBack(inputSolution); */
-    for (int i = 0; i < 1 /* TODO parameter "beta" */; i++) {
-      if (/* "k" == 2 */true) {
-        /* TODO returntype/result, header file entry, implementation *///solveGEVP(inputLaplacian, baseBalance, candidateSolutions->back());
+
+    vec<PartitionedHypergraph*> candidateSolutions; 
+    candidateSolutions.reserve(1/* TODO argv "beta" */ + 1);
+    candidateSolutions.push_back(&inputSolution);
+
+    for (int i = 0; i < 1 /* TODO argv "beta" */; i++) {
+      vec<spectral::Vector> embedding; /* TODO type alias */
+      if (k == 2) {
+        generate2WayVertexEmbedding(weightBalanceLaplacian, inputGraphLaplacian, *candidateSolutions.back(), embedding);
       } else {
         /* TODO */
       }
@@ -107,6 +113,24 @@ namespace mt_kahypar {
   
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target) {
+    /* TODO */
+  }
+
+
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::generate2WayVertexEmbedding(spectral::Matrix& baseBalance, spectral::Matrix& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target) {
+    // hint graph
+    spectral::Matrix hintGraphLaplacian;
+    generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
+    
+    spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
+    solver.initialize(graphLaplacian, /* baseBalance + */ hintGraphLaplacian);
+    /* TODO */
+  }
+
+
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Matrix& target) {
     /* TODO */
   }
 

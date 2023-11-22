@@ -82,6 +82,11 @@ class SpectralRefiner final : public IRefiner {
 
   void buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target);
 
+  void generate2WayVertexEmbedding(spectral::Matrix& baseBalance, spectral::Matrix& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target);
+
+  void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Matrix& target);
+
+
   void resizeDataStructuresForCurrentK() {
     /* TODO to be implemented far in the future */
   }
