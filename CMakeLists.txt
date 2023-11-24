@@ -1,6 +1,35 @@
 cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
+
+
+# SLEPc setup see https://slepc.upv.es/documentation/current/share/slepc/CMakeLists.txt
+# TODO only execute if needed
+# TODO does this really have to be before project() call and if not whats this files add_executable?
+
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# set root of location to find PETSc's and SLEPc's pkg-config
+set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
+set(SLEPC $ENV{SLEPC_DIR}/$ENV{PETSC_ARCH})
+set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig:${SLEPC}/lib/pkgconfig)
+
+# Remove the lines below if you do not wish to have PETSc determine the compilers
+execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE C_COMPILER)
+SET(CMAKE_C_COMPILER ${C_COMPILER})
+execute_process ( COMMAND pkg-config PETSc --variable=cxxcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CXX_COMPILER)
+if (CXX_COMPILER)
+  SET(CMAKE_CXX_COMPILER ${CXX_COMPILER})
+endif (CXX_COMPILER)
+execute_process ( COMMAND pkg-config PETSc --variable=fcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE FORTRAN_COMPILER)
+if (FORTRAN_COMPILER)
+  SET(CMAKE_Fortran_COMPILER ${FORTRAN_COMPILER})
+  enable_language(Fortran)
+endif (FORTRAN_COMPILER)
+
+# end SLEPc
+
+
 project(MtKaHyPar CXX C)
 set(PROJECT_VENDOR "Tobias Heuer")
 set(PROJECT_CONTACT "tobias.heuer@kit.edu")
@@ -395,6 +424,11 @@ add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
 add_subdirectory(python)
+
+# SLEPc TODO only execute if needed
+find_package(PkgConfig REQUIRED)
+pkg_search_module(SLEPC REQUIRED IMPORTED_TARGET SLEPc)
+target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
