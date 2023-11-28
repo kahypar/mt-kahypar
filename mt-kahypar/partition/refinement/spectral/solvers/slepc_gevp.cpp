@@ -163,10 +163,17 @@ int ex3_main(int argc, char **argv){
   return 0;
 }
 
+int test_main(int argc, char **argv) {
+  PetscCall(SlepcInitialize(&argc,&argv,(char*)0,help));
+  PetscCall(SlepcFinalize());
+  return 0;
+}
+
 class SLEPcGEVPSolver : public spectral::GEVPSolver {
  public:
   void initialize(spectral::Matrix& a, spectral::Matrix& b) final {
-    ex3_main(0, NULL);
+    char *argv[] = {"/home/julian/Dokumente/Studium/BA/mt-kahypar/build/mt-kahypar/application/MtKaHyPar"};
+    test_main(1, argv);
   };
   bool nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) final {}
 };

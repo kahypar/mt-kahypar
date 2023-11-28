@@ -50,6 +50,7 @@ namespace mt_kahypar {
     // implementation goes here
     DBG << "Spectral Refiner called";
     kSpecPartAlgorithm(hypergraph);
+    DBG << "Spectral Refiner finished kSpecPart";
     if constexpr (Hypergraph::is_graph) {
 
     }
