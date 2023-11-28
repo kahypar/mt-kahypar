@@ -684,4 +684,13 @@ struct PartitionedGraphType<ds::DynamicGraph> {
 };
 
 
-} // namespace mt_kahypar
+}
+// namespace mt_kahypar
+namespace std{
+  ostringstream& operator<<(ostringstream& s, const array<double,mt_kahypar::dimension> arr){
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      s << arr[i] << ' ';
+    }
+    return s;
+  }
+}
