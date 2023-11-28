@@ -173,7 +173,6 @@ class MultilevelCoarsener : public ICoarsener,
     // Perform parallel contraction
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
     _timer.stop_timer("contraction");
-    std::cout << cc.max_allowed_node_weight << std::endl;
     ++_pass_nr;
     return true;
   }
