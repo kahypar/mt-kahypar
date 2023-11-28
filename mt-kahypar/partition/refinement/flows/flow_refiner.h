@@ -26,12 +26,12 @@
  ******************************************************************************/
 
 #pragma once
-
+/*
 #include <tbb/concurrent_vector.h>
 
-#include "algorithm/hyperflowcutter.h"
-#include "algorithm/sequential_push_relabel.h"
-#include "algorithm/parallel_push_relabel.h"
+// #include "algorithm/hyperflowcutter.h"
+// #include "algorithm/sequential_push_relabel.h"
+// #include "algorithm/parallel_push_relabel.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
@@ -124,11 +124,12 @@ class FlowRefiner final : public IFlowRefiner {
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
-  whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
-  whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
+  // whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
+  // whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
   SequentialConstruction<GraphAndGainTypes> _sequential_construction;
   ParallelConstruction<GraphAndGainTypes> _parallel_construction;
 };
 }  // namespace mt_kahypar
+*/

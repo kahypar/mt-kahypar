@@ -67,7 +67,7 @@ class FixedVertexSupport {
     _k(k),
     _hg(nullptr),
     _total_fixed_vertex_weight(0),
-    _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
+    _fixed_vertex_block_weights(k, HypernodeWeight(0) ),
     _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
     _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
 

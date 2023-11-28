@@ -269,7 +269,7 @@ namespace mt_kahypar {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
-                                                                   partition.max_part_weights.cend(), 0);
+                                                                   partition.max_part_weights.cend(), HypernodeWeight(0));
       std::array<double,dimension> weight_fraction = total_hypergraph_weight / max_part_weights_sum;
       HypernodeWeight perfect_part_weights_sum = 0;
       partition.perfect_balance_part_weights.clear();
@@ -283,18 +283,22 @@ namespace mt_kahypar {
         throw InvalidInputException(
           "Sum of individual part weights is less than the total hypergraph weight. "
           "Finding a valid partition is not possible.\n"
-          "Total hypergraph weight: " + std::to_string(total_hypergraph_weight) + "\n"
-          "Sum of part weights:     " + std::to_string(max_part_weights_sum));
+          "Total hypergraph weight: " + total_hypergraph_weight.to_string() + "\n"
+          "Sum of part weights:     " + max_part_weights_sum.to_string());
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
-        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
+        for(int i = 0; i < mt_kahypar::dimension; i++){
+          partition.epsilon[i] = std::min(0.99, max_part_weights_sum.weights[i] /static_cast<double>(std::max(perfect_part_weights_sum.weights[i], 1)))- 1;
+        }
       }
     } else {
       partition.perfect_balance_part_weights.clear();
-      partition.perfect_balance_part_weights.push_back(ceil(
-              total_hypergraph_weight
-              / static_cast<double>(partition.k)));
+      HypernodeWeight nw;
+      for(int i = 0; i < mt_kahypar::dimension; i++){
+        nw.weights[i] = ceil(total_hypergraph_weight.weights[i]
+              / static_cast<double>(partition.k));
+      }
       for (PartitionID part = 1; part != partition.k; ++part) {
         partition.perfect_balance_part_weights.push_back(
                 partition.perfect_balance_part_weights[0]);
@@ -333,9 +337,9 @@ namespace mt_kahypar {
             coarsening.max_allowed_weight_multiplier
             / coarsening.contraction_limit;
     coarsening.max_allowed_node_weight =
-            std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+            total_hypergraph_weight.scale(hypernode_weight_fraction);
     coarsening.max_allowed_node_weight =
-            std::min(coarsening.max_allowed_node_weight, min_block_weight);
+            coarsening.max_allowed_node_weight.min(min_block_weight);
   }
 
   void Context::sanityCheck(const TargetGraph* target_graph) {
@@ -597,6 +601,7 @@ namespace mt_kahypar {
     refinement.label_propagation.rebalancing = true;
 
     // refinement -> flows;
+    #ifdef false
     refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
     refinement.flows.alpha = 16;
     refinement.flows.max_num_pins = 4294967295;
@@ -610,6 +615,7 @@ namespace mt_kahypar {
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
     refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
+    #endif
   }
 
   void Context::load_deterministic_preset() {
@@ -829,6 +835,7 @@ namespace mt_kahypar {
     refinement.fm.iter_moves_on_recalc = false;
 
     // refinement -> flows;
+    #ifdef false
     refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
     refinement.flows.alpha = 16;
     refinement.flows.max_num_pins = 4294967295;
@@ -842,6 +849,7 @@ namespace mt_kahypar {
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
     refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
+    #endif
 
     // refinement -> global fm
     refinement.global_fm.refine_until_no_improvement = true;

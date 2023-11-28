@@ -45,6 +45,27 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
             }, std::plus<double>()) / ( n- 1 ));
 }
 
+
+std::array<double, mt_kahypar::dimension> parallel_stdev_hnode(const std::vector<HypernodeWeight>& data, const std::array<double, mt_kahypar::dimension> avg, const size_t n) {
+    std::array<double, mt_kahypar::dimension> init;
+    init.fill(0.0);
+    std::array<double, mt_kahypar::dimension> res = tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(UL(0), data.size()), init,
+            [&](tbb::blocked_range<size_t>& range, std::array<double, mt_kahypar::dimension> init) -> std::array<double, mt_kahypar::dimension> {
+            std::array<double,mt_kahypar::dimension> tmp_stdev = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                for(int j = 0; j < mt_kahypar::dimension; j++){
+                    tmp_stdev[j] += (data[i].weights[i] - avg[j]) * (data[i].weights[j] - avg[j]);
+                }
+            }
+            return tmp_stdev;
+            }, std::plus<std::array<double, mt_kahypar::dimension>>());
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+        res[i] = std::sqrt(res[i]) / static_cast<double>(n - 1);
+    }
+    return res;
+}
+
 template<typename T>
 double parallel_avg(const std::vector<T>& data, const size_t n) {
     return tbb::parallel_reduce(

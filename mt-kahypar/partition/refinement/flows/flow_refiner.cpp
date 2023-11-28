@@ -25,6 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#ifdef false
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -179,3 +180,4 @@ namespace {
 INSTANTIATE_CLASS_WITH_VALID_TRAITS(FLOW_REFINER)
 
 } // namespace mt_kahypar
+#endif

@@ -76,7 +76,7 @@ class MultilevelCoarsener : public ICoarsener,
 
   #define STATE(X) static_cast<uint8_t>(X)
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = HypernodeWeight;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

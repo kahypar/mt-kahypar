@@ -563,7 +563,7 @@ class DynamicGraph {
   }
 
   // ! Weight of an edge
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+  HyperedgeWeight edgeWeight(const HyperedgeID e) const {
     return edge(e).weight;
   }
 

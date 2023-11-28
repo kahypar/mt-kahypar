@@ -23,7 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
-
+#ifdef false
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 
 #include "kahypar-resources/utils/math.h"
@@ -484,3 +484,4 @@ namespace {
 INSTANTIATE_CLASS_WITH_VALID_TRAITS(SEQUENTIAL_CONSTRUCTION)
 
 } // namespace mt_kahypar
+#endif

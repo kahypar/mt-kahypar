@@ -79,9 +79,11 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       return true;
     }
 
-    const HypernodeWeight max_allowed_fixed_vertex_block_weight =
-      (1.0 + context.partition.epsilon) * std::ceil(
-        static_cast<double>(fixed_vertices.totalFixedVertexWeight()) / context.partition.k );
+    HypernodeWeight max_allowed_fixed_vertex_block_weight;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      max_allowed_fixed_vertex_block_weight.weights[i] = (1.0 + context.partition.epsilon[i]) * std::ceil(
+        static_cast<double>(fixed_vertices.totalFixedVertexWeight().weights[i]) / context.partition.k );
+    } 
     const PartitionID block_of_u = fixed_vertices.fixedVertexBlock(u);
     const PartitionID block_of_v = fixed_vertices.fixedVertexBlock(v);
     const PartitionID fixed_block = block_of_u == kInvalidPartition ? block_of_v : block_of_u;
@@ -90,7 +92,7 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       ( block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : fixed_vertices.fixedVertexBlockWeight(fixed_block) ) +
       ( block_of_u == kInvalidPartition ? fixed_vertices.fixedVertexBlockWeight(fixed_block) : hypergraph.nodeWeight(v) );
     return fixed_vertex_block_weight_after <=
-      std::min(max_allowed_fixed_vertex_block_weight,
+      max_allowed_fixed_vertex_block_weight.min(
         context.partition.max_part_weights[fixed_block]);
   }
 };

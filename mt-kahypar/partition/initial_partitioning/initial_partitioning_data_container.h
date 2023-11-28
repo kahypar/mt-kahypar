@@ -62,13 +62,13 @@ class InitialPartitioningDataContainer {
     PartitioningResult(InitialPartitioningAlgorithm algorithm,
                        HyperedgeWeight objective_ip,
                        HyperedgeWeight objective,
-                       double imbalance) :
+                       std::array<double, mt_kahypar::dimension> imbalance) :
       _algorithm(algorithm),
       _objective_ip(objective_ip),
       _objective(objective),
       _imbalance(imbalance) { }
 
-    bool is_other_better(const PartitioningResult& other, const double epsilon[mt_kahypar::dimension]) const {
+    bool is_other_better(const PartitioningResult& other, std::array<double, mt_kahypar::dimension> epsilon) const {
       bool equal_metric = other._objective == _objective;
       bool improved_metric = other._objective < _objective;
       bool improved_imbalance = other._imbalance < _imbalance;
@@ -94,7 +94,7 @@ class InitialPartitioningDataContainer {
     InitialPartitioningAlgorithm _algorithm = InitialPartitioningAlgorithm::UNDEFINED;
     HyperedgeWeight _objective_ip = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight _objective = std::numeric_limits<HyperedgeWeight>::max();
-    std::array<double, mt_kahypar::dimension> _imbalance = std::array<double, mt_kahypar::dimension>(std::numeric_limits<double>::max());
+    std::array<double, mt_kahypar::dimension> _imbalance;
     size_t _random_tag = std::numeric_limits<size_t>::max();
     size_t _deterministic_tag = std::numeric_limits<size_t>::max();
   };
@@ -199,16 +199,20 @@ class InitialPartitioningDataContainer {
       _context(context),
       _global_stats(global_stats),
       _partition(hypergraph.initialNumNodes(), kInvalidPartition),
-      _result(InitialPartitioningAlgorithm::UNDEFINED,
-              std::numeric_limits<HypernodeWeight>::max(),
-              std::numeric_limits<HypernodeWeight>::max(),
-              std::numeric_limits<double>::max()),
       _gain_cache(GainCachePtr::constructGainCache(context)),
       _rebalancer(nullptr),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
       _stats() {
-
+      
+      std::array<double, dimension> d;
+      for(int i = 0; i < dimension; i++){
+        d[i] = std::numeric_limits<double>::max();
+      }
+      _result = PartitioningResult(InitialPartitioningAlgorithm::UNDEFINED,
+              std::numeric_limits<HyperedgeWeight>::max(),
+              std::numeric_limits<HyperedgeWeight>::max(),
+              d);
       for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
@@ -495,7 +499,7 @@ class InitialPartitioningDataContainer {
     // already commits the result if non-deterministic
     auto& my_ip_data = _local_hg.local();
     auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
-    const double eps[mt_kahypar::dimension] = _context.partition.epsilon;
+    std::array<double, mt_kahypar::dimension> eps = _context.partition.epsilon;
 
     if ( _context.partition.deterministic ) {
       // apply result to shared pool

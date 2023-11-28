@@ -74,7 +74,7 @@ bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const Hyperno
     // To guarantee that we find a feasible initial partition, we ensure that the new block weight
     // is smaller than the maximum allowed block weight.
     const HypernodeWeight delta_weight =
-      u_becomes_fixed * weight_of_u + v_becomes_fixed * weight_of_v;
+      (u_becomes_fixed ? weight_of_u : NodeWeight(0)) + (v_becomes_fixed ? weight_of_v : NodeWeight(0));
     const HypernodeWeight block_weight_after =
       _fixed_vertex_block_weights[fixed_vertex_block].add_fetch(
         delta_weight, std::memory_order_relaxed);

@@ -39,8 +39,8 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+/*#include "mt-kahypar/partition/refinement/flows/scheduler.h"*/
+/*#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"*/
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
@@ -74,10 +74,10 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
                                           IFMStrategy,
                                           kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
-using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+/*using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
                                 IRefiner,
-                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+                                kahypar::meta::Typelist<GraphAndGainTypesList>>;*/
 
 using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    SimpleRebalancer,
@@ -89,10 +89,10 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      IRebalancer,
                                      kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
-using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+/*using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                  FlowRefiner,
                                  IFlowRefiner,
-                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;*/
 
 
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
@@ -143,7 +143,7 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
       );                                                                                               \
   })
 
-#define REGISTER_DISPATCHED_FLOW_SCHEDULER(id, dispatcher, ...)                                        \
+/*#define REGISTER_DISPATCHED_FLOW_SCHEDULER(id, dispatcher, ...)                                        \
   static kahypar::meta::Registrar<FlowSchedulerFactory> register_ ## dispatcher(                       \
     id,                                                                                                \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
@@ -160,7 +160,7 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
        const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
-  })
+  })*/
 
 #define REGISTER_DISPATCHED_REBALANCER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<RebalancerFactory> register_ ## dispatcher(                          \
@@ -178,7 +178,7 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
     [](HypernodeID num_hypernodes, const Context& context, gain_cache_t gain_cache) -> IRebalancer* {  \
     return new refiner(num_hypernodes, context, gain_cache);                                           \
   })
-
+/*
 #define REGISTER_DISPATCHED_FLOW_REFINER(id, dispatcher, ...)                                          \
   static kahypar::meta::Registrar<FlowRefinementFactory> register_ ## dispatcher(                      \
     id,                                                                                                \
@@ -194,7 +194,7 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
     id,                                                                                         \
     [](const HyperedgeID num_Hyperedges, const Context& context) -> IFlowRefiner* {             \
     return new refiner(num_Hyperedges, context);                                                \
-  })
+  })*/
 
 
 kahypar::meta::PolicyBase& getGraphAndGainTypesPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
@@ -234,11 +234,11 @@ REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
 REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
                                 UnconstrainedFMStrategyDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-
+/*
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
                                    getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
+REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);*/
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                SimpleRebalancerDispatcher,
@@ -248,8 +248,8 @@ REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
-REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
+/*REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                  FlowRefinementDispatcher,
                                  getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);*/
 }  // namespace mt_kahypar

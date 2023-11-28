@@ -44,7 +44,7 @@ namespace ds {
 
 // ! Recomputes the total weight of the hypergraph (parallel)
 void DynamicGraph::updateTotalWeight(parallel_tag_t) {
-  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), numNodes()), 0,
+  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), numNodes()), HypernodeWeight(0),
     [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
       HypernodeWeight weight = init;
       for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {

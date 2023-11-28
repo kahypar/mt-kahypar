@@ -72,7 +72,7 @@ namespace mt_kahypar::ds {
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
             _tmp_contraction_buffer->tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
+    Array<HypernodeWeight>& hn_weights =
             _tmp_contraction_buffer->hn_weights;
     Array<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
@@ -584,7 +584,7 @@ namespace mt_kahypar::ds {
 
   // ! Computes the total node weight of the hypergraph
   void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
+    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), HypernodeWeight(0),
                                          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
                                            HypernodeWeight weight = init;
                                            for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {

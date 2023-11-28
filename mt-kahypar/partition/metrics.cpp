@@ -163,17 +163,21 @@ template<typename PartitionedHypergraph>
 std::array<double, mt_kahypar::dimension> imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
-  std::array<double,mt_kahypar::dimension> max_balance = (hypergraph.partWeight(0) /
-                        static_cast<std::array<double, mt_kahypar::dimension>(context.partition.perfect_balance_part_weights[0]));
+  std::array<double,mt_kahypar::dimension> max_balance = mt_kahypar::divide_to_double(hypergraph.partWeight(0),
+                        context.partition.perfect_balance_part_weights[0]);
 
   for (PartitionID i = 1; i < context.partition.k; ++i) {
-    const double balance_i =
-            (hypergraph.partWeight(i) /
-              static_cast<double>(context.partition.perfect_balance_part_weights[i]));
-    max_balance = std::max(max_balance, balance_i);
+    std::array<double, mt_kahypar::dimension> balance_i;
+    for(int j = 0; j < mt_kahypar::dimension; j++){
+      max_balance[j] = std::max(max_balance[j], hypergraph.partWeight(i).weights[j] /
+              static_cast<double>(context.partition.perfect_balance_part_weights[i].weights[j]));
+    }
+  }
+  for(int i = 0; i < mt_kahypar::dimension; i++){
+    max_balance[i] -= 1.0;
   }
 
-  return max_balance - 1.0;
+  return max_balance;
 }
 
 template<typename PartitionedHypergraph>
@@ -195,7 +199,7 @@ namespace {
 #define OBJECTIVE_2(X) HyperedgeWeight quality(const X& hg, const Objective objective, const bool parallel)
 #define CONTRIBUTION(X) HyperedgeWeight contribution(const X& hg, const HyperedgeID he, const Objective objective)
 #define IS_BALANCED(X) bool isBalanced(const X& phg, const Context& context)
-#define IMBALANCE(X) double imbalance(const X& hypergraph, const Context& context)
+#define IMBALANCE(X) std::array<double, mt_kahypar::dimension> imbalance(const X& hypergraph, const Context& context)
 #define APPROX_FACTOR(X) double approximationFactorForProcessMapping(const X& hypergraph, const Context& context)
 }
 

@@ -401,7 +401,7 @@ namespace mt_kahypar::io {
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
         ASSERT(pos > 0 && pos < length);
         ASSERT(mapped_file[pos - 1] == '\n');
-        for(uint8_t j = 0; j < hypernode_weights[0].weights.length(); j++){
+        for(uint8_t j = 0; j < mt_kahypar::dimension; j++){
           hypernodes_weight[hn].weights[j] = read_number(mapped_file, pos, length);
         }
         do_line_ending(mapped_file, pos);
@@ -597,7 +597,10 @@ namespace mt_kahypar::io {
 
         if ( has_vertex_weights ) {
           ASSERT(current_vertex_id < vertices_weight.size());
-          vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
+          for(int i = 0; i < mt_kahypar::dimension; i++){
+            vertices_weight[current_vertex_id].weights[i] = read_number(mapped_file, current_pos, current_end);
+          }
+          
         }
 
         while ( !is_line_ending(mapped_file, current_pos) ) {

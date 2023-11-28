@@ -47,7 +47,7 @@ struct PartitioningParameters {
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
-  double epsilon[mt_kahypar::dimension] = {std::numeric_limits<double>::max()};
+  std::array<double, mt_kahypar::dimension> epsilon;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;

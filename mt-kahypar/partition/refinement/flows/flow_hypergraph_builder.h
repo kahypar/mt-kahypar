@@ -26,7 +26,7 @@
  ******************************************************************************/
 
 #pragma once
-
+#ifdef false
 #include "datastructure/flow_hypergraph.h"
 
 #include "mt-kahypar/macros.h"
@@ -292,3 +292,4 @@ namespace mt_kahypar {
     vec<uint32_t> _inc_he_pos;
   };
 }
+#endif

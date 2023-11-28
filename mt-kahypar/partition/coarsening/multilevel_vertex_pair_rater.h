@@ -86,7 +86,7 @@ class MultilevelVertexPairRater {
     LARGE_RATING_MAP
   };
 
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = HypernodeWeight;
 
  public:
   using Rating = VertexPairRating;
@@ -183,8 +183,8 @@ class MultilevelVertexPairRater {
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
-        penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
-        const RatingType tmp_rating = it->value / static_cast<double>(penalty);
+        penalty = penalty == 0 ? /*std::max(weight_u.maxValues(target_weight),*/ 1 : penalty;
+        const RatingType tmp_rating = it->value / static_cast<double>(penalty.sum());
 
         bool accept_fixed_vertex_contraction = true;
         if constexpr ( has_fixed_vertices ) {

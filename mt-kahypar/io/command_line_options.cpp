@@ -526,6 +526,7 @@ namespace mt_kahypar {
                                                                  const int num_columns,
                                                                  const bool initial_partitioning) {
     po::options_description options("Initial Partitioning Options", num_columns);
+    #ifdef false
     options.add_options()
             ((initial_partitioning ? "i-r-flow-algo" : "r-flow-algo"),
              po::value<std::string>()->value_name("<string>")->notifier(
@@ -601,6 +602,7 @@ namespace mt_kahypar {
              "the actual improvement. Therefore, the supported options are:\n"
              "- lower_bound\n"
              "- upper_bound");
+             #endif
     return options;
   }
 
@@ -750,7 +752,7 @@ namespace mt_kahypar {
              po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
              "Number of blocks")
             ("epsilon,e",
-             po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
+             po::value<std::array<double,mt_kahypar::dimension>>(&context.partition.epsilon)->value_name("<double>")->required(),
              "Imbalance parameter epsilon")
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
@@ -831,7 +833,11 @@ namespace mt_kahypar {
       po::notify(cmd_vm);
     }
 
-    std::string epsilon_str = std::to_string(context.partition.epsilon);
+    std::string epsilon_str;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+        epsilon_str += std::to_string(context.partition.epsilon[i]);
+        epsilon_str += ' ';
+    }
     epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
 
     if (context.partition.graph_partition_output_folder != "") {
