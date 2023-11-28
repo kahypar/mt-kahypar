@@ -264,7 +264,7 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
     }, [&] {
       tbb::parallel_sort(hn_weights.begin(), hn_weights.end());
     });
-    tbb::parallel_for(tbb::blocked_range<int>(0, mt_kahypar::dimension), [weights](int i){tbb::parallel_sort(weights[i].begin(), weights[i].end());});
+    tbb::parallel_for(UL(0), mt_kahypar::dimension, [&](const size_t i){tbb::parallel_sort(weights[i].begin(), weights[i].end());});
 
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
@@ -410,6 +410,15 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
     }
   }
 
+  std::string metrics_to_string(const std::array<double, mt_kahypar::dimension> metrics){
+    std::string s;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      s += metrics[i];
+      s+= ' ';
+    }
+    return s;
+  }
+
   template<typename PartitionedHypergraph>
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
@@ -418,7 +427,7 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
       LOG << description;
       LOG << context.partition.objective << "      ="
           << metrics::quality(hypergraph, context);
-      LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
+      LOG << "imbalance =" << metrics_to_string(metrics::imbalance(hypergraph, context));
       LOG << "Part sizes and weights:";
       io::printPartWeightsAndSizes(hypergraph, context);
       LOG << "";
@@ -534,7 +543,7 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
     if ( context.partition.objective != Objective::soed && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::soed, metrics::quality(hypergraph, Objective::soed));
     }
-    printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
+    printKeyValue("Imbalance", metrics_to_string(metrics::imbalance(hypergraph, context)));
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
   }
 

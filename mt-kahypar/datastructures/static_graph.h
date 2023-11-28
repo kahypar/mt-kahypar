@@ -84,18 +84,18 @@ class StaticGraph {
 
     Node() :
       _begin(0),
-      _weight(1),
+      _weight(HypernodeWeight(1)),
       _valid(false) { }
 
     explicit Node(const bool valid) :
       _begin(0),
-      _weight(1),
+      _weight(HypernodeWeight(1)),
       _valid(valid) { }
 
     // Sentinel Constructor
     explicit Node(const size_t begin) :
       _begin(begin),
-      _weight(1),
+      _weight(HypernodeWeight(1)),
       _valid(false) { }
 
     bool isDisabled() const {

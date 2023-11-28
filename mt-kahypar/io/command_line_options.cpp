@@ -742,7 +742,6 @@ namespace mt_kahypar {
   void processCommandLineInput(Context& context, int argc, char *argv[]) {
     const int num_columns = platform::getTerminalWidth();
 
-
     po::options_description required_options("Required Options", num_columns);
     required_options.add_options()
             ("hypergraph,h",
@@ -752,7 +751,11 @@ namespace mt_kahypar {
              po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
              "Number of blocks")
             ("epsilon,e",
-             po::value<std::array<double,mt_kahypar::dimension>>(&context.partition.epsilon)->value_name("<double>")->required(),
+             po::value<std::vector<double>>()->value_name("<std::vector<double>>")->required()->notifier([&](const std::vector<double> d){
+                for(int i = 0; i < d.size(); i++){
+                        context.partition.epsilon[i] = d[i];
+                }
+             }),
              "Imbalance parameter epsilon")
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
