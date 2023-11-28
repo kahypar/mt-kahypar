@@ -186,6 +186,7 @@ namespace mt_kahypar {
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
       case HeavyNodePenaltyPolicy::additive: return os << "additive";
       case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
+      case HeavyNodePenaltyPolicy::scaling: return os << "scaling";
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -411,6 +412,8 @@ namespace mt_kahypar {
       return HeavyNodePenaltyPolicy::multiplicative_penalty;
     } else if (penalty == "additive") {
       return HeavyNodePenaltyPolicy::additive;
+    } else if (penalty == "scaling") {
+      return HeavyNodePenaltyPolicy::scaling;
       // omit default case to trigger compiler warning for missing cases
     }
     throw InvalidParameterException("No valid edge penalty policy for rating.");

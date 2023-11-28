@@ -206,7 +206,7 @@ class MultilevelVertexPairRater {
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight
            && similarity_policy.acceptContraction(hypergraph, _context, u, tmp_target) ) {
-        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
+        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight, _context);
         penalty = std::max(penalty, 1);
         const RatingType tmp_rating = it->value / (static_cast<double>(penalty)
             * similarity_policy.similarityPenalty(hypergraph, _context, u, tmp_target));

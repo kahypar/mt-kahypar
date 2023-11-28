@@ -133,6 +133,7 @@ enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
   multiplicative_penalty COMMA
   additive COMMA
+  scaling COMMA
   UNDEFINED
 };
 

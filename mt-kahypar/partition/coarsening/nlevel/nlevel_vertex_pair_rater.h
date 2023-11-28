@@ -161,7 +161,7 @@ class NLevelVertexPairRater {
       const HypernodeWeight target_weight = hypergraph.nodeWeight(tmp_target);
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
-        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
+        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight, _context);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 

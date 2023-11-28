@@ -333,7 +333,20 @@ namespace mt_kahypar {
              "Penalty function to discourage heavy vertices:\n"
              "- additive\n"
              "- multiplicative\n"
+             "- scaling\n"
              "- no_penalty")
+            ("c-p-gamma",
+             po::value<double>()->value_name("<double>")->notifier(
+                     [&](const double gamma) {
+                       context.coarsening.gamma = gamma;
+                     })->default_value(1.0),
+             "In the scaling penalty policy, the penalty for going above the threshhold is: (u + v - threshold)^gamma")
+            ("c-p-max-weight-factor",
+             po::value<double>()->value_name("<double>")->notifier(
+                     [&](const double gamma) {
+                       context.coarsening.penalty_max_weight_factor = gamma;
+                     })->default_value(0.8),
+             "In the scaling penalty policy, the threshold is calculated as: mwf * maximum-node-weight")
             ("c-rating-acceptance-criterion",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& crit) {

@@ -79,6 +79,8 @@ REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_p
                 MultiplicativePenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
                 AdditivePenalty);
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::scaling,
+                ScalingAdditivePenalty);
 
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
