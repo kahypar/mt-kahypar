@@ -23,7 +23,7 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/spectral/spectral_refiner.h"
-#include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
+// #include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
 #include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp" /* TODO only makeshift */
 
 #include "mt-kahypar/definitions.h"
@@ -126,7 +126,12 @@ namespace mt_kahypar {
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
     solver.initialize(graphLaplacian, /* baseBalance + */ hintGraphLaplacian);
+
     /* TODO */
+    // to see something:
+    spectral::Skalar a;
+    spectral::Vector v;
+    solver.nextEigenpair(a, v);
   }
 
 
