@@ -76,13 +76,13 @@ PetscErrorCode MatMult_Laplacian2D(Mat A,Vec x,Vec y) {
   PetscCall(VecRestoreArrayRead(x,&px));
   PetscCall(VecRestoreArray(y,&py));
   PetscFunctionReturn(PETSC_SUCCESS);
-};
+}
   
 PetscErrorCode MatGetDiagonal_Laplacian2D(Mat A,Vec diag) {
   PetscFunctionBeginUser;
   PetscCall(VecSet(diag,4.0));
   PetscFunctionReturn(PETSC_SUCCESS);
-};
+}
 
 int ex3_main(int argc, char **argv){
   Mat            A;               /* operator matrix */
@@ -160,6 +160,8 @@ int ex3_main(int argc, char **argv){
   PetscCall(EPSDestroy(&eps));
   PetscCall(MatDestroy(&A));
   PetscCall(SlepcFinalize());
+
+  LOG << "ex3 executed";
   return 0;
 }
 
@@ -172,8 +174,8 @@ int test_main(int argc, char **argv) {
 class SLEPcGEVPSolver : public spectral::GEVPSolver {
  public:
   void initialize(spectral::Matrix& a, spectral::Matrix& b) final {
-    char *argv[] = {"/home/julian/Dokumente/Studium/BA/mt-kahypar/build/mt-kahypar/application/MtKaHyPar"};
-    test_main(1, argv);
+    //test_main(0, NULL); // SLEPc doesnt need real arguments, tested sandboxed
+    ex3_main(0, NULL);
   };
   bool nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) final {}
 };
