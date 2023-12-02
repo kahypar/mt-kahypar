@@ -41,10 +41,13 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
+
+#if MT_KAHYPAR_IO_CMD
+#include "mt-kahypar/io/command_line_options.h"
+#endif
 
 using namespace mt_kahypar;
 
@@ -85,6 +88,8 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
+#if MT_KAHYPAR_IO_CMD
+
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {
   try {
@@ -93,6 +98,8 @@ void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_contex
     LOG << ex.what();
   }
 }
+
+#endif
 
 void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                             const mt_kahypar_preset_type_t preset) {
