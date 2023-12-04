@@ -75,20 +75,20 @@ namespace mt_kahypar::io {
       return stats;
     }
 
-    std::ostringstream printStats(std::string str, std::vector<mt_kahypar::io::internal::Statistic> stats, std::vector<uint8_t> sizes, uint64_t (*f) (mt_kahypar::io::internal::Statistic)){
+    std::string printStats(std::string str, std::vector<mt_kahypar::io::internal::Statistic> stats, std::vector<uint8_t> sizes, uint64_t (*f) (mt_kahypar::io::internal::Statistic)){
       std::ostringstream output;
       for(int i = 0; i < stats.size(); i++){
         output << str << std::left << std::setw(sizes[i]) << f(stats[i]);
       }
-      return output;
+      return output.str();
     }
 
-    std::ostringstream printStats(std::string str, std::vector<mt_kahypar::io::internal::Statistic> stats, std::vector<uint8_t> sizes, double (*f) (mt_kahypar::io::internal::Statistic)){
+    std::string printStats(std::string str, std::vector<mt_kahypar::io::internal::Statistic> stats, std::vector<uint8_t> sizes, double (*f) (mt_kahypar::io::internal::Statistic)){
       std::ostringstream output;
       for(int i = 0; i < stats.size(); i++){
         output << str << std::left << std::setw(sizes[i]) << f(stats[i]);
       }
-      return output;
+      return output.str();
     }
 
 
@@ -116,7 +116,7 @@ namespace mt_kahypar::io {
       for(int i = 0; i < mt_kahypar::dimension; i++){
         output << "HN weight " << i << std::right << std::setw(sizes[i] + 6);
       }
-      LOG << output;
+      LOG << output.str();
       std::vector<mt_kahypar::io::internal::Statistic> stats;
       stats.push_back(he_size_stats);
       stats.push_back(he_weight_stats);

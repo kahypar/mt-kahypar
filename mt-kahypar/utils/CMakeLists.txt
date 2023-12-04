@@ -1,5 +1,6 @@
 set(UtilSources
       memory_tree.cpp
+      hypergraph_statistics.cpp
     )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)

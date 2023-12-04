@@ -44,18 +44,19 @@ struct NodeWeight {
   int32_t weights[dimension];
 
   NodeWeight(const NodeWeight& nw) {
-    for(int i = 0; i < dimension; i++){
-      weights[i] = nw.weights[i];
-    }
-  }
+            for(int i = 0; i < dimension; i++){
+                weights[i] = nw.weights[i];
+            }
+        }
 
-  NodeWeight(NodeWeight& nw) {
-    for(int i = 0; i < dimension; i++){
-      weights[i] = nw.weights[i];
-    }
-  }
   NodeWeight(){
+    
+  }
 
+  NodeWeight(bool maxValue){
+    for(int i = 0; i < dimension; i++){
+                weights[i] = std::numeric_limits<int32_t>::max();
+            }
   }
 
   NodeWeight(int value){
@@ -146,6 +147,7 @@ struct NodeWeight {
     for(int i = 0; i < dimension; i++){
       weights[i] = weights[i] + ew.weights[i];
     }
+    return *this;
   }
 
   bool operator!= (NodeWeight nw){
@@ -444,84 +446,25 @@ struct NodeWeight {
 
 };
 
-uint32_t scalar(NodeWeight w1, NodeWeight w2){
-  uint32_t res = 0;
-  for(int i = 0; i < dimension; i++){
-    res += w1.weights[i]*w2.weights[i];
-  }
-  return res;
-}
+uint32_t scalar(NodeWeight w1, NodeWeight w2);
 
-std::array<double, dimension> operator*(const double d, NodeWeight w){
-    std::array<double, dimension> res;
-    for(int i = 0; i < dimension; i++){
-      res[i] = d * w.weights[i];
-    }
-    return res;
-  }
+std::array<double, dimension> operator*(const double d, NodeWeight w);
 
-std::ostream& operator<<(std::ostream& os, NodeWeight nw){
-    for(int i = 0; i < dimension; i++){
-      os << nw.weights[i] << ' ';
-    }
-  }
+std::ostream& operator<<(std::ostream& os, NodeWeight nw);
 
-  void operator<<(std::ostringstream os, const std::array<double, dimension> arr){
-    for(int i = 0; i < dimension; i++){
-      os << arr[i] << ' ';
-    }
-  }
+void operator<<(std::ostringstream os, const std::array<double, dimension> arr);
 
-bool equals_in_one_dimension(NodeWeight w1, NodeWeight w2){
-  for(int i = 0; i < dimension; i++){
-    if( w1.weights[i] == w2.weights[i]){
-      return true;
-    }
-  }
-  return false;
-}
+bool equals_in_one_dimension(NodeWeight w1, NodeWeight w2);
 
-std::array<double, dimension> operator+(double d, std::array<double, dimension> nw){
-  std::array<double, dimension> res;
-  for(int i = 0; i < dimension; i++){
-    res[i] = d + static_cast<double>(nw[i]);
-  }
-  return res;
-}
+std::array<double, dimension> operator+(double d, std::array<double, dimension> nw);
 
+std::array<double, dimension> operator*(std::array<double, dimension> d, NodeWeight nw);
 
-std::array<double, dimension> operator*(std::array<double, dimension> d, NodeWeight nw){
-  std::array<double, dimension> res;
-  for(int i = 0; i < dimension; i++){
-    res[i] = d[i] * nw.weights[i];
-  }
-  return res;
-}
+bool operator<=(const std::array<double, dimension> d1, const double d2[dimension]);
 
-bool operator<=(const std::array<double, dimension> d1, const double d2[dimension]){
-  for(int i = 0; i < dimension; i++){
-    if(d1[i] > d2[i]){
-      return false;
-    }
-  }
-  return true;
-}
+std::array<double, dimension> operator-(std::array<double, dimension> d, NodeWeight nw);
 
-std::array<double, dimension> operator-(std::array<double, dimension> d, NodeWeight nw){
-  std::array<double, dimension> res;
-  for(int i = 0; i < dimension; i++){
-    res[i] = d[i] - nw.weights[i];
-  }
-  return res;
-}
-
-std::array<double, dimension> divide_to_double(NodeWeight nw1, NodeWeight nw2){
-  std::array<double, dimension> res;
-  for(int i = 0; i < dimension; i++){
-    res[i] = static_cast<double>(nw1.weights[i]) / static_cast<double>(nw2.weights[i]);
-  }
-  return res;
-}
+std::array<double, dimension> divide_to_double(NodeWeight nw1, NodeWeight nw2);
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
@@ -686,11 +629,11 @@ struct PartitionedGraphType<ds::DynamicGraph> {
 
 }
 // namespace mt_kahypar
-namespace std{
+/*namespace std{
   ostringstream& operator<<(ostringstream& s, const array<double,mt_kahypar::dimension> arr){
     for(int i = 0; i < mt_kahypar::dimension; i++){
       s << arr[i] << ' ';
     }
     return s;
   }
-}
+}*/

@@ -305,7 +305,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::assignVertexToBlockWithMini
                                                                                           const HypernodeID hn) {
   ASSERT(hypergraph.partID(hn) == kInvalidPartition);
   PartitionID minimum_weight_block = kInvalidPartition;
-  HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();
+  HypernodeWeight minimum_weight = HypernodeWeight(true);
   for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
     const HypernodeWeight block_weight = hypergraph.partWeight(block);
     if ( block_weight < minimum_weight ) {

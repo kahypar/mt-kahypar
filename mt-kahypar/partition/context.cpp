@@ -301,7 +301,7 @@ namespace mt_kahypar {
       }
       for (PartitionID part = 1; part != partition.k; ++part) {
         partition.perfect_balance_part_weights.push_back(
-                partition.perfect_balance_part_weights[0]);
+                nw);
       }
       partition.max_part_weights.clear();
       partition.max_part_weights.push_back((1 + partition.epsilon)

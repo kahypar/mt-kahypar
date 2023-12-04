@@ -107,7 +107,7 @@ class GreedyInitialPartitionerBase {
 
         if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
           if ( _default_block != kInvalidPartition ) {
-            hg.changeNodePart(hn, _default_block, to);
+            ASSERT(hg.changeNodePart(hn, _default_block, to));
           } else {
             hg.setNodePart(hn, to);
           }

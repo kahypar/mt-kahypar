@@ -612,7 +612,7 @@ class PartitionedHypergraph {
                       const DeltaFunction& delta_func = NOOP_FUNC,
                       const bool force_moving_fixed_vertex = false) {
     return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
+      HypernodeWeight(true), []{},
         delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
   }
 

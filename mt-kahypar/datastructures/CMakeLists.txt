@@ -2,13 +2,15 @@ set(MultilevelDatastructureSources
       static_hypergraph_factory.cpp
       static_hypergraph.cpp
       graph.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      hypergraph_common.cpp)
 
 set(MultilevelGraphDatastructureSources
       static_graph_factory.cpp
       static_graph.cpp
       graph.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      hypergraph_common.cpp)
 
 set(NLevelDatastructureSources
       contraction_tree.cpp
@@ -16,7 +18,8 @@ set(NLevelDatastructureSources
       dynamic_hypergraph_factory.cpp
       graph.cpp
       incident_net_array.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      hypergraph_common.cpp)
 
 set(NLevelGraphDatastructureSources
       contraction_tree.cpp
@@ -24,7 +27,8 @@ set(NLevelGraphDatastructureSources
       dynamic_graph_factory.cpp
       graph.cpp
       dynamic_adjacency_array.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      hypergraph_common.cpp)
 
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
@@ -47,7 +51,8 @@ set(ToolsDatastructureSources
       dynamic_graph.cpp
       dynamic_graph_factory.cpp
       dynamic_adjacency_array.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      hypergraph_common.cpp)
 
 foreach(modtarget IN LISTS TOOLS_TARGETS)
   target_sources(${modtarget} PRIVATE ${ToolsDatastructureSources})
