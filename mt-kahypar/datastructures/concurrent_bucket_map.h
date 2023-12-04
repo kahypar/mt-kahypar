@@ -74,12 +74,6 @@ class ConcurrentBucketMap {
     _spin_locks(_num_buckets),
     _buckets(_num_buckets) { }
 
-  explicit ConcurrentBucketMap(size_t bucket_factor) :
-    _num_buckets(align_to_next_power_of_two(bucket_factor * std::thread::hardware_concurrency())),
-    _mod_mask(_num_buckets - 1),
-    _spin_locks(_num_buckets),
-    _buckets(_num_buckets) { }
-
   ConcurrentBucketMap(const ConcurrentBucketMap&) = delete;
   ConcurrentBucketMap & operator= (const ConcurrentBucketMap &) = delete;
 

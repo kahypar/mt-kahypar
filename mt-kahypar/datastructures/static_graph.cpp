@@ -293,11 +293,7 @@ namespace mt_kahypar::ds {
         });
 
         const size_t contracted_size = incident_edges_pos.load() - incident_edges_start;
-        tbb::parallel_for(incident_edges_pos.load(), incident_edges_end, [&](size_t i) {
-          tmp_edges[i].invalidate();
-        });
         node_sizes[coarse_node] = contracted_size;
-
         resulting_ranges.emplace_back(incident_edges_start, incident_edges_pos.load());
       }
 
