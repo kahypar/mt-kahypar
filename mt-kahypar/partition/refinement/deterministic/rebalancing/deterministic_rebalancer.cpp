@@ -64,6 +64,10 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
   if (_max_part_weights == nullptr) {
     _max_part_weights = &_context.partition.max_part_weights[0];
   }
+  auto& a = utils::Utilities::instance().getRobert(_context.utility_id);
+  double imbalance_to_fix = metrics::imbalance(phg, _context) - _context.partition.epsilon;
+  a.imbalances[0].push_back(imbalance_to_fix);
+  size_t round = 1;
   _gain_computation.reset();
   initializeDataStructures(phg);
   size_t iteration = 0;
@@ -72,6 +76,11 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
     ++iteration;
+    imbalance_to_fix = metrics::imbalance(phg, _context) - _context.partition.epsilon;
+    if (imbalance_to_fix > 0) {
+      a.imbalances[round].push_back(imbalance_to_fix);
+    }
+    ++round;
   }
   if (!phg.is_graph) {
     Gain delta = _gain_computation.delta();

@@ -41,23 +41,34 @@ namespace utils {
 class Utilities {
   static constexpr bool debug = false;
 
+  struct Robert {
+    Robert(): imbalances(30) {
+      for (auto& imb : imbalances) {
+        imbalances.reserve(5000);
+      }
+    }
+    parallel::scalable_vector<parallel::scalable_vector<double>> imbalances;
+  };
+
   struct UtilityObjects {
     UtilityObjects() :
       stats(),
       ip_stats(),
-      timer() { }
+      timer(),
+      robert() {}
 
     Stats stats;
     InitialPartitioningStats ip_stats;
     Timer timer;
+    Robert robert;
   };
 
- public:
+public:
   Utilities(const Utilities&) = delete;
-  Utilities & operator= (const Utilities &) = delete;
+  Utilities& operator= (const Utilities&) = delete;
 
   Utilities(Utilities&&) = delete;
-  Utilities & operator= (Utilities &&) = delete;
+  Utilities& operator= (Utilities&&) = delete;
 
   static Utilities& instance() {
     static Utilities instance;
@@ -86,10 +97,14 @@ class Utilities {
     return _utilities[id].timer;
   }
 
- private:
+  Robert& getRobert(const size_t id) {
+    return _utilities[id].robert;
+  }
+
+private:
   explicit Utilities() :
     _utility_mutex(),
-    _utilities() { }
+    _utilities() {}
 
   std::mutex _utility_mutex;
   tbb::concurrent_vector<UtilityObjects> _utilities;
