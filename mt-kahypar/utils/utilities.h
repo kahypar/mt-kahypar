@@ -44,7 +44,7 @@ class Utilities {
   struct Robert {
     Robert(): imbalances(30) {
       for (auto& imb : imbalances) {
-        imbalances.reserve(5000);
+        imb.reserve(5000);
       }
     }
     parallel::scalable_vector<parallel::scalable_vector<double>> imbalances;
