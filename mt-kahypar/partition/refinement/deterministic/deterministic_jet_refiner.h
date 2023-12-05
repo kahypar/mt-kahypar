@@ -201,7 +201,10 @@ private:
         sync_update.edge_size = phg.edgeSize(he);
         sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
         sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
-        _afterburner_gain[pin] += AttributedGains::gain(sync_update);
+        const Gain gain = AttributedGains::gain(sync_update);
+        if (gain == 0) {
+          _afterburner_gain[pin] += gain;
+        }
       }
     });
   }
