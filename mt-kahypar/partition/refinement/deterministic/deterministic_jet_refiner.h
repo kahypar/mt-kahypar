@@ -59,7 +59,7 @@ public:
       GainCachePtr::cast<GainCache>(gain_cache), rebalancer) {}
 
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
-    const HyperedgeID,
+    const HyperedgeID num_hyperedges,
     const Context& context,
     GainCache&,
     IRebalancer& rebalancer) :
@@ -79,7 +79,10 @@ public:
     _part_before_round(num_hypernodes),
     _afterburner_gain(num_hypernodes),
     _afterburner_buffer(_current_k, 0),
-    _hyperedge_buffer() {}
+    _hyperedge_buffer(),
+    _edge_flag(num_hyperedges),
+    _current_edge_flag(1) {
+    }
 
 private:
   static constexpr bool debug = false;
@@ -160,59 +163,65 @@ private:
     tbb::parallel_for(0UL, _afterburner_gain.size(), [&](const size_t i) {
       _afterburner_gain[i].store(0);
     });
-    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-      auto& edgeBuffer = _hyperedge_buffer.local();
-      auto& afterburnerBuffer = _afterburner_buffer.local();
-      const HypernodeID edgeSize = phg.edgeSize(he);
-      if (edgeSize > edgeBuffer.size()) {
-        edgeBuffer.resize(edgeSize);
-      }
-      // initial pin-counts
-      for (auto& pinCount : afterburnerBuffer) {
-        pinCount = 0;
-      }
-
-      // materialize Hyperedge
-      size_t index = 0;
-      for (const auto pin : phg.pins(he)) {
-        const auto part = phg.partID(pin);
-        if (part != _gains_and_target[pin].second) {
-          edgeBuffer[index] = pin;
-          ++index;
-        } else {
-          afterburnerBuffer[part]++;
+    tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& i) {
+      const HypernodeID hn = _active_nodes[i];
+      for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+        size_t flag = _edge_flag[he].load();
+        if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag)) continue;
+        auto& edgeBuffer = _hyperedge_buffer.local();
+        auto& afterburnerBuffer = _afterburner_buffer.local();
+        const HypernodeID edgeSize = phg.edgeSize(he);
+        if (edgeSize > edgeBuffer.size()) {
+          edgeBuffer.resize(edgeSize);
         }
-      }
-      // sort by afterburner order
-      std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
-        auto [gain_a, to_a] = _gains_and_target[a];
-        auto [gain_b, to_b] = _gains_and_target[b];
-        return (gain_a < gain_b || (gain_a == gain_b && a < b));
-      });
+        // initial pin-counts
+        for (auto& pinCount : afterburnerBuffer) {
+          pinCount = 0;
+        }
 
-      for (size_t i = 0; i < index; ++i) {
-        const HypernodeID pin = edgeBuffer[i];
-        afterburnerBuffer[phg.partID(pin)]++;
-      }
-      // update pin-counts for each pin
-      for (size_t i = 0; i < index; ++i) {
-        const HypernodeID pin = edgeBuffer[i];
-        const PartitionID from = phg.partID(pin);
-        const auto [gain, to] = _gains_and_target[pin];
-        afterburnerBuffer[from]--;
-        afterburnerBuffer[to]++;
-        SynchronizedEdgeUpdate sync_update;
-        sync_update.he = he;
-        sync_update.edge_weight = phg.edgeWeight(he);
-        sync_update.edge_size = phg.edgeSize(he);
-        sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
-        sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
-        const Gain attributedGain = AttributedGains::gain(sync_update);
-        if (gain != 0) {
-          _afterburner_gain[pin] += attributedGain;
+        // materialize Hyperedge
+        size_t index = 0;
+        for (const auto pin : phg.pins(he)) {
+          const auto part = phg.partID(pin);
+          if (part != _gains_and_target[pin].second) {
+            edgeBuffer[index] = pin;
+            ++index;
+          } else {
+            afterburnerBuffer[part]++;
+          }
+        }
+        // sort by afterburner order
+        std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
+          auto [gain_a, to_a] = _gains_and_target[a];
+          auto [gain_b, to_b] = _gains_and_target[b];
+          return (gain_a < gain_b || (gain_a == gain_b && a < b));
+        });
+
+        for (size_t i = 0; i < index; ++i) {
+          const HypernodeID pin = edgeBuffer[i];
+          afterburnerBuffer[phg.partID(pin)]++;
+        }
+        // update pin-counts for each pin
+        for (size_t i = 0; i < index; ++i) {
+          const HypernodeID pin = edgeBuffer[i];
+          const PartitionID from = phg.partID(pin);
+          const auto [gain, to] = _gains_and_target[pin];
+          afterburnerBuffer[from]--;
+          afterburnerBuffer[to]++;
+          SynchronizedEdgeUpdate sync_update;
+          sync_update.he = he;
+          sync_update.edge_weight = phg.edgeWeight(he);
+          sync_update.edge_size = phg.edgeSize(he);
+          sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
+          sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
+          const Gain attributedGain = AttributedGains::gain(sync_update);
+          if (gain != 0) {
+            _afterburner_gain[pin] += attributedGain;
+          }
         }
       }
     });
+    _current_edge_flag++;
   }
 
   const Context& _context;
@@ -234,6 +243,9 @@ private:
   parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
   tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
   tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
+  // incident edges in hypergraph afterburner
+  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
+  size_t _current_edge_flag;
 };
 
 }
