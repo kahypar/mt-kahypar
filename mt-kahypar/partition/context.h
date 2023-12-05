@@ -148,6 +148,11 @@ struct JetParameters {
   double relative_improvement_threshold = 0.001;
   double negative_gain_factor_coarse = 0.75;
   double negative_gain_factor_fine = 0.25;
+  bool afterburner_skip_zero = false;
+  bool afterburner_skip_unmoved_pins = false;
+  bool afterburner_incident_edges = false;
+  bool afterburner_sorting_nets = false;
+  bool afterburner_hardcode_graph_edges = false;
 
   // rebalancing
   double heavy_vertex_exclusion_factor = 1.5;
