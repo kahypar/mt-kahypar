@@ -81,8 +81,7 @@ public:
     _afterburner_buffer(_current_k, 0),
     _hyperedge_buffer(),
     _edge_flag(num_hyperedges),
-    _current_edge_flag(1) {
-    }
+    _current_edge_flag(1) {}
 
 private:
   static constexpr bool debug = false;
@@ -190,13 +189,34 @@ private:
             afterburnerBuffer[part]++;
           }
         }
-        // sort by afterburner order
-        std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
-          auto [gain_a, to_a] = _gains_and_target[a];
-          auto [gain_b, to_b] = _gains_and_target[b];
-          return (gain_a < gain_b || (gain_a == gain_b && a < b));
-        });
-
+        
+        if (index == 0) {
+          continue;
+        } else if (index == 1) {
+        } else if (index == 2) {
+          auto& a = edgeBuffer[0];
+          auto& b = edgeBuffer[1];
+          auto& [gain_a, to_a] = _gains_and_target[a];
+          auto& [gain_b, to_b] = _gains_and_target[b];
+          if (!(gain_a < gain_b || (gain_a == gain_b && a < b))) std::swap(a, b);
+        } else if (index == 3) {
+          auto& a = edgeBuffer[0];
+          auto& b = edgeBuffer[1];
+          auto& c = edgeBuffer[2];
+          if (!(_gains_and_target[a].first < _gains_and_target[c].first || (_gains_and_target[a].first == _gains_and_target[c].first && a < c)))
+            std::swap(a, c);
+          if (!(_gains_and_target[a].first < _gains_and_target[b].first || (_gains_and_target[a].first == _gains_and_target[b].first && a < b)))
+            std::swap(a, b);
+          if (!(_gains_and_target[b].first < _gains_and_target[c].first || (_gains_and_target[b].first == _gains_and_target[c].first && b < c)))
+            std::swap(b, c);
+        } else {
+          // sort by afterburner order
+          std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
+            auto& [gain_a, to_a] = _gains_and_target[a];
+            auto& [gain_b, to_b] = _gains_and_target[b];
+            return (gain_a < gain_b || (gain_a == gain_b && a < b));
+          });
+        }
         for (size_t i = 0; i < index; ++i) {
           const HypernodeID pin = edgeBuffer[i];
           afterburnerBuffer[phg.partID(pin)]++;
