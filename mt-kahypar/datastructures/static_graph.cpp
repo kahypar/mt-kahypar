@@ -421,11 +421,6 @@ namespace mt_kahypar::ds {
               return false;
             }
           }
-          for (; i < tmp_edge_index; ++i) {
-            if (edge_start[i].isValid()) {
-              return false;
-            }
-          }
           return true;
         }(),
         "Invariant violated while deduplicating incident edges!"
@@ -438,7 +433,7 @@ namespace mt_kahypar::ds {
         valid_edge.updateID(next_edge.getID());
         next_edge.invalidate();
       } else {
-        std::swap(edge_start[++valid_edge_index], next_edge);
+        edge_start[++valid_edge_index] = next_edge;
       }
       ++tmp_edge_index;
     }
