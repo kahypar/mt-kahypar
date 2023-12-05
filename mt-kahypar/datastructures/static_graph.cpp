@@ -28,6 +28,7 @@
 
 #include "static_graph.h"
 
+#include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/utils/timer.h"
@@ -210,11 +211,12 @@ namespace mt_kahypar::ds {
         const size_t size_of_range = incident_edges_end - incident_edges_start;
 
         // Insert incident edges into concurrent bucket map
-        const size_t num_chunks = std::thread::hardware_concurrency();
-        const size_t chunk_size = (size_of_range + num_chunks - 1) / num_chunks;
+        const size_t num_chunks = tbb::this_task_arena::max_concurrency();
+        const size_t chunk_size = parallel::chunking::idiv_ceil(size_of_range, num_chunks);
         tbb::parallel_for(UL(0), num_chunks, [&](const size_t chunk_id) {
-          const size_t start = std::min(incident_edges_start + chunk_id * chunk_size, incident_edges_end);
-          const size_t end = std::min(incident_edges_start + (chunk_id + 1) * chunk_size, incident_edges_end);
+          auto [start_offset, end_offset] = parallel::chunking::bounds(chunk_id, size_of_range, chunk_size);
+          const size_t start = incident_edges_start + start_offset;
+          const size_t end = incident_edges_start + end_offset;
           // First, we apply a deduplication step to the thread-local range. The reason is that on large irregular
           // graphs, extremely large clusters (thousands of nodes) can be created during coarsening. In this case,
           // there can be thousands of edges with the same target, which creates a massive imbalance and thus high
@@ -245,14 +247,15 @@ namespace mt_kahypar::ds {
         resulting_ranges.emplace_back(incident_edges_start, incident_edges_pos.load());
       }
 
-      // We still sort the adjacent edges since this results in better cache locality when accessing the neighbors
+      // We still sort the adjacent edges since this results in better cache locality when accessing the neighbors.
+      // Also, sorting is necessary for deterministic partitioning.
       tbb::parallel_for(UL(0), resulting_ranges.size(), [&](const size_t i) {
         auto [start, end] = resulting_ranges[i];
         auto comparator = [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
           return e1._target < e2._target;
         };
         if (end - start > HIGH_DEGREE_CONTRACTION_THRESHOLD
-            || resulting_ranges.size() < 2 * std::thread::hardware_concurrency()) {
+            || resulting_ranges.size() < 2 * static_cast<size_t>(tbb::this_task_arena::max_concurrency())) {
           tbb::parallel_sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
         } else {
           std::sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
