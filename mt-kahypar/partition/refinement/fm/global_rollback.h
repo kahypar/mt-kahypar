@@ -58,21 +58,10 @@ public:
     }
   }
 
-
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
-                                     const vec<HypernodeWeight>& partWeights) {
-    std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
-    if (max_part_weight_scaling == 0.0) {
-      for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
-      }
-    } else {
-      for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
-      }
-    }
-
+                                     const vec<HypernodeWeight>& partWeights,
+                                     const std::vector<HypernodeWeight>& maxPartWeights) {
     if (context.refinement.fm.rollback_parallel) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {

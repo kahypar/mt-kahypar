@@ -28,12 +28,16 @@
 
 #include "static_graph.h"
 
+#include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
+#include <algorithm>
+
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 
 namespace mt_kahypar::ds {
@@ -173,61 +177,13 @@ namespace mt_kahypar::ds {
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
     std::mutex high_degree_vertex_mutex;
     tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
-      // Remove duplicates
       const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
       const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
-      if (tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD)) {
-        std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
-                  [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
-                    return e1._target < e2._target;
-                  });
-
-        // Deduplicate, aggregate weights and calculate minimum unique id
-        //
-        // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
-        //                    ^                         ^
-        // valid_edge_index ---        tmp_edge_index ---
-        size_t valid_edge_index = incident_edges_start;
-        size_t tmp_edge_index = incident_edges_start + 1;
-        while (tmp_edge_index < incident_edges_end && tmp_edges[tmp_edge_index].isValid()) {
-          HEAVY_COARSENING_ASSERT(
-            [&](){
-              size_t i = incident_edges_start;
-              for (; i <= valid_edge_index; ++i) {
-                if (!tmp_edges[i].isValid()) {
-                  return false;
-                } else if ((i + 1 <= valid_edge_index) &&
-                  tmp_edges[i].getTarget() >= tmp_edges[i + 1].getTarget()) {
-                  return false;
-                }
-              }
-              for (; i < tmp_edge_index; ++i) {
-                if (tmp_edges[i].isValid()) {
-                  return false;
-                }
-              }
-              return true;
-            }(),
-            "Invariant violated while deduplicating incident edges!"
-          );
-
-          TmpEdgeInformation& valid_edge = tmp_edges[valid_edge_index];
-          TmpEdgeInformation& next_edge = tmp_edges[tmp_edge_index];
-          if (next_edge.isValid()) {
-            if (valid_edge.getTarget() == next_edge.getTarget()) {
-              valid_edge.addWeight(next_edge.getWeight());
-              valid_edge.updateID(next_edge.getID());
-              next_edge.invalidate();
-            } else {
-              std::swap(tmp_edges[++valid_edge_index], next_edge);
-            }
-            ++tmp_edge_index;
-          }
-        }
-        const bool is_non_empty = (incident_edges_start < incident_edges_end) && tmp_edges[valid_edge_index].isValid();
-        const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - incident_edges_start + 1) : 0;
-        node_sizes[coarse_node] = contracted_size;
+      if (tmp_degree <= HIGH_DEGREE_CONTRACTION_THRESHOLD) {
+        // if the degree is small enough, we directly deduplicate the edges
+        node_sizes[coarse_node] = deduplicateTmpEdges(tmp_edges.data() + incident_edges_start,
+                                                      tmp_edges.data() + incident_edges_end);
       } else {
         std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
         high_degree_vertices.push_back(coarse_node);
@@ -238,58 +194,73 @@ namespace mt_kahypar::ds {
 
     if ( !high_degree_vertices.empty() ) {
       // High degree vertices are treated special, because sorting and afterwards
-      // removing duplicates can become a major sequential bottleneck. Therefore,
-      // we sum the parallel incident edges of a high degree vertex using an atomic
-      // vector. Then, the index is calculated with a prefix sum.
-      parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>> summed_edge_weights_for_target;
-      summed_edge_weights_for_target.assign(coarsened_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeWeight>(0));
-      parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> min_edge_id_for_target;
-      min_edge_id_for_target.assign(coarsened_num_nodes,
-        parallel::IntegralAtomicWrapper<HyperedgeID>(std::numeric_limits<HyperedgeID>::max()));
-      parallel::scalable_vector<HyperedgeID> incident_edges_inclusion;
-      incident_edges_inclusion.assign(coarsened_num_nodes, 0);
+      // removing duplicates can become a major sequential bottleneck
+      ConcurrentBucketMap<TmpEdgeInformation> incident_edges_map;
+      size_t max_degree = 0;
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
         const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
-
-        // sum edge weights for each target node and calculate id
-        tbb::parallel_for(incident_edges_start, incident_edges_end, [&](const size_t pos) {
-          TmpEdgeInformation& edge = tmp_edges[pos];
-          if (edge.isValid()) {
-            const HyperedgeID target = edge.getTarget();
-            const HyperedgeID id = edge.getID();
-            summed_edge_weights_for_target[target].fetch_add(edge.getWeight());
-            HyperedgeID expected = min_edge_id_for_target[target].load();
-            while (id < expected) {
-              min_edge_id_for_target[target].compare_exchange_weak(expected, id);
-            }
-          }
-        });
-
-        // each edge with weight greater than zero is included
-        tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
-          bool include = summed_edge_weights_for_target[target].load() > 0;
-          incident_edges_inclusion[target] = include ? 1 : 0;
-        });
-
-        // calculate relative index of edges via prefix sum
-        parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> incident_edges_pos(incident_edges_inclusion);
-        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), static_cast<size_t>(coarsened_num_nodes)), incident_edges_pos);
-
-        // insert edges
-        tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
-          const HyperedgeWeight weight = summed_edge_weights_for_target[target].load();
-          if (weight > 0) {
-            const HyperedgeID id = min_edge_id_for_target[target].load();
-            tmp_edges[incident_edges_start + incident_edges_pos[target]] = TmpEdgeInformation(target, weight, id);
-            summed_edge_weights_for_target[target].store(0);
-            min_edge_id_for_target[target].store(std::numeric_limits<HyperedgeID>::max());
-          }
-        });
-
-        const size_t contracted_size = incident_edges_pos.total_sum();
-        node_sizes[coarse_node] = contracted_size;
+        max_degree = std::max(max_degree, incident_edges_end - incident_edges_start);
       }
+      incident_edges_map.reserve_for_estimated_number_of_insertions(max_degree);
+
+      parallel::scalable_vector<std::pair<size_t, size_t>> resulting_ranges;
+      for ( const HypernodeID& coarse_node : high_degree_vertices ) {
+        const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
+        const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
+        const size_t size_of_range = incident_edges_end - incident_edges_start;
+
+        // Insert incident edges into concurrent bucket map
+        const size_t num_chunks = tbb::this_task_arena::max_concurrency();
+        const size_t chunk_size = parallel::chunking::idiv_ceil(size_of_range, num_chunks);
+        tbb::parallel_for(UL(0), num_chunks, [&](const size_t chunk_id) {
+          auto [start_offset, end_offset] = parallel::chunking::bounds(chunk_id, size_of_range, chunk_size);
+          const size_t start = incident_edges_start + start_offset;
+          const size_t end = incident_edges_start + end_offset;
+          // First, we apply a deduplication step to the thread-local range. The reason is that on large irregular
+          // graphs, extremely large clusters (thousands of nodes) can be created during coarsening. In this case,
+          // there can be thousands of edges with the same target, which creates a massive imbalance and thus high
+          // contention in the bucket map if we insert them directly. The local deduplication avoids this problem
+          // by ensuring that each edge appears at most t times.
+          const HyperedgeID local_degree = deduplicateTmpEdges(tmp_edges.data() + start, tmp_edges.data() + end);
+          for (size_t pos = start; pos < start + local_degree; ++pos) {
+            const TmpEdgeInformation& edge = tmp_edges[pos];
+            ASSERT(edge.isValid());
+            incident_edges_map.insert(edge.getTarget(), TmpEdgeInformation(edge));
+          }
+        }, tbb::static_partitioner());
+
+        // Process each bucket in parallel and deduplicate the edges
+        std::atomic<size_t> incident_edges_pos(incident_edges_start);
+        tbb::parallel_for(UL(0), incident_edges_map.numBuckets(), [&](const size_t bucket) {
+          auto& incident_edges_bucket = incident_edges_map.getBucket(bucket);
+          const HyperedgeID bucket_degree = deduplicateTmpEdges(incident_edges_bucket.data(),
+                                              incident_edges_bucket.data() + incident_edges_bucket.size());
+          const size_t tmp_incident_edges_pos = incident_edges_pos.fetch_add(bucket_degree);
+          memcpy(tmp_edges.data() + tmp_incident_edges_pos,
+                 incident_edges_bucket.data(), sizeof(TmpEdgeInformation) * bucket_degree);
+          incident_edges_map.clear(bucket);
+        });
+
+        const size_t contracted_size = incident_edges_pos.load() - incident_edges_start;
+        node_sizes[coarse_node] = contracted_size;
+        resulting_ranges.emplace_back(incident_edges_start, incident_edges_pos.load());
+      }
+
+      // We still sort the adjacent edges since this results in better cache locality when accessing the neighbors.
+      // Also, sorting is necessary for deterministic partitioning.
+      tbb::parallel_for(UL(0), resulting_ranges.size(), [&](const size_t i) {
+        auto [start, end] = resulting_ranges[i];
+        auto comparator = [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+          return e1._target < e2._target;
+        };
+        if (end - start > HIGH_DEGREE_CONTRACTION_THRESHOLD
+            || resulting_ranges.size() < 2 * static_cast<size_t>(tbb::this_task_arena::max_concurrency())) {
+          tbb::parallel_sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
+        } else {
+          std::sort(tmp_edges.begin() + start, tmp_edges.begin() + end, comparator);
+        }
+      });
     }
 
     // #################### STAGE 4 ####################
@@ -326,8 +297,8 @@ namespace mt_kahypar::ds {
     tbb::parallel_invoke([&] {
       // Copy edges
       edge_id_mapping.assign(_num_edges / 2, 0);
-      hypergraph._edges.resize(coarsened_num_edges);
-      hypergraph._unique_edge_ids.resize(coarsened_num_edges);
+      hypergraph._edges.resizeNoAssign(coarsened_num_edges);
+      hypergraph._unique_edge_ids.resizeNoAssign(coarsened_num_edges);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
         const HyperedgeID tmp_edges_start = tmp_nodes[coarse_node].firstEntry();
         const HyperedgeID edges_start = degree_mapping[coarse_node];
@@ -343,7 +314,7 @@ namespace mt_kahypar::ds {
           edge_id_mapping[tmp_edge.getID()] = UL(1);
         };
 
-        if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD) {
+        if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD / 8) {
           tbb::parallel_for(ID(0), degree_mapping.value(coarse_node), handle_edge);
         } else {
           for (size_t index = 0; index < degree_mapping.value(coarse_node); ++index) {
@@ -393,12 +364,12 @@ namespace mt_kahypar::ds {
     HEAVY_COARSENING_ASSERT(
       [&](){
         parallel::scalable_vector<bool> covered_ids(hypergraph.initialNumEdges() / 2, false);
-        for (HyperedgeID e : edges()) {
+        for (HyperedgeID e : hypergraph.edges()) {
           HyperedgeID id = hypergraph.uniqueEdgeID(e);
           covered_ids.at(id) = true;
           bool success = false;
-          for (HyperedgeID b_edge : hypergraph.incidentEdges(edgeTarget(e))) {
-            if (edgeTarget(b_edge) == edgeSource(e)) {
+          for (HyperedgeID b_edge : hypergraph.incidentEdges(hypergraph.edgeTarget(e))) {
+            if (hypergraph.edgeTarget(b_edge) == hypergraph.edgeSource(e)) {
               if (hypergraph.uniqueEdgeID(b_edge) != id) {
                 return false;
               }
@@ -426,6 +397,52 @@ namespace mt_kahypar::ds {
     return hypergraph;
   }
 
+
+  size_t StaticGraph::deduplicateTmpEdges(TmpEdgeInformation* edge_start, TmpEdgeInformation* edge_end) {
+    ASSERT(std::distance(edge_start, edge_end) >= 0);
+    std::sort(edge_start, edge_end,
+              [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+                return e1._target < e2._target;
+              });
+
+    // Deduplicate, aggregate weights and calculate minimum unique id
+    //
+    // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
+    //                    ^                         ^
+    // valid_edge_index ---        tmp_edge_index ---
+    size_t valid_edge_index = 0;
+    size_t tmp_edge_index = 1;
+    while (tmp_edge_index < static_cast<size_t>(std::distance(edge_start, edge_end)) && edge_start[tmp_edge_index].isValid()) {
+      HEAVY_COARSENING_ASSERT(
+        [&](){
+          size_t i = 0;
+          for (; i <= valid_edge_index; ++i) {
+            if (!edge_start[i].isValid()) {
+              return false;
+            } else if ((i + 1 <= valid_edge_index) &&
+              edge_start[i].getTarget() >= edge_start[i + 1].getTarget()) {
+              return false;
+            }
+          }
+          return true;
+        }(),
+        "Invariant violated while deduplicating incident edges!"
+      );
+
+      TmpEdgeInformation& valid_edge = edge_start[valid_edge_index];
+      TmpEdgeInformation& next_edge = edge_start[tmp_edge_index];
+      if (valid_edge.getTarget() == next_edge.getTarget()) {
+        valid_edge.addWeight(next_edge.getWeight());
+        valid_edge.updateID(next_edge.getID());
+        next_edge.invalidate();
+      } else {
+        edge_start[++valid_edge_index] = next_edge;
+      }
+      ++tmp_edge_index;
+    }
+    const bool is_non_empty = (std::distance(edge_start, edge_end) > 0) && edge_start[0].isValid();
+    return is_non_empty ? (valid_edge_index + 1) : 0;
+  }
 
   // ! Copy static hypergraph in parallel
   StaticGraph StaticGraph::copy(parallel_tag_t) const {

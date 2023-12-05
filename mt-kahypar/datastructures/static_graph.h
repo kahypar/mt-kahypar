@@ -63,8 +63,7 @@ class StaticGraph {
   // out that this become a major sequential bottleneck in presence of high
   // degree vertices. Therefore, all vertices with temporary degree greater
   // than this threshold are contracted with a special procedure.
-  // TODO: what is a good value?
-  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(100000);
+  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(350000);
 
   static_assert(std::is_unsigned<HypernodeID>::value, "Node ID must be unsigned");
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
@@ -924,6 +923,9 @@ class StaticGraph {
     ASSERT(e <= _edges.size(), "Hyperedge" << e << "does not exist");
     return _edges[e];
   }
+
+  // ! Helper function for deduplication of temporary edges. Returns the number of remaining edges
+  static size_t deduplicateTmpEdges(TmpEdgeInformation* edge_start, TmpEdgeInformation* edge_end);
 
   // ! Allocate the temporary contraction buffer
   void allocateTmpContractionBuffer() {

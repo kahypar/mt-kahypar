@@ -102,7 +102,8 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   performMove({0, 1, 5, 0});
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
-  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights);
+  std::vector<HypernodeWeight> max_part_weights(k, 6);
+  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights, max_part_weights);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);

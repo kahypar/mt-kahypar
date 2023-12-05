@@ -64,6 +64,10 @@ namespace mt_kahypar {
   // helper function for rebalancing
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
     double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
+    if (max_part_weight_scaling == 1.0) {
+      return context.partition.max_part_weights;
+    }
+
     std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -92,13 +96,9 @@ namespace mt_kahypar {
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
-    std::vector<HypernodeWeight> max_part_weights;
+    std::vector<HypernodeWeight> max_part_weights = setupMaxPartWeights(context);
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-
-    if (fm_strategy->includesUnconstrained()) {
-      max_part_weights = setupMaxPartWeights(context);
-    }
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -165,7 +165,7 @@ namespace mt_kahypar {
       }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, max_part_weights);
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement,

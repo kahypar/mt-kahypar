@@ -85,10 +85,6 @@ class IFMStrategy {
     return isUnconstrainedRoundImpl(round);
   }
 
-  bool includesUnconstrained() const {
-    return includesUnconstrainedImpl();
-  }
-
   void reportImprovement(size_t round, Gain absolute_improvement, double relative_improvement) {
     reportImprovementImpl(round, absolute_improvement, relative_improvement);
   }
@@ -132,8 +128,6 @@ class IFMStrategy {
                              size_t num_tasks, size_t num_seeds, size_t round) = 0;
 
   virtual bool isUnconstrainedRoundImpl(size_t round) const = 0;
-
-  virtual bool includesUnconstrainedImpl() const = 0;
 
   virtual void reportImprovementImpl(size_t, Gain, double) {
     // most strategies don't use this
