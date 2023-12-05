@@ -775,7 +775,7 @@ class StaticGraph {
   }
 
   size_t contract(const HypernodeID,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+                  const HypernodeWeight max_node_weight = NodeWeight(true)) {
     unused(max_node_weight);
     throw NonSupportedOperationException(
       "contract(v, max_node_weight) is not supported in static graph");

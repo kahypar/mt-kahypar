@@ -65,7 +65,7 @@ public:
     std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
+        maxPartWeights[i] = NodeWeight(true);
       }
     } else {
       for (PartitionID i = 0; i < context.partition.k; ++i) {

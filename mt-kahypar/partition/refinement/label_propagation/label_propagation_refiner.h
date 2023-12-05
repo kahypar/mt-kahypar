@@ -131,7 +131,7 @@ class LabelPropagationRefiner final : public IRefiner {
                       const PartitionID from,
                       const PartitionID to,
                       const F& objective_delta) {
-    HypernodeWeight max_weight = unconstrained ? std::numeric_limits<HypernodeWeight>::max()
+    HypernodeWeight max_weight = unconstrained ? HypernodeWeight(true)
                                                  : _context.partition.max_part_weights[to];
     if ( _gain_cache.isInitialized() ) {
       return phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);

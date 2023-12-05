@@ -83,6 +83,7 @@ namespace mt_kahypar::io {
     struct stat stat_buf;
     const int res = stat( filename.c_str(), &stat_buf);
     if (res < 0) {
+      perror("oh no");
       throw InvalidInputException("Could not open:" + filename);
     }
     return static_cast<size_t>(stat_buf.st_size);
@@ -419,7 +420,10 @@ namespace mt_kahypar::io {
                           vec<HypernodeWeight>& hypernodes_weight,
                           const bool remove_single_pin_hes) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-    FileHandle handle = mmap_file(filename);
+    /*FileHandle handle = mmap_file(filename);*/
+    std::string input = "4 7 11\n4 1 3\n2 1 2 4 5\n3 4 5 7\n8 3 6 7\n5 5 5\n8 8 8\n2 2 2\n3 3 3\n4 4 4\n9 9 9\n8 8 8";
+
+    FileHandle handle = {0, &input[0], input.length()};
     size_t pos = 0;
 
     // Read Hypergraph Header
@@ -442,7 +446,7 @@ namespace mt_kahypar::io {
     readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes, type, hypernodes_weight);
     ASSERT(pos == handle.length);
 
-    munmap_file(handle);
+    /*munmap_file(handle);*/
   }
 
   void readMetisHeader(char* mapped_file,

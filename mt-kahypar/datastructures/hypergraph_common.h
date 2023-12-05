@@ -44,19 +44,27 @@ struct NodeWeight {
   int32_t weights[dimension];
 
   NodeWeight(const NodeWeight& nw) {
-            for(int i = 0; i < dimension; i++){
-                weights[i] = nw.weights[i];
-            }
-        }
+    for(int i = 0; i < dimension; i++){
+        weights[i] = nw.weights[i];
+    }
+  }
 
   NodeWeight(){
     
   }
 
   NodeWeight(bool maxValue){
-    for(int i = 0; i < dimension; i++){
-                weights[i] = std::numeric_limits<int32_t>::max();
-            }
+    if(maxValue){
+      for(int i = 0; i < dimension; i++){
+        weights[i] = std::numeric_limits<int32_t>::max();
+      }
+    }
+    else{
+      for(int i = 0; i < dimension; i++){
+        weights[i] = std::numeric_limits<int32_t>::min();
+      }
+    }
+    
   }
 
   NodeWeight(int value){

@@ -71,7 +71,6 @@ class UncoarsenerBase {
   UncoarsenerBase & operator= (UncoarsenerBase &&) = delete;
 
   virtual ~UncoarsenerBase() {
-    ASSERT(false);
     GainCachePtr::deleteGainCache(_gain_cache);
   };
 

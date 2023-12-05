@@ -305,7 +305,7 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
       part_sizes[hypergraph.partID(u)]++;
     }
     PartitionID min_block = kInvalidPartition;
-    HypernodeWeight min_part_weight = std::numeric_limits<HypernodeWeight>::max();
+    HypernodeWeight min_part_weight = NodeWeight(true);
     HypernodeWeight avg_part_weight = 0;
     PartitionID max_block = kInvalidPartition;
     HypernodeWeight max_part_weight = 0;

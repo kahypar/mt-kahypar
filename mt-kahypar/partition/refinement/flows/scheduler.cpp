@@ -209,10 +209,10 @@ bool changeNodePart(PartitionedHypergraph& phg,
   bool success = false;
   if ( gain_cache_update && gain_cache.isInitialized()) {
     success = phg.changeNodePart(gain_cache, hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
+      NodeWeight(true), []{}, objective_delta);
   } else {
     success = phg.changeNodePart(hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
+      NodeWeight(true), []{}, objective_delta);
   }
   ASSERT(success);
   return success;

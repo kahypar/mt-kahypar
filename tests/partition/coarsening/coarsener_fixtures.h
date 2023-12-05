@@ -92,7 +92,7 @@ class ACoarsener : public Test {
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
-    context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
+    context.coarsening.max_allowed_node_weight = NodeWeight(true);
     context.coarsening.contraction_limit = 8;
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;

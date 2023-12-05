@@ -295,11 +295,11 @@ namespace mt_kahypar {
     } else {
       partition.perfect_balance_part_weights.clear();
       HypernodeWeight nw;
-      for(int i = 0; i < mt_kahypar::dimension; i++){
+      for(int i = 0; i < partition.k; i++){
         nw.weights[i] = ceil(total_hypergraph_weight.weights[i]
               / static_cast<double>(partition.k));
       }
-      for (PartitionID part = 1; part != partition.k; ++part) {
+      for (PartitionID part = 0; part != partition.k; ++part) {
         partition.perfect_balance_part_weights.push_back(
                 nw);
       }
@@ -328,9 +328,12 @@ namespace mt_kahypar {
   }
 
   void Context::setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
-    HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
+    HypernodeWeight min_block_weight = HypernodeWeight(true);
     for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
-      min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
+      for(int j = 0; j < mt_kahypar::dimension; j++){
+        min_block_weight.weights[j] = std::min(min_block_weight.weights[j], partition.max_part_weights[part_id].weights[j]);
+      }
+      
     }
 
     double hypernode_weight_fraction =

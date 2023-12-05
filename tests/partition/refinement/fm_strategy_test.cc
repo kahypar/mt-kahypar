@@ -83,7 +83,7 @@ TYPED_TEST(AFMStrategy, FindNextMove) {
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {
-    context.partition.max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+    context.partition.max_part_weights[i] = NodeWeight(true);
   }
 
   std::mt19937 rng(420);

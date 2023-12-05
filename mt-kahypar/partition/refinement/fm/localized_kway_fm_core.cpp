@@ -65,7 +65,7 @@ namespace mt_kahypar {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
   heaviestPartAndWeight(const Partition& partition, const PartitionID k) {
     PartitionID p = kInvalidPartition;
-    HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
+    HypernodeWeight w = HypernodeWeight(false);
     for (PartitionID i = 0; i < k; ++i) {
       for(int j = 0; j < mt_kahypar::dimension; j++){
         if (partition.partWeight(i).weights[j] > w.weights[j]) {
@@ -159,7 +159,7 @@ namespace mt_kahypar {
       edgesWithGainChanges.clear(); // clear before move. delta_func feeds nets of moved vertex.
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
-      const HypernodeWeight allowed_weight = DispatchedFMStrategy::is_unconstrained ? std::numeric_limits<HypernodeWeight>::max()
+      const HypernodeWeight allowed_weight = DispatchedFMStrategy::is_unconstrained ? NodeWeight(true)
                                              : context.partition.max_part_weights[move.to];
 
       heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k).second;
@@ -196,7 +196,7 @@ namespace mt_kahypar {
             const Move& local_move = localMoves[i].first;
             phg.changeNodePart(
                     gain_cache, local_move.node, local_move.from, local_move.to,
-                    std::numeric_limits<HypernodeWeight>::max(),
+                    NodeWeight(true),
                     [&] { sharedData.moveTracker.insertMove(local_move); },
                     [&](const SynchronizedEdgeUpdate& ) {});
           }

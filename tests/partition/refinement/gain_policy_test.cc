@@ -51,7 +51,7 @@ class AGainPolicy : public Test {
     context(),
     gain(nullptr) {
     context.partition.k = K;
-    context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
+    context.partition.max_part_weights.assign(K, NodeWeight(true));
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
     hypergraph = PartitionedHypergraph(K, hg, parallel_tag_t());
   }

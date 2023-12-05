@@ -67,7 +67,7 @@ namespace mt_kahypar {
     std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
-        max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+        max_part_weights[i] = NodeWeight(true);
       }
     } else {
       for (PartitionID i = 0; i < context.partition.k; ++i) {

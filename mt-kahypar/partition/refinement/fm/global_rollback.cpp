@@ -47,7 +47,7 @@ namespace mt_kahypar {
       Gain gain = 0;                           /** gain when using valid moves up to best_index */
       MoveID best_index = 0;                   /** local ID of first move to revert */
       HypernodeWeight heaviest_weight =
-              std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
+              NodeWeight(true);   /** weight of the heaviest part */
 
       bool operator<(const Prefix& o) const {
         return gain > o.gain ||
@@ -457,7 +457,7 @@ namespace mt_kahypar {
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
       phg.changeNodePart(gain_cache, m.node, m.from, m.to,
-        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
+        NodeWeight(true), []{ }, attributed_gains);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -537,7 +537,7 @@ namespace mt_kahypar {
       // const HyperedgeWeight objective_before_move =
       //   metrics::quality(phg, context, false);
       phg.changeNodePart(gain_cache, m.node, m.from, m.to,
-        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
+        NodeWeight(true), []{ }, attributed_gains);
       // const HyperedgeWeight objective_after_move =
       //   metrics::quality(phg, context, false);
 

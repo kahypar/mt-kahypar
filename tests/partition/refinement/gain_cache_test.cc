@@ -253,7 +253,7 @@ class AGainCache : public Test {
                   0, static_cast<int>(representatives.size() - 1), THREAD_ID)];
                 if ( hypergraph.registerContraction(hn, rep) ) {
                   current_num_nodes -= hypergraph.contract(
-                    rep, std::numeric_limits<HypernodeWeight>::max());
+                    rep, NodeWeight(true));
                 }
                 representatives.clear();
               }

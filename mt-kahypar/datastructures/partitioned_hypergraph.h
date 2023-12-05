@@ -646,7 +646,7 @@ class PartitionedHypergraph {
                       PartitionID from,
                       PartitionID to) {
     return changeNodePart(gain_cache, u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
+      NodeWeight(true), []{}, NoOpDeltaFunc());
   }
 
   // ! Weight of a block

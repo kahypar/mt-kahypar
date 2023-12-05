@@ -152,7 +152,7 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
       std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
-  })
+  })*/
 
 #define REGISTER_FLOW_SCHEDULER(id, refiner, t)                                                  \
   static kahypar::meta::Registrar<FlowSchedulerFactory> JOIN(register_ ## refiner, t)(           \
@@ -160,7 +160,7 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
        const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
-  })*/
+  })
 
 #define REGISTER_DISPATCHED_REBALANCER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<RebalancerFactory> register_ ## dispatcher(                          \
@@ -187,14 +187,14 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
       std::forward_as_tuple(num_hyperedges, context),                                                  \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
-  })
+  })*/
 
 #define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
   static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
     id,                                                                                         \
     [](const HyperedgeID num_Hyperedges, const Context& context) -> IFlowRefiner* {             \
     return new refiner(num_Hyperedges, context);                                                \
-  })*/
+  })
 
 
 kahypar::meta::PolicyBase& getGraphAndGainTypesPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
@@ -237,8 +237,8 @@ REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
 /*
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
-                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);*/
+                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));*/
+REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                SimpleRebalancerDispatcher,
@@ -250,6 +250,6 @@ REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
 /*REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                  FlowRefinementDispatcher,
-                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);*/
+                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));*/
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
 }  // namespace mt_kahypar

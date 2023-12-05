@@ -73,7 +73,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.partition.max_part_weights = { NodeWeight(true), NodeWeight(true)};
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
 
@@ -131,7 +131,7 @@ TEST(RollbackTests, GainRecalculation2) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.partition.max_part_weights = { NodeWeight(true), NodeWeight(true)};
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
   FMSharedData sharedData(hg.initialNumNodes(), false);

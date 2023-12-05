@@ -50,7 +50,7 @@ class AProblemConstruction : public Test {
     hg(),
     phg(),
     context(),
-    max_part_weights(8, std::numeric_limits<HypernodeWeight>::max()) {
+    max_part_weights(8, NodeWeight(true)) {
 
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = 8;

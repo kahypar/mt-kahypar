@@ -572,7 +572,7 @@ private:
                       const DeltaFunction& delta_func = NOOP_FUNC,
                       const bool force_moving_fixed_vertices = false) {
     return changeNodePartImpl<false>(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
+      NodeWeight(true), []{},
       delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertices);
   }
 
@@ -605,7 +605,7 @@ private:
                       PartitionID from,
                       PartitionID to) {
     return changeNodePart(gain_cache, u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
+      NodeWeight(true), []{}, NoOpDeltaFunc());
   }
 
   // ! Weight of a block
