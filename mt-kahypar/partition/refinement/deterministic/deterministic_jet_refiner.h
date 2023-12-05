@@ -202,7 +202,7 @@ private:
         sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
         sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
         const Gain gain = AttributedGains::gain(sync_update);
-        if (gain == 0) {
+        if (gain != 0) {
           _afterburner_gain[pin] += gain;
         }
       }
