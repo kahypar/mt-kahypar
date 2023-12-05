@@ -167,29 +167,35 @@ private:
       if (edgeSize > edgeBuffer.size()) {
         edgeBuffer.resize(edgeSize);
       }
+      // initial pin-counts
+      for (auto& pinCount : afterburnerBuffer) {
+        pinCount = 0;
+      }
+
       // materialize Hyperedge
       size_t index = 0;
       for (const auto pin : phg.pins(he)) {
-        edgeBuffer[index] = pin;
-        ++index;
+        const auto part = phg.partID(pin);
+        if (part != _gains_and_target[pin].second) {
+          edgeBuffer[index] = pin;
+          ++index;
+        } else {
+          afterburnerBuffer[part]++;
+        }
       }
       // sort by afterburner order
-      std::sort(edgeBuffer.begin(), edgeBuffer.begin() + edgeSize, [&](const HypernodeID& a, const HypernodeID& b) {
+      std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
         auto [gain_a, to_a] = _gains_and_target[a];
         auto [gain_b, to_b] = _gains_and_target[b];
         return (gain_a < gain_b || (gain_a == gain_b && a < b));
       });
 
-      // initial pin-counts
-      for (auto& pinCount : afterburnerBuffer) {
-        pinCount = 0;
-      }
-      for (size_t i = 0; i < edgeSize; ++i) {
+      for (size_t i = 0; i < index; ++i) {
         const HypernodeID pin = edgeBuffer[i];
         afterburnerBuffer[phg.partID(pin)]++;
       }
       // update pin-counts for each pin
-      for (size_t i = 0; i < edgeSize; ++i) {
+      for (size_t i = 0; i < index; ++i) {
         const HypernodeID pin = edgeBuffer[i];
         const PartitionID from = phg.partID(pin);
         const auto [gain, to] = _gains_and_target[pin];
