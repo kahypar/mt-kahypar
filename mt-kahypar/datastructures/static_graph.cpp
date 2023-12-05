@@ -52,58 +52,6 @@ namespace mt_kahypar::ds {
   StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
     ASSERT(communities.size() == _num_nodes);
 
-    // helper function that is used in multiple places for edge deduplication
-    auto deduplicate_tmp_edges = [](TmpEdgeInformation* edge_start, TmpEdgeInformation* edge_end) {
-      ASSERT(std::distance(edge_start, edge_end) >= 0);
-      std::sort(edge_start, edge_end,
-                [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
-                  return e1._target < e2._target;
-                });
-
-      // Deduplicate, aggregate weights and calculate minimum unique id
-      //
-      // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
-      //                    ^                         ^
-      // valid_edge_index ---        tmp_edge_index ---
-      size_t valid_edge_index = 0;
-      size_t tmp_edge_index = 1;
-      while (tmp_edge_index < static_cast<size_t>(std::distance(edge_start, edge_end)) && edge_start[tmp_edge_index].isValid()) {
-        HEAVY_COARSENING_ASSERT(
-          [&](){
-            size_t i = 0;
-            for (; i <= valid_edge_index; ++i) {
-              if (!edge_start[i].isValid()) {
-                return false;
-              } else if ((i + 1 <= valid_edge_index) &&
-                edge_start[i].getTarget() >= edge_start[i + 1].getTarget()) {
-                return false;
-              }
-            }
-            for (; i < tmp_edge_index; ++i) {
-              if (edge_start[i].isValid()) {
-                return false;
-              }
-            }
-            return true;
-          }(),
-          "Invariant violated while deduplicating incident edges!"
-        );
-
-        TmpEdgeInformation& valid_edge = edge_start[valid_edge_index];
-        TmpEdgeInformation& next_edge = edge_start[tmp_edge_index];
-        if (valid_edge.getTarget() == next_edge.getTarget()) {
-          valid_edge.addWeight(next_edge.getWeight());
-          valid_edge.updateID(next_edge.getID());
-          next_edge.invalidate();
-        } else {
-          std::swap(edge_start[++valid_edge_index], next_edge);
-        }
-        ++tmp_edge_index;
-      }
-      const bool is_non_empty = (std::distance(edge_start, edge_end) > 0) && edge_start[0].isValid();
-      return is_non_empty ? (valid_edge_index + 1) : 0;
-    };
-
     if ( !_tmp_contraction_buffer ) {
       allocateTmpContractionBuffer();
     }
@@ -233,8 +181,8 @@ namespace mt_kahypar::ds {
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
       if (tmp_degree <= HIGH_DEGREE_CONTRACTION_THRESHOLD) {
         // if the degree is small enough, we directly deduplicate the edges
-        node_sizes[coarse_node] = deduplicate_tmp_edges(tmp_edges.data() + incident_edges_start,
-                                                        tmp_edges.data() + incident_edges_end);
+        node_sizes[coarse_node] = deduplicateTmpEdges(tmp_edges.data() + incident_edges_start,
+                                                      tmp_edges.data() + incident_edges_end);
       } else {
         std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
         high_degree_vertices.push_back(coarse_node);
@@ -272,7 +220,7 @@ namespace mt_kahypar::ds {
           // there can be thousands of edges with the same target, which creates a massive imbalance and thus high
           // contention in the bucket map if we insert them directly. The local deduplication avoids this problem
           // by ensuring that each edge appears at most t times.
-          const HyperedgeID local_degree = deduplicate_tmp_edges(tmp_edges.data() + start, tmp_edges.data() + end);
+          const HyperedgeID local_degree = deduplicateTmpEdges(tmp_edges.data() + start, tmp_edges.data() + end);
           for (size_t pos = start; pos < start + local_degree; ++pos) {
             const TmpEdgeInformation& edge = tmp_edges[pos];
             ASSERT(edge.isValid());
@@ -284,7 +232,7 @@ namespace mt_kahypar::ds {
         std::atomic<size_t> incident_edges_pos(incident_edges_start);
         tbb::parallel_for(UL(0), incident_edges_map.numBuckets(), [&](const size_t bucket) {
           auto& incident_edges_bucket = incident_edges_map.getBucket(bucket);
-          const HyperedgeID bucket_degree = deduplicate_tmp_edges(incident_edges_bucket.data(),
+          const HyperedgeID bucket_degree = deduplicateTmpEdges(incident_edges_bucket.data(),
                                               incident_edges_bucket.data() + incident_edges_bucket.size());
           const size_t tmp_incident_edges_pos = incident_edges_pos.fetch_add(bucket_degree);
           memcpy(tmp_edges.data() + tmp_incident_edges_pos,
@@ -446,6 +394,57 @@ namespace mt_kahypar::ds {
     return hypergraph;
   }
 
+
+  size_t StaticGraph::deduplicateTmpEdges(TmpEdgeInformation* edge_start, TmpEdgeInformation* edge_end) {
+    ASSERT(std::distance(edge_start, edge_end) >= 0);
+    std::sort(edge_start, edge_end,
+              [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+                return e1._target < e2._target;
+              });
+
+    // Deduplicate, aggregate weights and calculate minimum unique id
+    //
+    // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
+    //                    ^                         ^
+    // valid_edge_index ---        tmp_edge_index ---
+    size_t valid_edge_index = 0;
+    size_t tmp_edge_index = 1;
+    while (tmp_edge_index < static_cast<size_t>(std::distance(edge_start, edge_end)) && edge_start[tmp_edge_index].isValid()) {
+      HEAVY_COARSENING_ASSERT(
+        [&](){
+          size_t i = 0;
+          for (; i <= valid_edge_index; ++i) {
+            if (!edge_start[i].isValid()) {
+              return false;
+            } else if ((i + 1 <= valid_edge_index) &&
+              edge_start[i].getTarget() >= edge_start[i + 1].getTarget()) {
+              return false;
+            }
+          }
+          for (; i < tmp_edge_index; ++i) {
+            if (edge_start[i].isValid()) {
+              return false;
+            }
+          }
+          return true;
+        }(),
+        "Invariant violated while deduplicating incident edges!"
+      );
+
+      TmpEdgeInformation& valid_edge = edge_start[valid_edge_index];
+      TmpEdgeInformation& next_edge = edge_start[tmp_edge_index];
+      if (valid_edge.getTarget() == next_edge.getTarget()) {
+        valid_edge.addWeight(next_edge.getWeight());
+        valid_edge.updateID(next_edge.getID());
+        next_edge.invalidate();
+      } else {
+        std::swap(edge_start[++valid_edge_index], next_edge);
+      }
+      ++tmp_edge_index;
+    }
+    const bool is_non_empty = (std::distance(edge_start, edge_end) > 0) && edge_start[0].isValid();
+    return is_non_empty ? (valid_edge_index + 1) : 0;
+  }
 
   // ! Copy static hypergraph in parallel
   StaticGraph StaticGraph::copy(parallel_tag_t) const {

@@ -924,6 +924,9 @@ class StaticGraph {
     return _edges[e];
   }
 
+  // ! Helper function for deduplication of temporary edges. Returns the number of remaining edges
+  static size_t deduplicateTmpEdges(TmpEdgeInformation* edge_start, TmpEdgeInformation* edge_end);
+
   // ! Allocate the temporary contraction buffer
   void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
