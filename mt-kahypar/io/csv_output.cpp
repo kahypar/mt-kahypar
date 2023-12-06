@@ -93,7 +93,7 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("sorting") << sep;
   s << timer.get("find_moves") << sep;
   s << timer.get("exe_moves") << sep;
-  s << timer.get("reb_quality");
+  s << timer.get("reb_quality") << sep;
 
   auto& a = utils::Utilities::instance().getRobert(context.utility_id);
   for (auto& imbalanceRound : a.imbalances) {
