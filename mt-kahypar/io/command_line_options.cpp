@@ -378,6 +378,26 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.relative_deadzone_size))->value_name(
                     "<double>")->default_value(1.0),
              "Number of iterations without significant improvement")
+            ((initial_partitioning ? "i-r-jet-ab-skip-zero": "r-jet-ab-skip-zero"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_skip_zero: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_skip_zero))->value_name(
+                    "<bool>")->default_value(false),
+            "Skip zero gain increments")
+            ((initial_partitioning ? "i-r-jet-ab-skip-unmoved": "r-jet-ab-skip-unmoved"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_skip_unmoved_pins: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_skip_unmoved_pins))->value_name(
+                    "<bool>")->default_value(false),
+            "Do not copy pins of unmoved nodes")
+            ((initial_partitioning ? "i-r-jet-ab-incident": "r-jet-ab-incident"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_incident_edges: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_incident_edges))->value_name(
+                    "<bool>")->default_value(false),
+            "Only look at incident edges of active nodes")
+            ((initial_partitioning ? "i-r-jet-ab-sorting-nets": "r-jet-ab-sorting-nets"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_sorting_nets: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_sorting_nets))->value_name(
+                    "<bool>")->default_value(false),
+            "Manually sort small hyperedges")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
