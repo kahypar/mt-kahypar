@@ -163,10 +163,48 @@ private:
       _afterburner_gain[i].store(0);
     });
 
+    auto hardcoded_afterburn = [&](const HyperedgeID& he) {
+      HypernodeID a = kInvalidHypernode;
+      HypernodeID b = kInvalidHypernode;
+      Gain minGain = std::numeric_limits<Gain>::max();
+      for (const auto pin : phg.pins(he)) {
+        const Gain& gain = _gains_and_target[pin].first;
+        if (a == kInvalidHypernode || gain < minGain || (minGain == gain && pin < a)) {
+          b = a;
+          a = pin;
+          minGain = gain;
+        } else {
+          b = pin;
+        }
+      }
+      const auto& [gain_a, to_a] = _gains_and_target[a];
+      const auto& [gain_b, to_b] = _gains_and_target[b];
+      const PartitionID from_a = phg.partID(a);
+      const PartitionID from_b = phg.partID(b);
+      const HyperedgeWeight weight = phg.edgeWeight(he);
+      // moving a
+      if (from_a != to_a) {
+        if (from_a == from_b) {
+          _afterburner_gain[a] += weight;
+        } else if (to_a == from_b) {
+          _afterburner_gain[a] -= weight;
+        }
+      }
+      //moving b after a
+      if (from_b != to_b) {
+        if (from_b == to_a) {
+          _afterburner_gain[b] += weight;
+        } else if (to_b == to_a) {
+          _afterburner_gain[b] -= weight;
+        }
+      }
+    };
+
     auto afterburn_edge = [&](const HyperedgeID& he) {
+      const HypernodeID edgeSize = phg.edgeSize(he);
+      if (_context.refinement.deterministic_refinement.jet.afterburner_hardcode_graph_edges && edgeSize == 2) return hardcoded_afterburn(he);
       auto& edgeBuffer = _hyperedge_buffer.local();
       auto& afterburnerBuffer = _afterburner_buffer.local();
-      const HypernodeID edgeSize = phg.edgeSize(he);
       if (edgeSize > edgeBuffer.size()) {
         edgeBuffer.resize(edgeSize);
       }

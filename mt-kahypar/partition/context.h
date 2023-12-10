@@ -152,6 +152,7 @@ struct JetParameters {
   bool afterburner_skip_unmoved_pins = false;
   bool afterburner_incident_edges = false;
   bool afterburner_sorting_nets = false;
+  bool afterburner_hardcode_graph_edges = false;
 
   // rebalancing
   double heavy_vertex_exclusion_factor = 1.5;

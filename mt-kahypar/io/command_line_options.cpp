@@ -398,6 +398,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_sorting_nets))->value_name(
                     "<bool>")->default_value(false),
             "Manually sort small hyperedges")
+            ((initial_partitioning ? "i-r-jet-ab-hardcode-graph-edges": "r-jet-ab-hardcode-graph-edges"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_hardcode_graph_edges: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_hardcode_graph_edges))->value_name(
+                    "<bool>")->default_value(false),
+            "Hardcode afterburner for graph edges")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
