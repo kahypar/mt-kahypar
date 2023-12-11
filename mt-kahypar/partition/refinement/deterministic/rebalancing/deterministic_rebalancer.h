@@ -84,11 +84,18 @@ public:
 
     DeterministicRebalancer& operator= (const DeterministicRebalancer&) = delete;
     DeterministicRebalancer& operator= (DeterministicRebalancer&&) = delete;
+    bool jetRebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+        Metrics& best_metrics,
+        bool run_until_balanced) {
+        return refineInternal(hypergraph, best_metrics, run_until_balanced);
+    }
 
     bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
         const vec<HypernodeID>&,
         Metrics& best_metrics,
-        double) final;
+        double) {
+        return refineInternal(hypergraph, best_metrics, true);
+    };
 
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final {}
 
@@ -108,6 +115,7 @@ public:
         ERR("deterministic rebalancer can not be used for unconstrained refinement");
     }
 private:
+    bool refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph, Metrics& best_metrics, bool run_until_balanced);
 
     void resizeDataStructuresForCurrentK() {
         // If the number of blocks changes, we resize data structures

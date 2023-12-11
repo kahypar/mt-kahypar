@@ -55,10 +55,9 @@ float transformGain(Gain gain_, HypernodeWeight wu) {
 }
 
 template <typename GraphAndGainTypes>
-bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-  const vec<HypernodeID>&,
-  Metrics& best_metrics,
-  double) {
+bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  Metrics&,
+  bool run_until_balanced) {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
   if (_max_part_weights == nullptr) {
@@ -66,13 +65,14 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
   _gain_computation.reset();
   initializeDataStructures(phg);
-  while (_num_imbalanced_parts > 0) {
+  size_t iteration = 0;
+  while (_num_imbalanced_parts > 0 && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
+    ++iteration;
   }
-  best_metrics.imbalance = metrics::imbalance(phg, _context);
-  DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
+  DBG << "[REBALANCE] " << "  imbalance=" << metrics::imbalance(phg, _context);
   _max_part_weights = nullptr;
   return true;
 }
@@ -163,8 +163,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   });
   timer.stop_timer("gain_computation");
   tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
-  //for (size_t i = 0; i < _moves.size(); ++i) {
-    // timer.start_timer("copy_moves", "Copy Moves");
+    //for (size_t i = 0; i < _moves.size(); ++i) {
+      // timer.start_timer("copy_moves", "Copy Moves");
     _moves[i] = tmp_potential_moves[i].copy_parallel();
     // timer.stop_timer("copy_moves");
     if (_moves[i].size() > 0) {
