@@ -43,6 +43,7 @@
 #include <tbb/parallel_sort.h>
 
 namespace mt_kahypar {
+  static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
 float transformGain(Gain gain_, HypernodeWeight wu) {
   float gain = gain_;
@@ -55,10 +56,9 @@ float transformGain(Gain gain_, HypernodeWeight wu) {
 }
 
 template <typename GraphAndGainTypes>
-bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-  const vec<HypernodeID>&,
-  Metrics& best_metrics,
-  double) {
+bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  Metrics&,
+  bool run_until_balanced) {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
   if (_max_part_weights == nullptr) {
@@ -66,13 +66,14 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   }
   _gain_computation.reset();
   initializeDataStructures(phg);
-  while (_num_imbalanced_parts > 0) {
+  size_t iteration = 0;
+  while (_num_imbalanced_parts > 0 && iteration < ABSOLUTE_MAX_ROUNDS && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
+    ++iteration;
   }
-  best_metrics.imbalance = metrics::imbalance(phg, _context);
-  DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
+  DBG << "[REBALANCE] " << "  imbalance=" << metrics::imbalance(phg, _context);
   _max_part_weights = nullptr;
   return true;
 }

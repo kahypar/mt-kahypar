@@ -44,11 +44,13 @@ namespace mt_kahypar {
 template<typename GraphAndGainTypes>
 bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
     const vec<HypernodeID>&,
-    Metrics& best_metrics, const double time_limit) {
+    Metrics& best_metrics, const double) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     Metrics current_metrics = best_metrics;
-    const HyperedgeWeight input_quality = best_metrics.quality;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    const HyperedgeWeight input_quality = best_metrics.quality;
+    bool was_already_balanced = metrics::isBalanced(phg, _context);
+
     resizeDataStructuresForCurrentK();
 
     auto afterburner = [&](const HypernodeID hn, auto add_node_fn) {
@@ -143,21 +145,27 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
             timer.start_timer("rebalance", "Rebalance");
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
-            _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+            const bool run_until_balanced = rounds_without_improvement == max_rounds_without_improvement - 1 && was_already_balanced;
+            _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
         }
         timer.start_timer("reb_quality", "Quality after Rebalancing");
         current_metrics.quality += calculateGainDelta(phg);
+        current_metrics.imbalance = metrics::imbalance(phg, _context);
         timer.stop_timer("reb_quality");
         ASSERT(current_metrics.quality == metrics::quality(phg, _context, false), V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
         ++rounds_without_improvement;
-        if (current_metrics.quality < best_metrics.quality && metrics::isBalanced(phg, _context)) {
+        // if the parition was ever balanced => look for balanced partition with better quality
+        // if the partition was never balanced => look for less imbalanced partition regardless of quality
+        const bool is_balanced = metrics::isBalanced(phg, _context);
+        if ((current_metrics.quality < best_metrics.quality && was_already_balanced && is_balanced) || (!was_already_balanced && current_metrics.imbalance < best_metrics.imbalance)) {
             if (best_metrics.quality - current_metrics.quality > _context.refinement.deterministic_refinement.jet.relative_improvement_threshold * best_metrics.quality) {
                 rounds_without_improvement = 0;
             }
             best_metrics = current_metrics;
             _current_partition_is_best = true;
+            was_already_balanced |= is_balanced;
         } else {
             _current_partition_is_best = false;
         }

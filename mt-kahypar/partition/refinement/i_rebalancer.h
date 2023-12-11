@@ -37,42 +37,54 @@
 
 namespace mt_kahypar {
 
-class IRebalancer: public IRefiner {
+class IRebalancer : public IRefiner {
 
- public:
+public:
   virtual ~IRebalancer() = default;
 
   bool refineAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                            parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
-                            Metrics& best_metrics,
-                            const double time_limit) {
+    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+    parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
+    Metrics& best_metrics,
+    const double time_limit) {
     return refineAndOutputMovesImpl(hypergraph, refinement_nodes, moves_by_part, best_metrics, time_limit);
   }
 
   bool refineAndOutputMovesLinear(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                  parallel::scalable_vector<Move>& moves,
-                                  Metrics& best_metrics,
-                                  const double time_limit) {
+    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+    parallel::scalable_vector<Move>& moves,
+    Metrics& best_metrics,
+    const double time_limit) {
     return refineAndOutputMovesLinearImpl(hypergraph, refinement_nodes, moves, best_metrics, time_limit);
   }
 
- protected:
+  bool jetRebalance(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+    Metrics& best_metrics,
+    bool run_until_balanced) {
+    return jetRebalanceImpl(hypergraph, best_metrics, run_until_balanced);
+  }
+
+protected:
   IRebalancer() = default;
 
- private:
+private:
   virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                        parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
-                                        Metrics& best_metrics,
-                                        const double time_limit) = 0;
+    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+    parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
+    Metrics& best_metrics,
+    const double time_limit) = 0;
 
   virtual bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                              parallel::scalable_vector<Move>& moves,
-                                              Metrics& best_metrics,
-                                              const double time_limit) = 0;
+    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+    parallel::scalable_vector<Move>& moves,
+    Metrics& best_metrics,
+    const double time_limit) = 0;
+
+  virtual bool jetRebalanceImpl(mt_kahypar_partitioned_hypergraph_t&,
+    Metrics&,
+    bool) {
+    ALWAYS_ASSERT(false, "JET-equivalent mode only supported for JET rebalancer.");
+  }
 };
 
 }  // namespace mt_kahypar

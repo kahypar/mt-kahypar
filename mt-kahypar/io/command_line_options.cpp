@@ -403,6 +403,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_hardcode_graph_edges))->value_name(
                     "<bool>")->default_value(false),
             "Hardcode afterburner for graph edges")
+            ((initial_partitioning ? "i-r-jet-max-rebalancing-rounds": "r-jet-max-rebalancing-rounds"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.max_rebalancing_rounds: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.max_rebalancing_rounds))->value_name(
+                    "<size_t>")->default_value(0),
+            "Maximum number of iterations per rebalancing call")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
