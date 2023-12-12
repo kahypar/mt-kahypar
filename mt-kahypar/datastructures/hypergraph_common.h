@@ -41,19 +41,21 @@
 namespace mt_kahypar {
 static constexpr size_t dimension = 3;
 struct NodeWeight {
-  int32_t weights[dimension];
+  std::array<int32_t, dimension> weights;
 
-  NodeWeight(const NodeWeight& nw) {
+  NodeWeight(const NodeWeight &nw) {
     for(int i = 0; i < dimension; i++){
         weights[i] = nw.weights[i];
     }
   }
 
-  NodeWeight(){
-    
+  explicit NodeWeight(){
+    for(int i = 0; i < dimension; i++){
+        weights[i] = 0;
+    }
   }
 
-  NodeWeight(bool maxValue){
+  explicit NodeWeight(bool maxValue){
     if(maxValue){
       for(int i = 0; i < dimension; i++){
         weights[i] = std::numeric_limits<int32_t>::max();
@@ -67,18 +69,18 @@ struct NodeWeight {
     
   }
 
-  NodeWeight(int value){
+  explicit NodeWeight(int value){
     for(int i = 0; i < dimension; i++){
       weights[i] = value;
     }
   }
 
-  NodeWeight(std::array<double, dimension> d){
+  explicit NodeWeight(std::array<double, dimension> d){
     for(int i = 0; i < dimension; i++){
       weights[i] = std::floor(d[i]);
     }
   }
-  NodeWeight(std::array<double, dimension> d, bool floor){
+  explicit NodeWeight(std::array<double, dimension> d, bool floor){
     for(int i = 0; i < dimension; i++){
       if(floor){
         weights[i] = std::floor(d[i]);
@@ -103,14 +105,14 @@ struct NodeWeight {
   }*/
 
 
-  NodeWeight operator =(const NodeWeight nw){
+  NodeWeight operator =(const NodeWeight &nw){
     for(int i = 0; i < dimension; i++){
       weights[i] = nw.weights[i];
     }
     return *this;
   }
 
-  bool operator >(const NodeWeight nw) const{
+  bool operator >(const NodeWeight &nw) const{
     for(int i = 0; i < dimension; i++){
       if(weights[i] < nw.weights[i]){
         return false;
@@ -119,7 +121,7 @@ struct NodeWeight {
     return true;
   }
 
-  bool operator <(const NodeWeight nw) const{
+  bool operator <(const NodeWeight &nw) const{
     for(int i = 0; i < dimension; i++){
       if(weights[i] >= nw.weights[i]){
         return false;
@@ -143,7 +145,7 @@ struct NodeWeight {
     }
   }
 
-  NodeWeight operator +(const NodeWeight ew) const{
+  NodeWeight operator +(const NodeWeight &ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] + ew.weights[i];
@@ -151,23 +153,23 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight operator +=(NodeWeight ew){
+  NodeWeight operator +=(const NodeWeight &ew){
     for(int i = 0; i < dimension; i++){
       weights[i] = weights[i] + ew.weights[i];
     }
     return *this;
   }
 
-  bool operator!= (NodeWeight nw){
+  bool operator!= (const NodeWeight &nw){
     for(int i = 0; i < dimension; i++){
       if(weights[i] != nw.weights[i]){
-        return false;
+        return true;
       }
     }
-    return true;
+    return false;
   }
 
-  void operator -=(NodeWeight ew){
+  void operator -=(const NodeWeight &ew){
     for(int i = 0; i < dimension; i++){
       weights[i] = weights[i] - ew.weights[i];
     }
@@ -180,15 +182,15 @@ struct NodeWeight {
     }
   }
 
-  NodeWeight operator-(NodeWeight ew) const{
+  NodeWeight operator-(const NodeWeight &ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
-      res.weights[i] = weights[i] - ew.weights[i];
+        res.weights[i] = weights[i] - ew.weights[i];
     }
     return res;
   }
 
-  NodeWeight operator*(NodeWeight ew) const{
+  NodeWeight operator*(const NodeWeight &ew) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] * ew.weights[i];
@@ -204,7 +206,15 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight operator / (NodeWeight ew){
+  NodeWeight operator*(std::array<double, dimension> d) const{
+    NodeWeight res;
+    for(int i = 0; i < dimension; i++){
+      res.weights[i] = std::ceil(weights[i] * d[i]);
+    }
+    return res;
+  }
+
+  NodeWeight operator / (const NodeWeight &ew){
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = weights[i] / ew.weights[i];
@@ -212,7 +222,7 @@ struct NodeWeight {
     return res;
   }
 
-  bool operator<=(NodeWeight ew) const {
+  bool operator<=(const NodeWeight &ew) const {
     for(int i = 0; i < dimension; i++){
       if(weights[i] > ew.weights[i]){
         return false;
@@ -221,7 +231,7 @@ struct NodeWeight {
     return true;
   }
 
-  bool operator>=(NodeWeight ew) const {
+  bool operator>=(const NodeWeight &ew) const {
     for(int i = 0; i < dimension; i++){
       if(weights[i] < ew.weights[i]){
         return false;
@@ -255,7 +265,7 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight min(const NodeWeight nw) const{
+  NodeWeight min(const NodeWeight &nw) const{
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = std::min(weights[i], nw.weights[i]);
@@ -290,7 +300,7 @@ struct NodeWeight {
 
   
 
-  NodeWeight add_fetch(NodeWeight ew, std::memory_order order){
+  NodeWeight add_fetch(const NodeWeight &ew, std::memory_order order){
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = __atomic_add_fetch(&weights[i], ew.weights[i], order);
@@ -299,7 +309,7 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight fetch_add(NodeWeight ew, std::memory_order order){
+  NodeWeight fetch_add(const NodeWeight &ew, std::memory_order order){
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = __atomic_fetch_add(&weights[i], ew.weights[i], order);
@@ -308,7 +318,7 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight fetch_sub(NodeWeight ew, std::memory_order order){
+  NodeWeight fetch_sub(const NodeWeight &ew, std::memory_order order){
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = __atomic_fetch_sub(&weights[i], ew.weights[i], order);
@@ -317,7 +327,7 @@ struct NodeWeight {
     return res;
   }
 
-  NodeWeight sub_fetch(const NodeWeight ew, std::memory_order order){
+  NodeWeight sub_fetch(const NodeWeight &ew, std::memory_order order){
     NodeWeight res;
     for(int i = 0; i < dimension; i++){
       res.weights[i] = __atomic_sub_fetch(&weights[i], ew.weights[i], order);
@@ -367,7 +377,7 @@ struct NodeWeight {
     return true;
   }
   
-  bool chooseMoreBalanced(const NodeWeight w1, const NodeWeight w2, const NodeWeight limit) const{
+  bool chooseMoreBalanced(const NodeWeight &w1, const NodeWeight &w2, const NodeWeight &limit) const{
     int max_w1 = 0;
     int overflow_w1 = 0;
     int max_w2 = 0;
@@ -391,17 +401,17 @@ struct NodeWeight {
 
   }
 
-  bool isLighterPartition(const NodeWeight p1, const NodeWeight p2, const NodeWeight max) const{
+  bool isLighterPartition(const NodeWeight &p1, const NodeWeight &p2, const NodeWeight &max1, const NodeWeight &max2) const{
     double w1 = 0;
     double w2 = 0;
     for(int i = 0; i < dimension; i++){
-      w1 += (max.weights[i] - p1.weights[i]) / max.weights[i];
-      w2 += (max.weights[i] - p2.weights[i]) / max.weights[i];
+      w1 += (max1.weights[i] - p1.weights[i]) / max1.weights[i];
+      w2 += (max2.weights[i] - p2.weights[i]) / max2.weights[i];
     }
     return w1 > w2;
   }
 
-  bool operator==(NodeWeight nw) const{
+  bool operator==(const NodeWeight &nw) const{
     for(int i = 0; i < dimension; i++){
       if(weights[i] != nw.weights[i]){
         return false;
@@ -418,7 +428,7 @@ struct NodeWeight {
     return res;
   }
 
-  std::array<double, dimension> operator/(const NodeWeight nw) const{
+  std::array<double, dimension> operator/(const NodeWeight &nw) const{
     std::array<double, dimension> res;
     for(int i = 0; i < dimension; i++){
       res[i] = weights[i] / static_cast<double>(nw.weights[i]);
@@ -442,7 +452,7 @@ struct NodeWeight {
     return s;
   }
 
-  double maxValues(const NodeWeight nw) const{
+  double maxValues(const NodeWeight &nw) const{
     int d = 0;
     for(int i = 0; i < dimension; i++){
       d += std::max(weights[i], nw.weights[i]);
@@ -450,29 +460,35 @@ struct NodeWeight {
     return d;    
   }
 
-
+  void operator=(std::array<double, dimension> d){
+    for(int i = 0; i < dimension; i++){
+      weights[i] = std::ceil(d[i]);
+    }
+  }
 
 };
 
-uint32_t scalar(NodeWeight w1, NodeWeight w2);
+uint32_t scalar(NodeWeight &w1, NodeWeight &w2);
 
-std::array<double, dimension> operator*(const double d, NodeWeight w);
+std::array<double, dimension> operator*(const double d, const NodeWeight &w);
 
-std::ostream& operator<<(std::ostream& os, NodeWeight nw);
+std::ostream& operator<<(std::ostream& os,const  NodeWeight &nw);
 
 void operator<<(std::ostringstream os, const std::array<double, dimension> arr);
 
-bool equals_in_one_dimension(NodeWeight w1, NodeWeight w2);
+bool equals_in_one_dimension(const NodeWeight &w1, const NodeWeight &w2);
 
 std::array<double, dimension> operator+(double d, std::array<double, dimension> nw);
 
-std::array<double, dimension> operator*(std::array<double, dimension> d, NodeWeight nw);
+std::array<double, dimension> operator*(std::array<double, dimension> d, const NodeWeight &nw);
 
 bool operator<=(const std::array<double, dimension> d1, const double d2[dimension]);
 
-std::array<double, dimension> operator-(std::array<double, dimension> d, NodeWeight nw);
+std::array<double, dimension> operator-(std::array<double, dimension> d, const NodeWeight &nw);
 
-std::array<double, dimension> divide_to_double(NodeWeight nw1, NodeWeight nw2);
+std::array<double, dimension> divide_to_double(const NodeWeight &nw1, const NodeWeight &nw2);
+
+std::string to_string(const std::array<double, dimension> d);
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;

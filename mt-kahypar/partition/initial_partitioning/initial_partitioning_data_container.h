@@ -87,7 +87,10 @@ class InitialPartitioningDataContainer {
       ss << "Algorithm = " << _algorithm << ", "
          << "Objective IP = " << _objective_ip << ", "
          << "Objective = " << _objective << ", "
-         << "Imbalance = " << _imbalance;
+         << "Imbalance = ";
+         for(int i = 0; i < dimension; i++){
+          ss << _imbalance[i] << ' ';
+         }
       return ss.str();
     }
 

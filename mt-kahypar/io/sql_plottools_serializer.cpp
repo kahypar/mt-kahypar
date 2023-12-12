@@ -59,8 +59,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " file_format=" << context.partition.file_format
         << " partition_type=" << context.partition.partition_type
         << " k=" << context.partition.k
-        << " epsilon=" << context.partition.epsilon
-        << " seed=" << context.partition.seed
+        << " epsilon=";
+        for(int i= 0; i < mt_kahypar::dimension; i++){
+          oss << context.partition.epsilon[i] << ' ';
+        } 
+        oss << " seed=" << context.partition.seed
         << " num_vcycles=" << context.partition.num_vcycles
         << " deterministic=" << context.partition.deterministic
         << " perform_parallel_recursion_in_deep_multilevel=" << context.partition.perform_parallel_recursion_in_deep_multilevel;
@@ -192,7 +195,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
       if ( context.partition.objective != Objective::soed ) {
         oss << " soed=" << metrics::quality(hypergraph, Objective::soed);
       }
-      oss << " imbalance=" << metrics::imbalance(hypergraph, context);
+      oss << " imbalance=" << to_string(metrics::imbalance(hypergraph, context));
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 

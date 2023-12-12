@@ -38,8 +38,18 @@ namespace mt_kahypar {
 
 namespace impl {
 
-  float transformGain(Gain gain, HypernodeWeight wu, HypernodeWeight block, HypernodeWeight max) {
-    uint32_t nw = scalar((max - block).cutToZero(), wu);
+  float transformGain(Gain gain, const HypernodeWeight &wu, HypernodeWeight block, const HypernodeWeight &max) {
+    NodeWeight tmp2;
+    for(int i = 0; i < dimension; i++){
+      int x = tmp2.weights[i];
+      x = max.weights[i];
+      x = block.weights[i];
+      tmp2.weights[i] = max.weights[i] - block.weights[i];
+    }
+    uint32_t nw = 0;
+    for(int i = 0; i < dimension; i++){
+      nw += wu.weights[i]*tmp2.weights[i];
+    }
     if (gain > 0) {
       gain *= nw;
     } else if (gain < 0) {
@@ -61,7 +71,7 @@ namespace impl {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if ((benefit > to_benefit || (benefit == to_benefit && wu.isLighterPartition(to_weight, best_to_weight, context.partition.max_part_weights[i]))) &&
+        if ((benefit > to_benefit || (benefit == to_benefit && wu.isLighterPartition(to_weight, best_to_weight, context.partition.max_part_weights[i], context.partition.max_part_weights[to]))) &&
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
           to = i;
@@ -74,7 +84,7 @@ namespace impl {
     if (to != kInvalidPartition) {
       gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
     }
-    return std::make_pair(to, transformGain(gain, wu, to, context.partition.max_part_weights[to]));
+    return std::make_pair(to, transformGain(gain, wu, (to == kInvalidPartition ? NodeWeight(1) :phg.partWeight(to)), (to == kInvalidPartition ? NodeWeight(0) : context.partition.max_part_weights[to])));
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -336,6 +346,7 @@ namespace impl {
 
         edges_with_gain_changes.clear();
         size_t move_id = 0;
+        if(m.to == -1) continue;
         bool moved = phg.changeNodePart(
                       _gain_cache, m.node, m.from, m.to,
                       _context.partition.max_part_weights[m.to],

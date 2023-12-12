@@ -54,7 +54,9 @@ namespace mt_kahypar {
     }
     str << "  Partition Type:                     " << params.partition_type << std::endl;
     str << "  k:                                  " << params.k << std::endl;
-    str << "  epsilon:                            " << params.epsilon << std::endl;
+    for(int i = 0; i < dimension; i++){
+      str << "  epsilon:                            " << params.epsilon[i] << std::endl;
+    }
     str << "  seed:                               " << params.seed << std::endl;
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
     str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
@@ -304,8 +306,8 @@ namespace mt_kahypar {
                 nw);
       }
       partition.max_part_weights.clear();
-      partition.max_part_weights.push_back((1 + partition.epsilon)
-                                          * partition.perfect_balance_part_weights[0]);
+      partition.max_part_weights.push_back(NodeWeight((1 + partition.epsilon)
+                                          * partition.perfect_balance_part_weights[0]));
       for (PartitionID part = 1; part != partition.k; ++part) {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }

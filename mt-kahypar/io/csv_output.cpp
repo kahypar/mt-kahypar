@@ -64,9 +64,11 @@ namespace mt_kahypar::io::csv {
     s << context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of('/') + 1) << sep;
     s << context.partition.k << sep;
     s << context.partition.seed << sep;
-
-    s << context.partition.epsilon << sep;
-    s << metrics::imbalance(phg, context) << sep;
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      s << context.partition.epsilon[i] << ' ';
+    }
+    s << sep;
+    s << mt_kahypar::to_string(metrics::imbalance(phg, context)) << sep;
 
     s << context.partition.objective << sep;
     s << metrics::quality(phg, Objective::km1) << sep;

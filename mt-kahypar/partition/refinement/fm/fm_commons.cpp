@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include <list>
 
 
 namespace mt_kahypar {
@@ -83,32 +84,33 @@ namespace mt_kahypar {
     // TODO test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
     BucketID bucketForDimension[mt_kahypar::dimension] = {0};
-    struct DimensionList list;
+    std::list<int> list;
     for(int i = 0; i < mt_kahypar::dimension; i++){
-      list.dimensions[i].prev = list.dimensions + i - 1;
-      list.dimensions[i].next = list.dimensions + i + 1;
-      list.dimensions[i].dimension = i;
+      list.push_back(i);      
     }
-    list.dimensions[0].prev = list.dimensions;
-    list.dimensions[mt_kahypar::dimension-1].next = list.dimensions + mt_kahypar::dimension-1;    
-    do{
-      Node* elem = list.head;
-      while(true){
-        if(initial_imbalance.weights[elem->dimension] + moved_weight.weights[elem->dimension] <= bucket_weights[indexForBucket(to, bucketId)].weights[elem->dimension]){
-          bucketForDimension[elem->dimension] = bucketId;
-          list.remove(elem);
+    while(!list.empty() && bucketId < NUM_BUCKETS){
+      std::list<int> removed;
+      for(int d : list){
+        if(initial_imbalance.weights[d] + moved_weight.weights[d] <= bucket_weights[indexForBucket(to, bucketId)].weights[d]){
+          bucketForDimension[d] = bucketId;
+          removed.push_back(d);          
         }
-        if(elem->next == elem){
-          break;
-        }
-        elem = elem->next;
+      }
+      for(int r : removed){
+        list.remove(r);
       }
       bucketId++;
-    }while(!list.isEmpty());
-    /**while (bucketId < NUM_BUCKETS
-           && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
-      ++bucketId;
-    }**/
+    }
+    /*while (bucketId < NUM_BUCKETS + fallback_bucket_weights[to].size()
+           && !list.empty()){
+      for(int d : list){
+        if(initial_imbalance.weights[d] + moved_weight.weights[d] <= bucket_weights[indexForBucket(to, bucketId)].weights[d]){
+          bucketForDimension[d] = bucketId;
+          list.remove(d);
+        }
+        ++bucketId;
+      }
+    }*/
     double penalty = 0;
     for(int i = 0; i < mt_kahypar::dimension; i++){
       if(bucketForDimension[i] < NUM_BUCKETS){
