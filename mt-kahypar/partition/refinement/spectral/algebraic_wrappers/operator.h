@@ -26,16 +26,27 @@
 
 #include <cstddef>
 
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
+
 
 namespace mt_kahypar {
 namespace spectral {
 
-class Vector {
+class Operator {
  public:
-  Vector(size_t dimension);
+  Operator(size_t dimension);
+
   size_t dimension();
+
+  void apply(spectral::Vector& operand, spectral::Vector& target);
+
+  bool isSymmetric();
+
  private:
   size_t dim;
 };
+
+spectral::Operator operator+ (spectral::Operator& a, spectral::Operator& b);
+
 }
 }

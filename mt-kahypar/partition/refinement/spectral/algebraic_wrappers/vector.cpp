@@ -22,27 +22,20 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#pragma once
-
-#include <cstddef>
-
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
-
 
 namespace mt_kahypar {
 namespace spectral {
 
-class Matrix {
- public:
-  // ! get array of dimensions
-  std::array<size_t, 2> dimensions();
+/* make getters more elegant? */
 
-  // ! apply matrix to vector
-  spectral::Vector apply(spectral::Vector operand);
+spectral::Vector::Vector(size_t dimension) {
+  dim = dimension;
+}
 
-};
-
-spectral::Matrix operator+ (spectral::Matrix& a, spectral::Matrix& b);
+size_t spectral::Vector::dimension() {
+  return dim;
+}
 
 }
 }

@@ -22,20 +22,28 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#pragma once
-
-#include <cstddef>
-
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.h"
 
 namespace mt_kahypar {
 namespace spectral {
 
-class Vector {
- public:
-  Vector(size_t dimension);
-  size_t dimension();
- private:
-  size_t dim;
-};
+/* make getters more elegant? */
+
+spectral::Operator::Operator(size_t dimension) {
+  dim = dimension;
+}
+
+size_t spectral::Operator::dimension() {
+  return dim;
+}
+
+void spectral::Operator::apply(spectral::Vector& operand, spectral::Vector& target) {
+  /* TODO */
+}
+
+bool spectral::Operator::isSymmetric() {
+  return true; /* TODO */
+}
+
 }
 }
