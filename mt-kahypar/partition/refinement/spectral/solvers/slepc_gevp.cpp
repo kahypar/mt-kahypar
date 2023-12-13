@@ -61,7 +61,7 @@ void SLEPcGEVPSolver::initialize(Operator& a, Operator& b) {
 
   // create matrices
 
-  /* CallPetsc(MatCreateShell(GLOBAL_COMMUNICATOR, SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), &n, &mat_A));
+  CallPetsc(MatCreateShell(GLOBAL_COMMUNICATOR, SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), &n, &mat_A));
   CallPetsc(MatShellSetContext(mat_A, (void *) op_a));
   CallPetsc(MatShellSetOperation(mat_A, MATOP_MULT, (void(*)(void)) &matMult));
   CallPetsc(MatShellSetOperation(mat_A, MATOP_MULT_TRANSPOSE,(void(*)(void)) &matMultTranspose));
@@ -71,14 +71,14 @@ void SLEPcGEVPSolver::initialize(Operator& a, Operator& b) {
   CallPetsc(MatShellSetContext(mat_B, (void *) op_b));
   CallPetsc(MatShellSetOperation(mat_B, MATOP_MULT, (void(*)(void)) &matMult));
   CallPetsc(MatShellSetOperation(mat_B, MATOP_MULT_TRANSPOSE,(void(*)(void)) &matMultTranspose));
-  // CallPetsc(MatShellSetOperation(mat_B,MATOP_GET_DIAGONAL,(void(*)(void))MatGetDiagonal_Laplacian2D));*/
+  // CallPetsc(MatShellSetOperation(mat_B,MATOP_GET_DIAGONAL,(void(*)(void))MatGetDiagonal_Laplacian2D));
 
   // set options
 
   CallPetsc(EPSSetType(eps, SLEPcGEVPSolver::getEpsType(*op_a, *op_b)));
   CallPetsc(EPSSetProblemType(eps, SLEPcGEVPSolver::getProblemType(*op_a, *op_b)));
 
-  /*CallPetsc(EPSSetOperators(eps, mat_A, mat_B));*/
+  CallPetsc(EPSSetOperators(eps, mat_A, mat_B));
 
   CallPetsc(EPSSetFromOptions(eps)); /* TODO really needed? */ 
 }
