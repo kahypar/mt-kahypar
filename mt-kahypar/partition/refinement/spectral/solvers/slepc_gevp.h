@@ -32,24 +32,59 @@
 namespace mt_kahypar {
 namespace spectral {
 
-class SLEPcGEVPSolver : public spectral::GEVPSolver {
+class SLEPcGEVPSolver : public GEVPSolver {
  public:
-  void initialize(spectral::Matrix& a, spectral::Matrix& b) final;
+  void initialize(Operator& a, Operator& b) final;
 
-  bool nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) final;
+  bool nextEigenpair(Skalar& eval, Vector& evec) final;
 
   SLEPcGEVPSolver();
   ~SLEPcGEVPSolver() final;
 
  private:
-  spectral::Matrix *_a;
-  spectral::Matrix *_b;
+  // attributes
 
-  bool _solved = false;
+  Operator *op_a;
+  Operator *op_b;
 
-  EPS _context;
+  Mat mat_A;
+  Mat mat_B;
+
+  EPS eps;
+  bool solved = false;
+
+  // constants
+
+  static constexpr MPI_Comm& GLOBAL_COMMUNICATOR = PETSC_COMM_WORLD;
+
+  // matrix storage size calculation strategys
+  static size_t (*GET_N_NAIVE) (size_t);
+  /* ... */
+
+  // problem type strategys
+  static EPSProblemType (*GET_PBT_NAIVE) (Operator&, Operator&);
+  /* ... */
+
+  // eps type strategys
+  static EPSType (*GET_TYPE_NAIVE) (Operator&, Operator&);
+
+  // methods
 
   void solve();
+
+  static void vector2Vec(Vector& vector, Vec& vec);
+  static void vec2vector(Vec& vec, Vector& vector);
+
+  static void getMatContext(Mat& M, Operator *op);
+
+  
+  // lambdas
+  static size_t (*getN) (size_t);
+  static EPSProblemType (*getProblemType) (Operator&, Operator&);
+  static EPSType (*getEpsType) (Operator&, Operator&);
+
+  static int (*matMult) (Mat& M, Vec& x, Vec& y);
+  static int (*matMultTranspose) (Mat& M, Vec& x, Vec& y);
 };
 
 }

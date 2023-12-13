@@ -27,7 +27,7 @@
 #include <cstddef>
 
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
-#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/matrix.h"
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.h"
 #include "mt-kahypar/partition/refinement/spectral/datatypes.h"
 
 namespace mt_kahypar {
@@ -35,7 +35,7 @@ namespace spectral {
 
 class GEVPSolver {
  public:
-  virtual void initialize(spectral::Matrix& a, spectral::Matrix& b) = 0;
+  virtual void initialize(spectral::Operator& a, spectral::Operator& b) = 0;
 
   virtual bool nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) = 0; /* TODO return rather all pairs, an iterator or YAGNI? */
 

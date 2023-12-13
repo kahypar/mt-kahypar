@@ -23,6 +23,8 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.h"
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.cpp" /* TODO imports should work otherwise... */
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.cpp" /* TODO imports should work otherwise... */
 
 namespace mt_kahypar {
 namespace spectral {
@@ -30,20 +32,61 @@ namespace spectral {
 SLEPcGEVPSolver::SLEPcGEVPSolver() {
   PetscFunctionBeginUser;
 
-  CallPetsc(SlepcInitialize(0, nullptr, (char*)0, nullptr));
-  CallPetsc(EPSCreate(PETSC_COMM_WORLD, &_context));
+  /* TODO parse args */
+
+  CallPetsc(SlepcInitialize(0, nullptr, (char*)0, nullptr)); /* TODO cl args */
+  CallPetsc(EPSCreate(GLOBAL_COMMUNICATOR, &eps));
+
+  SLEPcGEVPSolver::getN = GET_N_NAIVE;
+  SLEPcGEVPSolver::getProblemType = GET_PBT_NAIVE;
 }
 
-void SLEPcGEVPSolver::initialize(spectral::Matrix& a, spectral::Matrix& b) {
-  _a = &a;
-  _b = &b;
-  _solved = false;
-}
-
-bool SLEPcGEVPSolver::nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) {
+void SLEPcGEVPSolver::initialize(Operator& a, Operator& b) {
   PetscFunctionBeginUser;
 
-  if (!_solved) {
+  // validation
+
+  /*
+  assert a->dimension() == b->dimension()
+  assert a->isSymmetric() && b->isSymmetric()
+  */
+
+  // definitions
+  
+  op_a = &a;
+  op_b = &b;
+  solved = false;
+
+  size_t n = op_a->dimension();
+
+  // create matrices
+
+  /* CallPetsc(MatCreateShell(GLOBAL_COMMUNICATOR, SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), &n, &mat_A));
+  CallPetsc(MatShellSetContext(mat_A, (void *) op_a));
+  CallPetsc(MatShellSetOperation(mat_A, MATOP_MULT, (void(*)(void)) &matMult));
+  CallPetsc(MatShellSetOperation(mat_A, MATOP_MULT_TRANSPOSE,(void(*)(void)) &matMultTranspose));
+  // CallPetsc(MatShellSetOperation(mat_A,MATOP_GET_DIAGONAL,(void(*)(void))MatGetDiagonal_Laplacian2D));
+
+  CallPetsc(MatCreateShell(GLOBAL_COMMUNICATOR, SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), SLEPcGEVPSolver::getN(n), &n, &mat_B));
+  CallPetsc(MatShellSetContext(mat_B, (void *) op_b));
+  CallPetsc(MatShellSetOperation(mat_B, MATOP_MULT, (void(*)(void)) &matMult));
+  CallPetsc(MatShellSetOperation(mat_B, MATOP_MULT_TRANSPOSE,(void(*)(void)) &matMultTranspose));
+  // CallPetsc(MatShellSetOperation(mat_B,MATOP_GET_DIAGONAL,(void(*)(void))MatGetDiagonal_Laplacian2D));*/
+
+  // set options
+
+  CallPetsc(EPSSetType(eps, SLEPcGEVPSolver::getEpsType(*op_a, *op_b)));
+  CallPetsc(EPSSetProblemType(eps, SLEPcGEVPSolver::getProblemType(*op_a, *op_b)));
+
+  /*CallPetsc(EPSSetOperators(eps, mat_A, mat_B));*/
+
+  CallPetsc(EPSSetFromOptions(eps)); /* TODO really needed? */ 
+}
+
+bool SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
+  PetscFunctionBeginUser;
+
+  if (!solved) {
     solve();
   }
 
@@ -54,52 +97,76 @@ bool SLEPcGEVPSolver::nextEigenpair(spectral::Skalar& eval, spectral::Vector& ev
 SLEPcGEVPSolver::~SLEPcGEVPSolver() {
   PetscFunctionBeginUser;
 
-  CallPetsc(EPSDestroy(&_context));
+  CallPetsc(EPSDestroy(&eps));
   CallPetsc(SlepcFinalize());
 }
 
 void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
-  CallPetsc(PetscPrintf(PETSC_COMM_WORLD, "\n\nhello world from SLEPc!\n\n"));
+  // solve
 
-  // /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //     Create the operator matrix that defines the eigensystem, Ax=kx
-  //   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-  // CallPetsc(MatCreateShell(PETSC_COMM_WORLD,N,N,N,N,&n,&A));
-  // CallPetsc(MatShellSetOperation(A,MATOP_MULT,(void(*)(void))MatMult_Laplacian2D));
-  // CallPetsc(MatShellSetOperation(A,MATOP_MULT_TRANSPOSE,(void(*)(void))MatMult_Laplacian2D));
-  // CallPetsc(MatShellSetOperation(A,MATOP_GET_DIAGONAL,(void(*)(void))MatGetDiagonal_Laplacian2D));
-
-  // /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //               Create the eigensolver and set various options
-  //   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-  // /*
-  //   Create eigensolver context
-  // */
-  // CallPetsc(EPSCreate(PETSC_COMM_WORLD,&eps));
-
-  // /*
-  //   Set operators. In this case, it is a standard eigenvalue problem
-  // */
-  // CallPetsc(EPSSetOperators(eps,A,NULL));
-  // CallPetsc(EPSSetProblemType(eps,EPS_HEP));
-
-  // /*
-  //   Set solver parameters at runtime
-  // */
-  // CallPetsc(EPSSetFromOptions(eps));
-
-  // /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  //                     Solve the eigensystem
-  //   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-  // CallPetsc(EPSSolve(eps));
-
-  _solved = true;
+  /* CallPetsc(EPSSolve(eps)); */
+  solved = true;
 }
+
+void SLEPcGEVPSolver::vector2Vec(Vector& vector, Vec& vec) {
+  /* TODO */
+}
+
+void SLEPcGEVPSolver::vec2vector(Vec& vec, Vector& vector) {
+  /* TODO */
+}
+
+int (*SLEPcGEVPSolver::matMult) (Mat&, Vec&, Vec&) = [](Mat& M, Vec& x, Vec& y) {
+  PetscFunctionBeginUser;
+
+  Operator *op_m;
+  getMatContext(M, op_m);
+
+  Vector sp_x(op_m->dimension());
+  Vector sp_y(op_m->dimension());
+  SLEPcGEVPSolver::vec2vector(x, sp_x);
+  op_m->apply(sp_x, sp_y);
+  SLEPcGEVPSolver::vector2Vec(sp_y, y);
+  return 0; /* TODO error code */
+};
+
+int (*SLEPcGEVPSolver::matMultTranspose) (Mat&, Vec&, Vec&) = [](Mat& M, Vec& x, Vec& y) {
+  PetscFunctionBeginUser;
+
+  Operator *op_m;
+  getMatContext(M, op_m);
+
+  if (op_m->isSymmetric()) {
+    return SLEPcGEVPSolver::matMult(M, x, y);
+  } else {
+    return -1; /* TODO */
+  }
+};
+
+ void SLEPcGEVPSolver::getMatContext(Mat& M, Operator *op) {
+  PetscFunctionBeginUser;
+
+  void *ctx;
+  CallPetsc(MatShellGetContext(M, &ctx));
+  *op = *((Operator *)ctx);
+}
+
+
+size_t (*SLEPcGEVPSolver::GET_N_NAIVE) (size_t) = [](size_t n) { return n*n; };
+
+EPSProblemType (*SLEPcGEVPSolver::GET_PBT_NAIVE) (Operator&, Operator&) = [](Operator& a, Operator& b) {
+  return a.isSymmetric() && b.isSymmetric() ? EPS_GHEP : EPS_GNHEP;
+};
+
+EPSType (*SLEPcGEVPSolver::GET_TYPE_NAIVE) (Operator&, Operator&) = [](Operator& a, Operator& b) {
+  return EPSLOBPCG;
+};
+
+size_t (*SLEPcGEVPSolver::getN) (size_t) = GET_N_NAIVE;
+EPSProblemType (*SLEPcGEVPSolver::getProblemType) (Operator&, Operator&) = GET_PBT_NAIVE;
+EPSType (*SLEPcGEVPSolver::getEpsType) (Operator&, Operator&) = GET_TYPE_NAIVE;
 
 }
 }
