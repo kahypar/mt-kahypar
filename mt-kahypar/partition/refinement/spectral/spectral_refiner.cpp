@@ -31,6 +31,8 @@
 
 namespace mt_kahypar {
 
+  using namespace spectral;
+
   template <typename GraphAndGainTypes>
   bool SpectralRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
                                                       const vec<HypernodeID>& refinement_nodes,
@@ -77,15 +79,16 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::kSpecPartAlgorithm(PartitionedHypergraph& inputSolution) {
     Hypergraph& inputHypergraph  = inputSolution.hypergraph();
-    size_t numNodes = inputHypergraph.initialNumNodes();
     PartitionID k = inputSolution.k(); /* TODO extract from argv */
+    
+    numNodes = inputHypergraph.initialNumNodes();
 
     // dehyperisation
-    spectral::Matrix inputGraphLaplacian;
+    Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
 
     // weight-balance graph construction
-    spectral::Matrix weightBalanceLaplacian;
+    Operator weightBalanceLaplacian(numNodes);
     buildWeightBalanceGraphLaplacian(inputHypergraph, weightBalanceLaplacian);
 
     // actual refinement
@@ -105,7 +108,7 @@ namespace mt_kahypar {
   }
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Matrix& target) {
+  void SpectralRefiner<GraphAndGainTypes>::dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     // dehyperisation via clique expansion graph
 
     /* TODO */
@@ -113,15 +116,15 @@ namespace mt_kahypar {
   
   
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target) {
+  void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     /* TODO */
   }
 
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::generate2WayVertexEmbedding(spectral::Matrix& baseBalance, spectral::Matrix& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target) {
+  void SpectralRefiner<GraphAndGainTypes>::generate2WayVertexEmbedding(spectral::Operator& baseBalance, spectral::Operator& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target) {
     // hint graph
-    spectral::Matrix hintGraphLaplacian;
+    Operator hintGraphLaplacian(numNodes);
     generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
@@ -130,13 +133,13 @@ namespace mt_kahypar {
     /* TODO */
     // to see something:
     spectral::Skalar a;
-    spectral::Vector v;
+    spectral::Vector v(numNodes);
     solver.nextEigenpair(a, v);
   }
 
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Matrix& target) {
+  void SpectralRefiner<GraphAndGainTypes>::generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target) {
     /* TODO */
   }
 

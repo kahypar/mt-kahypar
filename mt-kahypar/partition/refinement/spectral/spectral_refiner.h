@@ -29,7 +29,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/matrix.h"
+#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.h"
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
 
 
@@ -78,13 +78,13 @@ class SpectralRefiner final : public IRefiner {
 
   void kSpecPartAlgorithm(PartitionedHypergraph& hypergraph);
 
-  void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Matrix& target);
+  void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
-  void buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Matrix& target);
+  void buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
-  void generate2WayVertexEmbedding(spectral::Matrix& baseBalance, spectral::Matrix& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target);
+  void generate2WayVertexEmbedding(spectral::Operator& baseBalance, spectral::Operator& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target);
 
-  void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Matrix& target);
+  void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target);
 
 
   void resizeDataStructuresForCurrentK() {
@@ -93,6 +93,8 @@ class SpectralRefiner final : public IRefiner {
 
   const Context& _context;
   GainCache& _gain_cache;
+
+  size_t numNodes;
 };
 
 }  // namespace kahypar
