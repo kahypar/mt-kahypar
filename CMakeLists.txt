@@ -400,10 +400,13 @@ message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO
 include(gmock)
 enable_testing()
 
-add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
+
+if(NOT MT_KAHYPAR_DISABLE_BOOST)
+  add_subdirectory(mt-kahypar/application)
+endif()
 
 if(KAHYPAR_PYTHON)
   add_subdirectory(python)

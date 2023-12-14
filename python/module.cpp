@@ -43,11 +43,14 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
+
+#if !MT_KAHYPAR_DISABLE_BOOST
+#include "mt-kahypar/io/command_line_options.h"
+#endif
 
 namespace py = pybind11;
 using namespace mt_kahypar;
@@ -261,10 +264,13 @@ PYBIND11_MODULE(mtkahypar, m) {
         }
       }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
       py::arg("preset type"))
+#if !MT_KAHYPAR_DISABLE_BOOST
+#include "mt-kahypar/io/command_line_options.h"
     .def("loadConfigurationFile", [](Context& context, const std::string& config_file) {
         mt_kahypar::parseIniToContext(context, config_file);
       }, "Read partitioning configuration from file",
       py::arg("configuration file"))
+#endif
     .def("setPartitioningParameters",
       [](Context& context,
          const PartitionID k,

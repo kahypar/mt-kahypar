@@ -9,7 +9,13 @@
 add_subdirectory(pybind11)
 include_directories(${PROJECT_SOURCE_DIR})
 pybind11_add_module(mtkahypar_python module.cpp)
-target_link_libraries(mtkahypar_python PRIVATE ${Boost_LIBRARIES} TBB::tbb TBB::tbbmalloc_proxy)
+
+target_link_libraries(mtkahypar_python PRIVATE TBB::tbb TBB::tbbmalloc_proxy)
+
+if(NOT MT_KAHYPAR_DISABLE_BOOST)
+    target_link_libraries(mtkahypar_python PRIVATE Boost::program_options)
+endif()
+
 SET_TARGET_PROPERTIES(mtkahypar_python PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 target_compile_definitions(mtkahypar_python PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahypar_python PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
