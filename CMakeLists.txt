@@ -79,8 +79,8 @@ option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
 option(KAHYPAR_PYTHON
   "Build the Python interface. Can be turned off in case Python is not available." ON)
 
-option(MT_KAHYPAR_IO_CMD
-  "Whether to include command line IO components requiring Boost::program_options." ON)
+option(MT_KAHYPAR_DISABLE_BOOST
+  "Whether to exclude components requiring Boost::program_options. Will result in no binary target and the C and Python interface not being able to load configuration files." OFF)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -142,8 +142,8 @@ if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
   add_compile_definitions(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
-if(MT_KAHYPAR_IO_CMD)
-  add_compile_definitions(MT_KAHYPAR_IO_CMD)
+if(MT_KAHYPAR_DISABLE_BOOST)
+  add_compile_definitions(MT_KAHYPAR_DISABLE_BOOST)
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})

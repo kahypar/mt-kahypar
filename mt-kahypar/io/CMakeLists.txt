@@ -5,7 +5,7 @@ set(IOSources
         sql_plottools_serializer.cpp
         partitioning_output.cpp)
 
-if(MT_KAHYPAR_IO_CMD)
+if(NOT MT_KAHYPAR_DISABLE_BOOST)
     list(APPEND IOSources command_line_options.cpp)
 endif()
 
