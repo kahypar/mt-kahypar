@@ -105,6 +105,7 @@ class ConcurrentClusteringData {
   bool matchVertices(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      const HypernodeID v,
+                     const HypernodeWeight max_allowed_node_weight,
                      parallel::scalable_vector<HypernodeID>& cluster_ids,
                      MultilevelVertexPairRater& rater,
                      ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
@@ -118,6 +119,7 @@ class ConcurrentClusteringData {
   bool joinCluster(const Hypergraph& hypergraph,
                    const HypernodeID u,
                    const HypernodeID rep,
+                   const HypernodeWeight max_allowed_node_weight,
                    vec<HypernodeID>& cluster_ids,
                    ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 

@@ -126,7 +126,7 @@ struct ClusteringContext {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool matchVertices(const Hypergraph& current_hg, const HypernodeID u, const HypernodeID v) {
     bool success = clustering_data.template matchVertices<has_fixed_vertices>(
-      current_hg, u, v, cluster_ids, rater, fixed_vertices);
+      current_hg, u, v, max_allowed_node_weight, cluster_ids, rater, fixed_vertices);
     if (success) {
       // update the number of nodes in a way that minimizes synchronization overhead
       num_nodes_tracker.subtractNode(original_num_threads, hierarchy_contraction_limit);
