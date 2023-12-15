@@ -163,6 +163,9 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _timer.stop_timer("clustering");
 
+    utils::Stats &stats = utils::Utilities::instance().getStats(_context.utility_id);
+    stats.update_stat("nr_multilevels", _pass_nr);
+
     DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {

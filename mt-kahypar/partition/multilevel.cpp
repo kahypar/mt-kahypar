@@ -89,6 +89,9 @@ namespace {
     const bool nlevel = context.isNLevelPartitioning();
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
+    utils::Stats &stats = utils::Utilities::instance().getStats(context.utility_id);
+    stats.add_stat("nr_multilevels", 0);
+
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
     {
