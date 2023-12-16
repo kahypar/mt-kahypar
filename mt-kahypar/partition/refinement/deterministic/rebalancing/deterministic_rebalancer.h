@@ -162,6 +162,7 @@ private:
         const HypernodeID hn,
         bool non_adjacent_blocks);
 
+    template<bool isGraph>
     bool changeNodePart(PartitionedHypergraph& phg,
         const HypernodeID hn,
         const PartitionID from,
@@ -174,13 +175,13 @@ private:
 
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
-        // auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
-        //     _gain_computation.computeDeltaForHyperedge(sync_update);
-        // };
+        auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+            _gain_computation.computeDeltaForHyperedge(sync_update);
+        };
 
         HypernodeWeight max_weight = ensure_balanced ? _max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
         bool success = false;
-        success = phg.changeNodePartNoSync(hn, from, to, max_weight);
+        success = isGraph ? phg.changeNodePartNoSync(hn, from, to, max_weight) : phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
         ASSERT(success || ensure_balanced);
         return success;
     }

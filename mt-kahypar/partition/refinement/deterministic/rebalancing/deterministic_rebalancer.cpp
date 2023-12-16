@@ -43,7 +43,7 @@
 #include <tbb/parallel_sort.h>
 
 namespace mt_kahypar {
-  static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
+static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
 float transformGain(Gain gain_, HypernodeWeight wu) {
   float gain = gain_;
@@ -57,7 +57,7 @@ float transformGain(Gain gain_, HypernodeWeight wu) {
 
 template <typename GraphAndGainTypes>
 bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-  Metrics&,
+  Metrics& best_metrics,
   bool run_until_balanced) {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
@@ -72,6 +72,12 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
     ++iteration;
+  }
+  if (!phg.is_graph) {
+    Gain delta = _gain_computation.delta();
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
+      V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
+    best_metrics.quality += delta;
   }
   DBG << "[REBALANCE] " << "  imbalance=" << metrics::imbalance(phg, _context);
   _max_part_weights = nullptr;
@@ -186,10 +192,17 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       // timer.stop_timer("find_moves");
 
       // timer.start_timer("exe_moves", "Execute Moves");
-      tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-        const auto move = _moves[i][j];
-        changeNodePart(phg, move.hn, i, move.to, false);
-      });
+      if (phg.is_graph) {
+        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
+          const auto move = _moves[i][j];
+          changeNodePart<true>(phg, move.hn, i, move.to, false);
+        });
+      } else {
+        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
+          const auto move = _moves[i][j];
+          changeNodePart<false>(phg, move.hn, i, move.to, false);
+        });
+      }
       //timer.stop_timer("exe_moves");
     }
   });
