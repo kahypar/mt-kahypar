@@ -95,20 +95,52 @@ private:
 
   void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
 
-  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const HypernodeID hn);
-
   void storeCurrentPartition(const PartitionedHypergraph& hypergraph, parallel::scalable_vector<PartitionID>& parts);
 
-  void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
+  template <bool isGraph>
+  void rollbackToBestPartition(PartitionedHypergraph& phg) {
+    // This function is passed as lambda to the changeNodePart function and used
+    // to calculate the "real" delta of a move (in terms of the used objective function).
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      _gain_computation.computeDeltaForHyperedge(sync_update);
+    };
 
+    auto reset_node = [&](const HypernodeID hn) {
+      const PartitionID part_id = phg.partID(hn);
+      if (part_id != _best_partition[hn]) {
+        ASSERT(_best_partition[hn] != kInvalidPartition);
+        ASSERT(_best_partition[hn] >= 0 && _best_partition[hn] < _current_k);
+        changeNodePart<isGraph>(phg, hn, part_id, _best_partition[hn], objective_delta);
+      }
+    };
+    phg.doParallelForAllNodes(reset_node);
+    _current_partition_is_best = true;
+  }
+
+  template< bool isGraph, typename F>
   void changeNodePart(PartitionedHypergraph& phg,
     const HypernodeID hn,
     const PartitionID from,
-    const PartitionID to) {
+    const PartitionID to,
+    const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
+    const bool success = isGraph ? phg.changeNodePartNoSync(hn, from, to, inf_weight) : phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
     ASSERT(success);
     unused(success);
+  }
+
+  template<bool isGraph>
+  Gain performMoveWithAttributedGain(
+    PartitionedHypergraph& phg, const HypernodeID hn) {
+    const auto from = phg.partID(hn);
+    const auto [gain, to] = _gains_and_target[hn];
+    Gain attributed_gain = 0;
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      attributed_gain -= AttributedGains::gain(sync_update);
+    };
+    ASSERT(to >= 0 && to < _current_k);
+    changeNodePart<isGraph>(phg, hn, from, to, objective_delta);
+    return attributed_gain;
   }
 
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
