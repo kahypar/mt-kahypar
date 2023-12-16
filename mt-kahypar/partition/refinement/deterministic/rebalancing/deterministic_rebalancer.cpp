@@ -43,6 +43,7 @@
 #include <tbb/parallel_sort.h>
 
 namespace mt_kahypar {
+  static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
 float transformGain(Gain gain_, HypernodeWeight wu) {
   float gain = gain_;
@@ -66,7 +67,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
   _gain_computation.reset();
   initializeDataStructures(phg);
   size_t iteration = 0;
-  while (_num_imbalanced_parts > 0 && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
+  while (_num_imbalanced_parts > 0 && iteration < ABSOLUTE_MAX_ROUNDS && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
