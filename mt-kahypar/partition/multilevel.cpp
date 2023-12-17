@@ -106,6 +106,16 @@ namespace {
           utils::cast<Hypergraph>(coarsestHypergraph), context,
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
+
+      HyperedgeWeight totalWeight = 0;
+      auto sumEdges = [&](Hypergraph &hg)
+      {
+        hg.doParallelForAllEdges([&](const HyperedgeID &he) { 
+          totalWeight += hg.edgeSize(he);
+        });
+      };
+      sumEdges(utils::cast<Hypergraph>(coarsener->coarsestHypergraph()));
+      stats.add_stat("total_e_weight_of_coarsest_graph", totalWeight);
     }
     timer.stop_timer("coarsening");
 
