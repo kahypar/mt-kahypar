@@ -50,6 +50,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
@@ -106,16 +107,16 @@ namespace {
           utils::cast<Hypergraph>(coarsestHypergraph), context,
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
-
-      HyperedgeWeight totalWeight = 0;
-      auto sumEdges = [&](Hypergraph &hg)
-      {
-        hg.doParallelForAllEdges([&](const HyperedgeID &he) { 
-          totalWeight += hg.edgeSize(he);
+      std::vector<HyperedgeWeight> he_weights;
+      auto sumEdges = [&](const Hypergraph &hg) {
+        he_weights.resize(hg.initialNumEdges());
+        hg.doParallelForAllEdges([&](const HyperedgeID& he) {
+          he_weights[he] = hg.edgeWeight(he);
         });
+        return utils::parallel_sum(he_weights);
       };
-      sumEdges(utils::cast<Hypergraph>(coarsener->coarsestHypergraph()));
-      stats.add_stat("total_e_weight_of_coarsest_graph", totalWeight);
+      stats.add_stat("total_e_weight_of_coarsest_graph",
+                     sumEdges(utils::cast<Hypergraph>(coarsener->coarsestHypergraph())));
     }
     timer.stop_timer("coarsening");
 
