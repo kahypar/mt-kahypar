@@ -48,7 +48,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 
-#if !MT_KAHYPAR_DISABLE_BOOST
+#ifndef MT_KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"
 #endif
 
@@ -264,8 +264,7 @@ PYBIND11_MODULE(mtkahypar, m) {
         }
       }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
       py::arg("preset type"))
-#if !MT_KAHYPAR_DISABLE_BOOST
-#include "mt-kahypar/io/command_line_options.h"
+#ifndef MT_KAHYPAR_DISABLE_BOOST
     .def("loadConfigurationFile", [](Context& context, const std::string& config_file) {
         mt_kahypar::parseIniToContext(context, config_file);
       }, "Read partitioning configuration from file",
