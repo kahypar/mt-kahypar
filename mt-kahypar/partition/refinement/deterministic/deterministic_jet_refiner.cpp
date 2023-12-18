@@ -137,7 +137,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 for (size_t i = r.begin(); i < r.end(); ++i) {
                     const HypernodeID hn = _active_nodes[i];
                     if (_afterburner_gain[hn] <= 0) {
-                         _locks.set(hn);
+                        _locks.set(hn);
                         my_gain += performMoveWithAttributedGain<false>(phg, hn);
                     }
                 }
@@ -151,11 +151,19 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         // rebalance
         if (!metrics::isBalanced(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
-            timer.start_timer("rebalance", "Rebalance");
-            mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             const bool run_until_balanced = rounds_without_improvement == max_rounds_without_improvement - 1 && was_already_balanced;
+            if (run_until_balanced) {
+                timer.start_timer("unlimited_rebalance", "UnlimitedRebalance");
+            } else {
+                timer.start_timer("limited_rebalance", "LimitedRebalance");
+            }
+            mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
             _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
-            timer.stop_timer("rebalance");
+            if (run_until_balanced) {
+                timer.stop_timer("unlimited_rebalance");
+            } else {
+                timer.stop_timer("limited_rebalance");
+            }
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
         }
         timer.start_timer("reb_quality", "Quality after Rebalancing");

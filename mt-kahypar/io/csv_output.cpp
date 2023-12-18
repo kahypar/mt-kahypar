@@ -86,7 +86,8 @@ namespace mt_kahypar::io::csv {
     s << timer.get("afterburner") << sep;
     s << timer.get("apply_moves") << sep;
     // rebalancing
-    s << timer.get("rebalance") << sep;
+    s << timer.get("unlimited_rebalance") << sep;
+    s << timer.get("limited_rebalance") << sep;
     s << timer.get("gain_computation") << sep;
     s << timer.get("copy_moves") << sep;
     s << timer.get("sorting") << sep;
