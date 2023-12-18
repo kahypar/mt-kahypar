@@ -51,6 +51,7 @@
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 
 namespace mt_kahypar {
 
@@ -163,9 +164,6 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _timer.stop_timer("clustering");
 
-    utils::Stats &stats = utils::Utilities::instance().getStats(_context.utility_id);
-    stats.update_stat("nr_multilevels", _pass_nr);
-
     DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {
@@ -177,6 +175,26 @@ class MultilevelCoarsener : public ICoarsener,
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
     _timer.stop_timer("contraction");
     ++_pass_nr;
+
+    utils::Stats &stats = utils::Utilities::instance().getStats(_context.utility_id);
+    stats.update_stat("nr_multilevels", _pass_nr);
+    if (_pass_nr == 2) {
+      stats.add_stat("level_2_numHEs", static_cast<double>(current_hg.initialNumEdges()));
+
+      HyperedgeID num_hyperedges = current_hg.initialNumEdges();
+      std::vector<HyperedgeWeight> he_weights;
+      auto avgEdges = [&](const Hypergraph &hg)
+      {
+        he_weights.resize(hg.initialNumEdges());
+        hg.doParallelForAllEdges([&](const HyperedgeID &he) { 
+          he_weights[he] = hg.edgeWeight(he);
+        });
+        return utils::parallel_avg(he_weights, num_hyperedges);
+      };
+      stats.add_stat("level_2_avgHEWeight", avgEdges(current_hg));
+      stats.add_stat("level_2_avgHESize", utils::avgHyperedgeDegree(current_hg));
+    }
+
     return true;
   }
 
