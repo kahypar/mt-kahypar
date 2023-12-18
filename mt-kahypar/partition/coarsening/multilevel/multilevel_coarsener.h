@@ -180,6 +180,7 @@ class MultilevelCoarsener : public ICoarsener,
     stats.update_stat("nr_multilevels", _pass_nr);
     if (_pass_nr == 2) {
       stats.add_stat("level_2_numHEs", static_cast<double>(current_hg.initialNumEdges()));
+      stats.add_stat("level_2_numHNs", static_cast<double>(current_hg.initialNumNodes()));
 
       HyperedgeID num_hyperedges = current_hg.initialNumEdges();
       std::vector<HyperedgeWeight> he_weights;
