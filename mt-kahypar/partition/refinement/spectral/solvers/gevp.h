@@ -35,9 +35,9 @@ namespace spectral {
 
 class GEVPSolver {
  public:
-  virtual void initialize(spectral::Operator& a, spectral::Operator& b) = 0;
+  virtual void setProblem(Operator& a, Operator& b) = 0;
 
-  virtual bool nextEigenpair(spectral::Skalar& eval, spectral::Vector& evec) = 0; /* TODO return rather all pairs, an iterator or YAGNI? */
+  virtual bool nextEigenpair(Skalar& eval, Vector& evec) = 0; /* TODO return rather all pairs, an iterator or YAGNI? */
 
   virtual ~GEVPSolver() = default;
 };
