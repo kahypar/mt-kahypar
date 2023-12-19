@@ -1,6 +1,6 @@
 <h1 align="center">Mt-KaHyPar - Multi-Threaded Karlsruhe Graph and Hypergraph Partitioner</h1>
 
-License|Linux & Windows Build|Code Coverage|Zenodo
+License|Linux, MacOS & Windows Build|Code Coverage|Zenodo
 :--:|:--:|:--:|:--:
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)|[![Build Status](https://github.com/kahypar/mt-kahypar/actions/workflows/master_ci.yml/badge.svg)](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![DOI](https://zenodo.org/badge/205879380.svg)](https://zenodo.org/badge/latestdoi/205879380)
 
@@ -50,7 +50,7 @@ Requirements
 
 The Multi-Threaded Karlsruhe Graph and Hypergraph Partitioning Framework requires:
 
-  - A 64-bit Linux or Windows operating system.
+  - A 64-bit Linux, MacOS, or Windows operating system.
   - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows (tested with version 12.1).
  - The [cmake][cmake] build system (>= 3.16).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
@@ -197,7 +197,7 @@ The C Library Interface
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
 
 ```sh
-make install.mtkahypar # use sudo (Linux) or run shell as an adminstrator (Windows) to install system-wide
+make install.mtkahypar # use sudo (Linux & MacOS) or run shell as an adminstrator (Windows) to install system-wide
 ```
 
 Note: When installing locally, the build will exit with an error due to missing permissions.
