@@ -315,6 +315,12 @@ if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
   configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
 endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+    set (X86 TRUE)
+else ()
+    set (X86 FALSE)
+endif ()
+
 if(NOT MSVC)
   # Add compile flags
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra ")
@@ -327,14 +333,17 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Winit-self")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPARANOID ")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcx16")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
+  if(X86)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcx16")
+  endif()
+
   # lld is way faster than ld. If you have it, use it!
   find_program(LLD_BIN lld)
-  if (LLD_BIN)
+  if (LLD_BIN AND X86)
     message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
   else()
@@ -348,7 +357,7 @@ if(NOT MSVC)
 
   include(CheckCXXCompilerFlag)
   check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
-  if(KAHYPAR_HAS_CRC32)
+  if(KAHYPAR_HAS_CRC32 AND X86)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcrc32")
   endif()
 
