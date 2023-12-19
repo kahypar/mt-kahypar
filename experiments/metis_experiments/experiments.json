@@ -1,0 +1,11 @@
+{
+	"name": "mt_kahypar_experiment",
+	"config": [{ "partitioner": "multi_dim_mt_kahypar"}],
+	"threads": [2],
+	"k": [4],
+	"epsilon": "0.05 0.05",
+	"seeds":[1,2,3,4,5],
+	"objective": "km1",
+	"timelimit": 28800,
+	"multi_dim_mt_kahypar_instance_folder": "/home/konstantin/hypergraph_partitioner/graphs"
+}
