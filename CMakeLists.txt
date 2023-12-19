@@ -80,6 +80,9 @@ option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
 option(KAHYPAR_PYTHON
   "Build the Python interface. Can be turned off in case Python is not available." ON)
 
+option(MT_KAHYPAR_DISABLE_BOOST
+  "Whether to exclude components requiring Boost::program_options. Will result in no binary target and the C and Python interface not being able to load configuration files." OFF)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -139,6 +142,10 @@ endif(KAHYPAR_ENABLE_SOED_METRIC)
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
   add_compile_definitions(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+
+if(MT_KAHYPAR_DISABLE_BOOST)
+  add_compile_definitions(MT_KAHYPAR_DISABLE_BOOST)
+endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)
@@ -403,10 +410,13 @@ message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO
 include(gmock)
 enable_testing()
 
-add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
+
+if(NOT MT_KAHYPAR_DISABLE_BOOST)
+  add_subdirectory(mt-kahypar/application)
+endif()
 
 if(KAHYPAR_PYTHON)
   add_subdirectory(python)
