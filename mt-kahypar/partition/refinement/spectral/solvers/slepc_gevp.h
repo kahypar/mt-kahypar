@@ -34,11 +34,10 @@ namespace spectral {
 
 class SLEPcGEVPSolver : public GEVPSolver {
  public:
-  void initialize(Operator& a, Operator& b) final;
+  void setProblem(Operator& a, Operator& b) final;
 
   bool nextEigenpair(Skalar& eval, Vector& evec) final;
 
-  SLEPcGEVPSolver();
   ~SLEPcGEVPSolver() final;
 
  private:
