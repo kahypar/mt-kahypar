@@ -38,7 +38,9 @@ class Operator {
 
   size_t dimension();
 
-  void apply(spectral::Vector& operand, spectral::Vector& target);
+  void apply(Vector& operand, Vector& target);
+
+  void getDiagonal(Vector& target);
 
   bool isSymmetric();
 
@@ -46,7 +48,7 @@ class Operator {
   size_t dim;
 };
 
-spectral::Operator operator+ (spectral::Operator& a, spectral::Operator& b);
+Operator operator+ (Operator& a, Operator& b);
 
 }
 }

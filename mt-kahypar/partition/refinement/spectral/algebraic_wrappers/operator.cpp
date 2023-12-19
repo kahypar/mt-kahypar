@@ -29,19 +29,23 @@ namespace spectral {
 
 /* make getters more elegant? */
 
-spectral::Operator::Operator(size_t dimension) {
+Operator::Operator(size_t dimension) {
   dim = dimension;
 }
 
-size_t spectral::Operator::dimension() {
+size_t Operator::dimension() {
   return dim;
 }
 
-void spectral::Operator::apply(spectral::Vector& operand, spectral::Vector& target) {
+void Operator::apply(Vector& operand, Vector& target) {
   /* TODO */
 }
 
-bool spectral::Operator::isSymmetric() {
+void Operator::getDiagonal(Vector& target) {
+  /* TODO */
+}
+
+bool Operator::isSymmetric() {
   return true; /* TODO */
 }
 
