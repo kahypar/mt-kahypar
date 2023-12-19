@@ -43,47 +43,64 @@ class SLEPcGEVPSolver : public GEVPSolver {
  private:
   // attributes
 
-  Operator *op_a;
-  Operator *op_b;
-
-  Mat mat_A;
-  Mat mat_B;
-
-  EPS eps;
+  bool slepc_running = false;
   bool solved = false;
+
+  // custom matrices
+  Operator *op_a = nullptr;
+  Operator *op_b = nullptr;
+
+  // petsc matrices
+  Mat mat_A = nullptr;
+  Mat mat_B = nullptr;
+
+  // petsc eigen problem solver
+  EPS eps;
+
+
+  // methods
+
+  void start_slepc();
+  void solve();
+  void reset_matrices();
+  void end_slepc();
+
+  // conversion
+  /* TODO maybe not needed? */
+  static void vector2Vec(Vector& vector, Vec vec);
+  static void vec2vector(Vec vec, Vector& vector);
+
+  static void getMatContext(Mat M, Operator **op);
+
+  // algebraic operations
+  static PetscErrorCode matMult(Mat M, Vec x, Vec y);
+  static PetscErrorCode matMultTranspose(Mat M, Vec x, Vec y);
+  static PetscErrorCode getDiagonal(Mat M, Vec diag);
+
+  // lambdas
+  size_t (*getN) (size_t) = [](size_t n) { throw "unassigned"; return n; };
+  EPSProblemType (*getProblemType) (Operator&, Operator&) = [](Operator& a, Operator& b) { throw "unassigned"; return EPS_HEP; };
+  EPSType (*getEpsType) (Operator&, Operator&) = [](Operator& a, Operator& b) { throw "unassigned"; return EPSLOBPCG; };
+
 
   // constants
 
   static constexpr MPI_Comm& GLOBAL_COMMUNICATOR = PETSC_COMM_WORLD;
 
   // matrix storage size calculation strategys
-  static size_t (*GET_N_NAIVE) (size_t);
+  static constexpr size_t (*GET_N_NAIVE) (size_t) = [](size_t n) { return n*n; };
   /* ... */
 
   // problem type strategys
-  static EPSProblemType (*GET_PBT_NAIVE) (Operator&, Operator&);
+  static constexpr EPSProblemType (*GET_PBT_NAIVE) (Operator&, Operator&) = [](Operator& a, Operator& b) {
+    return a.isSymmetric() && b.isSymmetric() ? EPS_GHEP : EPS_GNHEP;
+  };
   /* ... */
 
   // eps type strategys
-  static EPSType (*GET_TYPE_NAIVE) (Operator&, Operator&);
-
-  // methods
-
-  void solve();
-
-  static void vector2Vec(Vector& vector, Vec& vec);
-  static void vec2vector(Vec& vec, Vector& vector);
-
-  static void getMatContext(Mat& M, Operator *op);
-
-  
-  // lambdas
-  static size_t (*getN) (size_t);
-  static EPSProblemType (*getProblemType) (Operator&, Operator&);
-  static EPSType (*getEpsType) (Operator&, Operator&);
-
-  static int (*matMult) (Mat& M, Vec& x, Vec& y);
-  static int (*matMultTranspose) (Mat& M, Vec& x, Vec& y);
+  static constexpr EPSType (*GET_TYPE_NAIVE) (Operator&, Operator&) = [](Operator& a, Operator& b) {
+    return EPSLOBPCG;
+  };
 };
 
 }

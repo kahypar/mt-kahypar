@@ -128,7 +128,7 @@ namespace mt_kahypar {
     generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
-    solver.initialize(graphLaplacian, /* baseBalance + */ hintGraphLaplacian);
+    solver.setProblem(graphLaplacian, /* baseBalance + */ hintGraphLaplacian);
 
     /* TODO */
     // to see something:
