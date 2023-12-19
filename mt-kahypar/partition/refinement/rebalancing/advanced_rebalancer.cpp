@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 
+#include <array>
 #include <optional>
 
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"

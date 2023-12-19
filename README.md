@@ -70,6 +70,12 @@ The following command will install most of the required dependencies on a Ubuntu
 
     sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
+### MacOS
+
+The following command will install most of the required dependencies on a MacOS machine:
+
+    brew install tbb boost hwloc
+
 ### Windows
 
 The following instructions setup the environment used to build Mt-KaHyPar on Windows machines:

@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
