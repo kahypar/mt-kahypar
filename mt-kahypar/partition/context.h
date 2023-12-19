@@ -61,7 +61,7 @@ struct PartitioningParameters {
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
-
+  
   bool verbose_output = true;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
@@ -72,7 +72,7 @@ struct PartitioningParameters {
   bool enable_progress_bar = false;
   bool sp_process_output = false;
   bool csv_output = false;
-  bool write_partition_file = false;
+  bool write_partition_file = true;
   bool deterministic = false;
 
   std::string graph_filename { };
@@ -281,6 +281,7 @@ class Context {
   MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
+
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();

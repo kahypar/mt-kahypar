@@ -297,7 +297,7 @@ namespace mt_kahypar {
     } else {
       partition.perfect_balance_part_weights.clear();
       HypernodeWeight nw;
-      for(int i = 0; i < partition.k; i++){
+      for(int i = 0; i < dimension; i++){
         nw.weights[i] = ceil(total_hypergraph_weight.weights[i]
               / static_cast<double>(partition.k));
       }
