@@ -32,7 +32,7 @@
 #include <atomic>
 #include <sstream>
 #include <chrono>
-#ifdef __linux__
+#if defined(__linux__) or defined(__APPLE__)
 #include <sys/ioctl.h>
 #elif _WIN32
 #include <windows.h>
@@ -60,7 +60,7 @@ class ProgressBar {
     _objective(objective),
     _progress_bar_size(0),
     _enable(enable) {
-    #ifdef __linux__
+    #if defined(__linux__) or defined(__APPLE__)
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     _progress_bar_size = w.ws_col / 2;

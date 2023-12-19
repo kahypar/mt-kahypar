@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <limits>
 
 #include "mt-kahypar/macros.h"
@@ -102,7 +103,8 @@ class StaticBitset {
       const bool reached_max_id = _current_block_id == _max_block_id;
       // Avoid if statement here
       _current_block_id = (1 - reached_max_id) * ( _current_block_id +
-         utils::lowest_set_bit_64(std::max(b >> ( _current_block_id & MOD_MASK ), UL(1)))) +
+         utils::lowest_set_bit_64(
+           std::max(b >> ( _current_block_id & MOD_MASK ), static_cast<uint64_t>(1)))) +
          reached_max_id * _max_block_id;
     }
 

@@ -81,7 +81,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(_numa_node, _cpus[0]));
     }
 
-    #ifdef KAHYPAR_ENABLE_THREAD_PINNING
+    #if defined(KAHYPAR_ENABLE_THREAD_PINNING) and not defined(__APPLE__)
     #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
     #endif
@@ -172,7 +172,8 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
  private:
 
   void pin_thread_to_cpu(const int cpu_id) {
-    #ifdef __linux__
+    #ifndef __APPLE__
+    #if __linux__
     const size_t size = CPU_ALLOC_SIZE(_num_cpus);
     cpu_set_t mask;
     CPU_ZERO(&mask);
@@ -192,6 +193,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(THREAD_ID == cpu_id);
     DBG << "Thread with PID" << std::this_thread::get_id()
         << "successfully pinned to CPU" << cpu_id;
+    #endif
   }
 
   std::string pin_thread_message(const int cpu_id) {

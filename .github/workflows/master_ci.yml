@@ -224,3 +224,33 @@ jobs:
         run: |
           cd build
           ./tests/mt_kahypar_tests
+
+  mt_kahypar_macos_build:
+    name: MacOS Build
+    runs-on: macos-latest
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+         fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          brew install tbb boost hwloc lcov gcovr
+
+      - name: Install Mt-KaHyPar Multilevel Tests
+        run: |
+          git submodule update --init --recursive
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          make -j2 mt_kahypar_tests
+
+      - name: Run Mt-KaHyPar Tests
+        run: |
+          cd build
+          ./tests/mt_kahypar_tests

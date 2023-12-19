@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <array>
 #include <random>
 #include <tbb/tick_count.h>
 

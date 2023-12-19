@@ -28,11 +28,11 @@
 #include "command_line_options.h"
 
 #include <boost/program_options.hpp>
-#ifdef __linux__
-#include <sys/ioctl.h>
-#elif _WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include <process.h>
+#else
+#include <sys/ioctl.h>
 #endif
 
 #include <fstream>

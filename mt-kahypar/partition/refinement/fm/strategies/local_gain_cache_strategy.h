@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
