@@ -40,7 +40,7 @@ class zero_allocator : public tbb::tbb_allocator<T> {
 
   zero_allocator() = default;
   template <typename U>
-  explicit zero_allocator(const zero_allocator<U>&) noexcept {}
+  explicit zero_allocator(const U&) noexcept {}
 
   T* allocate(std::size_t n) {
     T* ptr = tbb::tbb_allocator<T>::allocate(n);

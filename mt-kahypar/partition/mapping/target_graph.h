@@ -39,7 +39,7 @@
 #include "data-structures/hash_table_mods.hpp"
 #include "data-structures/table_config.hpp"
 #pragma GCC diagnostic pop
-#elif _WIN32
+#elif defined(_WIN32) or defined(__APPLE__)
 #include "tbb/concurrent_unordered_map.h"
 #endif
 
@@ -65,7 +65,7 @@ class TargetGraph {
   using ConcurrentHashTable = typename growt::table_config<
     size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
   using HashTableHandle = typename ConcurrentHashTable::handle_type;
-  #elif _WIN32
+  #elif defined(_WIN32) or defined(__APPLE__)
   using ConcurrentHashTable = tbb::concurrent_unordered_map<size_t, size_t>;
   #endif
 

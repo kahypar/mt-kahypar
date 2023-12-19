@@ -34,7 +34,7 @@
 #include <atomic>
 #include <vector>
 #include <algorithm>
-#ifdef __linux__
+#if defined(__linux__) or defined(__APPLE__)
 #include <unistd.h>
 #elif _WIN32
 #include <sysinfoapi.h>
@@ -592,7 +592,7 @@ class MemoryPoolT {
     _use_round_robin_assignment(true),
     _use_minimum_allocation_size(true),
     _use_unused_memory_chunks(true) {
-    #ifdef __linux__
+    #if defined(__linux__) or defined(__APPLE__)
       _page_size = sysconf(_SC_PAGE_SIZE);
     #elif _WIN32
       SYSTEM_INFO sysInfo;

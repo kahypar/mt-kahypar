@@ -36,7 +36,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#ifdef __linux__
+#if defined(__linux__) or defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
 #elif _WIN32
@@ -55,7 +55,7 @@
 
 namespace mt_kahypar::io {
 
-  #ifdef __linux__
+  #if defined(__linux__) or defined(__APPLE__)
   struct FileHandle {
     int fd;
     char* mapped_file;
@@ -130,7 +130,7 @@ namespace mt_kahypar::io {
       if ( handle.mapped_file == NULL ) {
         throw SystemException("Failed to map file to main memory:" + filename);
       }
-    #elif __linux__
+    #elif defined(__linux__) or defined(__APPLE__)
       handle.fd = open(filename.c_str(), O_RDONLY);
       if ( handle.fd < -1 ) {
         throw InvalidInputException("Could not open: " + filename);
@@ -148,7 +148,7 @@ namespace mt_kahypar::io {
   void munmap_file(FileHandle& handle) {
     #ifdef _WIN32
     UnmapViewOfFile(handle.mapped_file);
-    #elif __linux__
+    #elif defined(__linux__) or defined(__APPLE__)
     munmap(handle.mapped_file, handle.length);
     #endif
     handle.closeHandle();
