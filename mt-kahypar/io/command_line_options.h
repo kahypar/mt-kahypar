@@ -32,6 +32,6 @@
 
 namespace mt_kahypar {
 
-void processCommandLineInput(Context &context, int argc, char *argv[]);
-void parseIniToContext(Context &context, const std::string &ini_filename);
+void processCommandLineInput(Context& context, int argc, char *argv[]);
+void parseIniToContext(Context& context, const std::string& ini_filename);
 } // namespace mt_kahypar

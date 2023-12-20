@@ -3,8 +3,7 @@
 
 #include "mt-kahypar/definitions.h"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   mt_kahypar::TBBInitializer::instance(std::thread::hardware_concurrency());

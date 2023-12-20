@@ -32,29 +32,22 @@
 namespace mt_kahypar {
 
 // adaptive random walk stopping rule from KaHyPar
-class StopRule
-{
+class StopRule {
 public:
-  StopRule(HypernodeID numNodes) : beta(std::log(numNodes)) {}
+  StopRule(HypernodeID numNodes) : beta(std::log(numNodes)) { }
 
-  bool searchShouldStop()
-  {
-    return (numSteps > beta) &&
-           (Mk == 0 || numSteps >= (variance / (Mk * Mk)) * stopFactor);
+  bool searchShouldStop() {
+    return (numSteps > beta) && (Mk == 0 || numSteps >= ( variance / (Mk*Mk) ) * stopFactor );
   }
 
-  void update(Gain gain)
-  {
+  void update(Gain gain) {
     ++numSteps;
-    if(numSteps == 1)
-    {
+    if (numSteps == 1) {
       Mk = gain;
       MkPrevious = gain;
       SkPrevious = 0.0;
       variance = 0.0;
-    }
-    else
-    {
+    } else {
       Mk = MkPrevious + (gain - MkPrevious) / numSteps;
       Sk = SkPrevious + (gain - MkPrevious) * (gain - Mk);
       variance = Sk / (numSteps - 1.0);
@@ -64,8 +57,7 @@ public:
     }
   }
 
-  void reset()
-  {
+  void reset() {
     numSteps = 0;
     variance = 0.0;
   }
@@ -73,7 +65,7 @@ public:
 private:
   size_t numSteps = 0;
   double variance = 0.0, Mk = 0.0, MkPrevious = 0.0, Sk = 0.0, SkPrevious = 0.0;
-  const double alpha = 1.0; // make parameter if it doesn't work well
+  const double alpha = 1.0;   // make parameter if it doesn't work well
   const double stopFactor = (alpha / 2.0) - 0.25;
   double beta;
 };

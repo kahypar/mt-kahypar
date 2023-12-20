@@ -24,6 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
+
 #include <atomic>
 #include <mt-kahypar/parallel/tbb_initializer.h>
 
@@ -37,81 +38,62 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-template <typename TypeTraits>
-class APartitionedHypergraph : public Test
-{
+template<typename TypeTraits>
+class APartitionedHypergraph : public Test {
 
-public:
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Factory = typename Hypergraph::Factory;
+ public:
+ using Hypergraph = typename TypeTraits::Hypergraph;
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ using Factory = typename Hypergraph::Factory;
 
   APartitionedHypergraph() :
-      hypergraph(Factory::construct(
-          7, 4, { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } })),
-      partitioned_hypergraph()
-  {
+    hypergraph(Factory::construct(
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
+    partitioned_hypergraph() {
     partitioned_hypergraph = PartitionedHypergraph(3, hypergraph, parallel_tag_t());
     initializePartition();
   }
 
-  void initializePartition()
-  {
-    if(hypergraph.nodeIsEnabled(0))
-      partitioned_hypergraph.setNodePart(0, 0);
-    if(hypergraph.nodeIsEnabled(1))
-      partitioned_hypergraph.setNodePart(1, 0);
-    if(hypergraph.nodeIsEnabled(2))
-      partitioned_hypergraph.setNodePart(2, 0);
-    if(hypergraph.nodeIsEnabled(3))
-      partitioned_hypergraph.setNodePart(3, 1);
-    if(hypergraph.nodeIsEnabled(4))
-      partitioned_hypergraph.setNodePart(4, 1);
-    if(hypergraph.nodeIsEnabled(5))
-      partitioned_hypergraph.setNodePart(5, 2);
-    if(hypergraph.nodeIsEnabled(6))
-      partitioned_hypergraph.setNodePart(6, 2);
+  void initializePartition() {
+    if ( hypergraph.nodeIsEnabled(0) ) partitioned_hypergraph.setNodePart(0, 0);
+    if ( hypergraph.nodeIsEnabled(1) ) partitioned_hypergraph.setNodePart(1, 0);
+    if ( hypergraph.nodeIsEnabled(2) ) partitioned_hypergraph.setNodePart(2, 0);
+    if ( hypergraph.nodeIsEnabled(3) ) partitioned_hypergraph.setNodePart(3, 1);
+    if ( hypergraph.nodeIsEnabled(4) ) partitioned_hypergraph.setNodePart(4, 1);
+    if ( hypergraph.nodeIsEnabled(5) ) partitioned_hypergraph.setNodePart(5, 2);
+    if ( hypergraph.nodeIsEnabled(6) ) partitioned_hypergraph.setNodePart(6, 2);
   }
 
   void verifyPartitionPinCounts(const HyperedgeID he,
-                                const std::vector<HypernodeID> &expected_pin_counts)
-  {
+                                const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(partitioned_hypergraph.k()));
-    for(PartitionID block = 0; block < 3; ++block)
-    {
-      ASSERT_EQ(expected_pin_counts[block],
-                partitioned_hypergraph.pinCountInPart(he, block))
-          << V(he) << V(block);
+    for (PartitionID block = 0; block < 3; ++block) {
+      ASSERT_EQ(expected_pin_counts[block], partitioned_hypergraph.pinCountInPart(he, block)) << V(he) << V(block);
     }
   }
 
   void verifyConnectivitySet(const HyperedgeID he,
-                             const std::set<PartitionID> &connectivity_set)
-  {
+                             const std::set<PartitionID>& connectivity_set) {
     ASSERT_EQ(connectivity_set.size(), partitioned_hypergraph.connectivity(he)) << V(he);
     PartitionID connectivity = 0;
-    for(const PartitionID &block : partitioned_hypergraph.connectivitySet(he))
-    {
-      ASSERT_TRUE(connectivity_set.find(block) != connectivity_set.end())
-          << V(he) << V(block);
+    for (const PartitionID& block : partitioned_hypergraph.connectivitySet(he)) {
+      ASSERT_TRUE(connectivity_set.find(block) != connectivity_set.end()) << V(he) << V(block);
       ++connectivity;
     }
     ASSERT_EQ(connectivity_set.size(), connectivity) << V(he);
   }
 
-  void verifyPins(const Hypergraph &hg, const std::vector<HyperedgeID> hyperedges,
-                  const std::vector<std::set<HypernodeID> > &references, bool log = false)
-  {
+  void verifyPins(const Hypergraph& hg,
+                  const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
     ASSERT(hyperedges.size() == references.size());
-    for(size_t i = 0; i < hyperedges.size(); ++i)
-    {
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
       const HyperedgeID he = hyperedges[i];
-      const std::set<HypernodeID> &reference = references[i];
+      const std::set<HypernodeID>& reference = references[i];
       size_t count = 0;
-      for(const HypernodeID &pin : hg.pins(he))
-      {
-        if(log)
-          LOG << V(he) << V(pin);
+      for (const HypernodeID& pin : hg.pins(he)) {
+        if (log) LOG << V(he) << V(pin);
         ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
         count++;
       }
@@ -119,26 +101,19 @@ public:
     }
   }
 
-  HyperedgeWeight compute_km1()
-  {
+  HyperedgeWeight compute_km1() {
     HyperedgeWeight km1 = 0;
-    for(const HyperedgeID &he : partitioned_hypergraph.edges())
-    {
-      km1 += std::max(partitioned_hypergraph.connectivity(he) - 1, 0) *
-             partitioned_hypergraph.edgeWeight(he);
+    for (const HyperedgeID& he : partitioned_hypergraph.edges()) {
+      km1 += std::max(partitioned_hypergraph.connectivity(he) - 1, 0) * partitioned_hypergraph.edgeWeight(he);
     }
     return km1;
   }
 
-  void verifyAllKm1GainValues(Km1GainCache &gain_cache)
-  {
-    for(const HypernodeID hn : hypergraph.nodes())
-    {
+  void verifyAllKm1GainValues(Km1GainCache& gain_cache) {
+    for ( const HypernodeID hn : hypergraph.nodes() ) {
       const PartitionID from = partitioned_hypergraph.partID(hn);
-      for(PartitionID to = 0; to < partitioned_hypergraph.k(); ++to)
-      {
-        if(from != to)
-        {
+      for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
+        if ( from != to ) {
           const HyperedgeWeight km1_before = compute_km1();
           const HyperedgeWeight km1_gain = gain_cache.gain(hn, from, to);
           partitioned_hypergraph.changeNodePart(hn, from, to);
@@ -155,30 +130,23 @@ public:
 };
 
 template <class F1, class F2>
-void executeConcurrent(const F1 &f1, const F2 &f2)
-{
+void executeConcurrent(const F1& f1, const F2& f2) {
   std::atomic<int> cnt(0);
-  tbb::parallel_invoke(
-      [&] {
-        cnt++;
-        while(cnt < 2)
-        {
-        }
-        f1();
-      },
-      [&] {
-        cnt++;
-        while(cnt < 2)
-        {
-        }
-        f2();
-      });
+  tbb::parallel_invoke([&] {
+    cnt++;
+    while (cnt < 2) { }
+    f1();
+  }, [&] {
+    cnt++;
+    while (cnt < 2) { }
+    f2();
+  });
 }
+
 
 using ADynamicPartitionedHypergraph = APartitionedHypergraph<DynamicHypergraphTypeTraits>;
 
-TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1)
-{
+TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1) {
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
   hypergraph.removeSinglePinAndParallelHyperedges();
@@ -188,8 +156,7 @@ TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1
   verifyAllKm1GainValues(gain_cache);
 }
 
-TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2)
-{
+TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(1, 2);
   hypergraph.registerContraction(0, 1);
@@ -210,9 +177,7 @@ TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2
   verifyAllKm1GainValues(gain_cache);
 }
 
-TEST_F(ADynamicPartitionedHypergraph,
-       ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets1)
-{
+TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets1) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
@@ -226,9 +191,7 @@ TEST_F(ADynamicPartitionedHypergraph,
   verifyPartitionPinCounts(0, { 1, 0, 0 });
 }
 
-TEST_F(ADynamicPartitionedHypergraph,
-       ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets2)
-{
+TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets2) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(1, 2);
   hypergraph.registerContraction(0, 1);
@@ -248,9 +211,7 @@ TEST_F(ADynamicPartitionedHypergraph,
   verifyPartitionPinCounts(3, { 1, 0, 1 });
 }
 
-TEST_F(ADynamicPartitionedHypergraph,
-       UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets1)
-{
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets1) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
@@ -269,9 +230,7 @@ TEST_F(ADynamicPartitionedHypergraph,
   verifyAllKm1GainValues(gain_cache);
 }
 
-TEST_F(ADynamicPartitionedHypergraph,
-       UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets2)
-{
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets2) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(1, 2);
   hypergraph.registerContraction(0, 1);
@@ -301,8 +260,7 @@ TEST_F(ADynamicPartitionedHypergraph,
   verifyAllKm1GainValues(gain_cache);
 }
 
-TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction1)
-{
+TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction1) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
@@ -319,8 +277,7 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   verifyPartitionPinCounts(3, { 1, 0, 2 });
 }
 
-TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction2)
-{
+TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction2) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(1, 2);
   hypergraph.registerContraction(0, 1);
@@ -335,12 +292,10 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   initializePartition();
 
   Km1GainCache gain_cache;
-  while(!hierarchy.empty())
-  {
-    BatchVector &batches = hierarchy.back();
-    while(!batches.empty())
-    {
-      const Batch &batch = batches.back();
+  while ( !hierarchy.empty() ) {
+    BatchVector& batches = hierarchy.back();
+    while ( !batches.empty() ) {
+      const Batch& batch = batches.back();
       partitioned_hypergraph.uncontract(batch, gain_cache);
       batches.pop_back();
     }
@@ -360,8 +315,7 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   verifyPartitionPinCounts(3, { 1, 0, 2 });
 }
 
-TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction1)
-{
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction1) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
@@ -381,8 +335,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   verifyAllKm1GainValues(gain_cache);
 }
 
-TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction2)
-{
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction2) {
   partitioned_hypergraph.resetPartition();
   hypergraph.registerContraction(1, 2);
   hypergraph.registerContraction(0, 1);
@@ -398,12 +351,10 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   Km1GainCache gain_cache;
   gain_cache.initializeGainCache(partitioned_hypergraph);
 
-  while(!hierarchy.empty())
-  {
-    BatchVector &batches = hierarchy.back();
-    while(!batches.empty())
-    {
-      const Batch &batch = batches.back();
+  while ( !hierarchy.empty() ) {
+    BatchVector& batches = hierarchy.back();
+    while ( !batches.empty() ) {
+      const Batch& batch = batches.back();
       partitioned_hypergraph.uncontract(batch, gain_cache);
       batches.pop_back();
     }
@@ -434,5 +385,6 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   verifyAllKm1GainValues(gain_cache);
 }
 
-} // namespace ds
-} // namespace mt_kahypar
+
+}  // namespace ds
+}  // namespace mt_kahypar
