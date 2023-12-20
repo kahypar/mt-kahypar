@@ -36,20 +36,21 @@ using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
-                                             ENABLE_HIGHEST_QUALITY(COMMA ds::DynamicHypergraph)>;
-using GraphTestTypes = ::testing::Types<ds::StaticGraph
-                                        ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA ds::DynamicGraph)>;
-using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
-                                                     ENABLE_GRAPHS(COMMA ds::StaticGraph)
-                                                     ENABLE_HIGHEST_QUALITY(COMMA ds::DynamicHypergraph)
-                                                     ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA ds::DynamicGraph)>;
+using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph ENABLE_HIGHEST_QUALITY(
+    COMMA ds::DynamicHypergraph)>;
+using GraphTestTypes = ::testing::Types<ds::StaticGraph ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
+    COMMA ds::DynamicGraph)>;
+using GraphAndHypergraphTestTypes =
+    ::testing::Types<ds::StaticHypergraph ENABLE_GRAPHS(COMMA ds::StaticGraph)
+                         ENABLE_HIGHEST_QUALITY(COMMA ds::DynamicHypergraph)
+                             ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA ds::DynamicGraph)>;
 
+using HypergraphTestTypeTraits =
+    ::testing::Types<StaticHypergraphTypeTraits ENABLE_HIGHEST_QUALITY(
+        COMMA DynamicHypergraphTypeTraits)
+                         ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
+using GraphTestTypeTraits =
+    ::testing::Types<StaticGraphTypeTraits ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
+        COMMA DynamicGraphTypeTraits)>;
 
-using HypergraphTestTypeTraits = ::testing::Types<StaticHypergraphTypeTraits
-                                                  ENABLE_HIGHEST_QUALITY(COMMA DynamicHypergraphTypeTraits)
-                                                  ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
-using GraphTestTypeTraits = ::testing::Types<StaticGraphTypeTraits
-                                             ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA DynamicGraphTypeTraits)>;
-
-}  // namespace mt_kahypar::tests
+} // namespace mt_kahypar::tests

@@ -31,7 +31,8 @@
 
 namespace mt_kahypar {
 
-struct Metrics {
+struct Metrics
+{
   HyperedgeWeight quality;
   double imbalance;
 };
@@ -39,29 +40,27 @@ struct Metrics {
 namespace metrics {
 
 // ! Computes for the given partitioned hypergraph the corresponding objective function
-template<typename PartitionedHypergraph>
-HyperedgeWeight quality(const PartitionedHypergraph& hg,
-                        const Context& context,
+template <typename PartitionedHypergraph>
+HyperedgeWeight quality(const PartitionedHypergraph &hg, const Context &context,
                         const bool parallel = true);
-template<typename PartitionedHypergraph>
-HyperedgeWeight quality(const PartitionedHypergraph& hg,
-                        const Objective objective,
+template <typename PartitionedHypergraph>
+HyperedgeWeight quality(const PartitionedHypergraph &hg, const Objective objective,
                         const bool parallel = true);
 
 // ! Computes for a hyperedge the contribution to the corresponding objective function
-template<typename PartitionedHypergraph>
-HyperedgeWeight contribution(const PartitionedHypergraph& hg,
-                             const HyperedgeID he,
+template <typename PartitionedHypergraph>
+HyperedgeWeight contribution(const PartitionedHypergraph &hg, const HyperedgeID he,
                              const Objective objective);
 
-template<typename PartitionedHypergraph>
-bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
+template <typename PartitionedHypergraph>
+bool isBalanced(const PartitionedHypergraph &phg, const Context &context);
 
-template<typename PartitionedHypergraph>
-double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
+template <typename PartitionedHypergraph>
+double imbalance(const PartitionedHypergraph &hypergraph, const Context &context);
 
-template<typename PartitionedHypergraph>
-double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);
+template <typename PartitionedHypergraph>
+double approximationFactorForProcessMapping(const PartitionedHypergraph &hypergraph,
+                                            const Context &context);
 
-}  // namespace metrics
-}  // namespace mt_kahypar
+} // namespace metrics
+} // namespace mt_kahypar

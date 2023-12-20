@@ -26,35 +26,36 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar {
 
-template<typename CommunicationHypergraph>
-class GreedyMapping {
+template <typename CommunicationHypergraph>
+class GreedyMapping
+{
 
   using PartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
 
- public:
+public:
   /** This function implements the greedy mapping algorithm of Glantz et. al.:
-    * Glantz, Roland, Hening Meyerhenke, and Alexander Noe.
-    * "Algorithms for mapping parallel processes onto grid and torus architectures."
-    * 2015 23rd Euromicro International Conference on Parallel, Distributed, and Network-Based Processing. IEEE, 2015.
-    *
-    * The algorithm chooses a seed node and assigns it to processor with the lowest communication
-    * volume. In each step, the algorithm assigns the node of the communication hypergraph with
-    * the strongest connection to the partial assignment to the processor that results in the
-    * least increasing of the steiner tree metric.
-    */
-  static void mapToTargetGraph(CommunicationHypergraph& communication_hg,
-                                const TargetGraph& target_graph,
-                                const Context& context);
+   * Glantz, Roland, Hening Meyerhenke, and Alexander Noe.
+   * "Algorithms for mapping parallel processes onto grid and torus architectures."
+   * 2015 23rd Euromicro International Conference on Parallel, Distributed, and
+   * Network-Based Processing. IEEE, 2015.
+   *
+   * The algorithm chooses a seed node and assigns it to processor with the lowest
+   * communication volume. In each step, the algorithm assigns the node of the
+   * communication hypergraph with the strongest connection to the partial assignment to
+   * the processor that results in the least increasing of the steiner tree metric.
+   */
+  static void mapToTargetGraph(CommunicationHypergraph &communication_hg,
+                               const TargetGraph &target_graph, const Context &context);
 
- private:
-  GreedyMapping() { }
+private:
+  GreedyMapping() {}
 };
 
-}  // namespace kahypar
+} // namespace kahypar

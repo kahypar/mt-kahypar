@@ -26,19 +26,19 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
-class AllPairShortestPath {
+class AllPairShortestPath
+{
 
- public:
-  static void compute(const ds::StaticGraph& graph,
-                      vec<HyperedgeWeight>& distances);
+public:
+  static void compute(const ds::StaticGraph &graph, vec<HyperedgeWeight> &distances);
 
- private:
-  AllPairShortestPath() { }
+private:
+  AllPairShortestPath() {}
 };
 
-}  // namespace kahypar
+} // namespace kahypar

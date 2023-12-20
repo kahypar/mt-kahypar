@@ -13,8 +13,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ *all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -31,71 +31,89 @@
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/partitioner_facade.h"
-#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/partitioner_facade.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
 
 #define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
 
-static std::string getPresetFile(const Context& context) {
-  switch ( context.partition.preset_type ) {
-    case PresetType::deterministic: return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
-    case PresetType::large_k: return std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini";
-    case PresetType::default_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
-    case PresetType::quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
-    case PresetType::highest_quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini";
-    case PresetType::UNDEFINED: return "";
+static std::string getPresetFile(const Context &context)
+{
+  switch(context.partition.preset_type)
+  {
+  case PresetType::deterministic:
+    return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
+  case PresetType::large_k:
+    return std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini";
+  case PresetType::default_preset:
+    return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
+  case PresetType::quality:
+    return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
+  case PresetType::highest_quality:
+    return std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini";
+  case PresetType::UNDEFINED:
+    return "";
   }
   return "";
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
 
   Context context(false);
   processCommandLineInput(context, argc, argv);
 
-  if ( context.partition.preset_file == "" ) {
-    if ( context.partition.preset_type != PresetType::UNDEFINED ) {
-      // Only a preset type specified => load context from corresponding ini file
+  if(context.partition.preset_file == "")
+  {
+    if(context.partition.preset_type != PresetType::UNDEFINED)
+    {
+      // Only a preset type specified => load context from corresponding ini
+      // file
       context.partition.preset_file = getPresetFile(context);
       processCommandLineInput(context, argc, argv);
-    } else {
+    }
+    else
+    {
       throw InvalidInputException("No preset specified");
     }
   }
 
   // Determine instance (graph or hypergraph) and partition type
-  if ( context.partition.instance_type == InstanceType::UNDEFINED ) {
+  if(context.partition.instance_type == InstanceType::UNDEFINED)
+  {
     context.partition.instance_type = to_instance_type(context.partition.file_format);
   }
-  context.partition.partition_type = to_partition_c_type(
-    context.partition.preset_type, context.partition.instance_type);
-
+  context.partition.partition_type =
+      to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
 
   context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-  if (context.partition.verbose_output) {
+  if(context.partition.verbose_output)
+  {
     io::printBanner();
   }
 
   utils::Randomize::instance().setSeed(context.partition.seed);
-  if ( context.shared_memory.use_localized_random_shuffle ) {
+  if(context.shared_memory.use_localized_random_shuffle)
+  {
     utils::Randomize::instance().enableLocalizedParallelShuffle(
-      context.shared_memory.shuffle_block_size);
+        context.shared_memory.shuffle_block_size);
   }
 
   size_t num_available_cpus = HardwareTopology::instance().num_cpus();
-  if ( num_available_cpus < context.shared_memory.num_threads ) {
+  if(num_available_cpus < context.shared_memory.num_threads)
+  {
     WARNING("There are currently only" << num_available_cpus << "cpus available."
-      << "Setting number of threads from" << context.shared_memory.num_threads
-      << "to" << num_available_cpus);
+                                       << "Setting number of threads from"
+                                       << context.shared_memory.num_threads << "to"
+                                       << num_available_cpus);
     context.shared_memory.num_threads = num_available_cpus;
   }
 
@@ -109,31 +127,35 @@ int main(int argc, char* argv[]) {
   hwloc_bitmap_free(cpuset);
 
   // Read Hypergraph
-  utils::Timer& timer =
-    utils::Utilities::instance().getTimer(context.utility_id);
+  utils::Timer &timer = utils::Utilities::instance().getTimer(context.utility_id);
   timer.start_timer("io_hypergraph", "I/O Hypergraph");
-  mt_kahypar_hypergraph_t hypergraph = io::readInputFile(
-      context.partition.graph_filename, context.partition.preset_type,
-      context.partition.instance_type, context.partition.file_format,
-      context.preprocessing.stable_construction_of_incident_edges);
+  mt_kahypar_hypergraph_t hypergraph =
+      io::readInputFile(context.partition.graph_filename, context.partition.preset_type,
+                        context.partition.instance_type, context.partition.file_format,
+                        context.preprocessing.stable_construction_of_incident_edges);
   timer.stop_timer("io_hypergraph");
 
   // Read Target Graph
   std::unique_ptr<TargetGraph> target_graph;
-  if ( context.partition.objective == Objective::steiner_tree ) {
-    if ( context.mapping.target_graph_file != "" ) {
-      target_graph = std::make_unique<TargetGraph>(
-        io::readInputFile<ds::StaticGraph>(
+  if(context.partition.objective == Objective::steiner_tree)
+  {
+    if(context.mapping.target_graph_file != "")
+    {
+      target_graph = std::make_unique<TargetGraph>(io::readInputFile<ds::StaticGraph>(
           context.mapping.target_graph_file, FileFormat::Metis, true));
-    } else {
-      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
+    }
+    else
+    {
+      throw InvalidInputException("No target graph file specified (use -g "
+                                  "<file> or --target-graph-file=<file>)!");
     }
   }
 
-  if ( context.partition.fixed_vertex_filename != "" ) {
+  if(context.partition.fixed_vertex_filename != "")
+  {
     timer.start_timer("read_fixed_vertices", "Read Fixed Vertex File");
-    io::addFixedVerticesFromFile(hypergraph,
-      context.partition.fixed_vertex_filename, context.partition.k);
+    io::addFixedVerticesFromFile(hypergraph, context.partition.fixed_vertex_filename,
+                                 context.partition.k);
     timer.stop_timer("read_fixed_vertices");
   }
 
@@ -143,27 +165,32 @@ int main(int argc, char* argv[]) {
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
-    PartitionerFacade::partition(hypergraph, context, target_graph.get());
+      PartitionerFacade::partition(hypergraph, context, target_graph.get());
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats
   std::chrono::duration<double> elapsed_seconds(end - start);
-  PartitionerFacade::printPartitioningResults(
-    partitioned_hypergraph, context, elapsed_seconds);
+  PartitionerFacade::printPartitioningResults(partitioned_hypergraph, context,
+                                              elapsed_seconds);
 
-  if ( context.partition.sp_process_output ) {
-    std::cout << PartitionerFacade::serializeResultLine(
-      partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+  if(context.partition.sp_process_output)
+  {
+    std::cout << PartitionerFacade::serializeResultLine(partitioned_hypergraph, context,
+                                                        elapsed_seconds)
+              << std::endl;
   }
 
-  if ( context.partition.csv_output ) {
-    std::cout << PartitionerFacade::serializeCSV(
-      partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+  if(context.partition.csv_output)
+  {
+    std::cout << PartitionerFacade::serializeCSV(partitioned_hypergraph, context,
+                                                 elapsed_seconds)
+              << std::endl;
   }
 
-  if (context.partition.write_partition_file) {
-    PartitionerFacade::writePartitionFile(
-      partitioned_hypergraph, context.partition.graph_partition_filename);
+  if(context.partition.write_partition_file)
+  {
+    PartitionerFacade::writePartitionFile(partitioned_hypergraph,
+                                          context.partition.graph_partition_filename);
   }
 
   parallel::MemoryPool::instance().free_memory_chunks();

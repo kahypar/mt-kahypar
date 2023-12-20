@@ -28,41 +28,44 @@
 
 #include <vector>
 
-#include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
-#include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
 
 namespace mt_kahypar {
 
-class SoedGainComputation : public GainComputationBase<SoedGainComputation, SoedAttributedGains> {
+class SoedGainComputation
+    : public GainComputationBase<SoedGainComputation, SoedAttributedGains>
+{
   using Base = GainComputationBase<SoedGainComputation, SoedAttributedGains>;
   using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
- public:
-  SoedGainComputation(const Context& context,
-                      bool disable_randomization = false) :
-    Base(context, disable_randomization) { }
+public:
+  SoedGainComputation(const Context &context, bool disable_randomization = false) :
+      Base(context, disable_randomization)
+  {
+  }
 
   // ! Precomputes the gain to all adjacent blocks.
   // ! Conceptually, we compute the gain of moving the node to an non-adjacent block
   // ! and the gain to all adjacent blocks assuming the node is in an isolated block.
   // ! The gain of that node to a block to can then be computed by
   // ! 'isolated_block_gain - tmp_scores[to]' (see gain(...))
-  template<typename PartitionedHypergraph>
-  void precomputeGains(const PartitionedHypergraph& phg,
-                       const HypernodeID hn,
-                       RatingMap& tmp_scores,
-                       Gain& isolated_block_gain,
-                       const bool) {
+  template <typename PartitionedHypergraph>
+  void precomputeGains(const PartitionedHypergraph &phg, const HypernodeID hn,
+                       RatingMap &tmp_scores, Gain &isolated_block_gain, const bool)
+  {
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
     PartitionID from = phg.partID(hn);
-    for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+    for(const HyperedgeID &he : phg.incidentEdges(hn))
+    {
       const HypernodeID edge_size = phg.edgeSize(he);
 
-      if ( edge_size > 1 ) {
+      if(edge_size > 1)
+      {
         HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
         HyperedgeWeight he_weight = phg.edgeWeight(he);
 
@@ -74,8 +77,10 @@ class SoedGainComputation : public GainComputationBase<SoedGainComputation, Soed
         // to all other blocks. There is one percularity. If the hyperedge is not
         // a cut edge, we would increase the soed metric by 2 * w(e) where w(e)
         // is the weight of the hyperedge.
-        if ( pin_count_in_from_part > 1 ) {
-          isolated_block_gain += (pin_count_in_from_part == edge_size ? 2 : 1) * he_weight;
+        if(pin_count_in_from_part > 1)
+        {
+          isolated_block_gain +=
+              (pin_count_in_from_part == edge_size ? 2 : 1) * he_weight;
         }
 
         // Substract edge weight from all incident blocks.
@@ -83,23 +88,27 @@ class SoedGainComputation : public GainComputationBase<SoedGainComputation, Soed
         // the objective function by 2 * w(e) where w(e) is the weight of the hyperedge.
         // Note, in case the pin count in from part is greater than one
         // we will later add that edge weight to the gain (see internal_weight).
-        for (const PartitionID& to : phg.connectivitySet(he)) {
-          if (from != to) {
-            tmp_scores[to] += (phg.pinCountInPart(he, to) == edge_size - 1 ? 2 : 1) * he_weight;
+        for(const PartitionID &to : phg.connectivitySet(he))
+        {
+          if(from != to)
+          {
+            tmp_scores[to] +=
+                (phg.pinCountInPart(he, to) == edge_size - 1 ? 2 : 1) * he_weight;
           }
         }
       }
     }
   }
 
-  HyperedgeWeight gain(const Gain to_score,
-                       const Gain isolated_block_gain) {
+  HyperedgeWeight gain(const Gain to_score, const Gain isolated_block_gain)
+  {
     return isolated_block_gain - to_score;
   }
 
-  void changeNumberOfBlocksImpl(const PartitionID) {
+  void changeNumberOfBlocksImpl(const PartitionID)
+  {
     // Do nothing
   }
 };
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

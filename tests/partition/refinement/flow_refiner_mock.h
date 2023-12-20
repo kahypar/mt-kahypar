@@ -26,51 +26,54 @@
 
 #pragma once
 
-
 #include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
 namespace {
-  using TypeTraits = StaticHypergraphTypeTraits;
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using HypergraphFactory = typename Hypergraph::Factory;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+using TypeTraits = StaticHypergraphTypeTraits;
+using Hypergraph = typename TypeTraits::Hypergraph;
+using HypergraphFactory = typename Hypergraph::Factory;
+using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 }
 
-using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const Subhypergraph&, const size_t)>;
+using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph &,
+                                              const Subhypergraph &, const size_t)>;
 
-class FlowRefinerMockControl {
+class FlowRefinerMockControl
+{
 
-  #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const Subhypergraph&, const size_t) { return MoveSequence { {}, 0 }; }
+#define NOOP_REFINE_FUNC                                                                 \
+  [](const PartitionedHypergraph &, const Subhypergraph &, const size_t) {               \
+    return MoveSequence{ {}, 0 };                                                        \
+  }
 
- public:
-  FlowRefinerMockControl(const FlowRefinerMockControl&) = delete;
-  FlowRefinerMockControl & operator= (const FlowRefinerMockControl &) = delete;
+public:
+  FlowRefinerMockControl(const FlowRefinerMockControl &) = delete;
+  FlowRefinerMockControl &operator=(const FlowRefinerMockControl &) = delete;
 
-  FlowRefinerMockControl(FlowRefinerMockControl&&) = delete;
-  FlowRefinerMockControl & operator= (FlowRefinerMockControl &&) = delete;
+  FlowRefinerMockControl(FlowRefinerMockControl &&) = delete;
+  FlowRefinerMockControl &operator=(FlowRefinerMockControl &&) = delete;
 
-  static FlowRefinerMockControl& instance() {
+  static FlowRefinerMockControl &instance()
+  {
     static FlowRefinerMockControl instance;
     return instance;
   }
 
- private:
-  explicit FlowRefinerMockControl() :
-    max_num_blocks(2),
-    refine_func(NOOP_REFINE_FUNC) { }
+private:
+  explicit FlowRefinerMockControl() : max_num_blocks(2), refine_func(NOOP_REFINE_FUNC) {}
 
- public:
-
-  void reset() {
+public:
+  void reset()
+  {
     max_num_blocks = 2;
     refine_func = NOOP_REFINE_FUNC;
   }
@@ -79,56 +82,57 @@ class FlowRefinerMockControl {
   RefineFunc refine_func;
 };
 
-class FlowRefinerMock final : public IFlowRefiner {
+class FlowRefinerMock final : public IFlowRefiner
+{
 
- public:
-  explicit FlowRefinerMock(const HyperedgeID,
-                           const Context& context) :
-    _context(context),
-    _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks),
-    _num_threads(0),
-    _refine_func(FlowRefinerMockControl::instance().refine_func) { }
+public:
+  explicit FlowRefinerMock(const HyperedgeID, const Context &context) :
+      _context(context),
+      _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks), _num_threads(0),
+      _refine_func(FlowRefinerMockControl::instance().refine_func)
+  {
+  }
 
-  FlowRefinerMock(const FlowRefinerMock&) = delete;
-  FlowRefinerMock(FlowRefinerMock&&) = delete;
-  FlowRefinerMock & operator= (const FlowRefinerMock &) = delete;
-  FlowRefinerMock & operator= (FlowRefinerMock &&) = delete;
+  FlowRefinerMock(const FlowRefinerMock &) = delete;
+  FlowRefinerMock(FlowRefinerMock &&) = delete;
+  FlowRefinerMock &operator=(const FlowRefinerMock &) = delete;
+  FlowRefinerMock &operator=(FlowRefinerMock &&) = delete;
 
   virtual ~FlowRefinerMock() = default;
 
- protected:
+protected:
+private:
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t &) override {}
 
- private:
-  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t&) override { }
-
-  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& partitioned_hg,
-                          const Subhypergraph& sub_hg,
-                          const HighResClockTimepoint&) override {
-    const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(partitioned_hg);
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t &partitioned_hg,
+                          const Subhypergraph &sub_hg,
+                          const HighResClockTimepoint &) override
+  {
+    const PartitionedHypergraph &phg =
+        utils::cast_const<PartitionedHypergraph>(partitioned_hg);
     return _refine_func(phg, sub_hg, _num_threads);
   }
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const {
-    return _max_num_blocks;
-  }
+  PartitionID maxNumberOfBlocksPerSearchImpl() const { return _max_num_blocks; }
 
-  void setNumThreadsForSearchImpl(const size_t num_threads) {
+  void setNumThreadsForSearchImpl(const size_t num_threads)
+  {
     _num_threads = num_threads;
   }
 
-  const Context& _context;
+  const Context &_context;
   const PartitionID _max_num_blocks;
   size_t _num_threads;
   RefineFunc _refine_func;
 };
 
-#define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
-  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
-    id,                                                                                         \
-    [](const HyperedgeID num_hyperedges, const Context& context) -> IFlowRefiner* {             \
-    return new refiner(num_hyperedges, context);                                                \
-  })
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                            \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_##refiner, t)(    \
+      id,                                                                                \
+      [](const HyperedgeID num_hyperedges, const Context &context) -> IFlowRefiner * {   \
+        return new refiner(num_hyperedges, context);                                     \
+      })
 
 REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock, 1);
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

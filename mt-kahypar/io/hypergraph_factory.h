@@ -37,28 +37,26 @@
 namespace mt_kahypar {
 namespace io {
 
-mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
-                                      const PresetType& preset,
-                                      const InstanceType& instance,
-                                      const FileFormat& format,
+mt_kahypar_hypergraph_t readInputFile(const std::string &filename,
+                                      const PresetType &preset,
+                                      const InstanceType &instance,
+                                      const FileFormat &format,
                                       const bool stable_construction = false,
                                       const bool remove_single_pin_hes = true);
 
-template<typename Hypergraph>
-Hypergraph readInputFile(const std::string& filename,
-                         const FileFormat& format,
+template <typename Hypergraph>
+Hypergraph readInputFile(const std::string &filename, const FileFormat &format,
                          const bool stable_construction = false,
                          const bool remove_single_pin_hes = true);
 
 void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
-                      const mt_kahypar_partition_id_t* fixed_vertices,
+                      const mt_kahypar_partition_id_t *fixed_vertices,
                       const PartitionID k);
 
 void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
-                              const std::string& filename,
-                              const PartitionID k);
+                              const std::string &filename, const PartitionID k);
 
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
 
-}  // namespace io
-}  // namespace mt_kahypar
+} // namespace io
+} // namespace mt_kahypar

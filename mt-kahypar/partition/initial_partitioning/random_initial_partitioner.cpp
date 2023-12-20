@@ -31,25 +31,32 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
-  if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::random) ) {
+template <typename TypeTraits>
+void RandomInitialPartitioner<TypeTraits>::partitionImpl()
+{
+  if(_ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::random))
+  {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
-    std::uniform_int_distribution<PartitionID> select_random_block(0, _context.partition.k - 1);
+    PartitionedHypergraph &hg = _ip_data.local_partitioned_hypergraph();
+    std::uniform_int_distribution<PartitionID> select_random_block(
+        0, _context.partition.k - 1);
 
     _ip_data.preassignFixedVertices(hg);
-    for ( const HypernodeID& hn : hg.nodes() ) {
-      if ( !hg.isFixed(hn) ) {
+    for(const HypernodeID &hn : hg.nodes())
+    {
+      if(!hg.isFixed(hn))
+      {
         // Randomly select a block to assign the hypernode
         PartitionID block = select_random_block(_rng);
         PartitionID current_block = block;
-        while ( !fitsIntoBlock(hg, hn, current_block) ) {
+        while(!fitsIntoBlock(hg, hn, current_block))
+        {
           // If the hypernode does not fit into the random selected block
           // (because it would violate the balance constraint), we try to
           // assign it to the next block.
-          current_block = ( current_block + 1 ) % _context.partition.k;
-          if ( current_block == block ) {
+          current_block = (current_block + 1) % _context.partition.k;
+          if(current_block == block)
+          {
             // In case, we find no valid block to assign the current hypernode
             // to, we assign it to random selected block
             break;

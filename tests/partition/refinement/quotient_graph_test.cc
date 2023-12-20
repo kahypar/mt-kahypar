@@ -32,7 +32,8 @@
 
 using ::testing::Test;
 
-#define MOVE(HN, FROM, TO) Move { FROM, TO, HN, 0 }
+#define MOVE(HN, FROM, TO)                                                               \
+  Move { FROM, TO, HN, 0 }
 
 namespace mt_kahypar {
 
@@ -109,8 +110,10 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
         refiner.finalizeSearch(search_id);
 
         if ( debug ) {
-          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," << j << ")"
-              << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ")";
+          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," <<
+j << ")"
+              << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search
+ID:" << search_id << ")";
         }
       } else {
         break;
@@ -148,14 +151,11 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
     }
   }
 
-  tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int cpu_id) {
-    while ( true ) {
-      SearchID search_id = qg.requestNewSearch(refiner);
-      if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
-        BlockPairCutHyperedges block_pair_cut_hes =
-          qg.requestCutHyperedges(search_id, 10);
-        const PartitionID i = qg.getBlockPair(search_id).i;
-        const PartitionID j = qg.getBlockPair(search_id).j;
+  tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int
+cpu_id) { while ( true ) { SearchID search_id = qg.requestNewSearch(refiner); if (
+search_id != QuotientGraph::INVALID_SEARCH_ID ) { BlockPairCutHyperedges
+block_pair_cut_hes = qg.requestCutHyperedges(search_id, 10); const PartitionID i =
+qg.getBlockPair(search_id).i; const PartitionID j = qg.getBlockPair(search_id).j;
         HyperedgeWeight cut_he_weight = 0;
         size_t num_edges = 0;
         for ( const HyperedgeID& he : block_pair_cut_hes.cut_hes ) {
@@ -172,8 +172,10 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
         refiner.finalizeSearch(search_id);
 
         if ( debug ) {
-          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," << j << ")"
-              << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ", Success:"
+          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," <<
+j << ")"
+              << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search
+ID:" << search_id << ", Success:"
               << std::boolalpha << success << ")";
         }
       } else {

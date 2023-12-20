@@ -24,13 +24,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "datastructure/flow_hypergraph_builder.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "datastructure/flow_hypergraph_builder.h"
 
 namespace mt_kahypar {
 
-enum class MoveSequenceState : uint8_t {
+enum class MoveSequenceState : uint8_t
+{
   IN_PROGRESS = 0,
   SUCCESS = 1,
   VIOLATES_BALANCE_CONSTRAINT = 2,
@@ -42,13 +43,15 @@ enum class MoveSequenceState : uint8_t {
 // Represents a sequence of vertex moves with an
 // expected improvement of the solution quality if we
 // apply the moves
-struct MoveSequence {
+struct MoveSequence
+{
   vec<Move> moves;
   Gain expected_improvement; // >= 0
   MoveSequenceState state = MoveSequenceState::IN_PROGRESS;
 };
 
-struct FlowProblem {
+struct FlowProblem
+{
   whfc::Node source;
   whfc::Node sink;
   HyperedgeWeight total_cut;
@@ -57,7 +60,8 @@ struct FlowProblem {
   HypernodeWeight weight_of_block_1;
 };
 
-struct Subhypergraph {
+struct Subhypergraph
+{
   PartitionID block_0;
   PartitionID block_1;
   vec<HypernodeID> nodes_of_block_0;
@@ -67,17 +71,16 @@ struct Subhypergraph {
   vec<HyperedgeID> hes;
   size_t num_pins;
 
-  size_t numNodes() const {
-    return nodes_of_block_0.size() + nodes_of_block_1.size();
-  }
+  size_t numNodes() const { return nodes_of_block_0.size() + nodes_of_block_1.size(); }
 };
 
-inline std::ostream& operator<<(std::ostream& out, const Subhypergraph& sub_hg) {
-  out << "[Nodes=" << sub_hg.numNodes()
-      << ", Edges=" << sub_hg.hes.size()
-      << ", Pins=" << sub_hg.num_pins
-      << ", Blocks=(" << sub_hg.block_0 << "," << sub_hg.block_1 << ")"
-      << ", Weights=(" << sub_hg.weight_of_block_0 << "," << sub_hg.weight_of_block_1 << ")]";
+inline std::ostream &operator<<(std::ostream &out, const Subhypergraph &sub_hg)
+{
+  out << "[Nodes=" << sub_hg.numNodes() << ", Edges=" << sub_hg.hes.size()
+      << ", Pins=" << sub_hg.num_pins << ", Blocks=(" << sub_hg.block_0 << ","
+      << sub_hg.block_1 << ")"
+      << ", Weights=(" << sub_hg.weight_of_block_0 << "," << sub_hg.weight_of_block_1
+      << ")]";
   return out;
 }
 

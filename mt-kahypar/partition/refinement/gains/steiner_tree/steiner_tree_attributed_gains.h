@@ -37,33 +37,41 @@ namespace mt_kahypar {
  * for each incident hyperedge of the node based on which we then compute an
  * attributed gain value.
  */
-struct SteinerTreeAttributedGains {
-  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
+struct SteinerTreeAttributedGains
+{
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate &sync_update)
+  {
     ASSERT(sync_update.target_graph);
-    ds::Bitset& connectivity_set = *sync_update.connectivity_set_after;
+    ds::Bitset &connectivity_set = *sync_update.connectivity_set_after;
     // Distance between blocks of the hyperedge after the syncronized edge update
-    const HyperedgeWeight distance_after = sync_update.target_graph->distance(connectivity_set);
-    if ( sync_update.pin_count_in_from_part_after == 0 ) {
+    const HyperedgeWeight distance_after =
+        sync_update.target_graph->distance(connectivity_set);
+    if(sync_update.pin_count_in_from_part_after == 0)
+    {
       ASSERT(!connectivity_set.isSet(sync_update.from));
       connectivity_set.set(sync_update.from);
     }
-    if ( sync_update.pin_count_in_to_part_after == 1 ) {
+    if(sync_update.pin_count_in_to_part_after == 1)
+    {
       ASSERT(connectivity_set.isSet(sync_update.to));
       connectivity_set.unset(sync_update.to);
     }
     // Distance between blocks of the hyperedge before the syncronized edge update
-    const HyperedgeWeight distance_before = sync_update.target_graph->distance(connectivity_set);
+    const HyperedgeWeight distance_before =
+        sync_update.target_graph->distance(connectivity_set);
     // Reset connectivity set
-    if ( sync_update.pin_count_in_from_part_after == 0 ) {
+    if(sync_update.pin_count_in_from_part_after == 0)
+    {
       ASSERT(connectivity_set.isSet(sync_update.from));
       connectivity_set.unset(sync_update.from);
     }
-    if ( sync_update.pin_count_in_to_part_after == 1 ) {
+    if(sync_update.pin_count_in_to_part_after == 1)
+    {
       ASSERT(!connectivity_set.isSet(sync_update.to));
       connectivity_set.set(sync_update.to);
     }
-    return ( distance_after - distance_before ) * sync_update.edge_weight;
+    return (distance_after - distance_before) * sync_update.edge_weight;
   }
 };
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

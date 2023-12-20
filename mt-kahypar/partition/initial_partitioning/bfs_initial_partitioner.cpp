@@ -32,28 +32,33 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
-  if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::bfs) ) {
+template <typename TypeTraits>
+void BFSInitialPartitioner<TypeTraits>::partitionImpl()
+{
+  if(_ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::bfs))
+  {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    PartitionedHypergraph& hypergraph = _ip_data.local_partitioned_hypergraph();
-    kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
-            _ip_data.local_hypernode_fast_reset_flag_array();
-    kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
-            _ip_data.local_hyperedge_fast_reset_flag_array();
+    PartitionedHypergraph &hypergraph = _ip_data.local_partitioned_hypergraph();
+    kahypar::ds::FastResetFlagArray<> &hypernodes_in_queue =
+        _ip_data.local_hypernode_fast_reset_flag_array();
+    kahypar::ds::FastResetFlagArray<> &hyperedges_in_queue =
+        _ip_data.local_hyperedge_fast_reset_flag_array();
 
     _ip_data.reset_unassigned_hypernodes(_rng);
     _ip_data.preassignFixedVertices(hypergraph);
-    vec<vec<HypernodeID>> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
+    vec<vec<HypernodeID> > start_nodes =
+        PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(
+            _ip_data, _context, kInvalidPartition, _rng);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
     hyperedges_in_queue.reset();
     parallel::scalable_vector<Queue> queues(_context.partition.k);
 
-    for (PartitionID block = 0; block < _context.partition.k; ++block) {
-      for ( const HypernodeID& hn : start_nodes[block] ) {
+    for(PartitionID block = 0; block < _context.partition.k; ++block)
+    {
+      for(const HypernodeID &hn : start_nodes[block])
+      {
         queues[block].push(hn);
         markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, hn, block);
       }
@@ -65,18 +70,22 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
     // all adjacent vertices into its queue.
     HypernodeID num_assigned_hypernodes = _ip_data.numFixedVertices();
     const HypernodeID current_num_nodes =
-            hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
-    while (num_assigned_hypernodes < current_num_nodes) {
-      for (PartitionID block = 0; block < _context.partition.k; ++block) {
+        hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+    while(num_assigned_hypernodes < current_num_nodes)
+    {
+      for(PartitionID block = 0; block < _context.partition.k; ++block)
+      {
         HypernodeID hn = kInvalidHypernode;
 
         bool fits_into_block = false;
-        while (!queues[block].empty()) {
+        while(!queues[block].empty())
+        {
           const HypernodeID next_hn = queues[block].front();
           ASSERT(!hypergraph.isFixed(next_hn));
           queues[block].pop();
 
-          if (hypergraph.partID(next_hn) == kInvalidPartition) {
+          if(hypergraph.partID(next_hn) == kInvalidPartition)
+          {
             // Hypernode is assigned to the current block, if it is not
             // assigned to an other block and if the assignment does not
             // violate the balanced constraint.
@@ -84,28 +93,35 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
             // we take the last unassigned hypernode popped from the queue.
             // Note, in that case the balanced constraint will be violated.
             hn = next_hn;
-            if (fitsIntoBlock(hypergraph, hn, block)) {
+            if(fitsIntoBlock(hypergraph, hn, block))
+            {
               fits_into_block = true;
               break;
             }
           }
         }
 
-        if (hn == kInvalidHypernode) {
+        if(hn == kInvalidHypernode)
+        {
           // Special case, in case all hypernodes in the queue are already
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
           hn = _ip_data.get_unassigned_hypernode();
-          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) ) {
+          if(hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block))
+          {
             fits_into_block = true;
           }
         }
 
-        if ( hn != kInvalidHypernode && !fits_into_block ) {
+        if(hn != kInvalidHypernode && !fits_into_block)
+        {
           // The node does not fit into the block. Thus, we quickly
           // check if there is another block to which we can assign the node
-          for ( PartitionID other_block = 0; other_block < _context.partition.k; ++other_block ) {
-            if ( other_block != block && fitsIntoBlock(hypergraph, hn, other_block) ) {
+          for(PartitionID other_block = 0; other_block < _context.partition.k;
+              ++other_block)
+          {
+            if(other_block != block && fitsIntoBlock(hypergraph, hn, other_block))
+            {
               // There is another block to which we can assign the node
               // => ignore the node for now
               hn = kInvalidHypernode;
@@ -114,13 +130,18 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           }
         }
 
-        if (hn != kInvalidHypernode) {
-          ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
+        if(hn != kInvalidHypernode)
+        {
+          ASSERT(hypergraph.partID(hn) == kInvalidPartition,
+                 V(block) << V(hypergraph.partID(hn)));
           hypergraph.setNodePart(hn, block);
           ++num_assigned_hypernodes;
           pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
-                                          hypernodes_in_queue, hyperedges_in_queue, hn, block);
-        } else {
+                                          hypernodes_in_queue, hyperedges_in_queue, hn,
+                                          block);
+        }
+        else
+        {
           ASSERT(queues[block].empty());
         }
       }
@@ -134,21 +155,25 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
 
 // ! Pushes all adjacent hypernodes (not visited before) of hypernode hn
 // ! into the BFS queue of the corresponding block.
-template<typename TypeTraits>
-inline void BFSInitialPartitioner<TypeTraits>::pushIncidentHypernodesIntoQueue(const PartitionedHypergraph& hypergraph,
-                                                                               const Context& context,
-                                                                               Queue& queue,
-                                                                               kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue,
-                                                                               kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
-                                                                               const HypernodeID hn,
-                                                                               const PartitionID block) {
+template <typename TypeTraits>
+inline void BFSInitialPartitioner<TypeTraits>::pushIncidentHypernodesIntoQueue(
+    const PartitionedHypergraph &hypergraph, const Context &context, Queue &queue,
+    kahypar::ds::FastResetFlagArray<> &hypernodes_in_queue,
+    kahypar::ds::FastResetFlagArray<> &hyperedges_in_queue, const HypernodeID hn,
+    const PartitionID block)
+{
   ASSERT(hn != kInvalidHypernode && block != kInvalidPartition);
-  for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-    if ( !hyperedges_in_queue[block * hypergraph.initialNumEdges() + he] ) {
-      if ( hypergraph.edgeSize(he) <= context.partition.ignore_hyperedge_size_threshold ) {
-        for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          if ( !hypernodes_in_queue[block * hypergraph.initialNumNodes() + pin] &&
-                hypergraph.partID(pin) == kInvalidPartition ) {
+  for(const HyperedgeID &he : hypergraph.incidentEdges(hn))
+  {
+    if(!hyperedges_in_queue[block * hypergraph.initialNumEdges() + he])
+    {
+      if(hypergraph.edgeSize(he) <= context.partition.ignore_hyperedge_size_threshold)
+      {
+        for(const HypernodeID &pin : hypergraph.pins(he))
+        {
+          if(!hypernodes_in_queue[block * hypergraph.initialNumNodes() + pin] &&
+             hypergraph.partID(pin) == kInvalidPartition)
+          {
             queue.push(pin);
             markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, pin, block);
           }

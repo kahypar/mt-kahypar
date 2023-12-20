@@ -31,27 +31,28 @@
 
 #include "mt-kahypar/macros.h"
 
-#include "tests/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
+#include "tests/definitions.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template<typename TypeTraits>
-class AGainUpdate : public Test {
+template <typename TypeTraits>
+class AGainUpdate : public Test
+{
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
+public:
   AGainUpdate() :
-    hg(io::readInputFile<Hypergraph>(
-      "../tests/instances/twocenters.hgr", FileFormat::hMetis, true)),
-    phg(),
-    gain_cache() {
+      hg(io::readInputFile<Hypergraph>("../tests/instances/twocenters.hgr",
+                                       FileFormat::hMetis, true)),
+      phg(), gain_cache()
+  {
     phg = PartitionedHypergraph(2, hg);
   }
 
@@ -62,16 +63,19 @@ class AGainUpdate : public Test {
 
 TYPED_TEST_CASE(AGainUpdate, tests::HypergraphTestTypeTraits);
 
-TYPED_TEST(AGainUpdate, Example1) {
+TYPED_TEST(AGainUpdate, Example1)
+{
   this->phg.setNodePart(0, 0);
   this->phg.setNodePart(1, 0);
-  for (HypernodeID u = 4; u < 12; ++u) {
+  for(HypernodeID u = 4; u < 12; ++u)
+  {
     this->phg.setNodePart(u, 0);
   }
 
   this->phg.setNodePart(2, 1);
   this->phg.setNodePart(3, 1);
-  for (HypernodeID u = 12; u < 20; ++u) {
+  for(HypernodeID u = 12; u < 20; ++u)
+  {
     this->phg.setNodePart(u, 1);
   }
 
@@ -93,12 +97,13 @@ TYPED_TEST(AGainUpdate, Example1) {
 
   this->phg.changeNodePart(this->gain_cache, 8, 0, 1);
 
-  this->gain_cache.recomputeInvalidTerms(this->phg, 8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
+  this->gain_cache.recomputeInvalidTerms(
+      this->phg,
+      8); // nodes are allowed to move once before moveFromPenalty must be recomputed
   ASSERT_EQ(this->gain_cache.gain(8, 1, 0), 2);
 
   ASSERT_EQ(this->gain_cache.gain(6, 0, 1), 0);
 }
 
-
-}  // namespace ds
-}  // namespace mt_kahypar
+} // namespace ds
+} // namespace mt_kahypar

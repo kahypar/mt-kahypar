@@ -27,15 +27,14 @@
 
 #pragma once
 
-#include <string>
 #include <chrono>
+#include <string>
 
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::io::serializer {
 
-  template<typename PartitionedHypergraph>
-  std::string serialize(const PartitionedHypergraph& hypergraph,
-                        const Context& context,
-                        const std::chrono::duration<double>& elapsed_seconds);
+template <typename PartitionedHypergraph>
+std::string serialize(const PartitionedHypergraph &hypergraph, const Context &context,
+                      const std::chrono::duration<double> &elapsed_seconds);
 }

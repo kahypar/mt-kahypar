@@ -25,7 +25,6 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #include "parallel_louvain.h"
 
 #include "mt-kahypar/definitions.h"
@@ -33,52 +32,61 @@
 
 namespace mt_kahypar::community_detection {
 
-  template<typename Hypergraph>
-  ds::Clustering local_moving_contract_recurse(Graph<Hypergraph>& fine_graph,
-                                               ParallelLocalMovingModularity<Hypergraph>& mlv,
-                                               const Context& context) {
-    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-    timer.start_timer("local_moving", "Local Moving");
-    ds::Clustering communities(fine_graph.numNodes());
-    bool communities_changed = mlv.localMoving(fine_graph, communities);
-    timer.stop_timer("local_moving");
+template <typename Hypergraph>
+ds::Clustering
+local_moving_contract_recurse(Graph<Hypergraph> &fine_graph,
+                              ParallelLocalMovingModularity<Hypergraph> &mlv,
+                              const Context &context)
+{
+  utils::Timer &timer = utils::Utilities::instance().getTimer(context.utility_id);
+  timer.start_timer("local_moving", "Local Moving");
+  ds::Clustering communities(fine_graph.numNodes());
+  bool communities_changed = mlv.localMoving(fine_graph, communities);
+  timer.stop_timer("local_moving");
 
-    if (communities_changed) {
-      timer.start_timer("contraction_cd", "Contraction");
-      // Contract Communities
-      Graph<Hypergraph> coarse_graph = fine_graph.contract(communities, context.preprocessing.community_detection.low_memory_contraction);
-      ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
-      timer.stop_timer("contraction_cd");
+  if(communities_changed)
+  {
+    timer.start_timer("contraction_cd", "Contraction");
+    // Contract Communities
+    Graph<Hypergraph> coarse_graph = fine_graph.contract(
+        communities, context.preprocessing.community_detection.low_memory_contraction);
+    ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
+    timer.stop_timer("contraction_cd");
 
-      // Recurse on contracted graph
-      ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context);
+    // Recurse on contracted graph
+    ds::Clustering coarse_communities =
+        local_moving_contract_recurse(coarse_graph, mlv, context);
 
-      timer.start_timer("project", "Project");
-      // Prolong Clustering
-      tbb::parallel_for(UL(0), fine_graph.numNodes(), [&](const NodeID u) {
-        ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
-        communities[u] = coarse_communities[communities[u]];
-      });
-      timer.stop_timer("project");
-    }
-
-    return communities;
+    timer.start_timer("project", "Project");
+    // Prolong Clustering
+    tbb::parallel_for(UL(0), fine_graph.numNodes(), [&](const NodeID u) {
+      ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
+      communities[u] = coarse_communities[communities[u]];
+    });
+    timer.stop_timer("project");
   }
 
-  template<typename Hypergraph>
-  ds::Clustering run_parallel_louvain(Graph<Hypergraph>& graph,
-                                      const Context& context,
-                                      bool disable_randomization) {
-    ParallelLocalMovingModularity<Hypergraph> mlv(context, graph.numNodes(), disable_randomization);
-    ds::Clustering communities = local_moving_contract_recurse(graph, mlv, context);
-    return communities;
-  }
+  return communities;
+}
 
-  namespace {
-  #define LOCAL_MOVING(X) ds::Clustering local_moving_contract_recurse(Graph<X>&, ParallelLocalMovingModularity<X>&, const Context&)
-  #define PARALLEL_LOUVAIN(X) ds::Clustering run_parallel_louvain(Graph<X>&, const Context&, bool)
-  }
+template <typename Hypergraph>
+ds::Clustering run_parallel_louvain(Graph<Hypergraph> &graph, const Context &context,
+                                    bool disable_randomization)
+{
+  ParallelLocalMovingModularity<Hypergraph> mlv(context, graph.numNodes(),
+                                                disable_randomization);
+  ds::Clustering communities = local_moving_contract_recurse(graph, mlv, context);
+  return communities;
+}
 
-  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(LOCAL_MOVING)
-  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PARALLEL_LOUVAIN)
+namespace {
+#define LOCAL_MOVING(X)                                                                  \
+  ds::Clustering local_moving_contract_recurse(                                          \
+      Graph<X> &, ParallelLocalMovingModularity<X> &, const Context &)
+#define PARALLEL_LOUVAIN(X)                                                              \
+  ds::Clustering run_parallel_louvain(Graph<X> &, const Context &, bool)
+}
+
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(LOCAL_MOVING)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PARALLEL_LOUVAIN)
 }

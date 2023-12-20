@@ -33,31 +33,35 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/exception.h"
 
-
 namespace mt_kahypar::ds {
 
-class StaticHypergraphFactory {
+class StaticHypergraphFactory
+{
 
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+  using HyperedgeVector =
+      parallel::scalable_vector<parallel::scalable_vector<HypernodeID> >;
   using Counter = parallel::scalable_vector<size_t>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using AtomicCounter =
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t> >;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
 
- public:
-  static StaticHypergraph construct(const HypernodeID num_hypernodes,
-                                    const HyperedgeID num_hyperedges,
-                                    const HyperedgeVector& edge_vector,
-                                    const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr,
-                                    const bool stable_construction_of_incident_edges = false);
+public:
+  static StaticHypergraph
+  construct(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
+            const HyperedgeVector &edge_vector,
+            const HyperedgeWeight *hyperedge_weight = nullptr,
+            const HypernodeWeight *hypernode_weight = nullptr,
+            const bool stable_construction_of_incident_edges = false);
 
-  static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {
+  static std::pair<StaticHypergraph, vec<HypernodeID> >
+  compactify(const StaticHypergraph &)
+  {
     throw NonSupportedOperationException(
-      "Compactify not implemented for static hypergraph.");
+        "Compactify not implemented for static hypergraph.");
   }
 
- private:
-  StaticHypergraphFactory() { }
+private:
+  StaticHypergraphFactory() {}
 };
 
 } // namespace mt_kahypar

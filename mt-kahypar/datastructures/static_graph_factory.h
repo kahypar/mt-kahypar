@@ -34,44 +34,46 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/exception.h"
 
-
 namespace mt_kahypar {
 namespace ds {
 
-class StaticGraphFactory {
-  using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+class StaticGraphFactory
+{
+  using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID> >;
+  using HyperedgeVector =
+      parallel::scalable_vector<parallel::scalable_vector<HypernodeID> >;
   using Counter = parallel::scalable_vector<size_t>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using AtomicCounter =
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t> >;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
 
- public:
-  static StaticGraph construct(const HypernodeID num_nodes,
-                               const HyperedgeID num_edges,
-                               const HyperedgeVector& edge_vector,
-                               const HyperedgeWeight* edge_weight = nullptr,
-                               const HypernodeWeight* node_weight = nullptr,
+public:
+  static StaticGraph construct(const HypernodeID num_nodes, const HyperedgeID num_edges,
+                               const HyperedgeVector &edge_vector,
+                               const HyperedgeWeight *edge_weight = nullptr,
+                               const HypernodeWeight *node_weight = nullptr,
                                const bool stable_construction_of_incident_edges = false);
 
-  // ! Provides a more performant construction method by using continuous space for the edges
-  // ! (instead of a separate vec per edge).
-  // ! No backwards edges allowed, i.e. each edge is unique
-  static StaticGraph construct_from_graph_edges(const HypernodeID num_nodes,
-                                                const HyperedgeID num_edges,
-                                                const EdgeVector& edge_vector,
-                                                const HyperedgeWeight* edge_weight = nullptr,
-                                                const HypernodeWeight* node_weight = nullptr,
-                                                const bool stable_construction_of_incident_edges = false);
+  // ! Provides a more performant construction method by using continuous space for the
+  // edges ! (instead of a separate vec per edge). ! No backwards edges allowed, i.e. each
+  // edge is unique
+  static StaticGraph
+  construct_from_graph_edges(const HypernodeID num_nodes, const HyperedgeID num_edges,
+                             const EdgeVector &edge_vector,
+                             const HyperedgeWeight *edge_weight = nullptr,
+                             const HypernodeWeight *node_weight = nullptr,
+                             const bool stable_construction_of_incident_edges = false);
 
-  static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
-    throw NonSupportedOperationException(
-      "Compactify not implemented for static graph.");
+  static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> >
+  compactify(const StaticGraph &)
+  {
+    throw NonSupportedOperationException("Compactify not implemented for static graph.");
   }
 
- private:
-  StaticGraphFactory() { }
+private:
+  StaticGraphFactory() {}
 
-  static void sort_incident_edges(StaticGraph& graph);
+  static void sort_incident_edges(StaticGraph &graph);
 };
 
 } // namespace ds

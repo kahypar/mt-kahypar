@@ -32,79 +32,80 @@
 namespace mt_kahypar {
 
 namespace {
-  struct MaxGainMove {
-    const PartitionID block;
-    const Gain gain;
-  };
+struct MaxGainMove
+{
+  const PartitionID block;
+  const Gain gain;
+};
 }
 
-template<typename TypeTraits>
-class LabelPropagationInitialPartitioner : public IInitialPartitioner {
+template <typename TypeTraits>
+class LabelPropagationInitialPartitioner : public IInitialPartitioner
+{
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
-  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
+  using DeltaFunction = std::function<void(const SynchronizedEdgeUpdate &)>;
+#define NOOP_FUNC [](const SynchronizedEdgeUpdate &) {}
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
- public:
+public:
   LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
-                                     ip_data_container_t* ip_data,
-                                     const Context& context,
+                                     ip_data_container_t *ip_data, const Context &context,
                                      const int seed, const int tag) :
-    _ip_data(ip::to_reference<TypeTraits>(ip_data)),
-    _context(context),
-    _valid_blocks(context.partition.k),
-    _tmp_scores(context.partition.k),
-    _rng(seed),
-    _tag(tag) { }
-
- private:
-  void partitionImpl() final;
-
-  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
-                     const HypernodeID hn,
-                     const PartitionID block) const {
-    ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
-      _context.partition.perfect_balance_part_weights[block] *
-      std::min(1.005, 1 + _context.partition.epsilon);
+      _ip_data(ip::to_reference<TypeTraits>(ip_data)),
+      _context(context), _valid_blocks(context.partition.k),
+      _tmp_scores(context.partition.k), _rng(seed), _tag(tag)
+  {
   }
 
-  MaxGainMove computeMaxGainMove(PartitionedHypergraph& hypergraph,
-                                 const HypernodeID hn) {
-    if ( hypergraph.partID(hn) == kInvalidPartition ) {
+private:
+  void partitionImpl() final;
+
+  bool fitsIntoBlock(PartitionedHypergraph &hypergraph, const HypernodeID hn,
+                     const PartitionID block) const
+  {
+    ASSERT(block != kInvalidPartition && block < _context.partition.k);
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
+           _context.partition.perfect_balance_part_weights[block] *
+               std::min(1.005, 1 + _context.partition.epsilon);
+  }
+
+  MaxGainMove computeMaxGainMove(PartitionedHypergraph &hypergraph, const HypernodeID hn)
+  {
+    if(hypergraph.partID(hn) == kInvalidPartition)
+    {
       return computeMaxGainMoveForUnassignedVertex(hypergraph, hn);
-    } else {
+    }
+    else
+    {
       return computeMaxGainMoveForAssignedVertex(hypergraph, hn);
     }
   }
 
-  MaxGainMove computeMaxGainMoveForUnassignedVertex(PartitionedHypergraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForUnassignedVertex(PartitionedHypergraph &hypergraph,
                                                     const HypernodeID hn);
 
-  MaxGainMove computeMaxGainMoveForAssignedVertex(PartitionedHypergraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForAssignedVertex(PartitionedHypergraph &hypergraph,
                                                   const HypernodeID hn);
 
-  MaxGainMove findMaxGainMove(PartitionedHypergraph& hypergraph,
-                              const HypernodeID hn,
+  MaxGainMove findMaxGainMove(PartitionedHypergraph &hypergraph, const HypernodeID hn,
                               const HypernodeWeight internal_weight);
 
-  void extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
-                                     const vec<HypernodeID>& seed_vertices,
+  void extendBlockToInitialBlockSize(PartitionedHypergraph &hypergraph,
+                                     const vec<HypernodeID> &seed_vertices,
                                      const PartitionID block);
 
-  void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph,
+  void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph &hypergraph,
                                             const HypernodeID hn);
 
-  InitialPartitioningDataContainer<TypeTraits>& _ip_data;
-  const Context& _context;
+  InitialPartitioningDataContainer<TypeTraits> &_ip_data;
+  const Context &_context;
   kahypar::ds::FastResetFlagArray<> _valid_blocks;
   parallel::scalable_vector<Gain> _tmp_scores;
   std::mt19937 _rng;
   const int _tag;
 };
-
 
 } // namespace mt_kahypar

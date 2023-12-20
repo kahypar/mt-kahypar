@@ -29,41 +29,44 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace ds {
 
-class DynamicHypergraphFactory {
+class DynamicHypergraphFactory
+{
 
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+  using HyperedgeVector =
+      parallel::scalable_vector<parallel::scalable_vector<HypernodeID> >;
   using Counter = parallel::scalable_vector<size_t>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using AtomicCounter =
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t> >;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
-  using ThreadLocalBitset = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
-  using ThreadLocalBitvector = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
+  using ThreadLocalBitset =
+      tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
+  using ThreadLocalBitvector =
+      tbb::enumerable_thread_specific<parallel::scalable_vector<bool> >;
 
-
- public:
-  static DynamicHypergraph construct(const HypernodeID num_hypernodes,
-                                    const HyperedgeID num_hyperedges,
-                                    const HyperedgeVector& edge_vector,
-                                    const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr,
-                                    const bool stable_construction_of_incident_edges = false);
+public:
+  static DynamicHypergraph
+  construct(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
+            const HyperedgeVector &edge_vector,
+            const HyperedgeWeight *hyperedge_weight = nullptr,
+            const HypernodeWeight *hypernode_weight = nullptr,
+            const bool stable_construction_of_incident_edges = false);
 
   /**
-   * Compactifies a given hypergraph such that it only contains enabled vertices and hyperedges within
-   * a consecutive range of IDs.
+   * Compactifies a given hypergraph such that it only contains enabled vertices and
+   * hyperedges within a consecutive range of IDs.
    */
-  static std::pair<DynamicHypergraph,
-                   parallel::scalable_vector<HypernodeID> > compactify(const DynamicHypergraph& hypergraph);
+  static std::pair<DynamicHypergraph, parallel::scalable_vector<HypernodeID> >
+  compactify(const DynamicHypergraph &hypergraph);
 
- private:
-  DynamicHypergraphFactory() { }
+private:
+  DynamicHypergraphFactory() {}
 };
 
 } // namespace ds

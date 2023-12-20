@@ -29,17 +29,14 @@
 
 namespace mt_kahypar::utils {
 
-inline int popcount_64(const uint64_t x) {
+inline int popcount_64(const uint64_t x)
+{
   // this should be GCC specific
   return __builtin_popcountll(x);
 }
 
-inline int lowest_set_bit_64(const uint64_t x) {
-  return __builtin_ctzll(x);
-}
+inline int lowest_set_bit_64(const uint64_t x) { return __builtin_ctzll(x); }
 
-constexpr int log2(const int x) {
-    return x <= 1 ? 0 : 1 + log2(x >> 1);
-}
+constexpr int log2(const int x) { return x <= 1 ? 0 : 1 + log2(x >> 1); }
 
-}  // namespace
+} // namespace

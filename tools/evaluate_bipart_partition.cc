@@ -31,17 +31,16 @@
 #include <sstream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/connectivity_info.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
-
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
@@ -49,13 +48,15 @@ namespace po = boost::program_options;
 using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
 
-void readBipartPartitionFile(const std::string& bipart_partition_file,
-                             PartitionedHypergraph& hypergraph,
-                             const PartitionID k) {
+void readBipartPartitionFile(const std::string &bipart_partition_file,
+                             PartitionedHypergraph &hypergraph, const PartitionID k)
+{
   ASSERT(!bipart_partition_file.empty(), "No filename for partition file specified");
   std::ifstream file(bipart_partition_file);
-  if (file) {
-    for ( PartitionID block = 0; block < k; ++block ) {
+  if(file)
+  {
+    for(PartitionID block = 0; block < k; ++block)
+    {
       std::string line;
       std::getline(file, line);
       std::istringstream line_stream(line);
@@ -63,42 +64,48 @@ void readBipartPartitionFile(const std::string& bipart_partition_file,
       PartitionID bipart_block = 0;
       line_stream >> bipart_block;
       ASSERT(block == bipart_block - 1);
-      while ( line_stream >> hn ) {
+      while(line_stream >> hn)
+      {
         hypergraph.setOnlyNodePart(hn - 1, block);
       }
     }
     hypergraph.initializePartition();
     file.close();
-  } else {
+  }
+  else
+  {
     std::cerr << "Error: File not found: " << std::endl;
   }
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
   Context context;
 
   po::options_description options("Options");
-  options.add_options()
-          ("hypergraph,h",
-           po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-           "Hypergraph Filename")
-          ("bipart-partition-file,b",
-           po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
-           "BiPart Partition Filename")
-          ("blocks,k",
-           po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
-           "Number of Blocks");
+  options.add_options()("hypergraph,h",
+                        po::value<std::string>(&context.partition.graph_filename)
+                            ->value_name("<string>")
+                            ->required(),
+                        "Hypergraph Filename")(
+      "bipart-partition-file,b",
+      po::value<std::string>(&context.partition.graph_partition_filename)
+          ->value_name("<string>")
+          ->required(),
+      "BiPart Partition Filename")(
+      "blocks,k",
+      po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
+      "Number of Blocks");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
 
   // Read Hypergraph
-  mt_kahypar_hypergraph_t hypergraph =
-    mt_kahypar::io::readInputFile(
+  mt_kahypar_hypergraph_t hypergraph = mt_kahypar::io::readInputFile(
       context.partition.graph_filename, PresetType::default_preset,
       InstanceType::hypergraph, FileFormat::hMetis, true);
-  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
+  Hypergraph &hg = utils::cast<Hypergraph>(hypergraph);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
   // Setup Context

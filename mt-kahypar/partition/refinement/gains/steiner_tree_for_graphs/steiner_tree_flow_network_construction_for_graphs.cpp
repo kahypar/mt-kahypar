@@ -31,148 +31,173 @@
 
 namespace mt_kahypar {
 
-template<typename PartitionedHypergraph>
-HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(const PartitionedHypergraph& phg,
-                                                                  const Context&,
-                                                                  const HyperedgeID he,
-                                                                  const PartitionID block_0,
-                                                                  const PartitionID block_1)  {
+template <typename PartitionedHypergraph>
+HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(
+    const PartitionedHypergraph &phg, const Context &, const HyperedgeID he,
+    const PartitionID block_0, const PartitionID block_1)
+{
   ASSERT(phg.hasTargetGraph());
-  const TargetGraph& target_graph = *phg.targetGraph();
+  const TargetGraph &target_graph = *phg.targetGraph();
   const HyperedgeWeight edge_weight = phg.edgeWeight(he);
   const HypernodeID u = phg.edgeSource(he);
   const HypernodeID v = phg.edgeTarget(he);
   const PartitionID block_of_u = phg.partID(u);
   const PartitionID block_of_v = phg.partID(v);
 
-  if ( ( block_of_u == block_0 || block_of_u == block_1 ) &&
-       ( block_of_v == block_0 || block_of_v == block_1 )  ) {
+  if((block_of_u == block_0 || block_of_u == block_1) &&
+     (block_of_v == block_0 || block_of_v == block_1))
+  {
     // Both endpoints of the edge are either contained in block 0 or 1.
     // Removing the edge from the cut or making it a cut edge has the
     // following gain:
     return target_graph.distance(block_0, block_1) * edge_weight;
-  } else {
+  }
+  else
+  {
     // In this case, only one node is contained in the flow problem and the other
     // node is part of another block different from block_0 and block_1.
     // Here, we set the capacity to difference in the steiner tree metric
     // if we would replace block_0 with block_1.
     PartitionID other_block = kInvalidPartition;
-    if ( block_of_u == block_0 || block_of_v == block_0 ) {
+    if(block_of_u == block_0 || block_of_v == block_0)
+    {
       other_block = block_of_u == block_0 ? block_of_v : block_of_u;
-    } else if ( block_of_u == block_1 || block_of_v == block_1 ) {
+    }
+    else if(block_of_u == block_1 || block_of_v == block_1)
+    {
       other_block = block_of_u == block_1 ? block_of_v : block_of_u;
-    } else {
+    }
+    else
+    {
       // Can happen due to concurrent node moves applied by other flow problems
       return 0;
     }
     ASSERT(other_block != kInvalidPartition);
     const HyperedgeWeight current_distance = target_graph.distance(block_0, other_block);
-    const HyperedgeWeight distance_with_block_1 = target_graph.distance(block_1, other_block);
+    const HyperedgeWeight distance_with_block_1 =
+        target_graph.distance(block_1, other_block);
     return std::abs(current_distance - distance_with_block_1) * edge_weight;
   }
   return 0;
 }
 
-template<typename PartitionedHypergraph>
-bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(const PartitionedHypergraph& partitioned_hg,
-                                                              const HyperedgeID he,
-                                                              const PartitionID block_0,
-                                                              const PartitionID block_1) {
+template <typename PartitionedHypergraph>
+bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(
+    const PartitionedHypergraph &partitioned_hg, const HyperedgeID he,
+    const PartitionID block_0, const PartitionID block_1)
+{
   ASSERT(partitioned_hg.hasTargetGraph());
-  const TargetGraph& target_graph = *partitioned_hg.targetGraph();
+  const TargetGraph &target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
   const HypernodeID v = partitioned_hg.edgeTarget(he);
   const PartitionID block_of_u = partitioned_hg.partID(u);
   const PartitionID block_of_v = partitioned_hg.partID(v);
-  if ( block_of_u == block_0 || block_of_v == block_0 ) {
+  if(block_of_u == block_0 || block_of_v == block_0)
+  {
     PartitionID other_block = block_of_u == block_0 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_0, other_block);
     const HyperedgeWeight distance_block_1 = target_graph.distance(block_1, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance < distance_block_1 ) {
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance < distance_block_1)
+    {
       // Moving the node from block_0 to block_1 would worsen the steiner tree metric,
-      // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
-      // we add the corresponding edge to the source.
+      // even though the edge is still cut afterwards. To model this percurlarity in the
+      // flow network, we add the corresponding edge to the source.
       return true;
     }
   }
-  if ( block_of_u == block_1 || block_of_v == block_1 ) {
+  if(block_of_u == block_1 || block_of_v == block_1)
+  {
     PartitionID other_block = block_of_u == block_1 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_1, other_block);
     const HyperedgeWeight distance_block_0 = target_graph.distance(block_0, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_0 ) {
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance > distance_block_0)
+    {
       // Moving the node from block_1 to block_0 would improve the steiner tree metric,
-      // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
-      // we add the corresponding edge to the source.
+      // even though the edge is still cut afterwards. To model this percurlarity in the
+      // flow network, we add the corresponding edge to the source.
       return true;
     }
   }
   return false;
 }
 
-
-template<typename PartitionedHypergraph>
-bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(const PartitionedHypergraph& partitioned_hg,
-                                                            const HyperedgeID he,
-                                                            const PartitionID block_0,
-                                                            const PartitionID block_1) {
+template <typename PartitionedHypergraph>
+bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(
+    const PartitionedHypergraph &partitioned_hg, const HyperedgeID he,
+    const PartitionID block_0, const PartitionID block_1)
+{
   ASSERT(partitioned_hg.hasTargetGraph());
-  const TargetGraph& target_graph = *partitioned_hg.targetGraph();
+  const TargetGraph &target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
   const HypernodeID v = partitioned_hg.edgeTarget(he);
   const PartitionID block_of_u = partitioned_hg.partID(u);
   const PartitionID block_of_v = partitioned_hg.partID(v);
-  if ( block_of_u == block_1 || block_of_v == block_1 ) {
+  if(block_of_u == block_1 || block_of_v == block_1)
+  {
     PartitionID other_block = block_of_u == block_1 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_1, other_block);
     const HyperedgeWeight distance_block_1 = target_graph.distance(block_0, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance < distance_block_1 ) {
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance < distance_block_1)
+    {
       // Moving the node from block_1 to block_0 would worsen the steiner tree metric,
-      // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
-      // we add the corresponding edge to the sink.
+      // even though the edge is still cut afterwards. To model this percurlarity in the
+      // flow network, we add the corresponding edge to the sink.
       return true;
     }
   }
-  if ( block_of_u == block_0 || block_of_v == block_0 ) {
+  if(block_of_u == block_0 || block_of_v == block_0)
+  {
     PartitionID other_block = block_of_u == block_0 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_0, other_block);
     const HyperedgeWeight distance_block_1 = target_graph.distance(block_1, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_1 ) {
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance > distance_block_1)
+    {
       // Moving the node from block_0 to block_1 would improve the steiner tree metric,
-      // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
-      // we add the corresponding edge to the sink.
+      // even though the edge is still cut afterwards. To model this percurlarity in the
+      // flow network, we add the corresponding edge to the sink.
       return true;
     }
   }
   return false;
 }
 
-template<typename PartitionedHypergraph>
-bool GraphSteinerTreeFlowNetworkConstruction::isCut(const PartitionedHypergraph& partitioned_hg,
-                                                    const HyperedgeID he,
-                                                    const PartitionID block_0,
-                                                    const PartitionID block_1) {
+template <typename PartitionedHypergraph>
+bool GraphSteinerTreeFlowNetworkConstruction::isCut(
+    const PartitionedHypergraph &partitioned_hg, const HyperedgeID he,
+    const PartitionID block_0, const PartitionID block_1)
+{
   ASSERT(partitioned_hg.hasTargetGraph());
-  const TargetGraph& target_graph = *partitioned_hg.targetGraph();
+  const TargetGraph &target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
   const HypernodeID v = partitioned_hg.edgeTarget(he);
   const PartitionID block_of_u = partitioned_hg.partID(u);
   const PartitionID block_of_v = partitioned_hg.partID(v);
-  if ( block_of_u == block_1 || block_of_v == block_1 ) {
+  if(block_of_u == block_1 || block_of_v == block_1)
+  {
     PartitionID other_block = block_of_u == block_1 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_1, other_block);
     const HyperedgeWeight distance_block_0 = target_graph.distance(block_0, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_0 ) {
-      // Moving the node contained in the flow problem to the other block would improve the
-      // steiner tree metric, even though the edge would be still cut.
-      // Thus, we consider it as a cut edge.
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance > distance_block_0)
+    {
+      // Moving the node contained in the flow problem to the other block would improve
+      // the steiner tree metric, even though the edge would be still cut. Thus, we
+      // consider it as a cut edge.
       return true;
     }
   }
-  if ( block_of_u == block_0 || block_of_v == block_0 ) {
+  if(block_of_u == block_0 || block_of_v == block_0)
+  {
     PartitionID other_block = block_of_u == block_0 ? block_of_v : block_of_u;
     const HyperedgeWeight current_distance = target_graph.distance(block_0, other_block);
     const HyperedgeWeight distance_block_1 = target_graph.distance(block_1, other_block);
-    if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_1 ) {
+    if(other_block != block_0 && other_block != block_1 &&
+       current_distance > distance_block_1)
+    {
       // Same as the previous case
       return true;
     }
@@ -181,14 +206,19 @@ bool GraphSteinerTreeFlowNetworkConstruction::isCut(const PartitionedHypergraph&
 }
 
 namespace {
-#define STEINER_TREE_CAPACITY(X) HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(  \
-  const X&, const Context&, const HyperedgeID, const PartitionID, const PartitionID)
-#define STEINER_TREE_CONNECT_TO_SOURCE(X) bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(  \
-  const X&, const HyperedgeID, const PartitionID, const PartitionID)
-#define STEINER_TREE_CONNECT_TO_SINK(X) bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(  \
-  const X&, const HyperedgeID, const PartitionID, const PartitionID)
-#define STEINER_TREE_IS_CUT(X) bool GraphSteinerTreeFlowNetworkConstruction::isCut(  \
-  const X&, const HyperedgeID, const PartitionID, const PartitionID)
+#define STEINER_TREE_CAPACITY(X)                                                         \
+  HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(                     \
+      const X &, const Context &, const HyperedgeID, const PartitionID,                  \
+      const PartitionID)
+#define STEINER_TREE_CONNECT_TO_SOURCE(X)                                                \
+  bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(                         \
+      const X &, const HyperedgeID, const PartitionID, const PartitionID)
+#define STEINER_TREE_CONNECT_TO_SINK(X)                                                  \
+  bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(                           \
+      const X &, const HyperedgeID, const PartitionID, const PartitionID)
+#define STEINER_TREE_IS_CUT(X)                                                           \
+  bool GraphSteinerTreeFlowNetworkConstruction::isCut(                                   \
+      const X &, const HyperedgeID, const PartitionID, const PartitionID)
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CAPACITY)
@@ -196,4 +226,4 @@ INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CONNECT_TO_SOURCE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CONNECT_TO_SINK)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_IS_CUT)
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

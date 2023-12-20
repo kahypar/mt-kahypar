@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include <queue>
-#include <numeric>
 #include <iostream>
+#include <numeric>
+#include <queue>
 
 #include "tbb/enumerable_thread_specific.h"
 
@@ -43,87 +43,77 @@
 #include "tbb/concurrent_unordered_map.h"
 #endif
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
-class TargetGraph {
+class TargetGraph
+{
 
   static constexpr size_t INITIAL_HASH_TABLE_CAPACITY = 100000;
   static constexpr size_t MEMORY_LIMIT = 100000000;
 
   using PQElement = std::pair<HyperedgeWeight, PartitionID>;
-  using PQ = std::priority_queue<PQElement, vec<PQElement>, std::greater<PQElement>>;
+  using PQ = std::priority_queue<PQElement, vec<PQElement>, std::greater<PQElement> >;
 
-  #ifdef __linux__
-  using hasher_type    = utils_tm::hash_tm::murmur2_hash;
+#ifdef __linux__
+  using hasher_type = utils_tm::hash_tm::murmur2_hash;
   using allocator_type = growt::AlignedAllocator<>;
-  using ConcurrentHashTable = typename growt::table_config<
-    size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
+  using ConcurrentHashTable =
+      typename growt::table_config<size_t, size_t, hasher_type, allocator_type,
+                                   hmod::growable, hmod::sync>::table_type;
   using HashTableHandle = typename ConcurrentHashTable::handle_type;
-  #elif defined(_WIN32) or defined(__APPLE__)
+#elif defined(_WIN32) or defined(__APPLE__)
   using ConcurrentHashTable = tbb::concurrent_unordered_map<size_t, size_t>;
-  #endif
+#endif
 
-  struct MSTData {
-    MSTData(const size_t n) :
-      bitset(n),
-      lightest_edge(n),
-      pq() { }
+  struct MSTData
+  {
+    MSTData(const size_t n) : bitset(n), lightest_edge(n), pq() {}
 
     ds::Bitset bitset;
     vec<HyperedgeWeight> lightest_edge;
     PQ pq;
   };
 
-  struct Stats {
-    Stats() :
-      precomputed(0),
-      cache_misses(0),
-      cache_hits(0) { }
+  struct Stats
+  {
+    Stats() : precomputed(0), cache_misses(0), cache_hits(0) {}
 
     CAtomic<size_t> precomputed;
     CAtomic<size_t> cache_misses;
     CAtomic<size_t> cache_hits;
   };
 
- public:
+public:
   static constexpr bool TRACK_STATS = false;
 
-  explicit TargetGraph(ds::StaticGraph&& graph) :
-    _is_initialized(false),
-    _k(graph.initialNumNodes()),
-    _graph(std::move(graph)),
-    _max_precomputed_connectitivty(0),
-    _distances(),
-    _local_mst_data(graph.initialNumNodes()),
-    _cache(INITIAL_HASH_TABLE_CAPACITY),
-     #ifdef __linux__
-    _handles([&]() { return getHandle(); }),
-     #endif
-    _stats() { }
-
-  TargetGraph(const TargetGraph&) = delete;
-  TargetGraph & operator= (const TargetGraph &) = delete;
-
-  TargetGraph(TargetGraph&&) = default;
-  TargetGraph & operator= (TargetGraph &&) = default;
-
-  PartitionID numBlocks() const {
-    return _k;
+  explicit TargetGraph(ds::StaticGraph &&graph) :
+      _is_initialized(false), _k(graph.initialNumNodes()), _graph(std::move(graph)),
+      _max_precomputed_connectitivty(0), _distances(),
+      _local_mst_data(graph.initialNumNodes()), _cache(INITIAL_HASH_TABLE_CAPACITY),
+#ifdef __linux__
+      _handles([&]() { return getHandle(); }),
+#endif
+      _stats()
+  {
   }
 
-  bool isInitialized() const {
-    return _is_initialized;
-  }
+  TargetGraph(const TargetGraph &) = delete;
+  TargetGraph &operator=(const TargetGraph &) = delete;
 
-  const ds::StaticGraph& graph() const {
-    return _graph;
-  }
+  TargetGraph(TargetGraph &&) = default;
+  TargetGraph &operator=(TargetGraph &&) = default;
+
+  PartitionID numBlocks() const { return _k; }
+
+  bool isInitialized() const { return _is_initialized; }
+
+  const ds::StaticGraph &graph() const { return _graph; }
 
   // ! This function computes the weight of all steiner trees for all
   // ! connectivity sets with connectivity at most m (:= max_connectivity),
@@ -133,43 +123,51 @@ class TargetGraph {
   // ! in the connectivity set if precomputed. Otherwise, we compute
   // ! a 2-approximation of the optimal steiner tree
   // ! (see computeWeightOfMSTOnMetricCompletion(...))
-  HyperedgeWeight distance(const ds::StaticBitset& connectivity_set) const;
+  HyperedgeWeight distance(const ds::StaticBitset &connectivity_set) const;
 
-  HyperedgeWeight distance(const ds::Bitset& connectivity_set) const {
+  HyperedgeWeight distance(const ds::Bitset &connectivity_set) const
+  {
     ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
     return distance(view);
   }
 
   // ! Computes the optimal steiner tree between the blocks in the connectivity
   // ! set if we would add an additional block.
-  HyperedgeWeight distanceWithBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+  HyperedgeWeight distanceWithBlock(ds::Bitset &connectivity_set,
+                                    const PartitionID block) const
+  {
     ASSERT(block < _k);
     const bool was_set = connectivity_set.isSet(block);
     connectivity_set.set(block);
     ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
     const HyperedgeWeight dist = distance(view);
-    if ( !was_set ) connectivity_set.unset(block);
+    if(!was_set)
+      connectivity_set.unset(block);
     return dist;
   }
 
   // ! Computes the optimal steiner tree between the blocks in the connectivity
   // ! set if we would remove an block.
-  HyperedgeWeight distanceWithoutBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+  HyperedgeWeight distanceWithoutBlock(ds::Bitset &connectivity_set,
+                                       const PartitionID block) const
+  {
     ASSERT(block < _k);
     const bool was_set = connectivity_set.isSet(block);
     connectivity_set.unset(block);
     ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
     const HyperedgeWeight dist = distance(view);
-    if ( was_set ) connectivity_set.set(block);
+    if(was_set)
+      connectivity_set.set(block);
     return dist;
   }
 
   // ! Computes the optimal steiner tree between the blocks in the connectivity
   // ! set if we would remove block `removed_block` and block `added_block` to
   // ! the connectivity set.
-  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset& connectivity_set,
+  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset &connectivity_set,
                                                 const PartitionID removed_block,
-                                                const PartitionID added_block) const {
+                                                const PartitionID added_block) const
+  {
     ASSERT(removed_block < _k && added_block < _k);
     const bool was_removed_set = connectivity_set.isSet(removed_block);
     const bool was_added_set = connectivity_set.isSet(added_block);
@@ -177,70 +175,80 @@ class TargetGraph {
     connectivity_set.set(added_block);
     ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
     const HyperedgeWeight dist = distance(view);
-    if ( was_removed_set ) connectivity_set.set(removed_block);
-    if ( !was_added_set ) connectivity_set.unset(added_block);
+    if(was_removed_set)
+      connectivity_set.set(removed_block);
+    if(!was_added_set)
+      connectivity_set.unset(added_block);
     return dist;
   }
 
   // ! Returns the shortest path between two blocks in the target graph
-  HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
+  HyperedgeWeight distance(const PartitionID i, const PartitionID j) const
+  {
     ASSERT(_is_initialized);
     return _distances[index(i, j)];
   }
 
   // ! Print statistics
-  void printStats() const {
-    const size_t total_requests = _stats.precomputed + _stats.cache_hits + _stats.cache_misses;
+  void printStats() const
+  {
+    const size_t total_requests =
+        _stats.precomputed + _stats.cache_hits + _stats.cache_misses;
     LOG << "\nTarget Graph Distance Computation Stats:";
     std::cout << "Accessed Precomputed Distance = " << std::setprecision(2)
               << (static_cast<double>(_stats.precomputed) / total_requests) * 100 << "% ("
               << _stats.precomputed << ")" << std::endl;
     std::cout << "                 Computed MST = " << std::setprecision(2)
-              << (static_cast<double>(_stats.cache_misses) / total_requests) * 100 << "% ("
-              << _stats.cache_misses << ")" << std::endl;
+              << (static_cast<double>(_stats.cache_misses) / total_requests) * 100
+              << "% (" << _stats.cache_misses << ")" << std::endl;
     std::cout << "              Used Cached MST = " << std::setprecision(2)
               << (static_cast<double>(_stats.cache_hits) / total_requests) * 100 << "% ("
               << _stats.cache_hits << ")" << std::endl;
   }
 
-  void printStats(std::stringstream& oss) const {
+  void printStats(std::stringstream &oss) const
+  {
     oss << " used_precomputed_distance=" << _stats.precomputed
         << " used_mst=" << _stats.cache_misses
         << " used_cached_mst=" << _stats.cache_hits;
   }
 
- private:
+private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const PartitionID i,
-                                                  const PartitionID j) const {
+                                                  const PartitionID j) const
+  {
     ASSERT(i < _k && j < _k);
     return i + j * _k;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t
+  index(const ds::StaticBitset &connectivity_set) const
+  {
     size_t index = 0;
     size_t multiplier = 1;
     PartitionID last_block = kInvalidPartition;
-    for ( const PartitionID block : connectivity_set ) {
+    for(const PartitionID block : connectivity_set)
+    {
       ASSERT(block != kInvalidPartition && block < _k);
       index += multiplier * UL(block);
       multiplier *= UL(_k);
       last_block = block;
     }
-    return last_block != kInvalidPartition ? index +
-      (multiplier == UL(_k) ? last_block * _k : 0) : 0;
+    return last_block != kInvalidPartition ?
+               index + (multiplier == UL(_k) ? last_block * _k : 0) :
+               0;
   }
 
   // ! This function computes an MST on the metric completion of the target graph
   // ! restricted to the blocks in the connectivity set. The metric completion is
   // ! complete graph where each edge {u,v} has a weight equals the shortest path
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
-  HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const;
+  HyperedgeWeight
+  computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset &connectivity_set) const;
 
-  #ifdef __linux__
-  HashTableHandle getHandle() const {
-    return _cache.get_handle();
-  }
-  #endif
+#ifdef __linux__
+  HashTableHandle getHandle() const { return _cache.get_handle(); }
+#endif
 
   bool _is_initialized;
 
@@ -263,46 +271,41 @@ class TargetGraph {
   // ! Cache stores the weight of MST computations
   mutable ConcurrentHashTable _cache;
 
-  #ifdef __linux__
+#ifdef __linux__
   // ! Handle to access concurrent hash table
   mutable tbb::enumerable_thread_specific<HashTableHandle> _handles;
-  #endif
+#endif
 
   // ! Stats
   mutable Stats _stats;
 };
 
 #else
-class TargetGraph {
- public:
+class TargetGraph
+{
+public:
   static constexpr bool TRACK_STATS = false;
 
-  explicit TargetGraph(ds::StaticGraph&&) { }
+  explicit TargetGraph(ds::StaticGraph &&) {}
 
-  TargetGraph(const TargetGraph&) = delete;
-  TargetGraph & operator= (const TargetGraph &) = delete;
+  TargetGraph(const TargetGraph &) = delete;
+  TargetGraph &operator=(const TargetGraph &) = delete;
 
-  TargetGraph(TargetGraph&&) = default;
-  TargetGraph & operator= (TargetGraph &&) = default;
+  TargetGraph(TargetGraph &&) = default;
+  TargetGraph &operator=(TargetGraph &&) = default;
 
-  PartitionID numBlocks() const {
-    return 0;
-  }
+  PartitionID numBlocks() const { return 0; }
 
-  bool isInitialized() const {
-    return false;
-  }
+  bool isInitialized() const { return false; }
 
-  void precomputeDistances(const size_t) { }
+  void precomputeDistances(const size_t) {}
 
-  HyperedgeWeight distance(const ds::StaticBitset&) const {
-    return 0;
-  }
+  HyperedgeWeight distance(const ds::StaticBitset &) const { return 0; }
 
-  void printStats() const {  }
+  void printStats() const {}
 
-  void printStats(std::stringstream&) const {  }
+  void printStats(std::stringstream &) const {}
 };
 #endif
 
-}  // namespace kahypar
+} // namespace kahypar

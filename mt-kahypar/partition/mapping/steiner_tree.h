@@ -26,20 +26,20 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
-class SteinerTree {
+class SteinerTree
+{
 
- public:
-  static void compute(const ds::StaticGraph& graph,
-                      const size_t max_set_size,
-                      vec<HyperedgeWeight>& distances);
+public:
+  static void compute(const ds::StaticGraph &graph, const size_t max_set_size,
+                      vec<HyperedgeWeight> &distances);
 
- private:
-  SteinerTree() { }
+private:
+  SteinerTree() {}
 };
 
-}  // namespace kahypar
+} // namespace kahypar

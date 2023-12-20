@@ -37,59 +37,67 @@
 
 namespace mt_kahypar::io::csv {
 
-  std::string header() {
-    return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,initial_km1,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
-           "\n";
-  }
+std::string header()
+{
+  return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
+         "objective,km1,cut,initial_km1,partitionTime,fmTime,lpTime,coarseningTime,"
+         "ipTime,preprocessingTime"
+         "\n";
+}
 
-  template<typename PartitionedHypergraph>
-  std::string serialize(const PartitionedHypergraph& phg,
-                        const Context& context,
-                        const std::chrono::duration<double>& elapsed_seconds) {
-    const char sep = ',';
-    std::stringstream s;
+template <typename PartitionedHypergraph>
+std::string serialize(const PartitionedHypergraph &phg, const Context &context,
+                      const std::chrono::duration<double> &elapsed_seconds)
+{
+  const char sep = ',';
+  std::stringstream s;
 
-    s << context.algorithm_name;
-    if (context.algorithm_name == "MT-KaHyPar") {
-      if (context.partition.preset_file.find("fast") != std::string::npos) {
-        s << "-Fast";
-      } else if (context.partition.preset_file.find("quality") != std::string::npos) {
-        s << "-Eco";
-      }
+  s << context.algorithm_name;
+  if(context.algorithm_name == "MT-KaHyPar")
+  {
+    if(context.partition.preset_file.find("fast") != std::string::npos)
+    {
+      s << "-Fast";
     }
-    s << sep;
-
-    s << context.shared_memory.num_threads << sep;
-    s << context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of('/') + 1) << sep;
-    s << context.partition.k << sep;
-    s << context.partition.seed << sep;
-
-    s << context.partition.epsilon << sep;
-    s << metrics::imbalance(phg, context) << sep;
-
-    s << context.partition.objective << sep;
-    s << metrics::quality(phg, Objective::km1) << sep;
-    s << metrics::quality(phg, Objective::cut) << sep;
-    s << context.initial_km1 << sep;
-    s << elapsed_seconds.count() << sep;
-
-    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-    timer.showDetailedTimings(context.partition.show_detailed_timings);
-    s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
-    s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
-    s << timer.get("coarsening") << sep;
-    s << timer.get("initial_partitioning") << sep;
-    s << timer.get("preprocessing");
-
-    return s.str();
+    else if(context.partition.preset_file.find("quality") != std::string::npos)
+    {
+      s << "-Eco";
+    }
   }
+  s << sep;
 
-  namespace {
-  #define SERIALIZE(X) std::string serialize(const X& phg,                                          \
-                                             const Context& context,                                \
-                                             const std::chrono::duration<double>& elapsed_seconds)
-  }
+  s << context.shared_memory.num_threads << sep;
+  s << context.partition.graph_filename.substr(
+           context.partition.graph_filename.find_last_of('/') + 1)
+    << sep;
+  s << context.partition.k << sep;
+  s << context.partition.seed << sep;
 
-  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
+  s << context.partition.epsilon << sep;
+  s << metrics::imbalance(phg, context) << sep;
+
+  s << context.partition.objective << sep;
+  s << metrics::quality(phg, Objective::km1) << sep;
+  s << metrics::quality(phg, Objective::cut) << sep;
+  s << context.initial_km1 << sep;
+  s << elapsed_seconds.count() << sep;
+
+  utils::Timer &timer = utils::Utilities::instance().getTimer(context.utility_id);
+  timer.showDetailedTimings(context.partition.show_detailed_timings);
+  s << (timer.get("fm") + timer.get("initialize_fm_refiner")) << sep;
+  s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
+  s << timer.get("coarsening") << sep;
+  s << timer.get("initial_partitioning") << sep;
+  s << timer.get("preprocessing");
+
+  return s.str();
+}
+
+namespace {
+#define SERIALIZE(X)                                                                     \
+  std::string serialize(const X &phg, const Context &context,                            \
+                        const std::chrono::duration<double> &elapsed_seconds)
+}
+
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
 }

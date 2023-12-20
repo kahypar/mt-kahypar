@@ -36,8 +36,8 @@ namespace parallel {
 
 size_t n = 100000;
 
-
-TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion) {
+TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion)
+{
   int m = 75000;
   WorkContainer<int> cdc(std::thread::hardware_concurrency());
   tbb::parallel_for(0, m, [&](int i) {
@@ -48,11 +48,13 @@ TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion) {
   tbb::enumerable_thread_specific<int> counters;
   tbb::task_group tg;
   int num_tasks = 7;
-  for (int i = 0; i < num_tasks; ++i) {
+  for(int i = 0; i < num_tasks; ++i)
+  {
     tg.run([&]() {
       int res = 0;
-      int& lc = counters.local();
-      while (cdc.try_pop(res, tbb::this_task_arena::current_thread_index())) {
+      int &lc = counters.local();
+      while(cdc.try_pop(res, tbb::this_task_arena::current_thread_index()))
+      {
         lc++;
       }
     });
@@ -66,7 +68,8 @@ TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion) {
   ASSERT_EQ(cdc.unsafe_size(), 0);
 }
 
-TEST(WorkContainer, ClearWorks) {
+TEST(WorkContainer, ClearWorks)
+{
   WorkContainer<int> cdc(std::thread::hardware_concurrency());
   cdc.safe_push(5, tbb::this_task_arena::current_thread_index());
   cdc.safe_push(420, tbb::this_task_arena::current_thread_index());
@@ -75,11 +78,11 @@ TEST(WorkContainer, ClearWorks) {
   ASSERT_TRUE(cdc.unsafe_size() == 0);
 }
 
-
-TEST(WorkContainer, WorkStealingWorks) {
+TEST(WorkContainer, WorkStealingWorks)
+{
   WorkContainer<int> cdc(std::thread::hardware_concurrency());
 
-  std::atomic<size_t> stage { 0 };
+  std::atomic<size_t> stage{ 0 };
   size_t steals = 0;
   size_t own_pops = 0;
 
@@ -87,24 +90,29 @@ TEST(WorkContainer, WorkStealingWorks) {
 
   std::thread producer([&] {
     int thread_id = 0;
-    for (int i = 0; i < m; ++i) {
+    for(int i = 0; i < m; ++i)
+    {
       cdc.safe_push(i, thread_id);
     }
 
     stage.fetch_add(1, std::memory_order_acquire);
 
     int own_element;
-    while (cdc.try_pop(own_element, thread_id)) {
+    while(cdc.try_pop(own_element, thread_id))
+    {
       own_pops++;
     }
   });
 
   std::thread consumer([&] {
     int thread_id = 1;
-    while (stage.load(std::memory_order_acquire) < 1) { } //spin
+    while(stage.load(std::memory_order_acquire) < 1)
+    {
+    } // spin
 
     int stolen_element;
-    while (cdc.try_pop(stolen_element, thread_id)) {
+    while(cdc.try_pop(stolen_element, thread_id))
+    {
       steals++;
     }
   });
@@ -115,5 +123,5 @@ TEST(WorkContainer, WorkStealingWorks) {
   ASSERT_EQ(steals + own_pops, m);
 }
 
-}  // namespace parallel
-}  // namespace mt_kahypar
+} // namespace parallel
+} // namespace mt_kahypar
