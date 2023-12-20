@@ -29,12 +29,12 @@
 #include <numeric>
 #include <queue>
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/mapping/kerninghan_lin.h"
-#include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/partition/mapping/kerninghan_lin.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -44,49 +44,58 @@ namespace {
 
 static constexpr bool debug = false;
 
-struct PQElement {
+struct PQElement
+{
   HyperedgeWeight rating;
   HypernodeID u;
 };
 
-bool operator<(const PQElement& lhs, const PQElement& rhs) {
+bool operator<(const PQElement &lhs, const PQElement &rhs)
+{
   return lhs.rating < rhs.rating || (lhs.rating == rhs.rating && lhs.u < rhs.u);
 }
 
-bool operator>(const PQElement& lhs, const PQElement& rhs) {
+bool operator>(const PQElement &lhs, const PQElement &rhs)
+{
   return lhs.rating > rhs.rating || (lhs.rating == rhs.rating && lhs.u > rhs.u);
 }
 
 using PQ = std::priority_queue<PQElement>;
 
-
-HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) {
+HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph &graph)
+{
   vec<HypernodeID> min_nodes;
   HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
-  for ( const HypernodeID& hn : graph.nodes() ) {
+  for(const HypernodeID &hn : graph.nodes())
+  {
     HyperedgeWeight weighted_degree = 0;
-    for ( const HyperedgeID he : graph.incidentEdges(hn) ) {
+    for(const HyperedgeID he : graph.incidentEdges(hn))
+    {
       weighted_degree += graph.edgeWeight(he);
     }
-    if ( weighted_degree < min_weighted_degree ) {
+    if(weighted_degree < min_weighted_degree)
+    {
       min_nodes.clear();
       min_nodes.push_back(hn);
       min_weighted_degree = weighted_degree;
-    } else if ( weighted_degree == min_weighted_degree ) {
+    }
+    else if(weighted_degree == min_weighted_degree)
+    {
       min_nodes.push_back(hn);
     }
   }
   ASSERT(min_nodes.size() > 0);
-  return min_nodes.size() == 1 ? min_nodes[0] :
-    min_nodes[utils::Randomize::instance().getRandomInt(
-      0, static_cast<int>(min_nodes.size() - 1), THREAD_ID)];
+  return min_nodes.size() == 1 ?
+             min_nodes[0] :
+             min_nodes[utils::Randomize::instance().getRandomInt(
+                 0, static_cast<int>(min_nodes.size() - 1), THREAD_ID)];
 }
 
-template<typename CommunicationHypergraph>
-void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
-                            const TargetGraph& target_graph,
-                            const Context&,
-                            const HypernodeID seed_node) {
+template <typename CommunicationHypergraph>
+void compute_greedy_mapping(CommunicationHypergraph &communication_hg,
+                            const TargetGraph &target_graph, const Context &,
+                            const HypernodeID seed_node)
+{
   // For each node u, the ratings store weight of all incident hyperedges
   // that connect u to partial assignment
   vec<HyperedgeWeight> rating(communication_hg.initialNumNodes(), 0);
@@ -95,42 +104,48 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   vec<HypernodeID> nodes_to_update;
   // Marks unassigned processors
   ds::Bitset unassigned_processors(target_graph.numBlocks());
-  ds::StaticBitset unassigned_processors_view(
-    unassigned_processors.numBlocks(), unassigned_processors.data());
+  ds::StaticBitset unassigned_processors_view(unassigned_processors.numBlocks(),
+                                              unassigned_processors.data());
   PQ pq;
 
   auto check_if_all_nodes_are_assigned = [&]() {
-    if ( pq.empty() ) {
+    if(pq.empty())
+    {
       // Check if there are still unassigned nodes.
       // This can happen if the communication hypergraph is not connected
-      for ( const HypernodeID& hn : communication_hg.nodes() ) {
-        if ( communication_hg.partID(hn) == kInvalidPartition ) {
+      for(const HypernodeID &hn : communication_hg.nodes())
+      {
+        if(communication_hg.partID(hn) == kInvalidPartition)
+        {
           ASSERT(up_to_date_ratings[hn]);
-          pq.push( PQElement { rating[hn], hn } );
+          pq.push(PQElement{ rating[hn], hn });
           break;
         }
       }
     }
   };
 
-  auto assign = [&](const HypernodeID u,
-                    const PartitionID process) {
+  auto assign = [&](const HypernodeID u, const PartitionID process) {
     ASSERT(process != kInvalidPartition && process < communication_hg.k());
     ASSERT(unassigned_processors.isSet(process));
     communication_hg.setNodePart(u, process);
-    up_to_date_ratings[u] = false; // This marks u as assigned
+    up_to_date_ratings[u] = false;        // This marks u as assigned
     unassigned_processors.unset(process); // This marks the process as assigned
 
     DBG << "Assign node" << u << "to process" << process;
 
     // Update ratings
     nodes_to_update.clear();
-    for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
-      if ( !visited_hes[he] ) {
+    for(const HyperedgeID &he : communication_hg.incidentEdges(u))
+    {
+      if(!visited_hes[he])
+      {
         const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
-        for ( const HypernodeID& pin : communication_hg.pins(he) ) {
+        for(const HypernodeID &pin : communication_hg.pins(he))
+        {
           rating[pin] += edge_weight;
-          if ( up_to_date_ratings[pin] ) {
+          if(up_to_date_ratings[pin])
+          {
             nodes_to_update.push_back(pin);
             up_to_date_ratings[pin] = false;
           }
@@ -140,8 +155,9 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     }
 
     // Update PQ
-    for ( const HypernodeID& hn : nodes_to_update ) {
-      pq.push(PQElement { rating[hn], hn });
+    for(const HypernodeID &hn : nodes_to_update)
+    {
+      pq.push(PQElement{ rating[hn], hn });
       up_to_date_ratings[hn] = true;
     }
     check_if_all_nodes_are_assigned();
@@ -149,7 +165,8 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 
   communication_hg.resetPartition();
   // Initialize unassigned processors
-  for ( PartitionID block = 0; block < target_graph.numBlocks(); ++block ) {
+  for(PartitionID block = 0; block < target_graph.numBlocks(); ++block)
+  {
     unassigned_processors.set(block);
   }
   // Assign seed node to process with minimum weighted degree
@@ -158,12 +175,14 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   HyperedgeWeight actual_objective = 0;
   vec<PartitionID> tie_breaking;
   vec<HyperedgeWeight> tmp_ratings(communication_hg.initialNumNodes(), 0);
-  while ( !pq.empty() ) {
+  while(!pq.empty())
+  {
     const PQElement best = pq.top();
     const HypernodeID u = best.u;
     pq.pop();
 
-    if ( !up_to_date_ratings[u] ) {
+    if(!up_to_date_ratings[u])
+    {
       check_if_all_nodes_are_assigned();
       continue;
     }
@@ -171,14 +190,18 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     ASSERT(communication_hg.partID(u) == kInvalidPartition);
     // Assign node with the strongest connection to the partial assignment
     // to the process that minimizes the steiner tree metric.
-    for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
-      ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
+    for(const HyperedgeID &he : communication_hg.incidentEdges(u))
+    {
+      ds::Bitset &connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
-      const HyperedgeWeight distance_before = communication_hg.connectivity(he) > 0 ?
-        target_graph.distance(connectivity_set) : 0;
-      for ( const PartitionID process : unassigned_processors_view ) {
+      const HyperedgeWeight distance_before =
+          communication_hg.connectivity(he) > 0 ?
+              target_graph.distance(connectivity_set) :
+              0;
+      for(const PartitionID process : unassigned_processors_view)
+      {
         const HyperedgeWeight distance_after =
-          target_graph.distanceWithBlock(connectivity_set, process);
+            target_graph.distanceWithBlock(connectivity_set, process);
         tmp_ratings[process] += (distance_after - distance_before) * edge_weight;
       }
     }
@@ -186,69 +209,87 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     // Determine processor that would result in the least increase of the
     // steiner tree metric.
     HyperedgeWeight best_rating = std::numeric_limits<HyperedgeWeight>::max();
-    for ( const PartitionID process : unassigned_processors_view ) {
-      if ( tmp_ratings[process] < best_rating ) {
+    for(const PartitionID process : unassigned_processors_view)
+    {
+      if(tmp_ratings[process] < best_rating)
+      {
         tie_breaking.clear();
         tie_breaking.push_back(process);
         best_rating = tmp_ratings[process];
-      } else if ( tmp_ratings[process] == best_rating ) {
+      }
+      else if(tmp_ratings[process] == best_rating)
+      {
         tie_breaking.push_back(process);
       }
       tmp_ratings[process] = 0;
     }
 
-    // Assign node to processor that results in the least increase of the objective function
+    // Assign node to processor that results in the least increase of the objective
+    // function
     ASSERT(tie_breaking.size() > 0);
-    const PartitionID best_process = tie_breaking.size() == 1 ? tie_breaking[0] :
-      tie_breaking[utils::Randomize::instance().getRandomInt(
-        0, static_cast<int>(tie_breaking.size() - 1), THREAD_ID)];
+    const PartitionID best_process =
+        tie_breaking.size() == 1 ?
+            tie_breaking[0] :
+            tie_breaking[utils::Randomize::instance().getRandomInt(
+                0, static_cast<int>(tie_breaking.size() - 1), THREAD_ID)];
     actual_objective += best_rating;
     assign(u, best_process);
   }
   ASSERT(actual_objective == metrics::quality(communication_hg, Objective::steiner_tree));
-  ASSERT([&] {
-    for ( const HypernodeID hn : communication_hg.nodes() ) {
-      if ( communication_hg.partID(hn) == kInvalidPartition ) {
-        return false;
-      }
-    }
-    return true;
-  }(), "There are unassigned nodes");
+  ASSERT(
+      [&] {
+        for(const HypernodeID hn : communication_hg.nodes())
+        {
+          if(communication_hg.partID(hn) == kInvalidPartition)
+          {
+            return false;
+          }
+        }
+        return true;
+      }(),
+      "There are unassigned nodes");
   DBG << "Greedy mapping algorithm with seed node" << seed_node
       << "produced an mapping with solution quality" << actual_objective;
 }
 
 } // namespace
 
-template<typename CommunicationHypergraph>
-void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHypergraph& communication_hg,
-                                                               const TargetGraph& target_graph,
-                                                               const Context& context) {
+template <typename CommunicationHypergraph>
+void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(
+    CommunicationHypergraph &communication_hg, const TargetGraph &target_graph,
+    const Context &context)
+{
   ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
 
-  utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+  utils::Timer &timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
-  HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::steiner_tree);
+  HyperedgeWeight best_objective =
+      metrics::quality(communication_hg, Objective::steiner_tree);
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
   timer.start_timer("initial_mapping", "Initial Mapping");
-  communication_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+  communication_hg.doParallelForAllNodes([&](const HypernodeID &hn) {
     // Compute greedy mapping with the current node as seed node
-    CommunicationHypergraph tmp_communication_phg(
-      target_graph.numBlocks(), communication_hg.hypergraph());
+    CommunicationHypergraph tmp_communication_phg(target_graph.numBlocks(),
+                                                  communication_hg.hypergraph());
     tmp_communication_phg.setTargetGraph(&target_graph);
     compute_greedy_mapping(tmp_communication_phg, target_graph, context, hn);
 
-    if ( context.mapping.use_local_search ) {
-      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, target_graph);
+    if(context.mapping.use_local_search)
+    {
+      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg,
+                                                      target_graph);
     }
 
     // Check if new mapping is better than the currently best mapping
-    const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
+    const HyperedgeWeight objective =
+        metrics::quality(tmp_communication_phg, Objective::steiner_tree);
     best_lock.lock();
-    if ( objective < best_objective ) {
+    if(objective < best_objective)
+    {
       best_objective = objective;
-      for ( const HypernodeID& u : tmp_communication_phg.nodes() ) {
+      for(const HypernodeID &u : tmp_communication_phg.nodes())
+      {
         best_mapping[u] = tmp_communication_phg.partID(u);
       }
     }
@@ -258,7 +299,8 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
 
   // Apply best mapping
   communication_hg.resetPartition();
-  for ( const HypernodeID& hn : communication_hg.nodes() ) {
+  for(const HypernodeID &hn : communication_hg.nodes())
+  {
     communication_hg.setOnlyNodePart(hn, best_mapping[hn]);
   }
   communication_hg.initializePartition();
@@ -266,4 +308,4 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
 
 INSTANTIATE_CLASS_WITH_PARTITIONED_HG(GreedyMapping)
 
-}  // namespace kahypar
+} // namespace kahypar

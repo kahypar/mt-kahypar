@@ -25,13 +25,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
+#include "mt-kahypar/definitions.h"
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
@@ -40,91 +39,94 @@ namespace ds {
 
 using AStaticGraph = HypergraphFixture<StaticGraph, true>;
 
-TEST_F(AStaticGraph, HasCorrectStats) {
-  ASSERT_EQ(7,  hypergraph.initialNumNodes());
-  ASSERT_EQ(12,  hypergraph.initialNumEdges());
+TEST_F(AStaticGraph, HasCorrectStats)
+{
+  ASSERT_EQ(7, hypergraph.initialNumNodes());
+  ASSERT_EQ(12, hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.totalWeight());
-  ASSERT_EQ(2,  hypergraph.maxEdgeSize());
+  ASSERT_EQ(7, hypergraph.totalWeight());
+  ASSERT_EQ(2, hypergraph.maxEdgeSize());
 }
 
-TEST_F(AStaticGraph, HasCorrectInitialNodeIterator) {
+TEST_F(AStaticGraph, HasCorrectInitialNodeIterator)
+{
   HypernodeID expected_hn = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for(const HypernodeID &hn : hypergraph.nodes())
+  {
     ASSERT_EQ(expected_hn++, hn);
   }
   ASSERT_EQ(7, expected_hn);
 }
 
-TEST_F(AStaticGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
+TEST_F(AStaticGraph, HasCorrectNodeIteratorIfVerticesAreDisabled)
+{
   hypergraph.removeDegreeZeroHypernode(0);
-  const std::vector<HypernodeID> expected_iter =
-    { 1, 2, 3, 4, 5, 6 };
+  const std::vector<HypernodeID> expected_iter = { 1, 2, 3, 4, 5, 6 };
   HypernodeID pos = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for(const HypernodeID &hn : hypergraph.nodes())
+  {
     ASSERT_EQ(expected_iter[pos++], hn);
   }
   ASSERT_EQ(expected_iter.size(), pos);
 }
 
-TEST_F(AStaticGraph, HasCorrectInitialEdgeIterator) {
+TEST_F(AStaticGraph, HasCorrectInitialEdgeIterator)
+{
   // Note that each hyperedge is represented as two edges
   HyperedgeID expected_he = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for(const HyperedgeID &he : hypergraph.edges())
+  {
     ASSERT_EQ(expected_he++, he);
   }
   ASSERT_EQ(12, expected_he);
 }
 
-TEST_F(AStaticGraph, IteratesParallelOverAllNodes) {
+TEST_F(AStaticGraph, IteratesParallelOverAllNodes)
+{
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
-      visited[hn] = true;
-    });
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) { visited[hn] = true; });
 
-  for ( size_t i = 0; i < visited.size(); ++i ) {
+  for(size_t i = 0; i < visited.size(); ++i)
+  {
     ASSERT_TRUE(visited[i]) << i;
   }
 }
 
-TEST_F(AStaticGraph, VerifiesIncidentNets1) {
-  verifyIncidentNets(0, { });
-}
+TEST_F(AStaticGraph, VerifiesIncidentNets1) { verifyIncidentNets(0, {}); }
 
-TEST_F(AStaticGraph, VerifiesIncidentNets2) {
-  verifyIncidentNets(1, { 0, 1 });
-}
+TEST_F(AStaticGraph, VerifiesIncidentNets2) { verifyIncidentNets(1, { 0, 1 }); }
 
-TEST_F(AStaticGraph, VerifiesIncidentNets3) {
-  verifyIncidentNets(2, { 2, 3 });
-}
+TEST_F(AStaticGraph, VerifiesIncidentNets3) { verifyIncidentNets(2, { 2, 3 }); }
 
-TEST_F(AStaticGraph, VerifiesIncidentNets4) {
-  verifyIncidentNets(6, { 10, 11 });
-}
+TEST_F(AStaticGraph, VerifiesIncidentNets4) { verifyIncidentNets(6, { 10, 11 }); }
 
-TEST_F(AStaticGraph, VerifiesPinsOfHyperedges) {
+TEST_F(AStaticGraph, VerifiesPinsOfHyperedges)
+{
   verifyPins({ 0, 1, 3, 6, 7, 9 },
-    { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
+             { { 1, 2 }, { 1, 4 }, { 2, 3 }, { 4, 5 }, { 4, 6 }, { 5, 6 } });
 }
 
-TEST_F(AStaticGraph, VerifiesVertexWeights) {
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+TEST_F(AStaticGraph, VerifiesVertexWeights)
+{
+  for(const HypernodeID &hn : hypergraph.nodes())
+  {
     ASSERT_EQ(1, hypergraph.nodeWeight(hn));
   }
 }
 
-TEST_F(AStaticGraph, ModifiesNodeWeight) {
+TEST_F(AStaticGraph, ModifiesNodeWeight)
+{
   hypergraph.setNodeWeight(0, 2);
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
+  hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
-TEST_F(AStaticGraph, VerifiesVertexDegrees) {
+TEST_F(AStaticGraph, VerifiesVertexDegrees)
+{
   ASSERT_EQ(0, hypergraph.nodeDegree(0));
   ASSERT_EQ(2, hypergraph.nodeDegree(1));
   ASSERT_EQ(2, hypergraph.nodeDegree(2));
@@ -134,7 +136,8 @@ TEST_F(AStaticGraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(6));
 }
 
-TEST_F(AStaticGraph, VerifiesEdgeIDs) {
+TEST_F(AStaticGraph, VerifiesEdgeIDs)
+{
   ASSERT_EQ(0, hypergraph.uniqueEdgeID(0));
   ASSERT_EQ(2, hypergraph.uniqueEdgeID(1));
   ASSERT_EQ(0, hypergraph.uniqueEdgeID(2));
@@ -149,31 +152,38 @@ TEST_F(AStaticGraph, VerifiesEdgeIDs) {
   ASSERT_EQ(5, hypergraph.uniqueEdgeID(11));
 }
 
-TEST_F(AStaticGraph, RemovesVertices) {
+TEST_F(AStaticGraph, RemovesVertices)
+{
   hypergraph.removeDegreeZeroHypernode(0);
   ASSERT_EQ(1, hypergraph.numRemovedHypernodes());
 }
 
-TEST_F(AStaticGraph, VerifiesEdgeWeights) {
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+TEST_F(AStaticGraph, VerifiesEdgeWeights)
+{
+  for(const HyperedgeID &he : hypergraph.edges())
+  {
     ASSERT_EQ(1, hypergraph.edgeWeight(he));
   }
 }
 
-TEST_F(AStaticGraph, ModifiesEdgeWeight) {
+TEST_F(AStaticGraph, ModifiesEdgeWeight)
+{
   hypergraph.setEdgeWeight(0, 2);
   hypergraph.setEdgeWeight(2, 2);
   ASSERT_EQ(2, hypergraph.edgeWeight(0));
   ASSERT_EQ(2, hypergraph.edgeWeight(2));
 }
 
-TEST_F(AStaticGraph, VerifiesEdgeSizes) {
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+TEST_F(AStaticGraph, VerifiesEdgeSizes)
+{
+  for(const HyperedgeID &he : hypergraph.edges())
+  {
     ASSERT_EQ(2, hypergraph.edgeSize(he));
   }
 }
 
-TEST_F(AStaticGraph, SetsCommunityIDsForEachVertex) {
+TEST_F(AStaticGraph, SetsCommunityIDsForEachVertex)
+{
   hypergraph.setCommunityID(0, 1);
   hypergraph.setCommunityID(1, 1);
   hypergraph.setCommunityID(2, 1);
@@ -191,7 +201,8 @@ TEST_F(AStaticGraph, SetsCommunityIDsForEachVertex) {
   ASSERT_EQ(3, hypergraph.communityID(6));
 }
 
-TEST_F(AStaticGraph, ComparesStatsIfCopiedParallel) {
+TEST_F(AStaticGraph, ComparesStatsIfCopiedParallel)
+{
   StaticGraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
   ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
@@ -201,7 +212,8 @@ TEST_F(AStaticGraph, ComparesStatsIfCopiedParallel) {
   ASSERT_EQ(hypergraph.maxEdgeSize(), copy_hg.maxEdgeSize());
 }
 
-TEST_F(AStaticGraph, ComparesStatsIfCopiedSequential) {
+TEST_F(AStaticGraph, ComparesStatsIfCopiedSequential)
+{
   StaticGraph copy_hg = hypergraph.copy();
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
   ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
@@ -211,9 +223,10 @@ TEST_F(AStaticGraph, ComparesStatsIfCopiedSequential) {
   ASSERT_EQ(hypergraph.maxEdgeSize(), copy_hg.maxEdgeSize());
 }
 
-TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedParallel) {
+TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedParallel)
+{
   StaticGraph copy_hg = hypergraph.copy(parallel_tag_t());
-  verifyIncidentNets(copy_hg, 0, { });
+  verifyIncidentNets(copy_hg, 0, {});
   verifyIncidentNets(copy_hg, 1, { 0, 1 });
   verifyIncidentNets(copy_hg, 2, { 2, 3 });
   verifyIncidentNets(copy_hg, 3, { 4 });
@@ -222,9 +235,10 @@ TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedParallel) {
   verifyIncidentNets(copy_hg, 6, { 10, 11 });
 }
 
-TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedSequential) {
+TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedSequential)
+{
   StaticGraph copy_hg = hypergraph.copy();
-  verifyIncidentNets(copy_hg, 0, { });
+  verifyIncidentNets(copy_hg, 0, {});
   verifyIncidentNets(copy_hg, 1, { 0, 1 });
   verifyIncidentNets(copy_hg, 2, { 2, 3 });
   verifyIncidentNets(copy_hg, 3, { 4 });
@@ -233,19 +247,22 @@ TEST_F(AStaticGraph, ComparesIncidentNetsIfCopiedSequential) {
   verifyIncidentNets(copy_hg, 6, { 10, 11 });
 }
 
-TEST_F(AStaticGraph, ComparesPinsOfHyperedgesIfCopiedParallel) {
+TEST_F(AStaticGraph, ComparesPinsOfHyperedgesIfCopiedParallel)
+{
   StaticGraph copy_hg = hypergraph.copy(parallel_tag_t());
   verifyPins(copy_hg, { 0, 1, 3, 6, 7, 9 },
-    { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
+             { { 1, 2 }, { 1, 4 }, { 2, 3 }, { 4, 5 }, { 4, 6 }, { 5, 6 } });
 }
 
-TEST_F(AStaticGraph, ComparesPinsOfHyperedgesIfCopiedSequential) {
+TEST_F(AStaticGraph, ComparesPinsOfHyperedgesIfCopiedSequential)
+{
   StaticGraph copy_hg = hypergraph.copy();
   verifyPins(copy_hg, { 0, 1, 3, 6, 7, 9 },
-    { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
+             { { 1, 2 }, { 1, 4 }, { 2, 3 }, { 4, 5 }, { 4, 6 }, { 5, 6 } });
 }
 
-TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedParallel) {
+TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedParallel)
+{
   assignCommunityIds();
   StaticGraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
@@ -257,7 +274,8 @@ TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedParallel) {
   ASSERT_EQ(hypergraph.communityID(6), copy_hg.communityID(6));
 }
 
-TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedSequential) {
+TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedSequential)
+{
   assignCommunityIds();
   StaticGraph copy_hg = hypergraph.copy();
   ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
@@ -269,8 +287,9 @@ TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedSequential) {
   ASSERT_EQ(hypergraph.communityID(6), copy_hg.communityID(6));
 }
 
-TEST_F(AStaticGraph, ContractsCommunities1) {
-  parallel::scalable_vector<HypernodeID> c_mapping = {1, 4, 1, 1, 5, 4, 5};
+TEST_F(AStaticGraph, ContractsCommunities1)
+{
+  parallel::scalable_vector<HypernodeID> c_mapping = { 1, 4, 1, 1, 5, 4, 5 };
   StaticGraph c_graph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
@@ -306,14 +325,15 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
   verifyIncidentNets(c_graph, 0, { 0 });
   verifyIncidentNets(c_graph, 1, { 1, 2 });
   verifyIncidentNets(c_graph, 2, { 3 });
-  verifyPins(c_graph, { 0 }, { {0, 1} });
-  verifyPins(c_graph, { 1 }, { {0, 1} });
-  verifyPins(c_graph, { 2 }, { {1, 2} });
-  verifyPins(c_graph, { 3 }, { {1, 2} });
+  verifyPins(c_graph, { 0 }, { { 0, 1 } });
+  verifyPins(c_graph, { 1 }, { { 0, 1 } });
+  verifyPins(c_graph, { 2 }, { { 1, 2 } });
+  verifyPins(c_graph, { 3 }, { { 1, 2 } });
 }
 
-TEST_F(AStaticGraph, ContractsCommunities2) {
-  parallel::scalable_vector<HypernodeID> c_mapping = {0, 1, 2, 2, 2, 2, 2};
+TEST_F(AStaticGraph, ContractsCommunities2)
+{
+  parallel::scalable_vector<HypernodeID> c_mapping = { 0, 1, 2, 2, 2, 2, 2 };
   StaticGraph c_graph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
@@ -346,8 +366,8 @@ TEST_F(AStaticGraph, ContractsCommunities2) {
   verifyIncidentNets(c_graph, 0, {});
   verifyIncidentNets(c_graph, 1, { 0 });
   verifyIncidentNets(c_graph, 2, { 1 });
-  verifyPins(c_graph, { 0 }, { {1, 2} });
-  verifyPins(c_graph, { 1 }, { {1, 2} });
+  verifyPins(c_graph, { 0 }, { { 1, 2 } });
+  verifyPins(c_graph, { 1 }, { { 1, 2 } });
 }
 
 }

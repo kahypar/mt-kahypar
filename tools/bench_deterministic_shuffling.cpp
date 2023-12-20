@@ -6,12 +6,12 @@
 
 namespace mt_kahypar::utils {
 
-
-void benchShuffle(size_t n, int num_threads) {
+void benchShuffle(size_t n, int num_threads)
+{
   tbb::global_control gc(tbb::global_control::max_allowed_parallelism, num_threads);
 
 #ifndef NDEBUG
-  auto is_permutation = [&](vec<int>& r1, vec<int>& r2) {
+  auto is_permutation = [&](vec<int> &r1, vec<int> &r2) {
     std::sort(r1.begin(), r1.end());
     std::sort(r2.begin(), r2.end());
     return r1 == r2;
@@ -43,29 +43,35 @@ void benchShuffle(size_t n, int num_threads) {
   assert(is_permutation(comp, shuffle_hash.permutation));
 }
 
-void testGroupingReproducibility(size_t n, int num_threads) {
+void testGroupingReproducibility(size_t n, int num_threads)
+{
   tbb::global_control gc(tbb::global_control::max_allowed_parallelism, num_threads);
 
   size_t num_reps = 5;
   using Permutation = ParallelPermutation<int, PrecomputeBucketOpt>;
 
   Permutation first;
-  for (size_t i = 0; i < num_reps; ++i) {
+  for(size_t i = 0; i < num_reps; ++i)
+  {
     Permutation shuffle;
     shuffle.random_grouping(n, num_threads, 420);
 
-    if (i == 0) {
+    if(i == 0)
+    {
       first = shuffle;
-    } else {
-      assert(shuffle.get_bucket.precomputed_buckets == first.get_bucket.precomputed_buckets);
+    }
+    else
+    {
+      assert(shuffle.get_bucket.precomputed_buckets ==
+             first.get_bucket.precomputed_buckets);
       assert(shuffle.permutation == first.permutation);
       assert(shuffle.bucket_bounds == first.bucket_bounds);
     }
   }
 }
 
-
-void testFeistel() {
+void testFeistel()
+{
   std::mt19937 rng(420);
 
   size_t max_num_entries = UL(1) << 62;
@@ -83,18 +89,19 @@ void testFeistel() {
   t(11);
   t(max_num_entries - 1);
 
-  for (size_t i = 0; i < 500; ++i) {
+  for(size_t i = 0; i < 500; ++i)
+  {
     t(i);
   }
 }
 
-
 }
 
+int main(int argc, char *argv[])
+{
 
-int main(int argc, char* argv[]) {
-
-  if (argc != 3) {
+  if(argc != 3)
+  {
     std::cout << "Usage. num-threads permutation-size" << std::endl;
     std::exit(0);
   }

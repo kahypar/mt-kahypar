@@ -28,8 +28,8 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
 
@@ -39,11 +39,10 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
 mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                                                 const InstanceType instance);
 
-PresetType to_preset_type(const Mode mode,
-                          const PartitionID k,
+PresetType to_preset_type(const Mode mode, const PartitionID k,
                           const CoarseningAlgorithm coarsening_algo,
                           const FlowAlgorithm flow_algo);
 
 InstanceType to_instance_type(const FileFormat format);
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

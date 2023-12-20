@@ -34,29 +34,28 @@ namespace mt_kahypar {
 // Forward Declaration
 class TargetGraph;
 
-template<typename TypeTraits>
-class Multilevel {
+template <typename TypeTraits>
+class Multilevel
+{
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
+public:
   // ! Partitions a hypergraph using the multilevel paradigm.
-  static PartitionedHypergraph partition(Hypergraph& hypergraph,
-                                         const Context& context,
-                                         const TargetGraph* target_graph = nullptr);
+  static PartitionedHypergraph partition(Hypergraph &hypergraph, const Context &context,
+                                         const TargetGraph *target_graph = nullptr);
 
   // ! Partitions a hypergraph using the multilevel paradigm.
-  static void partition(PartitionedHypergraph& partitioned_hg,
-                        const Context& context,
-                        const TargetGraph* target_graph = nullptr);
+  static void partition(PartitionedHypergraph &partitioned_hg, const Context &context,
+                        const TargetGraph *target_graph = nullptr);
 
   // ! Improves an existing partition using the iterated multilevel cycle technique
   // ! (also called V-cycle).
-  static void partitionVCycle(Hypergraph& hypergraph,
-                              PartitionedHypergraph& partitioned_hg,
-                              const Context& context,
-                              const TargetGraph* target_graph = nullptr);
+  static void partitionVCycle(Hypergraph &hypergraph,
+                              PartitionedHypergraph &partitioned_hg,
+                              const Context &context,
+                              const TargetGraph *target_graph = nullptr);
 };
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

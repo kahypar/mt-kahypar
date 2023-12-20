@@ -30,11 +30,11 @@
 #include <iostream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 
@@ -45,10 +45,10 @@ using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
 using Hypergraph = ds::StaticHypergraph;
 
-static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
-                                          const std::string& hgr_filename,
-                                          const size_t num_procs,
-                                          const int rank) {
+static void writeParkwayHypergraphForProc(const Hypergraph &hypergraph,
+                                          const std::string &hgr_filename,
+                                          const size_t num_procs, const int rank)
+{
   const size_t num_vertices = hypergraph.initialNumNodes();
   const size_t num_edges = hypergraph.initialNumEdges();
   const size_t vertices_per_proc = num_vertices / num_procs;
@@ -56,21 +56,26 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
 
   const HypernodeID hn_start = rank * vertices_per_proc;
   const HypernodeID hn_end = static_cast<size_t>(rank) != num_procs - 1 ?
-    (rank + 1) * vertices_per_proc : num_vertices;
+                                 (rank + 1) * vertices_per_proc :
+                                 num_vertices;
   const HyperedgeID he_start = rank * hyperedges_per_proc;
   const HyperedgeID he_end = static_cast<size_t>(rank) != num_procs - 1 ?
-    (rank + 1) * hyperedges_per_proc : num_edges;
+                                 (rank + 1) * hyperedges_per_proc :
+                                 num_edges;
 
   std::vector<int> hypernode_weight;
-  for ( HypernodeID hn = hn_start; hn < hn_end; ++hn ) {
+  for(HypernodeID hn = hn_start; hn < hn_end; ++hn)
+  {
     hypernode_weight.push_back(hypergraph.nodeWeight(hn));
   }
 
   std::vector<int> hyperedge_data;
-  for ( HyperedgeID he = he_start; he < he_end; ++he ) {
+  for(HyperedgeID he = he_start; he < he_end; ++he)
+  {
     hyperedge_data.push_back(static_cast<int>(hypergraph.edgeSize(he)) + 2);
     hyperedge_data.push_back(static_cast<int>(hypergraph.edgeWeight(he)));
-    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+    for(const HypernodeID &pin : hypergraph.pins(he))
+    {
       hyperedge_data.push_back(static_cast<int>(pin));
     }
   }
@@ -82,30 +87,30 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
   std::string out_file = hgr_filename + "-" + std::to_string(rank);
   std::ofstream out_stream(out_file, std::ofstream::out | std::ofstream::binary);
 
-  out_stream.write((char *) &num_hypernodes, sizeof(int));
-  out_stream.write((char *) &num_local_hypernodes, sizeof(int));
-  out_stream.write((char *) &hyperedge_data_length, sizeof(int));
-  out_stream.write((char *) hypernode_weight.data(), sizeof(int) * num_local_hypernodes);
-  out_stream.write((char *) hyperedge_data.data(), sizeof(int) * hyperedge_data_length);
+  out_stream.write((char *)&num_hypernodes, sizeof(int));
+  out_stream.write((char *)&num_local_hypernodes, sizeof(int));
+  out_stream.write((char *)&hyperedge_data_length, sizeof(int));
+  out_stream.write((char *)hypernode_weight.data(), sizeof(int) * num_local_hypernodes);
+  out_stream.write((char *)hyperedge_data.data(), sizeof(int) * hyperedge_data_length);
   out_stream.close();
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
   std::string hgr_filename;
   std::string out_filename;
   int num_procs;
 
   po::options_description options("Options");
-  options.add_options()
-    ("hypergraph,h",
-    po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
-    "Hypergraph filename")
-    ("num-procs,p",
-    po::value<int>(&num_procs)->value_name("<int>")->required(),
-    "Number of Processor Parkway will be called with")
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Hypergraph Output Filename");
+  options.add_options()(
+      "hypergraph,h",
+      po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
+      "Hypergraph filename")("num-procs,p",
+                             po::value<int>(&num_procs)->value_name("<int>")->required(),
+                             "Number of Processor Parkway will be called with")(
+      "out-file,o",
+      po::value<std::string>(&out_filename)->value_name("<string>")->required(),
+      "Hypergraph Output Filename");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -113,12 +118,12 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   mt_kahypar_hypergraph_t hypergraph =
-    mt_kahypar::io::readInputFile(
-      hgr_filename, PresetType::default_preset,
-      InstanceType::hypergraph, FileFormat::hMetis, true);
-  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
+      mt_kahypar::io::readInputFile(hgr_filename, PresetType::default_preset,
+                                    InstanceType::hypergraph, FileFormat::hMetis, true);
+  Hypergraph &hg = utils::cast<Hypergraph>(hypergraph);
 
-  for ( int p = 0; p < num_procs; ++p ) {
+  for(int p = 0; p < num_procs; ++p)
+  {
     writeParkwayHypergraphForProc(hg, out_filename, num_procs, p);
   }
 

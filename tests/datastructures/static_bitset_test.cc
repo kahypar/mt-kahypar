@@ -24,13 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <numeric>
 #include <algorithm>
+#include <numeric>
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 using ::testing::Test;
 
@@ -39,53 +39,60 @@ namespace ds {
 
 using Block = StaticBitset::Block;
 
-void set_one_bits(Bitset& bitset,
-                  const vec<PartitionID>& one_bits) {
-  for ( const size_t pos : one_bits ) {
+void set_one_bits(Bitset &bitset, const vec<PartitionID> &one_bits)
+{
+  for(const size_t pos : one_bits)
+  {
     bitset.set(pos);
   }
 }
 
-void verify_iterator(const StaticBitset& bitset,
-                     const vec<PartitionID>& expected) {
+void verify_iterator(const StaticBitset &bitset, const vec<PartitionID> &expected)
+{
   ASSERT_EQ(static_cast<size_t>(bitset.popcount()), expected.size());
   size_t cnt = 0;
-  for ( const PartitionID& block : bitset ) {
+  for(const PartitionID &block : bitset)
+  {
     ASSERT_EQ(block, expected[cnt++]);
   }
   ASSERT_EQ(cnt, expected.size());
 }
 
-TEST(AStaticBitset, CountNumberOfOneBits1) {
+TEST(AStaticBitset, CountNumberOfOneBits1)
+{
   Bitset bits(64);
   set_one_bits(bits, { 0, 1, 5, 7 });
   StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(4, bitset.popcount());
 }
 
-TEST(AStaticBitset, CountNumberOfOneBits2) {
+TEST(AStaticBitset, CountNumberOfOneBits2)
+{
   Bitset bits(64);
   set_one_bits(bits, { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
   StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(10, bitset.popcount());
 }
 
-TEST(AStaticBitset, CountNumberOfOneBits3) {
+TEST(AStaticBitset, CountNumberOfOneBits3)
+{
   Bitset bits(128);
-  set_one_bits(bits, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127});
+  set_one_bits(bits, { 0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127 });
   StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(14, bitset.popcount());
 }
 
-TEST(AStaticBitset, CountNumberOfOneBits4) {
+TEST(AStaticBitset, CountNumberOfOneBits4)
+{
   Bitset bits(192);
-  set_one_bits(bits, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88,
-                      94, 95, 110, 127, 151, 152, 153, 154, 155,  183});
+  set_one_bits(bits, { 0,  1,  5,   7,   64,  65,  69,  71,  80,  88,
+                       94, 95, 110, 127, 151, 152, 153, 154, 155, 183 });
   StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(20, bitset.popcount());
 }
 
-TEST(AStaticBitset, VerifyIterator1) {
+TEST(AStaticBitset, VerifyIterator1)
+{
   vec<PartitionID> expected = { 0, 1, 5, 7 };
   Bitset bits(64);
   set_one_bits(bits, expected);
@@ -93,7 +100,8 @@ TEST(AStaticBitset, VerifyIterator1) {
   verify_iterator(bitset, expected);
 }
 
-TEST(AStaticBitset, VerifyIterator2) {
+TEST(AStaticBitset, VerifyIterator2)
+{
   vec<PartitionID> expected = { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 };
   Bitset bits(64);
   set_one_bits(bits, expected);
@@ -101,7 +109,8 @@ TEST(AStaticBitset, VerifyIterator2) {
   verify_iterator(bitset, expected);
 }
 
-TEST(AStaticBitset, VerifyIterator3) {
+TEST(AStaticBitset, VerifyIterator3)
+{
   vec<PartitionID> expected = { 0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127 };
   Bitset bits(128);
   set_one_bits(bits, expected);
@@ -109,16 +118,18 @@ TEST(AStaticBitset, VerifyIterator3) {
   verify_iterator(bitset, expected);
 }
 
-TEST(AStaticBitset, VerifyIterator4) {
-  vec<PartitionID> expected = { 0, 1, 5, 7, 64, 65, 69, 71, 80, 88,
-                                94, 95, 110, 127, 151, 152, 153, 154, 155,  183 };
+TEST(AStaticBitset, VerifyIterator4)
+{
+  vec<PartitionID> expected = { 0,  1,  5,   7,   64,  65,  69,  71,  80,  88,
+                                94, 95, 110, 127, 151, 152, 153, 154, 155, 183 };
   Bitset bits(192);
   set_one_bits(bits, expected);
   StaticBitset bitset(bits.numBlocks(), bits.data());
   verify_iterator(bitset, expected);
 }
 
-TEST(AStaticBitset, PerformsXOROperation1) {
+TEST(AStaticBitset, PerformsXOROperation1)
+{
   Bitset bits_1(64);
   set_one_bits(bits_1, { 0, 3, 6, 25 });
   Bitset bits_2(64);
@@ -130,7 +141,8 @@ TEST(AStaticBitset, PerformsXOROperation1) {
   verify_iterator(res_bitset, { 0, 25 });
 }
 
-TEST(AStaticBitset, PerformsXOROperation2) {
+TEST(AStaticBitset, PerformsXOROperation2)
+{
   Bitset bits_1(128);
   set_one_bits(bits_1, { 0, 3, 6, 25, 65, 85, 121 });
   Bitset bits_2(128);
@@ -142,5 +154,5 @@ TEST(AStaticBitset, PerformsXOROperation2) {
   verify_iterator(res_bitset, { 0, 25, 85 });
 }
 
-}  // namespace ds
-}  // namespace mt_kahypar
+} // namespace ds
+} // namespace mt_kahypar

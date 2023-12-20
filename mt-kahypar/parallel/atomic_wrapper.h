@@ -33,63 +33,74 @@
 #include <atomic>
 #include <type_traits>
 
-template<typename T>
-class CAtomic : public std::__atomic_base<T> {
+template <typename T>
+class CAtomic : public std::__atomic_base<T>
+{
 public:
   using Base = std::__atomic_base<T>;
 
-  explicit CAtomic(const T value = T()) : Base(value) { }
+  explicit CAtomic(const T value = T()) : Base(value) {}
 
-  CAtomic(const CAtomic& other) : Base(other.load(std::memory_order_relaxed)) { }
+  CAtomic(const CAtomic &other) : Base(other.load(std::memory_order_relaxed)) {}
 
-  CAtomic& operator=(const CAtomic& other) {
+  CAtomic &operator=(const CAtomic &other)
+  {
     Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
   }
 
-  CAtomic(CAtomic&& other) : Base(other.load(std::memory_order_relaxed)) { }
+  CAtomic(CAtomic &&other) : Base(other.load(std::memory_order_relaxed)) {}
 
-  CAtomic& operator=(CAtomic&& other) {
+  CAtomic &operator=(CAtomic &&other)
+  {
     Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
   }
 
-  // unfortunately the internal value M_i is private, so we cannot issue __atomic_add_fetch( &M_i, i, int(m) ) ourselves
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T add_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
+  // unfortunately the internal value M_i is private, so we cannot issue
+  // __atomic_add_fetch( &M_i, i, int(m) ) ourselves
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T
+  add_fetch(T i, std::memory_order m = std::memory_order_seq_cst)
+  {
     return Base::fetch_add(i, m) + i;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T sub_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T
+  sub_fetch(T i, std::memory_order m = std::memory_order_seq_cst)
+  {
     return Base::fetch_sub(i, m) - i;
   }
 };
 
-class SpinLock {
+class SpinLock
+{
 public:
-  // boilerplate to make it 'copyable'. but we just clear the spinlock. there is never a use case to copy a locked spinlock
-  SpinLock() { }
-  SpinLock(const SpinLock&) { }
-  SpinLock& operator=(const SpinLock&) { spinner.clear(std::memory_order_relaxed); return *this; }
-
-  bool tryLock() {
-    return !spinner.test_and_set(std::memory_order_acquire);
+  // boilerplate to make it 'copyable'. but we just clear the spinlock. there is never a
+  // use case to copy a locked spinlock
+  SpinLock() {}
+  SpinLock(const SpinLock &) {}
+  SpinLock &operator=(const SpinLock &)
+  {
+    spinner.clear(std::memory_order_relaxed);
+    return *this;
   }
 
-  void lock() {
-    while (spinner.test_and_set(std::memory_order_acquire)) {
+  bool tryLock() { return !spinner.test_and_set(std::memory_order_acquire); }
+
+  void lock()
+  {
+    while(spinner.test_and_set(std::memory_order_acquire))
+    {
       // spin
       // stack overflow says adding 'cpu_relax' instruction may improve performance
     }
   }
 
-  void unlock() {
-    spinner.clear(std::memory_order_release);
-  }
+  void unlock() { spinner.clear(std::memory_order_release); }
 
 private:
   std::atomic_flag spinner = ATOMIC_FLAG_INIT;
 };
-
 
 namespace mt_kahypar {
 namespace parallel {
@@ -97,158 +108,152 @@ namespace parallel {
 // For non-integral types, e.g. floating point. used in community detecion
 
 template <class T>
-class AtomicWrapper : public std::atomic<T> {
- public:
-  explicit AtomicWrapper(const T value = T()) :
-    std::atomic<T>(value) { }
+class AtomicWrapper : public std::atomic<T>
+{
+public:
+  explicit AtomicWrapper(const T value = T()) : std::atomic<T>(value) {}
 
-  AtomicWrapper(const AtomicWrapper& other) :
-    std::atomic<T>(other.load()) { }
+  AtomicWrapper(const AtomicWrapper &other) : std::atomic<T>(other.load()) {}
 
-  AtomicWrapper & operator= (const AtomicWrapper& other) {
+  AtomicWrapper &operator=(const AtomicWrapper &other)
+  {
     this->store(other.load());
     return *this;
   }
 
-  AtomicWrapper(AtomicWrapper&& other) {
-    this->store(other.load());
-  }
+  AtomicWrapper(AtomicWrapper &&other) { this->store(other.load()); }
 
-  void operator+= (T other) {
+  void operator+=(T other)
+  {
     T cur = this->load(std::memory_order_relaxed);
-    while (!this->compare_exchange_weak(cur, cur + other, std::memory_order_relaxed)) {
+    while(!this->compare_exchange_weak(cur, cur + other, std::memory_order_relaxed))
+    {
       cur = this->load(std::memory_order_relaxed);
     }
   }
 
-  void operator-= (T other) {
+  void operator-=(T other)
+  {
     T cur = this->load(std::memory_order_relaxed);
-    while (!this->compare_exchange_weak(cur, cur - other, std::memory_order_relaxed)) {
+    while(!this->compare_exchange_weak(cur, cur - other, std::memory_order_relaxed))
+    {
       cur = this->load(std::memory_order_relaxed);
     }
   }
 };
 
-//template<typename T> using IntegralAtomicWrapper = CAtomic<T>;
-
+// template<typename T> using IntegralAtomicWrapper = CAtomic<T>;
 
 template <typename T>
-class IntegralAtomicWrapper {
+class IntegralAtomicWrapper
+{
   static_assert(std::is_integral<T>::value, "Value must be of integral type");
   // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
- public:
-  explicit IntegralAtomicWrapper(const T value = T()) :
-    _value(value) { }
+public:
+  explicit IntegralAtomicWrapper(const T value = T()) : _value(value) {}
 
-  IntegralAtomicWrapper(const IntegralAtomicWrapper& other) :
-    _value(other._value.load()) { }
+  IntegralAtomicWrapper(const IntegralAtomicWrapper &other) : _value(other._value.load())
+  {
+  }
 
-  IntegralAtomicWrapper & operator= (const IntegralAtomicWrapper& other) {
+  IntegralAtomicWrapper &operator=(const IntegralAtomicWrapper &other)
+  {
     _value = other._value.load();
     return *this;
   }
 
-  IntegralAtomicWrapper(IntegralAtomicWrapper&& other) :
-    _value(other._value.load()) { }
+  IntegralAtomicWrapper(IntegralAtomicWrapper &&other) : _value(other._value.load()) {}
 
-  IntegralAtomicWrapper & operator= (IntegralAtomicWrapper&& other) {
+  IntegralAtomicWrapper &operator=(IntegralAtomicWrapper &&other)
+  {
     _value = other._value.load();
     return *this;
   }
 
-  IntegralAtomicWrapper & operator= (T desired) noexcept {
+  IntegralAtomicWrapper &operator=(T desired) noexcept
+  {
     _value = desired;
     return *this;
   }
 
-  void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     _value.store(desired, order);
   }
 
-  T load(std::memory_order order = std::memory_order_seq_cst) const noexcept {
+  T load(std::memory_order order = std::memory_order_seq_cst) const noexcept
+  {
     return _value.load(order);
   }
 
-  operator T () const noexcept {
-    return _value.load();
-  }
+  operator T() const noexcept { return _value.load(); }
 
-  T exchange(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T exchange(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.exchange(desired, order);
   }
 
-  bool compare_exchange_weak(T &expected, T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool compare_exchange_weak(T &expected, T desired,
+                             std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.compare_exchange_weak(expected, desired, order);
   }
 
-  bool compare_exchange_strong(T &expected, T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool
+  compare_exchange_strong(T &expected, T desired,
+                          std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.compare_exchange_strong(expected, desired, order);
   }
 
-  T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.fetch_add(arg, order);
   }
 
-  T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.fetch_sub(arg, order);
   }
 
-  T fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.fetch_and(arg, order);
   }
 
-  T fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.fetch_or(arg, order);
   }
 
-  T fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+  {
     return _value.fetch_xor(arg, order);
   }
 
-  T operator++ () noexcept {
-    return ++_value;
-  }
+  T operator++() noexcept { return ++_value; }
 
-  T operator++ (int) noexcept {
-    return _value++;
-  }
+  T operator++(int) noexcept { return _value++; }
 
-  T operator-- () noexcept {
-    return --_value;
-  }
+  T operator--() noexcept { return --_value; }
 
-  T operator-- (int) noexcept {
-    return _value++;
-  }
+  T operator--(int) noexcept { return _value++; }
 
-  T operator+= (T arg) noexcept {
-    return _value.operator+=(arg);
-  }
+  T operator+=(T arg) noexcept { return _value.operator+=(arg); }
 
-  T operator-= (T arg) noexcept {
-    return _value.operator-=(arg);
-  }
+  T operator-=(T arg) noexcept { return _value.operator-=(arg); }
 
-  T operator&= (T arg) noexcept {
-    return _value.operator&=(arg);
-  }
+  T operator&=(T arg) noexcept { return _value.operator&=(arg); }
 
-  T operator|= (T arg) noexcept {
-    return _value.operator|=(arg);
-  }
+  T operator|=(T arg) noexcept { return _value.operator|=(arg); }
 
-  T operator^= (T arg) noexcept {
-    return _value.operator^=(arg);
-  }
+  T operator^=(T arg) noexcept { return _value.operator^=(arg); }
 
- private:
+private:
   std::atomic<T> _value;
 };
 
-
-
-
 #pragma GCC diagnostic pop
-}  // namespace parallel
-}  // namespace mt_kahypar
+} // namespace parallel
+} // namespace mt_kahypar

@@ -36,37 +36,39 @@ namespace mt_kahypar {
 // Forward Declaration
 class TargetGraph;
 
-class PartitionerFacade {
- public:
+class PartitionerFacade
+{
+public:
   // ! Partition the hypergraph into a predefined number of blocks
-  static mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hypergraph,
-                                                       Context& context,
-                                                       TargetGraph* target_graph = nullptr);
+  static mt_kahypar_partitioned_hypergraph_t
+  partition(mt_kahypar_hypergraph_t hypergraph, Context &context,
+            TargetGraph *target_graph = nullptr);
 
   // ! Improves a given partition
   static void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                      Context& context,
-                      TargetGraph* target_graph = nullptr);
+                      Context &context, TargetGraph *target_graph = nullptr);
 
   // ! Prints timings and metrics to output
-  static void printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,
-                                       const Context& context,
-                                       const std::chrono::duration<double>& elapsed_seconds);
+  static void
+  printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,
+                           const Context &context,
+                           const std::chrono::duration<double> &elapsed_seconds);
 
   // ! Prints timings and metrics in CSV file format
   static std::string serializeCSV(const mt_kahypar_partitioned_hypergraph_t phg,
-                                  const Context& context,
-                                  const std::chrono::duration<double>& elapsed_seconds);
+                                  const Context &context,
+                                  const std::chrono::duration<double> &elapsed_seconds);
 
   // ! Prints timings and metrics as a RESULT line parsable by SQL Plot Tools
   // ! https://github.com/bingmann/sqlplot-tools
-  static std::string serializeResultLine(const mt_kahypar_partitioned_hypergraph_t phg,
-                                         const Context& context,
-                                         const std::chrono::duration<double>& elapsed_seconds);
+  static std::string
+  serializeResultLine(const mt_kahypar_partitioned_hypergraph_t phg,
+                      const Context &context,
+                      const std::chrono::duration<double> &elapsed_seconds);
 
   // ! Writes the partition to the corresponding file
   static void writePartitionFile(const mt_kahypar_partitioned_hypergraph_t phg,
-                                 const std::string& filename);
+                                 const std::string &filename);
 };
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

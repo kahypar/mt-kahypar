@@ -29,172 +29,180 @@
 #include <cstdint>
 #include <limits>
 
+#include "mt-kahypar/datastructures/bitset.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/bit_ops.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/bitset.h"
 
 namespace mt_kahypar {
 namespace ds {
 
-class StaticBitset {
+class StaticBitset
+{
 
- public:
+public:
   using Block = uint64_t;
   static constexpr Block BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
   static_assert(__builtin_popcountll(BITS_PER_BLOCK) == 1);
   static constexpr Block MOD_MASK = BITS_PER_BLOCK - 1;
   static constexpr Block DIV_SHIFT = utils::log2(BITS_PER_BLOCK);
 
- private:
+private:
   // ! Iterator enumerates the position of all one bits in the bitset
-  class OneBitIterator {
-   public:
+  class OneBitIterator
+  {
+  public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = PartitionID;
-    using reference = PartitionID&;
-    using pointer = PartitionID*;
+    using reference = PartitionID &;
+    using pointer = PartitionID *;
     using difference_type = std::ptrdiff_t;
 
-    OneBitIterator(const size_t num_blocks,
-                   const Block* bitset,
+    OneBitIterator(const size_t num_blocks, const Block *bitset,
                    const PartitionID start_block) :
-      _num_blocks(num_blocks),
-      _bitset(bitset),
-      _max_block_id(num_blocks * BITS_PER_BLOCK),
-      _current_block_id(start_block) {
-      if ( _current_block_id < _max_block_id ) {
+        _num_blocks(num_blocks),
+        _bitset(bitset), _max_block_id(num_blocks * BITS_PER_BLOCK),
+        _current_block_id(start_block)
+    {
+      if(_current_block_id < _max_block_id)
+      {
         nextBlockID();
       }
     }
 
-    PartitionID operator*() const {
-      return _current_block_id;
-    }
+    PartitionID operator*() const { return _current_block_id; }
 
-    OneBitIterator& operator++() {
+    OneBitIterator &operator++()
+    {
       nextBlockID();
       return *this;
     }
 
-    OneBitIterator operator++(int ) {
+    OneBitIterator operator++(int)
+    {
       const OneBitIterator res = *this;
       nextBlockID();
       return res;
     }
 
-    bool operator==(const OneBitIterator& o) const {
+    bool operator==(const OneBitIterator &o) const
+    {
       return _current_block_id == o._current_block_id;
     }
 
-    bool operator!=(const OneBitIterator& o) const {
-      return !operator==(o);
-    }
+    bool operator!=(const OneBitIterator &o) const { return !operator==(o); }
 
-   private:
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void nextBlockID() {
+  private:
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void nextBlockID()
+    {
       ++_current_block_id;
       Block b = loadCurrentBlock();
-      while ( b >> ( _current_block_id & MOD_MASK ) == 0 && _current_block_id < _max_block_id ) {
+      while(b >> (_current_block_id & MOD_MASK) == 0 && _current_block_id < _max_block_id)
+      {
         // no more one bits in current block -> load next block
         _current_block_id += (BITS_PER_BLOCK - (_current_block_id & MOD_MASK));
-        b = ( _current_block_id < _max_block_id ) * loadCurrentBlock();
+        b = (_current_block_id < _max_block_id) * loadCurrentBlock();
       }
       const bool reached_max_id = _current_block_id == _max_block_id;
       // Avoid if statement here
-      _current_block_id = (1 - reached_max_id) * ( _current_block_id +
-         utils::lowest_set_bit_64(
-           std::max(b >> ( _current_block_id & MOD_MASK ), static_cast<uint64_t>(1)))) +
-         reached_max_id * _max_block_id;
+      _current_block_id =
+          (1 - reached_max_id) *
+              (_current_block_id +
+               utils::lowest_set_bit_64(std::max(b >> (_current_block_id & MOD_MASK),
+                                                 static_cast<uint64_t>(1)))) +
+          reached_max_id * _max_block_id;
     }
 
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Block loadCurrentBlock() {
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Block loadCurrentBlock()
+    {
       ASSERT(static_cast<size_t>(_current_block_id >> DIV_SHIFT) <= _num_blocks);
-      return __atomic_load_n(_bitset + ( _current_block_id >> DIV_SHIFT ), __ATOMIC_RELAXED);
+      return __atomic_load_n(_bitset + (_current_block_id >> DIV_SHIFT),
+                             __ATOMIC_RELAXED);
     }
 
     const size_t _num_blocks;
-    const Block* _bitset;
+    const Block *_bitset;
     const PartitionID _max_block_id;
     PartitionID _current_block_id;
   };
 
- public:
+public:
   using iterator = OneBitIterator;
   using const_iterator = const OneBitIterator;
 
-  StaticBitset() :
-    _num_blocks(0),
-    _bitset(nullptr) { }
+  StaticBitset() : _num_blocks(0), _bitset(nullptr) {}
 
-  StaticBitset(const size_t num_blocks,
-               const Block* bitset) :
-    _num_blocks(num_blocks),
-    _bitset(bitset) { }
+  StaticBitset(const size_t num_blocks, const Block *bitset) :
+      _num_blocks(num_blocks), _bitset(bitset)
+  {
+  }
 
-  void set(const size_t size, const Block* block) {
+  void set(const size_t size, const Block *block)
+  {
     _num_blocks = size;
     _bitset = block;
   }
 
-  iterator begin() const {
-    return iterator(_num_blocks, _bitset, -1);
-  }
+  iterator begin() const { return iterator(_num_blocks, _bitset, -1); }
 
-  iterator end() const {
+  iterator end() const
+  {
     return iterator(_num_blocks, _bitset, _num_blocks * BITS_PER_BLOCK);
   }
 
-  const_iterator cbegin() const {
-    return const_iterator(_num_blocks, _bitset, -1);
-  }
+  const_iterator cbegin() const { return const_iterator(_num_blocks, _bitset, -1); }
 
-  const_iterator cend() const {
+  const_iterator cend() const
+  {
     return const_iterator(_num_blocks, _bitset, _num_blocks * BITS_PER_BLOCK);
   }
 
-  const Block* data() const {
-    return _bitset;
-  }
+  const Block *data() const { return _bitset; }
 
-  bool isSet(const size_t pos) const {
+  bool isSet(const size_t pos) const
+  {
     ASSERT(pos < _num_blocks * BITS_PER_BLOCK);
     const size_t block_idx = pos >> DIV_SHIFT;
     const size_t idx = pos & MOD_MASK;
-    return ( *(_bitset + block_idx) >> idx ) & UL(1);
+    return (*(_bitset + block_idx) >> idx) & UL(1);
   }
 
   // ! Returns the number of one bits in the bitset
-  int popcount() const {
+  int popcount() const
+  {
     int cnt = 0;
-    for ( size_t i = 0; i < _num_blocks; ++i ) {
-      cnt += utils::popcount_64(
-        __atomic_load_n(_bitset + i, __ATOMIC_RELAXED));
+    for(size_t i = 0; i < _num_blocks; ++i)
+    {
+      cnt += utils::popcount_64(__atomic_load_n(_bitset + i, __ATOMIC_RELAXED));
     }
     return cnt;
   }
 
-  Bitset copy() const {
+  Bitset copy() const
+  {
     Bitset res(_num_blocks * BITS_PER_BLOCK);
-    for ( size_t i = 0; i < _num_blocks; ++i ) {
-      res._bitset[i] = *( _bitset + i );
+    for(size_t i = 0; i < _num_blocks; ++i)
+    {
+      res._bitset[i] = *(_bitset + i);
     }
     return res;
   }
 
-  Bitset operator^(const StaticBitset& other) const {
+  Bitset operator^(const StaticBitset &other) const
+  {
     ASSERT(_num_blocks == other._num_blocks);
     Bitset res(_num_blocks * BITS_PER_BLOCK);
-    for ( size_t i = 0; i < _num_blocks; ++i ) {
-      res._bitset[i] = *( _bitset + i ) ^ *( other._bitset + i );
+    for(size_t i = 0; i < _num_blocks; ++i)
+    {
+      res._bitset[i] = *(_bitset + i) ^ *(other._bitset + i);
     }
     return res;
   }
 
- private:
+private:
   size_t _num_blocks;
-  const Block* _bitset;
+  const Block *_bitset;
 };
 
-}  // namespace ds
-}  // namespace mt_kahypar
+} // namespace ds
+} // namespace mt_kahypar

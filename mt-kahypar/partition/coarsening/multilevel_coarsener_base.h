@@ -27,66 +27,74 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/utils/timer.h"
-
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-class MultilevelCoarsenerBase {
- private:
-
+template <typename TypeTraits>
+class MultilevelCoarsenerBase
+{
+private:
   static constexpr bool debug = false;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
-  MultilevelCoarsenerBase(Hypergraph& hypergraph,
-                          const Context& context,
-                          UncoarseningData<TypeTraits>& uncoarseningData) :
-          _hg(hypergraph),
-          _context(context),
-          _timer(utils::Utilities::instance().getTimer(context.utility_id)),
-          _uncoarseningData(uncoarseningData) {}
+public:
+  MultilevelCoarsenerBase(Hypergraph &hypergraph, const Context &context,
+                          UncoarseningData<TypeTraits> &uncoarseningData) :
+      _hg(hypergraph),
+      _context(context),
+      _timer(utils::Utilities::instance().getTimer(context.utility_id)),
+      _uncoarseningData(uncoarseningData)
+  {
+  }
 
-  MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
-  MultilevelCoarsenerBase(MultilevelCoarsenerBase&&) = delete;
-  MultilevelCoarsenerBase & operator= (const MultilevelCoarsenerBase &) = delete;
-  MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
+  MultilevelCoarsenerBase(const MultilevelCoarsenerBase &) = delete;
+  MultilevelCoarsenerBase(MultilevelCoarsenerBase &&) = delete;
+  MultilevelCoarsenerBase &operator=(const MultilevelCoarsenerBase &) = delete;
+  MultilevelCoarsenerBase &operator=(MultilevelCoarsenerBase &&) = delete;
 
   virtual ~MultilevelCoarsenerBase() = default;
 
- protected:
-
-  HypernodeID currentNumNodes() const {
-    if ( _uncoarseningData.hierarchy.empty() ) {
+protected:
+  HypernodeID currentNumNodes() const
+  {
+    if(_uncoarseningData.hierarchy.empty())
+    {
       return _hg.initialNumNodes();
-    } else {
+    }
+    else
+    {
       return _uncoarseningData.hierarchy.back().contractedHypergraph().initialNumNodes();
     }
   }
 
-  Hypergraph& currentHypergraph() {
-    if ( _uncoarseningData.hierarchy.empty() ) {
+  Hypergraph &currentHypergraph()
+  {
+    if(_uncoarseningData.hierarchy.empty())
+    {
       return _hg;
-    } else {
+    }
+    else
+    {
       return _uncoarseningData.hierarchy.back().contractedHypergraph();
     }
   }
 
-  PartitionedHypergraph& currentPartitionedHypergraph() {
+  PartitionedHypergraph &currentPartitionedHypergraph()
+  {
     ASSERT(_uncoarseningData.is_finalized);
     return *_uncoarseningData.partitioned_hg;
-   }
+  }
 
- protected:
-  Hypergraph& _hg;
-  const Context& _context;
-  utils::Timer& _timer;
-  UncoarseningData<TypeTraits>& _uncoarseningData;
+protected:
+  Hypergraph &_hg;
+  const Context &_context;
+  utils::Timer &_timer;
+  UncoarseningData<TypeTraits> &_uncoarseningData;
 };
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

@@ -26,31 +26,32 @@
 
 #include <boost/program_options.hpp>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <algorithm>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/macros.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
   std::string graph_filename;
   std::string hgr_filename;
 
   po::options_description options("Options");
-  options.add_options()
-    ("hypergraph,h",
-    po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
-    "Hypergraph filename")
-    ("graph,g",
-    po::value<std::string>(&graph_filename)->value_name("<string>")->required(),
-    "Graph filename");
+  options.add_options()(
+      "hypergraph,h",
+      po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
+      "Hypergraph filename")(
+      "graph,g",
+      po::value<std::string>(&graph_filename)->value_name("<string>")->required(),
+      "Graph filename");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -66,47 +67,59 @@ int main(int argc, char* argv[]) {
   vec<HyperedgeWeight> hyperedges_weight;
   vec<HypernodeWeight> hypernodes_weight;
 
-  io::readHypergraphFile(hgr_filename, num_edges, num_nodes, num_removed_single_pin_hyperedges,
-                         hyperedges, hyperedges_weight, hypernodes_weight);
+  io::readHypergraphFile(hgr_filename, num_edges, num_nodes,
+                         num_removed_single_pin_hyperedges, hyperedges, hyperedges_weight,
+                         hypernodes_weight);
   ALWAYS_ASSERT(hyperedges.size() == num_edges);
   ALWAYS_ASSERT(num_removed_single_pin_hyperedges == 0);
 
   // Write header
   out_stream << num_nodes << " " << num_edges << " ";
-  if (hyperedges_weight.empty() && hypernodes_weight.empty()) {
-    out_stream << "0"  /* Unweighted */ << std::endl;
-  } else {
+  if(hyperedges_weight.empty() && hypernodes_weight.empty())
+  {
+    out_stream << "0" /* Unweighted */ << std::endl;
+  }
+  else
+  {
     out_stream << (hypernodes_weight.empty() ? "0" : "1");
     out_stream << (hyperedges_weight.empty() ? "0" : "1") << std::endl;
   }
 
   // insert backward edges
   hyperedges.reserve(2 * num_edges);
-  for (size_t he = 0; he < num_edges; ++he) {
-    const auto& pins = hyperedges[he];
+  for(size_t he = 0; he < num_edges; ++he)
+  {
+    const auto &pins = hyperedges[he];
     ALWAYS_ASSERT(pins.size() == 2, "Input hypergraph is not a graph!");
-    hyperedges.push_back({pins[1], pins[0]});
+    hyperedges.push_back({ pins[1], pins[0] });
   }
 
-  std::sort(hyperedges.begin(), hyperedges.end(),
-            [](const auto& l, const auto& r) { return l[0] < r[0] || (l[0] == r[0] && l[1] < r[1]); });
+  std::sort(hyperedges.begin(), hyperedges.end(), [](const auto &l, const auto &r) {
+    return l[0] < r[0] || (l[0] == r[0] && l[1] < r[1]);
+  });
 
   // Write edges
   size_t i = 0;
   bool at_start_of_line = true;
-  for (size_t he = 0; he < hyperedges.size();) {
-    const auto& pins = hyperedges[he];
-    if (!hypernodes_weight.empty() && at_start_of_line) {
+  for(size_t he = 0; he < hyperedges.size();)
+  {
+    const auto &pins = hyperedges[he];
+    if(!hypernodes_weight.empty() && at_start_of_line)
+    {
       out_stream << hypernodes_weight[i] << " ";
     }
-    if (pins[0] == i) {
+    if(pins[0] == i)
+    {
       out_stream << (pins[1] + 1) << " ";
-      if (!hyperedges_weight.empty()) {
+      if(!hyperedges_weight.empty())
+      {
         out_stream << hyperedges_weight[he] << " ";
       }
       ++he;
       at_start_of_line = false;
-    } else {
+    }
+    else
+    {
       out_stream << std::endl;
       ++i;
       ALWAYS_ASSERT(i < num_nodes);

@@ -27,13 +27,12 @@
 #include <functional>
 #include <random>
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/utils/randomize.h"
 
 using ::testing::Test;
@@ -41,30 +40,29 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 template <typename TypeTraitsT, typename GainTypesT, PartitionID k>
-struct TestConfig {
+struct TestConfig
+{
   using TypeTraits = TypeTraitsT;
   using GainTypes = GainTypesT;
   static constexpr PartitionID K = k;
 };
 
-template<typename Config>
-class RebalancerTest : public Test {
+template <typename Config>
+class RebalancerTest : public Test
+{
 
- public:
+public:
   using TypeTraits = typename Config::TypeTraits;
   using GainTypes = typename Config::GainTypes;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using HypergraphFactory = typename Hypergraph::Factory;
   using GainCache = typename GainTypes::GainCache;
-  using Rebalancer = AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>;
+  using Rebalancer = AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes> >;
 
   RebalancerTest() :
-          hypergraph(),
-          partitioned_hypergraph(),
-          context(),
-          gain_cache(),
-          rebalancer(nullptr) {
+      hypergraph(), partitioned_hypergraph(), context(), gain_cache(), rebalancer(nullptr)
+  {
     TBBInitializer::instance(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.05;
@@ -80,29 +78,41 @@ class RebalancerTest : public Test {
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
     context.partition.objective = Hypergraph::is_graph ? Objective::cut : Objective::km1;
-    context.partition.gain_policy = Hypergraph::is_graph ? GainPolicy::cut_for_graphs : GainPolicy::km1;
+    context.partition.gain_policy =
+        Hypergraph::is_graph ? GainPolicy::cut_for_graphs : GainPolicy::km1;
   }
 
-  void constructFromFile() {
-    if constexpr ( Hypergraph::is_graph ) {
+  void constructFromFile()
+  {
+    if constexpr(Hypergraph::is_graph)
+    {
+      hypergraph = io::readInputFile<Hypergraph>("../tests/instances/delaunay_n10.graph",
+                                                 FileFormat::Metis, true);
+    }
+    else
+    {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true);
-    } else {
-      hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
+          "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     }
   }
 
-  void constructFromValues(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
-                           const vec<vec<HypernodeID>>& edge_vector, const vec<HypernodeWeight> hypernode_weight) {
-    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, edge_vector, nullptr, hypernode_weight.data());
+  void constructFromValues(const HypernodeID num_hypernodes,
+                           const HyperedgeID num_hyperedges,
+                           const vec<vec<HypernodeID> > &edge_vector,
+                           const vec<HypernodeWeight> hypernode_weight)
+  {
+    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, edge_vector,
+                                              nullptr, hypernode_weight.data());
   }
 
-  void setup() {
-    partitioned_hypergraph = PartitionedHypergraph(context.partition.k, hypergraph, parallel_tag_t());
+  void setup()
+  {
+    partitioned_hypergraph =
+        PartitionedHypergraph(context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
 
-    rebalancer = std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer =
+        std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
   }
 
   Hypergraph hypergraph;
@@ -112,24 +122,27 @@ class RebalancerTest : public Test {
   std::unique_ptr<Rebalancer> rebalancer;
 };
 
-
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, Km1GainTypes, 4>
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 2>)
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 4>) > TestConfigs;
+typedef ::testing::Types<
+    TestConfig<StaticHypergraphTypeTraits, Km1GainTypes, 2>,
+    TestConfig<StaticHypergraphTypeTraits, Km1GainTypes, 4> ENABLE_GRAPHS(
+        COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 2>)
+        ENABLE_GRAPHS(
+            COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 4>)>
+    TestConfigs;
 
 TYPED_TEST_CASE(RebalancerTest, TestConfigs);
 
-
-TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
-  this->constructFromValues(3, 1, { {0, 1} }, {6, 5, 4});
+TYPED_TEST(RebalancerTest, CanNotBeRebalanced)
+{
+  this->constructFromValues(3, 1, { { 0, 1 } }, { 6, 5, 4 });
   this->setup();
 
   this->partitioned_hypergraph.setOnlyNodePart(0, 0);
   this->partitioned_hypergraph.setOnlyNodePart(1, 1);
   this->partitioned_hypergraph.setOnlyNodePart(2, 0);
   this->partitioned_hypergraph.initializePartition();
-  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  mt_kahypar_partitioned_hypergraph_t phg =
+      utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->rebalancer->initialize(phg);
 
   Metrics metrics;
@@ -137,18 +150,21 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
   metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context),
+                   metrics.imbalance);
 }
 
-
-TYPED_TEST(RebalancerTest, ProducesBalancedResult) {
+TYPED_TEST(RebalancerTest, ProducesBalancedResult)
+{
   this->constructFromFile();
   this->setup();
 
   this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
     PartitionID block = 0;
-    for (PartitionID p = 1; p < this->context.partition.k; ++p) {
-      if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
+    for(PartitionID p = 1; p < this->context.partition.k; ++p)
+    {
+      if(utils::Randomize::instance().flipCoin(THREAD_ID))
+      {
         block++;
       }
     }
@@ -156,7 +172,8 @@ TYPED_TEST(RebalancerTest, ProducesBalancedResult) {
   });
 
   this->partitioned_hypergraph.initializePartition();
-  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  mt_kahypar_partitioned_hypergraph_t phg =
+      utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->rebalancer->initialize(phg);
 
   Metrics metrics;
@@ -164,9 +181,12 @@ TYPED_TEST(RebalancerTest, ProducesBalancedResult) {
   metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
-  for (PartitionID part = 0; part < this->context.partition.k; ++part) {
-    ASSERT_LE(this->partitioned_hypergraph.partWeight(part), this->context.partition.max_part_weights[part]);
+  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context),
+                   metrics.imbalance);
+  for(PartitionID part = 0; part < this->context.partition.k; ++part)
+  {
+    ASSERT_LE(this->partitioned_hypergraph.partWeight(part),
+              this->context.partition.max_part_weights[part]);
   }
 }
 

@@ -31,7 +31,6 @@
 
 #include "mt-kahypar/macros.h"
 
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 
@@ -45,26 +44,28 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 namespace {
-  using TypeTraits = StaticHypergraphTypeTraits;
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+using TypeTraits = StaticHypergraphTypeTraits;
+using Hypergraph = typename TypeTraits::Hypergraph;
+using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 }
 
-
-TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
-  Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
+TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly)
+{
+  Hypergraph hg = io::readInputFile<Hypergraph>("../tests/instances/twocenters.hgr",
+                                                FileFormat::hMetis, true);
   PartitionID k = 2;
 
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
-  for (HypernodeID u = 4; u < 12; ++u) {
+  for(HypernodeID u = 4; u < 12; ++u)
+  {
     phg.setNodePart(u, 0);
   }
   phg.setNodePart(2, 0);
   phg.setNodePart(3, 0);
-  for (HypernodeID u = 12; u < 20; ++u) {
+  for(HypernodeID u = 12; u < 20; ++u)
+  {
     phg.setNodePart(u, 1);
   }
   Km1GainCache gain_cache;
@@ -73,33 +74,34 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(),
+                                         std::numeric_limits<HypernodeWeight>::max() };
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
-
 
   FMSharedData sharedData(hg.initialNumNodes(), false);
 
-  GlobalRollback<GraphAndGainTypes<TypeTraits, Km1GainTypes>> grb(
-    hg.initialNumEdges(), context, gain_cache);
+  GlobalRollback<GraphAndGainTypes<TypeTraits, Km1GainTypes> > grb(hg.initialNumEdges(),
+                                                                   context, gain_cache);
   auto performMove = [&](Move m) {
-    if (phg.changeNodePart(gain_cache, m.node, m.from, m.to)) {
+    if(phg.changeNodePart(gain_cache, m.node, m.from, m.to))
+    {
       sharedData.moveTracker.insertMove(m);
     }
   };
 
   ASSERT_EQ(3, gain_cache.gain(0, 1, 0));
-  performMove({1, 0,  0,  3});
+  performMove({ 1, 0, 0, 3 });
   ASSERT_EQ(3, gain_cache.gain(1, 1, 0));
-  performMove({1, 0,  1,  3});
+  performMove({ 1, 0, 1, 3 });
   ASSERT_EQ(1, gain_cache.gain(2, 0, 1));
-  performMove({0, 1,  2,  1});
+  performMove({ 0, 1, 2, 1 });
   ASSERT_EQ(1, gain_cache.gain(3, 0, 1));
-  performMove({0, 1,  3,  1});
+  performMove({ 0, 1, 3, 1 });
 
   ASSERT_EQ(gain_cache.gain(4, 0, 1), -1);
-  performMove({0, 1, 4, -1});
+  performMove({ 0, 1, 4, -1 });
   ASSERT_EQ(gain_cache.gain(5, 0, 1), 0);
-  performMove({0, 1, 5, 0});
+  performMove({ 0, 1, 5, 0 });
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
   std::vector<HypernodeWeight> max_part_weights(k, 6);
@@ -110,20 +112,22 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(metrics::quality(phg, Objective::km1, false), 2);
 }
 
-
-TEST(RollbackTests, GainRecalculation2) {
-  Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
+TEST(RollbackTests, GainRecalculation2)
+{
+  Hypergraph hg = io::readInputFile<Hypergraph>("../tests/instances/twocenters.hgr",
+                                                FileFormat::hMetis, true);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
-  for (HypernodeID u = 4; u < 12; ++u) {
+  for(HypernodeID u = 4; u < 12; ++u)
+  {
     phg.setNodePart(u, 0);
   }
   phg.setNodePart(2, 0);
   phg.setNodePart(3, 0);
-  for (HypernodeID u = 12; u < 20; ++u) {
+  for(HypernodeID u = 12; u < 20; ++u)
+  {
     phg.setNodePart(u, 1);
   }
   Km1GainCache gain_cache;
@@ -132,17 +136,16 @@ TEST(RollbackTests, GainRecalculation2) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(),
+                                         std::numeric_limits<HypernodeWeight>::max() };
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
   FMSharedData sharedData(hg.initialNumNodes(), false);
 
-  GlobalRollback<GraphAndGainTypes<TypeTraits, Km1GainTypes>> grb(
-    hg.initialNumEdges(), context, gain_cache);
+  GlobalRollback<GraphAndGainTypes<TypeTraits, Km1GainTypes> > grb(hg.initialNumEdges(),
+                                                                   context, gain_cache);
 
-  auto performUpdates = [&](Move& m) {
-   sharedData.moveTracker.insertMove(m);
-  };
+  auto performUpdates = [&](Move &m) { sharedData.moveTracker.insertMove(m); };
 
   vec<Gain> expected_gains = { 3, 1 };
 
@@ -161,4 +164,4 @@ TEST(RollbackTests, GainRecalculation2) {
   grb.verifyGains(phg, sharedData);
 }
 
-}   // namespace mt_kahypar
+} // namespace mt_kahypar

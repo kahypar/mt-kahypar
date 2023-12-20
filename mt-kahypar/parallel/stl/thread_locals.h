@@ -32,38 +32,43 @@
 
 namespace mt_kahypar {
 
-  namespace internals {
-    template<typename T>
-    using ThreadLocal = tbb::enumerable_thread_specific<T>;
+namespace internals {
+template <typename T>
+using ThreadLocal = tbb::enumerable_thread_specific<T>;
 
-    template<typename T, typename F>
-    struct ThreadLocalFree {
-      using RangeType = typename ThreadLocal<T>::range_type;
-      using Iterator = typename ThreadLocal<T>::iterator;
+template <typename T, typename F>
+struct ThreadLocalFree
+{
+  using RangeType = typename ThreadLocal<T>::range_type;
+  using Iterator = typename ThreadLocal<T>::iterator;
 
-      explicit ThreadLocalFree(F&& free_func) :
-              _free_func(free_func) { }
+  explicit ThreadLocalFree(F &&free_func) : _free_func(free_func) {}
 
-      void operator()(RangeType& range) const {
-        for ( Iterator it = range.begin(); it < range.end(); ++it ) {
-          _free_func(*it);
-        }
-      }
-
-      F _free_func;
-    };
-  } // namespace
-
-  namespace parallel {
-    template<typename T, typename F>
-    static void parallel_free_thread_local_internal_data(internals::ThreadLocal<T>& local,
-                                                         F&& free_func) {
-      internals::ThreadLocalFree<T, F> thread_local_free(std::move(free_func));
-      tbb::parallel_for(local.range(), thread_local_free);
+  void operator()(RangeType &range) const
+  {
+    for(Iterator it = range.begin(); it < range.end(); ++it)
+    {
+      _free_func(*it);
     }
   }
 
-  template<typename T>
-  using tls_enumerable_thread_specific = tbb::enumerable_thread_specific<T, tbb::cache_aligned_allocator<T>, tbb::ets_key_per_instance>;
+  F _free_func;
+};
+} // namespace
+
+namespace parallel {
+template <typename T, typename F>
+static void parallel_free_thread_local_internal_data(internals::ThreadLocal<T> &local,
+                                                     F &&free_func)
+{
+  internals::ThreadLocalFree<T, F> thread_local_free(std::move(free_func));
+  tbb::parallel_for(local.range(), thread_local_free);
+}
+}
+
+template <typename T>
+using tls_enumerable_thread_specific =
+    tbb::enumerable_thread_specific<T, tbb::cache_aligned_allocator<T>,
+                                    tbb::ets_key_per_instance>;
 
 }

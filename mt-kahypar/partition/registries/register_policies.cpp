@@ -32,12 +32,12 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
-#define REGISTER_POLICY(policy, id, policy_class)                                                    \
-  static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> > register_ ## policy_class( \
-    id, new policy_class())
+#define REGISTER_POLICY(policy, id, policy_class)                                        \
+  static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> >                \
+      register_##policy_class(id, new policy_class())
 
 namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
@@ -65,11 +65,9 @@ REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
 // //////////////////////////////////////////////////////////////////////////////
 //                       Coarsening / Rating Policies
 // //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
-                HeavyEdgeScore);
+REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge, HeavyEdgeScore);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
-                SamenessScore);
+REGISTER_POLICY(RatingFunction, RatingFunction::sameness, SamenessScore);
 #endif
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
@@ -84,8 +82,7 @@ REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
-                BestRatingWithTieBreaking);
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best, BestRatingWithTieBreaking);
 #endif
 
 // //////////////////////////////////////////////////////////////////////////////
@@ -102,8 +99,9 @@ REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
-REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, SteinerTreeForGraphsTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs,
+                SteinerTreeForGraphsTypes);
 #endif
 #endif
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

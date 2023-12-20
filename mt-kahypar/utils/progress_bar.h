@@ -26,12 +26,12 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <unordered_map>
-#include <atomic>
-#include <sstream>
-#include <chrono>
 #if defined(__linux__) or defined(__APPLE__)
 #include <sys/ioctl.h>
 #elif _WIN32
@@ -44,86 +44,85 @@
 
 namespace mt_kahypar {
 namespace utils {
-class ProgressBar {
+class ProgressBar
+{
 
- using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+  using HighResClockTimepoint =
+      std::chrono::time_point<std::chrono::high_resolution_clock>;
 
- public:
-  explicit ProgressBar(const size_t expected_count,
-                       const HyperedgeWeight objective,
+public:
+  explicit ProgressBar(const size_t expected_count, const HyperedgeWeight objective,
                        const bool enable = true) :
-    _display_mutex(),
-    _count(0),
-    _next_tic_count(0),
-    _expected_count(expected_count),
-    _start(std::chrono::high_resolution_clock::now()),
-    _objective(objective),
-    _progress_bar_size(0),
-    _enable(enable) {
-    #if defined(__linux__) or defined(__APPLE__)
+      _display_mutex(),
+      _count(0), _next_tic_count(0), _expected_count(expected_count),
+      _start(std::chrono::high_resolution_clock::now()), _objective(objective),
+      _progress_bar_size(0), _enable(enable)
+  {
+#if defined(__linux__) or defined(__APPLE__)
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     _progress_bar_size = w.ws_col / 2;
-    #elif _WIN32
+#elif _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    _progress_bar_size = (csbi.srWindow.Right - csbi.srWindow.Left + 1)/2;
-    #endif
+    _progress_bar_size = (csbi.srWindow.Right - csbi.srWindow.Left + 1) / 2;
+#endif
     display_progress();
   }
 
-  ProgressBar(const ProgressBar&) = delete;
-  ProgressBar & operator= (const ProgressBar &) = delete;
+  ProgressBar(const ProgressBar &) = delete;
+  ProgressBar &operator=(const ProgressBar &) = delete;
 
-  ProgressBar(ProgressBar&&) = delete;
-  ProgressBar & operator= (ProgressBar &&) = delete;
+  ProgressBar(ProgressBar &&) = delete;
+  ProgressBar &operator=(ProgressBar &&) = delete;
 
-  ~ProgressBar() {
-    finalize();
-  }
+  ~ProgressBar() { finalize(); }
 
-  void enable() {
+  void enable()
+  {
     _enable = true;
     display_progress();
   }
 
-  void disable() {
-    _enable = false;
-  }
+  void disable() { _enable = false; }
 
-  size_t count() const {
-    return _count.load();
-  }
+  size_t count() const { return _count.load(); }
 
-  size_t operator+=( const size_t increment ) {
-    if ( _enable ) {
+  size_t operator+=(const size_t increment)
+  {
+    if(_enable)
+    {
       _count.fetch_add(increment);
-      if ( _count >= _next_tic_count ) {
+      if(_count >= _next_tic_count)
+      {
         display_progress();
       }
     }
     return _count;
   }
 
-  void setObjective(const HyperedgeWeight objective) {
-    _objective = objective;
-  }
+  void setObjective(const HyperedgeWeight objective) { _objective = objective; }
 
-  void addToObjective(const HyperedgeWeight delta) {
+  void addToObjective(const HyperedgeWeight delta)
+  {
     __atomic_fetch_add(&_objective, delta, __ATOMIC_RELAXED);
   }
 
- private:
-  void finalize() {
-    if ( _count.load() < _expected_count ) {
+private:
+  void finalize()
+  {
+    if(_count.load() < _expected_count)
+    {
       _count = _expected_count;
       _next_tic_count = std::numeric_limits<size_t>::max();
       display_progress();
     }
   }
 
-  void display_progress() {
-    if ( _enable ) {
+  void display_progress()
+  {
+    if(_enable)
+    {
       std::lock_guard<std::mutex> lock(_display_mutex);
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       size_t current_count = std::min(_count.load(), _expected_count);
@@ -132,57 +131,70 @@ class ProgressBar {
       size_t progress = get_progress(current_count);
 
       std::cout << "[ " << GREEN;
-      for ( size_t i = 0; i < current_tics; ++i ) {
+      for(size_t i = 0; i < current_tics; ++i)
+      {
         std::cout << "#";
       }
       std::cout << END;
-      for ( size_t i = 0; i < _progress_bar_size - current_tics; ++i ) {
+      for(size_t i = 0; i < _progress_bar_size - current_tics; ++i)
+      {
         std::cout << " ";
       }
       std::cout << " ] ";
 
-      std::cout << "(" << progress << "% - "
-                << current_count << "/" << _expected_count << ") ";
+      std::cout << "(" << progress << "% - " << current_count << "/" << _expected_count
+                << ") ";
 
       size_t time = std::chrono::duration<double>(end - _start).count();
       display_time(time);
 
       std::cout << " - Current Objective: " << _objective;
 
-      if ( current_count == _expected_count ) {
+      if(current_count == _expected_count)
+      {
         std::cout << std::endl;
-      } else {
+      }
+      else
+      {
         std::cout << "\r" << std::flush;
       }
     }
   }
 
-  void display_time(const size_t time) {
+  void display_time(const size_t time)
+  {
     size_t minutes = time / 60;
     size_t seconds = time % 60;
-    if ( minutes > 0 ) {
+    if(minutes > 0)
+    {
       std::cout << minutes << " min ";
     }
     std::cout << seconds << " s";
   }
 
-  size_t get_progress(const size_t current_count) {
-    return ( static_cast<double>(current_count) /
-      static_cast<double>(_expected_count) ) * 100;
+  size_t get_progress(const size_t current_count)
+  {
+    return (static_cast<double>(current_count) / static_cast<double>(_expected_count)) *
+           100;
   }
 
-  size_t get_tics(const size_t current_count) {
-    return ( static_cast<double>(current_count) /
-      static_cast<double>(_expected_count) ) * _progress_bar_size;
+  size_t get_tics(const size_t current_count)
+  {
+    return (static_cast<double>(current_count) / static_cast<double>(_expected_count)) *
+           _progress_bar_size;
   }
 
-  size_t compute_next_tic_count(const size_t current_count) {
+  size_t compute_next_tic_count(const size_t current_count)
+  {
     size_t next_tics = get_tics(current_count) + 1;
-    if ( next_tics > _progress_bar_size ) {
+    if(next_tics > _progress_bar_size)
+    {
       return std::numeric_limits<size_t>::max();
-    } else {
-      return ( static_cast<double>(next_tics) / static_cast<double>(_progress_bar_size) ) *
-        static_cast<double>(_expected_count);
+    }
+    else
+    {
+      return (static_cast<double>(next_tics) / static_cast<double>(_progress_bar_size)) *
+             static_cast<double>(_expected_count);
     }
   }
 
@@ -196,5 +208,5 @@ class ProgressBar {
   bool _enable;
 };
 
-}  // namespace utils
-}  // namespace mt_kahypar
+} // namespace utils
+} // namespace mt_kahypar

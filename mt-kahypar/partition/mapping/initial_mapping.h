@@ -34,13 +34,14 @@ namespace mt_kahypar {
 // Forward Declaration
 class TargetGraph;
 
-template<typename TypeTraits>
-class InitialMapping {
+template <typename TypeTraits>
+class InitialMapping
+{
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
+public:
   // ! This function takes an already partitioned communication hypergraph and
   // ! maps the block of partition to the target graph such that the steiner
   // ! tree metric is minimized. The internal implementation
@@ -48,12 +49,11 @@ class InitialMapping {
   // ! then solves a one-to-one mapping problem. The function is called after initial
   // ! partitioning via recursive bipartitioning (RB) since RB can not optimize
   // ! the steiner tree metric.
-  static void mapToTargetGraph(PartitionedHypergraph& communication_hg,
-                                const TargetGraph& target_graph,
-                                const Context& context);
+  static void mapToTargetGraph(PartitionedHypergraph &communication_hg,
+                               const TargetGraph &target_graph, const Context &context);
 
- private:
-  InitialMapping() { }
+private:
+  InitialMapping() {}
 };
 
-}  // namespace kahypar
+} // namespace kahypar

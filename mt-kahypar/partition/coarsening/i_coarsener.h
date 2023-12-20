@@ -31,20 +31,22 @@
 #include "include/libmtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
 
-class ICoarsener {
+class ICoarsener
+{
 
- public:
-  ICoarsener(const ICoarsener&) = delete;
-  ICoarsener(ICoarsener&&) = delete;
-  ICoarsener & operator= (const ICoarsener &) = delete;
-  ICoarsener & operator= (ICoarsener &&) = delete;
+public:
+  ICoarsener(const ICoarsener &) = delete;
+  ICoarsener(ICoarsener &&) = delete;
+  ICoarsener &operator=(const ICoarsener &) = delete;
+  ICoarsener &operator=(ICoarsener &&) = delete;
 
-  void coarsen() {
+  void coarsen()
+  {
     initialize();
     bool should_continue = true;
     // Coarsening algorithms proceed in passes where each pass computes a clustering
@@ -52,46 +54,36 @@ class ICoarsener {
     // hierarchy. The coarsening algorithms proceeds until the number of nodes equals
     // a predefined contraction limit (!shouldNotTerminate) or the number of nodes could
     // not be significantly reduced within one coarsening pass (should_continue).
-    while ( shouldNotTerminate() && should_continue ) {
+    while(shouldNotTerminate() && should_continue)
+    {
       should_continue = coarseningPass();
     }
     terminate();
   }
 
-  void initialize() {
-    initializeImpl();
-  }
+  void initialize() { initializeImpl(); }
 
-  bool shouldNotTerminate() const {
-    return shouldNotTerminateImpl();
-  }
+  bool shouldNotTerminate() const { return shouldNotTerminateImpl(); }
 
-  bool coarseningPass() {
-    return coarseningPassImpl();
-  }
+  bool coarseningPass() { return coarseningPassImpl(); }
 
-  void terminate() {
-    terminateImpl();
-  }
+  void terminate() { terminateImpl(); }
 
-  HypernodeID currentNumberOfNodes() const {
-    return currentNumberOfNodesImpl();
-  }
+  HypernodeID currentNumberOfNodes() const { return currentNumberOfNodesImpl(); }
 
-  mt_kahypar_hypergraph_t coarsestHypergraph() {
-    return coarsestHypergraphImpl();
-  }
+  mt_kahypar_hypergraph_t coarsestHypergraph() { return coarsestHypergraphImpl(); }
 
-  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraph() {
+  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraph()
+  {
     return coarsestPartitionedHypergraphImpl();
   }
 
   virtual ~ICoarsener() = default;
 
- protected:
+protected:
   ICoarsener() = default;
 
- private:
+private:
   virtual void initializeImpl() = 0;
   virtual bool shouldNotTerminateImpl() const = 0;
   virtual bool coarseningPassImpl() = 0;
@@ -101,4 +93,4 @@ class ICoarsener {
   virtual mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() = 0;
 };
 
-}  // namespace kahypar
+} // namespace kahypar

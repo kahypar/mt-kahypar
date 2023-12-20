@@ -25,18 +25,17 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #pragma once
 
 #include "mt-kahypar/partition/preprocessing/community_detection/local_moving_modularity.h"
 
 namespace mt_kahypar::community_detection {
-  template<typename Hypergraph>
-  ds::Clustering local_moving_contract_recurse(Graph<Hypergraph>& fine_graph,
-                                               ParallelLocalMovingModularity<Hypergraph>& mlv,
-                                               const Context& context);
-  template<typename Hypergraph>
-  ds::Clustering run_parallel_louvain(Graph<Hypergraph>& graph,
-                                      const Context& context,
-                                      bool disable_randomization = false);
+template <typename Hypergraph>
+ds::Clustering
+local_moving_contract_recurse(Graph<Hypergraph> &fine_graph,
+                              ParallelLocalMovingModularity<Hypergraph> &mlv,
+                              const Context &context);
+template <typename Hypergraph>
+ds::Clustering run_parallel_louvain(Graph<Hypergraph> &graph, const Context &context,
+                                    bool disable_randomization = false);
 }

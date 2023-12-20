@@ -33,10 +33,9 @@
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::io::csv {
-  std::string header();
+std::string header();
 
-  template<typename PartitionedHypergraph>
-  std::string serialize(const PartitionedHypergraph& phg,
-                        const Context& context,
-                        const std::chrono::duration<double>& elapsed_seconds);
+template <typename PartitionedHypergraph>
+std::string serialize(const PartitionedHypergraph &phg, const Context &context,
+                      const std::chrono::duration<double> &elapsed_seconds);
 }

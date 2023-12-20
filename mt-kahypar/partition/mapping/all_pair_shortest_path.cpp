@@ -29,37 +29,45 @@
 namespace mt_kahypar {
 
 namespace {
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(
-  const HypernodeID u, const HypernodeID v, const HypernodeID n) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const HypernodeID u, const HypernodeID v,
+                                                const HypernodeID n)
+{
   ASSERT(u < n && v < n);
   return u + v * n;
 }
 } // namespace
 
-void AllPairShortestPath::compute(const ds::StaticGraph& graph,
-                                  vec<HyperedgeWeight>& distances) {
+void AllPairShortestPath::compute(const ds::StaticGraph &graph,
+                                  vec<HyperedgeWeight> &distances)
+{
   const HypernodeID n = graph.initialNumNodes();
   ASSERT(static_cast<size_t>(n * n) <= distances.size());
 
   // Initialize Distance Matrix
-  for ( const HypernodeID& u : graph.nodes() ) {
+  for(const HypernodeID &u : graph.nodes())
+  {
     distances[index(u, u, n)] = 0;
   }
-  for ( const HyperedgeID& e : graph.edges() ) {
+  for(const HyperedgeID &e : graph.edges())
+  {
     const HypernodeID u = graph.edgeSource(e);
     const HypernodeID v = graph.edgeTarget(e);
     distances[index(u, v, n)] = graph.edgeWeight(e);
   }
 
   // Floyd Algorithm to compute all shortest paths (O(n^3))
-  for ( HypernodeID k = 0;  k < n; ++k) {
-    for ( HypernodeID u = 0; u < n; ++u ) {
-      for ( HypernodeID v = 0; v < n; ++v ) {
-        distances[index(u, v, n)] = std::min(distances[index(u, v, n)],
-          distances[index(u, k, n)] + distances[index(k, v, n)]);
+  for(HypernodeID k = 0; k < n; ++k)
+  {
+    for(HypernodeID u = 0; u < n; ++u)
+    {
+      for(HypernodeID v = 0; v < n; ++v)
+      {
+        distances[index(u, v, n)] =
+            std::min(distances[index(u, v, n)],
+                     distances[index(u, k, n)] + distances[index(k, v, n)]);
       }
     }
   }
 }
 
-}  // namespace kahypar
+} // namespace kahypar

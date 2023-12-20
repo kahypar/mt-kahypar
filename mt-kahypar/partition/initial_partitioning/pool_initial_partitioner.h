@@ -30,16 +30,15 @@
 
 #include "include/libmtkahypartypes.h"
 
-
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-class Pool {
- using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+template <typename TypeTraits>
+class Pool
+{
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
-  static void bipartition(PartitionedHypergraph& hypergraph,
-                          const Context& context,
+public:
+  static void bipartition(PartitionedHypergraph &hypergraph, const Context &context,
                           const bool run_parallel = true);
 };
 

@@ -26,28 +26,29 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-
 template <typename TypeTraitsT, Mode mode, PartitionID k>
-struct TestConfig {
+struct TestConfig
+{
   using TypeTraits = TypeTraitsT;
   static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
 template <typename Config>
-class AInitialPartitionerTest : public Test {
+class AInitialPartitionerTest : public Test
+{
 
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
@@ -55,28 +56,33 @@ class AInitialPartitionerTest : public Test {
 
   static size_t num_threads;
 
- public:
-  AInitialPartitionerTest() :
-    hypergraph(),
-    context() {
+public:
+  AInitialPartitionerTest() : hypergraph(), context()
+  {
 
     context.partition.partition_type = PartitionedHypergraph::TYPE;
-    if ( !context.isNLevelPartitioning() ) {
+    if(!context.isNLevelPartitioning())
+    {
       parseIniToContext(context, "../config/default_preset.ini");
-    } else {
+    }
+    else
+    {
       parseIniToContext(context, "../config/highest_quality_preset.ini");
     }
     context.partition.partition_type = PartitionedHypergraph::TYPE;
 
-    context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
-    context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
+    context.partition.graph_filename =
+        "../tests/instances/contracted_unweighted_ibm01.hgr";
+    context.partition.graph_community_filename =
+        "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
-      PresetType::default_preset : PresetType::highest_quality;
-    #else
+                                        PresetType::default_preset :
+                                        PresetType::highest_quality;
+#else
     context.partition.preset_type = PresetType::default_preset;
-    #endif
+#endif
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
@@ -88,7 +94,8 @@ class AInitialPartitionerTest : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Coarsening
-    if ( context.isNLevelPartitioning() ) {
+    if(context.isNLevelPartitioning())
+    {
       context.refinement.max_batch_size = 100;
     }
 
@@ -98,8 +105,10 @@ class AInitialPartitionerTest : public Test {
     context.initial_partitioning.remove_degree_zero_hns_before_ip = false;
 
     // Label Propagation
-    context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+    context.refinement.label_propagation.algorithm =
+        LabelPropagationAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.label_propagation.algorithm =
+        LabelPropagationAlgorithm::do_nothing;
 
     // FM
     context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
@@ -111,32 +120,38 @@ class AInitialPartitionerTest : public Test {
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
-    partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, hypergraph, parallel_tag_t());
+        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
+    partitioned_hypergraph =
+        PartitionedHypergraph(context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
   }
 
-  void assignCommunities() {
+  void assignCommunities()
+  {
     std::vector<PartitionID> communities;
     io::readPartitionFile(context.partition.graph_community_filename, communities);
 
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    for(const HypernodeID &hn : hypergraph.nodes())
+    {
       hypergraph.setCommunityID(hn, communities[hn]);
     }
   }
 
-  void runInitialPartitioning() {
-    switch ( context.initial_partitioning.mode ) {
-      case Mode::recursive_bipartitioning:
-        RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context); break;
-      case Mode::deep_multilevel:
-        DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context); break;
-      case Mode::direct:
-      case Mode::UNDEFINED:
-        ERR("Undefined initial partitioning algorithm.");
+  void runInitialPartitioning()
+  {
+    switch(context.initial_partitioning.mode)
+    {
+    case Mode::recursive_bipartitioning:
+      RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context);
+      break;
+    case Mode::deep_multilevel:
+      DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context);
+      break;
+    case Mode::direct:
+    case Mode::UNDEFINED:
+      ERR("Undefined initial partitioning algorithm.");
     }
   }
 
@@ -146,62 +161,81 @@ class AInitialPartitionerTest : public Test {
 };
 
 template <typename Config>
-size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance().num_cpus();
+size_t AInitialPartitionerTest<Config>::num_threads =
+    HardwareTopology::instance().num_cpus();
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
-                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
-                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
-                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
+typedef ::testing::Types<
+    TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
+    TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
+    TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
+    TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
+    TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
+    TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
+        ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA
+                                                    Mode::deep_multilevel COMMA 2>)
+            ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA
+                                                        Mode::deep_multilevel COMMA 3>)
+                ENABLE_HIGHEST_QUALITY(
+                    COMMA TestConfig<
+                        DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
+                    ENABLE_HIGHEST_QUALITY(
+                        COMMA TestConfig<DynamicHypergraphTypeTraits COMMA
+                                             Mode::recursive_bipartitioning COMMA 2>)
+                        ENABLE_HIGHEST_QUALITY(
+                            COMMA TestConfig<DynamicHypergraphTypeTraits COMMA
+                                                 Mode::recursive_bipartitioning COMMA 3>)
+                            ENABLE_HIGHEST_QUALITY(
+                                COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::
+                                                     recursive_bipartitioning COMMA 4>)>
+    TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
-TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
+TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition)
+{
   this->runInitialPartitioning();
 
   // Check that each vertex is assigned to a block
-  for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
+  for(const HypernodeID &hn : this->partitioned_hypergraph.nodes())
+  {
     ASSERT_NE(this->partitioned_hypergraph.partID(hn), kInvalidPartition)
-      << "Hypernode " << hn << " is unassigned!";
+        << "Hypernode " << hn << " is unassigned!";
   }
 
   // Check that non of the blocks is empty
-  for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
+  for(PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id)
+  {
     ASSERT_GT(this->partitioned_hypergraph.partWeight(part_id), 0)
-      << "Block " << part_id << " is empty!";
+        << "Block " << part_id << " is empty!";
   }
 
   // Check that part weights are correct
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
-  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
+  for(const HypernodeID &hn : this->hypergraph.nodes())
+  {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
     ASSERT(part_id >= 0 && part_id < this->context.partition.k);
     part_weight[part_id] += this->partitioned_hypergraph.nodeWeight(hn);
   }
 
-  for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
+  for(PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id)
+  {
     ASSERT_EQ(this->partitioned_hypergraph.partWeight(part_id), part_weight[part_id])
-      << "Expected part weight of block " << part_id << " is " << part_weight[part_id]
-      << ", but currently is " << this->partitioned_hypergraph.partWeight(part_id);
+        << "Expected part weight of block " << part_id << " is " << part_weight[part_id]
+        << ", but currently is " << this->partitioned_hypergraph.partWeight(part_id);
   }
 
   // Check that balance constraint is fullfilled
-  for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
+  for(PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id)
+  {
     ASSERT_LE(this->partitioned_hypergraph.partWeight(part_id),
               this->context.partition.max_part_weights[part_id])
-      << "Block " << part_id << " violates the balance constraint (Part Weight = "
-      << this->partitioned_hypergraph.partWeight(part_id) << ", Max Part Weight = "
-      << this->context.partition.max_part_weights[part_id];
+        << "Block " << part_id << " violates the balance constraint (Part Weight = "
+        << this->partitioned_hypergraph.partWeight(part_id)
+        << ", Max Part Weight = " << this->context.partition.max_part_weights[part_id];
   }
 }
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

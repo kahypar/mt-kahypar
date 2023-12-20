@@ -27,33 +27,29 @@
 #include <boost/program_options.hpp>
 
 #include <fstream>
-#include <iostream>
 #include <functional>
+#include <iostream>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
   int N, M, MAX_WEIGHT;
   std::string out_filename;
   po::options_description options("Options");
-  options.add_options()
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Target Graph Output Filename")
-    ("n",
-    po::value<int>(&N)->value_name("<int>")->required(),
-    "Number of rows")
-    ("m",
-    po::value<int>(&M)->value_name("<int>")->required(),
-    "Number of columns")
-    ("max-weight",
-    po::value<int>(&MAX_WEIGHT)->value_name("<int>")->required(),
-    "Maximum weight of an edge in the target graph");
+  options.add_options()(
+      "out-file,o",
+      po::value<std::string>(&out_filename)->value_name("<string>")->required(),
+      "Target Graph Output Filename")(
+      "n", po::value<int>(&N)->value_name("<int>")->required(), "Number of rows")(
+      "m", po::value<int>(&M)->value_name("<int>")->required(), "Number of columns")(
+      "max-weight", po::value<int>(&MAX_WEIGHT)->value_name("<int>")->required(),
+      "Maximum weight of an edge in the target graph");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -62,43 +58,47 @@ int main(int argc, char* argv[]) {
   const PartitionID k = N * M;
   out_filename = out_filename + ".k" + std::to_string(k);
 
-  auto up = [&](const PartitionID& u) {
+  auto up = [&](const PartitionID &u) {
     PartitionID v = u - M;
     return v >= 0 ? v : kInvalidPartition;
   };
 
-  auto down = [&](const PartitionID& u) {
+  auto down = [&](const PartitionID &u) {
     PartitionID v = u + M;
     return v < k ? v : kInvalidPartition;
   };
 
-  auto left = [&](const PartitionID& u) {
+  auto left = [&](const PartitionID &u) {
     PartitionID v = u - 1;
-    return ( u / M ) == (v / M) ? v : kInvalidPartition;
+    return (u / M) == (v / M) ? v : kInvalidPartition;
   };
 
-  auto right = [&](const PartitionID& u) {
+  auto right = [&](const PartitionID &u) {
     PartitionID v = u + 1;
-    return ( u / M ) == (v / M) ? v : kInvalidPartition;
+    return (u / M) == (v / M) ? v : kInvalidPartition;
   };
 
   std::ofstream out(out_filename.c_str());
   int num_nodes = k, num_edges = 0;
-  for ( PartitionID u = 0; u < k; ++u ) {
+  for(PartitionID u = 0; u < k; ++u)
+  {
     num_edges += (up(u) != kInvalidPartition);
     num_edges += (right(u) != kInvalidPartition);
     num_edges += (down(u) != kInvalidPartition);
     num_edges += (left(u) != kInvalidPartition);
   }
-  out << num_nodes << " " << (num_edges/2) << " 1" << std::endl;
+  out << num_nodes << " " << (num_edges / 2) << " 1" << std::endl;
 
-  utils::Randomize& rand = utils::Randomize::instance();
+  utils::Randomize &rand = utils::Randomize::instance();
   rand.setSeed(std::hash<std::string>{}(out_filename));
-  for ( PartitionID u = 0; u < k; ++u ) {
+  for(PartitionID u = 0; u < k; ++u)
+  {
     std::vector<PartitionID> neighbors = { up(u), right(u), down(u), left(u) };
     std::sort(neighbors.begin(), neighbors.end());
-    for ( const PartitionID v : neighbors ) {
-      if ( v != kInvalidPartition ) {
+    for(const PartitionID v : neighbors)
+    {
+      if(v != kInvalidPartition)
+      {
         out << (v + 1) << " " << rand.getRandomInt(1, MAX_WEIGHT, 0) << " ";
       }
     }

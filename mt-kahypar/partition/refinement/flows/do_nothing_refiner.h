@@ -34,28 +34,30 @@
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 
 namespace mt_kahypar {
-class DoNothingFlowRefiner final : public IFlowRefiner {
- public:
-  template <typename ... Args>
-  explicit DoNothingFlowRefiner(Args&& ...) noexcept { }
-  DoNothingFlowRefiner(const DoNothingFlowRefiner&) = delete;
-  DoNothingFlowRefiner(DoNothingFlowRefiner&&) = delete;
-  DoNothingFlowRefiner & operator= (const DoNothingFlowRefiner &) = delete;
-  DoNothingFlowRefiner & operator= (DoNothingFlowRefiner &&) = delete;
+class DoNothingFlowRefiner final : public IFlowRefiner
+{
+public:
+  template <typename... Args>
+  explicit DoNothingFlowRefiner(Args &&...) noexcept
+  {
+  }
+  DoNothingFlowRefiner(const DoNothingFlowRefiner &) = delete;
+  DoNothingFlowRefiner(DoNothingFlowRefiner &&) = delete;
+  DoNothingFlowRefiner &operator=(const DoNothingFlowRefiner &) = delete;
+  DoNothingFlowRefiner &operator=(DoNothingFlowRefiner &&) = delete;
 
- private:
-  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t&) override final { }
+private:
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t &) override final {}
 
-  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t&,
-                          const Subhypergraph&,
-                          const HighResClockTimepoint&) override final {
-    return MoveSequence { {}, 0 };
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t &,
+                          const Subhypergraph &,
+                          const HighResClockTimepoint &) override final
+  {
+    return MoveSequence{ {}, 0 };
   }
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
-    return 2;
-  }
+  PartitionID maxNumberOfBlocksPerSearchImpl() const override { return 2; }
 
   void setNumThreadsForSearchImpl(const size_t) override {}
 };
-}  // namespace kahypar
+} // namespace kahypar

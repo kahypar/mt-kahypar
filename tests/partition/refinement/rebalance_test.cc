@@ -27,61 +27,65 @@
 #include <functional>
 #include <random>
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
 namespace {
-  using TypeTraits = StaticHypergraphTypeTraits;
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Km1Rebalancer = SimpleRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
+using TypeTraits = StaticHypergraphTypeTraits;
+using Hypergraph = typename TypeTraits::Hypergraph;
+using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+using Km1Rebalancer = SimpleRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes> >;
 }
 
-
-TEST(RebalanceTests, HeapSortWithMoveGainComparator) {
+TEST(RebalanceTests, HeapSortWithMoveGainComparator)
+{
   vec<Move> moves;
   vec<Gain> gains = { 52, 12, 72, -154, 2672, -717, 1346, -7111, -113461, 136682, 3833 };
 
-  for (HypernodeID i = 0; i < gains.size(); ++i) {
-    moves.push_back(Move{-1, -1 , i, gains[i]});
+  for(HypernodeID i = 0; i < gains.size(); ++i)
+  {
+    moves.push_back(Move{ -1, -1, i, gains[i] });
   }
 
   std::make_heap(moves.begin(), moves.end(), Km1Rebalancer::MoveGainComparator());
-  for (size_t i = 0; i < moves.size(); ++i) {
+  for(size_t i = 0; i < moves.size(); ++i)
+  {
     std::pop_heap(moves.begin(), moves.end() - i, Km1Rebalancer::MoveGainComparator());
   }
 
   // assert that moves is sorted descendingly
-  ASSERT_TRUE(std::is_sorted(moves.begin(), moves.end(),
-                         [](const Move& lhs, const Move& rhs) {
-    return lhs.gain > rhs.gain;
-  }) );
+  ASSERT_TRUE(
+      std::is_sorted(moves.begin(), moves.end(), [](const Move &lhs, const Move &rhs) {
+        return lhs.gain > rhs.gain;
+      }));
 }
 
-TEST(RebalanceTests, FindsMoves) {
+TEST(RebalanceTests, FindsMoves)
+{
   PartitionID k = 8;
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis,
-    true /* enable stable construction */);
+  Hypergraph hg = io::readInputFile<Hypergraph>("../tests/instances/contracted_ibm01.hgr",
+                                                FileFormat::hMetis,
+                                                true /* enable stable construction */);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
 
-  HypernodeID nodes_per_part = hg.initialNumNodes() / (k-4);
+  HypernodeID nodes_per_part = hg.initialNumNodes() / (k - 4);
   ASSERT(hg.initialNumNodes() % (k - 4) == 0);
-  for (PartitionID i = 0; i < k - 4; ++i) {
-    for (HypernodeID u = i * nodes_per_part; u < (i+1) * nodes_per_part; ++u) {
+  for(PartitionID i = 0; i < k - 4; ++i)
+  {
+    for(HypernodeID u = i * nodes_per_part; u < (i + 1) * nodes_per_part; ++u)
+    {
       phg.setOnlyNodePart(u, i);
     }
   }
@@ -94,14 +98,18 @@ TEST(RebalanceTests, FindsMoves) {
 
   ASSERT_EQ(moves_to_empty_blocks.size(), 4);
 
-  for (Move& m : moves_to_empty_blocks) {
+  for(Move &m : moves_to_empty_blocks)
+  {
     ASSERT_EQ(gain_cache.gain(m.node, m.from, m.to), m.gain);
     Gain recomputed_gain = gain_cache.recomputeBenefitTerm(phg, m.node, m.to) -
-      gain_cache.recomputePenaltyTerm(phg, m.node);
-    if (recomputed_gain == 0) {
+                           gain_cache.recomputePenaltyTerm(phg, m.node);
+    if(recomputed_gain == 0)
+    {
       ASSERT_TRUE([&]() {
-        for (HyperedgeID e : phg.incidentEdges(m.node)) {
-          if (phg.pinCountInPart(e, m.from) != 1) {
+        for(HyperedgeID e : phg.incidentEdges(m.node))
+        {
+          if(phg.pinCountInPart(e, m.from) != 1)
+          {
             return false;
           }
         }

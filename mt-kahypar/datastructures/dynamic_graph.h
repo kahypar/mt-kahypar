@@ -35,18 +35,18 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "kahypar-resources/meta/mandatory.h"
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/meta/mandatory.h"
 #include "kahypar-resources/utils/math.h"
 
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/fixed_vertex_support.h"
-#include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
+#include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -56,7 +56,8 @@ class DynamicGraphFactory;
 template <typename Hypergraph>
 class PartitionedGraph;
 
-class DynamicGraph {
+class DynamicGraph
+{
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -66,84 +67,81 @@ class DynamicGraph {
 
   // ! In order to update gain cache correctly for an uncontraction (u,v),
   // ! the partitioned hypergraph has to know wheter v replaces u in a hyperedge
-  // ! or both a incident to that hyperedge after uncontraction. Therefore, the partitioned
-  // ! hypergraph passes two lambda functions to the batch uncontraction function, one for
-  // ! each case.
-  using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
-  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
-  #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
+  // ! or both a incident to that hyperedge after uncontraction. Therefore, the
+  // partitioned ! hypergraph passes two lambda functions to the batch uncontraction
+  // function, one for ! each case.
+  using UncontractionFunction =
+      std::function<void(const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  using MarkEdgeFunc = std::function<bool(const HyperedgeID)>;
+#define NOOP_BATCH_FUNC [](const HypernodeID, const HypernodeID, const HyperedgeID) {}
 
   // Represents a uncontraction that is assigned to a certain batch
   // and within that batch to a certain position.
-  struct BatchAssignment {
+  struct BatchAssignment
+  {
     HypernodeID u;
     HypernodeID v;
     size_t batch_index;
     size_t batch_pos;
   };
 
- private:
+private:
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
    */
-  class Node {
-   public:
+  class Node
+  {
+  public:
     using IDType = HypernodeID;
 
     Node() :
-      _weight(1),
-      _community_id(0),
-      _batch_idx(std::numeric_limits<HypernodeID>::max()),
-      _valid(false) { }
-
-    Node(const bool valid) :
-      _weight(1),
-      _community_id(0),
-      _batch_idx(std::numeric_limits<HypernodeID>::max()),
-      _valid(valid) { }
-
-    bool isDisabled() const {
-      return _valid == false;
+        _weight(1), _community_id(0), _batch_idx(std::numeric_limits<HypernodeID>::max()),
+        _valid(false)
+    {
     }
 
-    void enable() {
+    Node(const bool valid) :
+        _weight(1), _community_id(0), _batch_idx(std::numeric_limits<HypernodeID>::max()),
+        _valid(valid)
+    {
+    }
+
+    bool isDisabled() const { return _valid == false; }
+
+    void enable()
+    {
       ASSERT(isDisabled());
       _valid = true;
     }
 
-    void disable() {
+    void disable()
+    {
       ASSERT(!isDisabled());
       _valid = false;
     }
 
-    HyperedgeWeight weight() const {
-      return _weight;
-    }
+    HyperedgeWeight weight() const { return _weight; }
 
-    void setWeight(HyperedgeWeight weight) {
+    void setWeight(HyperedgeWeight weight)
+    {
       ASSERT(!isDisabled());
       _weight = weight;
     }
 
-    PartitionID communityID() const {
-      return _community_id;
-    }
+    PartitionID communityID() const { return _community_id; }
 
-    void setCommunityID(const PartitionID community_id) {
+    void setCommunityID(const PartitionID community_id)
+    {
       ASSERT(!isDisabled());
       _community_id = community_id;
     }
 
-    HypernodeID batchIndex() const {
-      return _batch_idx;
-    }
+    HypernodeID batchIndex() const { return _batch_idx; }
 
-    void setBatchIndex(const HypernodeID batch_idx) {
-      _batch_idx = batch_idx;
-    }
+    void setBatchIndex(const HypernodeID batch_idx) { _batch_idx = batch_idx; }
 
-   private:
+  private:
     // ! Hypernode weight
     HypernodeWeight _weight;
     // ! Community id
@@ -171,13 +169,14 @@ class DynamicGraph {
    * hypernodes/hyperedges.
    */
   template <typename ElementType>
-  class HypergraphElementIterator {
-   public:
+  class HypergraphElementIterator
+  {
+  public:
     using IDType = typename ElementType::IDType;
     using iterator_category = std::forward_iterator_tag;
     using value_type = IDType;
-    using reference = IDType&;
-    using pointer = const IDType*;
+    using reference = IDType &;
+    using pointer = const IDType *;
     using difference_type = std::ptrdiff_t;
 
     /*!
@@ -191,52 +190,51 @@ class DynamicGraph {
      * \param id The index of the element the pointer points to
      * \param max_id The maximum index allowed
      */
-    HypergraphElementIterator(const ElementType* start_element, IDType id, IDType max_id) :
-      _id(id),
-      _max_id(max_id),
-      _element(start_element) {
-      if (_id != _max_id && _element->isDisabled()) {
-        operator++ ();
+    HypergraphElementIterator(const ElementType *start_element, IDType id,
+                              IDType max_id) :
+        _id(id),
+        _max_id(max_id), _element(start_element)
+    {
+      if(_id != _max_id && _element->isDisabled())
+      {
+        operator++();
       }
     }
 
     // ! Returns the id of the element the iterator currently points to.
-    IDType operator* () const {
-      return _id;
-    }
+    IDType operator*() const { return _id; }
 
     // ! Prefix increment. The iterator advances to the next valid element.
-    HypergraphElementIterator & operator++ () {
+    HypergraphElementIterator &operator++()
+    {
       ASSERT(_id < _max_id);
-      do {
+      do
+      {
         ++_id;
         ++_element;
-      } while (_id < _max_id && _element->isDisabled());
+      } while(_id < _max_id && _element->isDisabled());
       return *this;
     }
 
     // ! Postfix increment. The iterator advances to the next valid element.
-    HypergraphElementIterator operator++ (int) {
+    HypergraphElementIterator operator++(int)
+    {
       HypergraphElementIterator copy = *this;
-      operator++ ();
+      operator++();
       return copy;
     }
 
-    bool operator!= (const HypergraphElementIterator& rhs) {
-      return _id != rhs._id;
-    }
+    bool operator!=(const HypergraphElementIterator &rhs) { return _id != rhs._id; }
 
-    bool operator== (const HypergraphElementIterator& rhs) {
-      return _id == rhs._id;
-    }
+    bool operator==(const HypergraphElementIterator &rhs) { return _id == rhs._id; }
 
-   private:
+  private:
     // Handle to the HypergraphElement the iterator currently points to
     IDType _id = 0;
     // Maximum allowed index
     IDType _max_id = 0;
     // HypergraphElement the iterator currently points to
-    const ElementType* _element = nullptr;
+    const ElementType *_element = nullptr;
   };
 
   /*!
@@ -244,35 +242,38 @@ class DynamicGraph {
    *
    * Note that because this is a graph, each edge has exactly two pins.
    */
-  class PinIterator {
-   public:
+  class PinIterator
+  {
+  public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = HypernodeID;
-    using reference = HypernodeID&;
-    using pointer = const HypernodeID*;
+    using reference = HypernodeID &;
+    using pointer = const HypernodeID *;
     using difference_type = std::ptrdiff_t;
 
     /*!
      * Constructs a pin iterator based on the IDs of the two nodes
      */
     PinIterator(HypernodeID source, HypernodeID target, unsigned int iteration_count) :
-      _source(source),
-      _target(target),
-      _iteration_count(iteration_count) {
+        _source(source), _target(target), _iteration_count(iteration_count)
+    {
       // ASSERT(target != kInvalidHypernode); -- doesn't hold for parallel contractions
     }
 
     // ! Returns the id of the element the iterator currently points to.
-    HypernodeID operator* () const {
+    HypernodeID operator*() const
+    {
       ASSERT(_iteration_count < 2);
       return _iteration_count == 0 ? _source : _target;
     }
 
     // ! Prefix increment. The iterator advances to the next valid element.
-    PinIterator & operator++ () {
+    PinIterator &operator++()
+    {
       ASSERT(_iteration_count < 2);
       ++_iteration_count;
-      if (_iteration_count == 1 && (_source == _target || _target == kInvalidHypernode)) {
+      if(_iteration_count == 1 && (_source == _target || _target == kInvalidHypernode))
+      {
         // the edge is a single pin edge
         ++_iteration_count;
       }
@@ -280,23 +281,26 @@ class DynamicGraph {
     }
 
     // ! Postfix increment. The iterator advances to the next valid element.
-    PinIterator operator++ (int) {
+    PinIterator operator++(int)
+    {
       PinIterator copy = *this;
-      operator++ ();
+      operator++();
       return copy;
     }
 
-    bool operator!= (const PinIterator& rhs) {
-      return _iteration_count != rhs._iteration_count ||
-             _source != rhs._source || _target != rhs._target;
+    bool operator!=(const PinIterator &rhs)
+    {
+      return _iteration_count != rhs._iteration_count || _source != rhs._source ||
+             _target != rhs._target;
     }
 
-    bool operator== (const PinIterator& rhs) {
-      return _iteration_count == rhs._iteration_count &&
-              _source == rhs._source && _target == rhs._target;
+    bool operator==(const PinIterator &rhs)
+    {
+      return _iteration_count == rhs._iteration_count && _source == rhs._source &&
+             _target == rhs._target;
     }
 
-   private:
+  private:
     // source node of the edge
     HypernodeID _source = 0;
     // target node of the edge
@@ -305,18 +309,21 @@ class DynamicGraph {
     unsigned int _iteration_count = 0;
   };
 
-  enum class ContractionResult : uint8_t {
+  enum class ContractionResult : uint8_t
+  {
     CONTRACTED = 0,
     PENDING_CONTRACTIONS = 1,
     WEIGHT_LIMIT_REACHED = 2,
     INVALID_FIXED_VERTEX_CONTRACTION = 3
   };
 
-  using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
-  using ThreadLocalHyperedgeVector = tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID>>;
+  using OwnershipVector =
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool> >;
+  using ThreadLocalHyperedgeVector =
+      tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID> >;
   using Edge = DynamicAdjacencyArray::Edge;
 
- public:
+public:
   static constexpr bool is_graph = true;
   static constexpr bool is_static_hypergraph = false;
   static constexpr bool is_partitioned = false;
@@ -339,37 +346,30 @@ class DynamicGraph {
   using ParallelHyperedge = DynamicAdjacencyArray::RemovedEdge;
 
   explicit DynamicGraph() :
-    _num_removed_nodes(0),
-    _removed_degree_zero_hn_weight(0),
-    _num_edges(0),
-    _total_weight(0),
-    _version(0),
-    _contraction_index(0),
-    _nodes(),
-    _contraction_tree(),
-    _adjacency_array(),
-    _acquired_nodes(),
-    _fixed_vertices() { }
+      _num_removed_nodes(0), _removed_degree_zero_hn_weight(0), _num_edges(0),
+      _total_weight(0), _version(0), _contraction_index(0), _nodes(), _contraction_tree(),
+      _adjacency_array(), _acquired_nodes(), _fixed_vertices()
+  {
+  }
 
-  DynamicGraph(const DynamicGraph&) = delete;
-  DynamicGraph & operator= (const DynamicGraph &) = delete;
+  DynamicGraph(const DynamicGraph &) = delete;
+  DynamicGraph &operator=(const DynamicGraph &) = delete;
 
-  DynamicGraph(DynamicGraph&& other) :
-    _num_removed_nodes(other._num_removed_nodes),
-    _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
-    _num_edges(other._num_edges),
-    _total_weight(other._total_weight),
-    _version(other._version),
-    _contraction_index(0),
-    _nodes(std::move(other._nodes)),
-    _contraction_tree(std::move(other._contraction_tree)),
-    _adjacency_array(std::move(other._adjacency_array)),
-    _acquired_nodes(std::move(other._acquired_nodes)),
-    _fixed_vertices(std::move(other._fixed_vertices)) {
+  DynamicGraph(DynamicGraph &&other) :
+      _num_removed_nodes(other._num_removed_nodes),
+      _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
+      _num_edges(other._num_edges), _total_weight(other._total_weight),
+      _version(other._version), _contraction_index(0), _nodes(std::move(other._nodes)),
+      _contraction_tree(std::move(other._contraction_tree)),
+      _adjacency_array(std::move(other._adjacency_array)),
+      _acquired_nodes(std::move(other._acquired_nodes)),
+      _fixed_vertices(std::move(other._fixed_vertices))
+  {
     _fixed_vertices.setHypergraph(this);
   }
 
-  DynamicGraph & operator= (DynamicGraph&& other) {
+  DynamicGraph &operator=(DynamicGraph &&other)
+  {
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
     _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
@@ -385,57 +385,43 @@ class DynamicGraph {
     return *this;
   }
 
-  ~DynamicGraph() {
-    freeInternalData();
-  }
+  ~DynamicGraph() { freeInternalData(); }
 
   // ####################### General Hypergraph Stats #######################
 
   // ! Initial number of hypernodes
-  HypernodeID initialNumNodes() const {
-    return numNodes();
-  }
+  HypernodeID initialNumNodes() const { return numNodes(); }
 
   // ! Number of removed hypernodes
-  HypernodeID numRemovedHypernodes() const {
-    return _num_removed_nodes;
-  }
+  HypernodeID numRemovedHypernodes() const { return _num_removed_nodes; }
 
   // ! Weight of removed degree zero vertics
-  HypernodeWeight weightOfRemovedDegreeZeroVertices() const {
+  HypernodeWeight weightOfRemovedDegreeZeroVertices() const
+  {
     return _removed_degree_zero_hn_weight;
   }
 
   // ! Initial number of hyperedges
-  HyperedgeID initialNumEdges() const {
-    return _num_edges;
-  }
+  HyperedgeID initialNumEdges() const { return _num_edges; }
 
   // ! Number of removed hyperedges
-  HyperedgeID numRemovedHyperedges() const {
-    return 0;
-  }
+  HyperedgeID numRemovedHyperedges() const { return 0; }
 
   // ! Set the number of removed hyperedges
-  void setNumRemovedHyperedges(const HyperedgeID num_removed_hyperedges) {
+  void setNumRemovedHyperedges(const HyperedgeID num_removed_hyperedges)
+  {
     ASSERT(num_removed_hyperedges == 0);
     unused(num_removed_hyperedges);
   }
 
   // ! Initial number of pins
-  HypernodeID initialNumPins() const {
-    return _num_edges;
-  }
+  HypernodeID initialNumPins() const { return _num_edges; }
 
   // ! Initial sum of the degree of all vertices
-  HypernodeID initialTotalVertexDegree() const {
-    return _num_edges;
-  }
+  HypernodeID initialTotalVertexDegree() const { return _num_edges; }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
-    return _total_weight;
-  }
+  HypernodeWeight totalWeight() const { return _total_weight; }
 
   // ! Recomputes the total weight of the hypergraph (parallel)
   void updateTotalWeight(parallel_tag_t);
@@ -447,10 +433,12 @@ class DynamicGraph {
 
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
-  template<typename F>
-  void doParallelForAllNodes(const F& f) const {
-    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID& hn) {
-      if ( nodeIsEnabled(hn) ) {
+  template <typename F>
+  void doParallelForAllNodes(const F &f) const
+  {
+    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID &hn) {
+      if(nodeIsEnabled(hn))
+      {
         f(hn);
       }
     });
@@ -458,89 +446,90 @@ class DynamicGraph {
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
-  template<typename F>
-  void doParallelForAllEdges(const F& f) const {
+  template <typename F>
+  void doParallelForAllEdges(const F &f) const
+  {
     _adjacency_array.doParallelForAllEdges(f);
   }
 
   // ! Returns a range of the active nodes of the hypergraph
-  IteratorRange<HypernodeIterator> nodes() const {
+  IteratorRange<HypernodeIterator> nodes() const
+  {
     return IteratorRange<HypernodeIterator>(
-      HypernodeIterator(_nodes.data(), ID(0), numNodes()),
-      HypernodeIterator(_nodes.data() + numNodes(), numNodes(), numNodes()));
+        HypernodeIterator(_nodes.data(), ID(0), numNodes()),
+        HypernodeIterator(_nodes.data() + numNodes(), numNodes(), numNodes()));
   }
 
   // ! Returns a range of the active edges of the hypergraph
-  IteratorRange<HyperedgeIterator> edges() const {
-    return _adjacency_array.edges();
-  }
+  IteratorRange<HyperedgeIterator> edges() const { return _adjacency_array.edges(); }
 
   // ! Returns a range to loop over the incident edges of node u.
-  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
+  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.incidentEdges(u);
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
-  IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
-    const Edge& e = edge(id);
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const
+  {
+    const Edge &e = edge(id);
     const HypernodeID source = e.source;
     const HypernodeID target = e.target;
-    return IteratorRange<IncidenceIterator>(
-      IncidenceIterator(source, target, 0),
-      IncidenceIterator(source, target, 2));
+    return IteratorRange<IncidenceIterator>(IncidenceIterator(source, target, 0),
+                                            IncidenceIterator(source, target, 2));
   }
 
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
+  HypernodeWeight nodeWeight(const HypernodeID u) const
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return hypernode(u).weight();
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight)
+  {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setWeight(weight);
   }
 
   // ! Degree of a hypernode
-  HyperedgeID nodeDegree(const HypernodeID u) const {
+  HyperedgeID nodeDegree(const HypernodeID u) const
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.nodeDegree(u);
   }
 
   // ! Returns, whether a hypernode is enabled or not
-  bool nodeIsEnabled(const HypernodeID u) const {
-    return !hypernode(u).isDisabled();
-  }
+  bool nodeIsEnabled(const HypernodeID u) const { return !hypernode(u).isDisabled(); }
 
   // ! Enables a hypernode (must be disabled before)
-  void enableHypernode(const HypernodeID u) {
-    hypernode(u).enable();
-  }
+  void enableHypernode(const HypernodeID u) { hypernode(u).enable(); }
 
   // ! Disables a hypernode (must be enabled before)
-  void disableHypernode(const HypernodeID u) {
-    hypernode(u).disable();
-  }
+  void disableHypernode(const HypernodeID u) { hypernode(u).disable(); }
 
   // ! Removes a hypernode (must be enabled before)
-  void removeHypernode(const HypernodeID u) {
+  void removeHypernode(const HypernodeID u)
+  {
     hypernode(u).disable();
     ++_num_removed_nodes;
   }
 
   // ! Removes a degree zero hypernode
-  void removeDegreeZeroHypernode(const HypernodeID u) {
+  void removeDegreeZeroHypernode(const HypernodeID u)
+  {
     ASSERT(nodeDegree(u) == 0);
     removeHypernode(u);
     _removed_degree_zero_hn_weight += nodeWeight(u);
   }
 
   // ! Restores a degree zero hypernode
-  void restoreDegreeZeroHypernode(const HypernodeID u) {
+  void restoreDegreeZeroHypernode(const HypernodeID u)
+  {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
     _removed_degree_zero_hn_weight -= nodeWeight(u);
@@ -549,76 +538,66 @@ class DynamicGraph {
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
-    const Edge& he = _adjacency_array.edge(e);
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge &edge(const HyperedgeID e) const
+  {
+    const Edge &he = _adjacency_array.edge(e);
     // ASSERT(he.isValid()); -- doesn't hold for parallel contractions
     return he;
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
-    Hyperedge& he = _adjacency_array.edge(e);
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge &edge(const HyperedgeID e)
+  {
+    Hyperedge &he = _adjacency_array.edge(e);
     // ASSERT(he.isValid()); -- doesn't hold for parallel contractions
     return he;
   }
 
   // ! Weight of an edge
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
-    return edge(e).weight;
-  }
+  HypernodeWeight edgeWeight(const HyperedgeID e) const { return edge(e).weight; }
 
   // ! Unique id of a hyperedge
-  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const
+  {
     return _adjacency_array.uniqueEdgeID(e);
   }
 
   // ! Range of unique id edge ids
-  HyperedgeID maxUniqueID() const {
-    return initialNumEdges();
-  }
+  HyperedgeID maxUniqueID() const { return initialNumEdges(); }
 
   // ! Sets the weight of a hyperedge
-  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight)
+  {
     edge(e).weight = weight;
   }
 
   // ! Number of pins of a hyperedge
-  HypernodeID edgeSize(const HyperedgeID e) const {
-    return isSinglePin(e) ? 1 : 2;
-  }
+  HypernodeID edgeSize(const HyperedgeID e) const { return isSinglePin(e) ? 1 : 2; }
 
   // ! Maximum size of a hyperedge
-  HypernodeID maxEdgeSize() const {
-    return 2;
-  }
+  HypernodeID maxEdgeSize() const { return 2; }
 
   // ! Returns, whether a hyperedge is enabled or not
-  bool edgeIsEnabled(const HyperedgeID) const {
-    return true;
-  }
+  bool edgeIsEnabled(const HyperedgeID) const { return true; }
 
   // ! Enables a hyperedge (must be disabled before)
-  void enableHyperedge(const HyperedgeID) {
+  void enableHyperedge(const HyperedgeID)
+  {
     throw NonSupportedOperationException(
-      "enableHyperedge() is not supported in dynamic graph");
+        "enableHyperedge() is not supported in dynamic graph");
   }
 
-  HyperedgeID edgeSource(const HyperedgeID e) const {
-    return edge(e).source;
-  }
+  HyperedgeID edgeSource(const HyperedgeID e) const { return edge(e).source; }
 
-  HyperedgeID edgeTarget(const HyperedgeID e) const {
-    return edge(e).target;
-  }
+  HyperedgeID edgeTarget(const HyperedgeID e) const { return edge(e).target; }
 
-  bool isSinglePin(const HyperedgeID e) const {
-    return edgeSource(e) == edgeTarget(e);
-  }
+  bool isSinglePin(const HyperedgeID e) const { return edgeSource(e) == edgeTarget(e); }
 
   // ####################### Community Information #######################
 
   // ! Community id which hypernode u is assigned to
-  PartitionID communityID(const HypernodeID u) const {
+  PartitionID communityID(const HypernodeID u) const
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return hypernode(u).communityID();
   }
@@ -626,96 +605,102 @@ class DynamicGraph {
   // ! Assign a community to a hypernode
   // ! Note, in order to use all community-related functions, initializeCommunities()
   // ! have to be called after assigning to each vertex a community id
-  void setCommunityID(const HypernodeID u, const PartitionID community_id) {
+  void setCommunityID(const HypernodeID u, const PartitionID community_id)
+  {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setCommunityID(community_id);
   }
 
   // ! Reset internal community information
-  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+  void setCommunityIDs(const parallel::scalable_vector<PartitionID> &community_ids)
+  {
     ASSERT(community_ids.size() == UI64(numNodes()));
-    doParallelForAllNodes([&](const HypernodeID& hn) {
-      hypernode(hn).setCommunityID(community_ids[hn]);
-    });
+    doParallelForAllNodes(
+        [&](const HypernodeID &hn) { hypernode(hn).setCommunityID(community_ids[hn]); });
   }
 
   // ####################### Fixed Vertex Support #######################
 
-  void addFixedVertexSupport(FixedVertexSupport<DynamicGraph>&& fixed_vertices) {
+  void addFixedVertexSupport(FixedVertexSupport<DynamicGraph> &&fixed_vertices)
+  {
     _fixed_vertices = std::move(fixed_vertices);
     _fixed_vertices.setHypergraph(this);
   }
 
-  bool hasFixedVertices() const {
-    return _fixed_vertices.hasFixedVertices();
-  }
+  bool hasFixedVertices() const { return _fixed_vertices.hasFixedVertices(); }
 
-  HypernodeWeight totalFixedVertexWeight() const {
+  HypernodeWeight totalFixedVertexWeight() const
+  {
     return _fixed_vertices.totalFixedVertexWeight();
   }
 
-  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const
+  {
     return _fixed_vertices.fixedVertexBlockWeight(block);
   }
 
-  bool isFixed(const HypernodeID hn) const {
-    return _fixed_vertices.isFixed(hn);
-  }
+  bool isFixed(const HypernodeID hn) const { return _fixed_vertices.isFixed(hn); }
 
-  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+  PartitionID fixedVertexBlock(const HypernodeID hn) const
+  {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
-  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights)
+  {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
-  const FixedVertexSupport<DynamicGraph>& fixedVertexSupport() const {
+  const FixedVertexSupport<DynamicGraph> &fixedVertexSupport() const
+  {
     return _fixed_vertices;
   }
 
-  FixedVertexSupport<DynamicGraph> copyOfFixedVertexSupport() const {
+  FixedVertexSupport<DynamicGraph> copyOfFixedVertexSupport() const
+  {
     return _fixed_vertices.copy();
   }
 
   // ####################### Contract / Uncontract #######################
 
-  DynamicGraph contract(parallel::scalable_vector<HypernodeID>&, bool deterministic = false) {
+  DynamicGraph contract(parallel::scalable_vector<HypernodeID> &,
+                        bool deterministic = false)
+  {
     throw NonSupportedOperationException(
-      "contract(c, id) is not supported in dynamic graph");
+        "contract(c, id) is not supported in dynamic graph");
     return DynamicGraph();
   }
 
   /**!
    * Registers a contraction in the hypergraph whereas vertex u is the representative
-   * of the contraction and v its contraction partner. Several threads can call this function
-   * in parallel. The function adds the contraction of u and v to a contraction tree that determines
-   * a parallel execution order and synchronization points for all running contractions.
-   * The contraction can be executed by calling function contract(v, max_node_weight).
+   * of the contraction and v its contraction partner. Several threads can call this
+   * function in parallel. The function adds the contraction of u and v to a contraction
+   * tree that determines a parallel execution order and synchronization points for all
+   * running contractions. The contraction can be executed by calling function contract(v,
+   * max_node_weight).
    */
   bool registerContraction(const HypernodeID u, const HypernodeID v);
 
   /**!
-   * Contracts a previously registered contraction. Representative u of vertex v is looked up
-   * in the contraction tree and performed if there are no pending contractions in the subtree
-   * of v and the contractions respects the maximum allowed node weight. If (u,v) is the last
-   * pending contraction in the subtree of u then the function recursively contracts also
-   * u (if any contraction is registered). Therefore, function can return several contractions
-   * or also return an empty contraction vector.
+   * Contracts a previously registered contraction. Representative u of vertex v is looked
+   * up in the contraction tree and performed if there are no pending contractions in the
+   * subtree of v and the contractions respects the maximum allowed node weight. If (u,v)
+   * is the last pending contraction in the subtree of u then the function recursively
+   * contracts also u (if any contraction is registered). Therefore, function can return
+   * several contractions or also return an empty contraction vector.
    */
-  size_t contract(const HypernodeID v,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max());
+  size_t contract(const HypernodeID v, const HypernodeWeight max_node_weight =
+                                           std::numeric_limits<HypernodeWeight>::max());
 
   /**
-   * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
-   * in the order computed by the function createBatchUncontractionHierarchy(...).
+   * Uncontracts a batch of contractions in parallel. The batches must be uncontracted
+   * exactly in the order computed by the function createBatchUncontractionHierarchy(...).
    * The two uncontraction functions are required by the partitioned graph to update
    * gain cache values.
    */
-  void uncontract(const Batch& batch,
-                  const MarkEdgeFunc& mark_edge,
-                  const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
-                  const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC);
+  void uncontract(const Batch &batch, const MarkEdgeFunc &mark_edge,
+                  const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
+                  const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC);
 
   /**
    * Computes a batch uncontraction hierarchy. A batch is a vector of mementos
@@ -724,14 +709,16 @@ class DynamicGraph {
    * single-pin and parallel net detection. Once we process all batches of a versioned
    * batch vector, we have to restore all previously removed single-pin and parallel nets
    * in order to uncontract the next batch vector. We create for each version of the
-   * hypergraph a seperate batch uncontraction hierarchy (see createBatchUncontractionHierarchyOfVersion(...))
+   * hypergraph a seperate batch uncontraction hierarchy (see
+   * createBatchUncontractionHierarchyOfVersion(...))
    */
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t batch_size);
 
   // ! Only for testing
-  VersionedBatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
+  VersionedBatchVector createBatchUncontractionHierarchy(ContractionTree &&tree,
                                                          const size_t batch_size,
-                                                         const size_t num_versions = 1) {
+                                                         const size_t num_versions = 1)
+  {
     ASSERT(num_versions > 0);
     _version = num_versions - 1;
     _contraction_tree = std::move(tree);
@@ -739,52 +726,55 @@ class DynamicGraph {
   }
 
   // ! Only for testing
-  HypernodeID contractionTree(const HypernodeID u) const {
+  HypernodeID contractionTree(const HypernodeID u) const
+  {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return _contraction_tree.parent(u);
   }
 
   // ! Only for testing
-  HypernodeID pendingContractions(const HypernodeID u) const {
+  HypernodeID pendingContractions(const HypernodeID u) const
+  {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return _contraction_tree.pendingContractions(u);
   }
 
   // ! Only for testing
-  void decrementPendingContractions(const HypernodeID u) {
+  void decrementPendingContractions(const HypernodeID u)
+  {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     _contraction_tree.decrementPendingContractions(u);
   }
 
   // ! Only for testing
-  void sortIncidentEdges() {
-    _adjacency_array.sortIncidentEdges();
-  }
+  void sortIncidentEdges() { _adjacency_array.sortIncidentEdges(); }
 
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
-  * (Not supported.)
-  */
-  void removeEdge(const HyperedgeID) {
-    throw NonSupportedOperationException(
-      "removeEdge is not supported in dynamic graph");
-  }
-
-  /*!
-  * (Not supported.)
-  */
-  void removeLargeEdge(const HyperedgeID) {
-    throw NonSupportedOperationException(
-      "removeLargeEdge is not supported in dynamic graph");
+   * (Not supported.)
+   */
+  void removeEdge(const HyperedgeID)
+  {
+    throw NonSupportedOperationException("removeEdge is not supported in dynamic graph");
   }
 
   /*!
    * (Not supported.)
    */
-  void restoreLargeEdge(const HyperedgeID&) {
+  void removeLargeEdge(const HyperedgeID)
+  {
     throw NonSupportedOperationException(
-      "restoreLargeEdge is not supported in dynamic graph");
+        "removeLargeEdge is not supported in dynamic graph");
+  }
+
+  /*!
+   * (Not supported.)
+   */
+  void restoreLargeEdge(const HyperedgeID &)
+  {
+    throw NonSupportedOperationException(
+        "restoreLargeEdge is not supported in dynamic graph");
   }
 
   /**
@@ -794,10 +784,12 @@ class DynamicGraph {
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges();
 
   /**
-   * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
-   * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
+   * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that
+   * hes_to_restore must be exactly the same and given in the reverse order as returned by
+   * removeSinglePinAndParallelNets(...).
    */
-  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore);
+  void restoreSinglePinAndParallelNets(
+      const parallel::scalable_vector<ParallelHyperedge> &hes_to_restore);
 
   // ####################### Copy #######################
 
@@ -808,57 +800,62 @@ class DynamicGraph {
   DynamicGraph copy() const;
 
   // ! Reset internal data structure
-  void reset() {
+  void reset()
+  {
     _contraction_tree.reset();
     _adjacency_array.reset();
     _version = 0;
   }
 
   // ! Free internal data in parallel
-  void freeInternalData() {
-    _num_edges = 0;
-  }
+  void freeInternalData() { _num_edges = 0; }
 
-  void freeTmpContractionBuffer() {
+  void freeTmpContractionBuffer()
+  {
     throw NonSupportedOperationException(
-      "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
+        "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
-  void memoryConsumption(utils::MemoryTreeNode* parent) const;
+  void memoryConsumption(utils::MemoryTreeNode *parent) const;
 
   // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets();
 
- private:
+private:
   friend class DynamicGraphFactory;
-  template<typename Hypergraph>
+  template <typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph>
   friend class PartitionedGraph;
 
   // ####################### Acquiring / Releasing Ownership #######################
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const
+  {
     return _adjacency_array.numNodes();
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHypernode(const HypernodeID u) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHypernode(const HypernodeID u)
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
-    while ( !_acquired_nodes[u].compare_exchange_strong(expected, desired) ) {
+    while(!_acquired_nodes[u].compare_exchange_strong(expected, desired))
+    {
       expected = false;
     }
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHypernode(const HypernodeID u) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHypernode(const HypernodeID u)
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
     return _acquired_nodes[u].compare_exchange_strong(expected, desired);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHypernode(const HypernodeID u) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHypernode(const HypernodeID u)
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     ASSERT(_acquired_nodes[u], "Hypernode" << u << "is not acquired!");
     _acquired_nodes[u] = false;
@@ -868,7 +865,8 @@ class DynamicGraph {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
-                                                       const size_t pos = 0) const {
+                                                       const size_t pos = 0) const
+  {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.incidentEdges(u, pos);
   }
@@ -876,14 +874,16 @@ class DynamicGraph {
   // ####################### Hypernode Information #######################
 
   // ! Accessor for hypernode-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Node& hypernode(const HypernodeID u) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Node &hypernode(const HypernodeID u) const
+  {
     ASSERT(u <= numNodes(), "Hypernode" << u << "does not exist");
     return _nodes[u];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Node& hypernode(const HypernodeID u) {
-    return const_cast<Node&>(static_cast<const DynamicGraph&>(*this).hypernode(u));
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Node &hypernode(const HypernodeID u)
+  {
+    return const_cast<Node &>(static_cast<const DynamicGraph &>(*this).hypernode(u));
   }
 
   // ####################### Contract / Uncontract #######################
@@ -897,8 +897,7 @@ class DynamicGraph {
    * greater than the maximum allowed node weight) or PENDING_CONTRACTIONS (in case
    * there are some unfinished contractions in the subtree of v) is returned.
    */
-  ContractionResult contract(const HypernodeID u,
-                             const HypernodeID v,
+  ContractionResult contract(const HypernodeID u, const HypernodeID v,
                              const HypernodeWeight max_node_weight);
 
   // ! Number of removed hypernodes

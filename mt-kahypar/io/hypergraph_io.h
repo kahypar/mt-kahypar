@@ -34,30 +34,27 @@
 
 namespace mt_kahypar {
 namespace io {
-  using Hyperedge = vec<HypernodeID>;
-  using HyperedgeVector = vec<Hyperedge>;
+using Hyperedge = vec<HypernodeID>;
+using HyperedgeVector = vec<Hyperedge>;
 
-  void readHypergraphFile(const std::string& filename,
-                          HyperedgeID& num_hyperedges,
-                          HypernodeID& num_hypernodes,
-                          HyperedgeID& num_removed_single_pin_hyperedges,
-                          HyperedgeVector& hyperedges,
-                          vec<HyperedgeWeight>& hyperedges_weight,
-                          vec<HypernodeWeight>& hypernodes_weight,
-                          const bool remove_single_pin_hes = true);
+void readHypergraphFile(const std::string &filename, HyperedgeID &num_hyperedges,
+                        HypernodeID &num_hypernodes,
+                        HyperedgeID &num_removed_single_pin_hyperedges,
+                        HyperedgeVector &hyperedges,
+                        vec<HyperedgeWeight> &hyperedges_weight,
+                        vec<HypernodeWeight> &hypernodes_weight,
+                        const bool remove_single_pin_hes = true);
 
-  void readGraphFile(const std::string& filename,
-                     HyperedgeID& num_hyperedges,
-                     HypernodeID& num_hypernodes,
-                     HyperedgeVector& hyperedges,
-                     vec<HyperedgeWeight>& hyperedges_weight,
-                     vec<HypernodeWeight>& hypernodes_weight);
+void readGraphFile(const std::string &filename, HyperedgeID &num_hyperedges,
+                   HypernodeID &num_hypernodes, HyperedgeVector &hyperedges,
+                   vec<HyperedgeWeight> &hyperedges_weight,
+                   vec<HypernodeWeight> &hypernodes_weight);
 
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
-  void readPartitionFile(const std::string& filename, PartitionID* partition);
+void readPartitionFile(const std::string &filename, std::vector<PartitionID> &partition);
+void readPartitionFile(const std::string &filename, PartitionID *partition);
 
-  template<typename PartitionedHypergraph>
-  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
+template <typename PartitionedHypergraph>
+void writePartitionFile(const PartitionedHypergraph &phg, const std::string &filename);
 
-}  // namespace io
-}  // namespace mt_kahypar
+} // namespace io
+} // namespace mt_kahypar

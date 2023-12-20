@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/bitset.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
@@ -36,129 +36,133 @@ namespace mt_kahypar {
  * This class implements an iterator to enumerate all subsets of
  * the set {0, ..., n-1} of size m.
  */
-class SetEnumerator {
+class SetEnumerator
+{
 
   using Block = typename ds::StaticBitset::Block;
   static constexpr size_t BITS_PER_BLOCK = ds::StaticBitset::BITS_PER_BLOCK;
 
-  class SetIterator {
-   public:
+  class SetIterator
+  {
+  public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = const ds::StaticBitset;
-    using reference = const ds::StaticBitset&;
-    using pointer = const ds::StaticBitset*;
+    using reference = const ds::StaticBitset &;
+    using pointer = const ds::StaticBitset *;
     using difference_type = std::ptrdiff_t;
 
-    SetIterator(const size_t n,
-                const size_t m,
-                ds::Bitset& bitset,
-                const bool end) :
-      _bitset(bitset),
-      _cur_bitset(bitset.numBlocks(), bitset.data()),
-      _cur_set(m + 1, 0) {
+    SetIterator(const size_t n, const size_t m, ds::Bitset &bitset, const bool end) :
+        _bitset(bitset), _cur_bitset(bitset.numBlocks(), bitset.data()),
+        _cur_set(m + 1, 0)
+    {
       _cur_set[0] = n; // Sentinel
-      if ( !end ) {
-        for ( size_t i = 0; i < m; ++i ) {
+      if(!end)
+      {
+        for(size_t i = 0; i < m; ++i)
+        {
           _cur_set[i + 1] = m - 1 - i;
           _bitset.set(i);
         }
-      } else {
-        for ( size_t i = 1; i <= m; ++i ) {
+      }
+      else
+      {
+        for(size_t i = 1; i <= m; ++i)
+        {
           _cur_set[i] = n - i;
         }
         ++_cur_set[0];
       }
     }
 
-    const ds::StaticBitset& operator*() const {
-      return _cur_bitset;
-    }
+    const ds::StaticBitset &operator*() const { return _cur_bitset; }
 
-    SetIterator& operator++() {
+    SetIterator &operator++()
+    {
       nextSet();
       return *this;
     }
 
-    SetIterator operator++(int ) {
+    SetIterator operator++(int)
+    {
       const SetIterator res = *this;
       nextSet();
       return res;
     }
 
-    bool operator==(const SetIterator& o) const {
-      for ( size_t i = 0; i < std::min(_cur_set.size(), o._cur_set.size()); ++i) {
-        if ( _cur_set[i] != o._cur_set[i] ) {
+    bool operator==(const SetIterator &o) const
+    {
+      for(size_t i = 0; i < std::min(_cur_set.size(), o._cur_set.size()); ++i)
+      {
+        if(_cur_set[i] != o._cur_set[i])
+        {
           return false;
         }
       }
       return _cur_set.size() == o._cur_set.size();
     }
 
-    bool operator!=(const SetIterator& o) const {
-      return !operator==(o);
-    }
+    bool operator!=(const SetIterator &o) const { return !operator==(o); }
 
-   private:
-    void nextSet() {
+  private:
+    void nextSet()
+    {
       size_t i = 1;
-      for ( ; i < _cur_set.size(); ++i ) {
+      for(; i < _cur_set.size(); ++i)
+      {
         _bitset.unset(_cur_set[i]);
         ++_cur_set[i];
-        if ( _cur_set[i] < _cur_set[i - 1] ) {
+        if(_cur_set[i] < _cur_set[i - 1])
+        {
           _bitset.set(_cur_set[i]);
           break;
-        } else {
+        }
+        else
+        {
           --_cur_set[i];
         }
       }
-      if ( i < _cur_set.size() ) {
-        for ( size_t j = i - 1 ; j > 0; --j ) {
+      if(i < _cur_set.size())
+      {
+        for(size_t j = i - 1; j > 0; --j)
+        {
           _cur_set[j] = _cur_set[j + 1] + 1;
           _bitset.set(_cur_set[j]);
         }
-      } else {
+      }
+      else
+      {
         ++_cur_set[0];
       }
     }
 
-    ds::Bitset& _bitset;
+    ds::Bitset &_bitset;
     ds::StaticBitset _cur_bitset;
     vec<size_t> _cur_set;
   };
 
- public:
+public:
   using iterator = SetIterator;
   using const_iterator = const SetIterator;
 
-  explicit SetEnumerator(const size_t n, const size_t m) :
-    _n(n),
-    _m(m),
-    _bitset(n) {
+  explicit SetEnumerator(const size_t n, const size_t m) : _n(n), _m(m), _bitset(n)
+  {
     ASSERT(_m <= _n);
   }
 
-  SetEnumerator(const SetEnumerator&) = delete;
-  SetEnumerator & operator= (const SetEnumerator &) = delete;
-  SetEnumerator(SetEnumerator&&) = delete;
-  SetEnumerator & operator= (SetEnumerator &&) = delete;
+  SetEnumerator(const SetEnumerator &) = delete;
+  SetEnumerator &operator=(const SetEnumerator &) = delete;
+  SetEnumerator(SetEnumerator &&) = delete;
+  SetEnumerator &operator=(SetEnumerator &&) = delete;
 
-  iterator begin() {
-    return iterator(_n, _m, _bitset, false);
-  }
+  iterator begin() { return iterator(_n, _m, _bitset, false); }
 
-  iterator end() {
-    return iterator(_n, _m, _bitset, true);
-  }
+  iterator end() { return iterator(_n, _m, _bitset, true); }
 
-  const_iterator cbegin() {
-    return const_iterator(_n, _m, _bitset, false);
-  }
+  const_iterator cbegin() { return const_iterator(_n, _m, _bitset, false); }
 
-  const_iterator cend() {
-    return const_iterator(_n, _m, _bitset, true);
-  }
+  const_iterator cend() { return const_iterator(_n, _m, _bitset, true); }
 
- private:
+private:
   const size_t _n;
   const size_t _m;
   ds::Bitset _bitset;
@@ -169,112 +173,107 @@ class SetEnumerator {
  * of a set. The set is represented as a bitset and position of the one bits
  * marks elements contained in the set. The set contains elements from 0 to n-1.
  */
-class SubsetEnumerator {
+class SubsetEnumerator
+{
 
   using Block = typename ds::StaticBitset::Block;
 
-  class SubsetIterator {
+  class SubsetIterator
+  {
     using iterator_category = std::forward_iterator_tag;
     using value_type = const ds::StaticBitset;
-    using reference = const ds::StaticBitset&;
-    using pointer = const ds::StaticBitset*;
+    using reference = const ds::StaticBitset &;
+    using pointer = const ds::StaticBitset *;
     using difference_type = std::ptrdiff_t;
 
-   public:
-    SubsetIterator(const vec<PartitionID>& set,
-                   ds::Bitset& bitset,
-                   const bool end) :
-      _set(set),
-      _bitset(bitset),
-      _cur_mask(0),
-      _cur_subset(bitset.numBlocks(), bitset.data()) {
-      if ( !end ) {
+  public:
+    SubsetIterator(const vec<PartitionID> &set, ds::Bitset &bitset, const bool end) :
+        _set(set), _bitset(bitset), _cur_mask(0),
+        _cur_subset(bitset.numBlocks(), bitset.data())
+    {
+      if(!end)
+      {
         applyNextMask();
-      } else {
+      }
+      else
+      {
         _cur_mask = (static_cast<Block>(1) << _set.size()) - 1; // pow(2, set.size()) - 1
       }
     }
 
-    const ds::StaticBitset& operator*() const {
-      return _cur_subset;
-    }
+    const ds::StaticBitset &operator*() const { return _cur_subset; }
 
-    SubsetIterator& operator++() {
+    SubsetIterator &operator++()
+    {
       applyNextMask();
       return *this;
     }
 
-    SubsetIterator operator++(int ) {
+    SubsetIterator operator++(int)
+    {
       const SubsetIterator res = *this;
       applyNextMask();
       return res;
     }
 
-    bool operator==(const SubsetIterator& o) const {
-      return _cur_mask == o._cur_mask;
-    }
+    bool operator==(const SubsetIterator &o) const { return _cur_mask == o._cur_mask; }
 
-    bool operator!=(const SubsetIterator& o) const {
-      return !operator==(o);
-    }
+    bool operator!=(const SubsetIterator &o) const { return !operator==(o); }
 
-   private:
-    void applyNextMask() {
+  private:
+    void applyNextMask()
+    {
       ++_cur_mask;
-      for ( size_t i = 0; i < _set.size(); ++i ) {
-        if ( _cur_mask & ( 1 << i ) ) {
+      for(size_t i = 0; i < _set.size(); ++i)
+      {
+        if(_cur_mask & (1 << i))
+        {
           _bitset.set(_set[i]);
-        } else {
+        }
+        else
+        {
           _bitset.unset(_set[i]);
         }
       }
     }
 
-    const vec<PartitionID>& _set;
-    ds::Bitset& _bitset;
+    const vec<PartitionID> &_set;
+    ds::Bitset &_bitset;
     Block _cur_mask;
     ds::StaticBitset _cur_subset;
   };
 
- public:
+public:
   using iterator = SubsetIterator;
   using const_iterator = const SubsetIterator;
 
-  explicit SubsetEnumerator(const size_t n,
-                            const ds::StaticBitset& set) :
-    _set(set.popcount(), 0),
-    _subset(n) {
+  explicit SubsetEnumerator(const size_t n, const ds::StaticBitset &set) :
+      _set(set.popcount(), 0), _subset(n)
+  {
     size_t i = 0;
-    for ( const PartitionID& block : set ) {
+    for(const PartitionID &block : set)
+    {
       ASSERT(i < _set.size());
       _set[i++] = block;
     }
   }
 
-  SubsetEnumerator(const SubsetEnumerator&) = delete;
-  SubsetEnumerator & operator= (const SubsetEnumerator &) = delete;
-  SubsetEnumerator(SubsetEnumerator&&) = delete;
-  SubsetEnumerator & operator= (SubsetEnumerator &&) = delete;
+  SubsetEnumerator(const SubsetEnumerator &) = delete;
+  SubsetEnumerator &operator=(const SubsetEnumerator &) = delete;
+  SubsetEnumerator(SubsetEnumerator &&) = delete;
+  SubsetEnumerator &operator=(SubsetEnumerator &&) = delete;
 
-  iterator begin() {
-    return iterator(_set, _subset, false);
-  }
+  iterator begin() { return iterator(_set, _subset, false); }
 
-  iterator end() {
-    return iterator(_set, _subset, true);
-  }
+  iterator end() { return iterator(_set, _subset, true); }
 
-  const_iterator cbegin() {
-    return const_iterator(_set, _subset, false);
-  }
+  const_iterator cbegin() { return const_iterator(_set, _subset, false); }
 
-  const_iterator cend() {
-    return const_iterator(_set, _subset, true);
-  }
+  const_iterator cend() { return const_iterator(_set, _subset, true); }
 
- private:
+private:
   vec<PartitionID> _set;
   ds::Bitset _subset;
 };
 
-}  // namespace kahypar
+} // namespace kahypar

@@ -29,95 +29,82 @@
 #pragma once
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-class IUncoarsener {
+template <typename TypeTraits>
+class IUncoarsener
+{
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
-  public:
-    IUncoarsener(const IUncoarsener&) = delete;
-    IUncoarsener(IUncoarsener&&) = delete;
-    IUncoarsener & operator= (const IUncoarsener &) = delete;
-    IUncoarsener & operator= (IUncoarsener &&) = delete;
+public:
+  IUncoarsener(const IUncoarsener &) = delete;
+  IUncoarsener(IUncoarsener &&) = delete;
+  IUncoarsener &operator=(const IUncoarsener &) = delete;
+  IUncoarsener &operator=(IUncoarsener &&) = delete;
 
-    PartitionedHypergraph&& uncoarsen() {
-      initialize();
+  PartitionedHypergraph &&uncoarsen()
+  {
+    initialize();
 
-      while ( !isTopLevel() ) {
-        projectToNextLevelAndRefine();
-      }
-
-      rebalancing();
-
-      return movePartitionedHypergraph();
+    while(!isTopLevel())
+    {
+      projectToNextLevelAndRefine();
     }
 
-    void initialize() {
-      initializeImpl();
-    }
+    rebalancing();
 
-    bool isTopLevel() const {
-      return isTopLevelImpl();
-    }
+    return movePartitionedHypergraph();
+  }
 
-    void projectToNextLevelAndRefine() {
-      projectToNextLevelAndRefineImpl();
-    }
+  void initialize() { initializeImpl(); }
 
-    void refine() {
-      refineImpl();
-    }
+  bool isTopLevel() const { return isTopLevelImpl(); }
 
-    void rebalancing() {
-      rebalancingImpl();
-    }
+  void projectToNextLevelAndRefine() { projectToNextLevelAndRefineImpl(); }
 
-    gain_cache_t getGainCache() {
-      return getGainCacheImpl();
-    }
+  void refine() { refineImpl(); }
 
-    HyperedgeWeight getObjective() const {
-      return getObjectiveImpl();
-    }
+  void rebalancing() { rebalancingImpl(); }
 
-    void updateMetrics() {
-      updateMetricsImpl();
-    }
+  gain_cache_t getGainCache() { return getGainCacheImpl(); }
 
-    PartitionedHypergraph& currentPartitionedHypergraph() {
-      return currentPartitionedHypergraphImpl();
-    }
+  HyperedgeWeight getObjective() const { return getObjectiveImpl(); }
 
-    HypernodeID currentNumberOfNodes() const {
-      return currentNumberOfNodesImpl();
-    }
+  void updateMetrics() { updateMetricsImpl(); }
 
-    PartitionedHypergraph&& movePartitionedHypergraph() {
-      return movePartitionedHypergraphImpl();
-    }
+  PartitionedHypergraph &currentPartitionedHypergraph()
+  {
+    return currentPartitionedHypergraphImpl();
+  }
 
-    virtual ~IUncoarsener() = default;
+  HypernodeID currentNumberOfNodes() const { return currentNumberOfNodesImpl(); }
 
-  protected:
-    IUncoarsener() = default;
+  PartitionedHypergraph &&movePartitionedHypergraph()
+  {
+    return movePartitionedHypergraphImpl();
+  }
 
-  private:
-    virtual void initializeImpl() = 0;
-    virtual bool isTopLevelImpl() const = 0;
-    virtual void projectToNextLevelAndRefineImpl() = 0;
-    virtual void refineImpl() = 0;
-    virtual void rebalancingImpl() = 0;
-    virtual gain_cache_t getGainCacheImpl() = 0;
-    virtual HyperedgeWeight getObjectiveImpl() const = 0;
-    virtual void updateMetricsImpl() = 0;
-    virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;
-    virtual HypernodeID currentNumberOfNodesImpl() const = 0;
-    virtual PartitionedHypergraph&& movePartitionedHypergraphImpl() = 0;
-  };
+  virtual ~IUncoarsener() = default;
+
+protected:
+  IUncoarsener() = default;
+
+private:
+  virtual void initializeImpl() = 0;
+  virtual bool isTopLevelImpl() const = 0;
+  virtual void projectToNextLevelAndRefineImpl() = 0;
+  virtual void refineImpl() = 0;
+  virtual void rebalancingImpl() = 0;
+  virtual gain_cache_t getGainCacheImpl() = 0;
+  virtual HyperedgeWeight getObjectiveImpl() const = 0;
+  virtual void updateMetricsImpl() = 0;
+  virtual PartitionedHypergraph &currentPartitionedHypergraphImpl() = 0;
+  virtual HypernodeID currentNumberOfNodesImpl() const = 0;
+  virtual PartitionedHypergraph &&movePartitionedHypergraphImpl() = 0;
+};
 }

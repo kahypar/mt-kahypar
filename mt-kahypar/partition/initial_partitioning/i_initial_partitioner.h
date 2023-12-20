@@ -27,23 +27,22 @@
 #pragma once
 
 namespace mt_kahypar {
-class IInitialPartitioner {
- public:
-  IInitialPartitioner(const IInitialPartitioner&) = delete;
-  IInitialPartitioner(IInitialPartitioner&&) = delete;
-  IInitialPartitioner & operator= (const IInitialPartitioner &) = delete;
-  IInitialPartitioner & operator= (IInitialPartitioner &&) = delete;
+class IInitialPartitioner
+{
+public:
+  IInitialPartitioner(const IInitialPartitioner &) = delete;
+  IInitialPartitioner(IInitialPartitioner &&) = delete;
+  IInitialPartitioner &operator=(const IInitialPartitioner &) = delete;
+  IInitialPartitioner &operator=(IInitialPartitioner &&) = delete;
 
-  void partition() {
-    partitionImpl();
-  }
+  void partition() { partitionImpl(); }
 
   virtual ~IInitialPartitioner() = default;
 
- protected:
+protected:
   IInitialPartitioner() = default;
 
- private:
+private:
   virtual void partitionImpl() = 0;
 };
-}  // namespace mt_kahypar
+} // namespace mt_kahypar

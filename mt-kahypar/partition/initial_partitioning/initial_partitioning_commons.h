@@ -39,9 +39,11 @@
 
 namespace mt_kahypar {
 
-using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, false>;
+using KWayPriorityQueue =
+    kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, false>;
 using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
-using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
+using ThreadLocalFastResetFlagArray =
+    tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 
 }

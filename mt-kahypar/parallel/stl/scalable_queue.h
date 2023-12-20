@@ -34,6 +34,6 @@
 namespace mt_kahypar {
 namespace parallel {
 template <typename T>
-using scalable_queue = std::queue<T, std::deque<T, tbb::scalable_allocator<T>> >;
-}  // namespace parallel
-}  // namespace mt_kahypar
+using scalable_queue = std::queue<T, std::deque<T, tbb::scalable_allocator<T> > >;
+} // namespace parallel
+} // namespace mt_kahypar

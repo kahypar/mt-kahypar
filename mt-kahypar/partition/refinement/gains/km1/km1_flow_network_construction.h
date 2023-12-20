@@ -36,53 +36,49 @@ namespace mt_kahypar {
  * to determine the capacity of a hyperedge and whether or not the hyperedge
  * is relevant for optimizing the objective function.
  */
-struct Km1FlowNetworkConstruction {
+struct Km1FlowNetworkConstruction
+{
   // ! Capacity of the hyperedge
-  template<typename PartitionedHypergraph>
-  static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
-                                  const Context&,
-                                  const HyperedgeID he,
-                                  const PartitionID,
-                                  const PartitionID) {
+  template <typename PartitionedHypergraph>
+  static HyperedgeWeight capacity(const PartitionedHypergraph &phg, const Context &,
+                                  const HyperedgeID he, const PartitionID,
+                                  const PartitionID)
+  {
     return phg.edgeWeight(he);
   }
 
   // ! If true, then hyperedge is not relevant and can be dropped.
-  template<typename PartitionedHypergraph>
-  static bool dropHyperedge(const PartitionedHypergraph&,
-                            const HyperedgeID,
-                            const PartitionID,
-                            const PartitionID) {
+  template <typename PartitionedHypergraph>
+  static bool dropHyperedge(const PartitionedHypergraph &, const HyperedgeID,
+                            const PartitionID, const PartitionID)
+  {
     return false;
   }
 
   // ! If true, then hyperedge is connected to source.
-  template<typename PartitionedHypergraph>
-  static bool connectToSource(const PartitionedHypergraph&,
-                              const HyperedgeID,
-                              const PartitionID,
-                              const PartitionID) {
+  template <typename PartitionedHypergraph>
+  static bool connectToSource(const PartitionedHypergraph &, const HyperedgeID,
+                              const PartitionID, const PartitionID)
+  {
     return false;
   }
 
   // ! If true, then hyperedge is connected to sink.
-  template<typename PartitionedHypergraph>
-  static bool connectToSink(const PartitionedHypergraph&,
-                            const HyperedgeID,
-                            const PartitionID,
-                            const PartitionID) {
+  template <typename PartitionedHypergraph>
+  static bool connectToSink(const PartitionedHypergraph &, const HyperedgeID,
+                            const PartitionID, const PartitionID)
+  {
     return false;
   }
 
   // ! If true, then hyperedge is considered as cut edge and its
   // ! weight is added to the total cut
-  template<typename PartitionedHypergraph>
-  static bool isCut(const PartitionedHypergraph&,
-                    const HyperedgeID,
-                    const PartitionID,
-                    const PartitionID) {
+  template <typename PartitionedHypergraph>
+  static bool isCut(const PartitionedHypergraph &, const HyperedgeID, const PartitionID,
+                    const PartitionID)
+  {
     return false;
   }
 };
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar
