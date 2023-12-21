@@ -165,9 +165,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
             const bool run_until_balanced = rounds_without_improvement == max_rounds_without_improvement - 1 && was_already_balanced;
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
+            timer.start_timer("rebalance", "Rebalancing");
             const auto t0 = std::chrono::high_resolution_clock::now();
             _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
             const auto t1 = std::chrono::high_resolution_clock::now();
+            timer.stop_timer("rebalance");
             rebalancing_time += std::chrono::duration<double>
                 (t1 - t0).count();
             rebalancer_calls++;
