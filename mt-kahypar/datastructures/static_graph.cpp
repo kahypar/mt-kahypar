@@ -421,6 +421,7 @@ namespace mt_kahypar::ds {
     );
 
     hypergraph._total_weight = _total_weight;
+    hypergraph._largest_node = _largest_node;
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -435,6 +436,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_nodes = _num_removed_nodes;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._largest_node = _largest_node;
 
     tbb::parallel_invoke([&] {
       hypergraph._nodes.resize(_nodes.size());
@@ -464,6 +466,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_nodes = _num_removed_nodes;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._largest_node = _largest_node;
 
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
@@ -507,4 +510,22 @@ namespace mt_kahypar::ds {
                                          }, std::plus<>());
   }
 
+  // ! Computes the largest node weight of the hypergraph
+  void StaticGraph::computeAndSetLargestNode(parallel_tag_t) {
+    _largest_node = tbb::parallel_reduce(
+        tbb::blocked_range<HypernodeID>(ID(0), _num_nodes), 0,
+        [this](const tbb::blocked_range<HypernodeID>& range,
+               HypernodeWeight init) {
+          HypernodeWeight largest_node = init;
+          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+            if (nodeIsEnabled(hn)) {
+              largest_node = std::max(largest_node, this->_nodes[hn].weight());
+            }
+          }
+          return largest_node;
+        },
+        [](const HypernodeWeight& lhs, const HypernodeWeight& rhs) {
+          return std::max(lhs, rhs);
+        });
+  }
 } // namespace

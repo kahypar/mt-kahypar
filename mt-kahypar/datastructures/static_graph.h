@@ -464,6 +464,7 @@ class StaticGraph {
     _num_removed_nodes(0),
     _num_edges(0),
     _total_weight(0),
+    _largest_node(0),
     _nodes(),
     _edges(),
     _unique_edge_ids(),
@@ -479,6 +480,7 @@ class StaticGraph {
     _num_removed_nodes(other._num_removed_nodes),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
+    _largest_node(other._largest_node),
     _nodes(std::move(other._nodes)),
     _edges(std::move(other._edges)),
     _unique_edge_ids(std::move(other._unique_edge_ids)),
@@ -494,6 +496,7 @@ class StaticGraph {
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
     _total_weight = other._total_weight;
+    _largest_node = other._largest_node;
     _nodes = std::move(other._nodes);
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
@@ -556,8 +559,16 @@ class StaticGraph {
     return _total_weight;
   }
 
+  // ! Node weight of the largest node
+  HypernodeWeight largestNode() const {
+    return _largest_node;
+  }
+
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
+
+  // ! Computes the largest node weight of the hypergraph
+  void computeAndSetLargestNode(parallel_tag_t);
 
   // ####################### Iterators #######################
 
@@ -940,6 +951,8 @@ class StaticGraph {
   HyperedgeID _num_edges;
   // ! Total weight of the graph
   HypernodeWeight _total_weight;
+  // ! Largest node weight
+  HypernodeWeight _largest_node;
 
   // ! Nodes
   Array<Node> _nodes;

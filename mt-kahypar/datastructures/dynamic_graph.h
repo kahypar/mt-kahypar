@@ -437,11 +437,22 @@ class DynamicGraph {
     return _total_weight;
   }
 
+  // ! Node weight of the largest node
+  HypernodeWeight largestNode() const {
+    return _largest_node;
+  }
+
   // ! Recomputes the total weight of the hypergraph (parallel)
   void updateTotalWeight(parallel_tag_t);
 
   // ! Recomputes the total weight of the hypergraph (sequential)
   void updateTotalWeight();
+
+  // ! Recomputes the largest node of the hypergraph (parallel)
+  void updateLargestNode(parallel_tag_t);
+
+  // ! Recomputes the largest node of the hypergraph (sequential)
+  void updateLargestNode();
 
   // ####################### Iterators #######################
 
@@ -909,6 +920,8 @@ class DynamicGraph {
   HyperedgeID _num_edges;
   // ! Total weight of hypergraph
   HypernodeWeight _total_weight;
+  // ! Largest node weight
+  HypernodeWeight _largest_node;
   // ! Version of the hypergraph, each time we remove a single-pin and parallel nets,
   // ! we create a new version
   size_t _version;

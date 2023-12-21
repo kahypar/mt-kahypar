@@ -183,6 +183,7 @@ namespace mt_kahypar::ds {
       sort_incident_edges(graph);
     }
     graph.computeAndSetTotalNodeWeight(parallel_tag_t());
+    graph.computeAndSetLargestNode(parallel_tag_t());
     return graph;
   }
 }

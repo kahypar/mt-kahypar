@@ -138,6 +138,8 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
 
   // Compute total weight of hypergraph
   hypergraph.updateTotalWeight(parallel_tag_t());
+  // Compute largest node of hypergraph
+  hypergraph.updateLargestNode(parallel_tag_t());
   return hypergraph;
 }
 

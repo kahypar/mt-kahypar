@@ -270,6 +270,61 @@ namespace mt_kahypar {
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
+      ASSERT(static_cast<size_t>(partition.k) ==
+             partition.max_part_weights.size());
+      const HypernodeWeight max_part_weights_sum =
+          std::accumulate(partition.max_part_weights.cbegin(),
+                          partition.max_part_weights.cend(), 0);
+      double weight_fraction =
+          total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
+      HypernodeWeight perfect_part_weights_sum = 0;
+      partition.perfect_balance_part_weights.clear();
+      for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
+        const HypernodeWeight perfect_weight =
+            ceil(weight_fraction * part_weight);
+        partition.perfect_balance_part_weights.push_back(perfect_weight);
+        perfect_part_weights_sum += perfect_weight;
+      }
+
+      if (max_part_weights_sum < total_hypergraph_weight) {
+        throw InvalidInputException(
+            "Sum of individual part weights is less than the total hypergraph "
+            "weight. "
+            "Finding a valid partition is not possible.\n"
+            "Total hypergraph weight: " +
+            std::to_string(total_hypergraph_weight) +
+            "\n"
+            "Sum of part weights:     " +
+            std::to_string(max_part_weights_sum));
+      } else {
+        // To avoid rounding issues, epsilon should be calculated using the sum
+        // of the perfect part weights instead of the total hypergraph weight.
+        // See also recursive_bipartitioning_initial_partitioner
+        partition.epsilon = std::min(
+            0.99, max_part_weights_sum / static_cast<double>(std::max(
+                                             perfect_part_weights_sum, 1)) -
+                      1);
+      }
+    } else {
+      partition.perfect_balance_part_weights.clear();
+      partition.perfect_balance_part_weights.push_back(
+          ceil(total_hypergraph_weight / static_cast<double>(partition.k)));
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.perfect_balance_part_weights.push_back(
+            partition.perfect_balance_part_weights[0]);
+      }
+      partition.max_part_weights.clear();
+        partition.max_part_weights.push_back(
+            (1 + partition.epsilon) *
+            partition.perfect_balance_part_weights[0]);
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.max_part_weights.push_back(partition.max_part_weights[0]);
+      }
+    }
+  }
+
+  void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight, const HypernodeWeight max_node_weight) {
+    if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
                                                                    partition.max_part_weights.cend(), 0);
@@ -303,15 +358,24 @@ namespace mt_kahypar {
                 partition.perfect_balance_part_weights[0]);
       }
       partition.max_part_weights.clear();
-      partition.max_part_weights.push_back((1 + partition.epsilon)
-                                          * partition.perfect_balance_part_weights[0]);
+      if (coarsening.max_weight_function == MaxWeightFunction::L_kmax) {
+        partition.max_part_weights.push_back(std::max(
+            (1 + partition.epsilon) * partition.perfect_balance_part_weights[0],
+            static_cast<double> (partition.perfect_balance_part_weights[0] + max_node_weight)));
+            std::cout << "max_node_weight: " << max_node_weight << std::endl;
+            std::cout << "max_part_weights[0]: " << partition.max_part_weights[0] << std::endl;
+      } else {
+        partition.max_part_weights.push_back((1 + partition.epsilon)
+                                            * partition.perfect_balance_part_weights[0]);
+      }
       for (PartitionID part = 1; part != partition.k; ++part) {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }
     }
   }
 
-  void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
+  void Context::setupContractionLimit(
+      const HypernodeWeight total_hypergraph_weight) {
     // Setup contraction limit
     if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =

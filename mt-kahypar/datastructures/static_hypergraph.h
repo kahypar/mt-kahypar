@@ -416,6 +416,7 @@ class StaticHypergraph {
     _num_pins(0),
     _total_degree(0),
     _total_weight(0),
+    _largest_node(0),
     _hypernodes(),
     _incident_nets(),
     _hyperedges(),
@@ -437,6 +438,7 @@ class StaticHypergraph {
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
+    _largest_node(other._largest_node),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
@@ -458,6 +460,7 @@ class StaticHypergraph {
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
+    _largest_node = other._largest_node;
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
@@ -525,8 +528,16 @@ class StaticHypergraph {
     return _total_weight;
   }
 
+  // ! Node weight of the largest node
+  HypernodeWeight largestNode() const {
+    return _largest_node;
+  }
+
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
+
+  // ! Computes the largest node weight of the hypergraph
+  void computeAndSetLargestNode(parallel_tag_t);
 
   // ####################### Iterators #######################
 
@@ -991,6 +1002,8 @@ class StaticHypergraph {
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
   HypernodeWeight _total_weight;
+  // ! Largest node weight
+  HypernodeWeight _largest_node;
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;

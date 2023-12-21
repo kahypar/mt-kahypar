@@ -326,6 +326,9 @@ class Context {
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
+  void setupPartWeights(const HypernodeWeight total_hypergraph_weight,
+                        const HypernodeWeight max_node_weight);
+
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);
 
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);

@@ -494,6 +494,7 @@ namespace mt_kahypar::ds {
     }
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
+    hypergraph._largest_node = _largest_node;
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -512,6 +513,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
+    hypergraph._largest_node = _largest_node;
 
     tbb::parallel_invoke([&] {
       hypergraph._hypernodes.resize(_hypernodes.size());
@@ -549,6 +551,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
+    hypergraph._largest_node = _largest_node;
 
     hypergraph._hypernodes.resize(_hypernodes.size());
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
@@ -596,4 +599,19 @@ namespace mt_kahypar::ds {
                                          }, std::plus<>());
   }
 
+  // ! Computes the largest node weight of the hypergraph
+  void StaticHypergraph::computeAndSetLargestNode(parallel_tag_t) {
+    _largest_node = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
+                                         [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+                                           HypernodeWeight weight = init;
+                                           for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                                             if (nodeIsEnabled(hn)) {
+                                               weight = std::max(weight, this->_hypernodes[hn].weight());
+                                             }
+                                           }
+                                           return weight;
+                                         }, [](const HypernodeWeight& lhs, const HypernodeWeight& rhs) {
+                                           return std::max(lhs, rhs);
+                                         });
+  }
 } // namespace

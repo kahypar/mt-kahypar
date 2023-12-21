@@ -85,6 +85,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
     });
     // Compute total weight of graph
     graph.updateTotalWeight(parallel_tag_t());
+    graph.updateLargestNode(parallel_tag_t());
   }, [&] {
     graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
     if (stable_construction_of_incident_edges) {
@@ -99,6 +100,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
 
   // Compute total weight of the graph
   graph.updateTotalWeight(parallel_tag_t());
+  graph.updateLargestNode(parallel_tag_t());
   return graph;
 }
 

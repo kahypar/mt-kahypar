@@ -59,7 +59,7 @@ namespace mt_kahypar {
     context.partition.large_hyperedge_size_threshold = std::max(hypergraph.initialNumNodes() *
                                                                 context.partition.large_hyperedge_size_threshold_factor, 100.0);
     context.sanityCheck(target_graph);
-    context.setupPartWeights(hypergraph.totalWeight());
+    context.setupPartWeights(hypergraph.totalWeight(), hypergraph.largestNode());
     context.setupContractionLimit(hypergraph.totalWeight());
     context.setupThreadsPerFlowSearch();
 

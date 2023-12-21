@@ -66,6 +66,36 @@ void DynamicHypergraph::updateTotalWeight() {
   _total_weight += _removed_degree_zero_hn_weight;
 }
 
+// ! Recomputes the largest node of the hypergrph (parallel)
+void DynamicHypergraph::updateLargestNode(parallel_tag_t) {
+  _largest_node = tbb::parallel_reduce(
+      tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
+      [this](const tbb::blocked_range<HypernodeID>& range,
+             HypernodeWeight init) {
+        HypernodeWeight largest_node = init;
+        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+          if (nodeIsEnabled(hn)) {
+            largest_node =
+                std::max(largest_node, this->_hypernodes[hn].weight());
+          }
+        }
+        return largest_node;
+      },
+      [](HypernodeWeight lhs, HypernodeWeight rhs) {
+        return std::max(lhs, rhs);
+      });
+}
+
+// ! Recomputes the largest node of the hypergraph (sequential)
+void DynamicHypergraph::updateLargestNode() {
+  _largest_node = 0;
+  for ( const HypernodeID& hn : nodes() ) {
+    if ( nodeIsEnabled(hn) ) {
+      _largest_node = std::max(_largest_node, nodeWeight(hn));
+    }
+  }
+}
+
 /**!
  * Registers a contraction in the hypergraph whereas vertex u is the representative
  * of the contraction and v its contraction partner. Several threads can call this function
@@ -395,6 +425,7 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._largest_node = _largest_node;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
@@ -454,6 +485,7 @@ DynamicHypergraph DynamicHypergraph::copy() const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._largest_node = _largest_node;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
