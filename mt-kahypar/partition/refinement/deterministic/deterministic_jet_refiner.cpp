@@ -38,6 +38,7 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 
 #include <tbb/parallel_reduce.h>
+#include <chrono>
 
 namespace mt_kahypar {
 
@@ -46,11 +47,19 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     const vec<HypernodeID>&,
     Metrics& best_metrics, const double) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+    auto& robert = utils::Utilities::instance().getRobert(_context.utility_id);
     Metrics current_metrics = best_metrics;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const HyperedgeWeight input_quality = best_metrics.quality;
     bool was_already_balanced = metrics::isBalanced(phg, _context);
-    const bool top_level = (phg.initialNumNodes() == _top_level_num_nodes);
+    _rebalancer.t_initRebalancer = 0.0;
+    _rebalancer.t_updateImbalance = 0.0;
+    _rebalancer.t_clear = 0.0;
+    _rebalancer.t_gain = 0.0;
+    _rebalancer.t_copy = 0.0;
+    _rebalancer.t_sort = 0.0;
+    _rebalancer.t_find = 0.0;
+    _rebalancer.t_exe = 0.0;
 
     resizeDataStructuresForCurrentK();
 
@@ -95,6 +104,8 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     size_t rounds_without_improvement = 0;
     const size_t max_rounds = _context.refinement.deterministic_refinement.jet.fixed_n_iterations;
     const size_t max_rounds_without_improvement = _context.refinement.deterministic_refinement.jet.num_iterations;
+    double rebalancing_time = 0.0;
+    size_t rebalancer_calls = 0;
     for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
 
         if (_current_partition_is_best) {
@@ -153,18 +164,13 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         if (!metrics::isBalanced(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
             const bool run_until_balanced = rounds_without_improvement == max_rounds_without_improvement - 1 && was_already_balanced;
-            if (top_level) {
-                timer.start_timer("top_level_rebalance", "Top Level Rebalance");
-            } else {
-                timer.start_timer("rebalance", "Rebalance");
-            }
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
+            const auto t0 = std::chrono::high_resolution_clock::now();
             _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
-            if (top_level) {
-                timer.stop_timer("top_level_rebalance");
-            } else {
-                timer.stop_timer("rebalance");
-            }
+            const auto t1 = std::chrono::high_resolution_clock::now();
+            rebalancing_time += std::chrono::duration<double>
+                (t1 - t0).count();
+            rebalancer_calls++;
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
         }
         timer.start_timer("reb_quality", "Quality after Rebalancing");
@@ -190,7 +196,16 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         }
         DBG << "[JET] Finished iteration " << i << " with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
     }
-
+    robert.rebalancing_time.push_back(rebalancing_time / 1000000);
+    robert.rebalancer_calls.push_back(rebalancer_calls);
+    robert.t_initRebalancer.push_back(_rebalancer.t_initRebalancer / 1000000);
+    robert.t_updateImbalance.push_back(_rebalancer.t_updateImbalance / 1000000);
+    robert.t_clear.push_back(_rebalancer.t_clear / 1000000);
+    robert.t_gain.push_back(_rebalancer.t_gain / 1000000);
+    robert.t_copy.push_back(_rebalancer.t_copy / 1000000);
+    robert.t_sort.push_back(_rebalancer.t_sort / 1000000);
+    robert.t_find.push_back(_rebalancer.t_find / 1000000);
+    robert.t_exe.push_back(_rebalancer.t_exe / 1000000);
     phg.resetEdgeSynchronization();
     if (!_current_partition_is_best) {
         DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
@@ -199,8 +214,6 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         } else {
             rollbackToBestPartition<false>(phg);
         }
-        timer.start_timer("reb_quality", "Quality after Rebalancing");
-        timer.stop_timer("reb_quality");
     }
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));

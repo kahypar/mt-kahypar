@@ -59,28 +59,34 @@ template <typename GraphAndGainTypes>
 bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
   Metrics& best_metrics,
   bool run_until_balanced) {
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  timer.start_timer("init_rebalancer", "Initialize Rebalancer");
+  auto t0 = std::chrono::high_resolution_clock::now();
+
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
   if (_max_part_weights == nullptr) {
     _max_part_weights = &_context.partition.max_part_weights[0];
   }
-  auto& a = utils::Utilities::instance().getRobert(_context.utility_id);
-  double imbalance_to_fix = metrics::imbalance(phg, _context) - _context.partition.epsilon;
-  a.imbalances[0].push_back(imbalance_to_fix);
-  size_t round = 1;
   _gain_computation.reset();
   initializeDataStructures(phg);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  timer.stop_timer("init_rebalancer");
+  t_initRebalancer += std::chrono::duration<double>
+    (t1 - t0).count();
   size_t iteration = 0;
   while (_num_imbalanced_parts > 0 && iteration < ABSOLUTE_MAX_ROUNDS && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
     HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
+    timer.start_timer("update_imbalance", "Update Imbalance");
+    t0 = std::chrono::high_resolution_clock::now();
+
     updateImbalance(phg);
+    t1 = std::chrono::high_resolution_clock::now();
+    timer.stop_timer("update_imbalance");
+    t_updateImbalance += std::chrono::duration<double>
+      (t1 - t0).count();
     ++iteration;
-    imbalance_to_fix = metrics::imbalance(phg, _context) - _context.partition.epsilon;
-    if (imbalance_to_fix > 0) {
-      a.imbalances[round].push_back(imbalance_to_fix);
-    }
-    ++round;
   }
   if (!phg.is_graph) {
     Gain delta = _gain_computation.delta();
@@ -103,13 +109,20 @@ template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::updateImbalance(const PartitionedHypergraph& phg) {
   _num_imbalanced_parts = 0;
   _num_valid_targets = 0;
-  for (PartitionID part = 0; part < _context.partition.k; ++part) { // TODO: Not worth parallelizing?!
+  tbb::parallel_for(0, _context.partition.k, [&](const PartitionID& part) {
     if (imbalance(phg, part) > 0) {
       ++_num_imbalanced_parts;
     } else if (isValidTarget(phg, part, 0)) {
       ++_num_valid_targets;
     }
-  }
+  });
+  // for (PartitionID part = 0; part < _context.partition.k; ++part) { // TODO: Not worth parallelizing?!
+  //   if (imbalance(phg, part) > 0) {
+  //     ++_num_imbalanced_parts;
+  //   } else if (isValidTarget(phg, part, 0)) {
+  //     ++_num_valid_targets;
+  //   }
+  // }
 }
 
 template <typename GraphAndGainTypes>
@@ -163,13 +176,21 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  timer.start_timer("clear", "Clear Tmp moves");
+  auto t0 = std::chrono::high_resolution_clock::now();
+
   for (auto& moves : tmp_potential_moves) {
     moves.clear_parallel();
   }
-
+  auto t1 = std::chrono::high_resolution_clock::now();
+  timer.stop_timer("clear");
+  t_clear += std::chrono::duration<double>
+    (t1 - t0).count();
   // calculate gain and target for each node in a overweight part
   // group moves by source part
   timer.start_timer("gain_computation", "Gain Computation");
+  t0 = std::chrono::high_resolution_clock::now();
+
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
@@ -177,30 +198,50 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       tmp_potential_moves[from].stream(computeGainAndTargetPart(phg, hn, true));
     }
   });
+  t1 = std::chrono::high_resolution_clock::now();
   timer.stop_timer("gain_computation");
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
-    //for (size_t i = 0; i < _moves.size(); ++i) {
-      // timer.start_timer("copy_moves", "Copy Moves");
+  t_gain += std::chrono::duration<double>
+    (t1 - t0).count();
+  //tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+  for (size_t i = 0; i < _moves.size(); ++i) {
+    timer.start_timer("copy_moves", "Copy Moves");
+    t0 = std::chrono::high_resolution_clock::now();
+
     _moves[i] = tmp_potential_moves[i].copy_parallel();
-    // timer.stop_timer("copy_moves");
+    t1 = std::chrono::high_resolution_clock::now();
+    timer.stop_timer("copy_moves");
+    t_copy += std::chrono::duration<double>
+      (t1 - t0).count();
     if (_moves[i].size() > 0) {
       // sort the moves from each overweight part by priority
-      // timer.start_timer("sorting", "Sorting");
+      timer.start_timer("sorting", "Sorting");
+      t0 = std::chrono::high_resolution_clock::now();
+
       tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
-      // timer.stop_timer("sorting");
+      t1 = std::chrono::high_resolution_clock::now();
+      timer.stop_timer("sorting");
+      t_sort += std::chrono::duration<double>
+        (t1 - t0).count();
       // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
-      // timer.start_timer("find_moves", "Find Moves");
+      timer.start_timer("find_moves", "Find Moves");
+      t0 = std::chrono::high_resolution_clock::now();
+
       _move_weights[i].resize(_moves[i].size());
       tbb::parallel_for(0UL, _moves[i].size(), [&](const size_t j) {
         _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
       });
       parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].end(), _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
       const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].end(), phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
-      // timer.stop_timer("find_moves");
+      t1 = std::chrono::high_resolution_clock::now();
+      timer.stop_timer("find_moves");
+      t_find += std::chrono::duration<double>
+        (t1 - t0).count();
 
-      // timer.start_timer("exe_moves", "Execute Moves");
+      timer.start_timer("exe_moves", "Execute Moves");
+      t0 = std::chrono::high_resolution_clock::now();
+
       if (phg.is_graph) {
         tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
           const auto move = _moves[i][j];
@@ -212,9 +253,12 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
           changeNodePart<false>(phg, move.hn, i, move.to, false);
         });
       }
-      //timer.stop_timer("exe_moves");
+      t1 = std::chrono::high_resolution_clock::now();
+      timer.stop_timer("exe_moves");
+      t_exe += std::chrono::duration<double>
+        (t1 - t0).count();
     }
-  });
+  }//);
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file

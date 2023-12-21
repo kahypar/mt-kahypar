@@ -42,12 +42,28 @@ class Utilities {
   static constexpr bool debug = false;
 
   struct Robert {
-    Robert(): imbalances(30) {
-      for (auto& imb : imbalances) {
-        imb.reserve(5000);
-      }
+    Robert() : rebalancing_time(), rebalancer_calls(), t_initRebalancer(), t_updateImbalance(), t_clear(), t_gain(), t_copy(), t_sort(), t_find(), t_exe() {
+      rebalancing_time.reserve(5000);
+      rebalancer_calls.reserve(5000);
+      t_initRebalancer.reserve(5000);
+      t_updateImbalance.reserve(5000);
+      t_clear.reserve(5000);
+      t_gain.reserve(5000);
+      t_copy.reserve(5000);
+      t_sort.reserve(5000);
+      t_find.reserve(5000);
+      t_exe.reserve(5000);
     }
-    parallel::scalable_vector<parallel::scalable_vector<double>> imbalances;
+    parallel::scalable_vector<double> rebalancing_time;
+    parallel::scalable_vector<size_t> rebalancer_calls;
+    parallel::scalable_vector<double> t_initRebalancer;
+    parallel::scalable_vector<double> t_updateImbalance;
+    parallel::scalable_vector<double> t_clear;
+    parallel::scalable_vector<double> t_gain;
+    parallel::scalable_vector<double> t_copy;
+    parallel::scalable_vector<double> t_sort;
+    parallel::scalable_vector<double> t_find;
+    parallel::scalable_vector<double> t_exe;
   };
 
   struct UtilityObjects {

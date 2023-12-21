@@ -40,6 +40,14 @@ namespace mt_kahypar {
 class IRebalancer : public IRefiner {
 
 public:
+  double t_initRebalancer;
+  double t_updateImbalance;
+  double t_clear;
+  double t_gain;
+  double t_copy;
+  double t_sort;
+  double t_find;
+  double t_exe;
   virtual ~IRebalancer() = default;
 
   bool refineAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,

@@ -88,6 +88,9 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("apply_moves") << sep;
   // rebalancing
   s << timer.get("rebalance") << sep;
+  s << timer.get("init_rebalancer") << sep;
+  s << timer.get("update_imbalance") << sep;
+  s << timer.get("clear") << sep;
   s << timer.get("gain_computation") << sep;
   s << timer.get("copy_moves") << sep;
   s << timer.get("sorting") << sep;
@@ -96,26 +99,19 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("reb_quality") << sep;
 
   auto& a = utils::Utilities::instance().getRobert(context.utility_id);
-  for (auto& imbalanceRound : a.imbalances) {
-    std::sort(imbalanceRound.begin(), imbalanceRound.end());
-    auto min_imbalances = imbalanceRound.size() > 0 ? imbalanceRound[0] : -1;
-    auto max_imbalances = imbalanceRound.size() > 0 ? imbalanceRound[imbalanceRound.size() - 1] : -1;
-    s << max_imbalances << sep;
-    s << min_imbalances << sep;
-    auto range = tbb::blocked_range<size_t>(UL(0), imbalanceRound.size());
-    auto accum = [&](const tbb::blocked_range<size_t>& r, const double& init) {
-      double result = init;
-      for (size_t i = r.begin(); i < r.end(); ++i) {
-        result += imbalanceRound[i];
-      }
-      return result;
-    };
-    const double sum = tbb::parallel_reduce(range, 0.0, accum, std::plus<>());
-    double avg_imbalances = imbalanceRound.size() > 0 ? sum / imbalanceRound.size() : -1;
-    s << avg_imbalances << sep;
-    auto median_imbalances = imbalanceRound.size() > 0 ? imbalanceRound[imbalanceRound.size() / 2] : -1;
-    s << median_imbalances << sep;
+  for (size_t i = 0; i < a.rebalancer_calls.size(); ++i) {
+    s << a.rebalancer_calls[a.rebalancer_calls.size() - 1 - i] << sep;
+    s << a.rebalancing_time[a.rebalancing_time.size() - 1 - i] << sep;
+    s << a.t_initRebalancer[a.t_initRebalancer.size() - 1 - i] << sep;
+    s << a.t_updateImbalance[a.t_updateImbalance.size() - 1 - i] << sep;
+    s << a.t_clear[a.t_clear.size() - 1 - i] << sep;
+    s << a.t_gain[a.t_gain.size() - 1 - i] << sep;
+    s << a.t_copy[a.t_copy.size() - 1 - i] << sep;
+    s << a.t_sort[a.t_sort.size() - 1 - i] << sep;
+    s << a.t_find[a.t_find.size() - 1 - i] << sep;
+    s << a.t_exe[a.t_exe.size() - 1 - i] << sep;
   }
+
   return s.str();
 }
 
