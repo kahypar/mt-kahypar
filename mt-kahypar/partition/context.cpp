@@ -362,8 +362,6 @@ namespace mt_kahypar {
         partition.max_part_weights.push_back(std::max(
             (1 + partition.epsilon) * partition.perfect_balance_part_weights[0],
             static_cast<double> (partition.perfect_balance_part_weights[0] + max_node_weight)));
-            std::cout << "max_node_weight: " << max_node_weight << std::endl;
-            std::cout << "max_part_weights[0]: " << partition.max_part_weights[0] << std::endl;
       } else {
         partition.max_part_weights.push_back((1 + partition.epsilon)
                                             * partition.perfect_balance_part_weights[0]);
@@ -391,36 +389,19 @@ namespace mt_kahypar {
   }
 
   void Context::setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
-    double hypernode_weight_fraction =
-        coarsening.max_allowed_weight_multiplier
-        / coarsening.contraction_limit;
-    switch (coarsening.max_weight_function) {
-      case MaxWeightFunction::L_max:
-      case MaxWeightFunction::L_n:
-        {
-          HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
-          for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
-            min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
-          }
-          coarsening.max_allowed_node_weight =
-                  std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
-          coarsening.max_allowed_node_weight =
-                  std::min(coarsening.max_allowed_node_weight, min_block_weight);
-          break;
-        }
-      case MaxWeightFunction::L_kmax:
-        {
-          HypernodeWeight max_block_weight = std::numeric_limits<HypernodeWeight>::min();
-          for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
-            max_block_weight = std::max(max_block_weight, partition.max_part_weights[part_id]);
-          }
-          coarsening.max_allowed_node_weight = 
-              std::max(hypernode_weight_fraction * total_hypergraph_weight, hypernode_weight_fraction + max_block_weight);
-          break;
-        }
-      case MaxWeightFunction::UNDEFINED:
-        break;
+    HypernodeWeight min_block_weight =
+        std::numeric_limits<HypernodeWeight>::max();
+    for (PartitionID part_id = 0; part_id < partition.k; ++part_id) {
+      min_block_weight =
+          std::min(min_block_weight, partition.max_part_weights[part_id]);
     }
+
+    double hypernode_weight_fraction =
+        coarsening.max_allowed_weight_multiplier / coarsening.contraction_limit;
+    coarsening.max_allowed_node_weight =
+        std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+    coarsening.max_allowed_node_weight =
+        std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
   void Context::sanityCheck(const TargetGraph* target_graph) {
