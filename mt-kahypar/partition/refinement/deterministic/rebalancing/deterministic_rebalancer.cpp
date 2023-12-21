@@ -41,6 +41,7 @@
 #include "mt-kahypar/utils/cast.h"
 
 #include <tbb/parallel_sort.h>
+#include "external_tools/parlaylib/include/parlay/primitives.h"
 
 namespace mt_kahypar {
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
@@ -180,7 +181,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   auto t0 = std::chrono::high_resolution_clock::now();
 
   for (auto& moves : tmp_potential_moves) {
-    moves.clear_parallel();
+    moves.clear_sequential();
   }
   auto t1 = std::chrono::high_resolution_clock::now();
   timer.stop_timer("clear");
@@ -195,7 +196,10 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      tmp_potential_moves[from].stream(computeGainAndTargetPart(phg, hn, true));
+      const auto& triple = computeGainAndTargetPart(phg, hn, true);
+      if (from != triple.to && triple.to != kInvalidPartition) {
+        tmp_potential_moves[from].stream(triple);
+      }
     }
   });
   t1 = std::chrono::high_resolution_clock::now();
@@ -216,10 +220,12 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       // sort the moves from each overweight part by priority
       timer.start_timer("sorting", "Sorting");
       t0 = std::chrono::high_resolution_clock::now();
-
-      tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
+      // tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      //   return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+      // });
       t1 = std::chrono::high_resolution_clock::now();
       timer.stop_timer("sorting");
       t_sort += std::chrono::duration<double>
