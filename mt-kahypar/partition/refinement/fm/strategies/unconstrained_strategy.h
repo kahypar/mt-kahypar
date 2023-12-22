@@ -31,7 +31,6 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/local_gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/local_unconstrained_strategy.h"
 
-
 namespace mt_kahypar {
 
 template<typename GraphAndGainTypes>

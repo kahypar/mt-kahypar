@@ -25,20 +25,19 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <set>
-
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
+#include <set>
+
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
+#include "mt-kahypar/partition/factories.h" // TODO removing this could make compilation a lot faster
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
-  using ds::StreamingVector;
 
   template<typename GraphAndGainTypes>
   MultiTryKWayFM<GraphAndGainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,

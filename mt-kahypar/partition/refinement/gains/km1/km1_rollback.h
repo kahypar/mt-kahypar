@@ -29,7 +29,6 @@
 #include <algorithm>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 

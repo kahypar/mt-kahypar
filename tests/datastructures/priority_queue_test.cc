@@ -24,16 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
 
 #include <functional>
 #include <random>
 
-#include "gmock/gmock.h"
-
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/priority_queue.h"
-
-
 
 using ::testing::Test;
 

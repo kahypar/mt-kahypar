@@ -26,9 +26,9 @@
 
 #pragma once
 
+#include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
-#include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
 

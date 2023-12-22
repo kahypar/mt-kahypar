@@ -24,16 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <functional>
-#include <random>
-
-
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 
 using ::testing::Test;
 

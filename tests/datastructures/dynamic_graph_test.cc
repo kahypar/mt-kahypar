@@ -25,15 +25,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <atomic>
 
-#include "mt-kahypar/definitions.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
-#include "mt-kahypar/utils/randomize.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 namespace mt_kahypar {
 namespace ds {

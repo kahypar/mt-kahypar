@@ -26,15 +26,16 @@
 
 #include "gtest/gtest.h"
 
-#include <vector>
-#include <unordered_map>
-#include <set>
 #include <cstring>
 #include <fstream>
+#include <set>
+#include <unordered_map>
+#include <vector>
+
+#include "mt-kahypar/io/csv_output.h"
+#include "mt-kahypar/io/sql_plottools_serializer.h"
 
 #include "tests/definitions.h"
-#include "mt-kahypar/io/sql_plottools_serializer.h"
-#include "mt-kahypar/io/csv_output.h"
 
 using ::testing::Test;
 

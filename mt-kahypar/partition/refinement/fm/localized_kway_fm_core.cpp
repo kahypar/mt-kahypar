@@ -27,10 +27,10 @@
 
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/local_gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/local_unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 
 namespace mt_kahypar {
 

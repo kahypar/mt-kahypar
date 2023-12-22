@@ -26,26 +26,24 @@
 
 #pragma once
 
-#include <string>
-
 #include "tbb/parallel_for.h"
-#include "tbb/parallel_sort.h"
 #include "tbb/parallel_scan.h"
+#include "tbb/parallel_sort.h"
 
 #include "include/libmtkahypartypes.h"
 
 #include "kahypar-resources/meta/mandatory.h"
+
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/nlevel_vertex_pair_rater.h"
-#include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 template <class TypeTraits = Mandatory,

@@ -27,13 +27,13 @@
 
 #include "local_moving_modularity.h"
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/utils/floating_point_comparisons.h"
-#include "mt-kahypar/parallel/stl/thread_locals.h"
-
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
+
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/utils/floating_point_comparisons.h"
+#include "mt-kahypar/utils/randomize.h"
+
 
 namespace mt_kahypar::metrics {
 template<typename Hypergraph>

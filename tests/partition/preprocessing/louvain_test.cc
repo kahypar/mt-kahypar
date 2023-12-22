@@ -24,14 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
-#include "mt-kahypar/io/hypergraph_factory.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

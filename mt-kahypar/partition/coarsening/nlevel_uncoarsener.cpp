@@ -29,10 +29,9 @@
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/progress_bar.h"
 
 namespace mt_kahypar {
 

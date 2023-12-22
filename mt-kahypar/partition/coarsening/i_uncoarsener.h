@@ -28,8 +28,6 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {

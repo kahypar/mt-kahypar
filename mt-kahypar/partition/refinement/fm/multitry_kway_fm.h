@@ -30,13 +30,12 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/context.h"
-
-#include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/i_rebalancer.h"
-#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
 

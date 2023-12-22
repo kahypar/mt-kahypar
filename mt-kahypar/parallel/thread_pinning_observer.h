@@ -27,10 +27,10 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <thread>
 #include <mutex>
 #include <sstream>
+#include <thread>
+#include <unordered_map>
 
 #ifdef __linux__
 #include <sched.h>
@@ -44,7 +44,6 @@
 #undef __TBB_ARENA_OBSERVER
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {

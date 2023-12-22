@@ -25,18 +25,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
+
 #include <atomic>
 
-#include "gmock/gmock.h"
-
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 
 #include "tests/definitions.h"
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_graph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
-#include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
 

@@ -24,13 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+
 #include <algorithm>
 #include <limits>
 
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
-
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 namespace mt_kahypar {
   template<typename L, typename R>

@@ -24,15 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
 
 using ::testing::Test;
 

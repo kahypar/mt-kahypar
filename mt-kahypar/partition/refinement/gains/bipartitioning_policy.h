@@ -26,14 +26,11 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
-
 
 struct BipartitioningPolicy {
   static bool useCutNetSplitting(const GainPolicy policy) {

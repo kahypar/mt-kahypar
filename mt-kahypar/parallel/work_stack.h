@@ -32,6 +32,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {

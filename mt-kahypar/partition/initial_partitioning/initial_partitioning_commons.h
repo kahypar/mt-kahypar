@@ -31,9 +31,9 @@
 #include "kahypar-resources/datastructure/kway_priority_queue.h"
 #pragma GCC diagnostic pop
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
-
 #include "tbb/enumerable_thread_specific.h"
+
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 

@@ -26,24 +26,24 @@
 
 #pragma once
 
+#include "include/libmtkahypartypes.h"
+
 #include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/typelist.h"
 
-#include "include/libmtkahypartypes.h"
-#include "mt-kahypar/macros.h"
-
+#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_graph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 

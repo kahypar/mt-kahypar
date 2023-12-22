@@ -24,17 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
-
-#include <atomic>
+#include "gtest/gtest.h"
 
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
 
 using ::testing::Test;
 

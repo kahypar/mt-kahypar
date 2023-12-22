@@ -32,8 +32,8 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
   static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> > register_ ## policy_class( \

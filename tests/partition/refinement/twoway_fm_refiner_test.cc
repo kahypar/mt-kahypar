@@ -24,15 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
-#include "mt-kahypar/utils/randomize.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

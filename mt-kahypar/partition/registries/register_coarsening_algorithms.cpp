@@ -30,16 +30,15 @@
 #include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #endif
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
-
 
 namespace mt_kahypar {
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,

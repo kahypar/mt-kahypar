@@ -24,12 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 
 using ::testing::Test;
 

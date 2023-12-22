@@ -29,8 +29,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <stack>
-#include <vector>
 
 #include "tbb/enumerable_thread_specific.h"
 
@@ -38,9 +36,8 @@
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
-
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 template <typename ScorePolicy = Mandatory,

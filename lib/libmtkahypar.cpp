@@ -26,24 +26,24 @@
  ******************************************************************************/
 
 #include "include/libmtkahypar.h"
-#include "include/libmtkahypartypes.h"
-#include "include/helper_functions.h"
 
 #include "tbb/parallel_for.h"
 
+#include "include/helper_functions.h"
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/partitioner_facade.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/conversion.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/parallel/tbb_initializer.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
+#include "mt-kahypar/utils/randomize.h"
 
 #ifndef MT_KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"

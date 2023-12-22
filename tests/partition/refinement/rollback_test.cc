@@ -24,21 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <functional>
-#include <random>
-
-#include "gmock/gmock.h"
-
-#include "mt-kahypar/macros.h"
-
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-
-#include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
 

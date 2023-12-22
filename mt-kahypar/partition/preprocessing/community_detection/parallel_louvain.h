@@ -25,7 +25,6 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #pragma once
 
 #include "mt-kahypar/partition/preprocessing/community_detection/local_moving_modularity.h"

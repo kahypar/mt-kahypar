@@ -28,9 +28,8 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {

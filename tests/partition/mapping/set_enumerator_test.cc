@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/partition/mapping/set_enumerator.h"
 

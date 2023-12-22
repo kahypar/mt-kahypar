@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <vector>
 #include <numeric>
+#include <vector>
 
 template<typename IteratorT>
 class IteratorRange {

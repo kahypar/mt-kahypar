@@ -26,16 +26,13 @@
 
 #pragma once
 
-#include <string>
-
 #include "include/libmtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar::utils {
 
-void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
+inline void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
   if ( hg.hypergraph ) {
     switch ( hg.type ) {
       case STATIC_GRAPH: delete reinterpret_cast<ds::StaticGraph*>(hg.hypergraph); break;
@@ -47,7 +44,7 @@ void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
   }
 }
 
-void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
+inline void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
   if ( phg.partitioned_hg ) {
     switch ( phg.type ) {
       case MULTILEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;

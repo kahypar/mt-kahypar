@@ -28,7 +28,6 @@
 
 #include "kahypar-resources/utils/math.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 

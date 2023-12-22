@@ -28,9 +28,6 @@
 
 #include "tbb/task.h"
 
-#include "include/libmtkahypartypes.h"
-
-
 namespace mt_kahypar {
 
 template<typename TypeTraits>

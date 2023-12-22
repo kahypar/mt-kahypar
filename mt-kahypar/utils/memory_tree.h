@@ -27,8 +27,8 @@
 #pragma once
 
 #include <map>
-#include <string>
 #include <memory>
+#include <string>
 
 namespace mt_kahypar::utils {
 

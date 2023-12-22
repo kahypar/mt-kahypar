@@ -31,10 +31,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <vector>
-
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 // based on http://upcoder.com/9/fast-resettable-flag-vector/
 

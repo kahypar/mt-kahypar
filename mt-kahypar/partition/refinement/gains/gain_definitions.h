@@ -26,45 +26,43 @@
 
 #pragma once
 
-#include "kahypar-resources/meta/typelist.h"
 #include "kahypar-resources/meta/policy_registry.h"
+#include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_flow_network_construction.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
 #ifdef KAHYPAR_ENABLE_SOED_METRIC
 #include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/soed/soed_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #endif
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_rollback.h"
 #endif
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_attributed_gains_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_computation_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_computation_for_graphs.h"
 #endif
-#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #endif
 #include "mt-kahypar/macros.h"
 

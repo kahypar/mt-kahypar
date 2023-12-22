@@ -28,7 +28,6 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
-#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 

@@ -24,10 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include <mt-kahypar/parallel/work_stack.h>
 #include <thread>
+
+#include "mt-kahypar/parallel/work_stack.h"
 
 using ::testing::Test;
 

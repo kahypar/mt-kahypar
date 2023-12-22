@@ -26,12 +26,12 @@
 
 #pragma once
 
-#include <string>
 #include <sstream>
-
-#include "libmtkahypartypes.h"
+#include <string>
 
 #include "mt-kahypar/partition/context.h"
+
+#include "libmtkahypartypes.h"
 
 using namespace mt_kahypar;
 

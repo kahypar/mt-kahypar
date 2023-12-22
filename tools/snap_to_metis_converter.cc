@@ -25,13 +25,11 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 
 using namespace mt_kahypar;

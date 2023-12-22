@@ -145,6 +145,15 @@ IncludeCategories:
   - Regex: '^"mt-kahypar/utils'
     Priority: 18
     SortPriority: 6
+  - Regex: '^<libmtkahypar.h>'
+    Priority: 3
+    SortPriority: 2
+  - Regex: '^"gtest'  # C++ headers.
+    Priority: 1
+    SortPriority: 0
+  - Regex: '^"gmock'  # C++ headers.
+    Priority: 1
+    SortPriority: 0
   - Regex: '^<'  # C++ headers.
     Priority: 2
     SortPriority: 1

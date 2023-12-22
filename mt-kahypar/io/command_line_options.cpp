@@ -25,12 +25,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
 
 #include <boost/program_options.hpp>
 #ifdef _WIN32
-#include <windows.h>
 #include <process.h>
+#include <windows.h>
 #else
 #include <sys/ioctl.h>
 #endif

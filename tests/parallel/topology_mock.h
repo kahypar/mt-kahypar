@@ -28,12 +28,9 @@
 
 #include <algorithm>
 #include <hwloc.h>
-#include <numeric>
-#include <thread>
 #include <vector>
 
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace parallel {

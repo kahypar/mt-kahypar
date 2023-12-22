@@ -30,15 +30,13 @@
 
 #include <sstream>
 
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
-#include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
-#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

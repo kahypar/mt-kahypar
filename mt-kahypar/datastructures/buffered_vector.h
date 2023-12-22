@@ -28,8 +28,9 @@
 #pragma once
 
 #include <vector>
-#include <tbb/scalable_allocator.h>
-#include <tbb/enumerable_thread_specific.h>
+
+#include "tbb/enumerable_thread_specific.h"
+#include "tbb/scalable_allocator.h"
 
 namespace mt_kahypar::ds {
 

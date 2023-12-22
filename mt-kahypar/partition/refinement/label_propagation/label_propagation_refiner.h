@@ -33,10 +33,9 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 
 namespace mt_kahypar {

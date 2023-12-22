@@ -324,4 +324,4 @@ class Context {
 std::ostream & operator<< (std::ostream& str, const Context& context);
 // clang-format on
 
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

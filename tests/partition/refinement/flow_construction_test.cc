@@ -24,13 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;

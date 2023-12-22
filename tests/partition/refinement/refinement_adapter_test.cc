@@ -24,11 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
-#include "tests/partition/refinement/flow_refiner_mock.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
+
+#include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
 

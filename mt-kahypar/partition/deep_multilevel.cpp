@@ -34,18 +34,18 @@
 #include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/progress_bar.h"
-#include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

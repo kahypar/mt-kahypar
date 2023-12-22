@@ -27,9 +27,9 @@
 
 #pragma once
 
-#include "datastructure/flow_hypergraph.h"
-
 #include "mt-kahypar/macros.h"
+
+#include "datastructure/flow_hypergraph.h"
 
 namespace mt_kahypar {
 

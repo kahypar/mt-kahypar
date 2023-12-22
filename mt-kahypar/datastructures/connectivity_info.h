@@ -28,8 +28,8 @@
 
 #include "tbb/parallel_invoke.h"
 
-#include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
 
 namespace mt_kahypar {

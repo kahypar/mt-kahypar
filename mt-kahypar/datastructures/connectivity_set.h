@@ -27,23 +27,17 @@
 
 #pragma once
 
-#include <atomic>
-#include <type_traits>
-#include <limits>
 #include <cassert>
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
-
-#include "mt-kahypar/macros.h"
-#include "hypergraph_common.h"
 
 namespace mt_kahypar {
 namespace ds {

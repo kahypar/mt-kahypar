@@ -27,25 +27,24 @@
 
 #include "partitioner.h"
 
-#include "tbb/parallel_sort.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/multilevel.h"
-#include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
-#include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
-#include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
-#include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
-#include "mt-kahypar/utils/hypergraph_statistics.h"
-#include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
+#include "mt-kahypar/utils/timer.h"
 
 
 namespace mt_kahypar {
@@ -70,7 +69,7 @@ namespace mt_kahypar {
         const std::string type = Hypergraph::is_graph ? "graphs" : "hypergraphs";
         throw InvalidInputException(
           "We currently only support mappings of " + type + " onto target graphs with at "
-          "most " + STR(max_k) + "nodes!");
+          "most " + std::to_string(max_k) + "nodes!");
       }
 
       if ( context.mapping.largest_he_fraction > 0.0 ) {

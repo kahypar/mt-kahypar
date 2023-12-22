@@ -26,9 +26,8 @@
 
 #pragma once
 
-#include <queue>
-#include <numeric>
 #include <iostream>
+#include <queue>
 
 #include "tbb/enumerable_thread_specific.h"
 
@@ -43,9 +42,9 @@
 #include "tbb/concurrent_unordered_map.h"
 #endif
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {

@@ -24,13 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #pragma once
 
 #include "tbb/parallel_sort.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 

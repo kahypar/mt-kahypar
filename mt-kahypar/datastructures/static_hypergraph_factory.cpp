@@ -27,11 +27,10 @@
 
 #include "static_hypergraph_factory.h"
 
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_invoke.h>
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::ds {
 

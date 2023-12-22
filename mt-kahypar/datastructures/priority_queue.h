@@ -26,13 +26,12 @@
  ******************************************************************************/
 #pragma once
 
-#include <vector>
-#include <cstdint>
-#include <functional>
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <functional>
 
-#include <mt-kahypar/parallel/stl/scalable_vector.h>
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 

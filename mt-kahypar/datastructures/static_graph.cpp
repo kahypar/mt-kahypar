@@ -28,16 +28,15 @@
 
 #include "static_graph.h"
 
-#include "mt-kahypar/parallel/chunking.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/utils/memory_tree.h"
-
 #include <algorithm>
 
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_sort.h>
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
+
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/parallel/chunking.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 
 namespace mt_kahypar::ds {

@@ -29,8 +29,8 @@
 #include <atomic>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace ds {

@@ -26,13 +26,12 @@
 
 #pragma once
 
-
 #include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/utils/cast.h"
 

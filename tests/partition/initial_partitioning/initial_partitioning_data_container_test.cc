@@ -24,16 +24,17 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <atomic>
 
 #include "tbb/parallel_invoke.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
+#include "mt-kahypar/utils/utilities.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

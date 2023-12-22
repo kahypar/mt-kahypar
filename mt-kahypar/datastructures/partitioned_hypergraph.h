@@ -28,22 +28,19 @@
 #pragma once
 
 #include <atomic>
-#include <type_traits>
-#include <mutex>
 
 #include "tbb/parallel_invoke.h"
 
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_info.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
-#include "mt-kahypar/utils/range.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 

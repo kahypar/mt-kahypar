@@ -25,7 +25,6 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #include "parallel_louvain.h"
 
 #include "mt-kahypar/definitions.h"

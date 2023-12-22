@@ -28,16 +28,14 @@
 #pragma once
 
 #include <tbb/concurrent_vector.h>
-#include <tbb/parallel_for.h>
 #include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/pin_count_snapshot.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-
 
 namespace mt_kahypar {
 namespace ds {

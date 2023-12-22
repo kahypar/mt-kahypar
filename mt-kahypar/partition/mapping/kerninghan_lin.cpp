@@ -27,9 +27,8 @@
 #include "mt-kahypar/partition/mapping/kerninghan_lin.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
 

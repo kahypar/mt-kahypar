@@ -31,15 +31,14 @@
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/partitioner_facade.h"
-#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/partitioner_facade.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/utils/delete.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
 

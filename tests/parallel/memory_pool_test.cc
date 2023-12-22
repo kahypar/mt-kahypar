@@ -24,14 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
+
 #include <atomic>
 
-#include "gmock/gmock.h"
 #include "tbb/task_group.h"
 
-#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
+
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;

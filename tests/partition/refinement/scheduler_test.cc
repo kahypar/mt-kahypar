@@ -24,14 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
+
 #include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;

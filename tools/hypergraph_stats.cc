@@ -25,26 +25,21 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 
-#include "tbb/parallel_sort.h"
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
 
-#include "mt-kahypar/macros.h"
+#include "kahypar-resources/utils/math.h"
+
 #include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
-
-#include "kahypar-resources/utils/math.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;

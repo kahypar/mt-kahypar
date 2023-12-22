@@ -24,16 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <atomic>
+#include "gtest/gtest.h"
+
 #include <mt-kahypar/parallel/tbb_initializer.h>
 
-#include "gmock/gmock.h"
+#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
 

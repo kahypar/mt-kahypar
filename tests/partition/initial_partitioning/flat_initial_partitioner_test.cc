@@ -24,23 +24,22 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
-
-#include <atomic>
+#include "gtest/gtest.h"
 
 #include "tbb/parallel_invoke.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
-#include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/greedy_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pq_selection_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

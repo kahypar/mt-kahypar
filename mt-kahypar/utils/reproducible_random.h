@@ -31,7 +31,7 @@
 #include <tbb/tick_count.h>
 
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
-#include "hash.h"
+#include "mt-kahypar/utils/hash.h"
 
 namespace mt_kahypar::utils {
 

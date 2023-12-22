@@ -25,15 +25,11 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <functional>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;

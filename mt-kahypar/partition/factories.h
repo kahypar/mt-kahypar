@@ -29,16 +29,16 @@
 
 #include "kahypar-resources/meta/abstract_factory.h"
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
 

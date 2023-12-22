@@ -26,10 +26,9 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar {
 

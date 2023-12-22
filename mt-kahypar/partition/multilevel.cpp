@@ -34,22 +34,22 @@
 #include "include/libmtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
-#include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
-#include "mt-kahypar/partition/deep_multilevel.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
-#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

@@ -24,11 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "mt-kahypar/io/hypergraph_io.h"
+/*#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
-#include "tests/partition/refinement/flow_refiner_mock.h"
+#include "tests/partition/refinement/flow_refiner_mock.h"*/
 
 using ::testing::Test;
 

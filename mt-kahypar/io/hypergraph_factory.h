@@ -32,7 +32,6 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 namespace io {

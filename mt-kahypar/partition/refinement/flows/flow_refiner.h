@@ -29,19 +29,16 @@
 
 #include <tbb/concurrent_vector.h>
 
-#include "algorithm/hyperflowcutter.h"
-#include "algorithm/sequential_push_relabel.h"
-#include "algorithm/parallel_push_relabel.h"
-
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
-#include "mt-kahypar/parallel/stl/scalable_queue.h"
-#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
-#include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/utils/cast.h"
+
+#include "algorithm/hyperflowcutter.h"
+#include "algorithm/parallel_push_relabel.h"
+#include "algorithm/sequential_push_relabel.h"
 
 namespace mt_kahypar {
 

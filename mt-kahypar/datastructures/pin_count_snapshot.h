@@ -30,11 +30,8 @@
 
 #include <cmath>
 
-
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/array.h"
-
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace ds {
