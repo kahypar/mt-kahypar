@@ -127,7 +127,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::updateImbalance(const Partition
 }
 
 template <typename GraphAndGainTypes>
-rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& phg,
+void DeterministicRebalancer<GraphAndGainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& phg,
   const HypernodeID hn,
   bool non_adjacent_blocks) {
   const HypernodeWeight hn_weight = phg.nodeWeight(hn);
@@ -171,7 +171,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
   tmp_scores.clear();
   const HypernodeWeight weight = phg.nodeWeight(hn);
-  return { hn, best_target, transformGain(best_gain, weight) };
+  _gain_and_target[hn] = { transformGain(best_gain, weight), best_target };
 }
 
 template <typename  GraphAndGainTypes>
@@ -196,9 +196,10 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      const auto& triple = computeGainAndTargetPart(phg, hn, true);
-      if (from != triple.to && triple.to != kInvalidPartition) {
-        tmp_potential_moves[from].stream(triple);
+      computeGainAndTargetPart(phg, hn, true);
+      const PartitionID to = _gain_and_target[hn].second;
+      if (from != to && to != kInvalidPartition) {
+        tmp_potential_moves[from].stream(hn);
       }
     }
   });
@@ -220,8 +221,10 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       // sort the moves from each overweight part by priority
       timer.start_timer("sorting", "Sorting");
       t0 = std::chrono::high_resolution_clock::now();
-      tbb::parallel_sort(_moves[i].begin(), _moves[i].begin() + move_size, [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+      tbb::parallel_sort(_moves[i].begin(), _moves[i].begin() + move_size, [&](const HypernodeID& a, const HypernodeID& b) {
+        const float a_priority = _gain_and_target[a].first;
+        const float b_priority = _gain_and_target[b].first;
+        return a_priority < b_priority || (a_priority == b_priority && a > b);
       });
       t1 = std::chrono::high_resolution_clock::now();
       timer.stop_timer("sorting");
@@ -234,7 +237,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         _move_weights[i].resize(move_size);
       }
       tbb::parallel_for(0UL, move_size, [&](const size_t j) {
-        _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
+        _move_weights[i][j] = phg.nodeWeight(_moves[i][j]);
       });
       parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
       const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
@@ -248,13 +251,15 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
 
       if (phg.is_graph) {
         tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<true>(phg, move.hn, i, move.to, false);
+          const HypernodeID hn = _moves[i][j];
+          const PartitionID to = _gain_and_target[hn].second;
+          changeNodePart<true>(phg, hn, i, to, false);
         });
       } else {
         tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<false>(phg, move.hn, i, move.to, false);
+          const HypernodeID hn = _moves[i][j];
+          const PartitionID to = _gain_and_target[hn].second;
+          changeNodePart<false>(phg, hn, i, to, false);
         });
       }
       t1 = std::chrono::high_resolution_clock::now();

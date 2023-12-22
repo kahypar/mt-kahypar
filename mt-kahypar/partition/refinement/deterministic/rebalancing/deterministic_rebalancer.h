@@ -62,7 +62,7 @@ private:
 
 public:
 
-    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
         _context(context),
         _max_part_weights(nullptr),
         _current_k(context.partition.k),
@@ -71,10 +71,8 @@ public:
         _num_valid_targets(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k),
-        tmp_potential_moves(context.partition.k) {}
-
-    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
-        DeterministicRebalancer(num_nodes, context) {}
+        tmp_potential_moves(context.partition.k),
+        _gain_and_target(num_nodes) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -158,7 +156,7 @@ private:
             part_weight + hn_weight <= _max_part_weights[part];
     }
 
-    rebalancer::RebalancingMove computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
+    void computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
         const HypernodeID hn,
         bool non_adjacent_blocks);
 
@@ -200,9 +198,10 @@ private:
     GainComputation _gain_computation;
     PartitionID _num_imbalanced_parts;
     PartitionID _num_valid_targets;
-    parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
+    parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> _moves;
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
-    parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves;
+    parallel::scalable_vector<ds::StreamingVector<HypernodeID>> tmp_potential_moves;
+    parallel::scalable_vector<std::pair<float, PartitionID>> _gain_and_target;
     //parallel::scalable_vector<PartitionID> _part_before_round;
 
 };
