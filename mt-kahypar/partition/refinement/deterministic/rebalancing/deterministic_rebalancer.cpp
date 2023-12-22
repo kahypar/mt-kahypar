@@ -211,21 +211,18 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     timer.start_timer("copy_moves", "Copy Moves");
     t0 = std::chrono::high_resolution_clock::now();
 
-    _moves[i] = tmp_potential_moves[i].copy_parallel();
+    const size_t move_size = tmp_potential_moves[i].copy_parallel(_moves[i]);
     t1 = std::chrono::high_resolution_clock::now();
     timer.stop_timer("copy_moves");
     t_copy += std::chrono::duration<double>
       (t1 - t0).count();
-    if (_moves[i].size() > 0) {
+    if (move_size > 0) {
       // sort the moves from each overweight part by priority
       timer.start_timer("sorting", "Sorting");
       t0 = std::chrono::high_resolution_clock::now();
-      parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      tbb::parallel_sort(_moves[i].begin(), _moves[i].begin() + move_size, [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
-      // tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-      //   return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      // });
       t1 = std::chrono::high_resolution_clock::now();
       timer.stop_timer("sorting");
       t_sort += std::chrono::duration<double>
@@ -233,13 +230,14 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
       timer.start_timer("find_moves", "Find Moves");
       t0 = std::chrono::high_resolution_clock::now();
-
-      _move_weights[i].resize(_moves[i].size());
-      tbb::parallel_for(0UL, _moves[i].size(), [&](const size_t j) {
+      if (move_size > _move_weights[i].size()) {
+        _move_weights[i].resize(move_size);
+      }
+      tbb::parallel_for(0UL, move_size, [&](const size_t j) {
         _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
       });
-      parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].end(), _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
-      const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].end(), phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
+      parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
+      const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
       t1 = std::chrono::high_resolution_clock::now();
       timer.stop_timer("find_moves");
       t_find += std::chrono::duration<double>
