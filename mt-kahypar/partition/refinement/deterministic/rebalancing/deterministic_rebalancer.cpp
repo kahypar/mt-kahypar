@@ -211,7 +211,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     timer.start_timer("copy_moves", "Copy Moves");
     t0 = std::chrono::high_resolution_clock::now();
 
-    const size_t move_size = tmp_potential_moves[i].copy_parallel(_moves[i]);
+    _moves[i] = tmp_potential_moves[i].copy_parallel();
+    const size_t move_size = _moves[i].size();
     t1 = std::chrono::high_resolution_clock::now();
     timer.stop_timer("copy_moves");
     t_copy += std::chrono::duration<double>
@@ -220,7 +221,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       // sort the moves from each overweight part by priority
       timer.start_timer("sorting", "Sorting");
       t0 = std::chrono::high_resolution_clock::now();
-      tbb::parallel_sort(_moves[i].begin(), _moves[i].begin() + move_size, [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
       t1 = std::chrono::high_resolution_clock::now();
