@@ -36,6 +36,8 @@ namespace mt_kahypar {
 // Forward Declartion
 class TargetGraph;
 
+// FIXME: Formatting this would break the `sql_plottools_serializer_test`.
+// clang-format off
 struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
@@ -320,5 +322,6 @@ class Context {
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);
+// clang-format on
 
-}  // namespace mt_kahypar
+} // namespace mt_kahypar
