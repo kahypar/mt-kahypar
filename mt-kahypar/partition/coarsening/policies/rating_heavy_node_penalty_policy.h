@@ -58,8 +58,9 @@ class AdditivePenalty final : public kahypar::meta::PolicyBase {
 class ScalingAdditivePenalty final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v, const Context &context) {
-    HypernodeWeight threshold = context.coarsening.max_allowed_node_weight * context.coarsening.penalty_max_weight_factor;
-    return std::max(1, static_cast<int>(std::pow(weight_u + weight_v - threshold, context.coarsening.gamma)));
+    HypernodeWeight threshold = context.coarsening.max_allowed_node_weight *
+                                context.coarsening.penalty_max_weight_factor;
+    return std::pow(std::max(1, static_cast<int>(weight_u + weight_v - threshold)), context.coarsening.gamma);
   }
 };
 
