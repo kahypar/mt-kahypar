@@ -41,8 +41,6 @@
 #include "mt-kahypar/utils/cast.h"
 
 #include <tbb/parallel_sort.h>
-#include "external_tools/parlaylib/include/parlay/primitives.h"
-
 namespace mt_kahypar {
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
@@ -208,60 +206,20 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     (t1 - t0).count();
   //tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
   for (size_t i = 0; i < _moves.size(); ++i) {
-    timer.start_timer("copy_moves", "Copy Moves");
-    t0 = std::chrono::high_resolution_clock::now();
-
-    _moves[i] = tmp_potential_moves[i].copy_parallel();
-    const size_t move_size = _moves[i].size();
-    t1 = std::chrono::high_resolution_clock::now();
-    timer.stop_timer("copy_moves");
-    t_copy += std::chrono::duration<double>
-      (t1 - t0).count();
-    if (move_size > 0) {
-      // sort the moves from each overweight part by priority
-      timer.start_timer("sorting", "Sorting");
+    if (tmp_potential_moves[i].size() > 0) {
+      timer.start_timer("copy_moves", "Copy Moves");
       t0 = std::chrono::high_resolution_clock::now();
-      parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      });
+      _moves[i] = tmp_potential_moves[i].copy_sequential();
+      const size_t move_size = _moves[i].size();
       t1 = std::chrono::high_resolution_clock::now();
-      timer.stop_timer("sorting");
-      t_sort += std::chrono::duration<double>
+      timer.stop_timer("copy_moves");
+      t_copy += std::chrono::duration<double>
         (t1 - t0).count();
-      // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
-      timer.start_timer("find_moves", "Find Moves");
-      t0 = std::chrono::high_resolution_clock::now();
-      if (move_size > _move_weights[i].size()) {
-        _move_weights[i].resize(move_size);
-      }
-      tbb::parallel_for(0UL, move_size, [&](const size_t j) {
-        _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
-      });
-      parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
-      const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
-      t1 = std::chrono::high_resolution_clock::now();
-      timer.stop_timer("find_moves");
-      t_find += std::chrono::duration<double>
-        (t1 - t0).count();
-
-      timer.start_timer("exe_moves", "Execute Moves");
-      t0 = std::chrono::high_resolution_clock::now();
-
-      if (phg.is_graph) {
-        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<true>(phg, move.hn, i, move.to, false);
-        });
+      if (move_size > _context.refinement.deterministic_refinement.jet.sequential_rebalancing_threshold) {
+        executeRebalancerForPartParallel(phg, i, move_size, timer);
       } else {
-        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<false>(phg, move.hn, i, move.to, false);
-        });
+        executeRebalancerForPartSequential(phg, i, move_size, timer);
       }
-      t1 = std::chrono::high_resolution_clock::now();
-      timer.stop_timer("exe_moves");
-      t_exe += std::chrono::duration<double>
-        (t1 - t0).count();
     }
   }//);
 }

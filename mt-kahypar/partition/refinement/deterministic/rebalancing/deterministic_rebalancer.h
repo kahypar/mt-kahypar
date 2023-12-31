@@ -38,6 +38,9 @@
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
 
+#include "external_tools/parlaylib/include/parlay/primitives.h"
+
+
 namespace mt_kahypar {
 
 namespace rebalancer {
@@ -182,6 +185,107 @@ private:
     }
 
     void weakRebalancingRound(PartitionedHypergraph& phg);
+
+    void executeRebalancerForPartParallel(PartitionedHypergraph& phg, const size_t i, const size_t move_size, utils::Timer& timer) {
+        // sort the moves from each overweight part by priority
+        timer.start_timer("sorting", "Sorting");
+        auto t0 = std::chrono::high_resolution_clock::now();
+        parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+            return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+        });
+        auto t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("sorting");
+        t_sort += std::chrono::duration<double>
+            (t1 - t0).count();
+        // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
+        timer.start_timer("find_moves", "Find Moves");
+        t0 = std::chrono::high_resolution_clock::now();
+        size_t last_move_idx = 0;
+        if (move_size > _context.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves) {
+            if (move_size > _move_weights[i].size()) {
+                _move_weights[i].resize(move_size);
+            }
+            tbb::parallel_for(0UL, move_size, [&](const size_t j) {
+                _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
+            });
+            parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
+            last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
+        } else {
+            HypernodeWeight sum = 0;
+            for (; last_move_idx < move_size && sum <= phg.partWeight(i) - _max_part_weights[i] - 1; ++last_move_idx) {
+                sum += phg.nodeWeight(_moves[i][last_move_idx].hn);
+            }
+            --last_move_idx;
+        }
+        t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("find_moves");
+        t_find += std::chrono::duration<double>
+            (t1 - t0).count();
+
+        timer.start_timer("exe_moves", "Execute Moves");
+        t0 = std::chrono::high_resolution_clock::now();
+
+        if (phg.is_graph) {
+            tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
+                const auto move = _moves[i][j];
+                changeNodePart<true>(phg, move.hn, i, move.to, false);
+            });
+        } else {
+            tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
+                const auto move = _moves[i][j];
+                changeNodePart<false>(phg, move.hn, i, move.to, false);
+            });
+        }
+        t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("exe_moves");
+        t_exe += std::chrono::duration<double>
+            (t1 - t0).count();
+    }
+
+
+    void executeRebalancerForPartSequential(PartitionedHypergraph& phg, const size_t i, const size_t move_size, utils::Timer& timer) {
+        // sort the moves from each overweight part by priority
+        timer.start_timer("sorting", "Sorting");
+        auto t0 = std::chrono::high_resolution_clock::now();
+        std::sort(_moves[i].begin(), _moves[i].begin() + move_size, [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+            return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+        });
+        auto t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("sorting");
+        t_sort += std::chrono::duration<double>
+            (t1 - t0).count();
+        // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
+        timer.start_timer("find_moves", "Find Moves");
+        t0 = std::chrono::high_resolution_clock::now();
+        HypernodeWeight sum = 0;
+        size_t last_move_idx = 0;
+        for (; last_move_idx < move_size && sum <= phg.partWeight(i) - _max_part_weights[i] - 1; ++last_move_idx) {
+            sum += phg.nodeWeight(_moves[i][last_move_idx].hn);
+        }
+        t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("find_moves");
+        t_find += std::chrono::duration<double>
+            (t1 - t0).count();
+
+        timer.start_timer("exe_moves", "Execute Moves");
+        t0 = std::chrono::high_resolution_clock::now();
+
+        if (phg.is_graph) {
+            for (size_t j = 0; j < last_move_idx; ++j) {
+                const auto move = _moves[i][j];
+                changeNodePart<true>(phg, move.hn, i, move.to, false);
+            }
+        } else {
+            for (size_t j = 0; j < last_move_idx; ++j) {
+                const auto move = _moves[i][j];
+                changeNodePart<false>(phg, move.hn, i, move.to, false);
+            }
+        }
+        t1 = std::chrono::high_resolution_clock::now();
+        timer.stop_timer("exe_moves");
+        t_exe += std::chrono::duration<double>
+            (t1 - t0).count();
+    }
 
     bool checkPreviouslyOverweightParts(const PartitionedHypergraph& phg)const {
         for (size_t i = 0; i < _moves.size(); ++i) {
