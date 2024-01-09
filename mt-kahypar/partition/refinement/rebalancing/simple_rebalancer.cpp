@@ -40,16 +40,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/cast.h"
 
-namespace mt_kahypar {
-
-  bool improvesBalance(HypernodeWeight from, HypernodeWeight max_weights, HypernodeWeight moved_node){
-    for(int i = 0; i < mt_kahypar::dimension; i++){
-      if(from.weights[i] > max_weights.weights[i] && max_weights.weights[i] >= from.weights[i] - moved_node.weights[i]){
-        return true;
-      }
-    }
-    return false;
-  }
+namespace mt_kahypar {  
 
   template <typename GraphAndGainTypes>
   bool SimpleRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
@@ -77,7 +68,7 @@ namespace mt_kahypar {
         // TODO: This code must be optimized to work for large k
         vec<Move> moves_to_empty_blocks = repairEmptyBlocks(phg);
         for (Move& m : moves_to_empty_blocks) {
-          moveVertex(phg, m.node, m, objective_delta);
+          moveVertex(phg, m.node, {m.from, m.to, m.node, 0.0}, objective_delta);
         }
       }
 
@@ -92,16 +83,16 @@ namespace mt_kahypar {
         const PartitionID from = phg.partID(hn);
         if ( phg.isBorderNode(hn) && !phg.isFixed(hn) &&
           phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
-          Move rebalance_move = _gain.computeMaxGainMove(phg, hn, true /* rebalance move */);
+          Move_with_transformed_gain rebalance_move = _gain.computeMaxGainMove_with_transformed_gains(phg, hn, true /* rebalance move */);
           if ( rebalance_move.gain <= 0 ) {
             moveVertex(phg, hn, rebalance_move, objective_delta);
-          } else if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
+          } else if ( rebalance_move.gain != std::numeric_limits<double>::max() ) {
             move_pqs.local().pq.emplace(std::move(rebalance_move));
           } else {
             // Try to find a move to an non-adjacent block
-            rebalance_move = _gain.computeMaxGainMove(phg, hn,
+            rebalance_move = _gain.computeMaxGainMove_with_transformed_gains(phg, hn,
               true /* rebalance move */, true /* non-adjacent block */ );
-            if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
+            if ( rebalance_move.gain != std::numeric_limits<double>::max() ) {
               move_pqs.local().pq.emplace(std::move(rebalance_move));
             }
           }
@@ -153,7 +144,7 @@ namespace mt_kahypar {
           active_pqs[idx] = true;
           Gain current_global_min_pq_gain = global_pq_min_gain(false);
           while ( !pq.empty() ) {
-            Move move = pq.top();
+            Move_with_transformed_gain move = pq.top();
             min_pq_gain[idx] = move.gain;
             pq.pop();
 
@@ -166,21 +157,21 @@ namespace mt_kahypar {
 
             const PartitionID from = move.from;
             if ( phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
-              Move real_move = _gain.computeMaxGainMove(phg, move.node, true /* rebalance move */);
-              if ( real_move.gain == std::numeric_limits<Gain>::max() ) {
+              Move_with_transformed_gain real_move = _gain.computeMaxGainMove_with_transformed_gains(phg, move.node, true /* rebalance move */);
+              if ( real_move.gain == std::numeric_limits<double>::max() ) {
                 // Compute move to non-adjacent block
-                real_move = _gain.computeMaxGainMove(phg, move.node,
+                real_move = _gain.computeMaxGainMove_with_transformed_gains(phg, move.node,
                   true /* rebalance move */, true /* non-adjacent block */);
               }
               if ( real_move.gain <= move.gain ) {
                 moveVertex(phg, real_move.node, real_move, objective_delta);
-              } else if ( real_move.gain != std::numeric_limits<Gain>::max() ) {
+              } else if ( real_move.gain != std::numeric_limits<double>::max() ) {
                 pq.emplace(std::move(real_move));
               }
             }
           }
           active_pqs[idx] = false;
-          min_pq_gain[idx] = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
+          min_pq_gain[idx] = std::numeric_limits<double>::max() - MIN_PQ_GAIN_THRESHOLD;
         });
       }
 

@@ -58,8 +58,13 @@ public:
       return lhs.gain > rhs.gain || (lhs.gain == rhs.gain && lhs.node < rhs.node);
     }
   };
+  struct MoveGainComparator_t_g {
+    bool operator()(const Move_with_transformed_gain& lhs, const Move_with_transformed_gain& rhs) {
+      return lhs.gain > rhs.gain || (lhs.gain == rhs.gain && lhs.node < rhs.node);
+    }
+  };
 
-  using MovePQ = std::priority_queue<Move, vec<Move>, MoveGainComparator>;
+  using MovePQ = std::priority_queue<Move_with_transformed_gain, vec<Move_with_transformed_gain>, MoveGainComparator_t_g>;
 
   struct IndexedMovePQ {
     explicit IndexedMovePQ(const size_t idx) :
@@ -118,7 +123,7 @@ private:
   template<typename F>
   bool moveVertex(PartitionedHypergraph& phg,
                   const HypernodeID hn,
-                  const Move& move,
+                  const Move_with_transformed_gain& move,
                   const F& objective_delta) {
     ASSERT(phg.partID(hn) == move.from);
     const PartitionID from = move.from;

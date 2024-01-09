@@ -562,6 +562,21 @@ struct Move {
   }
 };
 
+struct Move_with_transformed_gain {
+  PartitionID from = kInvalidPartition;
+  PartitionID to = kInvalidPartition;
+  HypernodeID node = invalidNode;
+  double gain = static_cast<double>(invalidGain);
+
+  bool isValid() const {
+    return from != kInvalidPartition;
+  }
+
+  void invalidate() {
+    from = kInvalidPartition;
+  }
+};
+
 
 
 struct Memento {

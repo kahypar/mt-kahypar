@@ -7,5 +7,5 @@
 	"seeds":[1,2,3,4,5],
 	"objective": "km1",
 	"timelimit": 28800,
-	"multi_dim_mt_kahypar_instance_folder": "/home/konstantin/hypergraph_partitioner/graphs"
+	"multi_dim_mt_kahypar_instance_folder": "/home/konstantin/mt-kahypar/hypergraph_partitioner/graphs"
 }

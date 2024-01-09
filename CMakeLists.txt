@@ -368,8 +368,8 @@ if(NOT MSVC)
   endif()
 
   if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
+    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=undefined")
   endif()
 
   if(ENABLE_PROFILE MATCHES ON)

@@ -56,6 +56,7 @@ class GainComputationBase {
       return constructLocalTmpScores();
     }) { }
 
+
   template<typename PartitionedHypergraph>
   Move computeMaxGainMove(const PartitionedHypergraph& phg,
                           const HypernodeID hn,
@@ -121,6 +122,92 @@ class GainComputationBase {
     tmp_scores.clear();
     return best_move;
   }
+
+
+  template<typename PartitionedHypergraph>
+  Move_with_transformed_gain computeMaxGainMove_with_transformed_gains(const PartitionedHypergraph& phg,
+                          const HypernodeID hn,
+                          const bool rebalance = false,
+                          const bool consider_non_adjacent_blocks = false,
+                          const bool allow_imbalance = false) {
+    Derived* derived = static_cast<Derived*>(this);
+    RatingMap& tmp_scores = _tmp_scores.local();
+    Gain isolated_block_gain = 0;
+    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, consider_non_adjacent_blocks);
+
+    auto balance_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
+      double gain = 0.0;
+      for(int i = 0; i < dimension; i++){
+        gain += std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(to).weights[i] + 
+        phg.nodeWeight(node).weights[i] - _context.partition.max_part_weights[to].weights[i])) * _context.partition.max_part_weights_inv[to][i]
+        - std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(from).weights[i] - _context.partition.max_part_weights[from].weights[i])) * _context.partition.max_part_weights_inv[from][i];
+      }
+      return gain;
+    };
+
+    PartitionID from = phg.partID(hn);
+    Move_with_transformed_gain best_move { from, from, hn, rebalance ? std::numeric_limits<double>::max() : 0.0 };
+    HypernodeWeight hn_weight = phg.nodeWeight(hn);
+    int cpu_id = THREAD_ID;
+    utils::Randomize& rand = utils::Randomize::instance();
+    auto test_and_apply = [&](const PartitionID to,
+                              const Gain score,
+                              const bool no_tie_breaking = false) {
+      double balance = balance_gain(phg, hn, from, to);
+      if(score > 0 && balance == 0){
+        return false;
+      }
+      double score_gain = score > 0 ? -score / balance : -score * balance;
+      bool new_best_gain = balance <= 0 && ((score_gain < best_move.gain) ||
+                            (score_gain == best_move.gain &&
+                            !_disable_randomization &&
+                            (no_tie_breaking || rand.flipCoin(cpu_id))));
+      if (new_best_gain) {
+        best_move.to = to;
+        best_move.gain = score;
+        best_move.gain = score_gain;
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    for ( const auto& entry : tmp_scores ) {
+      const PartitionID to = entry.key;
+      if (from != to) {
+        const Gain score = derived->gain(entry.value, isolated_block_gain);
+        test_and_apply(to, score);
+      }
+    }
+
+    if ( consider_non_adjacent_blocks && best_move.to == from ) {
+      // This is important for our rebalancer as the last fallback strategy
+      vec<PartitionID> non_adjacent_block;
+      for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
+        if ( from != to && !tmp_scores.contains(to) ) {
+          // This block is not adjacent to the current node
+          if ( test_and_apply(to, isolated_block_gain, true /* no tie breaking */ ) ) {
+            non_adjacent_block.push_back(to);
+          }
+        }
+      }
+
+      if ( non_adjacent_block.size() > 0 ) {
+        // Choose one at random
+        const PartitionID to = non_adjacent_block[
+          rand.getRandomInt(0, static_cast<int>(non_adjacent_block.size() - 1), cpu_id)];
+        best_move.to = to;
+        best_move.gain = isolated_block_gain;
+      }
+    }
+
+    tmp_scores.clear();
+    return best_move;
+  }
+
+
+
+
 
   inline void computeDeltaForHyperedge(const SynchronizedEdgeUpdate& sync_update) {
     _deltas.local() += AttributedGains::gain(sync_update);

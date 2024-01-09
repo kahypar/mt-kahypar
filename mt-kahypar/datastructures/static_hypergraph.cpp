@@ -115,7 +115,7 @@ namespace mt_kahypar::ds {
       // Reset tmp contraction buffer
       if ( hn < num_hypernodes ) {
         hn_weights[hn] = 0;
-        tmp_hypernodes[hn] = Hypernode(mt_kahypar::NodeWeight(true));
+        tmp_hypernodes[hn] = Hypernode(true);
         tmp_num_incident_nets[hn] = 0;
       }
     });

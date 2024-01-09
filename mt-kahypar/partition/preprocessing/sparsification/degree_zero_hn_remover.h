@@ -43,7 +43,9 @@ class DegreeZeroHypernodeRemover {
  public:
   DegreeZeroHypernodeRemover(const Context& context) :
     _context(context),
-    _removed_hns() { }
+    _removed_hns() { 
+
+    }
 
   DegreeZeroHypernodeRemover(const DegreeZeroHypernodeRemover&) = delete;
   DegreeZeroHypernodeRemover & operator= (const DegreeZeroHypernodeRemover &) = delete;
@@ -71,9 +73,33 @@ class DegreeZeroHypernodeRemover {
 
   // ! Restore degree-zero vertices
   void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
-    // Sort degree-zero vertices in decreasing order of their weight
+    auto imbalance = [&](const HypernodeWeight block, const HypernodeWeight max, const HypernodeWeight nodeWeight){
+      std::pair<int, int> gain;
+      gain.first = 0;
+      gain.second = 0;
+      for(int i = 0; i < mt_kahypar::dimension; i++){
+        gain.first += std::max(0, block.weights[i] + nodeWeight.weights[i] - max.weights[i]);
+        gain.second += block.weights[i] + nodeWeight.weights[i] - max.weights[i];
+      }
+      return gain;
+    };
+    for(const HypernodeID& hn : _removed_hns){
+      std::pair<int, int> gain = imbalance(hypergraph.partWeight(0), _context.partition.max_part_weights[0], hypergraph.nodeWeight(hn));
+      PartitionID part = 0;
+      for(PartitionID p = 1; p < _context.partition.k; p++){
+        std::pair<int, int> tmp_gain = imbalance(hypergraph.partWeight(p), _context.partition.max_part_weights[p], hypergraph.nodeWeight(hn));
+        if(tmp_gain.first < gain.first || tmp_gain.first == gain.first && tmp_gain.second < gain.second){
+          gain = tmp_gain;
+          part = p;
+        }
+      }
+      hypergraph.restoreDegreeZeroHypernode(hn, part);
+
+    }
+    /* Sort degree-zero vertices in decreasing order of their weight
     tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
       [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        std::cout << lhs << " " << rhs << "\n";
         return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs)
                 || (hypergraph.nodeWeight(lhs) == hypergraph.nodeWeight(rhs) && lhs > rhs);
       });
@@ -98,7 +124,7 @@ class DegreeZeroHypernodeRemover {
         std::swap(blocks[i], blocks[i + 1]);
         ++i;
       }
-    }
+    }*/
     _removed_hns.clear();
   }
 

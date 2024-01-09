@@ -85,12 +85,6 @@ class StaticHypergraph {
       _weight(1),
       _valid(false) { }
 
-    Hypernode(NodeWeight nw) :
-      _begin(0),
-      _size(0),
-      _weight(nw),
-      _valid(false) { }
-
 
     Hypernode(const bool valid) :
       _begin(0),
@@ -899,7 +893,7 @@ class StaticHypergraph {
   // ! Accessor for hypernode-related information
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
     ASSERT(u <= _num_hypernodes, "Hypernode" << u << "does not exist");
-    return _hypernodes[u];
+    return _hypernodes[u]; 
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version

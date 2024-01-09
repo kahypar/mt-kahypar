@@ -1,7 +1,7 @@
 # Hypergraph Partitioner
-export PARTITIONER_SCRIPT_FOLDER="$HOME/hypergraph_partitioner/scripts"
+export PARTITIONER_SCRIPT_FOLDER="$HOME/mt-kahypar/hypergraph_partitioner/scripts"
 export KAHYPAR="$HOME/kahypar/build/kahypar/application/KaHyPar"
-export MT_KAHYPAR="$HOME//mt-kahypar/build/mt-kahypar/application/MtKaHyPar"
+export MT_KAHYPAR="$HOME/mt-kahypar/hypergraph_partitioner/software/MtKaHyPar"
 export PARKWAY="$HOME/hypergraph_partitioner/partitioner/parkway/bin/parkway_driver"
 export ZOLTAN="$HOME/hypergraph_partitioner/partitioner/zoltan/build/src/driver/zdrive.exe"
 export KAFFPA_OPT="$HOME/hypergraph_partitioner/partitioner/kahip_opt/deploy/kaffpa"
