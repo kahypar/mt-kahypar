@@ -392,7 +392,7 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
-      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+      //coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
 
       // disable FM until we have a deterministic version
       refinement.fm.algorithm = FMAlgorithm::do_nothing;
