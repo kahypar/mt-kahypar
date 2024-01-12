@@ -43,7 +43,7 @@ struct PartitioningParameters {
   FileFormat file_format = FileFormat::hMetis;
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
-  mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
+  mt_kahypar_partition_type_t partition_type = NULLPTR_PARTITION;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -72,15 +72,15 @@ struct PartitioningParameters {
   bool write_partition_file = false;
   bool deterministic = false;
 
-  std::string graph_filename { };
-  std::string fixed_vertex_filename { };
-  std::string graph_partition_output_folder {};
-  std::string graph_partition_filename { };
-  std::string graph_community_filename { };
-  std::string preset_file { };
+  std::string graph_filename{ };
+  std::string fixed_vertex_filename{ };
+  std::string graph_partition_output_folder{};
+  std::string graph_partition_filename{ };
+  std::string graph_community_filename{ };
+  std::string preset_file{ };
 };
 
-std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params);
+std::ostream& operator<< (std::ostream& str, const PartitioningParameters& params);
 
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
@@ -91,7 +91,7 @@ struct CommunityDetectionParameters {
   size_t num_sub_rounds_deterministic = 16;
 };
 
-std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);
+std::ostream& operator<< (std::ostream& str, const CommunityDetectionParameters& params);
 
 struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
@@ -100,7 +100,7 @@ struct PreprocessingParameters {
   CommunityDetectionParameters community_detection = { };
 };
 
-std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);
+std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params);
 
 struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
@@ -108,7 +108,7 @@ struct RatingParameters {
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
 };
 
-std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
+std::ostream& operator<< (std::ostream& str, const RatingParameters& params);
 
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
@@ -128,7 +128,7 @@ struct CoarseningParameters {
 };
 
 
-std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params);
+std::ostream& operator<< (std::ostream& str, const CoarseningParameters& params);
 
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
@@ -140,7 +140,7 @@ struct LabelPropagationParameters {
   double relative_improvement_threshold = -1.0;
 };
 
-std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
+std::ostream& operator<< (std::ostream& str, const LabelPropagationParameters& params);
 
 struct JetParameters {
   size_t num_iterations = 12;
@@ -158,9 +158,10 @@ struct JetParameters {
   double heavy_vertex_exclusion_factor = 1.5;
   double relative_deadzone_size = 1.0;
   size_t max_rebalancing_rounds = std::numeric_limits<size_t>::max();
+  size_t seq_find_rebalancing_moves = 0;
 };
 
-std::ostream & operator<< (std::ostream& str, const JetParameters& params);
+std::ostream& operator<< (std::ostream& str, const JetParameters& params);
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
@@ -242,12 +243,12 @@ struct RefinementParameters {
   size_t min_border_vertices_per_thread = 0;
 };
 
-std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);
+std::ostream& operator<< (std::ostream& str, const RefinementParameters& params);
 
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
     // Enable all initial partitioner per default
-    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
+    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) {}
 
   Mode mode = Mode::UNDEFINED;
   RefinementParameters refinement = { };
@@ -263,7 +264,7 @@ struct InitialPartitioningParameters {
   size_t population_size = 16;
 };
 
-std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
+std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
 struct MappingParameters {
   std::string target_graph_file = "";
@@ -276,7 +277,7 @@ struct MappingParameters {
   HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
 };
 
-std::ostream & operator<< (std::ostream& str, const MappingParameters& params);
+std::ostream& operator<< (std::ostream& str, const MappingParameters& params);
 
 struct SharedMemoryParameters {
   size_t original_num_threads = 1;
@@ -287,17 +288,17 @@ struct SharedMemoryParameters {
   double degree_of_parallelism = 1.0;
 };
 
-std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
+std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 class Context {
- public:
-  PartitioningParameters partition { };
-  PreprocessingParameters preprocessing { };
-  CoarseningParameters coarsening { };
-  InitialPartitioningParameters initial_partitioning { };
-  RefinementParameters refinement { };
-  MappingParameters mapping { };
-  SharedMemoryParameters shared_memory { };
+public:
+  PartitioningParameters partition{ };
+  PreprocessingParameters preprocessing{ };
+  CoarseningParameters coarsening{ };
+  InitialPartitioningParameters initial_partitioning{ };
+  RefinementParameters refinement{ };
+  MappingParameters mapping{ };
+  SharedMemoryParameters shared_memory{ };
   ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
@@ -305,7 +306,7 @@ class Context {
   size_t utility_id = std::numeric_limits<size_t>::max();
 
   Context(const bool register_utilities = true) {
-    if ( register_utilities ) {
+    if (register_utilities) {
       utility_id = utils::Utilities::instance().registerNewUtilityObjects();
     }
   }
@@ -336,10 +337,10 @@ class Context {
 
   void load_large_k_preset();
 
- private:
+private:
   void load_n_level_preset();
 };
 
-std::ostream & operator<< (std::ostream& str, const Context& context);
+std::ostream& operator<< (std::ostream& str, const Context& context);
 
 }  // namespace mt_kahypar

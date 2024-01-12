@@ -168,10 +168,6 @@ private:
         const PartitionID from,
         const PartitionID to,
         bool ensure_balanced) {
-        // it happens spuriously that from == to, not entirely sure why (possibly due to moving heavy nodes)
-        if (from == to || to == kInvalidPartition) {
-            return false;
-        }
 
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).

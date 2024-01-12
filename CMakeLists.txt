@@ -328,6 +328,8 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPARLAY_TBB")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbb")
 
   # lld is way faster than ld. If you have it, use it!
   find_program(LLD_BIN lld)

@@ -240,7 +240,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
             }
         }
     };
-    tmp_active_nodes.clear_parallel();
+    tmp_active_nodes.clear_sequential();
     // compute gain for every node 
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
         process_node(hn, [&] {tmp_active_nodes.stream(hn);});
