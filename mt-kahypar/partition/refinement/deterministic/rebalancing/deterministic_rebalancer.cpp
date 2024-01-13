@@ -147,8 +147,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
   }
 
   tmp_scores.clear();
-  const HypernodeWeight weight = phg.nodeWeight(hn);
-  return { hn, best_target, transformGain(best_gain, weight) };
+  return { hn, best_target, transformGain(best_gain, hn_weight) };
 }
 
 template <typename  GraphAndGainTypes>
