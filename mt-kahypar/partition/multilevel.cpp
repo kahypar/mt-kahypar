@@ -104,7 +104,6 @@ namespace {
       }
     }
     timer.stop_timer("coarsening");
-
     // ################## INITIAL PARTITIONING ##################
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
