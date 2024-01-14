@@ -96,7 +96,7 @@ class Km1Rollback {
     // The node move reduces the connectivity of the currently considered hyperedge if m is the last
     // node that moves out of its corresponding block, while the first node that moves into the correponding
     // block is performed strictly after m. Furthermore, the move sequence has to move all nodes out
-    // of the correspodning block (r[m.from].remaining_pins == 0).
+    // of the corresponding block (r[m.from].remaining_pins == 0).
     const bool has_benefit = r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
     return has_benefit * phg.edgeWeight(e);
   }
@@ -110,7 +110,7 @@ class Km1Rollback {
     // The node move increases the connectivity of the currently considered hyperedge if m is the
     // first node that moves into the corresponding block, while the last node that moves out of the
     // corresponding block is performed strictly before m. Furthermore, the move sequence has to move
-    // all nodes out of the correspodning block (r[m.to].remaining_pins == 0).
+    // all nodes out of the corresponding block (r[m.to].remaining_pins == 0).
     const bool has_penalty = r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
     return has_penalty * phg.edgeWeight(e);
   }

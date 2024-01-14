@@ -47,7 +47,7 @@ namespace mt_kahypar {
       Gain gain = 0;                           /** gain when using valid moves up to best_index */
       MoveID best_index = 0;                   /** local ID of first move to revert */
       HypernodeWeight heaviest_weight =
-              NodeWeight(true);   /** weight of the heaviest part */
+              NodeWeight(0);   /** weight of the heaviest part */
 
       bool operator<(const Prefix& o) const {
         return gain > o.gain ||
