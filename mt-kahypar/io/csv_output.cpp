@@ -93,9 +93,16 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("sorting") << sep;
   s << timer.get("find_moves") << sep;
   s << timer.get("exe_moves") << sep;
-  s << timer.get("reb_quality");
+  s << timer.get("reb_quality") << sep;
   utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(context.utility_id);
-
+  s << measurements.final_min_cluster_size << sep;
+  s << measurements.final_max_cluster_size << sep;
+  s << measurements.final_median_cluster_size << sep;
+  s << measurements.final_avg_cluster_size << sep;
+  s << measurements.final_cluster_count << sep;
+  s << measurements.final_num_singletons << sep;
+  s << measurements.final_num_edges << sep;
+  s << measurements.final_num_pins;
   for (size_t i = 0; i < measurements.min_cluster_size.size(); ++i) {
     s << sep << measurements.min_cluster_size[i] << sep;
     s << measurements.max_cluster_size[i] << sep;
