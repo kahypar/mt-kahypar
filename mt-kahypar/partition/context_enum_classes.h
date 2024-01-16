@@ -112,6 +112,15 @@ enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
   nlevel_coarsener,
+  deterministic_multilevel_coarsener2,
+  UNDEFINED
+};
+
+enum class NodeSelectionOrder : uint8_t {
+  weight_asc,
+  weight_desc,
+  degree_asc,
+  degree_desc,
   UNDEFINED
 };
 
@@ -241,6 +250,8 @@ LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
 
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
+
+NodeSelectionOrder nodeSelectionOrderFromString(const std::string& order);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

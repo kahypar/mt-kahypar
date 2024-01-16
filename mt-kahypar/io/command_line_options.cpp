@@ -246,6 +246,7 @@ namespace mt_kahypar {
              " - multilevel_coarsener"
              " - nlevel_coarsener"
              " - deterministic_multilevel_coarsener"
+             " - robert"
              )
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
@@ -310,7 +311,18 @@ namespace mt_kahypar {
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic coarsening.");
+             "Number of sub-rounds used for deterministic coarsening.")
+             ("c-node-order",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& order) {
+                       context.coarsening.nodeSelectionOrder = mt_kahypar::nodeSelectionOrderFromString(order);
+                     })->default_value("weight_asc"),
+             "Coarsening Algorithm:\n"
+             " - weight_asc"
+             " - weight_desc"
+             " - degree_asc"
+             " - degree_desc"
+             );
     return options;
   }
 

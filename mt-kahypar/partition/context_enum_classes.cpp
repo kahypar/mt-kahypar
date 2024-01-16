@@ -163,6 +163,7 @@ namespace mt_kahypar {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
       case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
+      case CoarseningAlgorithm::deterministic_multilevel_coarsener2: return os << "deterministic_multilevel_coarsener2";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -364,9 +365,25 @@ namespace mt_kahypar {
       return CoarseningAlgorithm::nlevel_coarsener;
     } else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
+    } else if (type == "robert") {
+      return CoarseningAlgorithm::deterministic_multilevel_coarsener2;
     }
     throw InvalidParameterException("Illegal option: " + type);
     return CoarseningAlgorithm::UNDEFINED;
+  }
+
+  NodeSelectionOrder nodeSelectionOrderFromString(const std::string& order) {
+    if (order == "weight_asc") {
+      return NodeSelectionOrder::weight_asc;
+    } else if (order == "weight_desc") {
+      return NodeSelectionOrder::weight_desc;
+    } else if (order == "degree_asc") {
+      return NodeSelectionOrder::degree_asc;
+    } else if (order == "degree_desc") {
+      return NodeSelectionOrder::degree_desc;
+    }
+    throw InvalidParameterException("Illegal option: " + order);
+    return NodeSelectionOrder::UNDEFINED;
   }
 
   HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
