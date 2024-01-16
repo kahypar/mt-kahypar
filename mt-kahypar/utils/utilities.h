@@ -48,6 +48,14 @@ struct Measurements {
   parallel::scalable_vector<size_t> eliminated_edges;
   parallel::scalable_vector<size_t> eliminated_pins;
   parallel::scalable_vector<size_t> num_singletons;
+  size_t final_min_cluster_size;
+  size_t final_max_cluster_size;
+  double final_avg_cluster_size;
+  size_t final_median_cluster_size;
+  size_t final_cluster_count;
+  size_t final_num_singletons;
+  size_t final_num_pins;
+  size_t final_num_edges;
 
 public:
   Measurements() : min_cluster_size(), max_cluster_size(), avg_cluster_size(), median_cluster_size(), cluster_count(), eliminated_edges(), eliminated_pins(),num_singletons() {
