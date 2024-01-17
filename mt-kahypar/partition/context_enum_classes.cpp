@@ -251,6 +251,7 @@ namespace mt_kahypar {
       switch (algo) {
         case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
         case RebalancingAlgorithm::advanced_rebalancer: return os << "advanced_rebalancer";
+        case RebalancingAlgorithm::md_rebalancer: return os << "md_rebalancer";
         case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
           // omit default case to trigger compiler warning for missing cases
       }
@@ -471,6 +472,8 @@ namespace mt_kahypar {
       return RebalancingAlgorithm::simple_rebalancer;
     } else if (type == "advanced_rebalancer") {
       return RebalancingAlgorithm::advanced_rebalancer;
+    } else if (type == "md_rebalancer") {
+      return RebalancingAlgorithm::md_rebalancer;
     } else if (type == "do_nothing") {
       return RebalancingAlgorithm::do_nothing;
     }

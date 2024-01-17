@@ -526,6 +526,7 @@ namespace mt_kahypar {
              "Rebalancer Algorithm:\n"
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
+             "- md_rebalancer\n"
              "- do_nothing");
     return options;
   }

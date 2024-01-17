@@ -44,6 +44,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/md_rebalancer.h"
 
 
 namespace mt_kahypar {
@@ -88,6 +89,11 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      AdvancedRebalancer,
                                      IRebalancer,
                                      kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using MDRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                               MDRebalancer,
+                               IRebalancer,
+                               kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 /*using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                  FlowRefiner,
@@ -245,6 +251,9 @@ REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
                                AdvancedRebalancerDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::md_rebalancer,
+                               MDRebalancerDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
