@@ -64,7 +64,6 @@ class GreedyInitialPartitionerBase {
         _ip_data.local_hyperedge_fast_reset_flag_array();
 
       initializeVertices();
-
       PartitionID to = kInvalidPartition;
       bool use_perfect_balanced_as_upper_bound = true;
       bool allow_overfitting = false;
@@ -99,7 +98,6 @@ class GreedyInitialPartitionerBase {
             break;
           }
         }
-
         ASSERT(hn != kInvalidHypernode);
         ASSERT(to != kInvalidPartition);
         ASSERT(to != _default_block);
@@ -107,7 +105,7 @@ class GreedyInitialPartitionerBase {
 
         if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
           if ( _default_block != kInvalidPartition ) {
-            ASSERT(hg.changeNodePart(hn, _default_block, to));
+            hg.changeNodePart(hn, _default_block, to);
           } else {
             hg.setNodePart(hn, to);
           }
@@ -117,7 +115,6 @@ class GreedyInitialPartitionerBase {
           kway_pq.disablePart(to);
         }
       }
-
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();
       _ip_data.commit(_algorithm, _rng, _tag, time);

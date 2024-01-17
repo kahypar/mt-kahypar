@@ -113,9 +113,10 @@ namespace {
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if ( context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
+        std::cout << "remove hns..\n";
         degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
       }
-
+      std::cout << "hns removed\n";
       Context ip_context(context);
       ip_context.type = ContextType::initial_partitioning;
       ip_context.refinement = context.initial_partitioning.refinement;
@@ -125,7 +126,9 @@ namespace {
         // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
         // or the deep multilevel scheme.
         ip_context.partition.verbose_output = false;
+        std::cout << "start bipart\n";
         Pool<TypeTraits>::bipartition(phg, ip_context);
+        std::cout << "end bipart\n";
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
         RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {

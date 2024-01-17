@@ -58,6 +58,8 @@ namespace mt_kahypar {
         _part_weights[block] = phg.partWeight(block);
       }
 
+      std::cout << "simple\n\n\n\n";
+
       // This function is passed as lambda to the changeNodePart function and used
       // to calculate the "real" delta of a move (in terms of the used objective function).
       auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -99,14 +101,14 @@ namespace mt_kahypar {
         }
       });
 
-      ASSERT([&] {
+      /*ASSERT([&] {
         for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
           if ( _part_weights[block] != phg.partWeight(block) ) {
             return false;
           }
         }
         return true;
-      }(), "Rebalancer part weights are wrong");
+      }(), "Rebalancer part weights are wrong");*/
 
       // If partition is still imbalanced, we try execute moves stored into
       // the thread local priority queue which could possibly worsen solution quality

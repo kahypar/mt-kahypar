@@ -114,11 +114,11 @@ struct NodeWeight {
 
   bool operator >(const NodeWeight &nw) const{
     for(int i = 0; i < dimension; i++){
-      if(weights[i] < nw.weights[i]){
-        return false;
+      if(weights[i] > nw.weights[i]){
+        return true;
       }
     }
-    return true;
+    return false;
   }
 
   bool operator <(const NodeWeight &nw) const{

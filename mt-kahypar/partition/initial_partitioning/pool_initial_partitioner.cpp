@@ -52,7 +52,6 @@ void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
     throw InvalidParameterException(
       "Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
   }
-
   int tag = 0;
   std::mt19937 rng(context.partition.seed);
   vec<IPTask> _ip_task_lists;
@@ -70,7 +69,6 @@ void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
   // Random shuffle task list to evenly schedule the initial
   // partitioning algorithms to the threads
   std::shuffle(_ip_task_lists.begin(), _ip_task_lists.end(), rng);
-
   tbb::task_group tg;
   InitialPartitioningDataContainer<TypeTraits> ip_data(hypergraph, context);
   ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);

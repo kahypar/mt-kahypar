@@ -120,7 +120,9 @@ namespace mt_kahypar {
   void MultilevelUncoarsener<TypeTraits>::rebalancingImpl() {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
+    std::cout << static_cast<int>(_context.type == ContextType::main);
     if (_context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+      std::cout << "rebalancing\n\n\n";
       const HyperedgeWeight quality_before = _current_metrics.quality;
       if (_context.partition.verbose_output) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"

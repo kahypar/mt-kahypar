@@ -79,6 +79,8 @@ option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
 option(KAHYPAR_PYTHON
   "Build the Python interface. Can be turned off in case Python is not available." ON)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined")
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)

@@ -642,6 +642,7 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
+    std::cout << "testtest\n\n\n";
 
     // Read Metis Header
     bool has_edge_weights = false;
