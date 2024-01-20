@@ -74,6 +74,26 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
       return hg.nodeWeight(a) > hg.nodeWeight(b) || (hg.nodeWeight(a) == hg.nodeWeight(b) && a < b);
     });
     break;
+  case NodeSelectionOrder::weight_t_degree_asc:
+    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
+      return hg.nodeWeight(a) * hg.nodeDegree(a) < hg.nodeWeight(b) * hg.nodeDegree(b) || (hg.nodeWeight(a) * hg.nodeDegree(a) == hg.nodeWeight(b) * hg.nodeDegree(b) && a < b);
+    });
+    break;
+  case NodeSelectionOrder::weight_t_degree_desc:
+    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
+      return hg.nodeWeight(a) * hg.nodeDegree(a) > hg.nodeWeight(b) * hg.nodeDegree(b) || (hg.nodeWeight(a) * hg.nodeDegree(a) == hg.nodeWeight(b) * hg.nodeDegree(b) && a < b);
+    });
+    break;
+  case NodeSelectionOrder::degree_d_weight_asc:
+    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
+      return hg.nodeDegree(a) / hg.nodeWeight(a) < hg.nodeDegree(b) / hg.nodeWeight(b) || (hg.nodeDegree(a) / hg.nodeWeight(a) == hg.nodeDegree(b) / hg.nodeWeight(b) && a < b);
+    });
+    break;
+  case NodeSelectionOrder::degree_d_weight_desc:
+    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
+      return hg.nodeDegree(a) / hg.nodeWeight(a) > hg.nodeDegree(b) / hg.nodeWeight(b) || (hg.nodeDegree(a) / hg.nodeWeight(a) == hg.nodeDegree(b) / hg.nodeWeight(b) && a < b);
+    });
+    break;
   case NodeSelectionOrder::UNDEFINED:
     break;
   }
@@ -188,7 +208,7 @@ void DeterministicMultilevelCoarsener2<TypeTraits>::calculatePreferredTargetClus
   for (HyperedgeID he : hg.incidentEdges(u)) {
     HypernodeID he_size = hg.edgeSize(he);
     if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
-      double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+      double he_score = static_cast<double>(hg.edgeWeight(he)) / (he_size - 1);
       for (HypernodeID v : hg.pins(he)) {
         ratings[clusters[v]] += he_score;
       }

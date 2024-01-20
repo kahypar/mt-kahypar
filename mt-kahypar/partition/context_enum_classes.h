@@ -121,6 +121,10 @@ enum class NodeSelectionOrder : uint8_t {
   weight_desc,
   degree_asc,
   degree_desc,
+  weight_t_degree_asc,
+  weight_t_degree_desc,
+  degree_d_weight_asc,
+  degree_d_weight_desc,
   UNDEFINED
 };
 

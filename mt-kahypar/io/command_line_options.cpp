@@ -322,6 +322,10 @@ namespace mt_kahypar {
              " - weight_desc"
              " - degree_asc"
              " - degree_desc"
+             " - weight_t_degree_asc"
+             " - weight_t_degree_desc"
+             " - degree_d_weight_asc"
+             " - degree_d_weight_desc"
              );
     return options;
   }
