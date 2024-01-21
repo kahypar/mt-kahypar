@@ -122,7 +122,7 @@ private:
 
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
 
-  size_t approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters);
+  size_t approveNodes(vec<HypernodeID>& clusters);
 
   HypernodeID currentNumberOfNodesImpl() const override {
     return Base::currentNumNodes();
@@ -139,6 +139,8 @@ private:
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
         &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
+
+  void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg);
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;

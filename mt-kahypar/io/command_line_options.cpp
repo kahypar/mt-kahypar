@@ -310,7 +310,10 @@ namespace mt_kahypar {
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic coarsening.");
+             "Number of sub-rounds used for deterministic coarsening.")
+            ("c-resolve-swaps",
+             po::value<bool>(&context.coarsening.det_resolve_swaps)->value_name("<bool>")->default_value(true),
+             "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.");
     return options;
   }
 

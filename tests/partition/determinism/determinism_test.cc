@@ -86,6 +86,7 @@ public:
     context.preprocessing.community_detection.min_vertex_move_fraction = 0.01;
 
     // coarsening
+    context.coarsening.det_resolve_swaps = true;
     context.coarsening.num_sub_rounds_deterministic = 3;
     context.coarsening.contraction_limit = 320;
     context.coarsening.max_allowed_node_weight = 30;
