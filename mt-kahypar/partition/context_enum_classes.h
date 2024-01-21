@@ -128,6 +128,13 @@ enum class NodeSelectionOrder : uint8_t {
   UNDEFINED
 };
 
+enum class SwapResolutionStrategy : uint8_t {
+  stay,
+  to_smaller,
+  to_larger,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -197,49 +204,53 @@ enum class SteinerTreeFlowValuePolicy : uint8_t {
   UNDEFINED
 };
 
-std::ostream & operator<< (std::ostream& os, const Type& type);
+std::ostream& operator<< (std::ostream& os, const Type& type);
 
-std::ostream & operator<< (std::ostream& os, const FileFormat& type);
+std::ostream& operator<< (std::ostream& os, const FileFormat& type);
 
-std::ostream & operator<< (std::ostream& os, const InstanceType& type);
+std::ostream& operator<< (std::ostream& os, const InstanceType& type);
 
-std::ostream & operator<< (std::ostream& os, const PresetType& type);
+std::ostream& operator<< (std::ostream& os, const PresetType& type);
 
-std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type);
+std::ostream& operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type);
 
-std::ostream & operator<< (std::ostream& os, const ContextType& type);
+std::ostream& operator<< (std::ostream& os, const ContextType& type);
 
-std::ostream & operator<< (std::ostream& os, const Mode& mode);
+std::ostream& operator<< (std::ostream& os, const Mode& mode);
 
-std::ostream & operator<< (std::ostream& os, const Objective& objective);
+std::ostream& operator<< (std::ostream& os, const Objective& objective);
 
-std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
+std::ostream& operator<< (std::ostream& os, const GainPolicy& type);
 
-std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
+std::ostream& operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
-std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
+std::ostream& operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
 
-std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
+std::ostream& operator<< (std::ostream& os, const NodeSelectionOrder& order);
 
-std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
+std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strategy);
 
-std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
+std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
 
-std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const RatingFunction& func);
 
-std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
+std::ostream& operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
+std::ostream& operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
+std::ostream& operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
+
+std::ostream& operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
+
+std::ostream& operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
 
 Mode modeFromString(const std::string& mode);
 
@@ -256,6 +267,8 @@ SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::str
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 
 NodeSelectionOrder nodeSelectionOrderFromString(const std::string& order);
+
+SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

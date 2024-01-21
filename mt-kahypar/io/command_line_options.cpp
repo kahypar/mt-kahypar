@@ -317,7 +317,7 @@ namespace mt_kahypar {
                      [&](const std::string& order) {
                        context.coarsening.nodeSelectionOrder = mt_kahypar::nodeSelectionOrderFromString(order);
                      })->default_value("weight_asc"),
-             "Coarsening Algorithm:\n"
+             "Node order:\n"
              " - weight_asc"
              " - weight_desc"
              " - degree_asc"
@@ -326,6 +326,16 @@ namespace mt_kahypar {
              " - weight_t_degree_desc"
              " - degree_d_weight_asc"
              " - degree_d_weight_desc"
+             )
+             ("c-swap-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.coarsening.swapStrategy = mt_kahypar::swapResolutionStrategyFromString(strategy);
+                     })->default_value("stay"),
+             "Swap Resultion strategy:\n"
+             " - stay"
+             " - to_smaller"
+             " - to_larger"
              );
     return options;
   }

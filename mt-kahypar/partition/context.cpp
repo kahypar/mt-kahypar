@@ -114,6 +114,8 @@ namespace mt_kahypar {
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
     str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     str << "  Number of subrounds (deterministic):" << params.num_sub_rounds_deterministic << std::endl;
+    str << "  Node Selection Order:               " << params.nodeSelectionOrder << std::endl;
+    str << "  Swap Resoultion Strategy:           " << params.swapStrategy << std::endl;
     str << std::endl << params.rating;
     return str;
   }

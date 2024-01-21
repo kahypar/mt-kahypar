@@ -48,15 +48,14 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     propositions[u] = u;
     clusters[u] = u;
   });
-      const size_t num_edges_before = hg.initialNumEdges();
-    const size_t num_pins_before = hg.initialNumPins();
+  const size_t num_edges_before = hg.initialNumEdges();
+  const size_t num_pins_before = hg.initialNumPins();
 
   permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
   for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(
       sub_round, config.num_buckets, config.num_buckets_per_sub_round);
     size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-
     // each vertex finds a cluster it wants to join
     tbb::parallel_for(first, last, [&](size_t pos) {
       const HypernodeID u = permutation.at(pos);
@@ -64,6 +63,52 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         calculatePreferredTargetCluster(u, clusters);
       }
     });
+
+    switch (_context.coarsening.swapStrategy) {
+    case SwapResolutionStrategy::stay:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        // std::cout << V(last) << std::endl;
+      // for (size_t pos = first; pos < last; pos++) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        //std::cout << V(pos) << ", " << V(u) << "-->" << V(cluster_u) << "-->" << V(cluster_v) <<  ", " << V(propositions.size()) << ", " << V(last) << std::endl;
+        if (u < cluster_u && u != cluster_u && u == cluster_v) {
+          propositions[u] = u;
+          propositions[cluster_u] = cluster_u;
+          //opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          //opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u != cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_larger:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u&& u != cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+        }
+      });
+      break;
+    default:
+      break;
+    }
+
 
     tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
 

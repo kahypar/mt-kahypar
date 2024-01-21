@@ -170,6 +170,33 @@ std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   return os << static_cast<uint8_t>(algo);
 }
 
+std::ostream& operator<< (std::ostream& os, const NodeSelectionOrder& order) {
+  switch (order) {
+  case NodeSelectionOrder::weight_asc: return os << "weight_asc";
+  case NodeSelectionOrder::weight_desc: return os << "weight_desc";
+  case NodeSelectionOrder::degree_asc: return os << "degree_asc";
+  case NodeSelectionOrder::degree_desc: return os << "degree_desc";
+  case NodeSelectionOrder::degree_d_weight_asc: return os << "degree_d_weight_asc";
+  case NodeSelectionOrder::degree_d_weight_desc: return os << "degree_d_weight_desc";
+  case NodeSelectionOrder::weight_t_degree_asc: return os << "weight_t_degree_asc";
+  case NodeSelectionOrder::weight_t_degree_desc: return os << "weight_t_degree_desc";
+  case NodeSelectionOrder::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(order);
+}
+
+std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strategy) {
+  switch (strategy) {
+  case SwapResolutionStrategy::stay: return os << "stay";
+  case SwapResolutionStrategy::to_smaller: return os << "to_smaller";
+  case SwapResolutionStrategy::to_larger: return os << "to_larger";
+  case SwapResolutionStrategy::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
   case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -392,6 +419,18 @@ NodeSelectionOrder nodeSelectionOrderFromString(const std::string& order) {
   }
   throw InvalidParameterException("Illegal option: " + order);
   return NodeSelectionOrder::UNDEFINED;
+}
+
+SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy) {
+  if (strategy == "stay") {
+    return SwapResolutionStrategy::stay;
+  } else if (strategy == "to_smaller") {
+    return SwapResolutionStrategy::to_smaller;
+  } else if (strategy == "to_larger") {
+    return SwapResolutionStrategy::to_larger;
+  }
+  throw InvalidParameterException("Illegal option: " + strategy);
+  return SwapResolutionStrategy::UNDEFINED;
 }
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
