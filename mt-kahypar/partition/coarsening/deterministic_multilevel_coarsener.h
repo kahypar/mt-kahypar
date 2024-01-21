@@ -140,6 +140,8 @@ private:
         &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
 
+  void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg);
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;

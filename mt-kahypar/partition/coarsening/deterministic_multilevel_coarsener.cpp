@@ -50,51 +50,51 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     clusters[u] = u;
   });
 
-  permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
-  for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-    auto [first_bucket, last_bucket] = parallel::chunking::bounds(
-      sub_round, config.num_buckets, config.num_buckets_per_sub_round);
-    size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-
-    // each vertex finds a cluster it wants to join
-    tbb::parallel_for(first, last, [&](size_t pos) {
-      const HypernodeID u = permutation.at(pos);
-      if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
-        calculatePreferredTargetCluster(u, clusters);
-      }
-    });
-
-    tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
-
-    // already approve if we can grant all requests for proposed cluster
-    // otherwise insert to shared vector so that we can group vertices by cluster
-    tbb::parallel_for(first, last, [&](size_t pos) {
-      HypernodeID u = permutation.at(pos);
-      HypernodeID target = propositions[u];
-      if (target != u) {
-        if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
-          // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-          if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-            num_contracted_nodes.local() += 1;
-          }
-          clusters[u] = target;
-          cluster_weight[target] = opportunistic_cluster_weight[target];
-        } else {
-          nodes_in_too_heavy_clusters.push_back_buffered(u);
+  {
+    permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
+    for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+      auto [first_bucket, last_bucket] = parallel::chunking::bounds(
+        sub_round, config.num_buckets, config.num_buckets_per_sub_round);
+      size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
+      // each vertex finds a cluster it wants to join
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+          calculatePreferredTargetCluster(u, clusters);
         }
+      });
+
+      handleNodeSwaps(first, last, hg);
+
+      tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+      // already approve if we can grant all requests for proposed cluster
+      // otherwise insert to shared vector so that we can group vertices by cluster
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        HypernodeID u = permutation.at(pos);
+        HypernodeID target = propositions[u];
+        if (target != u) {
+          if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+              num_contracted_nodes.local() += 1;
+            }
+            clusters[u] = target;
+            cluster_weight[target] = opportunistic_cluster_weight[target];
+          } else {
+            nodes_in_too_heavy_clusters.push_back_buffered(u);
+          }
+        }
+      });
+
+      num_nodes -= num_contracted_nodes.combine(std::plus<>());
+      nodes_in_too_heavy_clusters.finalize();
+      if (nodes_in_too_heavy_clusters.size() > 0) {
+        num_nodes -= approveVerticesInTooHeavyClusters(clusters);
+        nodes_in_too_heavy_clusters.clear();
       }
-    });
-
-    num_nodes -= num_contracted_nodes.combine(std::plus<>());
-    nodes_in_too_heavy_clusters.finalize();
-
-    if (nodes_in_too_heavy_clusters.size() > 0) {
-      num_nodes -= approveVerticesInTooHeavyClusters(clusters);
     }
 
-    nodes_in_too_heavy_clusters.clear();
   }
-
   timer.stop_timer("coarsening_pass");
   ++pass;
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
@@ -204,6 +204,53 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyCl
 
   return num_contracted_nodes.combine(std::plus<>());
 }
+
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg) {
+  auto handle_all_swaps = [&](auto func) {
+    tbb::parallel_for(first, last, [&](size_t pos) {
+      const HypernodeID u = permutation.at(pos);
+      const HypernodeID v = propositions[u];
+      if (u < v && u == propositions[v]) {
+        func(u, v);
+      }
+    });
+  };
+
+  switch (_context.coarsening.det_swap_strategy) {
+    case SwapResolutionStrategy::stay:
+      handle_all_swaps([&](HypernodeID u, HypernodeID v) {
+        propositions[u] = u;
+        propositions[v] = v;
+        opportunistic_cluster_weight[v] -= hg.nodeWeight(u);
+        opportunistic_cluster_weight[u] -= hg.nodeWeight(v);
+      });
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      handle_all_swaps([&](HypernodeID u, HypernodeID v) {
+        const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[v] ? u : v;
+        const HypernodeID source = target == u ? v : u;
+        propositions[u] = target;
+        propositions[v] = target;
+        opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+      });
+      break;
+    case SwapResolutionStrategy::to_larger:
+      handle_all_swaps([&](HypernodeID u, HypernodeID v) {
+        const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[v] ? u : v;
+        const HypernodeID source = target == u ? v : u;
+        propositions[u] = target;
+        propositions[v] = target;
+        opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+      });
+      break;
+    case SwapResolutionStrategy::ignore:
+      break;
+    default:
+      throw InvalidParameterException("Illegal option for clustering swap resolution!");
+  }
+}
+
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)
 
