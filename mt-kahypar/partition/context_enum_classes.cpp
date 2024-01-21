@@ -169,6 +169,18 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strategy) {
+    switch (strategy) {
+      case SwapResolutionStrategy::stay: return os << "stay";
+      case SwapResolutionStrategy::to_smaller: return os << "to_smaller";
+      case SwapResolutionStrategy::to_larger: return os << "to_larger";
+      case SwapResolutionStrategy::ignore: return os << "ignore";
+      case SwapResolutionStrategy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(strategy);
+  }
+
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -383,6 +395,20 @@ namespace mt_kahypar {
     #endif
     throw InvalidParameterException("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
+  }
+
+  SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy) {
+    if (strategy == "stay") {
+      return SwapResolutionStrategy::stay;
+    } else if (strategy == "to_smaller") {
+      return SwapResolutionStrategy::to_smaller;
+    } else if (strategy == "to_larger") {
+      return SwapResolutionStrategy::to_larger;
+    } else if (strategy == "ignore") {
+      return SwapResolutionStrategy::ignore;
+    }
+    throw InvalidParameterException("Illegal option: " + strategy);
+    return SwapResolutionStrategy::UNDEFINED;
   }
 
   AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {

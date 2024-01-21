@@ -115,6 +115,14 @@ enum class CoarseningAlgorithm : uint8_t {
   UNDEFINED
 };
 
+enum class SwapResolutionStrategy : uint8_t {
+  stay,
+  to_smaller,
+  to_larger,
+  ignore,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -212,6 +220,8 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
 
+std::ostream & operator<< (std::ostream& os, const SwapResolutionStrategy& strategy);
+
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
@@ -241,6 +251,8 @@ LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
 
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
+
+SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

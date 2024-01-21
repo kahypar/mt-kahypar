@@ -310,7 +310,18 @@ namespace mt_kahypar {
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic coarsening.");
+             "Number of sub-rounds used for deterministic coarsening.")
+             ("c-swap-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.coarsening.swapStrategy = mt_kahypar::swapResolutionStrategyFromString(strategy);
+                     })->default_value("ignore"),
+             "Swap Resultion strategy:\n"
+             " - stay"
+             " - to_smaller"
+             " - to_larger"
+             " - ignore"
+             );
     return options;
   }
 

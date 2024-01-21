@@ -55,7 +55,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(
       sub_round, config.num_buckets, config.num_buckets_per_sub_round);
     size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-
     // each vertex finds a cluster it wants to join
     tbb::parallel_for(first, last, [&](size_t pos) {
       const HypernodeID u = permutation.at(pos);
@@ -63,6 +62,52 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         calculatePreferredTargetCluster(u, clusters);
       }
     });
+    switch (_context.coarsening.swapStrategy) {
+    case SwapResolutionStrategy::stay:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          propositions[u] = u;
+          propositions[cluster_u] = cluster_u;
+          opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_larger:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u&& u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      break;
+    default:
+      break;
+    }
+
 
     tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
