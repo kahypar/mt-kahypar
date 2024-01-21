@@ -63,21 +63,17 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         calculatePreferredTargetCluster(u, clusters);
       }
     });
-
     switch (_context.coarsening.swapStrategy) {
     case SwapResolutionStrategy::stay:
       tbb::parallel_for(first, last, [&](size_t pos) {
-        // std::cout << V(last) << std::endl;
-      // for (size_t pos = first; pos < last; pos++) {
         const HypernodeID u = permutation.at(pos);
         const HypernodeID cluster_u = propositions[u];
         const HypernodeID cluster_v = propositions[cluster_u];
-        //std::cout << V(pos) << ", " << V(u) << "-->" << V(cluster_u) << "-->" << V(cluster_v) <<  ", " << V(propositions.size()) << ", " << V(last) << std::endl;
-        if (u < cluster_u && u != cluster_u && u == cluster_v) {
+        if (u < cluster_u && u == cluster_v) {
           propositions[u] = u;
           propositions[cluster_u] = cluster_u;
-          //opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
-          //opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+          opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
         }
       });
       break;
@@ -86,10 +82,12 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         const HypernodeID u = permutation.at(pos);
         const HypernodeID cluster_u = propositions[u];
         const HypernodeID cluster_v = propositions[cluster_u];
-        if (u < cluster_u && u != cluster_u && u == cluster_v) {
+        if (u < cluster_u && u == cluster_v) {
           const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
           propositions[u] = target;
           propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
         }
       });
       break;
@@ -98,10 +96,12 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         const HypernodeID u = permutation.at(pos);
         const HypernodeID cluster_u = propositions[u];
         const HypernodeID cluster_v = propositions[cluster_u];
-        if (u < cluster_u&& u != cluster_u && u == cluster_v) {
+        if (u < cluster_u&& u == cluster_v) {
           const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
           propositions[u] = target;
           propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
         }
       });
       break;
