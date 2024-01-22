@@ -191,6 +191,7 @@ std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strate
   case SwapResolutionStrategy::stay: return os << "stay";
   case SwapResolutionStrategy::to_smaller: return os << "to_smaller";
   case SwapResolutionStrategy::to_larger: return os << "to_larger";
+  case SwapResolutionStrategy::ignore: return os << "ignore";
   case SwapResolutionStrategy::UNDEFINED: return os << "UNDEFINED";
     // omit default case to trigger compiler warning for missing cases
   }
