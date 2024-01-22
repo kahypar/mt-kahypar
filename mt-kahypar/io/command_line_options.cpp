@@ -331,11 +331,12 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& strategy) {
                        context.coarsening.swapStrategy = mt_kahypar::swapResolutionStrategyFromString(strategy);
-                     })->default_value("stay"),
+                     })->default_value("ignore"),
              "Swap Resultion strategy:\n"
              " - stay"
              " - to_smaller"
              " - to_larger"
+             " - ignore"
              );
     return options;
   }

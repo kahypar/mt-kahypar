@@ -428,6 +428,8 @@ SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strat
     return SwapResolutionStrategy::to_smaller;
   } else if (strategy == "to_larger") {
     return SwapResolutionStrategy::to_larger;
+  } else if (strategy == "ignore") {
+    return SwapResolutionStrategy::ignore;
   }
   throw InvalidParameterException("Illegal option: " + strategy);
   return SwapResolutionStrategy::UNDEFINED;

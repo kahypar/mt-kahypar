@@ -132,6 +132,7 @@ enum class SwapResolutionStrategy : uint8_t {
   stay,
   to_smaller,
   to_larger,
+  ignore,
   UNDEFINED
 };
 
