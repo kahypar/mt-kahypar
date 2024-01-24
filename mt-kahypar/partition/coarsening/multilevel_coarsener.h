@@ -260,9 +260,9 @@ private:
       measurements.eliminated_edges.push_back(eliminatedEdges);
       measurements.eliminated_pins.push_back(eliminatedPins);
       size_t score = 0;
-      for (auto edge : current_hg.edges()) {
-        const HyperedgeWeight weight = current_hg.edgeWeight(edge);
-        const HypernodeWeight size = current_hg.edgeSize(edge);
+      for (auto edge : after.edges()) {
+        const HyperedgeWeight weight = after.edgeWeight(edge);
+        const HypernodeWeight size = after.edgeSize(edge);
         score += weight * size;
       }
       measurements.score.push_back(score);

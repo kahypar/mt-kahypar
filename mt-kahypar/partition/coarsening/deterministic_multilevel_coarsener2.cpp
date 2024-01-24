@@ -195,9 +195,9 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
     measurements.eliminated_edges.push_back(eliminatedEdges);
     measurements.eliminated_pins.push_back(eliminatedPins);
     size_t score = 0;
-    for (auto edge : hg.edges()) {
-      const HyperedgeWeight weight = hg.edgeWeight(edge);
-      const HypernodeWeight size = hg.edgeSize(edge);
+    for (auto edge : after.edges()) {
+      const HyperedgeWeight weight = after.edgeWeight(edge);
+      const HypernodeWeight size = after.edgeSize(edge);
       score += weight * size;
     }
     measurements.score.push_back(score);
