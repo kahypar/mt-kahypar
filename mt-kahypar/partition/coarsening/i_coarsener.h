@@ -47,12 +47,14 @@ class ICoarsener {
   void coarsen() {
     initialize();
     bool should_continue = true;
+    int pass_nr = 0;
     // Coarsening algorithms proceed in passes where each pass computes a clustering
     // of the nodes and subsequently contracts it. Each pass induces one level of the
     // hierarchy. The coarsening algorithms proceeds until the number of nodes equals
     // a predefined contraction limit (!shouldNotTerminate) or the number of nodes could
     // not be significantly reduced within one coarsening pass (should_continue).
     while ( shouldNotTerminate() && should_continue ) {
+      /*timer.start_timer("coarsening pass " + pass_nr, "CoarseningPass" + pass_nr);*/
       should_continue = coarseningPass();
     }
     terminate();
@@ -88,6 +90,7 @@ class ICoarsener {
 
   virtual ~ICoarsener() = default;
 
+  
  protected:
   ICoarsener() = default;
 

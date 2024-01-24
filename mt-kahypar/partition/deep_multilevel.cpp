@@ -663,7 +663,6 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   Hypergraph& hypergraph = partitioned_hg.hypergraph();
   Context context(c);
-
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
 
@@ -725,10 +724,10 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
         no_further_contractions_possible = false;
         break;
       }
-
       should_continue = coarsener->coarseningPass();
       adapt_max_allowed_node_weight(coarsener->currentNumberOfNodes(), should_continue);
       ++pass_nr;
+      std::cout << timer;
     }
     coarsener->terminate();
 

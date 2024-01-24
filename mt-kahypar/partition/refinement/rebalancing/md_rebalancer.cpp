@@ -37,7 +37,9 @@ namespace mt_kahypar {
                                                        vec<vec<Move>>* moves_by_part,
                                                        vec<Move>* moves_linear,
                                                        Metrics& best_metrics) {
+                                                      
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+     
     resizeDataStructuresForCurrentK();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -49,9 +51,40 @@ namespace mt_kahypar {
     if ( !metrics::isBalanced(phg, _context) ) {
       DBG << "Starting multi-dimensional rebalancer";  // only printed if debug=true in header
       _gain.reset();
+    }
+    for(HypernodeID hn : phg.nodes()){
+      Move move = _gain.basicMaxGainMove(phg, hn);
+      if(move.to != move.from){
+        phg.changeNodePart(hn, move.from, move.to, objective_delta);
+      }      
+    }
+    std::array<std::priority_queue<std::pair<int64_t, PartitionID>>, mt_kahypar::dimension> max_imbalances;
+    for(int j = 0; j < mt_kahypar::dimension; j++){
+      for(int i = 0; i < phg.k(); i++){    
+        int64_t imbalance = phg.partWeight(i).weights[j] - _context.partition.max_part_weights[i].weights[j];
+        if(imbalance > 0){
+          max_imbalances[j].push(std::pair<int64_t, PartitionID>(imbalance, i));
+        }        
+      }
+    }
+    for(HypernodeID hn : phg.nodes()){
+      Move move = _gain.basicMaxGainMove_global_gain(phg, hn, max_imbalances);
+      if(move.to != move.from){
+        phg.changeNodePart(hn, move.from, move.to, objective_delta);
+      }
+      for(int j = 0; j < mt_kahypar::dimension; j++){
+        int64_t imbalance = phg.partWeight(move.to).weights[j] - _context.partition.max_part_weights[move.to].weights[j];
+        if(imbalance > 0){
+          max_imbalances[j].push(std::pair<int64_t, PartitionID>(imbalance, move.to));
+        }
+        
+      }
+      
+    }
 
       // TODO: rebalancing logic goes here
-    }
+    
+    
 
     if (moves_by_part != nullptr) {
       moves_by_part->resize(_context.partition.k);

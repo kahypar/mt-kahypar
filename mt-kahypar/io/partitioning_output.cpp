@@ -304,24 +304,24 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
     for (HypernodeID u : hypergraph.nodes()) {
       part_sizes[hypergraph.partID(u)]++;
     }
-    PartitionID min_block = kInvalidPartition;
-    HypernodeWeight min_part_weight = NodeWeight(true);
+    HypernodeWeight upper_limit_min_blocks = context.partition.max_part_weights[0];
+    HypernodeWeight min_part_weight = hypergraph.partWeight(0);
     HypernodeWeight avg_part_weight = 0;
-    PartitionID max_block = kInvalidPartition;
+    HypernodeWeight upper_limit_max_blocks = context.partition.max_part_weights[0];
     HypernodeWeight max_part_weight = 0;
-    HypernodeID max_part_size = 0;
     size_t num_imbalanced_blocks = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       avg_part_weight += hypergraph.partWeight(i);
-      if ( hypergraph.partWeight(i) < min_part_weight ) {
-        min_block = i;
-        min_part_weight = hypergraph.partWeight(i);
+      for(int j = 0; j < mt_kahypar::dimension; j++){
+        if(hypergraph.partWeight(i).weights[j] < min_part_weight.weights[j]){
+          upper_limit_min_blocks.weights[j] = context.partition.max_part_weights[i].weights[j];
+          min_part_weight.weights[j] = hypergraph.partWeight(i).weights[j];
+        }
+        if(hypergraph.partWeight(i).weights[j] > max_part_weight.weights[j]){
+          upper_limit_max_blocks.weights[j] = context.partition.max_part_weights[i].weights[j];
+          max_part_weight.weights[j] = hypergraph.partWeight(i).weights[j];
+        }
       }
-      if ( hypergraph.partWeight(i) > max_part_weight ) {
-        max_block = i;
-        max_part_weight = hypergraph.partWeight(i);
-      }
-      max_part_size = std::max(max_part_size, part_sizes[i]);
       num_imbalanced_blocks +=
         (hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
           ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 ));
@@ -354,11 +354,11 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
     } else {
       std::cout << "Avg Block Weight = " << avg_part_weight << std::endl;
       std::cout << "Min Block Weight = " << min_part_weight
-                << (min_part_weight <= context.partition.max_part_weights[min_block] ? " <= " : " > ")
-                << context.partition.max_part_weights[min_block]  << " (Block " << min_block << ")" << std::endl;
+                << (min_part_weight <= upper_limit_min_blocks ? " <= " : " > ")
+                << upper_limit_min_blocks   << std::endl;
       std::cout << "Max Block Weight = " << max_part_weight
-                << (max_part_weight <= context.partition.max_part_weights[max_block] ? " <= " : " > ")
-                << context.partition.max_part_weights[max_block]  << " (Block " << max_block << ")" << std::endl;
+                << (max_part_weight <= upper_limit_max_blocks ? " <= " : " > ")
+                << upper_limit_max_blocks  <<  std::endl;
       if ( num_imbalanced_blocks > 0 ) {
         LOG << RED << "Number of Imbalanced Blocks =" << num_imbalanced_blocks << END;
         for (PartitionID i = 0; i != context.partition.k; ++i) {

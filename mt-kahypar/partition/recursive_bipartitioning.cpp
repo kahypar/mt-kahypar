@@ -91,7 +91,6 @@ namespace rb {
                                      const Context& context,
                                      const OriginalHypergraphInfo& info) {
     Context b_context(context);
-
     b_context.partition.k = 2;
     b_context.partition.objective = Objective::cut;
     b_context.partition.gain_policy = Hypergraph::is_graph ?

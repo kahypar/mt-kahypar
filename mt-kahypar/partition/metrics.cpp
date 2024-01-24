@@ -167,10 +167,9 @@ std::array<double, mt_kahypar::dimension> imbalance(const PartitionedHypergraph&
                         context.partition.perfect_balance_part_weights[0]);
 
   for (PartitionID i = 1; i < context.partition.k; ++i) {
-    std::array<double, mt_kahypar::dimension> balance_i;
     for(int j = 0; j < mt_kahypar::dimension; j++){
-      max_balance[j] = std::max(max_balance[j], hypergraph.partWeight(i).weights[j] /
-              static_cast<double>(context.partition.perfect_balance_part_weights[i].weights[j]));
+      max_balance[j] = std::max(max_balance[j], static_cast<double>(hypergraph.partWeight(i).weights[j]) /
+              static_cast<double>(context.partition.max_part_weights[i].weights[j]));
     }
   }
   for(int i = 0; i < mt_kahypar::dimension; i++){

@@ -163,7 +163,7 @@ namespace mt_kahypar::io {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void do_line_ending(char* mapped_file, size_t& pos) {
-    ASSERT(is_line_ending(mapped_file, pos), mapped_file[pos]);
+    ASSERT(is_line_ending(mapped_file, pos), pos);
     if (mapped_file[pos] != '\0') {
       if (mapped_file[pos] == '\r') {     // windows line ending
         ++pos;
@@ -642,7 +642,6 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
-    std::cout << "testtest\n\n\n";
 
     // Read Metis Header
     bool has_edge_weights = false;

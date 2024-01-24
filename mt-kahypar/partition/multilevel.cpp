@@ -94,6 +94,7 @@ namespace {
       std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
         context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
         context, uncoarsening::to_pointer(uncoarseningData));
+      
       coarsener->coarsen();
 
       if (context.partition.verbose_output) {
@@ -113,10 +114,9 @@ namespace {
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if ( context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
-        std::cout << "remove hns..\n";
         degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
       }
-      std::cout << "hns removed\n";
+      
       Context ip_context(context);
       ip_context.type = ContextType::initial_partitioning;
       ip_context.refinement = context.initial_partitioning.refinement;

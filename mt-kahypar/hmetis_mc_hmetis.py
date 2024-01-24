@@ -31,17 +31,20 @@ with open(args.input) as f, open(args.hypergraph, "w") as out:
     header_vals = header.strip().split(" ")
     n_edges = int(header_vals[0])
     n_nodes = int(header_vals[1])
-    assert len(header_vals) <= 3
-    out.write(' '.join([header_vals[0], header_vals[1], "11\n"]))
+    edgeweight = 0
+    if header_vals[2] == "11" or header_vals[2] == "01":
+        edgeweight = 1
+    out.write(' '.join([header_vals[0], header_vals[1], "1" +  str(edgeweight) + "\n"]))
     counter = n_edges
     for line in f:
         if counter == 0:
             break
         counter = counter -1
         vals = line.strip().split(" ")
-        out.write(vals[0])
-        out.write(" ")
-        out.write(' '.join([str(insertToMapping(u)) for u in map(int, vals[1:])]))
+        if edgeweight == 1:
+            out.write(vals[0])
+            out.write(" ")
+        out.write(' '.join([str(insertToMapping(u)) for u in map(int, vals[edgeweight:])]))
         out.write("\n")
     if header_vals[2] == "11":
         for line in f:

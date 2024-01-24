@@ -56,6 +56,112 @@ class GainComputationBase {
       return constructLocalTmpScores();
     }) { }
 
+  template<typename PartitionedHypergraph>
+  Move basicMaxGainMove(const PartitionedHypergraph& phg,
+                          const HypernodeID hn) {
+    Derived* derived = static_cast<Derived*>(this);
+    RatingMap& tmp_scores = _tmp_scores.local();
+    Gain isolated_block_gain = 0;
+    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
+    auto balance_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
+      double gain = 0.0;
+      for(int i = 0; i < dimension; i++){
+        gain += std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(to).weights[i] + 
+        phg.nodeWeight(node).weights[i] - _context.partition.max_part_weights[to].weights[i])) * _context.partition.max_part_weights_inv[to][i]
+        - std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(from).weights[i] - _context.partition.max_part_weights[from].weights[i])) * _context.partition.max_part_weights_inv[from][i];
+      }
+      return gain;
+    };
+    /*auto balance_metric_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
+      double gain = 0.0;
+      for(int i = 0; i < dimension; i++){
+        if(max_imbalance[])
+
+      }
+    }*/
+    PartitionID from = phg.partID(hn);
+    Move best_move { from, from, hn, 0};
+    double gainandbalance_old = std::numeric_limits<double>().max();
+    for(PartitionID p = 0; p < phg.k() && p != from; p++){
+      double balance_new = balance_gain(phg, hn, phg.partID(hn), p);
+      double gain_new = tmp_scores[p];
+      double gainandbalance = gain_new > 0 ? -gain_new / balance_new : -gain_new * balance_new;
+      if(balance_new <= 0 && gainandbalance < gainandbalance_old){
+        gainandbalance_old = gainandbalance;
+        best_move.to = p;
+        best_move.gain = gain_new;
+      }
+    }
+    return best_move;
+
+  }
+
+
+  template<typename PartitionedHypergraph>
+  Move basicMaxGainMove_global_gain(const PartitionedHypergraph& phg,
+                          const HypernodeID hn, std::array<std::priority_queue<std::pair<int64_t, PartitionID>>, mt_kahypar::dimension> max_imbalances) {
+    Derived* derived = static_cast<Derived*>(this);
+    RatingMap& tmp_scores = _tmp_scores.local();
+    PartitionID from = phg.partID(hn);
+    double isolated_block_balance_gain = 0.0;
+    auto pop_expired = [&](std::priority_queue<std::pair<int64_t, PartitionID>> pq, int dimension){
+      while(pq.top().first != phg.partWeight(pq.top().second).weights[dimension] - _context.partition.max_part_weights[pq.top().second].weights[dimension]){
+        pq.pop();
+      }
+    };
+    for(int i = 0; i < mt_kahypar::dimension; i++){
+      pop_expired(max_imbalances[i], i);
+      if(max_imbalances[i].top().second == from){
+        std::pair<int64_t, PartitionID> old_max = max_imbalances[i].top();
+        max_imbalances[i].pop();
+        int64_t balance_gain = std::min(static_cast<int64_t>(phg.nodeWeight(hn).weights[i]), old_max.first - (max_imbalances[i].size() > 0 ? max_imbalances[i].top().first : 0));
+        isolated_block_balance_gain += balance_gain * _context.partition.max_part_weights_inv[from][i];
+        int64_t new_imbalance = old_max.first - phg.nodeWeight(hn).weights[i];
+        if(new_imbalance > 0){
+          max_imbalances[i].push(std::pair<int64_t,PartitionID>(new_imbalance, from));
+        }
+        
+      }
+    }
+    Gain isolated_block_gain = 0;
+    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
+    auto balance_loss = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
+      double gain = 0.0;
+      for(int i = 0; i < dimension; i++){
+        gain += (phg.nodeWeight(node).weights[i] + phg.partWeight(to).weights[i] - _context.partition.max_part_weights[to].weights[i] - 
+        max_imbalances[i].size() > 0 ? max_imbalances[i].top().first : 0) * _context.partition.max_part_weights_inv[to][i];
+        
+      }
+      return gain;
+    };
+    /*auto balance_metric_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
+      double gain = 0.0;
+      for(int i = 0; i < dimension; i++){
+        if(max_imbalance[])
+
+      }
+    }*/
+    
+    Move best_move { from, from, hn, 0};
+    double gainandbalance_old = std::numeric_limits<double>().max();
+    for(PartitionID p = 0; p < phg.k() && p != from; p++){
+      double loss = balance_loss(phg, hn, phg.partID(hn), p);
+      double gain_new = tmp_scores[p];
+      double gainandbalance = gain_new > 0 ? -gain_new / (loss - isolated_block_gain) : -gain_new * (loss - isolated_block_gain);
+      if(loss < isolated_block_gain  && gainandbalance < gainandbalance_old){
+        gainandbalance_old = gainandbalance;
+        best_move.to = p;
+        best_move.gain = gain_new;
+      }
+    }
+    return best_move;
+
+  }
+
+
+
+
+
 
   template<typename PartitionedHypergraph>
   Move computeMaxGainMove(const PartitionedHypergraph& phg,
