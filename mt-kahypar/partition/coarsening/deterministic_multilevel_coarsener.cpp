@@ -192,6 +192,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     const size_t eliminatedPins = num_pins_before - after.initialNumPins();
     measurements.eliminated_edges.push_back(eliminatedEdges);
     measurements.eliminated_pins.push_back(eliminatedPins);
+    size_t score = 0;
+    for (auto edge : after.edges()) {
+      const HyperedgeWeight weight = after.edgeWeight(edge);
+      const HypernodeWeight size = after.edgeSize(edge);
+      score += weight * size;
+    }
+    measurements.score.push_back(score);
   }
   return true;
 }

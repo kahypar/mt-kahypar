@@ -131,6 +131,14 @@ typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
         singletons++;
       }
       measurements.final_num_singletons = singletons;
+
+      size_t score = 0;
+      for (auto edge : hg.edges()) {
+        const HyperedgeWeight weight = hg.edgeWeight(edge);
+        const HypernodeWeight size = hg.edgeSize(edge);
+        score += weight * size;
+      }
+      measurements.final_score = score;
     }
   }
   timer.stop_timer("coarsening");
@@ -188,7 +196,7 @@ typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
       timer.stop_timer("one_to_one_mapping");
     }
 #endif
-  }
+    }
 
   ASSERT([&] {
     bool success = true;
@@ -231,7 +239,7 @@ typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
   timer.stop_timer("refinement");
 
   return partitioned_hg;
-}
+  }
 }
 
 template<typename TypeTraits>

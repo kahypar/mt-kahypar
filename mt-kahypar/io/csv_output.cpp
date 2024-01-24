@@ -102,7 +102,8 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << measurements.final_cluster_count << sep;
   s << measurements.final_num_singletons << sep;
   s << measurements.final_num_edges << sep;
-  s << measurements.final_num_pins;
+  s << measurements.final_num_pins << sep;
+  s << measurements.final_score;
   for (size_t i = 0; i < measurements.min_cluster_size.size(); ++i) {
     s << sep << measurements.min_cluster_size[i] << sep;
     s << measurements.max_cluster_size[i] << sep;
@@ -111,7 +112,8 @@ std::string serialize(const PartitionedHypergraph& phg,
     s << measurements.cluster_count[i] << sep;
     s << measurements.num_singletons[i] << sep;
     s << measurements.eliminated_edges[i] << sep;
-    s << measurements.eliminated_pins[i];
+    s << measurements.eliminated_pins[i] << sep;
+    s << measurements.score[i];
   }
 
   return s.str();

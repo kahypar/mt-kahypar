@@ -244,7 +244,7 @@ private:
       measurements.avg_cluster_size.push_back(avg);
       measurements.cluster_count.push_back(count);
       size_t singletons = 0;
-      while(weights[singletons] == 1) {
+      while (weights[singletons] == 1) {
         singletons++;
       }
       measurements.num_singletons.push_back(singletons);
@@ -259,6 +259,13 @@ private:
       const size_t eliminatedPins = num_pins_before - after.initialNumPins();
       measurements.eliminated_edges.push_back(eliminatedEdges);
       measurements.eliminated_pins.push_back(eliminatedPins);
+      size_t score = 0;
+      for (auto edge : current_hg.edges()) {
+        const HyperedgeWeight weight = current_hg.edgeWeight(edge);
+        const HypernodeWeight size = current_hg.edgeSize(edge);
+        score += weight * size;
+      }
+      measurements.score.push_back(score);
     }
     ++_pass_nr;
     return true;
