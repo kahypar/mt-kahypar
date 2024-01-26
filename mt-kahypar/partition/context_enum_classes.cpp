@@ -172,7 +172,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const MaxWeightFunction& function) {
     switch (function) {
-      case MaxWeightFunction::L_max: return os << "L_max";
+      case MaxWeightFunction::L_k: return os << "L_max";
       case MaxWeightFunction::L_kmax: return os << "L_kmax";
       case MaxWeightFunction::L_n: return os << "L_n";
       case MaxWeightFunction::UNDEFINED: return os << "UNDEFINED";
@@ -393,8 +393,8 @@ namespace mt_kahypar {
   }
 
   MaxWeightFunction maxWeightFunctionFromString(const std::string& function) {
-    if (function == "L_max") {
-      return MaxWeightFunction::L_max;
+    if (function == "L_k") {
+      return MaxWeightFunction::L_k;
     } else if (function == "L_kmax") {
       return MaxWeightFunction::L_kmax;
     } else if (function == "L_n") {

@@ -268,9 +268,9 @@ namespace mt_kahypar {
                      [&](const std::string& max_weight_function) {
                        context.coarsening.max_weight_function =
                        mt_kahypar::maxWeightFunctionFromString(max_weight_function);
-                     })->default_value("L_max"),
+                     })->default_value("L_k"),
              "Max Weight Functions:\n"
-             " - L_max\n"
+             " - L_k\n"
              " - L_kmax\n"
              " - L_n"
              )

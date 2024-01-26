@@ -573,7 +573,7 @@ namespace mt_kahypar {
     coarsening.use_adaptive_edge_size= true;
     coarsening.minimum_shrink_factor = 1.01;
     coarsening.maximum_shrink_factor = 2.5;
-    coarsening.max_weight_function = MaxWeightFunction::L_max;
+    coarsening.max_weight_function = MaxWeightFunction::L_k;
     coarsening.max_allowed_weight_multiplier = 1.0;
     coarsening.contraction_limit_multiplier = 160;
     coarsening.vertex_degree_sampling_threshold = 200000;

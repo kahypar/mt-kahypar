@@ -117,7 +117,7 @@ enum class CoarseningAlgorithm : uint8_t {
 };
 
 enum class MaxWeightFunction : uint8_t {
-  L_max,
+  L_k,
   L_kmax,
   L_n,
   UNDEFINED
