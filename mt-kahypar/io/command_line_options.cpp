@@ -357,7 +357,8 @@ namespace mt_kahypar {
              #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- best\n"
              #endif
-             "- best_prefer_unmatched")
+             "- best_prefer_unmatched\n"
+             "- best_prefer_unmatched_reciprocal")
             ("c-rating-degree-similarity-policy",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& ds) {

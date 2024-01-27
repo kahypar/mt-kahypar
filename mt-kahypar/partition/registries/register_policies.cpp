@@ -88,6 +88,8 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
 #endif
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched_reciprocal,
+                BestRatingPreferringUnmatchedReciprocalProbability);
 
 REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::preserve_rebalancing_nodes,
                 PreserveRebalancingNodesPolicy);

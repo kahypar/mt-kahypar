@@ -429,6 +429,9 @@ namespace mt_kahypar {
       return AcceptancePolicy::best;
     }
     #endif
+    else if (crit == "best_prefer_unmatched_reciprocal") {
+      return AcceptancePolicy::best_prefer_unmatched_reciprocal;
+    }
     throw InvalidParameterException("No valid acceptance criterion for rating.");
   }
 

@@ -173,11 +173,12 @@ class NLevelVertexPairRater {
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
+        int nr_passes = 0;
         if ( accept_fixed_vertex_contraction &&
              community_u_id == hypergraph.communityID(tmp_target) &&
              AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                             target, tmp_target,
-                                            cpu_id, _already_matched) ) {
+                                            cpu_id, _already_matched, ++nr_passes) ) {
           max_rating = tmp_rating;
           target = tmp_target;
         }

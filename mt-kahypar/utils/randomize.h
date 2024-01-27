@@ -127,6 +127,11 @@ class Randomize {
     return _rand[cpu_id].flipCoin();
   }
 
+  bool inverseProbabilityEvent(int cpu_id, int probability) {
+    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    return getRandomInt(0, probability - 1, cpu_id) == 0;
+  }
+
   template <typename T>
   void shuffleVector(std::vector<T>& vector, size_t num_elements, int cpu_id) {
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());

@@ -140,6 +140,7 @@ enum class HeavyNodePenaltyPolicy : uint8_t {
 enum class AcceptancePolicy : uint8_t {
   ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
+  best_prefer_unmatched_reciprocal,
   UNDEFINED
 };
 

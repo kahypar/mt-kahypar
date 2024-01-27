@@ -76,4 +76,21 @@ class RandomRatingWins {
  protected:
   ~RandomRatingWins() = default;
 };
+
+class RandomRatingWinsReciprocal {
+ public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int cpu_id, const int reciprocal) {
+    return utils::Randomize::instance().inverseProbabilityEvent(cpu_id, reciprocal);
+  }
+
+  RandomRatingWinsReciprocal(const RandomRatingWinsReciprocal &) = delete;
+  RandomRatingWinsReciprocal &operator=(const RandomRatingWinsReciprocal &) = delete;
+
+  RandomRatingWinsReciprocal(RandomRatingWinsReciprocal &&) = delete;
+  RandomRatingWinsReciprocal &operator=(RandomRatingWinsReciprocal &&) = delete;
+
+ protected:
+  ~RandomRatingWinsReciprocal() = default;
+};
+
 }  // namespace mt_kahypar

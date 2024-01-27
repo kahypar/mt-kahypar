@@ -44,7 +44,8 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID old_target,
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
-                                                              const kahypar::ds::FastResetFlagArray<>& already_matched) {
+                                                              const kahypar::ds::FastResetFlagArray<>& already_matched,
+                                                              const int nr_passes) {
     return max_rating < tmp ||
            ((max_rating == tmp) &&
             ((already_matched[old_target] && !already_matched[new_target]) ||
@@ -52,6 +53,25 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
               RandomRatingWins::acceptEqual(cpu_id)) ||
              (!already_matched[old_target] && !already_matched[new_target] &&
               RandomRatingWins::acceptEqual(cpu_id))));
+  }
+};
+
+class BestRatingPreferringUnmatchedReciprocalProbability final : public kahypar::meta::PolicyBase {
+ public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp, 
+                                                              const RatingType max_rating,
+                                                              const HypernodeID old_target, 
+                                                              const HypernodeID new_target,
+                                                              const int cpu_id,
+                                                              const kahypar::ds::FastResetFlagArray<>& already_matched,
+                                                              const int nr_passes) {
+    return max_rating < tmp ||
+           ((max_rating == tmp) &&
+            ((already_matched[old_target] && !already_matched[new_target]) ||
+             (already_matched[old_target] && already_matched[new_target] &&
+              RandomRatingWinsReciprocal::acceptEqual(cpu_id, nr_passes)) ||
+             (!already_matched[old_target] && !already_matched[new_target] &&
+              RandomRatingWinsReciprocal::acceptEqual(cpu_id, nr_passes))));
   }
 };
 
@@ -82,6 +102,8 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
 
 using AcceptancePolicies = kahypar::meta::Typelist<BestRatingWithTieBreaking, BestRatingPreferringUnmatched>;
 #else
-using AcceptancePolicies = kahypar::meta::Typelist<BestRatingPreferringUnmatched>;
+using AcceptancePolicies =
+    kahypar::meta::Typelist<BestRatingPreferringUnmatched,
+                            BestRatingPreferringUnmatchedReciprocalProbability>;
 #endif
 }  // namespace mt_kahypar
