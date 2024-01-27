@@ -25,6 +25,7 @@ def insertToMapping(u):
     return u
 
 with open(args.hypergraph, "w") as out:
+    dim = 1
     with open(args.input) as f:
         header = f.readline()
         while header.startswith("%"):
@@ -32,29 +33,45 @@ with open(args.hypergraph, "w") as out:
         header_vals = header.strip().split(" ")
         n_nodes = int(header_vals[0])
         n_edges = int(header_vals[1])
-        dim = int(header_vals[3])
-        out.write(' '.join([header_vals[1], header_vals[0], header_vals[2]]))
-        i = 0
-        for line in f:
-            vals = line.strip().split(" ")
-            i = i + 1
-            x = list(filter(lambda x : int(x) > i, vals[dim:]))
-            if len(x) == 0:
-                continue
-            out.write("\n" + str(i) + " ")
-            out.write(("\n" + str(i) + " ").join(x))
-        out.write("\n")
-    with open(args.input) as f:
-        header = f.readline()
-        print(header)
+        mode = "00"
+        if len(header_vals) == 2 or (len(header_vals) == 3 and header_vals[2] == "00"):
+            out.write(' '.join([header_vals[1], header_vals[0], "00"]))
+            i = 0
+            for line in f:
+                i = i + 1
+                vals = line.strip().split(" ")
+                if len(vals) == 0:
+                    continue                
+                x = list(filter(lambda x : x != '' and int(x) > i, vals))
+                if len(x) == 0:
+                    continue
+                out.write("\n" + str(i) + " ")
+                out.write(("\n" + str(i) + " ").join(x))
+        elif len(header_vals) >= 3:
+            if len(header_vals > 3):
+                dim = int(header_vals[3])
+            out.write(' '.join([header_vals[1], header_vals[0], "10", str(dim)]))
+            i = 0
+            for line in f:
+                vals = line.strip().split(" ")
+                i = i + 1
+                x = list(filter(lambda x : int(x) > i, vals[dim:]))
+                if len(x) == 0:
+                    continue
+                out.write("\n" + str(i) + " ")
+                out.write(("\n" + str(i) + " ").join(x))
+        
+                out.write("\n")
+    if len(header_vals) >= 3 and header_vals[2] == "10":
+        with open(args.input) as f:
+            header = f.readline()
         while header.startswith("%"):
             header = f.readline()
         header_vals = header.strip().split(" ")
         n_nodes = int(header_vals[0])
         n_edges = int(header_vals[1])
-        dim = int(header_vals[3])
         for line in f:
             vals = line.strip().split(" ")
-            out.write(' '.join([vals[0], vals[1]]))
+            out.write(' '.join(vals[dim:]))
             out.write("\n")
         

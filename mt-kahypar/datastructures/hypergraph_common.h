@@ -39,7 +39,7 @@
 #include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
-static constexpr size_t dimension = 1;
+static constexpr size_t dimension = 2;
 struct NodeWeight {
   std::array<int32_t, dimension> weights;
 

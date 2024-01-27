@@ -83,6 +83,31 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
       }
     }
   }
+  template<typename PartitionedHypergraph>
+  std::vector<Move> getChangedMoves(const PartitionedHypergraph& phg, const Move move){
+    std::vector<Move> nodes;
+    for(const HyperedgeID& he : phg.incidentEdges(move.node)){
+      for(HypernodeID hn : phg.pins(he)){
+        if(phg.pinCountInPart(he, move.from) == 0 && phg.partID(hn) != move.from){
+          nodes.push_back({hn, phg.partID(hn), move.from, phg.edgeWeight(he)});
+        }
+        if(phg.pinCountInPart(he, move.from) == 1 && phg.partID(hn) == move.from){
+          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
+            nodes.push_back({hn, phg.partID(hn), p, -phg.edgeWeight(he)});
+          }
+        }
+        if(phg.pinCountInPart(he, move.to) == 1){
+          nodes.push_back({hn, phg.partID(hn), move.to, -phg.edgeWeight(he)});
+        }
+        if(phg.pinCountInPart(he, move.to) == 2 && phg.partID(hn) == move.to){
+          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
+            nodes.push_back({hn, phg.partID(hn), p, phg.edgeWeight(he)});
+          }
+        }
+      }                  
+    }
+    return nodes;
+  }
 
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {

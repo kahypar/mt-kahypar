@@ -83,6 +83,44 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
     }
   }
 
+  /*std::vector<Move> getChangedMoves(const PartitionedHypergraph& phg, const Move move){
+    std::vector<Move> nodes;
+    for(const HyperedgeID& he : phg.incidentEdges(move.node)){
+      for(HypernodeID& hn : phg.pins(he)){
+        if(phg.connectivity(he) == 1){        
+          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
+            nodes.push_back({hn, phg.partID(hn), p, phg.edgeWeight(he)});
+          }
+        }
+        if(phg.connectivity(he) == 2 && phg.pinCountInPart(move.to) == 1 && phg.pinCountInPart(move.from) > 0){
+          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
+            nodes.push_back({hn, phg.partID(hn), p, -phg.edgeWeight(he)});
+          }
+        } 
+        if(phg.connectivity(he) == 2){
+          if(phg.partID(hn) != move.to && phg.pinCountInPart(phg.partID(hn)) == 1){
+            nodes.push_back({hn, phg.partID(hn), move.to, -phg.edgeWeight(he)});
+            if(phg.partID(hn) != move.from){
+              nodes.push_back({hn, phg.partID(hn), move.from, -phg.edgeWeight(he)});
+            }
+          }
+          else if(phg.partID(hn) == move.to && phg.pinCountInPart(phg.partID(hn)) == 2 && phg.pinCountInPart(move.from) > 0){
+            for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
+              nodes.push_back({hn, phg.partID(hn), p, phg.edgeWeight(he)});
+            }
+          }
+          
+        }
+          if(phg.pinCountInPart(phg.partID(hn)) == 1 && phg.partID(hn) != move.from){
+            nodes.push_back({hn, phg.partID(hn), move.to, -phg.edgeWeight(he)});
+          }
+        
+        nodes.push_back({})
+      }
+      
+    }
+  }*/
+
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {
     return isolated_block_gain - to_score;
