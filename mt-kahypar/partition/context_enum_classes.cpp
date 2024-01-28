@@ -164,6 +164,7 @@ std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
   case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
   case CoarseningAlgorithm::deterministic_multilevel_coarsener2: return os << "deterministic_multilevel_coarsener2";
+  case CoarseningAlgorithm::hybrid_multilevel_coarsener: return os << "hybrid_multilevel_coarsener";
   case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
     // omit default case to trigger compiler warning for missing cases
   }
@@ -395,6 +396,8 @@ CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
     return CoarseningAlgorithm::deterministic_multilevel_coarsener;
   } else if (type == "robert") {
     return CoarseningAlgorithm::deterministic_multilevel_coarsener2;
+  } else if (type == "hybrid") {
+    return CoarseningAlgorithm::hybrid_multilevel_coarsener;
   }
   throw InvalidParameterException("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;
@@ -450,7 +453,7 @@ HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
 #endif
   throw InvalidParameterException("No valid edge penalty policy for rating.");
   return HeavyNodePenaltyPolicy::UNDEFINED;
-}
+  }
 
 AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
   if (crit == "best_prefer_unmatched") {
@@ -462,7 +465,7 @@ AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
   }
 #endif
   throw InvalidParameterException("No valid acceptance criterion for rating.");
-}
+  }
 
 RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {
@@ -475,7 +478,7 @@ RatingFunction ratingFunctionFromString(const std::string& function) {
 #endif
   throw InvalidParameterException("No valid rating function for rating.");
   return RatingFunction::UNDEFINED;
-}
+  }
 
 InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo) {
   if (algo == "random") {

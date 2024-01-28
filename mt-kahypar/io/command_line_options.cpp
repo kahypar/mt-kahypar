@@ -247,6 +247,7 @@ namespace mt_kahypar {
              " - nlevel_coarsener"
              " - deterministic_multilevel_coarsener"
              " - robert"
+             " - hybrid"
              )
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
@@ -345,7 +346,11 @@ namespace mt_kahypar {
              ("c-num-triangle-subrounds",
              po::value<size_t>(&context.coarsening.num_triangle_subrounds)->value_name(
                      "<size_t>")->default_value(0),
-             "Number of coarsening subrounds in triangle levels to use triangle counts as edge weights");
+             "Number of coarsening subrounds in triangle levels to use triangle counts as edge weights")
+             ("c-num-deterministic-passes",
+             po::value<size_t>(&context.coarsening.num_deterministic_passes)->value_name(
+                     "<size_t>")->default_value(0),
+             "This is only used in the HybridCoarsener: Number of passes done by deterministic, followed by non-deterministic passes");
     return options;
   }
 
