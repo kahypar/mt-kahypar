@@ -651,7 +651,7 @@ class PartitionedHypergraph {
 
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID p) const {
-    ASSERT(p != kInvalidPartition && p < _k);
+    ASSERT(p != kInvalidPartition && p < _k, p);
     return _part_weights[p];
   }
 

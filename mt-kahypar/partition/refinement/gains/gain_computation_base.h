@@ -109,7 +109,7 @@ class GainComputationBase {
       if(p != from){
       double balance_new = balance_gain(phg, hn, from, p);
       double gain_new = tmp_scores[p];
-      double gainandbalance = gain_new > 0 ? -gain_new / balance_new : -gain_new * balance_new;
+      double gainandbalance = gain_new > 0 ? -gain_new / (balance_new - 0.001) : -gain_new * (balance_new - 0.001);
       gains.push_back({gainandbalance, p, gain_new, balance_new});
       }
     }
