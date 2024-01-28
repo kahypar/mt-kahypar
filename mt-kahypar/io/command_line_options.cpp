@@ -337,7 +337,15 @@ namespace mt_kahypar {
              " - to_smaller"
              " - to_larger"
              " - ignore"
-             );
+             )
+             ("c-num-triangle-levels",
+             po::value<size_t>(&context.coarsening.num_triangle_levels)->value_name(
+                     "<size_t>")->default_value(0),
+             "Number of coarsening levels to use traingle counts as edge weights")
+             ("c-num-triangle-subrounds",
+             po::value<size_t>(&context.coarsening.num_triangle_subrounds)->value_name(
+                     "<size_t>")->default_value(0),
+             "Number of coarsening subrounds in triangle levels to use triangle counts as edge weights");
     return options;
   }
 

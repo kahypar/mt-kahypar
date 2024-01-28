@@ -50,6 +50,10 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   });
   const size_t num_edges_before = hg.initialNumEdges();
   const size_t num_pins_before = hg.initialNumPins();
+  const bool isTrianglePass = hg.is_graph && pass < _context.coarsening.num_triangle_levels;
+  if (isTrianglePass) {
+    calculateSharedTrianglesPerEdge();
+  }
 
   permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
   for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
@@ -60,7 +64,11 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     tbb::parallel_for(first, last, [&](size_t pos) {
       const HypernodeID u = permutation.at(pos);
       if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
-        calculatePreferredTargetCluster(u, clusters);
+        if (isTrianglePass && sub_round < _context.coarsening.num_triangle_subrounds) {
+          calculatePreferredTargetClusterTriangles(u, clusters);
+        } else {
+          calculatePreferredTargetCluster(u, clusters);
+        }
       }
     });
     switch (_context.coarsening.swapStrategy) {
@@ -259,6 +267,60 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   }
 }
 
+// For now, this is only for graphs
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClusterTriangles(HypernodeID u, const vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = Base::currentHypergraph();
+  auto& ratings = default_rating_maps.local();
+  ratings.clear();
+
+  // calculate ratings
+  for (HyperedgeID he : hg.incidentEdges(u)) {
+    size_t he_score = triangle_edge_weights[he] / 2;
+    for (HypernodeID v : hg.pins(he)) {
+      ratings[clusters[v]] += he_score;
+    }
+  }
+
+  // find highest rated, feasible cluster
+  const PartitionID comm_u = hg.communityID(u);
+  const HypernodeWeight weight_u = hg.nodeWeight(u);
+  vec<HypernodeID>& best_targets = ties.local();
+  double best_score = 0.0;
+
+  for (const auto& entry : ratings) {
+    HypernodeID target_cluster = entry.key;
+    double target_score = entry.value;
+    if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u
+      && cluster_weight[target_cluster] + weight_u <= _context.coarsening.max_allowed_node_weight) {
+      if (target_score > best_score) {
+        best_targets.clear();
+        best_score = target_score;
+      }
+      best_targets.push_back(target_cluster);
+    }
+  }
+
+  HypernodeID best_target;
+  if (best_targets.size() == 1) {
+    best_target = best_targets[0];
+  } else if (best_targets.empty()) {
+    best_target = u;
+  } else {
+    hashing::SimpleIntHash<uint32_t> sih;
+    hashing::HashRNG hash_prng(sih, u);
+    size_t pos = std::uniform_int_distribution<uint32_t>(0, best_targets.size() - 1)(hash_prng);
+    assert(pos < best_targets.size());
+    best_target = best_targets[pos];
+  }
+  best_targets.clear();
+
+  if (best_target != u) {
+    propositions[u] = best_target;
+    __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+  }
+}
+
 template<typename TypeTraits>
 size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
   const Hypergraph& hg = Base::currentHypergraph();
@@ -300,6 +362,63 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyCl
   });
 
   return num_contracted_nodes.combine(std::plus<>());
+}
+
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculateSharedTrianglesPerEdge() {
+  const Hypergraph& hg = Base::currentHypergraph();
+  tbb::parallel_for(0UL, triangle_edge_weights.size(), [&](const size_t i) {
+    triangle_edge_weights[i] = 0;
+  });
+  // note the corresponding edge
+  tbb::enumerable_thread_specific<vec<HyperedgeID>> adjacent(hg.initialNumNodes(), kInvalidHyperedge);
+  tbb::enumerable_thread_specific<vec<size_t>> triangle_count(hg.initialNumEdges());
+  hg.doParallelForAllNodes([&](const HypernodeID& u) {
+    // for (const HypernodeID& u : hg.nodes()) {
+    auto& adj = adjacent.local();
+    auto& count = triangle_count.local();
+    for (const HyperedgeID& he : hg.incidentEdges(u)) {
+      for (const HypernodeID& v : hg.pins(he)) {
+        const auto deg_u = hg.nodeDegree(u);
+        const auto deg_v = hg.nodeDegree(v);
+        // low to high degree ordering
+        if ((u != v && deg_u < deg_v) || (deg_u == deg_v && u < v)) {
+          adj[v] = he;
+        }
+      }
+      for (const HyperedgeID& he : hg.incidentEdges(u)) {
+        for (const HypernodeID& v : hg.pins(he)) {
+          if (adj[v] != kInvalidHyperedge) {
+            for (const HyperedgeID& he2 : hg.incidentEdges(v)) {
+              for (const HypernodeID& w : hg.pins(he2)) {
+                // adjacent[u] is false => no need to check w != u
+                // Note: we increment every edge twice
+                if (w != v && adj[w] != kInvalidHyperedge) {
+                  count[he]++;
+                  count[he2]++;
+                  count[adj[w]]++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      for (const HyperedgeID& he : hg.incidentEdges(u)) {
+        for (const HypernodeID& v : hg.pins(he)) {
+          adj[v] = kInvalidHyperedge;
+        }
+      }
+    }
+
+  });
+
+  auto combine = [&](const vec<size_t>& a) {
+    for (size_t i = 0; i < a.size(); ++i) {
+      triangle_edge_weights[i] += a[i];
+    }
+  };
+  triangle_count.combine_each(combine);
 }
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)

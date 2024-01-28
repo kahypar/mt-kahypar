@@ -43,8 +43,8 @@
 namespace mt_kahypar {
 
 template<typename TypeTraits>
-class DeterministicMultilevelCoarsener :  public ICoarsener,
-                                          private MultilevelCoarsenerBase<TypeTraits> {
+class DeterministicMultilevelCoarsener : public ICoarsener,
+  private MultilevelCoarsenerBase<TypeTraits> {
 
   struct DeterministicCoarseningConfig {
     explicit DeterministicCoarseningConfig(const Context& context) :
@@ -66,11 +66,11 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 
 public:
   DeterministicMultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
-                                   const Context& context,
-                                   uncoarsening_data_t* uncoarseningData) :
+    const Context& context,
+    uncoarsening_data_t* uncoarseningData) :
     Base(utils::cast<Hypergraph>(hypergraph),
-         context,
-         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+      context,
+      uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
     config(context),
     initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     propositions(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
@@ -79,9 +79,8 @@ public:
     nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
-    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false)
-  {
-  }
+    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+    triangle_edge_weights(utils::cast<Hypergraph>(hypergraph).initialNumEdges()) {}
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -96,7 +95,7 @@ private:
   static constexpr bool debug = false;
 
   void initializeImpl() override {
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+    if (_context.partition.verbose_output && _context.partition.enable_progress_bar) {
       progress_bar.enable();
     }
   }
@@ -115,9 +114,9 @@ private:
 
   HypernodeID currentLevelContractionLimit() {
     const auto& hg = Base::currentHypergraph();
-    return std::max( _context.coarsening.contraction_limit,
-               static_cast<HypernodeID>(
-                    (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
+    return std::max(_context.coarsening.contraction_limit,
+      static_cast<HypernodeID>(
+        (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor));
   }
 
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
@@ -129,16 +128,20 @@ private:
   }
 
   mt_kahypar_hypergraph_t coarsestHypergraphImpl() override {
-    return mt_kahypar_hypergraph_t {
+    return mt_kahypar_hypergraph_t{
       reinterpret_cast<mt_kahypar_hypergraph_s*>(
         &Base::currentHypergraph()), Hypergraph::TYPE };
   }
 
   mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() override {
-    return mt_kahypar_partitioned_hypergraph_t {
+    return mt_kahypar_partitioned_hypergraph_t{
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
         &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
+
+  void calculatePreferredTargetClusterTriangles(HypernodeID u, const vec<HypernodeID>& clusters);
+
+  void calculateSharedTrianglesPerEdge();
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
@@ -156,6 +159,7 @@ private:
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
   size_t pass;
   utils::ProgressBar progress_bar;
+  vec<size_t> triangle_edge_weights;
 
 };
 }
