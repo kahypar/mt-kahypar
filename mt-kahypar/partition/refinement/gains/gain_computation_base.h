@@ -87,7 +87,6 @@ class GainComputationBase {
     Gain isolated_block_gain = 0;
     tmp_scores.clear();
     std::vector<Move_md> gains;
-    gains.resize(phg.initialNumNodes());
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
     auto balance_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
       double gain = 0.0;
@@ -106,11 +105,13 @@ class GainComputationBase {
       }
     }*/
     PartitionID from = phg.partID(hn);
-    for(PartitionID p = 0; p < phg.k() && p != from; p++){
+    for(PartitionID p = 0; p < phg.k(); p++){
+      if(p != from){
       double balance_new = balance_gain(phg, hn, from, p);
       double gain_new = tmp_scores[p];
       double gainandbalance = gain_new > 0 ? -gain_new / balance_new : -gain_new * balance_new;
       gains.push_back({gainandbalance, p, gain_new, balance_new});
+      }
     }
     return gains;
 
