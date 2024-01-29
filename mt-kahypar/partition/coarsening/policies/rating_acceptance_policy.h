@@ -45,7 +45,7 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
                                                               const kahypar::ds::FastResetFlagArray<>& already_matched,
-                                                              const int nr_passes) {
+                                                              const int) {
     return max_rating < tmp ||
            ((max_rating == tmp) &&
             ((already_matched[old_target] && !already_matched[new_target]) ||
