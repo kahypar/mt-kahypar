@@ -34,242 +34,7 @@ namespace mt_kahypar{
 
   
 
-  struct Move_internal{
-    
-  double gain_and_balance;
-  double gain;
-  double balance;
 
-    bool operator<(const Move_internal move) const{
-      return gain_and_balance < move.gain_and_balance;
-    }
-    bool operator>(const Move_internal move) const{
-      return gain_and_balance > move.gain_and_balance;
-    }
-
-    bool operator==(const Move_internal move) const{
-      return gain_and_balance == move.gain_and_balance && gain == move.gain && balance == move.balance;
-    }
-
-    void recomputeBalance(){
-    Gain tmp_gain = gain;
-    if(gain <= 0){
-      tmp_gain -= 0.01;
-    }
-    gain_and_balance = tmp_gain > 0 ? -tmp_gain / (balance - 0.001) : -tmp_gain * (balance - 0.001);
-    }
-  };
-
-  template<typename id, typename data>
-  struct AddressablePQ{
-    std::vector<id> v;
-    std::vector<id> references;
-    std::vector<bool> in_use;
-    std::vector<data> gains_and_balances;
-    void setSize(id size){
-      references.resize(size);
-      gains_and_balances.resize(size);
-      in_use.resize(size);
-      for(id i = 0; i < size; i++){
-        in_use[i] = false;
-      }
-    }
-    id getParent(id index){
-      return (index + 1)/ 2 - 1;
-    }
-    id getChild(id index){
-      return 2 * index;
-    }
-    double priority(id index){
-      ASSERT(index < v.size());
-      ASSERT(v[index] < gains_and_balances.size());
-      return -gains_and_balances[v[index]].gain_and_balance;
-    }
-    void insert(std::pair<id, data> x){
-      ASSERT(x.first < references.size());
-      ASSERT(x.first != -1);
-      if(!in_use[x.first]){
-        id index = v.size();
-        references[x.first] = index;
-        in_use[x.first] = true;
-        gains_and_balances[x.first] = x.second;
-        v.push_back(x.first);
-        siftUp(index);
-      }
-      else{
-        ASSERT(references.size() > x.first);
-        gains_and_balances[references[x.first]] = x.second;
-        check(x.first);
-      }
-    }
-    void siftDown(id index){
-      id child = getChild(index);
-      while (child < v.size() && (gains_and_balances[v[child]] < gains_and_balances[v[index]] || !in_use[v[child]])){
-        id new_idx = child + static_cast<id>((child + 1 < v.size()) ? 
-          (gains_and_balances[v[child]] > gains_and_balances[v[child + 1]]) : 0);
-        references[v[index]] = new_idx;
-        references[v[new_idx]] = index;
-        std::swap(v[index], v[new_idx]);
-        index = new_idx;
-        child = getChild(index);
-      }
-    }
-    void siftUp(id index){
-      id parent = getParent(index);
-      while (index > 0 && gains_and_balances[v[parent]] > gains_and_balances[v[index]]){
-        references[v[index]] = parent;
-        references[v[parent]] = index;
-        std::swap(v[index], v[parent]);
-        index = parent;
-        parent = getParent(index);
-      }
-    }
-    std::pair<id, data> getMax(){
-      ASSERT(v.size() > 0);
-      return {v[0], gains_and_balances[v[0]]};
-    }
-    std::pair<id, data> deleteMax(){
-      ASSERT(v.size() > 0);
-      std::pair<id, data> max = getMax();
-      v[0] = v[v.size() - 1];
-      references[v[0]] = 0;
-      v.pop_back();      
-      in_use[max.first] = false;
-      siftDown(0);
-      return max;
-    }
-    data& get(id x){
-      ASSERT(x < gains_and_balances.size());
-      return gains_and_balances[x];
-    }
-    void updateKey(id index){
-      ASSERT(index < gains_and_balances.size());
-      gains_and_balances[index].recomputeBalance();
-      insert({index, gains_and_balances[index]});
-    }
-    bool isEmpty(){
-      return v.size() == 0;
-    }
-    void disable(id index){
-      in_use[index] = false;
-      siftDown(index);
-    }
-    bool isEnabled(id index){
-      ASSERT(index < in_use.size());
-      return in_use[index];
-    }
-    void check(id index){
-      if(references[index] > 0 && gains_and_balances[index] < gains_and_balances[getParent(references[index])]){
-        siftUp(references[index]);
-      }
-      else if(getChild(references[index]) < v.size() && gains_and_balances[index] > gains_and_balances[getChild(references[index])]){
-        siftDown(references[index]);
-      }
-      
-    }
-    void sort(){
-      for(id x = 1; x < v.size(); x++){
-        siftUp(x);
-      }
-    }
-  };
-
-  /*struct Queues_per_node{
-    using Balance=double;
-    AddressablePQ<HypernodeID, Balance> top_moves;
-    std::vector<std::pair<Balance, AddressablePQ<PartitionID, std::pair<Gain, Balance>>>> queues_per_node;
-    void setIsolatedBalanceGain(HypernodeID hn, Balance balance_gain){
-      queues_per_node[hn].first = balance_gain;
-    }
-    void update(HypernodeID hn){
-
-    }
-
-  };*/
-  struct MoveQueue{
-    using Gain_and_Balance=double;
-    AddressablePQ<HypernodeID, Gain_and_Balance> top_moves;
-    std::vector<AddressablePQ<PartitionID, Move_internal>> queues_per_node;
-    void initialize(HypernodeID num_nodes, PartitionID num_parts){
-      top_moves.setSize(num_nodes);
-      queues_per_node.resize(num_nodes);
-      for(HypernodeID i = 0; i < num_nodes; i++){
-        queues_per_node[i].setSize(num_parts);
-      }
-    }
-    std::pair<HypernodeID, PartitionID> deleteMax(){
-      HypernodeID node = top_moves.deleteMax().first;
-      PartitionID to = queues_per_node[node].deleteMax().first;
-      if(!queues_per_node[node].isEmpty()){
-        top_moves.insert({node, queues_per_node[node].getMax().second.gain_and_balance});
-      }      
-      return{node, to};
-    }
-    void insert(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
-      if(move.second.second.balance <= 0){
-        ASSERT(queues_per_node.size() > move.first);
-        queues_per_node[move.first].insert(move.second);
-        update(move.first);
-      }
-      else{
-        ASSERT(queues_per_node.size() > move.first);
-        ASSERT(queues_per_node[move.first].gains_and_balances.size() > move.second.first);
-        queues_per_node[move.first].gains_and_balances[move.second.first] = move.second.second;
-        if(queues_per_node[move.first].isEnabled(move.second.first)){
-          disable({move.first, move.second.first});
-        }
-      }
-    }
-    void insert_without_updating(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
-      if(move.second.second.balance <= 0){
-        ASSERT(queues_per_node.size() > move.first);
-        queues_per_node[move.first].insert(move.second);
-      }
-      else{
-        ASSERT(queues_per_node.size() > move.first);
-        ASSERT(queues_per_node[move.first].gains_and_balances.size() > move.second.first);
-        queues_per_node[move.first].gains_and_balances[move.second.first] = move.second.second;
-        if(queues_per_node[move.first].isEnabled(move.second.first)){
-          queues_per_node[move.first].disable(move.second.first);
-        }
-      }
-    }
-    bool isEmpty(){
-      return top_moves.isEmpty();
-    }
-    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, double>> x){
-      queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
-      queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
-      queues_per_node[x.first].check(x.second.first);
-    }
-    void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
-      queues_per_node[x.first].gains_and_balances[x.second.first].gain += x.second.second;
-    }
-    void update(HypernodeID hn){
-      if(queues_per_node[hn].v.size() == 0){
-        top_moves.disable(hn);
-      }
-      else if(top_moves.get(hn) != queues_per_node[hn].getMax().second.gain_and_balance){
-        top_moves.insert({hn, queues_per_node[hn].getMax().second.gain_and_balance});
-      }
-    }
-    void disable(std::pair<HypernodeID, PartitionID> x){
-      queues_per_node[x.first].disable(x.second);
-      update(x.first);
-    }
-    void checkSizes(PartitionID size){
-      for(HypernodeID hn = 0; hn < queues_per_node.size(); hn++){
-        if(queues_per_node[hn].v.size() <= size);
-      }
-    }
-    void check(){
-      for(HypernodeID hn = 0; hn < queues_per_node.size(); hn++){
-        if(!queues_per_node[hn].isEmpty()){
-          top_moves.insert({hn, queues_per_node[hn].getMax().second.gain_and_balance});
-        }
-      }
-    }
-  };
 
   template <typename GraphAndGainTypes>
   bool MDRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
@@ -318,7 +83,6 @@ namespace mt_kahypar{
       }
     }
     while(imbalanced != 0 && !queue.isEmpty()){
-      std::cout << "marker0\n" << imbalanced << "\n";
       /*for(int i = 0; i < 1; i++){
         std::cout << queue.queues_per_node[queue.top_moves.v[0]].v[i] << "\n";
         std::cout << queue.queues_per_node[queue.top_moves.v[0]].gains_and_balances[i].gain_and_balance << "\n";
@@ -347,8 +111,7 @@ namespace mt_kahypar{
         + (phg.partWeight(max_move.second) + phg.nodeWeight(node) > _context.partition.max_part_weights[max_move.second]);
       phg.changeNodePart(node, phg.partID(node), max_move.second, objective_delta);
       queue.disable({node, max_move.second});
-      std::cout << "marker1\n";
-      _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &phg);
+      _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &queue);
       /*for(Move m : _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0})){
         if(m.to != phg.partID(m.node)){
           queue.addToGain({m.node, {m.to, m.gain}});
@@ -372,10 +135,6 @@ namespace mt_kahypar{
         }
       });
       queue.check();
-      std::cout << "marker2\n";
-      
-      std::cout << "empty: " << queue.isEmpty();   
-      std::cout << "imbalanced: " << imbalanced;
       queue.checkSizes(phg.k());
     }
     /*

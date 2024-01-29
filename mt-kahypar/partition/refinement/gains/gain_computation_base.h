@@ -151,9 +151,9 @@ class GainComputationBase {
   }*/
 
   template<typename PartitionedHypergraph>
-  std::vector<Move> getChangedMoves(const PartitionedHypergraph& phg, const Move move){
+  void getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq){
     Derived* derived = static_cast<Derived*>(this);
-    return derived->getChangedMoves(phg, move);
+    derived->getChangedMoves(phg, move, mq);
   }
 
   template<typename PartitionedHypergraph>

@@ -28,6 +28,8 @@
 
 #include <vector>
 
+#include <tbb/parallel_for_each.h>
+
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -84,19 +86,16 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
     }
   }
   template<typename PartitionedHypergraph>
-  std::vector<Move> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* queue){
-    std::vector<Move> nodes;
-    for(const HyperedgeID& he : phg.incidentEdges(move.node)){
+  void getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* queue){
+    tbb::parallel_for_each(phg.incidentEdges(move.node).begin(), phg.incidentEdges(move.node).end(),[&](const HyperedgeID& he){
       for(HypernodeID hn : phg.pins(he)){
         std::vector<PartitionID> moves;
         if(phg.pinCountInPart(he, move.from) == 0 && phg.partID(hn) != move.from){
           queue->addToGain({hn, {move.from, phg.edgeWeight(he)}});
-          nodes.push_back({hn, phg.partID(hn), move.from, phg.edgeWeight(he)});
         }
         if(phg.pinCountInPart(he, move.from) == 1 && phg.partID(hn) == move.from){
           for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
             queue->addToGain({hn, {p, -phg.edgeWeight(he)}});
-            nodes.push_back({hn, phg.partID(hn), p, -phg.edgeWeight(he)});
           }
         }
         if(phg.pinCountInPart(he, move.to) == 1){
@@ -108,8 +107,7 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
           }
         }
       }                  
-    }
-    return nodes;
+    });
   }
 
   HyperedgeWeight gain(const Gain to_score,
