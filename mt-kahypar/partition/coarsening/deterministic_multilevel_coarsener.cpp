@@ -113,9 +113,50 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
       });
       break;
+    case SwapResolutionStrategy::connected_components:
+      // // sequential variant
+      std::fill(processed.begin(), processed.end(), false);
+      connected.reserve(_context.coarsening.max_allowed_node_weight);
+      for (size_t pos = first; pos < last; ++pos) {
+        const HypernodeID hn = permutation.at(pos);
+        HypernodeID source = hn;
+        while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+          processed[source] = true;
+          connected.push_back(source);
+          source = propositions[source];
+        }
+        for (const HypernodeID& u : connected) {
+          const auto prev_target = propositions[u];
+          if (prev_target != u)
+            opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+          propositions[u] = source;
+          if (source != u)
+            opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+        }
+        connected.clear();
+      }
+      break;
     default:
       break;
     }
+    // This may be used to test wether opportunistic_cluster_weight is correct
+    // vec<HypernodeWeight> op_weights(opportunistic_cluster_weight.size(), 0);
+    // // recalc opportunistic cluster weights
+    // for (size_t u = 0; u < op_weights.size(); ++u) {
+    //   op_weights[u] = cluster_weight[u];
+    // }
+    // for (size_t pos = first; pos < last; pos++) {
+    //   const HypernodeID u = permutation.at(pos);
+    //   if (u != propositions[u]) {
+    //     op_weights[propositions[u]] += hg.nodeWeight(u);
+    //   }
+    // }
+
+    // for (size_t i = 0; i < op_weights.size(); ++i) {
+    //   if (op_weights[i] != opportunistic_cluster_weight[i]) {
+    //     std::cout << V(op_weights[i]) << ", " << V(opportunistic_cluster_weight[i]) << ", " << i << ", " << V(sub_round) << ", " << V(UL(num_nodes_before_pass)) << std::endl;
+    //   }
+    // }
 
 
     tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };

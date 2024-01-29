@@ -193,6 +193,7 @@ std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strate
   case SwapResolutionStrategy::to_smaller: return os << "to_smaller";
   case SwapResolutionStrategy::to_larger: return os << "to_larger";
   case SwapResolutionStrategy::ignore: return os << "ignore";
+  case SwapResolutionStrategy::connected_components: return os << "connected_components";
   case SwapResolutionStrategy::UNDEFINED: return os << "UNDEFINED";
     // omit default case to trigger compiler warning for missing cases
   }
@@ -434,6 +435,8 @@ SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strat
     return SwapResolutionStrategy::to_larger;
   } else if (strategy == "ignore") {
     return SwapResolutionStrategy::ignore;
+  } else if (strategy == "connected_components") {
+    return SwapResolutionStrategy::connected_components;
   }
   throw InvalidParameterException("Illegal option: " + strategy);
   return SwapResolutionStrategy::UNDEFINED;

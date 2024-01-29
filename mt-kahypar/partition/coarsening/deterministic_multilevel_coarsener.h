@@ -80,7 +80,9 @@ public:
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
-    triangle_edge_weights(utils::cast<Hypergraph>(hypergraph).initialNumEdges()) {}
+    triangle_edge_weights(utils::cast<Hypergraph>(hypergraph).initialNumEdges()),
+    processed(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
+    connected() {}
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -160,6 +162,7 @@ private:
   size_t pass;
   utils::ProgressBar progress_bar;
   vec<size_t> triangle_edge_weights;
-
+  vec<bool> processed;
+  vec<HypernodeID> connected;
 };
 }

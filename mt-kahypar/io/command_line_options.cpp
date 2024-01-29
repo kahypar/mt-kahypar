@@ -338,6 +338,7 @@ namespace mt_kahypar {
              " - to_smaller"
              " - to_larger"
              " - ignore"
+             " - connected_components"
              )
              ("c-num-triangle-levels",
              po::value<size_t>(&context.coarsening.num_triangle_levels)->value_name(

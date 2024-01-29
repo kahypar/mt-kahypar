@@ -134,6 +134,7 @@ enum class SwapResolutionStrategy : uint8_t {
   to_smaller,
   to_larger,
   ignore,
+  connected_components,
   UNDEFINED
 };
 
