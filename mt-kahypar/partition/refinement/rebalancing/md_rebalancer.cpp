@@ -240,10 +240,10 @@ namespace mt_kahypar{
     void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, double>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
       queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
+      queues_per_node[x.first].check(x.second.first);
     }
     void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].gain += x.second.second;
-      queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
     }
     void update(HypernodeID hn){
       if(queues_per_node[hn].v.size() == 0){
@@ -264,7 +264,9 @@ namespace mt_kahypar{
     }
     void check(){
       for(HypernodeID hn = 0; hn < queues_per_node.size(); hn++){
-        top_moves.insert({hn, queues_per_node[hn].getMax().second.gain_and_balance});
+        if(!queues_per_node[hn].isEmpty()){
+          top_moves.insert({hn, queues_per_node[hn].getMax().second.gain_and_balance});
+        }
       }
     }
   };
@@ -300,7 +302,7 @@ namespace mt_kahypar{
     };
     MoveQueue queue;
     queue.initialize(phg.initialNumNodes(), phg.k());
-    tbb::parallel_for(ID(0), phg.initialNumNodes(), [&](const HypernodeID hn){
+    phg.doParallelForAllNodes([&](const HypernodeID hn){
       std::vector<Move_md> moves = _gain.allGains(phg, hn);
       for(int i = 0; i < moves.size(); i++){
         ASSERT(phg.partID(hn) != moves[i].to);
@@ -346,13 +348,13 @@ namespace mt_kahypar{
       phg.changeNodePart(node, phg.partID(node), max_move.second, objective_delta);
       queue.disable({node, max_move.second});
       std::cout << "marker1\n";
-      for(HypernodeID hn : phg.nodes()){
-        if(phg.partID(hn) != move.to){
-          queue.changeBalance({hn, {move.to, balance_gain(phg, hn, phg.partID(hn), move.to)}});
-        }
-        if(phg.partID(hn) != move.from){
-          queue.changeBalance({hn, {move.from, balance_gain(phg, hn, phg.partID(hn), move.from)}});
-        }
+      _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &phg);
+      /*for(Move m : _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0})){
+        if(m.to != phg.partID(m.node)){
+          queue.addToGain({m.node, {m.to, m.gain}});
+        }        
+      }*/
+      phg.doParallelForAllNodes([&](HypernodeID hn){
         if(phg.partID(hn) == move.from || phg.partID(hn) == move.to){
           for(PartitionID p = 0; p < phg.k(); p++){
             if(p != phg.partID(hn)){
@@ -360,13 +362,18 @@ namespace mt_kahypar{
             }
           }
         }
-      }
+        else{
+          if(phg.partID(hn) != move.to){
+            queue.changeBalance({hn, {move.to, balance_gain(phg, hn, phg.partID(hn), move.to)}});
+          }
+          if(phg.partID(hn) != move.from){
+            queue.changeBalance({hn, {move.from, balance_gain(phg, hn, phg.partID(hn), move.from)}});
+          }
+        }
+      });
+      queue.check();
       std::cout << "marker2\n";
-      for(Move m : _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0})){
-        if(m.to != phg.partID(m.node)){
-          queue.addToGain({m.node, {m.to, m.gain}});
-        }        
-      }
+      
       std::cout << "empty: " << queue.isEmpty();   
       std::cout << "imbalanced: " << imbalanced;
       queue.checkSizes(phg.k());
