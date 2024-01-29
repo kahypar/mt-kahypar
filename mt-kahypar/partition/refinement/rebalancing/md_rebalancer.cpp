@@ -74,6 +74,7 @@ namespace mt_kahypar{
         ASSERT(phg.partID(hn) != -1);
         queue.insert_without_updating({hn, {moves[i].to, {moves[i].gain_and_balance, moves[i].gain, moves[i].balance}}});
       }
+      queue.insert_without_updating({hn, {phg.partID(hn), {0.0, 0, 0.0}}});
     });
     queue.check();
     PartitionID imbalanced = 0;
@@ -82,8 +83,18 @@ namespace mt_kahypar{
         imbalanced++;
       }
     }
+    int32_t counter = 0;
     while(imbalanced != 0 && !queue.isEmpty()){
-      /*for(int i = 0; i < 1; i++){
+      if(counter % 500 == 0){
+        double ib = 0.0;
+        for(int i = 0; i < phg.k(); i++){
+          for(int j = 0; j < dimension; j++){
+            ib += std::max(0.0, (phg.partWeight(i).weights[j] - _context.partition.max_part_weights[i].weights[j]) * _context.partition.max_part_weights_inv[i][j]);
+          }
+        }
+        std::cout << ib << "\n";
+      }
+      counter++;  /*for(int i = 0; i < 1; i++){
         std::cout << queue.queues_per_node[queue.top_moves.v[0]].v[i] << "\n";
         std::cout << queue.queues_per_node[queue.top_moves.v[0]].gains_and_balances[i].gain_and_balance << "\n";
          std::cout << queue.queues_per_node[queue.top_moves.v[0]].gains_and_balances[i].gain << "\n";
@@ -110,7 +121,7 @@ namespace mt_kahypar{
         - (phg.partWeight(max_move.second) > _context.partition.max_part_weights[max_move.second])
         + (phg.partWeight(max_move.second) + phg.nodeWeight(node) > _context.partition.max_part_weights[max_move.second]);
       phg.changeNodePart(node, phg.partID(node), max_move.second, objective_delta);
-      queue.disable({node, max_move.second});
+      queue.resetGainAndDisable({node, max_move.second});
       _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &queue);
       /*for(Move m : _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0})){
         if(m.to != phg.partID(m.node)){
