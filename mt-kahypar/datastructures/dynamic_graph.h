@@ -840,8 +840,9 @@ class DynamicGraph {
   // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets();
 
- private:
-  friend class DynamicGraphFactory;
+  void multEdgeWeightWithTriangleCount(const HyperedgeID he);
+
+  private : friend class DynamicGraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph>

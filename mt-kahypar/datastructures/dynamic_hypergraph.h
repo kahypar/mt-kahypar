@@ -971,6 +971,11 @@ class DynamicHypergraph {
   // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets();
 
+  void multEdgeWeightWithTriangleCount(const HyperedgeID he) {
+    throw NonSupportedOperationException(
+        "Triangle counting is not supported in a hypergraph");
+  }
+
  private:
   friend class DynamicHypergraphFactory;
   template<typename Hypergraph>

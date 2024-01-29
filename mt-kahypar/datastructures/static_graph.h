@@ -570,6 +570,8 @@ class StaticGraph {
   // ! Computes the largest node weight of the hypergraph
   void computeAndSetLargestNode(parallel_tag_t);
 
+  void multEdgeWeightWithTriangleCount(const HyperedgeID he);
+
   // ####################### Iterators #######################
 
   // ! Iterates in parallel over all active nodes and calls function f

@@ -528,4 +528,33 @@ namespace mt_kahypar::ds {
           return std::max(lhs, rhs);
         });
   }
+
+  void StaticGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
+    auto otherNode = [&](const HypernodeID& hn, const HyperedgeID& he) {
+      const Edge& e = edge(he);
+      if (e.source() == hn) {
+        return e.target();
+      } else {
+        return e.source();
+      }
+    };
+
+    size_t num_triangles = 0;
+    Edge& e = edge(he);
+    for (const auto& e1 : incidentEdges(e.source())) {
+      if (e1 == he) {
+        continue;
+      }
+      for (const auto& e2 : incidentEdges(e.target())) {
+        if (e2 == he) {
+          continue;
+        }
+        if (otherNode(e.source(), e1) == otherNode(e.target(), e2)) {
+          ++num_triangles;
+        }
+      }
+    }
+    e.setWeight(e.weight() * (num_triangles + 1));
+  }
+  
 } // namespace

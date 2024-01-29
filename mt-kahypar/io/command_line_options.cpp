@@ -229,8 +229,11 @@ namespace mt_kahypar {
             ("p-num-sub-rounds",
              po::value<size_t>(&context.preprocessing.community_detection.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic community detection in preprocessing.");
-    return options;
+             "Number of sub-rounds used for deterministic community detection in preprocessing.")
+            ("p-use-triangle-counting",
+             po::value<bool>(&context.preprocessing.use_triangle_counting)->value_name("<bool>")->default_value(false),
+             "If set, the weight on each edge is multiplied with the number of triangles it is part of.");
+        return options;
   }
 
   po::options_description createCoarseningOptionsDescription(Context& context,
