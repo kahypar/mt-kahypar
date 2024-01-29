@@ -21,17 +21,17 @@ class TriangleCounter {
 
   // ! Counts the number of triangles in the hypergraph and multiplies the edge weights 
   // ! with the triangle count on each hyperedge respectively.
-  void countTrianglesAndReplaceEdgeWeights(Hypergraph& hg) {
-    for (const HyperedgeID& he : _original_hypergraph.edges()) {
-      hg.multEdgeWeightWithTriangleCount(he);
-    }
+  void countTrianglesAndReplaceEdgeWeights(Hypergraph& hypergraph) {
+    _original_hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+      hypergraph.multEdgeWeightWithTriangleCount(he);
+    });
   }
 
   // ! Restores all previously changed hyperedges.
   void replaceInitialWeights(PartitionedHypergraph& hypergraph) {
-    for (const HyperedgeID& he : hypergraph.edges()) {
+    hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       hypergraph.setEdgeWeight(he, _original_hypergraph.edgeWeight(he));
-    }
+    });
   }
 
  private:
