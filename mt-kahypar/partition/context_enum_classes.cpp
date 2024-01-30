@@ -196,6 +196,7 @@ namespace mt_kahypar {
     switch (acceptance_policy) {
       ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
+      case AcceptancePolicy::best_prefer_unmatched_reciprocal: return os << "best_prefer_unmatched_reciprocal";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
