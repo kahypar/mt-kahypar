@@ -94,16 +94,20 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
           queue->addToGain({hn, {move.from, phg.edgeWeight(he)}});
         }
         if(phg.pinCountInPart(he, move.from) == 1 && phg.partID(hn) == move.from){
-          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
-            queue->addToGain({hn, {p, -phg.edgeWeight(he)}});
+          for(PartitionID p = 0; p < phg.k(); p++){
+            if(p != phg.partID(hn)){
+              queue->addToGain({hn, {p, -phg.edgeWeight(he)}});
+            }
           }
         }
-        if(phg.pinCountInPart(he, move.to) == 1){
+        if(phg.pinCountInPart(he, move.to) == 1 && phg.partID(hn) != move.to){
           queue->addToGain({hn, {move.to, -phg.edgeWeight(he)}});
         }
         if(phg.pinCountInPart(he, move.to) == 2 && phg.partID(hn) == move.to){
-          for(PartitionID p = 0; p < phg.k() && p != phg.partID(hn); p++){
-            queue->addToGain({hn, {p, phg.edgeWeight(he)}});
+          for(PartitionID p = 0; p < phg.k(); p++){
+            if(p != phg.partID(hn)){
+              queue->addToGain({hn, {p, phg.edgeWeight(he)}});
+            }
           }
         }
       }                  

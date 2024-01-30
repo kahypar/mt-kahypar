@@ -701,11 +701,18 @@ struct Move_with_transformed_gain {
       return v.size() == 0;
     }
     void disable(id index){
-      in_use[index] = false;
-      siftDown(references[index]);
+      if(in_use[index]){
+        in_use[index] = false;
+        v[references[index]] = v[v.size() - 1];
+        references[v[references[index]]] = references[index];
+        v.pop_back();
+        siftDown(references[index]);
+      }      
     }
     void enable(int index){
       in_use[index] = true;
+      references[index] = v.size();
+      v.push_back(index);      
       siftUp(references[index]);
     }
     bool isEnabled(id index){
@@ -716,9 +723,7 @@ struct Move_with_transformed_gain {
       if(references[index] > 0 && gains_and_balances[index] < gains_and_balances[getParent(references[index])]){
         siftUp(references[index]);
       }
-      else if(getChild(references[index]) < v.size() && gains_and_balances[index] > gains_and_balances[getChild(references[index])]){
-        siftDown(references[index]);
-      }
+      siftDown(references[index]);
       
     }
     void sort(){
@@ -751,13 +756,13 @@ struct Move_with_transformed_gain {
         queues_per_node[i].setSize(num_parts);
       }
     }
-    std::pair<HypernodeID, PartitionID> deleteMax(){
+    std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> deleteMax(){
       HypernodeID node = top_moves.deleteMax().first;
-      PartitionID to = queues_per_node[node].deleteMax().first;
+      std::pair<PartitionID, Move_internal> move = queues_per_node[node].deleteMax();
       if(!queues_per_node[node].isEmpty()){
         top_moves.insert({node, queues_per_node[node].getMax().second.gain_and_balance});
       }      
-      return{node, to};
+      return{node, move};
     }
     void insert(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
       if(move.second.second.balance <= 0){

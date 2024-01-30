@@ -74,7 +74,6 @@ namespace mt_kahypar{
         ASSERT(phg.partID(hn) != -1);
         queue.insert_without_updating({hn, {moves[i].to, {moves[i].gain_and_balance, moves[i].gain, moves[i].balance}}});
       }
-      queue.insert_without_updating({hn, {phg.partID(hn), {0.0, 0, 0.0}}});
     });
     queue.check();
     PartitionID imbalanced = 0;
@@ -111,17 +110,20 @@ namespace mt_kahypar{
         << queue.queues_per_node[queue.top_moves.v[0]].gains_and_balances[i].gain_and_balance << "\n";
         std::cout << "\n";
       }*/
-      std::pair<HypernodeID, PartitionID> max_move = queue.deleteMax();
+      std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> max_move = queue.deleteMax();
       ASSERT(phg.partID(max_move.first) != -1);
       ASSERT(max_move.second != -1);
       HypernodeID node = max_move.first;
-      Move move = {phg.partID(node), max_move.second, node, 0};
+      PartitionID to = max_move.second.first;
+      Move_internal gains = max_move.second.second;
+      Move move = {phg.partID(node), to, node, 0};
       imbalanced += (phg.partWeight(phg.partID(node)) - phg.nodeWeight(node) > _context.partition.max_part_weights[phg.partID(node)])
         - (phg.partWeight(phg.partID(node)) > _context.partition.max_part_weights[phg.partID(node)])
-        - (phg.partWeight(max_move.second) > _context.partition.max_part_weights[max_move.second])
-        + (phg.partWeight(max_move.second) + phg.nodeWeight(node) > _context.partition.max_part_weights[max_move.second]);
-      phg.changeNodePart(node, phg.partID(node), max_move.second, objective_delta);
-      queue.resetGainAndDisable({node, max_move.second});
+        - (phg.partWeight(to) > _context.partition.max_part_weights[to])
+        + (phg.partWeight(to) + phg.nodeWeight(node) > _context.partition.max_part_weights[to]);
+      queue.insert_without_updating({node, {phg.partID(node), {-gains.gain_and_balance, -gains.gain, -gains.balance}}});
+      phg.changeNodePart(node, phg.partID(node), to, objective_delta);
+      queue.resetGainAndDisable({node, to});
       _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &queue);
       /*for(Move m : _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0})){
         if(m.to != phg.partID(m.node)){
