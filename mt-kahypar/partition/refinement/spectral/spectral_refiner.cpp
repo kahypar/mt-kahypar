@@ -51,7 +51,7 @@ namespace mt_kahypar {
 
     // implementation goes here
     DBG << "Spectral Refiner called";
-    kSpecPartAlgorithm(hypergraph);
+    partition(hypergraph);
     DBG << "Spectral Refiner finished kSpecPart";
     if constexpr (Hypergraph::is_graph) {
 
@@ -77,7 +77,7 @@ namespace mt_kahypar {
 
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::kSpecPartAlgorithm(PartitionedHypergraph& inputSolution) {
+  void SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& inputSolution) {
     Hypergraph& inputHypergraph  = inputSolution.hypergraph();
     PartitionID k = inputSolution.k(); /* TODO extract from argv */
     
@@ -111,13 +111,83 @@ namespace mt_kahypar {
   void SpectralRefiner<GraphAndGainTypes>::dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     // dehyperisation via clique expansion graph
 
-    /* TODO */
+    target.ctx = (void *) &hypergraph;
+
+    target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+      size_t n = operand.dimension();
+      Hypergraph *hg = (Hypergraph *) self->ctx;
+
+      spectral::Skalar clique_edge_weight_sum = 0.0;
+      spectral::Vector edges_superposition(n);
+      for (const HyperedgeID& he : hg->edges()) { /* TODO use parallel?? */
+        HypernodeID edge_size = hg->edgeSize(he);
+
+        clique_edge_weight_sum += 1.0 / (edge_size - 1.0);
+
+        spectral::Skalar operand_norm_he = 0.0;
+        for (const HypernodeID& pin : hg->pins(he)) {
+          operand_norm_he += operand.get(pin /* TODO calculate index */);
+        }
+        operand_norm_he /= edge_size;
+
+        // accumulate edges superposition vector
+        for (const HypernodeID& pin : hg->pins(he)) {
+          size_t index = pin; /* TODO calculate index */
+          edges_superposition.set(index, edges_superposition.get(index) + operand_norm_he);
+        }
+      }
+      
+      // calculate result
+      for (size_t i = 0; i < target_vector.dimension(); i++) {
+        target_vector.set(i, clique_edge_weight_sum * operand.get(i) - edges_superposition.get(i));
+      }
+    };
+
+    target.calc_diagonal = [] (Operator *self, Vector& target_vector) {
+      Hypergraph *hg = (Hypergraph *) self->ctx;
+      for (const HypernodeID& node : hg->nodes()) {
+        for (const HyperedgeID& edge : hg->incidentEdges(node)) {
+          size_t index = node; /* TODO calculate index */
+          target_vector.set(node, target_vector.get(node) + hg->edgeWeight(edge));
+        }
+      }
+    };
   }
   
   
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
-    /* TODO */
+    target.ctx = (void *) &hypergraph;
+
+    target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+      Hypergraph *hg = (Hypergraph *) self->ctx;
+      auto dimension = operand.dimension();
+
+      spectral::Skalar sum_x = 0.0;
+      for (size_t i = 0; i < dimension; i++) {
+        sum_x += operand.get(i);
+      }
+      
+      for (const HypernodeID& node : hg->nodes()) {
+        size_t index = node; /* TODO calculate index */
+        target_vector.set(index, hg->nodeWeight(node) * (operand.get(index) - sum_x / dimension));
+      }
+    };
+
+    target.calc_diagonal = [] (Operator *self, Vector& target_vector) {
+      Hypergraph *hg = (Hypergraph *) self->ctx;
+
+      spectral::Skalar total_node_weight = 0.0; // TODO use Hypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) ???
+      for (const HypernodeID node : hg->nodes()) {
+        total_node_weight += hg->nodeWeight(node);
+      }
+
+      for (const HypernodeID node : hg->nodes()) {
+        size_t index = node; /* TODO calculate index */
+        spectral::Skalar weight = hg->nodeWeight(node);
+        target_vector.set(index, weight * (total_node_weight - weight));
+      }
+    };
   }
 
 
@@ -128,18 +198,23 @@ namespace mt_kahypar {
     generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
-    solver.setProblem(graphLaplacian, /* baseBalance + */ hintGraphLaplacian);
+    solver.setProblem(graphLaplacian, baseBalance /*+ hintGraphLaplacian*/);
 
     /* TODO */
     // to see something:
     spectral::Skalar a;
     spectral::Vector v(numNodes);
+    // v.set(0, 5);
+    // graphLaplacian.getDiagonal(v);
+    //DBG << v.get(0);
     solver.nextEigenpair(a, v);
+    v.get_all();
   }
 
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target) {
+    target.ctx = (void *) &(hintSolution.hypergraph());
     /* TODO */
   }
 

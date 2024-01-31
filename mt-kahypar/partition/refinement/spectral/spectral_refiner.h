@@ -76,7 +76,7 @@ class SpectralRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
-  void kSpecPartAlgorithm(PartitionedHypergraph& hypergraph);
+  void partition(PartitionedHypergraph& hypergraph);
 
   void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
