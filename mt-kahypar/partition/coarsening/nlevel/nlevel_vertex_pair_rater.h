@@ -156,6 +156,7 @@ class NLevelVertexPairRater {
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = kInvalidHypernode;
+    int nr_passes = 0;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target = it->key;
       const HypernodeWeight target_weight = hypergraph.nodeWeight(tmp_target);
@@ -173,7 +174,6 @@ class NLevelVertexPairRater {
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        int nr_passes = 0;
         if ( accept_fixed_vertex_contraction &&
              community_u_id == hypergraph.communityID(tmp_target) &&
              AcceptancePolicy::acceptRating(tmp_rating, max_rating,
