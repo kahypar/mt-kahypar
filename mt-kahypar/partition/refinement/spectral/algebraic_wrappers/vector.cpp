@@ -40,18 +40,15 @@ size_t Vector::dimension() {
 
 Skalar Vector::get(size_t index) {
   if (index >= data.size()) {
-    set(index, 0);
+    data.resize(index + 1, 0);
   }
   return data[index];
 }
 
 template <typename F>
 void Vector::set_generalized(size_t index, F &&set_op) {
-  size_t old_size = data.size();
-  if (index >= old_size) {
-    for (size_t i = 0; i <= index - old_size; i++) {
-      data.push_back(0);
-    }
+  if (index >= data.size()) {
+    data.resize(index + 1, 0);
   }
   set_op();
 }
@@ -61,7 +58,7 @@ void Vector::set(size_t index, const Skalar &&value) {
 }
 
 void Vector::set(size_t index, const Skalar &value) {
-  set_generalized(index, [this, index, value](){this->data[index] = value;});
+  set_generalized(index, [&](){data[index] = value;});
 }
 
 

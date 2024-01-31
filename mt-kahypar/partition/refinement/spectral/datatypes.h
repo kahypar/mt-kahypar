@@ -26,10 +26,13 @@
 
 #include "mt-kahypar/definitions.h"
 
+#include <slepceps.h> /* TODO remove this */
+
 namespace mt_kahypar {
 namespace spectral {
 
-using Skalar = float;
+/* TODO only makeshift*/
+using Skalar = PetscScalar;
 
 }
 }
