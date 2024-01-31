@@ -31,6 +31,16 @@ namespace spectral {
 
 Operator::Operator(size_t dimension) {
   dim = dimension;
+  effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+    for (size_t i = 0; i < operand.dimension(); i++) {
+      target_vector.set(i, operand.get(i));
+    }
+  };
+  calc_diagonal = [] (Operator *self, Vector& target_vector) {
+    for (size_t i = 0; i < target_vector.dimension(); i++) {
+      target_vector.set(i, 1.0);
+    }
+  };
 }
 
 size_t Operator::dimension() {
@@ -38,11 +48,11 @@ size_t Operator::dimension() {
 }
 
 void Operator::apply(Vector& operand, Vector& target) {
-  /* TODO */
+  effect(this, operand, target);
 }
 
 void Operator::getDiagonal(Vector& target) {
-  /* TODO */
+  calc_diagonal(this, target);
 }
 
 bool Operator::isSymmetric() {

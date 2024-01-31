@@ -26,6 +26,7 @@
 
 #include <cstddef>
 
+#include "mt-kahypar/partition/refinement/spectral/datatypes.h"
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
 
 
@@ -43,6 +44,11 @@ class Operator {
   void getDiagonal(Vector& target);
 
   bool isSymmetric();
+
+  /* only makeshift */
+  void (*effect) (Operator*, Vector&, Vector&) = [](Operator *self, Vector& operand, Vector& target) { throw "unassigned"; };
+  void (*calc_diagonal) (Operator*, Vector&) = [](Operator *self, Vector& target) { throw "unassigned"; };
+  void *ctx;
 
  private:
   size_t dim;
