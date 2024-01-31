@@ -26,6 +26,8 @@
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.cpp" /* TODO imports should work otherwise... */
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.cpp" /* TODO imports should work otherwise... */
 
+#include "mt-kahypar/partition/refinement/spectral/datatypes.h"
+
 namespace mt_kahypar {
 namespace spectral {
 
@@ -117,7 +119,19 @@ bool SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
     solve();
   }
 
-  // ...
+  PetscInt number_of_eigenpairs;
+  CallPetsc(EPSGetConverged(eps, &number_of_eigenpairs));
+
+  PetscScalar kr, ki;
+  Vec xr, xi;
+
+  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xr));
+  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xi));
+  CallPetsc(EPSGetEigenpair(eps, 0, &kr, &ki, xr, xi));
+
+  eval = kr;
+  vec2vector(xr, evec);
+
   PetscFunctionReturn(true);
 }
 
@@ -157,20 +171,60 @@ SLEPcGEVPSolver::~SLEPcGEVPSolver() {
 void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
+  if (false) {
+  /* test */
+  size_t n = op_a->dimension();
+  Vec x, b;
+  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, n, &x));
+  CallPetsc(VecDuplicate(x, &b));
+  Mat M;
+  CallPetsc(MatCreateSeqAIJ(GLOBAL_COMMUNICATOR, n, n, n, nullptr, &M));
+  for (size_t i = 0; i < n; i++) {
+    CallPetsc(VecSet(x, 0.0));
+    CallPetsc(VecSetValue(x, i, 1, INSERT_VALUES));
+    CallPetsc(VecAssemblyBegin(x));
+    CallPetsc(VecAssemblyEnd(x));
+    //CallPetsc(VecView(x, PETSC_VIEWER_STDOUT_SELF));
+    
+    CallPetsc(MatMult(mat_A, x, b));
+    // CallPetsc(MatSetValues)
+    //CallPetsc(MatView(mat_A, PETSC_VIEWER_STDOUT_SELF));
+    CallPetsc(VecView(b, PETSC_VIEWER_STDOUT_SELF));
+  }
+  
+  } else {
+
   // solve
 
-  // CallPetsc(EPSSolve(eps));
+  CallPetsc(EPSSolve(eps));  /* end test code */}
   solved = true;
 
   PetscFunctionReturnVoid();
 }
 
 void SLEPcGEVPSolver::vector2Vec(Vector& vector, Vec vec) {
-  /* TODO */
+  PetscFunctionBeginUser;
+
+  Range(vector.dimension());
+  
+  CallPetsc(VecSetValues(vec, vector.dimension(), range, vector.get_all(), INSERT_VALUES));
+  CallPetsc(VecAssemblyBegin(vec));
+  CallPetsc(VecAssemblyEnd(vec));
+  
+  PetscFunctionReturnVoid();
 }
 
-void SLEPcGEVPSolver::vec2vector(Vec vec, Vector& vector) {
-  /* TODO */
+void SLEPcGEVPSolver::vec2vector(Vec slepc_vec, Vector& vector) {
+  PetscFunctionBeginUser;
+
+  Range(vector.dimension());
+
+  vec<Skalar> arr;
+  arr.resize(vector.dimension());
+  CallPetsc(VecGetValues(slepc_vec, vector.dimension(), range, arr.data()));
+  vector.set_all(arr.data());
+  
+  PetscFunctionReturnVoid();
 }
 
 PetscErrorCode SLEPcGEVPSolver::matMult(Mat M, Vec x, Vec y) {
@@ -179,8 +233,10 @@ PetscErrorCode SLEPcGEVPSolver::matMult(Mat M, Vec x, Vec y) {
   Operator *op_m;
   getMatContext(M, &op_m);
 
+  // vector objects in spectral namespace
   Vector sp_x(op_m->dimension());
   Vector sp_y(op_m->dimension());
+
   vec2vector(x, sp_x);
   op_m->apply(sp_x, sp_y);
   vector2Vec(sp_y, y);
@@ -214,7 +270,7 @@ PetscErrorCode SLEPcGEVPSolver::getDiagonal(Mat M, Vec diag) {
   PetscFunctionReturn(0); /* TODO error code */
 }
 
- void SLEPcGEVPSolver::getMatContext(Mat M, Operator **op) {
+void SLEPcGEVPSolver::getMatContext(Mat M, Operator **op) {
   PetscFunctionBeginUser;
 
   void *ctx;

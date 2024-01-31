@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
 
 #define CallPetsc(...) PetscCallAbort(PETSC_COMM_WORLD, __VA_ARGS__)
+#define Range(length) PetscInt range[length]; for (PetscInt i = 0; i < length; i++) { range[i] = i; }
 
 namespace mt_kahypar {
 namespace spectral {
@@ -88,7 +89,7 @@ class SLEPcGEVPSolver : public GEVPSolver {
   static constexpr MPI_Comm& GLOBAL_COMMUNICATOR = PETSC_COMM_WORLD;
 
   // matrix storage size calculation strategys
-  static constexpr size_t (*GET_N_NAIVE) (size_t) = [](size_t n) { return n*n; };
+  static constexpr size_t (*GET_N_NAIVE) (size_t) = [](size_t n) { return n/*n*/; };
   /* ... */
 
   // problem type strategys
