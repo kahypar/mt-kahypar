@@ -25,6 +25,7 @@
 #pragma once
 
 #include <cstddef>
+#include "mt-kahypar/partition/refinement/spectral/datatypes.h"
 
 
 namespace mt_kahypar {
@@ -34,8 +35,19 @@ class Vector {
  public:
   Vector(size_t dimension);
   size_t dimension();
+
+  Skalar get(size_t index);
+  void set(size_t index, const Skalar &&value);
+  void set(size_t index, const Skalar &value);
+
+  const Skalar *get_all();
+  void set_all(const Skalar *data_array);
  private:
   size_t dim;
+  vec<Skalar> data;
+
+  template <typename F>
+  void set_generalized(size_t index, F &&set_op);
 };
 }
 }
