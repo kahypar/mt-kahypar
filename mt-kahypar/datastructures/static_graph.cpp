@@ -530,31 +530,20 @@ namespace mt_kahypar::ds {
   }
 
   void StaticGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
-    auto otherNode = [&](const HypernodeID& hn, const HyperedgeID& he) {
-      const Edge& e = edge(he);
-      if (e.source() == hn) {
-        return e.target();
-      } else {
-        return e.source();
-      }
-    };
-
-    size_t num_triangles = 0;
     Edge& e = edge(he);
-    for (const auto& e1 : incidentEdges(e.source())) {
-      if (e1 == he) {
-        continue;
-      }
-      for (const auto& e2 : incidentEdges(e.target())) {
-        if (e2 == he) {
-          continue;
-        }
-        if (otherNode(e.source(), e1) == otherNode(e.target(), e2)) {
-          ++num_triangles;
-        }
-      }
-    }
-    e.setWeight(e.weight() * (num_triangles + 1));
+    auto source = incidentEdges(e.source());
+    auto target = incidentEdges(e.target());
+    std::vector<HypernodeID> sourceIDs;
+    std::vector<HypernodeID> targetIDs;
+    std::copy(source.begin(), source.end(), std::back_inserter(sourceIDs));
+    std::copy(target.begin(), target.end(), std::back_inserter(targetIDs));
+    std::sort(sourceIDs.begin(), sourceIDs.end());
+    std::sort(targetIDs.begin(), targetIDs.end());
+
+    std::vector<HypernodeID> triangles;
+    std::set_intersection(sourceIDs.begin(), sourceIDs.end(), targetIDs.begin(),
+                          targetIDs.end(), std::back_inserter(triangles));
+    e.setWeight(e.weight() * (triangles.size() + 1));
   }
   
 } // namespace
