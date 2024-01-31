@@ -191,6 +191,7 @@ class NLevelVertexPairRater {
       ret.value = max_rating;
       ret.target = target;
       ret.valid = true;
+      nr_passes = 0;
     }
     tmp_ratings.clear();
     return ret;
