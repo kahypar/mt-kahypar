@@ -84,6 +84,9 @@ class ConcurrentClusteringData {
   template<typename Hypergraph>
   void initializeCoarseningPass(Hypergraph& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids);
 
+  template <typename Hypergraph>
+  void initializeClusteringRound(const Hypergraph& current_hg);
+
   /*!
    * We maintain the invariant during clustering that each cluster has a unique
    * representative and all vertices also part of that cluster point to that

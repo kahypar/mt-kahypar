@@ -47,6 +47,17 @@ void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
   });
 }
 
+template <typename Hypergraph>
+void ConcurrentClusteringData::initializeClusteringRound(const Hypergraph& current_hg) {
+  tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
+    _matching_state[hn] = STATE(MatchingState::UNMATCHED);
+    _matching_partner[hn] = hn;
+    if (current_hg.nodeIsEnabled(hn)) {
+      _cluster_weight[hn] = current_hg.nodeWeight(hn);
+    }
+  });
+}
+
 template<bool has_fixed_vertices, typename Hypergraph>
 bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
                                              const HypernodeID u,
@@ -192,6 +203,8 @@ namespace {
   #define INITIALIZE_PASS(X) void ConcurrentClusteringData::initializeCoarseningPass(                         \
                                       X& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids)
 
+  #define INITIALIZE_CLUSTERING_ROUND(X) void ConcurrentClusteringData::initializeClusteringRound(const X& current_hg)
+
   #define MATCH_VERTICES(X) bool ConcurrentClusteringData::matchVertices<false>(const X& hypergraph, const HypernodeID u, \
                                    const HypernodeID v, const HypernodeWeight max_allowed_node_weight,                    \
                                    parallel::scalable_vector<HypernodeID>& cluster_ids,                                   \
@@ -207,6 +220,7 @@ namespace {
 }
 
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(INITIALIZE_PASS)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(INITIALIZE_CLUSTERING_ROUND)
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(MATCH_VERTICES)
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(MATCH_VERTICES_FIXED)
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(VERIFY_CLUSTERING)

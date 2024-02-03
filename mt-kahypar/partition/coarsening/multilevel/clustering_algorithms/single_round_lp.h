@@ -104,11 +104,14 @@ class SingleRoundLP {
       for (size_t i = 0; i < _context.shared_memory.num_threads; ++i) { tg.run(task); }
       tg.wait();
     } else {
-      // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
-      tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
-        ASSERT(id < node_mapping.size());
-        handle_node(node_mapping[id]);
-      });
+      for(HypernodeID i = 0; i < _context.coarsening.num_clustering_rounds; i++) {
+        cc.initializeClusteringRound(hg);
+        // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
+        tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
+          ASSERT(id < node_mapping.size());
+          handle_node(node_mapping[id]);
+        });
+      }
     }
   }
 

@@ -106,6 +106,11 @@ struct ClusteringContext {
     rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
   }
 
+  void initializeClusteringRound(const Hypergraph& current_hg) {
+    clustering_data.initializeClusteringRound(current_hg);
+    rater.resetMatches();
+  }
+
   void updateAdaptiveNodeWeight(const HypernodeWeight total_hypergraph_weight, HypernodeID num_hns, const Context& context) {
     double hypernode_weight_fraction =
         context.coarsening.max_allowed_weight_multiplier / (context.partition.k * std::pow(static_cast<int>(num_hns), context.coarsening.alpha));

@@ -430,7 +430,11 @@ namespace mt_kahypar {
             ("c-sim-degree-comparison-bound",
              po::value<double>(&context.coarsening.rating.degree_comparison_bound)->value_name(
                      "<double>")->default_value(4),
-             "Compare degrees similarity policy: max allowed difference.");
+             "Compare degrees similarity policy: max allowed difference.")
+            ("c-num-clustering-rounds",
+             po::value<HypernodeID>(&context.coarsening.num_clustering_rounds)->value_name(
+                    "<int>")->default_value(1),
+             "Number of clustering rounds.");
     return options;
   }
 
