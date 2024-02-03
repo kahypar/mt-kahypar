@@ -531,19 +531,31 @@ namespace mt_kahypar::ds {
 
   void StaticGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
     Edge& e = edge(he);
-    auto source = incidentEdges(e.source());
-    auto target = incidentEdges(e.target());
     std::vector<HypernodeID> sourceIDs;
     std::vector<HypernodeID> targetIDs;
-    std::copy(source.begin(), source.end(), std::back_inserter(sourceIDs));
-    std::copy(target.begin(), target.end(), std::back_inserter(targetIDs));
+    for (HyperedgeID i : incidentEdges(e.source())) {
+      Edge& ie = edge(i);
+      if (ie.source() == e.source()) {
+        sourceIDs.push_back(ie.target());
+      } else {
+        targetIDs.push_back(ie.source());
+      }
+    }
+    for (HyperedgeID i : incidentEdges(e.target())) {
+      Edge& ie = edge(i);
+      if (ie.source() == e.target()) {
+        targetIDs.push_back(ie.target());
+      } else {
+        sourceIDs.push_back(ie.source());
+      }
+    }
     std::sort(sourceIDs.begin(), sourceIDs.end());
     std::sort(targetIDs.begin(), targetIDs.end());
 
     std::vector<HypernodeID> triangles;
     std::set_intersection(sourceIDs.begin(), sourceIDs.end(), targetIDs.begin(),
                           targetIDs.end(), std::back_inserter(triangles));
-    e.setWeight(e.weight() * (triangles.size() + 1));
+    e.setWeight(std::log2(triangles.size() + 1) + 1);
   }
   
 } // namespace

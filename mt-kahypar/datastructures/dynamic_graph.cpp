@@ -432,31 +432,32 @@ bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
 }
 
 void DynamicGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
-  auto otherNode = [&](const HypernodeID& hn, const HyperedgeID& he) {
-    const Edge& e = edge(he);
-    if (e.source == hn) {
-      return e.target;
-    } else {
-      return e.source;
-    }
-  };
-
-  size_t num_triangles = 0;
   Edge& e = edge(he);
-  for (const auto& e1 : incidentEdges(e.source)) {
-    if (e1 == he) {
-      continue;
-    }
-    for (const auto& e2 : incidentEdges(e.target)) {
-      if (e2 == he) {
-        continue;
-      }
-      if (otherNode(e.source, e1) == otherNode(e.target, e2)) {
-        ++num_triangles;
-      }
+  std::vector<HypernodeID> sourceIDs;
+  std::vector<HypernodeID> targetIDs;
+  for (HyperedgeID i : incidentEdges(e.source())) {
+    Edge& ie = edge(i);
+    if (ie.source == e.source) {
+      sourceIDs.push_back(ie.target);
+    } else {
+      targetIDs.push_back(ie.source);
     }
   }
-  e.weight = (e.weight * (num_triangles + 1));
+  for (HyperedgeID i : incidentEdges(e.target)) {
+    Edge& ie = edge(i);
+    if (ie.source == e.target) {
+      targetIDs.push_back(ie.target);
+    } else {
+      sourceIDs.push_back(ie.source);
+    }
+  }
+  std::sort(sourceIDs.begin(), sourceIDs.end());
+  std::sort(targetIDs.begin(), targetIDs.end());
+
+  std::vector<HypernodeID> triangles;
+  std::set_intersection(sourceIDs.begin(), sourceIDs.end(), targetIDs.begin(),
+                        targetIDs.end(), std::back_inserter(triangles));
+  e.weight = std::log2(triangles.size() + 1) + 1;
 }
 
 } // namespace ds
