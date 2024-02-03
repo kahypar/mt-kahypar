@@ -435,7 +435,7 @@ void DynamicGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
   Edge& e = edge(he);
   std::vector<HypernodeID> sourceIDs;
   std::vector<HypernodeID> targetIDs;
-  for (HyperedgeID i : incidentEdges(e.source())) {
+  for (HyperedgeID i : incidentEdges(e.source)) {
     Edge& ie = edge(i);
     if (ie.source == e.source) {
       sourceIDs.push_back(ie.target);
