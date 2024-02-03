@@ -25,10 +25,11 @@ class TriangleCounter {
     _original_hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       hypergraph.multEdgeWeightWithTriangleCount(he);
     });
+    _triangle_graph = hypergraph.copy();
   }
 
   // ! Restores all previously changed hyperedges.
-  void replaceInitialWeights(PartitionedHypergraph& hypergraph) {
+  void replaceInitialWeights(Hypergraph& hypergraph) {
     hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       hypergraph.setEdgeWeight(he, _original_hypergraph.edgeWeight(he));
     });
@@ -37,6 +38,7 @@ class TriangleCounter {
  private:
   const Context& _context;
   const Hypergraph& _original_hypergraph;
+  Hypergraph _triangle_graph;
 };
 
 }  // namespace mt_kahypar

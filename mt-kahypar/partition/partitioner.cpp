@@ -343,12 +343,8 @@ namespace mt_kahypar {
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
     Hypergraph tmp_hypergraph = hypergraph.copy();
-    TriangleCounter<TypeTraits> triangle_counter(context, tmp_hypergraph);
     preprocess(hypergraph, context, target_graph);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
-    if (context.preprocessing.use_triangle_counting) {
-      triangle_counter.countTrianglesAndReplaceEdgeWeights(hypergraph);
-    }
     timer.stop_timer("preprocessing");
 
     // ################## MULTILEVEL & VCYCLE ##################
@@ -384,9 +380,6 @@ namespace mt_kahypar {
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     forceFixedVertexAssignment(partitioned_hypergraph, context);
-    if (context.preprocessing.use_triangle_counting) {
-      triangle_counter.replaceInitialWeights(partitioned_hypergraph);
-    }
     timer.stop_timer("postprocessing");
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
