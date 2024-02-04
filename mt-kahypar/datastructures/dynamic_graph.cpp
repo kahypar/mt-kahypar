@@ -457,7 +457,7 @@ void DynamicGraph::multEdgeWeightWithTriangleCount(const HyperedgeID he) {
   std::vector<HypernodeID> triangles;
   std::set_intersection(sourceIDs.begin(), sourceIDs.end(), targetIDs.begin(),
                         targetIDs.end(), std::back_inserter(triangles));
-  e.weight = std::log2(triangles.size() + 1) + 1;
+  e.weight = 1.0 / 8.0 * (triangles.size() * triangles.size()) + 1;
 }
 
 } // namespace ds
