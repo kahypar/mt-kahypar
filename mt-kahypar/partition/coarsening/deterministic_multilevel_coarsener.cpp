@@ -71,6 +71,23 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
       }
     });
+    if (passed_nodes_from_previous_subround.size() > 0) {
+      std::cout << "ALARM" << std::endl;
+      tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+        const HypernodeID u = passed_nodes_from_previous_subround[i];
+        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+          if (isTrianglePass && sub_round < _context.coarsening.num_triangle_subrounds) {
+            calculatePreferredTargetClusterTriangles(u, clusters);
+          } else {
+            calculatePreferredTargetCluster(u, clusters);
+          }
+        }
+      });
+    }
+    if (nodes_in_too_heavy_clusters.size() > 0) {
+      std::cout << "asdasjkd" << std::endl;
+    }
+
     switch (_context.coarsening.swapStrategy) {
     case SwapResolutionStrategy::stay:
       tbb::parallel_for(first, last, [&](size_t pos) {
@@ -84,6 +101,19 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
         }
       });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            propositions[u] = u;
+            propositions[cluster_u] = cluster_u;
+            opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+            opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+          }
+        });
+      }
       break;
     case SwapResolutionStrategy::to_smaller:
       tbb::parallel_for(first, last, [&](size_t pos) {
@@ -98,6 +128,20 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
         }
       });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
       break;
     case SwapResolutionStrategy::to_larger:
       tbb::parallel_for(first, last, [&](size_t pos) {
@@ -112,7 +156,22 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
         }
       });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u&& u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
       break;
+      // TODO: Do this only the first few passes/ subrounds?
     case SwapResolutionStrategy::connected_components:
       // // sequential variant
       std::fill(processed.begin(), processed.end(), false);
@@ -135,6 +194,25 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
         connected.clear();
       }
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        for (const HypernodeID hn : passed_nodes_from_previous_subround) {
+          HypernodeID source = hn;
+          while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+            processed[source] = true;
+            connected.push_back(source);
+            source = propositions[source];
+          }
+          for (const HypernodeID& u : connected) {
+            const auto prev_target = propositions[u];
+            if (prev_target != u)
+              opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+            propositions[u] = source;
+            if (source != u)
+              opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+          }
+          connected.clear();
+        }
+      }
       break;
     default:
       break;
@@ -154,7 +232,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
     // for (size_t i = 0; i < op_weights.size(); ++i) {
     //   if (op_weights[i] != opportunistic_cluster_weight[i]) {
-    //     std::cout << V(op_weights[i]) << ", " << V(opportunistic_cluster_weight[i]) << ", " << i << ", " << V(sub_round) << ", " << V(UL(num_nodes_before_pass)) << std::endl;
+    //     std::cout << V(op_weights[i]) << ", " << V(opportunistic_cluster_weight[i]) << ", " << V(i) << ", " << V(sub_round) << ", " << V(UL(num_nodes_before_pass)) << std::endl;
     //   }
     // }
 
@@ -179,15 +257,74 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
       }
     });
+    if (passed_nodes_from_previous_subround.size() > 0) {
+      tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t pos) {
+        const HypernodeID u = passed_nodes_from_previous_subround[pos];
+        HypernodeID target = propositions[u];
+        if (target != u) {
+          if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+              num_contracted_nodes.local() += 1;
+            }
+            clusters[u] = target;
+            cluster_weight[target] = opportunistic_cluster_weight[target];
+          } else {
+            nodes_in_too_heavy_clusters.push_back_buffered(u);
+          }
+        }
+      });
+    }
 
     num_nodes -= num_contracted_nodes.combine(std::plus<>());
     nodes_in_too_heavy_clusters.finalize();
-
     if (nodes_in_too_heavy_clusters.size() > 0) {
-      num_nodes -= approveVerticesInTooHeavyClusters(clusters);
+      switch (_context.coarsening.heavy_cluster_strategy) {
+      case HeavyClusterStrategy::fill:
+        num_nodes -= approveVerticesInTooHeavyClusters(clusters);
+        break;
+      case HeavyClusterStrategy::reset:
+        // This case might not converge if not done properly
+        tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+          const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+          if (propositions[hn] != hn) {
+            __atomic_fetch_sub(&opportunistic_cluster_weight[propositions[hn]], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+            propositions[hn] = hn;
+          }
+        });
+        break;
+      case HeavyClusterStrategy::recalculate:
+        passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+        tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+          const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+          const auto target = propositions[hn];
+          if (target != hn) {
+            __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+            propositions[hn] = hn;
+          }
+          passed_nodes_from_previous_subround[i] = hn;
+        });
+        nodes_in_too_heavy_clusters.clear();
+        num_nodes -= recalculateForPassedOnHypernodes(clusters);
+        break;
+      case HeavyClusterStrategy::pass_on:
+        passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+        tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+          const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+          const auto target = propositions[hn];
+          if (target != hn) {
+            __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+            propositions[hn] = hn;
+          }
+          passed_nodes_from_previous_subround[i] = hn;
+        });
+        break;
+      default:
+        break;
+      }
+      nodes_in_too_heavy_clusters.clear();
     }
-
-    nodes_in_too_heavy_clusters.clear();
+    passed_nodes_from_previous_subround.clear();
   }
 
   timer.stop_timer("coarsening_pass");
@@ -249,6 +386,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     }
     measurements.score.push_back(score);
   }
+  passed_nodes_from_previous_subround.clear();
   return true;
 }
 
@@ -460,6 +598,113 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculateSharedTrianglesPerEd
     }
   };
   triangle_count.combine_each(combine);
+}
+
+template<typename TypeTraits>
+size_t DeterministicMultilevelCoarsener<TypeTraits>::recalculateForPassedOnHypernodes(vec<HypernodeID>& clusters) {
+  size_t num_nodes = 0;
+  const Hypergraph& hg = Base::currentHypergraph();
+  tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+    const HypernodeID u = passed_nodes_from_previous_subround[i];
+    if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+      calculatePreferredTargetCluster(u, clusters);
+    }
+  });
+  switch (_context.coarsening.swapStrategy) {
+  case SwapResolutionStrategy::stay:
+    tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+      const HypernodeID u = passed_nodes_from_previous_subround[i];
+      const HypernodeID cluster_u = propositions[u];
+      const HypernodeID cluster_v = propositions[cluster_u];
+      if (u < cluster_u && u == cluster_v) {
+        propositions[u] = u;
+        propositions[cluster_u] = cluster_u;
+        opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+        opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+      }
+    });
+
+    break;
+  case SwapResolutionStrategy::to_smaller:
+    tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+      const HypernodeID u = passed_nodes_from_previous_subround[i];
+      const HypernodeID cluster_u = propositions[u];
+      const HypernodeID cluster_v = propositions[cluster_u];
+      if (u < cluster_u && u == cluster_v) {
+        const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+        const HypernodeID source = target == u ? cluster_u : u;
+        propositions[u] = target;
+        propositions[cluster_u] = target;
+        opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+      }
+    });
+
+    break;
+  case SwapResolutionStrategy::to_larger:
+    tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+      const HypernodeID u = passed_nodes_from_previous_subround[i];
+      const HypernodeID cluster_u = propositions[u];
+      const HypernodeID cluster_v = propositions[cluster_u];
+      if (u < cluster_u&& u == cluster_v) {
+        const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+        const HypernodeID source = target == u ? cluster_u : u;
+        propositions[u] = target;
+        propositions[cluster_u] = target;
+        opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+      }
+    });
+
+    break;
+    // TODO: Do this only the first few passes/ subrounds?
+  case SwapResolutionStrategy::connected_components:
+    // // sequential variant
+    for (const HypernodeID hn : passed_nodes_from_previous_subround) {
+      HypernodeID source = hn;
+      while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+        processed[source] = true;
+        connected.push_back(source);
+        source = propositions[source];
+      }
+      for (const HypernodeID& u : connected) {
+        const auto prev_target = propositions[u];
+        if (prev_target != u)
+          opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+        propositions[u] = source;
+        if (source != u)
+          opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+      }
+      connected.clear();
+    }
+    break;
+  default:
+    break;
+  }
+
+  tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+
+  tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+    //for (size_t i = 0; i < passed_nodes_from_previous_subround.size(); ++i) {
+    const HypernodeID u = passed_nodes_from_previous_subround[i];
+    HypernodeID target = propositions[u];
+    if (target != u) {
+      if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+        // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+        if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+          num_contracted_nodes.local() += 1;
+        }
+        clusters[u] = target;
+        cluster_weight[target] = opportunistic_cluster_weight[target];
+      } else {
+        nodes_in_too_heavy_clusters.push_back_buffered(u);
+      }
+    }
+  });
+  num_nodes += num_contracted_nodes.combine(std::plus<>());
+  nodes_in_too_heavy_clusters.finalize();
+  if (nodes_in_too_heavy_clusters.size() > 0) {
+    num_nodes += approveVerticesInTooHeavyClusters(clusters);
+  }
+  return num_nodes;
 }
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)

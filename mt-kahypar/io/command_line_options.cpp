@@ -351,7 +351,18 @@ namespace mt_kahypar {
              ("c-num-deterministic-passes",
              po::value<size_t>(&context.coarsening.num_deterministic_passes)->value_name(
                      "<size_t>")->default_value(0),
-             "This is only used in the HybridCoarsener: Number of passes done by deterministic, followed by non-deterministic passes");
+             "This is only used in the HybridCoarsener: Number of passes done by deterministic, followed by non-deterministic passes")
+             ("c-heavy-cluster-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.coarsening.heavy_cluster_strategy = mt_kahypar::heavyClusterStrategyFromString(strategy);
+                     })->default_value("fill"),
+             "Swap Resultion strategy:\n"
+             " - fill"
+             " - recalculate"
+             " - reset"
+             " - pass_on"
+             );
     return options;
   }
 

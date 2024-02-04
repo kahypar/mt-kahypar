@@ -200,6 +200,18 @@ std::ostream& operator<< (std::ostream& os, const SwapResolutionStrategy& strate
   return os << static_cast<uint8_t>(strategy);
 }
 
+std::ostream& operator<< (std::ostream& os, const HeavyClusterStrategy& strategy) {
+  switch (strategy) {
+  case HeavyClusterStrategy::fill: return os << "fill";
+  case HeavyClusterStrategy::recalculate: return os << "recalculate";
+  case HeavyClusterStrategy::reset: return os << "reset";
+  case HeavyClusterStrategy::pass_on: return os << "pass_on";
+  case HeavyClusterStrategy::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
   case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -440,6 +452,20 @@ SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strat
   }
   throw InvalidParameterException("Illegal option: " + strategy);
   return SwapResolutionStrategy::UNDEFINED;
+}
+
+HeavyClusterStrategy heavyClusterStrategyFromString(const std::string& strategy) {
+  if (strategy == "fill") {
+    return HeavyClusterStrategy::fill;
+  } else if (strategy == "recalculate") {
+    return HeavyClusterStrategy::recalculate;
+  } else if (strategy == "reset") {
+    return HeavyClusterStrategy::reset;
+  } else if (strategy == "pass_on") {
+    return HeavyClusterStrategy::pass_on;
+  }
+  throw InvalidParameterException("Illegal option: " + strategy);
+  return HeavyClusterStrategy::UNDEFINED;
 }
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {

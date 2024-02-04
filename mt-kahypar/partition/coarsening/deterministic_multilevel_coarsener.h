@@ -82,7 +82,8 @@ public:
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     triangle_edge_weights(utils::cast<Hypergraph>(hypergraph).initialNumEdges()),
     processed(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
-    connected() {}
+    connected(),
+    passed_nodes_from_previous_subround() {}
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -145,6 +146,8 @@ private:
 
   void calculateSharedTrianglesPerEdge();
 
+  size_t recalculateForPassedOnHypernodes(vec<HypernodeID>& clusters);
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
@@ -164,5 +167,6 @@ private:
   vec<size_t> triangle_edge_weights;
   vec<bool> processed;
   vec<HypernodeID> connected;
+  vec<HypernodeID> passed_nodes_from_previous_subround;
 };
 }

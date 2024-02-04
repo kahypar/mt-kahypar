@@ -126,6 +126,8 @@ struct CoarseningParameters {
   size_t num_triangle_levels = 0;
   size_t num_triangle_subrounds = 0;
   size_t num_deterministic_passes = 0;
+  HeavyClusterStrategy heavy_cluster_strategy = HeavyClusterStrategy::UNDEFINED;
+
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
