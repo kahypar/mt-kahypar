@@ -357,7 +357,7 @@ namespace mt_kahypar {
                      [&](const std::string& strategy) {
                        context.coarsening.heavy_cluster_strategy = mt_kahypar::heavyClusterStrategyFromString(strategy);
                      })->default_value("fill"),
-             "Swap Resultion strategy:\n"
+             "Heavy Cluster strategy:\n"
              " - fill"
              " - recalculate"
              " - reset"
