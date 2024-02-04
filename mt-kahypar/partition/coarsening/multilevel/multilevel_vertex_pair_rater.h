@@ -199,6 +199,7 @@ class MultilevelVertexPairRater {
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
+    int nr_passes = 0;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
       const HypernodeID tmp_target = tmp_target_id;
@@ -219,7 +220,6 @@ class MultilevelVertexPairRater {
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        int nr_passes = 0;
         if ( accept_fixed_vertex_contraction &&
              (ignore_communities || community_u_id == hypergraph.communityID(tmp_target)) &&
              AcceptancePolicy::acceptRating( tmp_rating, max_rating,
@@ -227,6 +227,7 @@ class MultilevelVertexPairRater {
           max_rating = tmp_rating;
           target_id = tmp_target_id;
           target = tmp_target;
+          nr_passes = 0;
         }
       }
     }
