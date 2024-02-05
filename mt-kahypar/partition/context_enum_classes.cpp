@@ -472,14 +472,14 @@ HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
   if (penalty == "no_penalty") {
     return HeavyNodePenaltyPolicy::no_penalty;
   }
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+//#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   else if (penalty == "multiplicative") {
     return HeavyNodePenaltyPolicy::multiplicative_penalty;
   } else if (penalty == "additive") {
     return HeavyNodePenaltyPolicy::additive;
     // omit default case to trigger compiler warning for missing cases
   }
-#endif
+//#endif
   throw InvalidParameterException("No valid edge penalty policy for rating.");
   return HeavyNodePenaltyPolicy::UNDEFINED;
   }

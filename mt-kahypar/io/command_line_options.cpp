@@ -289,10 +289,10 @@ namespace mt_kahypar {
                                heavyNodePenaltyFromString(penalty);
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
-             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             //#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- multiplicative\n"
-             "- edge_frequency_penalty\n"
-             #endif
+             "- additive\n"
+             //#endif
              "- no_penalty")
             ("c-rating-acceptance-criterion",
              po::value<std::string>()->value_name("<string>")->notifier(

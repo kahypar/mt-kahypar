@@ -148,6 +148,17 @@ private:
 
   size_t recalculateForPassedOnHypernodes(vec<HypernodeID>& clusters);
 
+  HypernodeWeight penality(HypernodeWeight weight_u, HypernodeWeight weight_v) const {
+    switch (_context.coarsening.rating.heavy_node_penalty_policy) {
+    case HeavyNodePenaltyPolicy::additive:
+      return weight_u + weight_v;
+    case HeavyNodePenaltyPolicy::multiplicative_penalty:
+      return weight_u * weight_v;
+    default:
+      return 1;
+    }
+  }
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
