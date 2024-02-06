@@ -137,14 +137,20 @@ class MultilevelCoarsener : public ICoarsener,
     similarity_policy.initialize(current_hg, _context);
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data, num_nodes_tracker);
-    cc.initializeCoarseningPass(current_hg, _context);
-    TriangleCounter<TypeTraits> triangle_counter(_context, current_hg);
     if (_context.coarsening.max_weight_function == MaxWeightFunction::L_n) {
-      cc.updateAdaptiveNodeWeight(_hg.totalWeight(), num_hns_before_pass, _context);
+      cc.updateAdaptiveNodeWeight(_hg.totalWeight(), num_hns_before_pass,
+                                  _context);
     }
 
+    TriangleCounter<TypeTraits> triangle_counter(_context, current_hg);
     if (_pass_nr == 0 && _context.preprocessing.use_triangle_counting) {
-      triangle_counter.countTrianglesAndReplaceEdgeWeights(current_hg);
+      triangle_counter.replaceEdgeWeights();
+    }
+
+    cc.initializeCoarseningPass(current_hg, triangle_counter.getTriangleGraph(), _context);
+
+    if (_context.coarsening.max_weight_function == MaxWeightFunction::L_n) {
+      cc.updateAdaptiveNodeWeight(_hg.totalWeight(), num_hns_before_pass, _context);
     }
 
     _timer.start_timer("clustering", "Clustering");
@@ -170,7 +176,7 @@ class MultilevelCoarsener : public ICoarsener,
     _timer.stop_timer("clustering");
 
     if (_pass_nr == 0 && _context.preprocessing.use_triangle_counting) {
-      triangle_counter.replaceInitialWeights(current_hg);
+      triangle_counter.replaceInitialWeights();
     }
 
     DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);

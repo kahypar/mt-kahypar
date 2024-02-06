@@ -52,12 +52,15 @@ class ConcurrentClusteringData {
     _context(context),
     _matching_state(),
     _cluster_weight(),
+    _triangle_cluster_weight(),
     _matching_partner() {
     // Initialize internal data structures parallel
     tbb::parallel_invoke([&] {
       _matching_state.resize(initial_num_nodes);
     }, [&] {
       _cluster_weight.resize(initial_num_nodes);
+    }, [&] {
+      _triangle_cluster_weight.resize(initial_num_nodes);
     }, [&] {
       _matching_partner.resize(initial_num_nodes);
     });
@@ -81,8 +84,12 @@ class ConcurrentClusteringData {
     return _cluster_weight;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const parallel::scalable_vector<AtomicWeight>& triangleClusterWeight() const {
+    return _triangle_cluster_weight;
+  }
+
   template<typename Hypergraph>
-  void initializeCoarseningPass(Hypergraph& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids);
+  void initializeCoarseningPass(Hypergraph& current_hg, Hypergraph& triangle_graph, parallel::scalable_vector<HypernodeID>& cluster_ids);
 
   /*!
    * We maintain the invariant during clustering that each cluster has a unique
@@ -126,6 +133,7 @@ class ConcurrentClusteringData {
   const Context& _context;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;
   parallel::scalable_vector<AtomicWeight> _cluster_weight;
+  parallel::scalable_vector<AtomicWeight> _triangle_cluster_weight;
   parallel::scalable_vector<HypernodeID> _matching_partner;
 };
 

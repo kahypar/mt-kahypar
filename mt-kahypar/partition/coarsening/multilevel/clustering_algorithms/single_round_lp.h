@@ -109,6 +109,7 @@ class SingleRoundLP {
         ASSERT(id < node_mapping.size());
         handle_node(node_mapping[id]);
       });
+      // Here we calculate the matching of clusters to triangle weights
     }
   }
 

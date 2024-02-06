@@ -94,13 +94,13 @@ struct ClusteringContext {
     return num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit;
   }
 
-  void initializeCoarseningPass(Hypergraph& current_hg, const Context& context) {
+  void initializeCoarseningPass(Hypergraph& current_hg, Hypergraph& triangle_graph, const Context& context) {
     num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     previous_num_nodes = num_hns_before_pass;
     fixed_vertices = current_hg.copyOfFixedVertexSupport();
     fixed_vertices.setMaxBlockWeight(context.partition.max_part_weights);
 
-    clustering_data.initializeCoarseningPass(current_hg, cluster_ids);
+    clustering_data.initializeCoarseningPass(current_hg, triangle_graph, cluster_ids);
     num_nodes_tracker.initialize(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
     rater.resetMatches();
     rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
@@ -118,7 +118,7 @@ struct ClusteringContext {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy) {
     return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                 current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
+                 current_hg, u, cluster_ids, clustering_data.clusterWeight(), clustering_data.triangleClusterWeight(), fixed_vertices,
                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
   }
 

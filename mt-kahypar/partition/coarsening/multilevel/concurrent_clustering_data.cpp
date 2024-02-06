@@ -34,6 +34,7 @@ namespace mt_kahypar {
 
 template<typename Hypergraph>
 void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
+                                                        Hypergraph& triangle_graph,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids) {
   cluster_ids.resize(current_hg.initialNumNodes());
   tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
@@ -43,6 +44,7 @@ void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
     cluster_ids[hn] = hn;
     if ( current_hg.nodeIsEnabled(hn) ) {
       _cluster_weight[hn] = current_hg.nodeWeight(hn);
+      _triangle_cluster_weight[hn] = triangle_graph.nodeWeight(hn);
     }
   });
 }
@@ -181,6 +183,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
   if ( cluster_join_operation_allowed ) {
     cluster_ids[u] = rep;
     _cluster_weight[rep] += weight_of_u;
+    _triangle_cluster_weight[rep] += weight_of_u;
     success = true;
   }
   _matching_partner[u] = u;
@@ -190,7 +193,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
 
 namespace {
   #define INITIALIZE_PASS(X) void ConcurrentClusteringData::initializeCoarseningPass(                         \
-                                      X& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids)
+                                      X& current_hg, X& triangle_graph, parallel::scalable_vector<HypernodeID>& cluster_ids)
 
   #define MATCH_VERTICES(X) bool ConcurrentClusteringData::matchVertices<false>(const X& hypergraph, const HypernodeID u, \
                                    const HypernodeID v, const HypernodeWeight max_allowed_node_weight,                    \

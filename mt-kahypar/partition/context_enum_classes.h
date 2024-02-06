@@ -141,6 +141,7 @@ enum class AcceptancePolicy : uint8_t {
   ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
   best_prefer_unmatched_reciprocal,
+  best_prefer_unmatched_higher_triangle_count,
   UNDEFINED
 };
 

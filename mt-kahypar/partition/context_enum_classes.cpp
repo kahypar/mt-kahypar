@@ -197,6 +197,7 @@ namespace mt_kahypar {
       ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
       case AcceptancePolicy::best_prefer_unmatched_reciprocal: return os << "best_prefer_unmatched_reciprocal";
+      case AcceptancePolicy::best_prefer_unmatched_higher_triangle_count: return os << "best_prefer_unmatched_higher_triangle_count";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -432,6 +433,9 @@ namespace mt_kahypar {
     #endif
     else if (crit == "best_prefer_unmatched_reciprocal") {
       return AcceptancePolicy::best_prefer_unmatched_reciprocal;
+    } 
+    else if (crit == "best_prefer_unmatched_higher_triangle_count") {
+      return AcceptancePolicy::best_prefer_unmatched_higher_triangle_count;
     }
     throw InvalidParameterException("No valid acceptance criterion for rating.");
   }

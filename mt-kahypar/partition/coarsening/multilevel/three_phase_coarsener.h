@@ -143,7 +143,19 @@ class ThreePhaseCoarsener : public ICoarsener,
     // initialization of various things
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data, _num_nodes_tracker);
-    cc.initializeCoarseningPass(current_hg, _context);
+
+    if (_context.coarsening.max_weight_function == MaxWeightFunction::L_n) {
+      cc.updateAdaptiveNodeWeight(_hg.totalWeight(), num_hns_before_pass,
+                                  _context);
+    }
+
+    TriangleCounter<TypeTraits> triangle_counter(_context, current_hg);
+    if (_pass_nr == 0 && _context.preprocessing.use_triangle_counting) {
+      triangle_counter.replaceEdgeWeights();
+    }
+
+    cc.initializeCoarseningPass(current_hg, triangle_counter.getTriangleGraph(), _context);
+
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context);
     _timer.stop_timer("init_similarity");

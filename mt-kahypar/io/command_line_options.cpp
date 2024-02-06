@@ -361,7 +361,8 @@ namespace mt_kahypar {
              "- best\n"
              #endif
              "- best_prefer_unmatched\n"
-             "- best_prefer_unmatched_reciprocal")
+             "- best_prefer_unmatched_reciprocal\n"
+             "- best_prefer_unmatched_higher_triangle_count")
             ("c-rating-degree-similarity-policy",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& ds) {
