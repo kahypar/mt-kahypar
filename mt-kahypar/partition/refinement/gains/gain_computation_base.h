@@ -41,8 +41,8 @@ namespace mt_kahypar {
 struct Move_md{
   double gain_and_balance;
   PartitionID to;
-  double gain;
-  double balance;
+  Gain gain;
+  int32_t balance;
 
   bool operator<(const Move_md move) const{
     return gain_and_balance < move.gain_and_balance;
@@ -57,7 +57,15 @@ struct Move_md{
     }
 
   void recomputeBalance(){
-    gain_and_balance = gain > 0 ? -gain / balance : -gain * balance;
+    Gain tmp_gain = gain;
+    int32_t tmp_balance = balance;
+    if(gain <= 0){
+      tmp_gain -= 1;
+    }
+    if(balance <= 0){
+      tmp_balance -= 1;
+    }
+    gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
   }
 };
 
@@ -89,11 +97,11 @@ class GainComputationBase {
     std::vector<Move_md> gains;
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
     auto balance_gain = [&](const PartitionedHypergraph& phg, HypernodeID node, PartitionID from, PartitionID to){
-      double gain = 0.0;
+      int32_t gain = 0;
       for(int i = 0; i < dimension; i++){
         gain += std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(to).weights[i] + 
-        phg.nodeWeight(node).weights[i] - _context.partition.max_part_weights[to].weights[i])) * _context.partition.max_part_weights_inv[to][i]
-        - std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(from).weights[i] - _context.partition.max_part_weights[from].weights[i])) * _context.partition.max_part_weights_inv[from][i];
+        phg.nodeWeight(node).weights[i] - _context.partition.max_part_weights[to].weights[i])) /* _context.partition.max_part_weights_inv[to][i]*/
+        - std::max(0, std::min(phg.nodeWeight(node).weights[i], phg.partWeight(from).weights[i] - _context.partition.max_part_weights[from].weights[i])) /** _context.partition.max_part_weights_inv[from][i]*/;
       }
       return gain;
     };
@@ -107,10 +115,11 @@ class GainComputationBase {
     PartitionID from = phg.partID(hn);
     for(PartitionID p = 0; p < phg.k(); p++){
       if(p != from){
-      double balance_new = balance_gain(phg, hn, from, p);
-      double gain_new = tmp_scores[p];
-      double gainandbalance = gain_new > 0 ? -gain_new / (balance_new - 0.001) : -gain_new * (balance_new - 0.001);
-      gains.push_back({gainandbalance, p, gain_new, balance_new});
+      int32_t balance_new = balance_gain(phg, hn, from, p);
+      int32_t gain_new = tmp_scores[p];
+      Move_md move = {0.0, p, gain_new, balance_new};
+      move.recomputeBalance();
+      gains.push_back(move);
       }
     }
     return gains;
@@ -151,9 +160,9 @@ class GainComputationBase {
   }*/
 
   template<typename PartitionedHypergraph>
-  void getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq){
+  tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq){
     Derived* derived = static_cast<Derived*>(this);
-    derived->getChangedMoves(phg, move, mq);
+    return derived->getChangedMoves(phg, move, mq);
   }
 
   template<typename PartitionedHypergraph>

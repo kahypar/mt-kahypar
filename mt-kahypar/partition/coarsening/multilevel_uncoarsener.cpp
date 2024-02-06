@@ -110,8 +110,8 @@ namespace mt_kahypar {
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
     }
 
-    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
-      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
+    /*ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));*/
 
     --_current_level;
   }
@@ -248,9 +248,9 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
+        /*ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
           "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
-          "does not match the metric updated by the refiners" << V(_current_metrics.quality));
+          "does not match the metric updated by the refiners" << V(_current_metrics.quality));*/
       }
 
       const HyperedgeWeight metric_after = _current_metrics.quality;

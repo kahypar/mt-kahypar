@@ -599,10 +599,14 @@ struct Move_with_transformed_gain {
 
     void recomputeBalance(){
     Gain tmp_gain = gain;
+    double tmp_balance = balance;
     if(gain <= 0){
       tmp_gain -= 1;
     }
-    gain_and_balance = tmp_gain > 0 ? -tmp_gain / (balance - 0.001) : -tmp_gain * (balance - 0.001);
+    if(balance <= 0){
+      tmp_balance -= 0.01;
+    }
+    gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
     }
   };
 
@@ -612,6 +616,8 @@ struct Move_with_transformed_gain {
     std::vector<id> references;
     std::vector<bool> in_use;
     std::vector<data> gains_and_balances;
+    uint64_t swap_up_counter = 0;
+    uint64_t swap_down_counter = 0;
     void setSize(id size){
       references.resize(size);
       gains_and_balances.resize(size);
@@ -657,6 +663,7 @@ struct Move_with_transformed_gain {
           && in_use[v[new_idx]])){
             break;
           }
+        swap_down_counter++;
         references[v[index]] = new_idx;
         references[v[new_idx]] = index;
         std::swap(v[index], v[new_idx]);
@@ -672,6 +679,7 @@ struct Move_with_transformed_gain {
         std::swap(v[index], v[parent]);
         index = parent;
         parent = getParent(index);
+        swap_up_counter++;
       }
     }
     std::pair<id, data> getMax(){
@@ -710,10 +718,12 @@ struct Move_with_transformed_gain {
       }      
     }
     void enable(int index){
-      in_use[index] = true;
-      references[index] = v.size();
-      v.push_back(index);      
-      siftUp(references[index]);
+      if(!in_use[index]){
+        in_use[index] = true;
+        references[index] = v.size();
+        v.push_back(index);      
+        siftUp(references[index]);
+      }
     }
     bool isEnabled(id index){
       ASSERT(index < in_use.size());
@@ -747,6 +757,7 @@ struct Move_with_transformed_gain {
   };*/
   struct MoveQueue{
     using Gain_and_Balance=double;
+    using  Balance=double;
     AddressablePQ<HypernodeID, Gain_and_Balance> top_moves;
     std::vector<AddressablePQ<PartitionID, Move_internal>> queues_per_node;
     void initialize(HypernodeID num_nodes, PartitionID num_parts){
@@ -765,7 +776,7 @@ struct Move_with_transformed_gain {
       return{node, move};
     }
     void insert(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
-      if(move.second.second.balance <= 0){
+      if(positive_move(move.second.second)){
         ASSERT(queues_per_node.size() > move.first);
         queues_per_node[move.first].insert(move.second);
         update(move.first);
@@ -780,7 +791,7 @@ struct Move_with_transformed_gain {
       }
     }
     void insert_without_updating(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move, bool disabled = false){
-      if(move.second.second.balance <= 0 && !disabled){
+      if(positive_move(move.second.second) && !disabled){
         ASSERT(queues_per_node.size() > move.first);
         queues_per_node[move.first].insert(move.second);
       }
@@ -796,9 +807,28 @@ struct Move_with_transformed_gain {
     bool isEmpty(){
       return top_moves.isEmpty();
     }
-    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, double>> x){
+
+    void addBalance(HypernodeID hn, PartitionID to, Balance balance){
+      queues_per_node[hn].gains_and_balances[to].balance += balance;
+      if(!positive_move(queues_per_node[hn].gains_and_balances[to])){
+        if(queues_per_node[hn].isEnabled(to)){
+          queues_per_node[hn].disable(to);
+        }
+      }
+      else{
+        queues_per_node[hn].gains_and_balances[to].recomputeBalance();
+        if(!queues_per_node[hn].isEnabled(to)){
+          queues_per_node[hn].enable(to);
+        }
+        else{
+          queues_per_node[hn].check(to);
+        }
+      }
+    }
+
+    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
-      if(x.second.second > 0){
+      if(!positive_move(queues_per_node[x.first].gains_and_balances[x.second.first])){
         if(queues_per_node[x.first].isEnabled(x.second.first)){
           queues_per_node[x.first].disable(x.second.first);
         }
@@ -814,6 +844,10 @@ struct Move_with_transformed_gain {
       }
       
     }
+
+    bool positive_move(Move_internal move){
+      return move.balance < 0 || move.balance == 0 && move.gain < 0;
+    }
     void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
       __atomic_add_fetch(&queues_per_node[x.first].gains_and_balances[x.second.first].gain,x.second.second, std::memory_order_relaxed);
     }
@@ -821,7 +855,7 @@ struct Move_with_transformed_gain {
       if(queues_per_node[hn].v.size() == 0){
         top_moves.disable(hn);
       }
-      else if(top_moves.get(hn) != queues_per_node[hn].getMax().second.gain_and_balance){
+      else if(!top_moves.isEnabled(hn) || top_moves.get(hn) != queues_per_node[hn].getMax().second.gain_and_balance){
         top_moves.insert({hn, queues_per_node[hn].getMax().second.gain_and_balance});
       }
     }
@@ -845,21 +879,6 @@ struct Move_with_transformed_gain {
         disable(x);
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 struct Memento {

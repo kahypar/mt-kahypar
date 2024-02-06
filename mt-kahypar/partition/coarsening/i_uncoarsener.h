@@ -52,9 +52,7 @@ class IUncoarsener {
       while ( !isTopLevel() ) {
         projectToNextLevelAndRefine();
       }
-
       rebalancing();
-
       return movePartitionedHypergraph();
     }
 
