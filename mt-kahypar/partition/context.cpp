@@ -319,7 +319,7 @@ namespace mt_kahypar {
     for(int i = 0; i < partition.k; i++){
       std::vector<double> tmp;
       for(int j = 0; j < dimension; j++){
-        tmp.push_back(total.weights[j] / static_cast<double>(partition.max_part_weights[i].weights[j]));
+        tmp.push_back(1.0 / static_cast<double>(partition.max_part_weights[i].weights[j]));
       }
       partition.max_part_weights_inv.push_back(tmp);
     }

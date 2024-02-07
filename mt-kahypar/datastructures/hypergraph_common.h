@@ -604,7 +604,7 @@ struct Move_with_transformed_gain {
       tmp_gain -= 1;
     }
     if(balance <= 0){
-      tmp_balance -= 0.01;
+      tmp_balance -= 0.0001;
     }
     gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
     }
@@ -768,6 +768,7 @@ struct Move_with_transformed_gain {
       }
     }
     std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> deleteMax(){
+      ASSERT(top_moves.v.size() > 0);
       HypernodeID node = top_moves.deleteMax().first;
       std::pair<PartitionID, Move_internal> move = queues_per_node[node].deleteMax();
       if(!queues_per_node[node].isEmpty()){
@@ -775,6 +776,14 @@ struct Move_with_transformed_gain {
       }      
       return{node, move};
     }
+
+    std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> getMax(){
+      ASSERT(top_moves.v.size() > 0);
+      HypernodeID node = top_moves.getMax().first;
+      std::pair<PartitionID, Move_internal> move = queues_per_node[node].getMax();   
+      return{node, move};
+    }
+
     void insert(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
       if(positive_move(move.second.second)){
         ASSERT(queues_per_node.size() > move.first);
@@ -846,10 +855,13 @@ struct Move_with_transformed_gain {
     }
 
     bool positive_move(Move_internal move){
-      return move.balance < 0 || move.balance == 0 && move.gain < 0;
+      return move.balance < -0.0000000001 || move.balance < 0.00000000001 && move.gain < 0;
     }
     void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
       __atomic_add_fetch(&queues_per_node[x.first].gains_and_balances[x.second.first].gain,x.second.second, std::memory_order_relaxed);
+    }
+    void changeGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
+      queues_per_node[x.first].gains_and_balances[x.second.first].gain = x.second.second;
     }
     void update(HypernodeID hn){
       if(queues_per_node[hn].v.size() == 0){
