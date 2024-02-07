@@ -117,6 +117,7 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const parallel::scalable_vector<AtomicWeight>& triangle_cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const DegreeSimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
@@ -125,17 +126,17 @@ class MultilevelVertexPairRater {
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, _local_cache_efficient_rating_map.local(), cluster_ids, cluster_weight,
+        hypergraph, u, _local_cache_efficient_rating_map.local(), cluster_ids, cluster_weight, triangle_cluster_weight,
         fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), cluster_ids, cluster_weight,
+        hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), cluster_ids, cluster_weight, triangle_cluster_weight,
         fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-        hypergraph, u, large_tmp_rating_map, cluster_ids, cluster_weight,
+        hypergraph, u, large_tmp_rating_map, cluster_ids, cluster_weight, triangle_cluster_weight, 
         fixed_vertices, similarity_policy, max_allowed_node_weight, may_ignore_communities, false);
     }
   }
@@ -164,6 +165,7 @@ class MultilevelVertexPairRater {
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const parallel::scalable_vector<AtomicWeight>& triangle_cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const DegreeSimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
@@ -197,12 +199,15 @@ class MultilevelVertexPairRater {
 
     int cpu_id = THREAD_ID;
     RatingType max_rating = std::numeric_limits<RatingType>::min();
+    RatingType best_triangle_weight = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
+    int nr_passes = 0;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
       const HypernodeID tmp_target = tmp_target_id;
       const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
+      const HypernodeWeight triangle_target_weight = triangle_cluster_weight[tmp_target_id];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight
            && similarity_policy.acceptContraction(hypergraph, _context, u, tmp_target) ) {
@@ -219,14 +224,15 @@ class MultilevelVertexPairRater {
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        int nr_passes = 0;
         if ( accept_fixed_vertex_contraction &&
              (ignore_communities || community_u_id == hypergraph.communityID(tmp_target)) &&
-             AcceptancePolicy::acceptRating( tmp_rating, max_rating,
+             AcceptancePolicy::acceptRating( tmp_rating, max_rating, triangle_target_weight, best_triangle_weight,
                target_id, tmp_target_id, cpu_id, _already_matched, ++nr_passes) ) {
           max_rating = tmp_rating;
+          best_triangle_weight = triangle_target_weight;
           target_id = tmp_target_id;
           target = tmp_target;
+          nr_passes = 0;
         }
       }
     }

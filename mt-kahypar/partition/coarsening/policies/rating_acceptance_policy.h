@@ -41,6 +41,8 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp,
                                                               const RatingType max_rating,
+                                                              const RatingType,
+                                                              const RatingType,
                                                               const HypernodeID old_target,
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
@@ -60,6 +62,8 @@ class BestRatingPreferringUnmatchedReciprocalProbability final : public kahypar:
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp, 
                                                               const RatingType max_rating,
+                                                              const RatingType,
+                                                              const RatingType,
                                                               const HypernodeID old_target, 
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
@@ -73,6 +77,29 @@ class BestRatingPreferringUnmatchedReciprocalProbability final : public kahypar:
              (!already_matched[old_target] && !already_matched[new_target] &&
               RandomRatingWinsReciprocal::acceptEqual(cpu_id, nr_passes))));
   }
+};
+
+using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+
+class BestRatingPreferringHigherTriangleCount final : public kahypar::meta::PolicyBase {
+ public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp,
+                                                              const RatingType max_rating,
+                                                              const RatingType triangle_count,
+                                                              const RatingType max_triangle_count,
+                                                              const HypernodeID old_target,
+                                                              const HypernodeID new_target,
+                                                              const int cpu_id,
+                                                              const kahypar::ds::FastResetFlagArray<>& already_matched,
+                                                              const int) {
+    return max_rating < tmp ||
+           ((max_rating == tmp) && max_triangle_count < triangle_count &&
+            ((already_matched[old_target] && !already_matched[new_target]) ||
+             (already_matched[old_target] && already_matched[new_target] &&
+              RandomRatingWins::acceptEqual(cpu_id)) ||
+             (!already_matched[old_target] && !already_matched[new_target] &&
+              RandomRatingWins::acceptEqual(cpu_id))));
+ }
 };
 
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
@@ -104,6 +131,7 @@ using AcceptancePolicies = kahypar::meta::Typelist<BestRatingWithTieBreaking, Be
 #else
 using AcceptancePolicies =
     kahypar::meta::Typelist<BestRatingPreferringUnmatched,
-                            BestRatingPreferringUnmatchedReciprocalProbability>;
+                            BestRatingPreferringUnmatchedReciprocalProbability,
+                            BestRatingPreferringHigherTriangleCount>;
 #endif
 }  // namespace mt_kahypar

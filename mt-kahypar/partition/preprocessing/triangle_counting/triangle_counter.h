@@ -10,8 +10,15 @@ class TriangleCounter {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
-  TriangleCounter(const Context& context, const Hypergraph& hypergraph): 
-    _context(context), _original_hypergraph(hypergraph) { }
+  TriangleCounter(const Context& context, Hypergraph& hypergraph): 
+    _context(context), _original_hypergraph(hypergraph), _original_hypergraph_weights({}) {
+      _triangle_graph = hypergraph.copy();
+      _original_hypergraph_weights.resize(hypergraph.initialNumEdges());
+      _triangle_graph.doParallelForAllEdges([&](const HyperedgeID& he) {
+        _original_hypergraph_weights[he] = hypergraph.edgeWeight(he);
+        _triangle_graph.multEdgeWeightWithTriangleCount(he);
+      });
+    }
 
   TriangleCounter(const TriangleCounter&) = delete;
   TriangleCounter& operator=(const TriangleCounter&) = delete;
@@ -19,24 +26,30 @@ class TriangleCounter {
   TriangleCounter(TriangleCounter&&) = delete;
   TriangleCounter& operator=(TriangleCounter&&) = delete;
 
+  Hypergraph& getTriangleGraph() {
+    return _triangle_graph;
+  }
+
   // ! Counts the number of triangles in the hypergraph and multiplies the edge weights 
   // ! with the triangle count on each hyperedge respectively.
-  void countTrianglesAndReplaceEdgeWeights(Hypergraph& hypergraph) {
+  void replaceEdgeWeights() {
     _original_hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
-      hypergraph.multEdgeWeightWithTriangleCount(he);
+      _original_hypergraph.setEdgeWeight(he, _triangle_graph.edgeWeight(he));
     });
   }
 
   // ! Restores all previously changed hyperedges.
-  void replaceInitialWeights(PartitionedHypergraph& hypergraph) {
-    hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
-      hypergraph.setEdgeWeight(he, _original_hypergraph.edgeWeight(he));
+  void replaceInitialWeights() {
+    _original_hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+      _original_hypergraph.setEdgeWeight(he, _original_hypergraph_weights[he]);
     });
   }
 
  private:
   const Context& _context;
-  const Hypergraph& _original_hypergraph;
+  Hypergraph& _original_hypergraph;
+  std::vector<HypernodeID> _original_hypergraph_weights;
+  Hypergraph _triangle_graph;
 };
 
 }  // namespace mt_kahypar

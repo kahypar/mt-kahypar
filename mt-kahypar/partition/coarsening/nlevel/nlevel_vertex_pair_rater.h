@@ -155,11 +155,16 @@ class NLevelVertexPairRater {
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
+    //Currently unsupported!
+    RatingType best_triangle_weight = std::numeric_limits<RatingType>::min();
     HypernodeID target = kInvalidHypernode;
     int nr_passes = 0;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target = it->key;
       const HypernodeWeight target_weight = hypergraph.nodeWeight(tmp_target);
+      // Currently unsupported!
+      const HypernodeWeight triangle_target_weight = std::numeric_limits<HypernodeWeight>::min();
+
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight, _context);
@@ -176,7 +181,7 @@ class NLevelVertexPairRater {
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
         if ( accept_fixed_vertex_contraction &&
              community_u_id == hypergraph.communityID(tmp_target) &&
-             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
+             AcceptancePolicy::acceptRating(tmp_rating, max_rating, triangle_target_weight, best_triangle_weight,
                                             target, tmp_target,
                                             cpu_id, _already_matched, ++nr_passes) ) {
           max_rating = tmp_rating;
