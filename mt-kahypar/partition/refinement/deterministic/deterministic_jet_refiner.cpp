@@ -204,6 +204,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     }
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
+
+    if (_context.type == ContextType::main) {
+        utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
+        measurements.refinement_scores.push_back(best_metrics.quality);
+    }
     return best_metrics.quality < input_quality;
 }
 

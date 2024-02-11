@@ -113,8 +113,19 @@ std::string serialize(const PartitionedHypergraph& phg,
     s << measurements.num_singletons[i] << sep;
     s << measurements.eliminated_edges[i] << sep;
     s << measurements.eliminated_pins[i] << sep;
-    s << measurements.score[i];
+    s << measurements.score[i] << sep;
+    s << measurements.executed_subrounds[i] << sep;
+    for (const auto& vec : measurements.num_heavy_clusters_per_subround) {
+      s << vec[i] << sep;
+    }
+    for (const auto& vec : measurements.shrinkage_per_subround) {
+      s << vec[i] << sep;
+    }
+    // refinement
+    s << measurements.refinement_scores[i];
   }
+
+
 
   return s.str();
 }

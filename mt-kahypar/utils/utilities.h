@@ -40,6 +40,7 @@
 namespace mt_kahypar {
 namespace utils {
 struct Measurements {
+  // coarsening
   parallel::scalable_vector<size_t> min_cluster_size;
   parallel::scalable_vector<size_t> max_cluster_size;
   parallel::scalable_vector<double> avg_cluster_size;
@@ -49,6 +50,9 @@ struct Measurements {
   parallel::scalable_vector<size_t> eliminated_pins;
   parallel::scalable_vector<size_t> num_singletons;
   parallel::scalable_vector<size_t> score;
+  parallel::scalable_vector<size_t> executed_subrounds;
+  parallel::scalable_vector<parallel::scalable_vector<size_t>> num_heavy_clusters_per_subround;
+  parallel::scalable_vector<parallel::scalable_vector<double>> shrinkage_per_subround;
   size_t final_min_cluster_size;
   size_t final_max_cluster_size;
   double final_avg_cluster_size;
@@ -59,17 +63,28 @@ struct Measurements {
   size_t final_num_edges;
   size_t final_score;
 
+  // refinement
+  parallel::scalable_vector<size_t> refinement_scores;
+
 public:
-  Measurements() : min_cluster_size(), max_cluster_size(), avg_cluster_size(), median_cluster_size(), cluster_count(), eliminated_edges(), eliminated_pins(), num_singletons(), score() {
-    min_cluster_size.reserve(1000);
-    max_cluster_size.reserve(1000);
-    avg_cluster_size.reserve(1000);
-    median_cluster_size.reserve(1000);
-    cluster_count.reserve(1000);
-    eliminated_edges.reserve(1000);
-    eliminated_pins.reserve(1000);
-    num_singletons.reserve(1000);
-    score.reserve(1000);
+  Measurements() : min_cluster_size(), max_cluster_size(), avg_cluster_size(), median_cluster_size(), cluster_count(), eliminated_edges(), eliminated_pins(), num_singletons(), score(), executed_subrounds(), refinement_scores(), num_heavy_clusters_per_subround(3), shrinkage_per_subround(3) {
+    min_cluster_size.reserve(100);
+    max_cluster_size.reserve(100);
+    avg_cluster_size.reserve(100);
+    median_cluster_size.reserve(100);
+    cluster_count.reserve(100);
+    eliminated_edges.reserve(100);
+    eliminated_pins.reserve(100);
+    num_singletons.reserve(100);
+    score.reserve(100);
+    executed_subrounds.reserve(100);
+    refinement_scores.reserve(100);
+    for (auto& vec : shrinkage_per_subround) {
+      vec.reserve(100);
+    }
+    for (auto& vec : num_heavy_clusters_per_subround) {
+      vec.reserve(100);
+    }
   }
 };
 class Utilities {

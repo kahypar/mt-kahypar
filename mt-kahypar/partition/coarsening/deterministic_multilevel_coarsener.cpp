@@ -56,7 +56,9 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   }
 
   permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
-  for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+  size_t sub_round = 0;
+  for (;sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+    utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(
       sub_round, config.num_buckets, config.num_buckets_per_sub_round);
     size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
@@ -238,7 +240,14 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
 
     tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
-
+    size_t m_num_heavy_clusters = 0;
+    if (_context.type == ContextType::main) {
+      for (const auto& op_c_w : opportunistic_cluster_weight) {
+        if (op_c_w > maxAllowedNodeWeightInPass()) {
+          m_num_heavy_clusters++;
+        }
+      }
+    }
     // already approve if we can grant all requests for proposed cluster
     // otherwise insert to shared vector so that we can group vertices by cluster
     tbb::parallel_for(first, last, [&](size_t pos) {
@@ -325,6 +334,21 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       nodes_in_too_heavy_clusters.clear();
     }
     passed_nodes_from_previous_subround.clear();
+    if (_context.type == ContextType::main) {
+      double shrinkage = num_nodes_before_pass / num_nodes;
+      measurements.shrinkage_per_subround[sub_round].push_back(shrinkage);
+      measurements.num_heavy_clusters_per_subround[sub_round].push_back(m_num_heavy_clusters);
+    }
+  }
+  utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
+  if (_context.type == ContextType::main) {
+    if (sub_round < config.num_sub_rounds) {
+      for (size_t i = sub_round; i < config.num_sub_rounds; ++i) {
+        const double shrinkage = sub_round > 0 ? measurements.shrinkage_per_subround[sub_round - 1].back() : 0.0;
+        measurements.shrinkage_per_subround[sub_round].push_back(shrinkage);
+        measurements.num_heavy_clusters_per_subround[sub_round].push_back(0);
+      }
+    }
   }
 
   timer.stop_timer("coarsening_pass");
@@ -332,7 +356,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
     return false;
   }
-  utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
   if (_context.type == ContextType::main) {
     std::unordered_map<HypernodeID, HypernodeWeight> cluster_sizes;
     for (const HypernodeID& hn : hg.nodes()) {
@@ -368,6 +391,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       singletons++;
     }
     measurements.num_singletons.push_back(singletons);
+    measurements.executed_subrounds.push_back(sub_round);
   }
   _timer.start_timer("contraction", "Contraction");
   _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
