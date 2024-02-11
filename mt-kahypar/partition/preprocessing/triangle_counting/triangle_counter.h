@@ -14,10 +14,6 @@ class TriangleCounter {
     _context(context), _original_hypergraph(hypergraph), _original_hypergraph_weights({}) {
       _triangle_graph = hypergraph.copy();
       _original_hypergraph_weights.resize(hypergraph.initialNumEdges());
-      _triangle_graph.doParallelForAllEdges([&](const HyperedgeID& he) {
-        _original_hypergraph_weights[he] = hypergraph.edgeWeight(he);
-        _triangle_graph.multEdgeWeightWithTriangleCount(he);
-      });
     }
 
   TriangleCounter(const TriangleCounter&) = delete;
@@ -33,7 +29,9 @@ class TriangleCounter {
   // ! Counts the number of triangles in the hypergraph and multiplies the edge weights 
   // ! with the triangle count on each hyperedge respectively.
   void replaceEdgeWeights() {
-    _original_hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+    _triangle_graph.doParallelForAllEdges([&](const HyperedgeID& he) {
+      _original_hypergraph_weights[he] = _original_hypergraph.edgeWeight(he);
+      _triangle_graph.multEdgeWeightWithTriangleCount(he);
       _original_hypergraph.setEdgeWeight(he, _triangle_graph.edgeWeight(he));
     });
   }

@@ -143,7 +143,8 @@ class MultilevelCoarsener : public ICoarsener,
     }
 
     TriangleCounter<TypeTraits> triangle_counter(_context, current_hg);
-    if (_pass_nr == 0 && _context.preprocessing.use_triangle_counting) {
+    if ((_pass_nr == 0 && _context.preprocessing.use_triangle_counting) 
+    || _context.coarsening.rating.acceptance_policy == mt_kahypar::AcceptancePolicy::best_prefer_unmatched_higher_triangle_count) {
       triangle_counter.replaceEdgeWeights();
     }
 
@@ -175,7 +176,8 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _timer.stop_timer("clustering");
 
-    if (_pass_nr == 0 && _context.preprocessing.use_triangle_counting) {
+    if ((_pass_nr == 0 && _context.preprocessing.use_triangle_counting) 
+    || _context.coarsening.rating.acceptance_policy == mt_kahypar::AcceptancePolicy::best_prefer_unmatched_higher_triangle_count) {
       triangle_counter.replaceInitialWeights();
     }
 

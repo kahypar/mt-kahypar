@@ -535,19 +535,13 @@ namespace mt_kahypar::ds {
     std::vector<HypernodeID> targetIDs;
     for (HyperedgeID i : incidentEdges(e.source())) {
       Edge& ie = edge(i);
-      if (ie.source() == e.source()) {
-        sourceIDs.push_back(ie.target());
-      } else {
-        targetIDs.push_back(ie.source());
-      }
+      if (e.source() < ie.target() && ie.target() < e.target() && ie.target() == e.target()) continue;
+      sourceIDs.push_back(ie.target());
     }
     for (HyperedgeID i : incidentEdges(e.target())) {
       Edge& ie = edge(i);
-      if (ie.source() == e.target()) {
-        targetIDs.push_back(ie.target());
-      } else {
-        sourceIDs.push_back(ie.source());
-      }
+      if (e.source() < ie.target() && ie.target() < e.target() && ie.target() == e.source()) continue;
+      targetIDs.push_back(ie.target());
     }
     std::sort(sourceIDs.begin(), sourceIDs.end());
     std::sort(targetIDs.begin(), targetIDs.end());
@@ -555,7 +549,7 @@ namespace mt_kahypar::ds {
     std::vector<HypernodeID> triangles;
     std::set_intersection(sourceIDs.begin(), sourceIDs.end(), targetIDs.begin(),
                           targetIDs.end(), std::back_inserter(triangles));
-    e.setWeight(1.0/8.0 * (triangles.size() * triangles.size()) + 1);
+    e.setWeight(triangles.size() + 1);
   }
   
 } // namespace
