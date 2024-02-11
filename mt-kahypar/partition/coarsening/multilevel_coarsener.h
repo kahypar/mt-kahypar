@@ -251,7 +251,7 @@ private:
     }
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
-    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
+    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), _context.coarsening.deterministic_contraction, round_start);
     _timer.stop_timer("contraction");
     if (_context.type == ContextType::main) {
       Hypergraph& after = Base::currentHypergraph();

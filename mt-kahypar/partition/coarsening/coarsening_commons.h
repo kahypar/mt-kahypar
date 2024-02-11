@@ -166,6 +166,7 @@ public:
   void performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
           const HighResClockTimepoint& round_start) {
+    std::cout << "DETERMINISTIC " << deterministic << ", " << false << std::endl;
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());

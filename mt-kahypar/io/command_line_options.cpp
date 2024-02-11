@@ -374,7 +374,11 @@ namespace mt_kahypar {
              ("c-third-factor",
              po::value<double>(&context.coarsening.third_round_cluster_factor)->value_name(
                      "<double>")->default_value(1),
-             "decrease the maximum cluster size by facor in the third pass");
+             "decrease the maximum cluster size by facor in the third pass")
+             ("c-deterministic-contraction",
+             po::value<bool>(&context.coarsening.deterministic_contraction)->value_name("<bool>")->default_value(true),
+             "If true use deterministic flag in contraction");
+
     return options;
   }
 
