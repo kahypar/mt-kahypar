@@ -639,7 +639,32 @@ namespace mt_kahypar {
              "- deterministic\n"
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
-             "- do_nothing");
+             "- do_nothing")
+             ((initial_partitioning ? "i-r-jet-dynamic-negative-gain-factor" : "r-jet-dynamic-negative-gain-factor"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.dynamic_negative_gain_factor :
+                      &context.refinement.deterministic_refinement.jet.dynamic_negative_gain_factor))->value_name("<bool>")->default_value(false),
+             "If true, change gain factor over the course of multiple rounds")
+             ((initial_partitioning ? "i-r-jet-num-fine-rounds" : "r-jet-num-fine-rounds"),
+             po::value<size_t>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.num_fine_rounds :
+                      &context.refinement.deterministic_refinement.jet.num_fine_rounds))->value_name("<size_t>")->default_value(1),
+             "Number of rounds on the top level")
+             ((initial_partitioning ? "i-r-jet-num-coarse-rounds" : "r-jet-num-coarse-rounds"),
+             po::value<size_t>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.num_coarse_rounds :
+                      &context.refinement.deterministic_refinement.jet.num_coarse_rounds))->value_name("<size_t>")->default_value(1),
+             "Number of rounds on coarse levels")
+             ((initial_partitioning ? "i-r-jet-initial-negative-gain" : "r-jet-initial-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.initial_negative_gain_factor :
+                      &context.refinement.deterministic_refinement.jet.initial_negative_gain_factor))->value_name("<double>")->default_value(0.75),
+             "Initial negative gain factor for dynamic gain factor")
+             ((initial_partitioning ? "i-r-jet-final-negative-gain" : "r-jet-final-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.final_negative_gain_factor :
+                      &context.refinement.deterministic_refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.0),
+             "Final negative gain factor for dynamic gain factor");
     return options;
   }
 

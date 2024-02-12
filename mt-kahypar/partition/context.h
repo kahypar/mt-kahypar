@@ -169,6 +169,12 @@ struct JetParameters {
   bool afterburner_sorting_nets = false;
   bool afterburner_hardcode_graph_edges = false;
 
+  bool dynamic_negative_gain_factor = false;
+  size_t num_fine_rounds = 1;
+  size_t num_coarse_rounds = 1;
+  double initial_negative_gain_factor = 0.75;
+  double final_negative_gain_factor = 0.0;
+
   // rebalancing
   double heavy_vertex_exclusion_factor = 1.5;
   double relative_deadzone_size = 1.0;
