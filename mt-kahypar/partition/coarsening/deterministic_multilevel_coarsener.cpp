@@ -394,7 +394,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     measurements.executed_subrounds.push_back(sub_round);
   }
   _timer.start_timer("contraction", "Contraction");
-  _uncoarseningData.performMultilevelContraction(std::move(clusters), _context.coarsening.deterministic_contraction, pass_start_time);
+  _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
   _timer.stop_timer("contraction");
   if (_context.type == ContextType::main) {
     Hypergraph& after = Base::currentHypergraph();
