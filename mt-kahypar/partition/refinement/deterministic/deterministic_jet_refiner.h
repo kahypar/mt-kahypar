@@ -348,6 +348,7 @@ private:
   // incident edges in hypergraph afterburner
   parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
   size_t _current_edge_flag;
+  double _negative_gain_factor;
 };
 
 }
