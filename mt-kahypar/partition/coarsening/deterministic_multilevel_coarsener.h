@@ -83,7 +83,11 @@ public:
     triangle_edge_weights(utils::cast<Hypergraph>(hypergraph).initialNumEdges()),
     processed(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
     connected(),
-    passed_nodes_from_previous_subround() {}
+    passed_nodes_from_previous_subround(),
+    _ratings(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    contractable_nodes() {
+    contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
+  }
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -193,5 +197,7 @@ private:
   vec<bool> processed;
   vec<HypernodeID> connected;
   vec<HypernodeID> passed_nodes_from_previous_subround;
+  vec<double> _ratings;
+  parallel::scalable_vector<HypernodeID> contractable_nodes;
 };
 }
