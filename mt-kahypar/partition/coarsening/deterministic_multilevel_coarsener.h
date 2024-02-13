@@ -80,7 +80,10 @@ public:
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
-    passed_nodes_from_previous_subround() {}
+    passed_nodes_from_previous_subround(),
+    contractable_nodes() {
+    contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
+  }
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -171,5 +174,6 @@ private:
   size_t pass;
   utils::ProgressBar progress_bar;
   vec<HypernodeID> passed_nodes_from_previous_subround;
+  parallel::scalable_vector<HypernodeID> contractable_nodes;
 };
 }

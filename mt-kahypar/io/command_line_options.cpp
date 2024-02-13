@@ -336,15 +336,19 @@ namespace mt_kahypar {
              ("c-first-factor",
              po::value<double>(&context.coarsening.first_round_cluster_factor)->value_name(
                      "<double>")->default_value(1),
-             "decrease the maximum cluster size by facor in the first pass")
+             "decrease the maximum cluster size by factor in the first pass")
              ("c-second-factor",
              po::value<double>(&context.coarsening.second_round_cluster_factor)->value_name(
                      "<double>")->default_value(1),
-             "decrease the maximum cluster size by facor in the second pass")
+             "decrease the maximum cluster size by factor in the second pass")
              ("c-third-factor",
              po::value<double>(&context.coarsening.third_round_cluster_factor)->value_name(
                      "<double>")->default_value(1),
-             "decrease the maximum cluster size by facor in the third pass");
+             "decrease the maximum cluster size by factor in the third pass")
+             ("c-split-shrinkage",
+             po::value<bool>(&context.coarsening.split_contraction_limit_between_subrounds)->value_name(
+                     "<bool>")->default_value(false),
+             "split shrinkage between subrounds");
     return options;
   }
 
