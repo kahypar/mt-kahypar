@@ -124,7 +124,7 @@ private:
     const PartitionID to,
     const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = isGraph ? phg.changeNodePartNoSync(hn, from, to, inf_weight) : phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    const bool success = isGraph ? phg.changeNodePartNoSync(hn, from, to, inf_weight) : phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta); // NOTE use if constexpr here?
     ASSERT(success);
     unused(success);
   }
@@ -304,7 +304,7 @@ private:
         sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
         const Gain attributedGain = AttributedGains::gain(sync_update);
         if (!_context.refinement.deterministic_refinement.jet.afterburner_skip_zero || attributedGain != 0) {
-          _afterburner_gain[pin] += attributedGain;   // NOTE specify memory_order_relaxed (might be faster). Also beware that (in our twisted definition) positive attributed gain constitutes an increase in the objective function
+          _afterburner_gain[pin] += attributedGain;   // NOTE specify memory_order_relaxed (might be faster).
         }
       }
     };

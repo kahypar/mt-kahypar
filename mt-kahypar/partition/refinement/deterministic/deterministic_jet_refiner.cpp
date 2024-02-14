@@ -133,7 +133,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             timer.start_timer("afterburner", "Afterburner");
             // label prop round
             _locks.reset();
-            tmp_active_nodes.clear_parallel();
+            tmp_active_nodes.clear_parallel();  // NOTE is clear_sequential better?
 
             if (phg.is_graph) {
                 tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
@@ -155,6 +155,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 });
             } else {
                 auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
+                // NOTE not sure if init should be a reference?
                 auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
                     Gain my_gain = init;
                     for (size_t i = r.begin(); i < r.end(); ++i) {

@@ -69,7 +69,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
   size_t iteration = 0;
   while (_num_imbalanced_parts > 0 && iteration < ABSOLUTE_MAX_ROUNDS && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
-    HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg));
+    HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg)); // NOTE this is a light assertion, you can use the normal ASSERT macro
     updateImbalance(phg);
     ++iteration;
   }
@@ -162,13 +162,13 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      const auto& triple = computeGainAndTargetPart(phg, hn, true);
+      const auto& triple = computeGainAndTargetPart(phg, hn, true); // NOTE How can this be a reference?
       if (from != triple.to && triple.to != kInvalidPartition) {
         tmp_potential_moves[from].stream(triple);
       }
     }
   });
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {   // NOTE use a variable that indicates that this is a block?
     if (tmp_potential_moves[i].size() > 0) {
       _moves[i] = tmp_potential_moves[i].copy_parallel();
       const size_t move_size = _moves[i].size();
@@ -188,6 +188,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
             _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
           });
           parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
+          // NOTE did you test if this gives the same result as the sequential implementation?
           last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
           ++last_move_idx;
         } else {
@@ -198,12 +199,12 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         }
         if (phg.is_graph) {
           tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
-            const auto move = _moves[i][j];
+            const auto move = _moves[i][j];   // NOTE make this a const ref
             changeNodePart<true>(phg, move.hn, i, move.to, false);
           });
         } else {
           tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
-            const auto move = _moves[i][j];
+            const auto move = _moves[i][j];   // NOTE make this a const ref
             changeNodePart<false>(phg, move.hn, i, move.to, false);
           });
         }
