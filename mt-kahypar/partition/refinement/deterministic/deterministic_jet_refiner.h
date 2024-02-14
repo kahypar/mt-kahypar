@@ -287,7 +287,7 @@ private:
       }
       for (size_t i = 0; i < index; ++i) {
         const HypernodeID pin = edgeBuffer[i];
-        afterburnerBuffer[phg.partID(pin)]++;
+        afterburnerBuffer[phg.partID(pin)]++;     // NOTE can this not be in the same loop that insets into edgeBuffer (L250), i.e., move L256 out of the else branch to always execute
       }
       // update pin-counts for each pin
       for (size_t i = 0; i < index; ++i) {
