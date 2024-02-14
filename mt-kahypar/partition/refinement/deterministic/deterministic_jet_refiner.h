@@ -297,14 +297,14 @@ private:
         afterburnerBuffer[from]--;
         afterburnerBuffer[to]++;
         SynchronizedEdgeUpdate sync_update;
-        sync_update.he = he;
+        sync_update.he = he;                    // NOTE .he and .edge_weight inits can be moved outside the loop?
         sync_update.edge_weight = phg.edgeWeight(he);
         sync_update.edge_size = phg.edgeSize(he);
         sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
         sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
         const Gain attributedGain = AttributedGains::gain(sync_update);
         if (!_context.refinement.deterministic_refinement.jet.afterburner_skip_zero || attributedGain != 0) {
-          _afterburner_gain[pin] += attributedGain;
+          _afterburner_gain[pin] += attributedGain;   // NOTE specify memory_order_relaxed (might be faster). Also beware that (in our twisted definition) positive attributed gain constitutes an increase in the objective function
         }
       }
     };
@@ -313,7 +313,7 @@ private:
       tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& i) {
         const HypernodeID hn = _active_nodes[i];
         for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-          size_t flag = _edge_flag[he].load();
+          size_t flag = _edge_flag[he].load();    // NOTE specify memory_order_acquire in compare_exchange and memory_order_relaxed in load
           if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag)) continue;
           afterburn_edge(he);
         }
@@ -344,9 +344,9 @@ private:
   // hypergraph afterburner
   parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
   tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
-  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
+  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;  // NOTE merge the two ETS into one with a struct --> only one lookup
   // incident edges in hypergraph afterburner
-  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
+  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;  // NOTE 16 bit should be enough
   size_t _current_edge_flag;
   double _negative_gain_factor;
 };

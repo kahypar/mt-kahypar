@@ -159,7 +159,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     Gain my_gain = init;
                     for (size_t i = r.begin(); i < r.end(); ++i) {
                         const HypernodeID hn = _active_nodes[i];
-                        if (_afterburner_gain[hn] <= 0) {
+                        if (_afterburner_gain[hn] <= 0) { // NOTE Have we tried a skip zero gain moves policy? Might be helpful with balance-violating moves
                             _locks.set(hn);
                             my_gain += performMoveWithAttributedGain<false>(phg, hn);
                         }
@@ -265,7 +265,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
         }
     };
     tmp_active_nodes.clear_sequential();
-    // compute gain for every node 
+    // compute gain for every node
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
         process_node(hn, [&] {tmp_active_nodes.stream(hn);});
     });
