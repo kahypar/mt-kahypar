@@ -131,9 +131,16 @@ int main(int argc, char* argv[]) {
                context.mapping.target_graph_file.find_last_of('/') + 1)
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k
-            << " epsilon=" << context.partition.epsilon
-            << " imbalance=" << metrics::imbalance(partitioned_hg, context)
-            << " steiner_tree=" << metrics::quality(partitioned_hg, Objective::steiner_tree)
+            << " epsilon=";
+            for(int i = 0; i < dimension; i++){
+              std::cout << context.partition.epsilon[i] << " ";
+            }
+            std::cout << "\n imbalance=";
+            for(int i = 0; i < dimension; i++){
+              std::cout << metrics::imbalance(partitioned_hg, context)[i] << " ";
+            }
+            std::cout << "\n";
+            std::cout << " steiner_tree=" << metrics::quality(partitioned_hg, Objective::steiner_tree)
             << " approximation_factor=" << metrics::approximationFactorForProcessMapping(partitioned_hg, context)
             << " cut=" << metrics::quality(partitioned_hg, Objective::cut)
             << " km1=" << metrics::quality(partitioned_hg, Objective::km1)

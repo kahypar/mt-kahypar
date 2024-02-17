@@ -88,9 +88,9 @@ NodeWeight cutToZero(const NodeWeight &nw){
   }
 
 std::string to_string(const std::array<double, dimension> d){
-  std::string s;
+  std::string s="";
   for(int i = 0; i < dimension; i++){
-    s += d[i];
+    s += std::to_string(d[i]);
     s += ' ';
   }
   return s;

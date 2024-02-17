@@ -291,10 +291,13 @@ namespace mt_kahypar {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
         for(int i = 0; i < mt_kahypar::dimension; i++){
-          partition.epsilon[i] = std::min(0.99, max_part_weights_sum.weights[i] /static_cast<double>(std::max(perfect_part_weights_sum.weights[i], 1)))- 1;
+          partition.epsilon[i] = std::min(0.99, max_part_weights_sum.weights[i] / static_cast<double>(std::max(perfect_part_weights_sum.weights[i], 1)))- 1;
         }
       }
     } else {
+      for(int i = 0; i < dimension; i++){
+        std::cout << partition.epsilon[i] << " \n";
+      }
       partition.perfect_balance_part_weights.clear();
       HypernodeWeight nw;
       for(int i = 0; i < dimension; i++){
@@ -306,8 +309,11 @@ namespace mt_kahypar {
                 nw);
       }
       partition.max_part_weights.clear();
-      partition.max_part_weights.push_back(NodeWeight((1 + partition.epsilon)
-                                          * partition.perfect_balance_part_weights[0]));
+      NodeWeight weight;
+      for(int i = 0; i < dimension; i++){
+        weight.weights[i] = std::ceil((1 + partition.epsilon[i]) * partition.perfect_balance_part_weights[0].weights[i]);
+      }
+      partition.max_part_weights.push_back(weight);
       for (PartitionID part = 1; part != partition.k; ++part) {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }

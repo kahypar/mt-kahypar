@@ -413,8 +413,7 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
   std::string metrics_to_string(const std::array<double, mt_kahypar::dimension> metrics){
     std::string s;
     for(int i = 0; i < mt_kahypar::dimension; i++){
-      s.append(std::to_string(metrics[i]));
-      s.append("" "");
+      s += std::to_string(metrics[i]) + ' ';
     }
     return s;
   }

@@ -37,7 +37,7 @@ namespace mt_kahypar {
 class NoWeightPenalty final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight, const HypernodeWeight) {
-    return 1;
+    return HypernodeWeight(1);
   }
 };
 
