@@ -47,7 +47,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     opportunistic_cluster_weight[u] = cluster_weight[u];
     propositions[u] = u;
     clusters[u] = u;
-    _ratings[u] = 0;
   });
   const size_t num_edges_before = hg.initialNumEdges();
   const size_t num_pins_before = hg.initialNumPins();
@@ -255,13 +254,9 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         }
       }
       if (contractable_nodes.size() > contractable_nodes_per_subround) {
-        tbb::parallel_sort(contractable_nodes.begin(), contractable_nodes.end(), [&](const HypernodeID a, const HypernodeID b) {
-          return _ratings[a] > _ratings[b] || (_ratings[a] == _ratings[b] && a < b);
-        });
+        std::shuffle(contractable_nodes.begin(), contractable_nodes.end(), std::mt19937(_context.partition.seed));
       }
       const size_t end = std::min(contractable_nodes.size(), contractable_nodes_per_subround);
-      if (contractable_nodes.size() > 0) {
-      }
       tbb::parallel_for(end, contractable_nodes.size(), [&](const size_t i) {
         HypernodeID u = contractable_nodes[i];
         HypernodeID target = propositions[u];
@@ -508,7 +503,6 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
   if (best_target != u) {
     propositions[u] = best_target;
-    _ratings[u] = best_score;
     __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
   }
 }
