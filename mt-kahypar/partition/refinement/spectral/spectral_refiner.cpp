@@ -29,6 +29,8 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 
+#include <iostream>
+
 namespace mt_kahypar {
 
   using namespace spectral;
@@ -41,7 +43,7 @@ namespace mt_kahypar {
     ASSERT(refinement_nodes.empty());  // these are always empty for your case
     unused(refinement_nodes);
 
-    PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
+    PartitionedHypergraph& partionedHypergraph = utils::cast<PartitionedHypergraph>(phg);
     Gain old_quality = best_metrics.quality;
     resizeDataStructuresForCurrentK();
 
@@ -51,21 +53,22 @@ namespace mt_kahypar {
 
     // implementation goes here
     DBG << "Spectral Refiner called";
-    partition(hypergraph);
-    DBG << "Spectral Refiner finished kSpecPart";
-    if constexpr (Hypergraph::is_graph) {
-
-    }
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+    timer.start_timer("partition_sp", "Partition");
+    partition(partionedHypergraph);
+    timer.stop_timer("partition_sp");
+    DBG << "Spectral Refiner finished partitioning";
 
     // recalculate metrics
+    
     /* TODO */
 
 
-    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
+    HEAVY_REFINEMENT_ASSERT(partionedHypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
-      metrics::quality(hypergraph, _context,
+      metrics::quality(partionedHypergraph, _context,
         !_context.refinement.label_propagation.execute_sequential),
-      V(best_metrics.quality) << V(metrics::quality(hypergraph, _context,
+      V(best_metrics.quality) << V(metrics::quality(partionedHypergraph, _context,
           !_context.refinement.label_propagation.execute_sequential)));
 
     // Update metrics statistics
@@ -77,15 +80,37 @@ namespace mt_kahypar {
 
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& inputSolution) {
-    Hypergraph& inputHypergraph  = inputSolution.hypergraph();
-    PartitionID k = inputSolution.k(); /* TODO extract from argv */
+  void SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& phg) {
+    if constexpr (Hypergraph::is_graph) {
+      /* TODO */
+    }
+
+    Hypergraph& inputHypergraph  = phg.hypergraph();
+    const PartitionID k = phg.k(); /* TODO extract from argv */
     
     numNodes = inputHypergraph.initialNumNodes();
+
+    vec<PartitionID> inputPartition;
+    inputPartition.reserve(numNodes);
+    for (const HypernodeID node : phg.nodes()) {
+      inputPartition.push_back(phg.partID(node));
+    }
 
     // dehyperisation
     Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
+
+    vec<spectral::Vector> inputGraphLaplacianMatrix;
+    inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
+    for(spectral::Vector row : inputGraphLaplacianMatrix) {
+      std::ostringstream row_str;
+      for (size_t i = 0; i < numNodes; i++) {
+        char buf[100];
+        sprintf(buf, " %+.2f", row.get(i));
+        row_str << buf;
+      }
+      DBG << row_str.str();
+    }
 
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
@@ -93,17 +118,27 @@ namespace mt_kahypar {
 
     // actual refinement
 
-    vec<PartitionedHypergraph*> candidateSolutions; 
+    vec<vec<PartitionID>> candidateSolutions; /* TODO alias */
     candidateSolutions.reserve(1/* TODO argv "beta" */ + 1);
-    candidateSolutions.push_back(&inputSolution);
+    candidateSolutions.push_back(inputPartition);//std::move(phg)); /* TODO alloc vs constructor error*/
 
     for (int i = 0; i < 1 /* TODO argv "beta" */; i++) {
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
-        generate2WayVertexEmbedding(weightBalanceLaplacian, inputGraphLaplacian, *candidateSolutions.back(), embedding);
+        generate2WayVertexEmbedding(weightBalanceLaplacian, inputGraphLaplacian, phg/* candidateSolutions.back() */, embedding);
       } else {
         /* TODO */
       }
+
+      vec<PartitionID> newSolution;
+      generateSolution(embedding, newSolution);
+      candidateSolutions.push_back(newSolution);
+    }
+
+    phg.resetPartition(); /* TODO change changed nodes only */
+    for (size_t i = 0; i < numNodes; i++) {
+      HypernodeID node = i; /* TODO calculate index */
+      phg.setNodePart(node, candidateSolutions.back()[i]);
     }
   }
 
@@ -113,42 +148,74 @@ namespace mt_kahypar {
 
     target.ctx = (void *) &hypergraph;
 
+    // target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+    //   size_t n = operand.dimension();
+    //   Hypergraph *hg = (Hypergraph *) self->ctx;
+
+    //   spectral::Skalar clique_edge_weight_sum = 0.0;
+    //   spectral::Vector edges_superposition(n);
+    //   for (const HyperedgeID& he : hg->edges()) { /* TODO use parallel?? */
+    //     HypernodeID edge_size = hg->edgeSize(he);
+
+    //     spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
+    //     clique_edge_weight_sum += clique_edge_weight;
+
+    //     spectral::Skalar operand_norm_he = 0.0;
+    //     for (const HypernodeID& pin : hg->pins(he)) {
+    //       operand_norm_he += operand.get(pin /* TODO calculate index */);
+    //     }
+    //     /* TODO edge count not size */
+    //     operand_norm_he *= clique_edge_weight;
+    //     operand_norm_he /= edge_size;
+
+    //     // accumulate edges superposition vector
+    //     for (const HypernodeID& pin : hg->pins(he)) {
+    //       size_t index = pin; /* TODO calculate index */
+    //       edges_superposition.set(index, edges_superposition.get(index) + operand_norm_he);
+    //     }
+    //   }
+      
+    //   // calculate result
+    //   for (size_t i = 0; i < target_vector.dimension(); i++) {
+    //     target_vector.set(i, clique_edge_weight_sum * operand.get(i) - edges_superposition.get(i));
+    //   }
+    // };
+
     target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
       size_t n = operand.dimension();
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
-      spectral::Skalar clique_edge_weight_sum = 0.0;
-      spectral::Vector edges_superposition(n);
-      for (const HyperedgeID& he : hg->edges()) { /* TODO use parallel?? */
-        HypernodeID edge_size = hg->edgeSize(he);
-
-        clique_edge_weight_sum += 1.0 / (edge_size - 1.0);
-
-        spectral::Skalar operand_norm_he = 0.0;
+      spectral::Vector factor(n);
+      spectral::Vector subtrahend(n);
+      for (const HyperedgeID& he : hg->edges()) {
+        spectral::Skalar operand_dot_e = 0.0;
+        size_t edge_pin_count = 0;
         for (const HypernodeID& pin : hg->pins(he)) {
-          operand_norm_he += operand.get(pin /* TODO calculate index */);
+          operand_dot_e += operand.get(pin);
+          edge_pin_count++;
         }
-        operand_norm_he /= edge_size;
+        HypernodeID edge_size = hg->edgeSize(he); /* TODO weights */
+        spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
 
-        // accumulate edges superposition vector
         for (const HypernodeID& pin : hg->pins(he)) {
-          size_t index = pin; /* TODO calculate index */
-          edges_superposition.set(index, edges_superposition.get(index) + operand_norm_he);
+          factor.set(pin, factor.get(pin) + clique_edge_weight * edge_pin_count);
+          subtrahend.set(pin, subtrahend.get(pin) + clique_edge_weight * operand_dot_e);
         }
       }
-      
+
       // calculate result
       for (size_t i = 0; i < target_vector.dimension(); i++) {
-        target_vector.set(i, clique_edge_weight_sum * operand.get(i) - edges_superposition.get(i));
+        target_vector.set(i, operand.get(i) * factor.get(i) - subtrahend.get(i));
       }
     };
 
     target.calc_diagonal = [] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       for (const HypernodeID& node : hg->nodes()) {
+        size_t index = node; /* TODO calculate index */
         for (const HyperedgeID& edge : hg->incidentEdges(node)) {
-          size_t index = node; /* TODO calculate index */
-          target_vector.set(node, target_vector.get(node) + hg->edgeWeight(edge));
+          /* TODO weights */
+          target_vector.set(node, target_vector.get(node) + 1);
         }
       }
     };
@@ -198,17 +265,53 @@ namespace mt_kahypar {
     generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
-    solver.setProblem(graphLaplacian, baseBalance /*+ hintGraphLaplacian*/);
+    spectral::Vector one(numNodes, 1.0);
+    spectral::Operator dummy(numNodes);
+    solver.setProblem(graphLaplacian, dummy, one);//baseBalance /*+ hintGraphLaplacian*/);
 
-    /* TODO */
-    // to see something:
     spectral::Skalar a;
     spectral::Vector v(numNodes);
-    // v.set(0, 5);
-    // graphLaplacian.getDiagonal(v);
-    //DBG << v.get(0);
-    solver.nextEigenpair(a, v);
-    v.get_all();
+
+    /* TODO designed only for fiedler method */
+    size_t num_evecs = 2;
+    vec<spectral::Vector> buffer; 
+    bool ascending = true;
+    for (size_t i = 0; i < num_evecs; i++) {
+      /* TODO */
+      switch (solver.nextEigenpair(a, v)) {
+      case 0:
+        break;
+      
+      case -1:        
+        num_evecs++;
+        ascending = false;
+    
+      case 1:
+        buffer.push_back(v);
+        continue;
+
+      default:
+        break;
+      }
+      break;
+    }
+    if (ascending) {
+      target.assign(buffer.begin(), buffer.end());
+    } else {
+      target.assign(buffer.rbegin(), buffer.rend());
+    }
+    
+  }
+
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::generateSolution(vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
+    spectral::Vector &fiedler = embedding[1];
+
+    spectral::Skalar threshold = 0; /* TODO */
+
+    for (size_t i = 0; i < numNodes; i++) {
+      target.push_back(fiedler.get(i) > threshold ? 1 : 0);
+    }
   }
 
 

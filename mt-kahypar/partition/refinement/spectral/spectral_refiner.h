@@ -76,7 +76,7 @@ class SpectralRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
-  void partition(PartitionedHypergraph& hypergraph);
+  void partition(PartitionedHypergraph &phg);
 
   void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
@@ -85,6 +85,8 @@ class SpectralRefiner final : public IRefiner {
   void generate2WayVertexEmbedding(spectral::Operator& baseBalance, spectral::Operator& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target);
 
   void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target);
+
+  void generateSolution(vec<spectral::Vector> &embedding, vec<PartitionID> &target); /* TODO aliase */
 
 
   void resizeDataStructuresForCurrentK() {
