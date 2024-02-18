@@ -33,7 +33,8 @@ namespace spectral {
 
 class Vector {
  public:
-  Vector(size_t dimension);
+  Vector(size_t dimension) : Vector(dimension, 0.0) {};
+  Vector(size_t dimension, Skalar default_value);
   size_t dimension();
 
   Skalar get(size_t index);
@@ -44,6 +45,7 @@ class Vector {
   void set_all(const Skalar *data_array);
  private:
   size_t dim;
+  Skalar _default_value;
   vec<Skalar> data;
 
   template <typename F>

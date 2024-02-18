@@ -29,7 +29,8 @@ namespace spectral {
 
 /* make getters more elegant? */
 
-Vector::Vector(size_t dimension) {
+Vector::Vector(size_t dimension, Skalar default_value) {
+  _default_value = default_value;
   dim = dimension;
   data.reserve(dim);
 }
@@ -40,15 +41,15 @@ size_t Vector::dimension() {
 
 Skalar Vector::get(size_t index) {
   if (index >= data.size()) {
-    data.resize(index + 1, 0);
+    data.resize(index + 1, _default_value);
   }
   return data[index];
 }
 
 template <typename F>
 void Vector::set_generalized(size_t index, F &&set_op) {
-  if (index >= data.size()) {
-    data.resize(index + 1, 0);
+  if (index >= data.size()) { /* TODO copied code 8S */
+    data.resize(index + 1, _default_value);
   }
   set_op();
 }
@@ -63,6 +64,7 @@ void Vector::set(size_t index, const Skalar &value) {
 
 
 const Skalar *Vector::get_all() {
+  get(dimension() - 1);
   return data.data();
 }
 
