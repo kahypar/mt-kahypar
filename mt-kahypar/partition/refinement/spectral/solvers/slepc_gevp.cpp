@@ -104,6 +104,9 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
 
   CallPetsc(EPSSetType(eps, getEpsType(*op_a, *op_b)));
   CallPetsc(EPSSetProblemType(eps, getProblemType(*op_a, *op_b)));
+  CallPetsc(EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL));
+
+  /* CallPetsc(EPSSetTolerances(eps, PETSC_DEFAULT, 500)); */
 
   CallPetsc(EPSSetOperators(eps, mat_A, mat_B));
 
@@ -112,12 +115,39 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
   PetscFunctionReturnVoid();
 }
 
-bool SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
+void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec) {
   PetscFunctionBeginUser;
+  
+  setProblem(a, b);
+
+  Vec v;
+  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, trivial_evec.dimension(), &v));
+  vector2Vec(trivial_evec, v);
+  evecs.push_back(v);
+
+  PetscFunctionReturnVoid();
+}
+
+int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
+  PetscFunctionBeginUser;
+
 
   if (!solved) {
     solve();
+    if (!solved) {
+      if (tried_from_above) {
+        eval = evals.back();
+        vec2vector(evecs.back(), evec);
+        return 0;
+      } else {
+        tried_from_above = true;
+        CallPetsc(EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL));
+        return nextEigenpair(eval, evec);
+      }
+    }
+  
   }
+
 
   PetscInt number_of_eigenpairs;
   CallPetsc(EPSGetConverged(eps, &number_of_eigenpairs));
@@ -125,14 +155,22 @@ bool SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
   PetscScalar kr, ki;
   Vec xr, xi;
 
+  CallPetsc(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_INFO_DETAIL));
+  CallPetsc(EPSErrorView(eps, EPS_ERROR_RELATIVE, PETSC_VIEWER_STDOUT_WORLD));
+  CallPetsc(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
+
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xr));
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xi));
   CallPetsc(EPSGetEigenpair(eps, 0, &kr, &ki, xr, xi));
 
   eval = kr;
   vec2vector(xr, evec);
+  
+  evals.push_back(kr);
+  evecs.push_back(xr);
+  solved = false;
 
-  PetscFunctionReturn(true);
+  PetscFunctionReturn(tried_from_above ? -1 : 1);
 }
 
 void SLEPcGEVPSolver::reset_matrices() {
@@ -171,33 +209,39 @@ SLEPcGEVPSolver::~SLEPcGEVPSolver() {
 void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
-  if (false) {
   /* test */
-  size_t n = op_a->dimension();
-  Vec x, b;
-  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, n, &x));
-  CallPetsc(VecDuplicate(x, &b));
-  Mat M;
-  CallPetsc(MatCreateSeqAIJ(GLOBAL_COMMUNICATOR, n, n, n, nullptr, &M));
-  for (size_t i = 0; i < n; i++) {
-    CallPetsc(VecSet(x, 0.0));
-    CallPetsc(VecSetValue(x, i, 1, INSERT_VALUES));
-    CallPetsc(VecAssemblyBegin(x));
-    CallPetsc(VecAssemblyEnd(x));
-    //CallPetsc(VecView(x, PETSC_VIEWER_STDOUT_SELF));
+  // size_t n = op_a->dimension();
+  // Vec x, b;
+  // CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, n, &x));
+  // CallPetsc(VecDuplicate(x, &b));
+  // Mat M;
+  // CallPetsc(MatCreateSeqAIJ(GLOBAL_COMMUNICATOR, n, n, n, nullptr, &M));
+  // for (size_t i = 0; i < n; i++) {
+  //   CallPetsc(VecSet(x, 0.0));
+  //   CallPetsc(VecSetValue(x, i, 1, INSERT_VALUES));
+  //   CallPetsc(VecAssemblyBegin(x));
+  //   CallPetsc(VecAssemblyEnd(x));
+  //   //CallPetsc(VecView(x, PETSC_VIEWER_STDOUT_SELF));
     
-    CallPetsc(MatMult(mat_A, x, b));
-    // CallPetsc(MatSetValues)
-    //CallPetsc(MatView(mat_A, PETSC_VIEWER_STDOUT_SELF));
-    CallPetsc(VecView(b, PETSC_VIEWER_STDOUT_SELF));
-  }
-  
-  } else {
+  //   CallPetsc(MatMult(mat_A, x, b));
+  //   // CallPetsc(MatSetValues)
+  //   //CallPetsc(MatView(mat_A, PETSC_VIEWER_STDOUT_SELF));
+  //   CallPetsc(VecView(b, PETSC_VIEWER_STDOUT_SELF));
+  // }
+  /* end test code */
 
   // solve
 
-  CallPetsc(EPSSolve(eps));  /* end test code */}
-  solved = true;
+  CallPetsc(EPSSetDeflationSpace(eps, evecs.size(), evecs.data()));
+
+  CallPetsc(EPSSolve(eps));
+  PetscInt nconv;
+  CallPetsc(EPSGetConverged(eps, &nconv));
+  solved = nconv > 0;
+
+  CallPetsc(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_INFO_DETAIL));
+  CallPetsc(EPSConvergedReasonView(eps, PETSC_VIEWER_STDOUT_WORLD));
+  CallPetsc(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
 
   PetscFunctionReturnVoid();
 }

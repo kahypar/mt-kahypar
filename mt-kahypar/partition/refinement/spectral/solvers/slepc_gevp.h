@@ -37,7 +37,9 @@ class SLEPcGEVPSolver : public GEVPSolver {
  public:
   void setProblem(Operator& a, Operator& b) final;
 
-  bool nextEigenpair(Skalar& eval, Vector& evec) final;
+  void setProblem(Operator& a, Operator& b, Vector& trivial_evec) final;
+
+  int nextEigenpair(Skalar& eval, Vector& evec) final;
 
   ~SLEPcGEVPSolver() final;
 
@@ -46,6 +48,9 @@ class SLEPcGEVPSolver : public GEVPSolver {
 
   bool slepc_running = false;
   bool solved = false;
+  bool tried_from_above = false;
+  vec<PetscScalar> evals;
+  vec<Vec> evecs;
 
   // custom matrices
   Operator *op_a = nullptr;
