@@ -100,17 +100,17 @@ namespace mt_kahypar {
     Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
 
-    vec<spectral::Vector> inputGraphLaplacianMatrix;
-    inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
-    for(spectral::Vector row : inputGraphLaplacianMatrix) {
-      std::ostringstream row_str;
-      for (size_t i = 0; i < numNodes; i++) {
-        char buf[100];
-        sprintf(buf, " %+.2f", row.get(i));
-        row_str << buf;
-      }
-      DBG << row_str.str();
-    }
+    // vec<spectral::Vector> inputGraphLaplacianMatrix;
+    // inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
+    // for(spectral::Vector row : inputGraphLaplacianMatrix) {
+    //   std::ostringstream row_str;
+    //   for (size_t i = 0; i < numNodes; i++) {
+    //     char buf[100];
+    //     sprintf(buf, " %+.2f", row.get(i));
+    //     row_str << buf;
+    //   }
+    //   DBG << row_str.str();
+    // }
 
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
@@ -147,39 +147,6 @@ namespace mt_kahypar {
     // dehyperisation via clique expansion graph
 
     target.ctx = (void *) &hypergraph;
-
-    // target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
-    //   size_t n = operand.dimension();
-    //   Hypergraph *hg = (Hypergraph *) self->ctx;
-
-    //   spectral::Skalar clique_edge_weight_sum = 0.0;
-    //   spectral::Vector edges_superposition(n);
-    //   for (const HyperedgeID& he : hg->edges()) { /* TODO use parallel?? */
-    //     HypernodeID edge_size = hg->edgeSize(he);
-
-    //     spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
-    //     clique_edge_weight_sum += clique_edge_weight;
-
-    //     spectral::Skalar operand_norm_he = 0.0;
-    //     for (const HypernodeID& pin : hg->pins(he)) {
-    //       operand_norm_he += operand.get(pin /* TODO calculate index */);
-    //     }
-    //     /* TODO edge count not size */
-    //     operand_norm_he *= clique_edge_weight;
-    //     operand_norm_he /= edge_size;
-
-    //     // accumulate edges superposition vector
-    //     for (const HypernodeID& pin : hg->pins(he)) {
-    //       size_t index = pin; /* TODO calculate index */
-    //       edges_superposition.set(index, edges_superposition.get(index) + operand_norm_he);
-    //     }
-    //   }
-      
-    //   // calculate result
-    //   for (size_t i = 0; i < target_vector.dimension(); i++) {
-    //     target_vector.set(i, clique_edge_weight_sum * operand.get(i) - edges_superposition.get(i));
-    //   }
-    // };
 
     target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
       size_t n = operand.dimension();
@@ -272,35 +239,12 @@ namespace mt_kahypar {
     spectral::Skalar a;
     spectral::Vector v(numNodes);
 
-    /* TODO designed only for fiedler method */
-    size_t num_evecs = 2;
-    vec<spectral::Vector> buffer; 
-    bool ascending = true;
-    for (size_t i = 0; i < num_evecs; i++) {
-      /* TODO */
-      switch (solver.nextEigenpair(a, v)) {
-      case 0:
-        break;
-      
-      case -1:        
-        num_evecs++;
-        ascending = false;
-    
-      case 1:
-        buffer.push_back(v);
-        continue;
-
-      default:
-        break;
-      }
-      break;
-    }
-    if (ascending) {
-      target.assign(buffer.begin(), buffer.end());
-    } else {
-      target.assign(buffer.rbegin(), buffer.rend());
-    }
-    
+    size_t num_evecs = 2; /* only fiedler */
+    target.push_back(one);
+    while (target.size() < num_evecs) {
+      solver.nextEigenpair(a, v);
+      target.push_back(v);
+    }  
   }
 
   template <typename GraphAndGainTypes>
