@@ -39,6 +39,7 @@
 #include "mt-kahypar/utils/cast.h"
 
 #include <tbb/enumerable_thread_specific.h>
+#include "tbb/parallel_sort.h"
 
 namespace mt_kahypar {
 
@@ -154,6 +155,141 @@ private:
       return _context.coarsening.third_round_cluster_factor * _context.coarsening.max_allowed_node_weight;
     default:
       return _context.coarsening.max_allowed_node_weight;
+    }
+  }
+
+  void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg) {
+    switch (_context.coarsening.swapStrategy) {
+    case SwapResolutionStrategy::stay:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          propositions[u] = u;
+          propositions[cluster_u] = cluster_u;
+          opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            propositions[u] = u;
+            propositions[cluster_u] = cluster_u;
+            opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+            opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+          }
+        });
+      }
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
+      break;
+    case SwapResolutionStrategy::to_larger:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u&& u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u&& u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  void handleNodesInTooHeavyClusters(size_t& num_nodes, vec<HypernodeID>& clusters, const Hypergraph& hg) {
+    switch (_context.coarsening.heavy_cluster_strategy) {
+    case HeavyClusterStrategy::fill:
+      num_nodes -= approveVerticesInTooHeavyClusters(clusters);
+      break;
+    case HeavyClusterStrategy::reset:
+      // This case might not converge if not done properly
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        if (propositions[hn] != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[propositions[hn]], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+      });
+      break;
+    case HeavyClusterStrategy::recalculate:
+      passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        const auto target = propositions[hn];
+        if (target != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+        passed_nodes_from_previous_subround[i] = hn;
+      });
+      nodes_in_too_heavy_clusters.clear();
+      num_nodes -= recalculateForPassedOnHypernodes(clusters);
+      break;
+    case HeavyClusterStrategy::pass_on:
+      passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        const auto target = propositions[hn];
+        if (target != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+        passed_nodes_from_previous_subround[i] = hn;
+      });
+      break;
+    default:
+      break;
     }
   }
 
