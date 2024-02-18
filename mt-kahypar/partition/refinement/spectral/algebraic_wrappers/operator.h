@@ -43,6 +43,8 @@ class Operator {
 
   void getDiagonal(Vector& target);
 
+  void getMatrix(vec<Vector> &target);
+
   bool isSymmetric();
 
   /* only makeshift */

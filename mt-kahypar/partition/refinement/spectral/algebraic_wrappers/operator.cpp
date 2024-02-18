@@ -55,6 +55,17 @@ void Operator::getDiagonal(Vector& target) {
   calc_diagonal(this, target);
 }
 
+void Operator::getMatrix(vec<Vector> &target) {
+  Vector filter(dim);
+  for (size_t i = 0; i < dim; i++) {
+    filter.set(i, 1);
+    Vector column(dim);
+    apply(filter, column);
+    target.push_back(column);
+    filter.set(i, 0);
+  }
+}
+
 bool Operator::isSymmetric() {
   return true; /* TODO */
 }
