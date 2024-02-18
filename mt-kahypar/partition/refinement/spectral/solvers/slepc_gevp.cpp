@@ -88,6 +88,7 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
 
   reset_matrices();
 
+  /* TODO eliminate duplicate code below 8S */
   // A
   CallPetsc(MatCreateShell(GLOBAL_COMMUNICATOR, getN(n), getN(n), getN(n), getN(n), (void *) op_a, &mat_A));
   CallPetsc(MatShellSetOperation(mat_A, MATOP_MULT, (void(*)(void)) &matMult));
@@ -131,34 +132,32 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec)
 int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
   PetscFunctionBeginUser;
 
-
+  // call solver
+  solved = false;
+  solve();
   if (!solved) {
-    solve();
-    if (!solved) {
-      if (tried_from_above) {
-        eval = evals.back();
-        vec2vector(evecs.back(), evec);
-        return 0;
-      } else {
-        tried_from_above = true;
-        CallPetsc(EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL));
-        return nextEigenpair(eval, evec);
-      }
+    // try to search largest evec instead
+    if (tried_from_above) {
+      eval = evals.back();
+      vec2vector(evecs.back(), evec);
+      return 0;
+    } else {
+      tried_from_above = true;
+      CallPetsc(EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL));
+      return nextEigenpair(eval, evec);
     }
-  
   }
-
-
-  PetscInt number_of_eigenpairs;
-  CallPetsc(EPSGetConverged(eps, &number_of_eigenpairs));
 
   PetscScalar kr, ki;
   Vec xr, xi;
 
+  // debug output
+  /* TODO opt off for performance reasons? */
   CallPetsc(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_INFO_DETAIL));
   CallPetsc(EPSErrorView(eps, EPS_ERROR_RELATIVE, PETSC_VIEWER_STDOUT_WORLD));
   CallPetsc(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
 
+  // get eigenpair
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xr));
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xi));
   CallPetsc(EPSGetEigenpair(eps, 0, &kr, &ki, xr, xi));
@@ -168,7 +167,6 @@ int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
   
   evals.push_back(kr);
   evecs.push_back(xr);
-  solved = false;
 
   PetscFunctionReturn(tried_from_above ? -1 : 1);
 }
@@ -209,36 +207,20 @@ SLEPcGEVPSolver::~SLEPcGEVPSolver() {
 void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
-  /* test */
-  // size_t n = op_a->dimension();
-  // Vec x, b;
-  // CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, n, &x));
-  // CallPetsc(VecDuplicate(x, &b));
-  // Mat M;
-  // CallPetsc(MatCreateSeqAIJ(GLOBAL_COMMUNICATOR, n, n, n, nullptr, &M));
-  // for (size_t i = 0; i < n; i++) {
-  //   CallPetsc(VecSet(x, 0.0));
-  //   CallPetsc(VecSetValue(x, i, 1, INSERT_VALUES));
-  //   CallPetsc(VecAssemblyBegin(x));
-  //   CallPetsc(VecAssemblyEnd(x));
-  //   //CallPetsc(VecView(x, PETSC_VIEWER_STDOUT_SELF));
-    
-  //   CallPetsc(MatMult(mat_A, x, b));
-  //   // CallPetsc(MatSetValues)
-  //   //CallPetsc(MatView(mat_A, PETSC_VIEWER_STDOUT_SELF));
-  //   CallPetsc(VecView(b, PETSC_VIEWER_STDOUT_SELF));
-  // }
-  /* end test code */
-
-  // solve
-
+  // deflation
   CallPetsc(EPSSetDeflationSpace(eps, evecs.size(), evecs.data()));
 
+  // preconditioning
+  /* TODO ??? */
+
+  // solve
   CallPetsc(EPSSolve(eps));
   PetscInt nconv;
   CallPetsc(EPSGetConverged(eps, &nconv));
   solved = nconv > 0;
 
+  // debug output
+  /* TODO opt off for performance reasons? */
   CallPetsc(PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD, PETSC_VIEWER_ASCII_INFO_DETAIL));
   CallPetsc(EPSConvergedReasonView(eps, PETSC_VIEWER_STDOUT_WORLD));
   CallPetsc(PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD));
