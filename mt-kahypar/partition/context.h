@@ -273,6 +273,7 @@ struct InitialPartitioningParameters {
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
   size_t population_size = 16;
+  size_t contraction_limit_multiplier = std::numeric_limits<size_t>::max();
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
@@ -332,6 +333,8 @@ class Context {
                         const HypernodeWeight max_node_weight);
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);
+
+  void setupIPContractionLimit();
 
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
 

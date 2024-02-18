@@ -150,6 +150,7 @@ namespace rb {
               (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[1]);
     }
     b_context.setupContractionLimit(total_weight);
+    b_context.setupIPContractionLimit();
     b_context.setupThreadsPerFlowSearch();
 
     return b_context;

@@ -333,6 +333,13 @@ namespace mt_kahypar {
     setupMaximumAllowedNodeWeight(total_hypergraph_weight);
   }
 
+  void Context::setupIPContractionLimit() {
+    if (initial_partitioning.contraction_limit_multiplier != 160) {
+      coarsening.contraction_limit =
+          initial_partitioning.contraction_limit_multiplier * partition.k;
+    }
+  }
+
   void Context::setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
     HypernodeWeight min_block_weight =
         std::numeric_limits<HypernodeWeight>::max();

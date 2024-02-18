@@ -784,6 +784,11 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name(
                      "<size_t>")->default_value(20),
              "Maximum number of iterations of label propagation initial partitioner")
+            ("i-t",
+             po::value<size_t>(&context.initial_partitioning.contraction_limit_multiplier)->value_name(
+                     "<size_t>")->default_value(160),
+             "Further coarsening until there are 2 * t vertices left. If left unchanged, the t value"
+             "from the coarsening option is used.")
             ("i-lp-initial-block-size",
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
