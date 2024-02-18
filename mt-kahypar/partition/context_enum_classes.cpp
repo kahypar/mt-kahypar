@@ -212,6 +212,20 @@ std::ostream& operator<< (std::ostream& os, const HeavyClusterStrategy& strategy
   return os << static_cast<uint8_t>(strategy);
 }
 
+std::ostream& operator<< (std::ostream& os, const EdgeRatingForMatching& strategy) {
+  switch (strategy) {
+  case EdgeRatingForMatching::weight: return os << "weight";
+  case EdgeRatingForMatching::heavy_edge: return os << "heavy_edge";
+  case EdgeRatingForMatching::expansion: return os << "expansion";
+  case EdgeRatingForMatching::expansion_star: return os << "expansion_star";
+  case EdgeRatingForMatching::expansion_star_squared: return os << "expansion_star_squared";
+  case EdgeRatingForMatching::inner_outer: return os << "inner_outer";
+  case EdgeRatingForMatching::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
   case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -466,6 +480,24 @@ HeavyClusterStrategy heavyClusterStrategyFromString(const std::string& strategy)
   }
   throw InvalidParameterException("Illegal option: " + strategy);
   return HeavyClusterStrategy::UNDEFINED;
+}
+
+EdgeRatingForMatching edgeRatingForMatchingFromString(const std::string& rating) {
+  if (rating == "weight") {
+    return EdgeRatingForMatching::weight;
+  }else if (rating == "heavy_edge") {
+    return EdgeRatingForMatching::heavy_edge;
+  } else if (rating == "expansion") {
+    return EdgeRatingForMatching::expansion;
+  } else if (rating == "expansion_star") {
+    return EdgeRatingForMatching::expansion_star;
+  } else if (rating == "expansion_star_squared") {
+    return EdgeRatingForMatching::expansion_star_squared;
+  } else if (rating == "inner_outer") {
+    return EdgeRatingForMatching::inner_outer;
+  }
+  throw InvalidParameterException("Illegal option: " + rating);
+  return EdgeRatingForMatching::UNDEFINED;
 }
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {

@@ -39,6 +39,7 @@
 #include "mt-kahypar/utils/cast.h"
 
 #include <tbb/enumerable_thread_specific.h>
+#include "tbb/parallel_sort.h"
 
 namespace mt_kahypar {
 
@@ -59,6 +60,11 @@ class DeterministicMultilevelCoarsener : public ICoarsener,
     const size_t num_buckets;
     const size_t num_sub_rounds;
     size_t num_buckets_per_sub_round;
+  };
+
+  struct RatedEdge {
+    HyperedgeID he;
+    double rating;
   };
 
   using Hypergraph = typename TypeTraits::Hypergraph;
@@ -84,7 +90,9 @@ public:
     processed(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
     connected(),
     passed_nodes_from_previous_subround(),
-    contractable_nodes() {
+    contractable_nodes(),
+    matched_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
+    edge_ratings(utils::cast<Hypergraph>(hypergraph).initialNumEdges()) {
     contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
   }
 
@@ -176,6 +184,200 @@ private:
     }
   }
 
+  void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg) {
+    switch (_context.coarsening.swapStrategy) {
+    case SwapResolutionStrategy::stay:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          propositions[u] = u;
+          propositions[cluster_u] = cluster_u;
+          opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            propositions[u] = u;
+            propositions[cluster_u] = cluster_u;
+            opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+            opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+          }
+        });
+      }
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u && u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
+      break;
+    case SwapResolutionStrategy::to_larger:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u&& u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t i) {
+          const HypernodeID u = passed_nodes_from_previous_subround[i];
+          const HypernodeID cluster_u = propositions[u];
+          const HypernodeID cluster_v = propositions[cluster_u];
+          if (u < cluster_u&& u == cluster_v) {
+            const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+            const HypernodeID source = target == u ? cluster_u : u;
+            propositions[u] = target;
+            propositions[cluster_u] = target;
+            opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+          }
+        });
+      }
+      break;
+      // TODO: Do this only the first few passes/ subrounds?
+    case SwapResolutionStrategy::connected_components:
+      // // sequential variant
+      std::fill(processed.begin(), processed.end(), false);
+      connected.reserve(_context.coarsening.max_allowed_node_weight);
+      for (size_t pos = first; pos < last; ++pos) {
+        const HypernodeID hn = permutation.at(pos);
+        HypernodeID source = hn;
+        while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+          processed[source] = true;
+          connected.push_back(source);
+          source = propositions[source];
+        }
+        for (const HypernodeID& u : connected) {
+          const auto prev_target = propositions[u];
+          if (prev_target != u)
+            opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+          propositions[u] = source;
+          if (source != u)
+            opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+        }
+        connected.clear();
+      }
+      if (passed_nodes_from_previous_subround.size() > 0) {
+        for (const HypernodeID hn : passed_nodes_from_previous_subround) {
+          HypernodeID source = hn;
+          while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+            processed[source] = true;
+            connected.push_back(source);
+            source = propositions[source];
+          }
+          for (const HypernodeID& u : connected) {
+            const auto prev_target = propositions[u];
+            if (prev_target != u)
+              opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+            propositions[u] = source;
+            if (source != u)
+              opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+          }
+          connected.clear();
+        }
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  void handleNodesInTooHeavyClusters(size_t& num_nodes, vec<HypernodeID>& clusters, const Hypergraph& hg) {
+    switch (_context.coarsening.heavy_cluster_strategy) {
+    case HeavyClusterStrategy::fill:
+      num_nodes -= approveVerticesInTooHeavyClusters(clusters);
+      break;
+    case HeavyClusterStrategy::reset:
+      // This case might not converge if not done properly
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        if (propositions[hn] != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[propositions[hn]], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+      });
+      break;
+    case HeavyClusterStrategy::recalculate:
+      passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        const auto target = propositions[hn];
+        if (target != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+        passed_nodes_from_previous_subround[i] = hn;
+      });
+      nodes_in_too_heavy_clusters.clear();
+      num_nodes -= recalculateForPassedOnHypernodes(clusters);
+      break;
+    case HeavyClusterStrategy::pass_on:
+      passed_nodes_from_previous_subround.resize(nodes_in_too_heavy_clusters.size());
+      tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](const size_t i) {
+        const HypernodeID hn = nodes_in_too_heavy_clusters[i];
+        const auto target = propositions[hn];
+        if (target != hn) {
+          __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(hn), __ATOMIC_RELAXED);
+          propositions[hn] = hn;
+        }
+        passed_nodes_from_previous_subround[i] = hn;
+      });
+      break;
+    default:
+      break;
+    }
+  }
+
+  size_t performMatching(vec<HypernodeID>& clusters);
+
+  template<typename F>
+  void calculateAndSortEdgeRatings(const F& ratingFunction) {
+    const Hypergraph& hg = Base::currentHypergraph();
+    edge_ratings.resize(hg.initialNumEdges());
+    // calculate ratings
+    tbb::parallel_for(0UL, edge_ratings.size(), [&](const HyperedgeID he) {
+      edge_ratings[he] = { he, ratingFunction(hg, he) };
+    });
+
+    tbb::parallel_sort(edge_ratings.begin(), edge_ratings.end(), [&](const RatedEdge& a, const RatedEdge& b) {
+      return a.rating > b.rating || (a.rating == b.rating && a.he > b.he);
+    });
+  }
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
@@ -197,5 +399,7 @@ private:
   vec<HypernodeID> connected;
   vec<HypernodeID> passed_nodes_from_previous_subround;
   parallel::scalable_vector<HypernodeID> contractable_nodes;
+  parallel::scalable_vector<bool> matched_nodes;
+  parallel::scalable_vector<RatedEdge> edge_ratings;
 };
 }

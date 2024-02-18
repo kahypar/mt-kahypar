@@ -378,7 +378,24 @@ namespace mt_kahypar {
              ("c-split-shrinkage",
              po::value<bool>(&context.coarsening.split_contraction_limit_between_subrounds)->value_name(
                      "<bool>")->default_value(false),
-             "split shrinkage between subrounds");
+             "split shrinkage between subrounds")
+             ("c-num-matching-levels",
+             po::value<size_t>(&context.coarsening.num_matching_levels)->value_name(
+                     "<size_t>")->default_value(0),
+             "Number of coarsening levels to use matching for")
+             ("c-edge-rating-for-matching",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& rating) {
+                       context.coarsening.edge_rating_for_matching = mt_kahypar::edgeRatingForMatchingFromString(rating);
+                     })->default_value("heavy_edge"),
+             "Edge Rating for Matching:\n"
+             " - weight"
+             " - heavy_edge"
+             " - expansion"
+             " - expansion_star"
+             " - expansion_star_squared"
+             " - inner_outer"
+             );
     return options;
   }
 

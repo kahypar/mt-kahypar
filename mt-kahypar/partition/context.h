@@ -134,6 +134,9 @@ struct CoarseningParameters {
 
   bool split_contraction_limit_between_subrounds = false;
 
+  size_t num_matching_levels = 0;
+  EdgeRatingForMatching edge_rating_for_matching = EdgeRatingForMatching::UNDEFINED;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;
