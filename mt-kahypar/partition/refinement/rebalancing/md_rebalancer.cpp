@@ -280,6 +280,9 @@ namespace mt_kahypar{
       phg.changeNodePart(node, phg.partID(node), to, objective_delta);
       calcExceed(from);
       calcExceed(to);
+      if(horizontal_balance_used){
+        queue.lock(node);
+      }
       tbb::concurrent_vector<HypernodeID> changed_nodes = _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &queue);
       for(PartitionID p = 0; p < phg.k(); p++){
         queue.addToGain({node, {p, -gains.gain}});

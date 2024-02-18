@@ -760,9 +760,11 @@ struct Move_with_transformed_gain {
     using  Balance=double;
     AddressablePQ<HypernodeID, Gain_and_Balance> top_moves;
     std::vector<AddressablePQ<PartitionID, Move_internal>> queues_per_node;
+    std::vector<bool> locked;
     void initialize(HypernodeID num_nodes, PartitionID num_parts){
       top_moves.setSize(num_nodes);
       queues_per_node.resize(num_nodes);
+      locked.resize(num_nodes);
       for(HypernodeID i = 0; i < num_nodes; i++){
         queues_per_node[i].setSize(num_parts);
       }
@@ -854,6 +856,10 @@ struct Move_with_transformed_gain {
       
     }
 
+    void lock(HypernodeID hn){
+      locked[hn] = true;
+    }
+
     bool positive_move(Move_internal move){
       return move.balance < -0.0000000001 || move.balance < 0.00000000001 && move.gain < 0;
     }
@@ -864,7 +870,7 @@ struct Move_with_transformed_gain {
       queues_per_node[x.first].gains_and_balances[x.second.first].gain = x.second.second;
     }
     void update(HypernodeID hn){
-      if(queues_per_node[hn].v.size() == 0){
+      if(queues_per_node[hn].v.size() == 0 || locked[hn] == true){
         top_moves.disable(hn);
       }
       else if(!top_moves.isEnabled(hn) || top_moves.get(hn) != queues_per_node[hn].getMax().second.gain_and_balance){
