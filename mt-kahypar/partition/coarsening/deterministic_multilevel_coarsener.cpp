@@ -211,7 +211,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     }
 
   } else {
-    std::cout << "MATCHING TIME" << std::endl;
     num_nodes -= performMatching(clusters);
   }
   utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
@@ -224,7 +223,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       }
     }
   }
-  std::cout << "contracted " << (num_nodes_before_pass - num_nodes) << " nodes in pass " << pass << std::endl;
   timer.stop_timer("coarsening_pass");
   ++pass;
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
@@ -608,7 +606,6 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::recalculateForPassedOnHyper
 template<typename TypeTraits>
 size_t DeterministicMultilevelCoarsener<TypeTraits>::performMatching(vec<HypernodeID>& clusters) {
   const Hypergraph& hg = Base::currentHypergraph();
-  std::cout << _context.coarsening.edge_rating_for_matching << std::endl;
   if (_context.coarsening.edge_rating_for_matching == EdgeRatingForMatching::weight) {
     auto rf = [&](const Hypergraph& hg, const HyperedgeID he) {
       return 1.0 * hg.edgeWeight(he);
