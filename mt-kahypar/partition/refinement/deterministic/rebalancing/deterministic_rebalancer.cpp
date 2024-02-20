@@ -69,7 +69,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
   size_t iteration = 0;
   while (_num_imbalanced_parts > 0 && iteration < ABSOLUTE_MAX_ROUNDS && (run_until_balanced || _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds == 0 || iteration < _context.refinement.deterministic_refinement.jet.max_rebalancing_rounds)) {
     weakRebalancingRound(phg);
-    HEAVY_REFINEMENT_ASSERT(checkPreviouslyOverweightParts(phg)); // NOTE this is a light assertion, you can use the normal ASSERT macro
+    ASSERT(checkPreviouslyOverweightParts(phg));
     updateImbalance(phg);
     ++iteration;
   }
@@ -162,50 +162,49 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      const auto& triple = computeGainAndTargetPart(phg, hn, true); // NOTE How can this be a reference?
+      const auto triple = computeGainAndTargetPart(phg, hn, true);
       if (from != triple.to && triple.to != kInvalidPartition) {
         tmp_potential_moves[from].stream(triple);
       }
     }
   });
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {   // NOTE use a variable that indicates that this is a block?
-    if (tmp_potential_moves[i].size() > 0) {
-      _moves[i] = tmp_potential_moves[i].copy_parallel();
-      const size_t move_size = _moves[i].size();
+  tbb::parallel_for(0UL, _moves.size(), [&](const size_t part) {
+    if (tmp_potential_moves[part].size() > 0) {
+      _moves[part] = tmp_potential_moves[part].copy_parallel();
+      const size_t move_size = _moves[part].size();
 
       if (move_size > 0) {
         // sort the moves from each overweight part by priority
-        parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+        parlay::sort_inplace(_moves[part], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
           return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
         });
         // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
         size_t last_move_idx = 0;
         if (move_size > _context.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves) {
-          if (move_size > _move_weights[i].size()) {
-            _move_weights[i].resize(move_size);
+          if (move_size > _move_weights[part].size()) {
+            _move_weights[part].resize(move_size);
           }
           tbb::parallel_for(0UL, move_size, [&](const size_t j) {
-            _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
+            _move_weights[part][j] = phg.nodeWeight(_moves[part][j].hn);
           });
-          parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
-          // NOTE did you test if this gives the same result as the sequential implementation?
-          last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
+          parallel_prefix_sum(_move_weights[part].begin(), _move_weights[part].begin() + move_size, _move_weights[part].begin(), std::plus<HypernodeWeight>(), 0);
+          last_move_idx = std::upper_bound(_move_weights[part].begin(), _move_weights[part].begin() + move_size, phg.partWeight(part) - _max_part_weights[part] - 1) - _move_weights[part].begin();
           ++last_move_idx;
         } else {
           HypernodeWeight sum = 0;
-          for (; last_move_idx < move_size && sum <= phg.partWeight(i) - _max_part_weights[i] - 1; ++last_move_idx) {
-            sum += phg.nodeWeight(_moves[i][last_move_idx].hn);
+          for (; last_move_idx < move_size && sum <= phg.partWeight(part) - _max_part_weights[part] - 1; ++last_move_idx) {
+            sum += phg.nodeWeight(_moves[part][last_move_idx].hn);
           }
         }
         if (phg.is_graph) {
           tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
-            const auto move = _moves[i][j];   // NOTE make this a const ref
-            changeNodePart<true>(phg, move.hn, i, move.to, false);
+            const auto& move = _moves[part][j];
+            changeNodePart<true>(phg, move.hn, part, move.to, false);
           });
         } else {
           tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
-            const auto move = _moves[i][j];   // NOTE make this a const ref
-            changeNodePart<false>(phg, move.hn, i, move.to, false);
+            const auto& move = _moves[part][j];
+            changeNodePart<false>(phg, move.hn, part, move.to, false);
           });
         }
       }
