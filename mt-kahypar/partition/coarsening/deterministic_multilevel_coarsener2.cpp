@@ -53,57 +53,11 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
   tbb::parallel_for(0UL, num_nodes, [&](size_t i) {
     permutation[i] = i;
   });
-  switch (_context.coarsening.nodeSelectionOrder) {
-  case NodeSelectionOrder::degree_asc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeDegree(a) < hg.nodeDegree(b) || (hg.nodeDegree(a) == hg.nodeDegree(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::degree_desc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeDegree(a) > hg.nodeDegree(b) || (hg.nodeDegree(a) == hg.nodeDegree(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::weight_asc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeWeight(a) < hg.nodeWeight(b) || (hg.nodeWeight(a) == hg.nodeWeight(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::weight_desc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeWeight(a) > hg.nodeWeight(b) || (hg.nodeWeight(a) == hg.nodeWeight(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::weight_t_degree_asc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeWeight(a) * hg.nodeDegree(a) < hg.nodeWeight(b) * hg.nodeDegree(b) || (hg.nodeWeight(a) * hg.nodeDegree(a) == hg.nodeWeight(b) * hg.nodeDegree(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::weight_t_degree_desc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeWeight(a) * hg.nodeDegree(a) > hg.nodeWeight(b) * hg.nodeDegree(b) || (hg.nodeWeight(a) * hg.nodeDegree(a) == hg.nodeWeight(b) * hg.nodeDegree(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::degree_d_weight_asc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeDegree(a) / hg.nodeWeight(a) < hg.nodeDegree(b) / hg.nodeWeight(b) || (hg.nodeDegree(a) / hg.nodeWeight(a) == hg.nodeDegree(b) / hg.nodeWeight(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::degree_d_weight_desc:
-    tbb::parallel_sort(permutation.begin(), permutation.end(), [&](const HypernodeID& a, const HypernodeID& b) {
-      return hg.nodeDegree(a) / hg.nodeWeight(a) > hg.nodeDegree(b) / hg.nodeWeight(b) || (hg.nodeDegree(a) / hg.nodeWeight(a) == hg.nodeDegree(b) / hg.nodeWeight(b) && a < b);
-    });
-    break;
-  case NodeSelectionOrder::UNDEFINED:
-    break;
-  }
-  const size_t bucket_size = parallel::chunking::idiv_ceil(num_nodes_before_pass, config.num_buckets);
-  //permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
-  for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-    auto [first_bucket, last_bucket] = parallel::chunking::bounds(
-      sub_round, config.num_buckets, config.num_buckets_per_sub_round);
-    //size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-    size_t first = first_bucket * bucket_size, last = std::min(last_bucket * bucket_size, static_cast<size_t>(num_nodes_before_pass));
+  std::shuffle(permutation.begin(), permutation.end(), std::mt19937(_context.partition.seed));
+  size_t first = 0;
+  size_t last = 1;
+  while (first < permutation.size()) {
+    DBG << V(first) << ", " << V(last);
     // each vertex finds a cluster it wants to join
     tbb::parallel_for(first, last, [&](size_t pos) {
       const HypernodeID u = permutation.at(pos);
@@ -111,6 +65,7 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
         calculatePreferredTargetCluster(u, clusters);
       }
     });
+    handleNodeSwaps(permutation, first, last, hg);
 
     tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
 
@@ -141,6 +96,8 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
     }
 
     nodes_in_too_heavy_clusters.clear();
+    first = last;
+    last = std::min(permutation.size(), last * 2);
   }
 
   timer.stop_timer("coarsening_pass");

@@ -43,8 +43,8 @@
 namespace mt_kahypar {
 
 template<typename TypeTraits>
-class DeterministicMultilevelCoarsener2 :  public ICoarsener,
-                                          private MultilevelCoarsenerBase<TypeTraits> {
+class DeterministicMultilevelCoarsener2 : public ICoarsener,
+  private MultilevelCoarsenerBase<TypeTraits> {
 
   struct DeterministicCoarseningConfig {
     explicit DeterministicCoarseningConfig(const Context& context) :
@@ -66,11 +66,11 @@ class DeterministicMultilevelCoarsener2 :  public ICoarsener,
 
 public:
   DeterministicMultilevelCoarsener2(mt_kahypar_hypergraph_t hypergraph,
-                                   const Context& context,
-                                   uncoarsening_data_t* uncoarseningData) :
+    const Context& context,
+    uncoarsening_data_t* uncoarseningData) :
     Base(utils::cast<Hypergraph>(hypergraph),
-         context,
-         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+      context,
+      uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
     config(context),
     initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     propositions(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
@@ -79,9 +79,9 @@ public:
     nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
-    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false)
-  {
-  }
+    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+    processed(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
+    connected() {}
 
   ~DeterministicMultilevelCoarsener2() {
 
@@ -96,7 +96,7 @@ private:
   static constexpr bool debug = false;
 
   void initializeImpl() override {
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+    if (_context.partition.verbose_output && _context.partition.enable_progress_bar) {
       progress_bar.enable();
     }
   }
@@ -115,9 +115,9 @@ private:
 
   HypernodeID currentLevelContractionLimit() {
     const auto& hg = Base::currentHypergraph();
-    return std::max( _context.coarsening.contraction_limit,
-               static_cast<HypernodeID>(
-                    (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
+    return std::max(_context.coarsening.contraction_limit,
+      static_cast<HypernodeID>(
+        (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor));
   }
 
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
@@ -129,15 +129,87 @@ private:
   }
 
   mt_kahypar_hypergraph_t coarsestHypergraphImpl() override {
-    return mt_kahypar_hypergraph_t {
+    return mt_kahypar_hypergraph_t{
       reinterpret_cast<mt_kahypar_hypergraph_s*>(
         &Base::currentHypergraph()), Hypergraph::TYPE };
   }
 
   mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() override {
-    return mt_kahypar_partitioned_hypergraph_t {
+    return mt_kahypar_partitioned_hypergraph_t{
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
         &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
+  }
+
+  void handleNodeSwaps(const vec<HypernodeID>& permutation, const size_t first, const size_t last, const Hypergraph& hg) {
+    switch (_context.coarsening.swapStrategy) {
+    case SwapResolutionStrategy::stay:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          propositions[u] = u;
+          propositions[cluster_u] = cluster_u;
+          opportunistic_cluster_weight[cluster_u] -= hg.nodeWeight(u);
+          opportunistic_cluster_weight[u] -= hg.nodeWeight(cluster_u);
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_smaller:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u && u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] < opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      break;
+    case SwapResolutionStrategy::to_larger:
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        const HypernodeID cluster_u = propositions[u];
+        const HypernodeID cluster_v = propositions[cluster_u];
+        if (u < cluster_u&& u == cluster_v) {
+          const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[cluster_u] ? u : cluster_u;
+          const HypernodeID source = target == u ? cluster_u : u;
+          propositions[u] = target;
+          propositions[cluster_u] = target;
+          opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
+        }
+      });
+      break;
+      // TODO: Do this only the first few passes/ subrounds?
+    case SwapResolutionStrategy::connected_components:
+      // // sequential variant
+      std::fill(processed.begin(), processed.end(), false);
+      connected.reserve(_context.coarsening.max_allowed_node_weight);
+      for (size_t pos = first; pos < last; ++pos) {
+        const HypernodeID hn = permutation.at(pos);
+        HypernodeID source = hn;
+        while (processed[source] == false && cluster_weight[source] == hg.nodeWeight(source) && hg.nodeIsEnabled(source)) {
+          processed[source] = true;
+          connected.push_back(source);
+          source = propositions[source];
+        }
+        for (const HypernodeID& u : connected) {
+          const auto prev_target = propositions[u];
+          if (prev_target != u)
+            opportunistic_cluster_weight[prev_target] -= hg.nodeWeight(u);
+          propositions[u] = source;
+          if (source != u)
+            opportunistic_cluster_weight[source] += hg.nodeWeight(u);
+        }
+        connected.clear();
+      }
+      break;
+    default:
+      break;
+    }
   }
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
@@ -148,7 +220,6 @@ private:
 
   DeterministicCoarseningConfig config;
   HypernodeID initial_num_nodes;
-  utils::ParallelPermutation<HypernodeID> permutation;
   vec<HypernodeID> propositions;
   vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
   ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
@@ -156,6 +227,8 @@ private:
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
   size_t pass;
   utils::ProgressBar progress_bar;
+  vec<bool> processed;
+  vec<HypernodeID> connected;
 
 };
 }
