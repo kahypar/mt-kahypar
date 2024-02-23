@@ -92,7 +92,6 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     };
 
     _current_partition_is_best = true;
-    size_t rounds_without_improvement = 0;
     const size_t max_rounds = jet_context.fixed_n_iterations;
     const size_t max_rounds_without_improvement = jet_context.num_iterations;
     const size_t max_dynamic_rounds = top_level ? jet_context.num_fine_rounds : jet_context.num_coarse_rounds;
@@ -112,12 +111,12 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             _negative_gain_factor =
                 top_level ? jet_context.negative_gain_factor_fine : jet_context.negative_gain_factor_coarse;
         }
-        DBG << V(_negative_gain_factor) << ", " << V(max_dynamic_rounds);
+        DBG << V(_negative_gain_factor) << ", " << V(max_dynamic_rounds) << ", " << V(metrics::quality(phg, _context, false));
 
         if (dynamic_round > 0) {
             _locks.reset();
         }
-
+        size_t rounds_without_improvement = 0;
         for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
             if (_current_partition_is_best) {
                 storeCurrentPartition(phg, _best_partition);
@@ -212,21 +211,20 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             }
             DBG << "[JET] Finished iteration " << i << " with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
         }
-    }
-    phg.resetEdgeSynchronization();
-    if (!_current_partition_is_best) {
-        DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
-        if (phg.is_graph) {
-            rollbackToBestPartition<true>(phg);
-        } else {
-            rollbackToBestPartition<false>(phg);
-        }
-        timer.start_timer("reb_quality", "Quality after Rebalancing");
-        timer.stop_timer("reb_quality");
-    }
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
-        V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
 
+        phg.resetEdgeSynchronization();
+        if (!_current_partition_is_best) {
+            DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
+            if (phg.is_graph) {
+                rollbackToBestPartition<true>(phg);
+            } else {
+                rollbackToBestPartition<false>(phg);
+            }
+            current_metrics = best_metrics;
+        }
+        HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
+            V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
+    }
     if (_context.type == ContextType::main) {
         utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
         measurements.refinement_scores.push_back(best_metrics.quality);
