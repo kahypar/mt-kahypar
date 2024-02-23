@@ -296,7 +296,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   for (HyperedgeID he : hg.incidentEdges(u)) {
     HypernodeID he_size = hg.edgeSize(he);
     if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
-      double he_score = static_cast<double>(hg.edgeWeight(he)) / (he_size - 1);
+      double he_score = static_cast<double>(hg.edgeWeight(he)) / (he_size);
       for (HypernodeID v : hg.pins(he)) {
         const HypernodeID cluster_v = clusters[v];
         ratings[cluster_v] += he_score / penality(weight_u, cluster_weight[cluster_v]);
