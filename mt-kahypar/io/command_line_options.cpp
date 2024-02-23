@@ -674,7 +674,7 @@ namespace mt_kahypar {
              ((initial_partitioning ? "i-r-jet-final-negative-gain" : "r-jet-final-negative-gain"),
              po::value<double>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.final_negative_gain_factor :
-                      &context.refinement.deterministic_refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.25),
+                      &context.refinement.deterministic_refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.0),
              "Final negative gain factor for dynamic gain factor");
     return options;
   }

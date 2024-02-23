@@ -173,7 +173,7 @@ struct JetParameters {
   size_t num_fine_rounds = 1;
   size_t num_coarse_rounds = 1;
   double initial_negative_gain_factor = 0.75;
-  double final_negative_gain_factor = 0.25;
+  double final_negative_gain_factor = 0.0;
 
   // rebalancing
   double heavy_vertex_exclusion_factor = 1.5;
