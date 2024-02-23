@@ -92,7 +92,7 @@ private:
     HypernodeID node = kInvalidHypernode, cluster = kInvalidHypernode;
     HypernodeWeight weight = 0;
   };
-
+  static constexpr bool prefixDoubling = false;
   static constexpr bool debug = false;
 
   void initializeImpl() override {
