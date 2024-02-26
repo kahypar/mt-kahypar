@@ -66,7 +66,7 @@ public:
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID num_hyperedges,
     const Context& context,
-    GainCache&,
+    GainCache& cache,
     IRebalancer& rebalancer) :
     _context(context),
     _current_k(context.partition.k),
@@ -85,7 +85,8 @@ public:
     _afterburner_gain(num_hypernodes),
     _buffer(_current_k),
     _edge_flag(num_hyperedges),
-    _current_edge_flag(1) {}
+    _current_edge_flag(1),
+    _gain_cache(cache) {}
 
 private:
   static constexpr bool debug = false;
@@ -353,6 +354,7 @@ private:
   parallel::scalable_vector<std::atomic<uint16_t>> _edge_flag;
   uint16_t _current_edge_flag;
   double _negative_gain_factor;
+  GainCache& _gain_cache;
 };
 
 }
