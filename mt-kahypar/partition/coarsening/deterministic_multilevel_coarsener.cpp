@@ -130,32 +130,48 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         if (contractable_nodes.size() > contractable_nodes_per_subround) {
           std::shuffle(contractable_nodes.begin(), contractable_nodes.end(), std::mt19937(_context.partition.seed));
         }
-        const size_t end = std::min(contractable_nodes.size(), contractable_nodes_per_subround);
-        tbb::parallel_for(end, contractable_nodes.size(), [&](const size_t i) {
-          HypernodeID u = contractable_nodes[i];
-          HypernodeID target = propositions[u];
-          if (target != u) {
-            __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
-          }
-        });
-
-        tbb::parallel_for(0UL, end, [&](const size_t i) {
-          HypernodeID u = contractable_nodes[i];
-          HypernodeID target = propositions[u];
-          if (target != u) {
-            if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
-              // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-              if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-                num_contracted_nodes.local() += 1;
+        size_t start = 0UL;
+        size_t end = std::min(contractable_nodes.size(), contractable_nodes_per_subround);
+        size_t actually_contracted_nodes = 0UL;
+        while (end < contractable_nodes.size() && actually_contracted_nodes < contractable_nodes_per_subround) {
+          if (start == 0UL) {
+            tbb::parallel_for(end, contractable_nodes.size(), [&](const size_t i) {
+              HypernodeID u = contractable_nodes[i];
+              HypernodeID target = propositions[u];
+              if (target != u) {
+                __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
               }
-              clusters[u] = target;
-              cluster_weight[target] = opportunistic_cluster_weight[target];
-            } else {
-              nodes_in_too_heavy_clusters.push_back_buffered(u);
-            }
+            });
+          } else {
+            tbb::parallel_for(start, end, [&](const size_t i) {
+              HypernodeID u = contractable_nodes[i];
+              HypernodeID target = propositions[u];
+              if (target != u) {
+                __atomic_fetch_add(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+              }
+            });
           }
-        });
 
+          tbb::parallel_for(start, end, [&](const size_t i) {
+            HypernodeID u = contractable_nodes[i];
+            HypernodeID target = propositions[u];
+            if (target != u) {
+              if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
+                // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+                if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+                  num_contracted_nodes.local() += 1;
+                }
+                clusters[u] = target;
+                cluster_weight[target] = opportunistic_cluster_weight[target];
+              } else {
+                nodes_in_too_heavy_clusters.push_back_buffered(u);
+              }
+            }
+          });
+          actually_contracted_nodes = num_contracted_nodes.combine(std::plus<>());
+          start = end;
+          end = std::min(start + contractable_nodes_per_subround - actually_contracted_nodes, contractable_nodes.size());
+        }
       } else {
         // already approve if we can grant all requests for proposed cluster
         // otherwise insert to shared vector so that we can group vertices by cluster
