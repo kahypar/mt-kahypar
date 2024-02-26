@@ -89,25 +89,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       }
 
       handleNodeSwaps(first, last, hg);
-      // This may be used to test wether opportunistic_cluster_weight is correct
-      // vec<HypernodeWeight> op_weights(opportunistic_cluster_weight.size(), 0);
-      // // recalc opportunistic cluster weights
-      // for (size_t u = 0; u < op_weights.size(); ++u) {
-      //   op_weights[u] = cluster_weight[u];
-      // }
-      // for (size_t pos = first; pos < last; pos++) {
-      //   const HypernodeID u = permutation.at(pos);
-      //   if (u != propositions[u]) {
-      //     op_weights[propositions[u]] += hg.nodeWeight(u);
-      //   }
-      // }
-
-      // for (size_t i = 0; i < op_weights.size(); ++i) {
-      //   if (op_weights[i] != opportunistic_cluster_weight[i]) {
-      //     std::cout << V(op_weights[i]) << ", " << V(opportunistic_cluster_weight[i]) << ", " << V(i) << ", " << V(sub_round) << ", " << V(UL(num_nodes_before_pass)) << std::endl;
-      //   }
-      // }
-
 
       size_t m_num_heavy_clusters = 0;
       if (_context.type == ContextType::main) {
@@ -117,7 +98,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           }
         }
       }
-      if (_context.coarsening.split_contraction_limit_between_subrounds) {
+      if (_context.coarsening.split_contraction_limit_between_subrounds && _context.type == ContextType::main) {
         contractable_nodes.clear();
         for (size_t i = first; i < last; ++i) {
           HypernodeID u = permutation.at(i);
@@ -178,8 +159,8 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           actually_contracted_nodes = nodes_before_subround - num_nodes;
           start = end;
           end = std::min(start + contractable_nodes_per_subround - actually_contracted_nodes, contractable_nodes.size());
+          passed_nodes_from_previous_subround.clear();
         }
-        DBG << "subround: " << sub_round << ", " << "contracted_nodes: " << actually_contracted_nodes << "/" << contractable_nodes_per_subround;
 
       } else {
         tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
