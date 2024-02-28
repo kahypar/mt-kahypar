@@ -407,14 +407,14 @@ namespace mt_kahypar {
       // switch silently
       auto lp_algo = refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet) {
-        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
       } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet) {
         refinement.rebalancer = RebalancingAlgorithm::deterministic;
       }
 
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet) {
-        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
       } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet) {
         initial_partitioning.refinement.rebalancer = RebalancingAlgorithm::deterministic;
       }
