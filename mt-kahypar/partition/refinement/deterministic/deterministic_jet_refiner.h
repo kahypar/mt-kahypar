@@ -255,13 +255,14 @@ private:
         pinCount = 0;
       }
 
-      // materialize Hyperedge
+            // materialize Hyperedge
       size_t index = 0;
       for (const auto pin : phg.pins(he)) {
         const auto part = phg.partID(pin);
         if (!_context.refinement.deterministic_refinement.jet.afterburner_skip_unmoved_pins || part != _gains_and_target[pin].second) {
           edgeBuffer[index] = pin;
           ++index;
+        } else {
           afterburnerBuffer[part]++;
         }
       }
@@ -294,10 +295,10 @@ private:
           return (gain_a < gain_b || (gain_a == gain_b && a < b));
         });
       }
-      SynchronizedEdgeUpdate sync_update;
-      sync_update.he = he;
-      sync_update.edge_weight = phg.edgeWeight(he);
-      sync_update.edge_size = phg.edgeSize(he);
+      for (size_t i = 0; i < index; ++i) {
+        const HypernodeID pin = edgeBuffer[i];
+        afterburnerBuffer[phg.partID(pin)]++;     // NOTE can this not be in the same loop that insets into edgeBuffer (L250), i.e., move L256 out of the else branch to always execute
+      }
       // update pin-counts for each pin
       for (size_t i = 0; i < index; ++i) {
         const HypernodeID pin = edgeBuffer[i];
@@ -305,11 +306,15 @@ private:
         const auto [gain, to] = _gains_and_target[pin];
         afterburnerBuffer[from]--;
         afterburnerBuffer[to]++;
+        SynchronizedEdgeUpdate sync_update;
+        sync_update.he = he;                    // NOTE .he and .edge_weight inits can be moved outside the loop?
+        sync_update.edge_weight = phg.edgeWeight(he);
+        sync_update.edge_size = phg.edgeSize(he);
         sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
         sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
         const Gain attributedGain = AttributedGains::gain(sync_update);
         if (!_context.refinement.deterministic_refinement.jet.afterburner_skip_zero || attributedGain != 0) {
-          _afterburner_gain[pin].fetch_add(attributedGain, std::memory_order_relaxed);
+          _afterburner_gain[pin] += attributedGain;   // NOTE specify memory_order_relaxed (might be faster).
         }
       }
     };
