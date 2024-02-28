@@ -23,7 +23,7 @@ About Mt-KaHyPar
 -----------
 Mt-KaHyPar is a shared-memory algorithm for partitioning graphs and hypergraphs. The balanced (hyper)graph partitioning problem
 asks for a partition of the node set of a (hyper)graph into *k* disjoint blocks of roughly the same size (usually a small imbalance
-is allowed by at most 1 + ε times the average block weight), while simultaneously minimizing an objective function defined on the (hyper)edges. Mt-KaHyPar can optimize the cut-net, connectivity, sum-of-external-degree, and Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
+is allowed by at most 1 + ε times the average block weight), while simultaneously minimizing an objective function defined on the (hyper)edges. Mt-KaHyPar can optimize the cut-net, connectivity, sum-of-external-degrees, and Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
 
@@ -41,7 +41,7 @@ Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides ma
 - **Deterministic Partitioning**: Mt-KaHyPar offers a deterministic partitioning algorithm, ensuring consistent solutions for the same input and random seed.
 - **Large K Partitioning**: We provide a partitioning configuration for partitioning (hyper)graphs into a large number of blocks (e.g., k > 1024).
 - **Graph Partitioning**: Mt-KaHyPar includes optimized data structures for graph partitioning, achieving a speedup by a factor of two for plain graphs.
-- **Objective Functions**: Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degree metric (for more details, see [Supported Objective Functions](#supported-objective-functions))
+- **Objective Functions**: Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degrees metric (for more details, see [Supported Objective Functions](#supported-objective-functions))
 - **Mapping (Hyper)Graphs Onto Graphs**: In many applications of (hyper)graph partitioning, the blocks of a partition need to be assigned to architectures that can be represented as graphs. For instance, in parallel computations, the blocks may be assigned to processors on a computing cluster interconnected via communication links. It becomes advantageous to position nodes close to each other on the target graph if they are adjacent in the original (hyper)graph. However, conventional objective functions do not consider the topology of the target graph during partitioning. We therefore provide a mode that maps the nodes of a (hyper)graph onto the nodes of a target graph. During this process, the partitioning algorithm optimizes the Steiner tree metric. The objective here is to minimize the total weight of all minimal Steiner trees induced by the (hyper)edges of the hypergraph on the target graph. For more information about this metric, we refer the reader to the [Supported Objective Functions](#supported-objective-functions) section.
 - **Fixed Vertices**: Fixed vertices are nodes that are preassigned to a particular block and are not allowed to change their block during partitioning.
 
@@ -136,7 +136,7 @@ We recommend using the `default` configuration to compute good partitions very f
 
 ### Objective Functions
 
-Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degree metric (see [Supported Objective Functions](#supported-objective-functions)).
+Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degrees metric (see [Supported Objective Functions](#supported-objective-functions)).
 
     -o <cut/km1/soed>
 
@@ -185,7 +185,7 @@ The partition file name is generated automatically based on parameters such as `
 There are several useful options that can provide you with additional insights during and after the partitioning process:
 
 - `--verbose=true`: Displays detailed information on the partitioning process
-- `--show-detailed-timings=true`: Shows detailed sub timings of each phase of the algorithm at the end of partitioning
+- `--show-detailed-timings=true`: Shows detailed sub-timings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progress bar during the coarsening and refinement phase
 
 
@@ -369,7 +369,7 @@ graph = mtkahypar.Graph(
 # Partition graph
 partitioned_graph = graph.partition(context)
 ```
-**Note** that when you want to partition a hypergraph into a large number of blocks (e.g., k > 1024), you can use our `LARGE_K` configuration and the `partitionIntoLargeK(...)` function of the hypergraph object. If you use another configuration for large k partitioning, you may run into memory and running time issues during partitioning. However, this depends on the size of the hypergraph and the memory capacity of your target machine. For partitioning plain graphs, you can load the `LARGE_K` configuration, but you can still use the `partition(...)` function of the graph object. Here is an example that partitions a hypergraph into 1024 blocks:
+**Note** that for partitioning hypergraphs into a large number of blocks (e.g., k > 1024), we recommend using the `LARGE_K` configuration and the `partitionIntoLargeK(...)` function. Using a different configuration for large k partitioning may cause excessive memory usage and high running times, depending on the size of the hypergraph and the memory capacity of your target machine. For partitioning plain graphs, you can load the `LARGE_K` configuration, but you can still use the `partition(...)` function of the graph object. Here is an example that partitions a hypergraph into 1024 blocks:
 
 ```py
 # Setup partitioning context
@@ -403,11 +403,11 @@ The cut-net metric is defined as total weight of all nets spanning more than one
 The connectivity metric additionally multiplies the weight of each cut net with the number of blocks λ(e) spanned by that net minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
-**Sum-of-External-Degree Metric**
+**Sum-of-external-Degrees Metric**
 
 ![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/4006fb4c-ac85-452e-a0d9-93d4dc7842ad)
 
-The sum-of-external-degree metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net. A peculiarity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as a secondary criteria it tries to reduce the connectivity of the nets.
+The sum-of-external-degrees metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net. A peculiarity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as a secondary criterion, it tries to reduce the connectivity of the nets.
 
 **Steiner Tree Metric**
 
@@ -431,7 +431,7 @@ Mt-KaHyPar implements several graph and hypergraph data structures, and supports
 -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On/Off # enables/disables graph partitioning features
 -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=On/Off # enables/disables our highest-quality configuration
 -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=On/Off # enables/distables large k partitioning features
--DKAHYPAR_ENABLE_SOED_METRIC=On/Off # enables/disables sum-of-external-degree metric
+-DKAHYPAR_ENABLE_SOED_METRIC=On/Off # enables/disables sum-of-external-degrees metric
 -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=On/Off # enables/disables Steiner tree metric
 ```
 If you turn off all features, only the `deterministic`, `default`, and `quality` configurations are available for optimizing the cut-net or connectivity metric. Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
