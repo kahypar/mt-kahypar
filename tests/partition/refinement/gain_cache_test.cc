@@ -24,19 +24,19 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
+
 #include <atomic>
-#include "gmock/gmock.h"
 
-#include "tbb/parallel_for.h"
 #include "tbb/enumerable_thread_specific.h"
+#include "tbb/parallel_for.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
 

@@ -26,11 +26,12 @@
 
 #include "hypergraph_factory.h"
 
-#include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/datastructures/fixed_vertex_support.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
@@ -194,8 +195,8 @@ void addFixedVertices(Hypergraph& hypergraph,
     if ( fixed_vertices[hn] != -1 ) {
       if ( fixed_vertices[hn] < 0 || fixed_vertices[hn] >= k ) {
         throw InvalidInputException(
-          "Try to partition hypergraph into " + STR(k) + " blocks, but node " +
-           STR(hn) + " is fixed to block " + STR(fixed_vertices[hn]));
+          "Try to partition hypergraph into " + std::to_string(k) + " blocks, but node " +
+           std::to_string(hn) + " is fixed to block " + std::to_string(fixed_vertices[hn]));
       }
       fixed_vertex_support.fixToBlock(hn, fixed_vertices[hn]);
     }

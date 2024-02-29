@@ -26,8 +26,6 @@
 
 #pragma once
 
-#include <type_traits>
-
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
     !defined(KAHYPAR_ENABLE_THREAD_PINNING) || defined(__APPLE__)
 #include "tbb/task_arena.h"
@@ -63,73 +61,8 @@
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#define HEAVY_ASSERT0(cond)                                                    \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond); }()
-#define HEAVY_ASSERT1(cond, msg)                                               \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond, msg); }()
-
-#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
-#define HEAVY_PREPROCESSING_ASSERT_1(cond) ASSERT(cond)
-#define HEAVY_PREPROCESSING_ASSERT_2(cond, msg) ASSERT(cond, msg)
-#else
-#define HEAVY_PREPROCESSING_ASSERT_1(cond) HEAVY_ASSERT0(cond)
-#define HEAVY_PREPROCESSING_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
-#endif
-
-#ifdef KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS
-#define HEAVY_COARSENING_ASSERT_1(cond) ASSERT(cond)
-#define HEAVY_COARSENING_ASSERT_2(cond, msg) ASSERT(cond, msg)
-#else
-#define HEAVY_COARSENING_ASSERT_1(cond) HEAVY_ASSERT0(cond)
-#define HEAVY_COARSENING_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
-#endif
-
-#ifdef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-#define HEAVY_INITIAL_PARTITIONING_ASSERT_1(cond) ASSERT(cond)
-#define HEAVY_INITIAL_PARTITIONING_ASSERT_2(cond, msg) ASSERT(cond, msg)
-#else
-#define HEAVY_INITIAL_PARTITIONING_ASSERT_1(cond) HEAVY_ASSERT0(cond)
-#define HEAVY_INITIAL_PARTITIONING_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
-#endif
-
-#ifdef KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
-#define HEAVY_REFINEMENT_ASSERT_1(cond) ASSERT(cond)
-#define HEAVY_REFINEMENT_ASSERT_2(cond, msg) ASSERT(cond, msg)
-#else
-#define HEAVY_REFINEMENT_ASSERT_1(cond) HEAVY_ASSERT0(cond)
-#define HEAVY_REFINEMENT_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
-#endif
-
-#define HEAVY_ASSERT_(TYPE, N) HEAVY_##TYPE##_ASSERT_##N
-#define HEAVY_ASSERT_EVAL(TYPE, N) HEAVY_ASSERT_(TYPE, N)
-
-// Heavy assertions are assertions which increase the complexity of the scope
-// which they are executed in by an polynomial factor. In debug mode you are
-// often only interested in certain phase of the multilevel paradigm. However,
-// when enabling all assertions it can take a while to reach the point which you
-// are really interested in, because heavy assertions radicaly downgrade the
-// performance of the application. Therefore such assertions should be packed in
-// a heavy assertion macro. Heavy assertions can be enabled via cmake flag for
-// specific phase or for specific scope by adding static constexpr bool
-// enable_heavy_assert = false; to the corresponding scope.
-#define HEAVY_PREPROCESSING_ASSERT(...)                                        \
-  EXPAND(HEAVY_ASSERT_EVAL(PREPROCESSING,                                      \
-                           EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
-#define HEAVY_COARSENING_ASSERT(...)                                           \
-  EXPAND(HEAVY_ASSERT_EVAL(COARSENING, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
-#define HEAVY_INITIAL_PARTITIONING_ASSERT(...)                                 \
-  EXPAND(HEAVY_ASSERT_EVAL(INITIAL_PARTITIONING,                               \
-                           EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
-#define HEAVY_REFINEMENT_ASSERT(...)                                           \
-  EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
-
 // In windows unisgned long != size_t
 #define UL(X) (size_t) X
-#ifdef STR
-#undef STR
-#endif
-#define STR(X) std::to_string(X)
-#define STREAM2STR(X) static_cast<std::stringstream>(X).str();
 
 // Info, Warning and Error Output Macros
 #define GREEN "\033[1;92m"

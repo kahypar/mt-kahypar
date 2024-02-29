@@ -29,8 +29,8 @@
 
 #include <algorithm>
 
-#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 

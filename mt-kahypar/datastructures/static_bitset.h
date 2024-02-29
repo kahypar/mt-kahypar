@@ -29,10 +29,12 @@
 #include <cstdint>
 #include <limits>
 
+#include "kahypar-resources/macros.h"
+
+#include "mt-kahypar/datastructures/bitset.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/bit_ops.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/bitset.h"
 
 namespace mt_kahypar {
 namespace ds {

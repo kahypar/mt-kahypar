@@ -28,15 +28,13 @@
 #include "mt-kahypar/partition/partitioner_facade.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/partitioner.h"
-#include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/csv_output.h"
+#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
-#include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/partition/conversion.h"
-#include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 

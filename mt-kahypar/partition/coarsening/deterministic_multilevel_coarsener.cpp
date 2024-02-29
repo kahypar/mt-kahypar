@@ -26,7 +26,7 @@
 
 #include "deterministic_multilevel_coarsener.h"
 
-#include <tbb/parallel_sort.h>
+#include "tbb/parallel_sort.h"
 
 #include "mt-kahypar/definitions.h"
 

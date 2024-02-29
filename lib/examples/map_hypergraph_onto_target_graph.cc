@@ -1,7 +1,7 @@
-#include <memory>
-#include <vector>
 #include <iostream>
+#include <memory>
 #include <thread>
+#include <vector>
 
 #include <libmtkahypar.h>
 

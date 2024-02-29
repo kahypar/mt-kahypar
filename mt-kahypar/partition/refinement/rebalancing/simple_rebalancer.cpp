@@ -27,17 +27,14 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 
-
 #include <boost/dynamic_bitset.hpp>
-
 #include <tbb/parallel_for_each.h>
+
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {

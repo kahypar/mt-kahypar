@@ -25,16 +25,18 @@
  ******************************************************************************/
 
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <thread>
 
+#include <libmtkahypar.h>
+
 #include "tbb/parallel_invoke.h"
 
-#include "libmtkahypar.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/context.h"
+#include "kahypar-resources/macros.h"
+
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/partition/context.h"
 
 using ::testing::Test;
 

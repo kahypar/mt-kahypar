@@ -1,8 +1,9 @@
-#include "mt-kahypar/utils/reproducible_random.h"
-
 #include <iostream>
 #include <random>
-#include <tbb/global_control.h>
+
+#include "tbb/global_control.h"
+
+#include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar::utils {
 

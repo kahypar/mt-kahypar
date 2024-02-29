@@ -31,12 +31,8 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/i_rebalancer.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
 namespace mt_kahypar {
 template <typename GraphAndGainTypes>

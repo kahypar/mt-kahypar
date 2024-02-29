@@ -34,16 +34,14 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
-#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {

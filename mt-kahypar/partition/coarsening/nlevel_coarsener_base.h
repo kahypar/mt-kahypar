@@ -26,15 +26,13 @@
 
 #pragma once
 
+#include <mt-kahypar/partition/coarsening/coarsening_commons.h>
+
 #include "tbb/task_group.h"
 
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/utilities.h"
-#include <mt-kahypar/partition/coarsening/coarsening_commons.h>
 
 namespace mt_kahypar {
 

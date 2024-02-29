@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 
 namespace mt_kahypar {

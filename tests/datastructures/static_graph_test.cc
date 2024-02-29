@@ -25,13 +25,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
 
-#include "gmock/gmock.h"
+#include "mt-kahypar/datastructures/static_graph.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_graph_factory.h"
 
 using ::testing::Test;
 

@@ -26,12 +26,9 @@
 
 #pragma once
 
-#include <vector>
-
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 

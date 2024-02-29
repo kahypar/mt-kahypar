@@ -27,14 +27,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <hwloc.h>
 #include <mutex>
+#include <random>
 #include <thread>
 #include <vector>
-#include <algorithm>
-#include <random>
-
-#include "mt-kahypar/macros.h"
 
 #include "mt-kahypar/parallel/hwloc_topology.h"
 #include "mt-kahypar/utils/exception.h"

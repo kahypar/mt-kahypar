@@ -24,10 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "tests/definitions.h"
-#include "tests/partition/coarsening/coarsener_fixtures.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
@@ -35,6 +33,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #endif
 
+#include "tests/partition/coarsening/coarsener_fixtures.h"
 
 using ::testing::Test;
 

@@ -28,12 +28,11 @@
 #pragma once
 
 #include "kahypar-resources/meta/policy_registry.h"
-#include "kahypar-resources/meta/typelist.h"
 
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 

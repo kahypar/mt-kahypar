@@ -25,12 +25,9 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#include "mt-kahypar/macros.h"
 
 namespace po = boost::program_options;
 

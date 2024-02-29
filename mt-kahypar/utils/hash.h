@@ -31,7 +31,6 @@
 #include <random>
 #include <type_traits>
 
-
 namespace mt_kahypar::hashing {
 
 namespace integer {

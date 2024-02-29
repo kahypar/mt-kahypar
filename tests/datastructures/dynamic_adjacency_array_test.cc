@@ -24,11 +24,9 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
-#include <atomic>
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 using ::testing::Test;
 

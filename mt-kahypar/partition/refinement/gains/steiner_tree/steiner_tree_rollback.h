@@ -26,10 +26,7 @@
 
 #pragma once
 
-#include <algorithm>
-
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {

@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <tbb/enumerable_thread_specific.h>
-#include <tbb/parallel_for.h>
+#include "tbb/enumerable_thread_specific.h"
+#include "tbb/parallel_for.h"
 
 namespace mt_kahypar {
 

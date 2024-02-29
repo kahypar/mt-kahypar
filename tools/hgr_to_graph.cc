@@ -24,16 +24,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <algorithm>
 #include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <algorithm>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_factory.h"
+#include "kahypar-resources/macros.h"
+
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using namespace mt_kahypar;

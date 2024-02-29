@@ -27,13 +27,13 @@
 
 #include "static_hypergraph.h"
 
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/utils/memory_tree.h"
-
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
+#include "tbb/enumerable_thread_specific.h"
+
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 namespace mt_kahypar::ds {
 

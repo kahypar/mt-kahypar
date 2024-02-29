@@ -27,10 +27,7 @@
 
 #pragma once
 
-#include <numeric>
-#include <vector>
-
-#include <tbb/parallel_scan.h>
+#include "tbb/parallel_scan.h"
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 

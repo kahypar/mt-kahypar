@@ -24,16 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
 #pragma once
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 #include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/typelist.h"
 
-#include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 
 namespace mt_kahypar {
 

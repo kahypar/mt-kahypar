@@ -24,16 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <atomic>
+#include "gtest/gtest.h"
 
-#include "gmock/gmock.h"
-
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

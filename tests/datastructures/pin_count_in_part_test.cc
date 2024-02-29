@@ -24,12 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
 
 #include <atomic>
 #include <cstdlib>
 #include <mt-kahypar/macros.h>
 
-#include "gmock/gmock.h"
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/pin_count_in_part.h"

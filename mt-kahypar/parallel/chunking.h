@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <cstddef>
 #include <algorithm>
+#include <cstddef>
 
 namespace mt_kahypar::parallel::chunking {
   template <typename T1, typename T2>

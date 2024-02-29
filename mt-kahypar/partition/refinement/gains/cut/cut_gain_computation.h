@@ -26,14 +26,11 @@
 
 #pragma once
 
-#include <vector>
-
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 
 namespace mt_kahypar {
 

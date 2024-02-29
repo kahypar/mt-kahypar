@@ -28,14 +28,12 @@
 #include "mt-kahypar/datastructures/contraction_tree.h"
 
 #include <queue>
-
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_invoke.h>
 #include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_reduce.h>
 
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 namespace mt_kahypar {
 namespace ds {

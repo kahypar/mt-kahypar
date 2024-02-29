@@ -24,15 +24,15 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <numeric>
+#include "gtest/gtest.h"
+
 #include <algorithm>
+#include <numeric>
 
-#include "gmock/gmock.h"
-
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
+
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;

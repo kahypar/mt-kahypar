@@ -28,18 +28,13 @@
 
 #pragma once
 
-#include <atomic>
-#include <type_traits>
-
 #include "kahypar-resources/meta/mandatory.h"
 
+#include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/datastructures/delta_connectivity_set.h"
-#include "mt-kahypar/datastructures/connectivity_set.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {

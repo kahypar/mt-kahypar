@@ -24,13 +24,10 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <numeric>
-#include <algorithm>
+#include "gtest/gtest.h"
 
-#include "gmock/gmock.h"
-
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 using ::testing::Test;
 

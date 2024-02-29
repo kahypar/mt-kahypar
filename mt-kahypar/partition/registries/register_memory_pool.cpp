@@ -27,14 +27,14 @@
 
 #include "register_memory_pool.h"
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/sparse_pin_counts.h"
-#include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
-#include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/datastructures/pin_count_in_part.h"
+#include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

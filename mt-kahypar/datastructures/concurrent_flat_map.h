@@ -28,12 +28,10 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <utility>
-#include <vector>
-#include <cmath>
 
-#include "kahypar-resources/macros.h"
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"

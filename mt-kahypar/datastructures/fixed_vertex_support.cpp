@@ -26,8 +26,6 @@
 
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 
-#include "mt-kahypar/macros.h"
-
 namespace mt_kahypar {
 namespace ds {
 

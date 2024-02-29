@@ -27,13 +27,12 @@
 
 #pragma once
 
+#include <algorithm>
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
-#include <memory>
 #include <unordered_map>
-#include <atomic>
 #include <vector>
-#include <algorithm>
 #if defined(__linux__) or defined(__APPLE__)
 #include <unistd.h>
 #elif _WIN32
@@ -43,8 +42,8 @@
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
+#include "kahypar-resources/macros.h"
+
 #include "mt-kahypar/utils/memory_tree.h"
 
 namespace mt_kahypar {

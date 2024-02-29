@@ -26,19 +26,17 @@
 
 #pragma once
 
-#include "multilevel_coarsener_base.h"
-#include "i_coarsener.h"
+#include "tbb/enumerable_thread_specific.h"
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/utils/reproducible_random.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/utils/cast.h"
-
-#include <tbb/enumerable_thread_specific.h>
+#include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar {
 

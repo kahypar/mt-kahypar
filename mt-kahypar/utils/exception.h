@@ -30,8 +30,6 @@
 #include <string>
 #include <sstream>
 
-#include "mt-kahypar/macros.h"
-
 namespace mt_kahypar {
 
 template<class Derived>

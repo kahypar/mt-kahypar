@@ -24,14 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "gtest/gtest.h"
 
-
-#include "gmock/gmock.h"
 #include "tbb/task_group.h"
 
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 
 using ::testing::Test;
 

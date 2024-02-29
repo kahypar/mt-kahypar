@@ -30,9 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {

@@ -28,11 +28,10 @@
 
 #include <vector>
 
-#include "kahypar-resources/meta/mandatory.h"
-
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/partition/metrics.h"
+#include "kahypar-resources/meta/mandatory.h"
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
 

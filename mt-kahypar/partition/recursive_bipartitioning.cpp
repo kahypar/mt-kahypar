@@ -27,26 +27,22 @@
 
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 
-#include "tbb/task_group.h"
-
 #include <algorithm>
 #include <vector>
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/multilevel.h"
+#include "tbb/task_group.h"
+
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
-#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/timer.h"
-
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

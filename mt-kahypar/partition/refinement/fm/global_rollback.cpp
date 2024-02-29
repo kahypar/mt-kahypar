@@ -28,13 +28,9 @@
 
 #include "tbb/parallel_scan.h"
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/datastructures/bitset.h"
 #include "mt-kahypar/datastructures/pin_count_snapshot.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 namespace mt_kahypar {
 
@@ -434,9 +430,6 @@ namespace mt_kahypar {
       }
     });
 
-
-    size_t num_unbalanced_slots = 0;
-
     size_t overloaded = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (phg.partWeight(i) > maxPartWeights[i]) {
@@ -463,10 +456,6 @@ namespace mt_kahypar {
       }
       if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
         overloaded++;
-      }
-
-      if (overloaded > 0) {
-        num_unbalanced_slots++;
       }
 
       if (overloaded == 0 && gain_sum > best_gain) {

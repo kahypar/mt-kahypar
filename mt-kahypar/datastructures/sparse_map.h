@@ -34,17 +34,14 @@
 #pragma once
 
 #include <algorithm>
-#include <limits>
-#include <utility>
-#include <vector>
 #include <cmath>
+#include <limits>
 
 #include "kahypar-resources/macros.h"
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
 namespace mt_kahypar {

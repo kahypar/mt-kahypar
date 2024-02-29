@@ -26,12 +26,12 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/utils/utilities.h"
 
 #include "tbb/concurrent_queue.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

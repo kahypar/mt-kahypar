@@ -25,16 +25,11 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
 #include <fstream>
-#include <iostream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 

@@ -24,13 +24,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <random>
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
+#include <random>
+
+#include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 

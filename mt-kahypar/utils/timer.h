@@ -33,9 +33,7 @@
 #include <string>
 #include <unordered_map>
 
-#include <tbb/enumerable_thread_specific.h>
-
-#include "mt-kahypar/macros.h"
+#include "tbb/enumerable_thread_specific.h"
 
 namespace mt_kahypar {
 namespace utils {

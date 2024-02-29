@@ -24,11 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-#include "tests/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+
+#include "tests/definitions.h"
 
 using ::testing::Test;
 

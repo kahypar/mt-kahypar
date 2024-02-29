@@ -26,15 +26,11 @@
 
 #pragma once
 
-#include "kahypar-resources/meta/typelist.h"
-
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"

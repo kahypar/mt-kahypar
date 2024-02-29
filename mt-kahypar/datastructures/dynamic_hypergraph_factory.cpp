@@ -34,7 +34,6 @@
 #include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {

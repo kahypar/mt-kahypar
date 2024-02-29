@@ -29,12 +29,12 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/partition/mapping/greedy_mapping.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/mapping/greedy_mapping.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

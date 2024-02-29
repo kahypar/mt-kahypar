@@ -27,15 +27,12 @@
 
 #pragma once
 
-#include <functional>
-#include <cmath>
 #include <boost/range/irange.hpp>
 
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/range.h"
-
 
 namespace mt_kahypar {
 namespace ds {

@@ -28,16 +28,12 @@
 #pragma once
 
 #include <hwloc.h>
-#include <mutex>
 #include <memory>
-#include <shared_mutex>
-#include <functional>
 
+#include "tbb/global_control.h"
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
-#include "tbb/global_control.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/thread_pinning_observer.h"
 
 namespace mt_kahypar {

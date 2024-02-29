@@ -24,12 +24,10 @@
  * SOFTWARE.
  ******************************************************************************/
 
-
+#include "gtest/gtest.h"
 
 #include <atomic>
 #include <mt-kahypar/parallel/tbb_initializer.h>
-
-#include "gmock/gmock.h"
 
 #include "tests/definitions.h"
 

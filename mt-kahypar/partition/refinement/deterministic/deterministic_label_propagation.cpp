@@ -26,14 +26,14 @@
 
 #include "deterministic_label_propagation.h"
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
+
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
-
-#include <tbb/parallel_sort.h>
-#include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 
@@ -508,7 +508,6 @@ namespace mt_kahypar {
   namespace {
     #define DETERMINISTIC_LABEL_PROPAGATION_REFINER(X) DeterministicLabelPropagationRefiner<X>
   }
-
 
   INSTANTIATE_CLASS_WITH_VALID_TRAITS(DETERMINISTIC_LABEL_PROPAGATION_REFINER)
 } // namespace mt_kahypar

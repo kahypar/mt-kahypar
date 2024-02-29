@@ -28,14 +28,14 @@
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/utils/cast.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 using ::testing::Eq;

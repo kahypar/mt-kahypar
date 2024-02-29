@@ -30,26 +30,24 @@
 #include <string>
 
 #include "tbb/concurrent_queue.h"
-#include "tbb/task_group.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
-
-#include "kahypar-resources/meta/mandatory.h"
+#include "tbb/task_group.h"
 
 #include "include/libmtkahypartypes.h"
 
+#include "kahypar-resources/meta/mandatory.h"
+
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
-#include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 template <class TypeTraits = Mandatory,

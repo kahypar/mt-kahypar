@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include <atomic>
 
 #include "mt-kahypar/datastructures/incident_net_array.h"

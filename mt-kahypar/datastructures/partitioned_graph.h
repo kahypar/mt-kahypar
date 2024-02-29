@@ -30,20 +30,17 @@
 
 #include <atomic>
 #include <type_traits>
-#include <mutex>
 
 #include "tbb/parallel_invoke.h"
 
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/range.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 

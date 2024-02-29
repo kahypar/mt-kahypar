@@ -26,16 +26,13 @@
 
 #pragma once
 
-#include <vector>
-
 #include "tbb/enumerable_thread_specific.h"
 
+#include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/datastructures/static_bitset.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 

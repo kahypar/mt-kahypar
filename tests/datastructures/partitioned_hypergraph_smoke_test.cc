@@ -24,10 +24,9 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "tests/datastructures/hypergraph_fixtures.h"
+#include "gtest/gtest.h"
 
 #include <boost/range/irange.hpp>
-#include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -36,10 +35,12 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/utils/randomize.h"
+
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

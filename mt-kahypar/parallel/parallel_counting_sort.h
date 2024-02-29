@@ -27,12 +27,11 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <numeric>
 #include <vector>
-#include <cassert>
 
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"

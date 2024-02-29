@@ -27,7 +27,6 @@
 
 #include "mt-kahypar/partition/metrics.h"
 
-#include <cmath>
 #include <algorithm>
 
 #include "mt-kahypar/definitions.h"

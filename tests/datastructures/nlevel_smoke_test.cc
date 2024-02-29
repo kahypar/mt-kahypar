@@ -23,15 +23,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
-#include "gmock/gmock.h"
 
-#include <atomic>
+#include "gtest/gtest.h"
+
 #include <set>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {

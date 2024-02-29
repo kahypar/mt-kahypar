@@ -32,7 +32,7 @@
 #pragma GCC diagnostic pop
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
 

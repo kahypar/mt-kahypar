@@ -24,14 +24,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 
 using ::testing::Test;
 

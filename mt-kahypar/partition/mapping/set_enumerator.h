@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/bitset.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 

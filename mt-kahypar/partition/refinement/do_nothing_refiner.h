@@ -26,12 +26,7 @@
 
 #pragma once
 
-#include <array>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
 
 namespace mt_kahypar {
 class DoNothingRefiner final : public IRebalancer {

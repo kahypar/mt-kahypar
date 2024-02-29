@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 namespace ds {

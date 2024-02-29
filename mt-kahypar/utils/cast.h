@@ -30,7 +30,6 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::utils {

@@ -30,21 +30,21 @@
 #include <vector>
 
 #include "tbb/blocked_range.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
 #include "tbb/enumerable_thread_specific.h"
+#include "tbb/parallel_invoke.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
+
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
-
-#include "kahypar-resources/utils/math.h"
 
 
 namespace mt_kahypar::io {
@@ -651,6 +651,7 @@ namespace mt_kahypar::io {
   }
 
   void printBanner() {
+    // clang-format off
     LOG << R"(+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++)";
     LOG << R"(+         __  __ _______       _  __     _    _       _____                   +)";
     LOG << R"(+        |  \/  |__   __|     | |/ /    | |  | |     |  __ \                  +)";
@@ -662,6 +663,7 @@ namespace mt_kahypar::io {
     LOG << R"(+                                               |___/                         +)";
     LOG << R"(+          Karlsruhe Shared Memory Hypergraph Partitioning Framework          +)";
     LOG << R"(+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++)";
+    // clang-format on
   }
 
   namespace internal {

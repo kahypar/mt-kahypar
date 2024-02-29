@@ -34,7 +34,6 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/exception.h"
 
-
 namespace mt_kahypar {
 namespace ds {
 

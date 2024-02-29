@@ -30,9 +30,8 @@
 
 #include "tbb/concurrent_vector.h"
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
+#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {

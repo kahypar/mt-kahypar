@@ -26,13 +26,13 @@
 
 #pragma once
 
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
-#include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {

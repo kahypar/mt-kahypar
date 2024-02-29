@@ -26,23 +26,21 @@
 
 #pragma once
 
-#include <sstream>
 #include <mutex>
+#include <sstream>
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
-
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 

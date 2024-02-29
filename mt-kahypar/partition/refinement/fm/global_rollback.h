@@ -30,7 +30,6 @@
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
-
 namespace mt_kahypar {
 
 template<typename GraphAndGainTypes>

@@ -27,11 +27,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 #include <string>
-#include <cstdint>
 
 #include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {

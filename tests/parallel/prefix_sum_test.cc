@@ -24,12 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+#include <algorithm>
+#include <random>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-
-#include <random>
-#include <algorithm>
 
 using ::testing::Test;
 

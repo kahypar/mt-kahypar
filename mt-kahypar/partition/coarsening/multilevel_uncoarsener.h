@@ -28,10 +28,10 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/progress_bar.h"
 
 namespace mt_kahypar {

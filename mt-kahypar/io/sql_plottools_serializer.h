@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <string>
 #include <chrono>
+#include <string>
 
 #include "mt-kahypar/partition/context.h"
 

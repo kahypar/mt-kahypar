@@ -27,17 +27,15 @@
 
 #include "graph.h"
 
-
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_invoke.h>
 #include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_reduce.h>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::ds {

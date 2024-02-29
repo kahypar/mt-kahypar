@@ -26,23 +26,18 @@
 
 #pragma once
 
-#include <algorithm>
-
-#include "kahypar-resources/meta/policy_registry.h"
-
-#include "tbb/parallel_invoke.h"
 #include "tbb/concurrent_vector.h"
+#include "tbb/parallel_invoke.h"
 
-#include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/delta_connectivity_set.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {

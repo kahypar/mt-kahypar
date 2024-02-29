@@ -26,12 +26,12 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <unordered_map>
-#include <atomic>
-#include <sstream>
-#include <chrono>
 #if defined(__linux__) or defined(__APPLE__)
 #include <sys/ioctl.h>
 #elif _WIN32

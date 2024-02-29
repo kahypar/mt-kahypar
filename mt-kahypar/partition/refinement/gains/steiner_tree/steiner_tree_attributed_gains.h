@@ -27,7 +27,6 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar {

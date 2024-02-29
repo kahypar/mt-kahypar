@@ -28,29 +28,26 @@
 #include "hypergraph_io.h"
 
 #include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
-#include <thread>
-#include <memory>
-#include <vector>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <thread>
+#include <vector>
 
 #if defined(__linux__) or defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
 #elif _WIN32
-#include <windows.h>
-#include <process.h>
 #include <memoryapi.h>
+#include <process.h>
+#include <windows.h>
 #endif
-
 
 #include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::io {

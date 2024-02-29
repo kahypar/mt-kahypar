@@ -25,25 +25,20 @@
  ******************************************************************************/
 
 #include <boost/program_options.hpp>
-
-#include <fstream>
 #include <iostream>
-#include <functional>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
-#include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/metrics.h"
+
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
