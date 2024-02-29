@@ -4,7 +4,9 @@ add_library(mtkahypar SHARED libmtkahypar.cpp)
 
 target_link_libraries(mtkahypar TBB::tbb TBB::tbbmalloc_proxy)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(KAHYPAR_DOWNLOAD_BOOST)
+    target_link_libraries(mtkahypar mini_boost)
+elseif(NOT MT_KAHYPAR_DISABLE_BOOST)
     target_link_libraries(mtkahypar Boost::program_options)
 endif()
 

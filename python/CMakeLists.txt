@@ -12,7 +12,9 @@ pybind11_add_module(mtkahypar_python module.cpp)
 
 target_link_libraries(mtkahypar_python PRIVATE TBB::tbb TBB::tbbmalloc_proxy)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(KAHYPAR_DOWNLOAD_BOOST)
+    target_link_libraries(mtkahypar_python PRIVATE mini_boost)
+elseif(NOT MT_KAHYPAR_DISABLE_BOOST)
     target_link_libraries(mtkahypar_python PRIVATE Boost::program_options)
 endif()
 
