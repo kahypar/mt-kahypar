@@ -209,6 +209,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
           nodes_in_too_heavy_clusters.clear();
         }
+        std::fill(cluster_weight.begin(), cluster_weight.end(), 0);
+        std::fill(opportunistic_cluster_weight.begin(), opportunistic_cluster_weight.end(), 0);
+        for (const HypernodeID hn: hg.nodes()) {
+          const HypernodeID cluster = clusters[hn];
+          cluster_weight[cluster] += hg.nodeWeight(hn);
+          opportunistic_cluster_weight[cluster] += hg.nodeWeight(hn);
+        }
         passed_nodes_from_previous_subround.clear();
       }
       if (_context.type == ContextType::main) {
