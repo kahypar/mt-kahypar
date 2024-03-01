@@ -92,7 +92,8 @@ public:
     passed_nodes_from_previous_subround(),
     contractable_nodes(),
     matched_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
-    edge_ratings(utils::cast<Hypergraph>(hypergraph).initialNumEdges()) {
+    edge_ratings(utils::cast<Hypergraph>(hypergraph).initialNumEdges()),
+    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
     contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
   }
 
@@ -107,6 +108,7 @@ private:
   };
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   void initializeImpl() override {
     if (_context.partition.verbose_output && _context.partition.enable_progress_bar) {
@@ -401,5 +403,6 @@ private:
   parallel::scalable_vector<HypernodeID> contractable_nodes;
   parallel::scalable_vector<bool> matched_nodes;
   parallel::scalable_vector<RatedEdge> edge_ratings;
+  ds::BufferedVector<HypernodeID> cluster_weights_to_fix;
 };
 }
