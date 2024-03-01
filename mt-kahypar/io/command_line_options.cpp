@@ -664,7 +664,17 @@ namespace mt_kahypar {
              po::value<double>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.final_negative_gain_factor :
                       &context.refinement.deterministic_refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.0),
-             "Final negative gain factor for dynamic gain factor");
+             "Final negative gain factor for dynamic gain factor")
+             ((initial_partitioning ? "i-r-jet-static-negative-gain-coarse" : "r-jet-static-negative-gain-coarse"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.negative_gain_factor_coarse :
+                      &context.refinement.deterministic_refinement.jet.negative_gain_factor_coarse))->value_name("<double>")->default_value(0.75),
+             "Static negative gain factor for coarse levels")
+             ((initial_partitioning ? "i-r-jet-static-negative-gain-fine" : "r-jet-static-negative-gain-fine"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.deterministic_refinement.jet.negative_gain_factor_fine :
+                      &context.refinement.deterministic_refinement.jet.negative_gain_factor_fine))->value_name("<double>")->default_value(0.25),
+             "Static negative gain factor for fine levels");
     return options;
   }
 
