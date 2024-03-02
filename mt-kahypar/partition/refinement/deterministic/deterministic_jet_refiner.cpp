@@ -44,7 +44,7 @@ namespace mt_kahypar {
 template<typename GraphAndGainTypes>
 bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
     const vec<HypernodeID>&,
-    Metrics& best_metrics, const double time_limit) {
+    Metrics& best_metrics, const double) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     Metrics current_metrics = best_metrics;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
@@ -180,8 +180,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     timer.start_timer("rebalance", "Rebalance");
                 }
                 mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
-                _gain_cache.reset();
-                _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+                _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
                 if (top_level) {
                     timer.stop_timer("top_level_rebalance");
                 } else {
@@ -272,8 +271,8 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
 }
 
 template <typename GraphAndGainTypes>
-void DeterministicJetRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
-    _rebalancer.initialize(phg);
+void DeterministicJetRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t&) {
+    //_rebalancer.initialize(phg);
 }
 
 template <typename GraphAndGainTypes>
