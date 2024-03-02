@@ -226,6 +226,20 @@ std::ostream& operator<< (std::ostream& os, const EdgeRatingForMatching& strateg
   return os << static_cast<uint8_t>(strategy);
 }
 
+std::ostream& operator<< (std::ostream& os, const ClusterTieBreakingPolicy& strategy) {
+  switch (strategy) {
+  case ClusterTieBreakingPolicy::sh_uniform: return os << "simple_hash_uniform";
+  case ClusterTieBreakingPolicy::mt_uniform: return os << "mt_uniform";
+  case ClusterTieBreakingPolicy::sh_geometric: return os << "simple_hash_geometric";
+  case ClusterTieBreakingPolicy::mt_geometric: return os << "mt_geometric";
+  case ClusterTieBreakingPolicy::first: return os << "first";
+  case ClusterTieBreakingPolicy::last: return os << "last";
+  case ClusterTieBreakingPolicy::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
   case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -498,6 +512,24 @@ EdgeRatingForMatching edgeRatingForMatchingFromString(const std::string& rating)
   }
   throw InvalidParameterException("Illegal option: " + rating);
   return EdgeRatingForMatching::UNDEFINED;
+}
+
+ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& strategy) {
+  if (strategy == "sh_uniform") {
+    return ClusterTieBreakingPolicy::sh_uniform;
+  } else if (strategy == "mt_uniform") {
+    return ClusterTieBreakingPolicy::mt_uniform;
+  } else if (strategy == "sh_geometric") {
+    return ClusterTieBreakingPolicy::sh_geometric;
+  } else if (strategy == "mt_geometric") {
+    return ClusterTieBreakingPolicy::mt_geometric;
+  } else if (strategy == "first") {
+    return ClusterTieBreakingPolicy::first;
+  } else if (strategy == "last") {
+    return ClusterTieBreakingPolicy::last;
+  }
+  throw InvalidParameterException("Illegal option: " + strategy);
+  return ClusterTieBreakingPolicy::UNDEFINED;
 }
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {

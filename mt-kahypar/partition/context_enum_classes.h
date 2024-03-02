@@ -156,6 +156,16 @@ enum class EdgeRatingForMatching: uint8_t {
   UNDEFINED
 };
 
+enum class ClusterTieBreakingPolicy: uint8_t {
+  sh_uniform,
+  mt_uniform,
+  sh_geometric,
+  mt_geometric,
+  first,
+  last,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -259,6 +269,8 @@ std::ostream& operator<< (std::ostream& os, const HeavyClusterStrategy& strategy
 
 std::ostream& operator<< (std::ostream& os, const EdgeRatingForMatching& rating);
 
+std::ostream& operator<< (std::ostream& os, const ClusterTieBreakingPolicy& rating);
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
 std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
@@ -300,6 +312,8 @@ SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strat
 HeavyClusterStrategy heavyClusterStrategyFromString(const std::string& strategy);
 
 EdgeRatingForMatching edgeRatingForMatchingFromString(const std::string& strategy);
+
+ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& policy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

@@ -375,9 +375,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   } else if (best_targets.empty()) {
     best_target = u;
   } else {
-    hashing::SimpleIntHash<uint32_t> sih;
-    hashing::HashRNG hash_prng(sih, u);
-    size_t pos = std::uniform_int_distribution<uint32_t>(0, best_targets.size() - 1)(hash_prng);
+    size_t pos = cluster_tie_breaker->select(best_targets.size() - 1, u);
     assert(pos < best_targets.size());
     best_target = best_targets[pos];
   }
