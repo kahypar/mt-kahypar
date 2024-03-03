@@ -94,7 +94,7 @@ public:
     contractable_nodes(),
     matched_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), false),
     edge_ratings(utils::cast<Hypergraph>(hypergraph).initialNumEdges()),
-    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()){
+    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
     contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
     initializeClusterTieBreaking(context.coarsening.cluster_tie_breaking_policy);
   }
@@ -394,7 +394,7 @@ private:
     } else if (policy == ClusterTieBreakingPolicy::first) {
       cluster_tie_breaker = std::make_unique<First>();
     } else if (policy == ClusterTieBreakingPolicy::last) {
-      cluster_tie_breaker =std::make_unique<Last>();
+      cluster_tie_breaker = std::make_unique<Last>();
     } else {
       std::cout << "ERROR in clusterTieBreakingPolicy" << std::endl;
       cluster_tie_breaker = std::make_unique<SimpleHashUniform>();
@@ -426,5 +426,6 @@ private:
   parallel::scalable_vector<RatedEdge> edge_ratings;
   ds::BufferedVector<HypernodeID> cluster_weights_to_fix;
   std::unique_ptr<ClusterTieBreaker> cluster_tie_breaker;
+  vec<HypernodeID> hyperedge_size;
 };
 }
