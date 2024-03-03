@@ -408,7 +408,11 @@ namespace mt_kahypar {
              " - mt_geometric"
              " - first"
              " - last"
-             );
+             )
+             ("c-bloom-filter",
+             po::value<bool>(&context.coarsening.bloom_filter)->value_name(
+                     "<bool>")->default_value(false),
+             "Use Bloom filter.");
     return options;
   }
 

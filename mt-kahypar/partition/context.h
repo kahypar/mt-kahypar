@@ -139,6 +139,8 @@ struct CoarseningParameters {
 
   ClusterTieBreakingPolicy cluster_tie_breaking_policy = ClusterTieBreakingPolicy::UNDEFINED;
 
+  bool bloom_filter = false;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

@@ -374,17 +374,34 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   const Hypergraph& hg = Base::currentHypergraph();
   auto& ratings = default_rating_maps.local();
   ratings.clear();
-  const HypernodeWeight weight_u = hg.nodeWeight(u);
   // calculate ratings
-  for (HyperedgeID he : hg.incidentEdges(u)) {
-    HypernodeID he_size = hg.edgeSize(he);
-    if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
-      // TODO should he_size filter use the original edge size or the adaptive one?
-      he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
-      double he_score = static_cast<double>(hg.edgeWeight(he)) / (he_size);
-      for (HypernodeID v : hg.pins(he)) {
-        const HypernodeID cluster_v = clusters[v];
-        ratings[cluster_v] += he_score / penality(weight_u, cluster_weight[cluster_v]);
+  if (_context.coarsening.bloom_filter) {
+    auto& bloom_filter = bloom_filters.local();
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      HypernodeID he_size = hg.edgeSize(he);
+      if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+        he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
+        double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+        for (HypernodeID v : hg.pins(he)) {
+          const HypernodeID target = clusters[v];
+          const HypernodeID bloom_rep = target & bloom_filter_mask;
+          if (!bloom_filter[bloom_rep]) {
+            ratings[target] += he_score;
+            bloom_filter.set(bloom_rep, true);
+          }
+        }
+        bloom_filter.reset();
+      }
+    }
+  } else {
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      HypernodeID he_size = hg.edgeSize(he);
+      if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+        he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
+        double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+        for (HypernodeID v : hg.pins(he)) {
+          ratings[clusters[v]] += he_score;
+        }
       }
     }
   }
@@ -393,6 +410,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   const PartitionID comm_u = hg.communityID(u);
   vec<HypernodeID>& best_targets = ties.local();
   double best_score = 0.0;
+  const HypernodeWeight weight_u = hg.nodeWeight(u);
 
   for (const auto& entry : ratings) {
     HypernodeID target_cluster = entry.key;
@@ -421,7 +439,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
   if (best_target != u) {
     propositions[u] = best_target;
-    __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+    __atomic_fetch_add(&opportunistic_cluster_weight[best_target], weight_u, __ATOMIC_RELAXED);
   }
 }
 
