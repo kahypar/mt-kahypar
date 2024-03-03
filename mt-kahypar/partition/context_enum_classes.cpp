@@ -240,6 +240,19 @@ std::ostream& operator<< (std::ostream& os, const ClusterTieBreakingPolicy& stra
   return os << static_cast<uint8_t>(strategy);
 }
 
+std::ostream& operator<< (std::ostream& os, const EdgeDeduplicationPolicy& strategy) {
+  switch (strategy) {
+  case EdgeDeduplicationPolicy::no_deduplication: return os << "no_deduplication";
+  case EdgeDeduplicationPolicy::single_bloom: return os << "single_bloom";
+  case EdgeDeduplicationPolicy::bloom_2: return os << "bloom_2";
+  case EdgeDeduplicationPolicy::bloom_3: return os << "bloom_3";
+  case EdgeDeduplicationPolicy::exact: return os << "exact";
+  case EdgeDeduplicationPolicy::UNDEFINED: return os << "UNDEFINED";
+    // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
   case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -530,6 +543,22 @@ ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& s
   }
   throw InvalidParameterException("Illegal option: " + strategy);
   return ClusterTieBreakingPolicy::UNDEFINED;
+}
+
+EdgeDeduplicationPolicy edgeDeduplicationPolicyFromString(const std::string& policy) {
+  if (policy == "no_deduplication") {
+    return EdgeDeduplicationPolicy::no_deduplication;
+  } else if (policy == "single_bloom") {
+    return EdgeDeduplicationPolicy::single_bloom;
+  } else if (policy == "bloom_2") {
+    return EdgeDeduplicationPolicy::bloom_2;
+  } else if (policy == "bloom_3") {
+    return EdgeDeduplicationPolicy::bloom_3;
+  } else if (policy == "exact") {
+    return EdgeDeduplicationPolicy::exact;
+  }
+  throw InvalidParameterException("Illegal option: " + policy);
+  return EdgeDeduplicationPolicy::UNDEFINED;
 }
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {

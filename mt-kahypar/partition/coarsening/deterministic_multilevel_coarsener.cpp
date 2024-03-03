@@ -375,7 +375,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   auto& ratings = default_rating_maps.local();
   ratings.clear();
   // calculate ratings
-  if (_context.coarsening.bloom_filter) {
+  if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::single_bloom) {
     auto& bloom_filter = bloom_filters.local();
     for (HyperedgeID he : hg.incidentEdges(u)) {
       HypernodeID he_size = hg.edgeSize(he);
@@ -393,7 +393,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
         bloom_filter.reset();
       }
     }
-  } else {
+  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::no_deduplication) {
     for (HyperedgeID he : hg.incidentEdges(u)) {
       HypernodeID he_size = hg.edgeSize(he);
       if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
@@ -404,6 +404,25 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
         }
       }
     }
+  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::exact) {
+    auto& bloom_filter = bloom_filters.local();
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      HypernodeID he_size = hg.edgeSize(he);
+      if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+        he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
+        double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+        for (HypernodeID v : hg.pins(he)) {
+          const HypernodeID target = clusters[v];
+          if (!bloom_filter[target]) {
+            ratings[target] += he_score;
+            bloom_filter.set(target, true);
+          }
+        }
+        bloom_filter.reset();
+      }
+    }
+  } else {
+    std::cout << "NOT IMPLEMENTED" << std::endl;
   }
 
   // find highest rated, feasible cluster

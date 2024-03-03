@@ -98,21 +98,7 @@ public:
     cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
     contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
     initializeClusterTieBreaking(context.coarsening.cluster_tie_breaking_policy);
-    auto& hg = utils::cast<Hypergraph>(hypergraph);
-    size_t max_edge_size =
-      tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
-        HyperedgeID(0), hg.initialNumEdges()), HypernodeID(0),
-        [&](const tbb::blocked_range<HyperedgeID>& r, HypernodeID init) -> HypernodeID {
-      for (HyperedgeID e = r.begin(); e != r.end(); ++e) {
-        init = std::max(init, hg.edgeSize(e));
-      }
-      return init;
-    }, [](HypernodeID l, HypernodeID r) -> HypernodeID { return std::max(l, r); }
-    );
-    size_t s = std::min<size_t>(10 * max_edge_size, initial_num_nodes);
-    bloom_filter_mask = std::pow(2.0, std::ceil(std::log2(static_cast<double>(s))));
-    bloom_filter_mask -= 1;
-    bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
+    initializeEdgeDeduplication(context.coarsening.edge_deduplication_policy, hypergraph);
   }
 
   ~DeterministicMultilevelCoarsener() {
@@ -414,6 +400,30 @@ private:
     } else {
       std::cout << "ERROR in clusterTieBreakingPolicy" << std::endl;
       cluster_tie_breaker = std::make_unique<SimpleHashUniform>();
+    }
+  }
+
+  void initializeEdgeDeduplication(const EdgeDeduplicationPolicy policy, mt_kahypar_hypergraph_t hypergraph) {
+    if (policy == EdgeDeduplicationPolicy::single_bloom) {
+      auto& hg = utils::cast<Hypergraph>(hypergraph);
+      size_t max_edge_size =
+        tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
+          HyperedgeID(0), hg.initialNumEdges()), HypernodeID(0),
+          [&](const tbb::blocked_range<HyperedgeID>& r, HypernodeID init) -> HypernodeID {
+        for (HyperedgeID e = r.begin(); e != r.end(); ++e) {
+          init = std::max(init, hg.edgeSize(e));
+        }
+        return init;
+      }, [](HypernodeID l, HypernodeID r) -> HypernodeID { return std::max(l, r); }
+      );
+      size_t s = std::min<size_t>(10 * max_edge_size, initial_num_nodes);
+      bloom_filter_mask = std::pow(2.0, std::ceil(std::log2(static_cast<double>(s))));
+      bloom_filter_mask -= 1;
+      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
+    } else if (policy == EdgeDeduplicationPolicy::exact) {
+      auto& hg = utils::cast<Hypergraph>(hypergraph);
+      bloom_filter_mask = hg.initialNumNodes();
+      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
     }
   }
 

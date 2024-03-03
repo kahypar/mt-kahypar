@@ -166,6 +166,15 @@ enum class ClusterTieBreakingPolicy: uint8_t {
   UNDEFINED
 };
 
+enum class EdgeDeduplicationPolicy: uint8_t {
+  no_deduplication,
+  single_bloom,
+  bloom_2,
+  bloom_3,
+  exact,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -271,6 +280,8 @@ std::ostream& operator<< (std::ostream& os, const EdgeRatingForMatching& rating)
 
 std::ostream& operator<< (std::ostream& os, const ClusterTieBreakingPolicy& rating);
 
+std::ostream& operator<< (std::ostream& os, const EdgeDeduplicationPolicy& rating);
+
 std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
 std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
@@ -314,6 +325,8 @@ HeavyClusterStrategy heavyClusterStrategyFromString(const std::string& strategy)
 EdgeRatingForMatching edgeRatingForMatchingFromString(const std::string& strategy);
 
 ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& policy);
+
+EdgeDeduplicationPolicy edgeDeduplicationPolicyFromString(const std::string& policy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

@@ -409,10 +409,19 @@ namespace mt_kahypar {
              " - first"
              " - last"
              )
-             ("c-bloom-filter",
-             po::value<bool>(&context.coarsening.bloom_filter)->value_name(
-                     "<bool>")->default_value(false),
-             "Use Bloom filter.");
+             ("c-edge-deduplication-policy",
+             po::value<std::string>()->value_name(
+                     "<string>")->notifier(
+                     [&](const std::string& policy) {
+                       context.coarsening.edge_deduplication_policy = mt_kahypar::edgeDeduplicationPolicyFromString(policy);
+                     })->default_value("no_deduplication"),
+             "Edge Deduplication Policy:\n"
+             " - no_deduplication"
+             " - single_bloom"
+             " - bloom_2"
+             " - bloom_3"
+             " - exact"
+             );
     return options;
   }
 
