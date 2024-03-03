@@ -132,6 +132,8 @@ struct CoarseningParameters {
 
   ClusterTieBreakingPolicy cluster_tie_breaking_policy = ClusterTieBreakingPolicy::UNDEFINED;
 
+  EdgeDeduplicationPolicy edge_deduplication_policy = EdgeDeduplicationPolicy::UNDEFINED;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

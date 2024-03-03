@@ -217,6 +217,18 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(strategy);
   }
 
+  std::ostream& operator<< (std::ostream& os, const EdgeDeduplicationPolicy& strategy) {
+    switch (strategy) {
+      case EdgeDeduplicationPolicy::no_deduplication: return os << "no_deduplication";
+      case EdgeDeduplicationPolicy::single_bloom: return os << "single_bloom";
+      case EdgeDeduplicationPolicy::exact: return os << "exact";
+      case EdgeDeduplicationPolicy::exponential_decay:  return os << "exponential_decay";
+      case EdgeDeduplicationPolicy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(strategy);
+  }
+
   std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
     switch (acceptance_policy) {
       ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
@@ -467,6 +479,20 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + strategy);
     return ClusterTieBreakingPolicy::UNDEFINED;
+  }
+
+  EdgeDeduplicationPolicy edgeDeduplicationPolicyFromString(const std::string& policy) {
+    if (policy == "no_deduplication") {
+      return EdgeDeduplicationPolicy::no_deduplication;
+    } else if (policy == "single_bloom") {
+      return EdgeDeduplicationPolicy::single_bloom;
+    } else if (policy == "exact") {
+      return EdgeDeduplicationPolicy::exact;
+    } else if (policy == "exponential_decay") {
+      return EdgeDeduplicationPolicy::exponential_decay;
+    }
+    throw InvalidParameterException("Illegal option: " + policy);
+    return EdgeDeduplicationPolicy::UNDEFINED;
   }
 
   AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
