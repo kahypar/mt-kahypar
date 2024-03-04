@@ -168,6 +168,8 @@ struct JetParameters {
   bool afterburner_incident_edges = false;
   bool afterburner_sorting_nets = false;
   bool afterburner_hardcode_graph_edges = false;
+  size_t afterburner_iterations = 1;
+  bool afterburner_iterate_all = false;
 
   bool dynamic_negative_gain_factor = false;
   size_t num_fine_rounds = 1;

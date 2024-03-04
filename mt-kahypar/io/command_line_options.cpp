@@ -487,6 +487,16 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves))->value_name(
                     "<size_t>")->default_value(0),
             "If the number of moves for a part is larger, then execute in parallel")
+            ((initial_partitioning ? "i-r-jet-afterburner-iterations": "r-jet-afterburner-iterations"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_iterations: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_iterations))->value_name(
+                    "<size_t>")->default_value(1),
+            "How often should afterburning be repeated.")
+            ((initial_partitioning ? "i-r-jet-afterburner-iterate-all": "r-jet-afterburner-iterate-all"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.afterburner_iterate_all: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.afterburner_iterate_all))->value_name(
+                    "<bool>")->default_value(false),
+            "Should the afterburne keep iterating on all active nodes.")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(

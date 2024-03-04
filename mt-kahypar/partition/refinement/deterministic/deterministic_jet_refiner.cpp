@@ -88,6 +88,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         if (total_gain <= 0) {
             add_node_fn();
             _locks.set(hn);
+            //_afterburner_gain[hn] = total_gain;
         }
     };
 
@@ -133,15 +134,37 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             // label prop round
             _locks.reset();
             tmp_active_nodes.clear_sequential();
-
+            //const size_t afterburner_iterations = dynamic_round == 0UL ? _context.refinement.deterministic_refinement.jet.afterburner_iterations : 1UL;
             if (phg.is_graph) {
+                //for (size_t i = 0; i < afterburner_iterations; ++i) {
                 tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
                     const auto n = _active_nodes[j];
                     afterburner(n, [&] {tmp_active_nodes.stream(n);});
                 });
-                _moves = tmp_active_nodes.copy_parallel();
+                _active_nodes = tmp_active_nodes.copy_parallel();
+                // tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
+                //     const auto n = _active_nodes[j];
+                //     _gains_and_target[n].first = _afterburner_gain[n];
+                // });
+                tmp_active_nodes.clear_sequential();
+                // }
             } else {
+                //for (size_t i = 0; i < afterburner_iterations; ++i) {
                 hypergraphAfterburner(phg);
+                // tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+                //     const auto hn = _active_nodes[j];
+                //     const Gain gain = _afterburner_gain[hn];
+                //     if (gain <= 0 || _context.refinement.deterministic_refinement.jet.afterburner_iterate_all) {
+                //         tmp_active_nodes.stream(hn);
+                //         _gains_and_target[hn].first = gain;
+                //     } else {
+                //         _gains_and_target[hn].first = gain;
+                //         _gains_and_target[hn] = { 0, phg.partID(hn) };
+                //     }
+                // });
+                // _active_nodes = tmp_active_nodes.copy_parallel();
+                // tmp_active_nodes.clear_sequential();
+            //}
             }
             HEAVY_REFINEMENT_ASSERT(arePotentialMovesToOtherParts(phg, _moves), "moves");
             timer.stop_timer("afterburner");
@@ -149,8 +172,8 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             // Apply all moves
             timer.start_timer("apply_moves", "Apply Moves");
             if (phg.is_graph) {
-                tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
-                    performMoveWithAttributedGain<true>(phg, _moves[i]);
+                tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t i) {
+                    performMoveWithAttributedGain<true>(phg, _active_nodes[i]);
                 });
             } else {
                 auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
