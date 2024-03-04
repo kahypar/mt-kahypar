@@ -408,7 +408,7 @@ private:
       auto& hg = utils::cast<Hypergraph>(hypergraph);
       size_t max_edge_size =
         tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
-          HyperedgeID(0), hg.initialNumEdges()), HypernodeID(0),
+          HyperedgeID(0), hg.initialNumEdges()), HypernodeID(2),
           [&](const tbb::blocked_range<HyperedgeID>& r, HypernodeID init) -> HypernodeID {
         for (HyperedgeID e = r.begin(); e != r.end(); ++e) {
           init = std::max(init, hg.edgeSize(e));
