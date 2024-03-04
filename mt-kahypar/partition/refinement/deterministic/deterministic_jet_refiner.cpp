@@ -141,7 +141,22 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 });
                 _moves = tmp_active_nodes.copy_parallel();
             } else {
-                hypergraphAfterburner(phg);
+                for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
+                    hypergraphAfterburner(phg);
+                    tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+                        const auto hn = _active_nodes[j];
+                        const Gain gain = _afterburner_gain[hn];
+                        if (gain <= 0 || _context.refinement.deterministic_refinement.jet.afterburner_iterate_all) {
+                            tmp_active_nodes.stream(hn);
+                            _gains_and_target[hn].first = gain;
+                        } else {
+                            _gains_and_target[hn].first = gain;
+                            _gains_and_target[hn] = { 0, phg.partID(hn) };
+                        }
+                    });
+                    _active_nodes = tmp_active_nodes.copy_parallel();
+                    tmp_active_nodes.clear_sequential();
+                }
             }
             HEAVY_REFINEMENT_ASSERT(arePotentialMovesToOtherParts(phg, _moves), "moves");
             timer.stop_timer("afterburner");
