@@ -106,7 +106,7 @@ namespace mt_kahypar {
     //   std::ostringstream row_str;
     //   for (size_t i = 0; i < numNodes; i++) {
     //     char buf[100];
-    //     sprintf(buf, " %+.2f", row.get(i));
+    //     sprintf(buf, " %+.2f", row[i]);
     //     row_str << buf;
     //   }
     //   DBG << row_str.str();
@@ -131,14 +131,20 @@ namespace mt_kahypar {
       }
 
       vec<PartitionID> newSolution;
-      generateSolution(embedding, newSolution);
+      generateSolution(phg, embedding, newSolution);
       candidateSolutions.push_back(newSolution);
     }
 
-    phg.resetPartition(); /* TODO change changed nodes only */
+    setPartition(phg, candidateSolutions.back());
+  }
+
+  template <typename GraphAndGainTypes>
+  template <typename Collection>
+  void SpectralRefiner<GraphAndGainTypes>::setPartition(PartitionedHypergraph &phg, Collection &partition) {
+    phg.resetPartition(); /* TODO change changed nodes only? */
     for (size_t i = 0; i < numNodes; i++) {
       HypernodeID node = i; /* TODO calculate index */
-      phg.setNodePart(node, candidateSolutions.back()[i]);
+      phg.setNodePart(node, partition[i]);
     }
   }
 
@@ -158,22 +164,22 @@ namespace mt_kahypar {
         spectral::Skalar operand_dot_e = 0.0;
         size_t edge_pin_count = 0;
         for (const HypernodeID& pin : hg->pins(he)) {
-          operand_dot_e += operand.get(pin);
+          operand_dot_e += operand[pin];
           edge_pin_count++;
         }
         HypernodeID edge_size = hg->edgeSize(he); /* TODO weights */
         spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
 
         for (const HypernodeID& pin : hg->pins(he)) {
-          factor.set(pin, factor.get(pin) + clique_edge_weight * edge_pin_count);
-          subtrahend.set(pin, subtrahend.get(pin) + clique_edge_weight * operand_dot_e);
+          factor.set(pin, factor[pin] + clique_edge_weight * edge_pin_count);
+          subtrahend.set(pin, subtrahend[pin] + clique_edge_weight * operand_dot_e);
         }
       }
 
       // calculate result
       target_vector.setGetter([](size_t i) { return 0.0; })
       for (size_t i = 0; i < target_vector.dimension(); i++) {
-        target_vector.set(i, operand.get(i) * factor.get(i) - subtrahend.get(i));
+        target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i]);
       }
     });
 
@@ -183,7 +189,7 @@ namespace mt_kahypar {
         size_t index = node; /* TODO calculate index */
         for (const HyperedgeID& edge : hg->incidentEdges(node)) {
           /* TODO weights */
-          target_vector.set(node, target_vector.get(node) + 1);
+          target_vector.set(node, target_vector[node] + 1);
         }
       }
     });
@@ -200,12 +206,12 @@ namespace mt_kahypar {
 
       spectral::Skalar sum_x = 0.0;
       for (size_t i = 0; i < dimension; i++) {
-        sum_x += operand.get(i);
+        sum_x += operand[i];
       }
       
       for (const HypernodeID& node : hg->nodes()) {
         size_t index = node; /* TODO calculate index */
-        target_vector.set(index, hg->nodeWeight(node) * (operand.get(index) - sum_x / dimension));
+        target_vector.set(index, target_vector[index] + hg->nodeWeight(node) * (operand[index] - sum_x / dimension));
       }
     });
 
@@ -243,20 +249,41 @@ namespace mt_kahypar {
     size_t num_evecs = 2; /* only fiedler */
     target.push_back(one);
     while (target.size() < num_evecs) {
-      solver.nextEigenpair(a, v);
+      solver.nextEigenpair(a, v); /* TODO assert return value is positive */
       target.push_back(v);
     }  
   }
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::generateSolution(vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
+  void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
     spectral::Vector &fiedler = embedding[1];
 
-    spectral::Skalar threshold = 0; /* TODO */
+    vec<HypernodeID> indices;
+    indices.assign(phg.nodes().begin(), phg.nodes().end());
 
-    for (size_t i = 0; i < numNodes; i++) {
-      target.push_back(fiedler.get(i) > threshold ? 1 : 0);
+    std::sort(indices.begin(), indices.end(), [&](const HypernodeID& u, const HypernodeID& v) { return fiedler[u] < fiedler[v]; });
+
+    target.resize(numNodes, 1);
+    setPartition(phg, target);
+
+    spectral::Skalar threshold_index = 0;
+
+    bool in_range = false;
+    bool quality_improves = false;
+    while (!in_range || quality_improves) {
+      threshold_index++;
+      target[indices[threshold_index]] = 0;
+      phg.changeNodePart(indices[threshold_index], 1, 0);
+
+      if (!in_range) {
+        in_range = phg.partWeight(1) - round(0.5 * (_context.partition.epsilon + 1) * phg.totalWeight()) <= 0;
+      } else {
+        quality_improves = false; /* TODO */
+      }
     }
+    
+    target[indices[threshold_index]] = 1;
+    phg.changeNodePart(indices[threshold_index], 0, 1);
   }
 
 

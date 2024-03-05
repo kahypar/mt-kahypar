@@ -86,7 +86,10 @@ class SpectralRefiner final : public IRefiner {
 
   void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target);
 
-  void generateSolution(vec<spectral::Vector> &embedding, vec<PartitionID> &target); /* TODO aliase */
+  void generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target); /* TODO aliase */
+
+  template <typename Collection>
+  void setPartition(PartitionedHypergraph &phg, Collection &partition);
 
 
   void resizeDataStructuresForCurrentK() {
