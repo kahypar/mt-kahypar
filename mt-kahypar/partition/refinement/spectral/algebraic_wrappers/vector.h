@@ -41,11 +41,20 @@ class Vector {
   void set(size_t index, const Skalar &&value);
   void set(size_t index, const Skalar &value);
 
+  void setGetter(Skalar (*getter) (size_t));
+  void disableGetter();
+
+  Skalar operator[](size_t index);
+
   const Skalar *get_all();
   void set_all(const Skalar *data_array);
+
+  Vector& operator+=(Vector& v);
  private:
   size_t dim;
   Skalar _default_value;
+  bool use_getter = false;
+  std::function<Skalar(size_t)> custom_getter;
   vec<Skalar> data;
 
   template <typename F>

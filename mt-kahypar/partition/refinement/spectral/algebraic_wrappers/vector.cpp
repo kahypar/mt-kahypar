@@ -40,6 +40,10 @@ size_t Vector::dimension() {
 }
 
 Skalar Vector::get(size_t index) {
+  if (use_getter) {
+    return custom_getter(index);
+  }
+
   if (index >= data.size()) {
     data.resize(index + 1, _default_value);
   }
@@ -48,6 +52,7 @@ Skalar Vector::get(size_t index) {
 
 template <typename F>
 void Vector::set_generalized(size_t index, F &&set_op) {
+  disableGetter();
   if (index >= data.size()) { /* TODO copied code 8S */
     data.resize(index + 1, _default_value);
   }
@@ -64,6 +69,11 @@ void Vector::set(size_t index, const Skalar &value) {
 
 
 const Skalar *Vector::get_all() {
+  if (use_getter) {
+    for (size_t i = 0; i < dimension(); i++) {
+      set(i, get(i));
+    }
+  }
   get(dimension() - 1);
   return data.data();
 }
@@ -73,6 +83,26 @@ void Vector::set_all(const Skalar *data_array) {
     set(i, data_array[i]);
   }
   
+}
+
+void Vector::setGetter(Skalar (*getter) (size_t)) {
+  custom_getter = getter;
+  use_getter = true;
+}
+
+void Vector::disableGetter() {
+  use_getter = false;
+}
+
+Vector& Vector::operator+=(Vector& v) {
+  for (size_t i = 0; i < dimension(); i++) {
+    set(i, get(i) + v[i]);
+  }
+  return *this;
+}
+
+Skalar Vector::operator[](size_t index) {
+  return get(index);
 }
 
 }

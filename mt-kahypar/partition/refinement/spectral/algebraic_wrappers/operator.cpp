@@ -31,16 +31,17 @@ namespace spectral {
 
 Operator::Operator(size_t dimension) {
   dim = dimension;
-  effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+  // initialize with id
+  effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
     for (size_t i = 0; i < operand.dimension(); i++) {
-      target_vector.set(i, operand.get(i));
+      target_vector.set(i, operand[i]);
     }
-  };
-  calc_diagonal = [] (Operator *self, Vector& target_vector) {
+  });
+  calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
     for (size_t i = 0; i < target_vector.dimension(); i++) {
       target_vector.set(i, 1.0);
     }
-  };
+  });
 }
 
 size_t Operator::dimension() {
@@ -48,11 +49,15 @@ size_t Operator::dimension() {
 }
 
 void Operator::apply(Vector& operand, Vector& target) {
-  effect(this, operand, target);
+  for (auto effect: effects) {
+    effect(this, operand, target);
+  }
 }
 
 void Operator::getDiagonal(Vector& target) {
-  calc_diagonal(this, target);
+  for (auto op: calc_diagonal_ops) {
+    op(this, target);
+  }
 }
 
 void Operator::getMatrix(vec<Vector> &target) {
@@ -68,6 +73,11 @@ void Operator::getMatrix(vec<Vector> &target) {
 
 bool Operator::isSymmetric() {
   return true; /* TODO */
+}
+
+Operator& Operator::operator+=(Operator& op) { /* TODO not that clean algebraically nor softwaretechnically */
+  effects.insert(effects.end(), op.effects.begin(), op.effects.end());
+  return *this;
 }
 
 }

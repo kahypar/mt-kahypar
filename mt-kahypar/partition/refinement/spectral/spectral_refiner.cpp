@@ -148,7 +148,7 @@ namespace mt_kahypar {
 
     target.ctx = (void *) &hypergraph;
 
-    target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+    target.effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
       size_t n = operand.dimension();
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
@@ -171,12 +171,13 @@ namespace mt_kahypar {
       }
 
       // calculate result
+      target_vector.setGetter([](size_t i) { return 0.0; })
       for (size_t i = 0; i < target_vector.dimension(); i++) {
         target_vector.set(i, operand.get(i) * factor.get(i) - subtrahend.get(i));
       }
-    };
+    });
 
-    target.calc_diagonal = [] (Operator *self, Vector& target_vector) {
+    target.calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       for (const HypernodeID& node : hg->nodes()) {
         size_t index = node; /* TODO calculate index */
@@ -185,7 +186,7 @@ namespace mt_kahypar {
           target_vector.set(node, target_vector.get(node) + 1);
         }
       }
-    };
+    });
   }
   
   
@@ -193,7 +194,7 @@ namespace mt_kahypar {
   void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     target.ctx = (void *) &hypergraph;
 
-    target.effect = [](Operator *self, Vector& operand, Vector& target_vector) {
+    target.effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       auto dimension = operand.dimension();
 
@@ -206,9 +207,9 @@ namespace mt_kahypar {
         size_t index = node; /* TODO calculate index */
         target_vector.set(index, hg->nodeWeight(node) * (operand.get(index) - sum_x / dimension));
       }
-    };
+    });
 
-    target.calc_diagonal = [] (Operator *self, Vector& target_vector) {
+    target.calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
       spectral::Skalar total_node_weight = 0.0; // TODO use Hypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) ???
@@ -219,9 +220,9 @@ namespace mt_kahypar {
       for (const HypernodeID node : hg->nodes()) {
         size_t index = node; /* TODO calculate index */
         spectral::Skalar weight = hg->nodeWeight(node);
-        target_vector.set(index, weight * (total_node_weight - weight));
+        target_vector.set(index, target_vector[index] + weight * (total_node_weight - weight));
       }
-    };
+    });
   }
 
 

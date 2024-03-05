@@ -47,16 +47,16 @@ class Operator {
 
   bool isSymmetric();
 
-  /* only makeshift */
-  void (*effect) (Operator*, Vector&, Vector&) = [](Operator *self, Vector& operand, Vector& target) { throw "unassigned"; };
-  void (*calc_diagonal) (Operator*, Vector&) = [](Operator *self, Vector& target) { throw "unassigned"; };
+  Operator& operator+= (Operator& op);
+
+  vec<std::function<void(Operator*, Vector&, Vector&)>> effects;
+  vec<std::function<void(Operator*, Vector&)>> calc_diagonal_ops;
+
   void *ctx;
 
  private:
   size_t dim;
 };
-
-Operator operator+ (Operator& a, Operator& b);
 
 }
 }
