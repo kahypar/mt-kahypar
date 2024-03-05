@@ -375,7 +375,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   auto& ratings = default_rating_maps.local();
   ratings.clear();
   // calculate ratings
-  if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::single_bloom) {
+  if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::single_bloom && !hg.is_graph) {
     auto& bloom_filter = bloom_filters.local();
     for (HyperedgeID he : hg.incidentEdges(u)) {
       HypernodeID he_size = hg.edgeSize(he);
@@ -393,7 +393,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
         bloom_filter.reset();
       }
     }
-  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::no_deduplication) {
+  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::no_deduplication || hg.is_graph) {
     for (HyperedgeID he : hg.incidentEdges(u)) {
       HypernodeID he_size = hg.edgeSize(he);
       if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
@@ -404,7 +404,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
         }
       }
     }
-  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::exact) {
+  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::exact && !hg.is_graph) {
     auto& bloom_filter = bloom_filters.local();
     for (HyperedgeID he : hg.incidentEdges(u)) {
       HypernodeID he_size = hg.edgeSize(he);

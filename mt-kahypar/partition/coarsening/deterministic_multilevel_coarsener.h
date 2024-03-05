@@ -404,8 +404,10 @@ private:
   }
 
   void initializeEdgeDeduplication(const EdgeDeduplicationPolicy policy, mt_kahypar_hypergraph_t hypergraph) {
+    auto& hg = utils::cast<Hypergraph>(hypergraph);
+    // no deduplication needed
+    if (hg.is_graph) return;
     if (policy == EdgeDeduplicationPolicy::single_bloom) {
-      auto& hg = utils::cast<Hypergraph>(hypergraph);
       size_t max_edge_size =
         tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
           HyperedgeID(0), hg.initialNumEdges()), HypernodeID(2),
