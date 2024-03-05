@@ -85,10 +85,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             total_gain += AttributedGains::gain(sync_update);
         }
 
-        if (total_gain <= 0) {
-            add_node_fn();
-            _locks.set(hn);
-        }
+        // if (total_gain <= 0) {
+        //     add_node_fn();
+        //     //_locks.set(hn);
+        // }
+        return total_gain;
     };
 
     _current_partition_is_best = true;
@@ -145,13 +146,17 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     hypergraphAfterburner(phg);
                     tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
                         const auto hn = _active_nodes[j];
-                        const Gain gain = _afterburner_gain[hn];
+                        const Gain afterburner_gain = _afterburner_gain[hn];
+                        const Gain gain = afterburner(hn, [&] {});
+                        if (afterburner_gain != gain) {
+                            std::cout << V(gain) << " != " << V(afterburner_gain) << ", " << V(hn) << V(phg.nodeWeight(hn)) << std::endl;
+                        }
                         if (gain <= 0 || _context.refinement.deterministic_refinement.jet.afterburner_iterate_all) {
                             tmp_active_nodes.stream(hn);
-                            _gains_and_target[hn].first = gain;
+                            //_gains_and_target[hn].first = gain;
                         } else {
-                            _gains_and_target[hn].first = gain;
-                            _gains_and_target[hn] = { 0, phg.partID(hn) };
+                            //_gains_and_target[hn].first = gain;
+                            //_gains_and_target[hn] = { 0, phg.partID(hn) };
                         }
                     });
                     _active_nodes = tmp_active_nodes.copy_parallel();
