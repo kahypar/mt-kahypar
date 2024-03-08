@@ -103,17 +103,20 @@ namespace mt_kahypar {
     Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
 
-    // vec<spectral::Vector> inputGraphLaplacianMatrix;
-    // inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
-    // for(spectral::Vector row : inputGraphLaplacianMatrix) {
-    //   std::ostringstream row_str;
-    //   for (size_t i = 0; i < numNodes; i++) {
-    //     char buf[100];
-    //     sprintf(buf, " %+.2f", row[i]);
-    //     row_str << buf;
-    //   }
-    //   DBG << row_str.str();
-    // }
+    /* vec<spectral::Vector> inputGraphLaplacianMatrix;
+    spectral::Vector diagonal(numNodes);
+    inputGraphLaplacian.getDiagonal(diagonal);
+    inputGraphLaplacianMatrix.push_back(diagonal);
+    //inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
+    for(spectral::Vector row : inputGraphLaplacianMatrix) {
+      std::ostringstream row_str;
+      for (size_t i = 0; i < numNodes; i++) {
+        char buf[100];
+        sprintf(buf, " %+.2f", row[i]);
+        row_str << buf;
+      }
+      DBG << row_str.str();
+    } */
 
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
@@ -190,6 +193,12 @@ namespace mt_kahypar {
           operand_dot_e += operand[pin];
           edge_pin_count++;
         }
+
+        // skip isolated vertices
+        if (edge_pin_count == 1) {
+          continue;
+        }
+
         HypernodeID edge_size = hg->edgeSize(he); /* TODO weights */
         spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
 
