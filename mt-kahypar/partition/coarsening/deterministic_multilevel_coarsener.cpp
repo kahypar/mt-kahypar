@@ -56,9 +56,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     });
   }
 
-
-  const size_t num_edges_before = hg.initialNumEdges();
-  const size_t num_pins_before = hg.initialNumPins();
   const bool isTrianglePass = hg.is_graph && pass < _context.coarsening.num_triangle_levels;
   const bool isMatchingPass = pass < _context.coarsening.num_matching_levels;
   if (isTrianglePass) {
@@ -69,7 +66,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     const size_t contractable_nodes_per_subround = std::ceil(static_cast<double>(num_nodes - currentLevelContractionLimit()) / config.num_sub_rounds);
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
     for (;sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-      utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(
         sub_round, config.num_buckets, config.num_buckets_per_sub_round);
       size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
@@ -98,15 +94,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       }
 
       handleNodeSwaps(first, last, hg);
-
-      size_t m_num_heavy_clusters = 0;
-      if (_context.type == ContextType::main) {
-        for (const auto& op_c_w : opportunistic_cluster_weight) {
-          if (op_c_w > maxAllowedNodeWeightInPass()) {
-            m_num_heavy_clusters++;
-          }
-        }
-      }
       if (_context.coarsening.split_contraction_limit_between_subrounds && _context.type == ContextType::main) {
         contractable_nodes.clear();
         for (size_t i = first; i < last; ++i) {
@@ -286,85 +273,19 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
         passed_nodes_from_previous_subround.clear();
       }
-      if (_context.type == ContextType::main) {
-        double shrinkage = num_nodes_before_pass / num_nodes;
-        measurements.shrinkage_per_subround[sub_round].push_back(shrinkage);
-        measurements.num_heavy_clusters_per_subround[sub_round].push_back(m_num_heavy_clusters);
-      }
     }
 
   } else {
     num_nodes -= performMatching(clusters);
-  }
-  utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
-  if (_context.type == ContextType::main) {
-    if (sub_round < config.num_sub_rounds) {
-      for (size_t i = sub_round; i < config.num_sub_rounds; ++i) {
-        const double shrinkage = sub_round > 0 ? measurements.shrinkage_per_subround[sub_round - 1].back() : 0.0;
-        measurements.shrinkage_per_subround[sub_round].push_back(shrinkage);
-        measurements.num_heavy_clusters_per_subround[sub_round].push_back(0);
-      }
-    }
   }
   timer.stop_timer("coarsening_pass");
   ++pass;
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
     return false;
   }
-  if (_context.type == ContextType::main) {
-    std::unordered_map<HypernodeID, HypernodeWeight> cluster_sizes;
-    for (const HypernodeID& hn : hg.nodes()) {
-      const auto cluster_id = clusters[hn];
-      const auto weight = hg.nodeWeight(hn);
-      auto it = cluster_sizes.find(cluster_id);
-      if (it == cluster_sizes.end()) {
-        cluster_sizes.insert({ cluster_id, weight });
-      } else {
-        it->second += weight;
-      }
-    }
-    parallel::scalable_vector<HypernodeWeight> weights(cluster_sizes.size());
-    size_t index = 0;
-    size_t sum = 0;
-    for (const auto& e : cluster_sizes) {
-      weights[index++] = e.second;
-      sum += e.second;
-    }
-    std::sort(weights.begin(), weights.end());
-    const size_t min = weights[0];
-    const size_t max = weights[weights.size() - 1];
-    const size_t median = weights[weights.size() / 2];
-    const double avg = static_cast<double>(sum) / weights.size();
-    const size_t count = weights.size();
-    measurements.min_cluster_size.push_back(min);
-    measurements.max_cluster_size.push_back(max);
-    measurements.median_cluster_size.push_back(median);
-    measurements.avg_cluster_size.push_back(avg);
-    measurements.cluster_count.push_back(count);
-    size_t singletons = 0;
-    while (weights[singletons] == 1) {
-      singletons++;
-    }
-    measurements.num_singletons.push_back(singletons);
-    measurements.executed_subrounds.push_back(sub_round);
-  }
   _timer.start_timer("contraction", "Contraction");
   _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
   _timer.stop_timer("contraction");
-  if (_context.type == ContextType::main) {
-    Hypergraph& after = Base::currentHypergraph();
-    const size_t eliminatedEdges = num_edges_before - after.initialNumEdges();
-    const size_t eliminatedPins = num_pins_before - after.initialNumPins();
-    measurements.eliminated_edges.push_back(eliminatedEdges);
-    measurements.eliminated_pins.push_back(eliminatedPins);
-    size_t score = 0;
-    for (auto edge : after.edges()) {
-      const HyperedgeWeight weight = after.edgeWeight(edge);
-      const HypernodeWeight size = after.edgeSize(edge);
-      score += weight * size;
-    }
-    measurements.score.push_back(score);
-  }
   passed_nodes_from_previous_subround.clear();
   return true;
 }
