@@ -55,8 +55,11 @@ namespace mt_kahypar {
     DBG << "Spectral Refiner called";
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("partition_sp", "Partition");
-    partition(partionedHypergraph);
+    bool found_new_partition = partition(partionedHypergraph, best_metrics);
     timer.stop_timer("partition_sp");
+    if (found_new_partition) {
+      DBG << "found new partitioning solution";
+    }
     DBG << "Spectral Refiner finished partitioning";
 
     // recalculate metrics
@@ -80,7 +83,7 @@ namespace mt_kahypar {
 
 
   template <typename GraphAndGainTypes>
-  void SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& phg) {
+  bool SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& phg, Metrics &best_metrics) {
     if constexpr (Hypergraph::is_graph) {
       /* TODO */
     }
@@ -120,12 +123,13 @@ namespace mt_kahypar {
 
     vec<vec<PartitionID>> candidateSolutions; /* TODO alias */
     candidateSolutions.reserve(1/* TODO argv "beta" */ + 1);
-    candidateSolutions.push_back(inputPartition);//std::move(phg)); /* TODO alloc vs constructor error*/
+    Gain best_cutsize;
+    size_t best_index;
 
     for (int i = 0; i < 1 /* TODO argv "beta" */; i++) {
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
-        generate2WayVertexEmbedding(weightBalanceLaplacian, inputGraphLaplacian, phg/* candidateSolutions.back() */, embedding);
+        generate2WayVertexEmbedding(weightBalanceLaplacian, inputGraphLaplacian, phg, embedding);
       } else {
         /* TODO */
       }
@@ -133,9 +137,28 @@ namespace mt_kahypar {
       vec<PartitionID> newSolution;
       generateSolution(phg, embedding, newSolution);
       candidateSolutions.push_back(newSolution);
+
+      // calulate metrics
+      Gain new_cutsize = metrics::quality(phg, _context, !_context.refinement.label_propagation.execute_sequential);
+      if (candidateSolutions.size() == 1 || new_cutsize < best_cutsize) {
+        best_cutsize = new_cutsize;
+        best_index = candidateSolutions.size() - 1;
+      }
+      
     }
 
-    setPartition(phg, candidateSolutions.back());
+    bool found_valid_solution = best_cutsize <= best_metrics.quality;
+    best_metrics.quality = found_valid_solution ? best_cutsize : best_metrics.quality;
+
+    DBG << V(best_cutsize);
+
+    if (found_valid_solution && best_index != candidateSolutions.size() - 1) {
+      setPartition(phg, candidateSolutions[best_index]);
+    } else {
+      setPartition(phg, inputPartition);
+    }
+
+    return found_valid_solution;
   }
 
   template <typename GraphAndGainTypes>
@@ -154,7 +177,7 @@ namespace mt_kahypar {
 
     target.ctx = (void *) &hypergraph;
 
-    target.effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
+    target.effects[0] = [](Operator *self, Vector& operand, Vector& target_vector) {
       size_t n = operand.dimension();
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
@@ -177,13 +200,13 @@ namespace mt_kahypar {
       }
 
       // calculate result
-      target_vector.setGetter([](size_t i) { return 0.0; })
+      target_vector.setGetter([](size_t i) { return 0.0; });
       for (size_t i = 0; i < target_vector.dimension(); i++) {
         target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i]);
       }
-    });
+    };
 
-    target.calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
+    target.calc_diagonal_ops[0] = [] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       for (const HypernodeID& node : hg->nodes()) {
         size_t index = node; /* TODO calculate index */
@@ -192,7 +215,7 @@ namespace mt_kahypar {
           target_vector.set(node, target_vector[node] + 1);
         }
       }
-    });
+    };
   }
   
   
@@ -240,8 +263,9 @@ namespace mt_kahypar {
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
     spectral::Vector one(numNodes, 1.0);
+    Skalar zero = 0.0;
     spectral::Operator dummy(numNodes);
-    solver.setProblem(graphLaplacian, dummy, one);//baseBalance /*+ hintGraphLaplacian*/);
+    solver.setProblem(graphLaplacian, dummy, one, zero);//baseBalance /*+ hintGraphLaplacian*/);
 
     spectral::Skalar a;
     spectral::Vector v(numNodes);
@@ -256,34 +280,48 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
+    spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * phg.totalWeight());
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      _gain.computeDeltaForHyperedge(sync_update);
+    };
+    
     spectral::Vector &fiedler = embedding[1];
 
+    // index list for nodes
     vec<HypernodeID> indices;
     indices.assign(phg.nodes().begin(), phg.nodes().end());
 
+    // sort by fiedler entry
     std::sort(indices.begin(), indices.end(), [&](const HypernodeID& u, const HypernodeID& v) { return fiedler[u] < fiedler[v]; });
 
+    // initialize with all nodes belonging to partition 1
     target.resize(numNodes, 1);
     setPartition(phg, target);
+    _gain.reset();
 
-    spectral::Skalar threshold_index = 0;
-
+    spectral::Skalar split_index = 0;
     bool in_range = false;
     bool quality_improves = false;
+    /* TODO check whole range */
     while (!in_range || quality_improves) {
-      threshold_index++;
-      target[indices[threshold_index]] = 0;
-      phg.changeNodePart(indices[threshold_index], 1, 0);
+      Gain delta_before = _gain.localDelta();
+      // move current node
+      split_index++;
+      target[indices[split_index]] = 0;
+      /* TODO only calc delta if in range */
+      phg.changeNodePart(indices[split_index], 1, 0, objective_delta);
 
+      // update conditions
       if (!in_range) {
-        in_range = phg.partWeight(1) - round(0.5 * (_context.partition.epsilon + 1) * phg.totalWeight()) <= 0;
+        in_range = phg.partWeight(1) <= max_part_weight;
       } else {
-        quality_improves = false; /* TODO */
+        quality_improves = _gain.localDelta() - delta_before <= 0;
       }
     }
     
-    target[indices[threshold_index]] = 1;
-    phg.changeNodePart(indices[threshold_index], 0, 1);
+    // undo last move
+    phg.changeNodePart(indices[split_index], 0, 1, objective_delta);
+    target[indices[split_index]] = 1;
   }
 
 
