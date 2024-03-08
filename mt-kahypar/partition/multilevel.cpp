@@ -102,44 +102,6 @@ typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
         utils::cast<Hypergraph>(coarsestHypergraph), context,
         "Coarsened Hypergraph", context.partition.show_memory_consumption);
     }
-    if (context.type == ContextType::main) {
-      Hypergraph& hg = utils::cast<Hypergraph>(coarsener->coarsestHypergraph());
-      auto& measurements = utils::Utilities::instance().getMeasurements(context.utility_id);
-      parallel::scalable_vector<HypernodeWeight> weights(hg.initialNumNodes());
-      size_t index = 0;
-      size_t sum = 0;
-      for (const HypernodeID& hn : hg.nodes()) {
-        const HypernodeWeight w = hg.nodeWeight(hn);
-        weights[index++] = w;
-        sum += w;
-      }
-      std::sort(weights.begin(), weights.end());
-      const size_t min = weights[0];
-      const size_t max = weights[weights.size() - 1];
-      const size_t median = weights[weights.size() / 2];
-      const double avg = static_cast<double>(sum) / weights.size();
-      const size_t count = weights.size();
-      measurements.final_min_cluster_size = min;
-      measurements.final_max_cluster_size = max;
-      measurements.final_median_cluster_size = median;
-      measurements.final_avg_cluster_size = avg;
-      measurements.final_cluster_count = count;
-      measurements.final_num_edges = hg.initialNumEdges();
-      measurements.final_num_pins = hg.initialNumPins();
-      size_t singletons = 0;
-      while (weights[singletons] == 1) {
-        singletons++;
-      }
-      measurements.final_num_singletons = singletons;
-
-      size_t score = 0;
-      for (auto edge : hg.edges()) {
-        const HyperedgeWeight weight = hg.edgeWeight(edge);
-        const HypernodeWeight size = hg.edgeSize(edge);
-        score += weight * size;
-      }
-      measurements.final_score = score;
-    }
   }
   timer.stop_timer("coarsening");
   // ################## INITIAL PARTITIONING ##################

@@ -173,8 +173,6 @@ private:
             << V(current_hg.initialNumNodes())
             << V(current_hg.initialNumEdges())
             << V(current_hg.initialNumPins());
-        const size_t num_edges_before = current_hg.initialNumEdges();
-        const size_t num_pins_before = current_hg.initialNumPins();
 
         // Random shuffle vertices of current hypergraph
         _current_vertices.resize(current_hg.initialNumNodes());
@@ -239,61 +237,10 @@ private:
             return false;
         }
         _progress_bar += (num_hns_before_pass - current_num_nodes);
-        utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(_context.utility_id);
-        if (_context.type == ContextType::main) {
-            std::unordered_map<HypernodeID, HypernodeWeight> cluster_sizes;
-            for (const HypernodeID& hn : current_hg.nodes()) {
-                const auto cluster_id = cluster_ids[hn];
-                const auto weight = current_hg.nodeWeight(hn);
-                auto it = cluster_sizes.find(cluster_id);
-                if (it == cluster_sizes.end()) {
-                    cluster_sizes.insert({ cluster_id, weight });
-                } else {
-                    it->second += weight;
-                }
-            }
-            parallel::scalable_vector<HypernodeWeight> weights(cluster_sizes.size());
-            size_t index = 0;
-            size_t sum = 0;
-            for (const auto& e : cluster_sizes) {
-                weights[index++] = e.second;
-                sum += e.second;
-            }
-            std::sort(weights.begin(), weights.end());
-            const size_t min = weights[0];
-            const size_t max = weights[weights.size() - 1];
-            const size_t median = weights[weights.size() / 2];
-            const double avg = static_cast<double>(sum) / weights.size();
-            const size_t count = weights.size();
-            measurements.min_cluster_size.push_back(min);
-            measurements.max_cluster_size.push_back(max);
-            measurements.median_cluster_size.push_back(median);
-            measurements.avg_cluster_size.push_back(avg);
-            measurements.cluster_count.push_back(count);
-            size_t singletons = 0;
-            while (weights[singletons] == 1) {
-                singletons++;
-            }
-            measurements.num_singletons.push_back(singletons);
-        }
         _timer.start_timer("contraction", "Contraction");
         // Perform parallel contraction
         _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
         _timer.stop_timer("contraction");
-        if (_context.type == ContextType::main) {
-            Hypergraph& after = Base::currentHypergraph();
-            const size_t eliminatedEdges = num_edges_before - after.initialNumEdges();
-            const size_t eliminatedPins = num_pins_before - after.initialNumPins();
-            measurements.eliminated_edges.push_back(eliminatedEdges);
-            measurements.eliminated_pins.push_back(eliminatedPins);
-            size_t score = 0;
-            for (auto edge : after.edges()) {
-                const HyperedgeWeight weight = after.edgeWeight(edge);
-                const HypernodeWeight size = after.edgeSize(edge);
-                score += weight * size;
-            }
-            measurements.score.push_back(score);
-        }
         ++_pass_nr;
         return true;
     }
