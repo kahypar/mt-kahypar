@@ -41,12 +41,14 @@ class Vector {
   void set(size_t index, const Skalar &&value);
   void set(size_t index, const Skalar &value);
 
-  void setGetter(Skalar (*getter) (size_t));
+  template <typename F>
+  void setGetter(F getter);
+  
   void disableGetter();
 
   Skalar operator[](size_t index);
 
-  const Skalar *get_all();
+  Skalar *get_all();
   void set_all(const Skalar *data_array);
 
   Vector& operator+=(Vector& v);

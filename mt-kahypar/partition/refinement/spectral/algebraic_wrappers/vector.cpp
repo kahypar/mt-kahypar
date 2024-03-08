@@ -41,7 +41,7 @@ size_t Vector::dimension() {
 
 Skalar Vector::get(size_t index) {
   if (use_getter) {
-    return custom_getter(index);
+    return (Skalar) custom_getter(index);
   }
 
   if (index >= data.size()) {
@@ -68,24 +68,26 @@ void Vector::set(size_t index, const Skalar &value) {
 }
 
 
-const Skalar *Vector::get_all() {
+Skalar *Vector::get_all() {
   if (use_getter) {
     for (size_t i = 0; i < dimension(); i++) {
       set(i, get(i));
     }
   }
-  get(dimension() - 1);
+  data.resize(dimension(), _default_value);
   return data.data();
 }
 
 void Vector::set_all(const Skalar *data_array) {
-  for (size_t i = 0; i < dimension(); i++) {
+  data.insert(data.begin(), data_array, data_array + (data.size() * sizeof(Skalar)));
+  /* for (size_t i = 0; i < dimension(); i++) {
     set(i, data_array[i]);
-  }
+  } */
   
 }
 
-void Vector::setGetter(Skalar (*getter) (size_t)) {
+template <typename F>
+void Vector::setGetter(F getter) {
   custom_getter = getter;
   use_getter = true;
 }
