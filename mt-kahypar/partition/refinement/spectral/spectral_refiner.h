@@ -40,6 +40,7 @@ class SpectralRefiner final : public IRefiner {
   using Hypergraph = typename GraphAndGainTypes::Hypergraph;
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
   using GainCache = typename GraphAndGainTypes::GainCache;
+  using GainCalculator = typename GraphAndGainTypes::GainComputation;
 
   static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = true;
@@ -50,7 +51,8 @@ class SpectralRefiner final : public IRefiner {
                            const Context& context,
                            GainCache& gain_cache) :
     _context(context),
-    _gain_cache(gain_cache) {
+    _gain_cache(gain_cache),
+    _gain(_context) {
       unused(num_hypernodes);
       unused(num_hyperedges);
     }
@@ -76,7 +78,7 @@ class SpectralRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
-  void partition(PartitionedHypergraph &phg);
+  bool partition(PartitionedHypergraph &phg, Metrics &best_metrics);
 
   void dehyperizeToLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
@@ -98,6 +100,8 @@ class SpectralRefiner final : public IRefiner {
 
   const Context& _context;
   GainCache& _gain_cache;
+
+  GainCalculator _gain;
 
   size_t numNodes;
 };
