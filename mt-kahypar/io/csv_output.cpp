@@ -93,43 +93,7 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("sorting") << sep;
   s << timer.get("find_moves") << sep;
   s << timer.get("exe_moves") << sep;
-  s << timer.get("reb_quality") << sep;
-  utils::Measurements& measurements = utils::Utilities::instance().getMeasurements(context.utility_id);
-  s << measurements.final_min_cluster_size << sep;
-  s << measurements.final_max_cluster_size << sep;
-  s << measurements.final_median_cluster_size << sep;
-  s << measurements.final_avg_cluster_size << sep;
-  s << measurements.final_cluster_count << sep;
-  s << measurements.final_num_singletons << sep;
-  s << measurements.final_num_edges << sep;
-  s << measurements.final_num_pins << sep;
-  s << measurements.final_score;
-  for (size_t i = 0; i < measurements.min_cluster_size.size(); ++i) {
-    s << sep << measurements.min_cluster_size[i] << sep;
-    s << measurements.max_cluster_size[i] << sep;
-    s << measurements.median_cluster_size[i] << sep;
-    s << measurements.avg_cluster_size[i] << sep;
-    s << measurements.cluster_count[i] << sep;
-    s << measurements.num_singletons[i] << sep;
-    s << measurements.eliminated_edges[i] << sep;
-    s << measurements.eliminated_pins[i] << sep;
-    s << measurements.score[i] << sep;
-    const size_t executed_subrounds = measurements.executed_subrounds.size() > i ? measurements.executed_subrounds[i] : 0;
-    s << executed_subrounds << sep;
-    for (const auto& vec : measurements.num_heavy_clusters_per_subround) {
-      const auto v = i < vec.size() ? vec[i] : 0;
-      s << v << sep;
-    }
-    for (const auto& vec : measurements.shrinkage_per_subround) {
-      const auto v = i < vec.size() ? vec[i] : 0;
-      s << v << sep;
-    }
-    // refinement
-    s << measurements.refinement_scores[i];
-  }
-
-
-
+  s << timer.get("reb_quality");
   return s.str();
 }
 

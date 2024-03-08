@@ -47,8 +47,6 @@ bool DeterministicMultilevelCoarsener2<TypeTraits>::coarseningPassImpl() {
     propositions[u] = u;
     clusters[u] = u;
   });
-  const size_t num_edges_before = hg.initialNumEdges();
-  const size_t num_pins_before = hg.initialNumPins();
   parallel::scalable_vector<HypernodeID> permutation(num_nodes);
   tbb::parallel_for(0UL, num_nodes, [&](size_t i) {
     permutation[i] = i;
