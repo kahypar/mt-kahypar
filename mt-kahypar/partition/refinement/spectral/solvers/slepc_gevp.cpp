@@ -116,7 +116,7 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
   PetscFunctionReturnVoid();
 }
 
-void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec) {
+void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec, Skalar &trivial_eval) {
   PetscFunctionBeginUser;
   
   setProblem(a, b);
@@ -125,6 +125,8 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec)
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, trivial_evec.dimension(), &v));
   vector2Vec(trivial_evec, v);
   evecs.push_back(v);
+
+  evals.push_back(trivial_eval);
 
   PetscFunctionReturnVoid();
 }
@@ -143,6 +145,7 @@ int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
       return 0;
     } else {
       tried_from_above = true;
+      CallPetsc(EPSSetOperators(eps, mat_B, mat_A));
       CallPetsc(EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL));
       return nextEigenpair(eval, evec);
     }
@@ -162,13 +165,18 @@ int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
   CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, evec.dimension(), &xi));
   CallPetsc(EPSGetEigenpair(eps, 0, &kr, &ki, xr, xi));
 
-  eval = kr;
+  eval = tried_from_above ? 1.0 / kr : kr;
   vec2vector(xr, evec);
   
   evals.push_back(kr);
   evecs.push_back(xr);
 
-  PetscFunctionReturn(tried_from_above ? -1 : 1);
+  if (tried_from_above) {
+    tried_from_above = false;
+    PetscFunctionReturn(-1);
+  } else {
+    PetscFunctionReturn(1);
+  }
 }
 
 void SLEPcGEVPSolver::reset_matrices() {
@@ -245,10 +253,13 @@ void SLEPcGEVPSolver::vec2vector(Vec slepc_vec, Vector& vector) {
 
   Range(vector.dimension());
 
-  vec<Skalar> arr;
-  arr.resize(vector.dimension());
-  CallPetsc(VecGetValues(slepc_vec, vector.dimension(), range, arr.data()));
-  vector.set_all(arr.data());
+  CallPetsc(VecGetValues(slepc_vec, vector.dimension(), range, vector.get_all()));
+
+  /* vector.setGetter([&](size_t i){
+    PetscScalar value;
+    CallPetsc(VecGetValues(slepc_vec, (PetscInt) 1, (const PetscInt *) &i, &value));
+    return value;
+  }); */
   
   PetscFunctionReturnVoid();
 }
