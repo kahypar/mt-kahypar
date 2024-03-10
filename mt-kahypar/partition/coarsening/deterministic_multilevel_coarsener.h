@@ -426,6 +426,9 @@ private:
       auto& hg = utils::cast<Hypergraph>(hypergraph);
       bloom_filter_mask = hg.initialNumNodes();
       bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
+    } else if (policy == EdgeDeduplicationPolicy::exponential_decay) {
+      auto& hg = utils::cast<Hypergraph>(hypergraph);
+      pins_per_cluster = tbb::enumerable_thread_specific<vec<size_t>>(hg.initialNumNodes());
     }
   }
 
@@ -458,5 +461,6 @@ private:
 
   size_t bloom_filter_mask;
   tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>> bloom_filters;
+  tbb::enumerable_thread_specific<vec<size_t>> pins_per_cluster;
 };
 }

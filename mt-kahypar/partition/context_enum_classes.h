@@ -169,9 +169,8 @@ enum class ClusterTieBreakingPolicy: uint8_t {
 enum class EdgeDeduplicationPolicy: uint8_t {
   no_deduplication,
   single_bloom,
-  bloom_2,
-  bloom_3,
   exact,
+  exponential_decay,
   UNDEFINED
 };
 

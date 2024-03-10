@@ -342,6 +342,24 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
         bloom_filter.reset();
       }
     }
+  } else if (_context.coarsening.edge_deduplication_policy == EdgeDeduplicationPolicy::exponential_decay && !hg.is_graph) {
+    auto& pins_in_edge = pins_per_cluster.local();
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      HypernodeID he_size = hg.edgeSize(he);
+      if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+        he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
+        double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+        for (HypernodeID v : hg.pins(he)) {
+          const HypernodeID target = clusters[v];
+          ratings[target] += he_score / (1 << pins_in_edge[target]);
+          pins_in_edge[target]++;
+        }
+        for (HypernodeID v : hg.pins(he)) {
+          const HypernodeID target = clusters[v];
+          pins_in_edge[target] = 0;
+        }
+      }
+    }
   } else {
     std::cout << "NOT IMPLEMENTED" << std::endl;
   }

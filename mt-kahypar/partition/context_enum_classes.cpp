@@ -244,9 +244,8 @@ std::ostream& operator<< (std::ostream& os, const EdgeDeduplicationPolicy& strat
   switch (strategy) {
   case EdgeDeduplicationPolicy::no_deduplication: return os << "no_deduplication";
   case EdgeDeduplicationPolicy::single_bloom: return os << "single_bloom";
-  case EdgeDeduplicationPolicy::bloom_2: return os << "bloom_2";
-  case EdgeDeduplicationPolicy::bloom_3: return os << "bloom_3";
   case EdgeDeduplicationPolicy::exact: return os << "exact";
+  case EdgeDeduplicationPolicy::exponential_decay:  return os << "exponential_decay";
   case EdgeDeduplicationPolicy::UNDEFINED: return os << "UNDEFINED";
     // omit default case to trigger compiler warning for missing cases
   }
@@ -550,12 +549,10 @@ EdgeDeduplicationPolicy edgeDeduplicationPolicyFromString(const std::string& pol
     return EdgeDeduplicationPolicy::no_deduplication;
   } else if (policy == "single_bloom") {
     return EdgeDeduplicationPolicy::single_bloom;
-  } else if (policy == "bloom_2") {
-    return EdgeDeduplicationPolicy::bloom_2;
-  } else if (policy == "bloom_3") {
-    return EdgeDeduplicationPolicy::bloom_3;
   } else if (policy == "exact") {
     return EdgeDeduplicationPolicy::exact;
+  } else if (policy == "exponential_decay") {
+    return EdgeDeduplicationPolicy::exponential_decay;
   }
   throw InvalidParameterException("Illegal option: " + policy);
   return EdgeDeduplicationPolicy::UNDEFINED;
