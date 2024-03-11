@@ -141,6 +141,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 });
                 _moves = tmp_active_nodes.copy_parallel();
             } else {
+                parallel::scalable_vector<PartitionID> parties(phg.initialNumNodes());
                 for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
                     hypergraphAfterburner(phg);
                     tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
@@ -148,14 +149,44 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                         const Gain gain = _afterburner_gain[hn];
                         if (gain <= 0 || _context.refinement.deterministic_refinement.jet.afterburner_iterate_all) {
                             tmp_active_nodes.stream(hn);
+                            //std::cout << V( _gains_and_target[hn].first)  << " --> " << V(gain) << std::endl;
                             _gains_and_target[hn].first = gain;
                         } else {
-                            _gains_and_target[hn].first = gain;
                             _gains_and_target[hn] = { 0, phg.partID(hn) };
                         }
                     });
                     _active_nodes = tmp_active_nodes.copy_parallel();
                     tmp_active_nodes.clear_sequential();
+                    if (_context.type == ContextType::main && debug) {
+                        // store
+                        storeCurrentPartition(phg, parties);
+                        // execute
+                        auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
+                        auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain init) -> Gain {
+                            Gain my_gain = init;
+                            for (size_t i = r.begin(); i < r.end(); ++i) {
+                                const HypernodeID hn = _active_nodes[i];
+                                if (_afterburner_gain[hn] <= 0) { // NOTE Have we tried a skip zero gain moves policy? Might be helpful with balance-violating moves
+                                    my_gain += performMoveWithAttributedGain<false>(phg, hn);
+                                }
+                            }
+                            return my_gain;
+                        };
+                        Gain gain = tbb::parallel_reduce(range, 0, accum, std::plus<>());
+                        DBG << "Hyper-ab iteration i = " << i << ", " << V(gain) << ", " << V(_active_nodes.size());
+                        // rollback
+                        auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+                            _gain_computation.computeDeltaForHyperedge(sync_update);
+                        };
+
+                        auto reset_node = [&](const HypernodeID hn) {
+                            const PartitionID part_id = phg.partID(hn);
+                            if (part_id != parties[hn]) {
+                                changeNodePart<false>(phg, hn, part_id, parties[hn], objective_delta);
+                            }
+                        };
+                        phg.doParallelForAllNodes(reset_node);
+                    }
                 }
             }
             HEAVY_REFINEMENT_ASSERT(arePotentialMovesToOtherParts(phg, _moves), "moves");
@@ -181,7 +212,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     return my_gain;
                 };
                 Gain gain = tbb::parallel_reduce(range, 0, accum, std::plus<>());
-                //DBG << V(i) << V(current_metrics.quality) << V(gain);
+                DBG << V(i) << V(current_metrics.quality) << V(gain);
                 current_metrics.quality -= gain;
             }
             timer.stop_timer("apply_moves");

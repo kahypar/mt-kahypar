@@ -88,7 +88,7 @@ public:
     _current_edge_flag(1) {}
 
 private:
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
