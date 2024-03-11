@@ -93,9 +93,9 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
     _current_partition_is_best = true;
     const size_t max_rounds = jet_context.fixed_n_iterations;
-    const size_t max_rounds_without_improvement = jet_context.num_iterations;
     const size_t max_dynamic_rounds = top_level ? jet_context.num_fine_rounds : jet_context.num_coarse_rounds;
-
+    const size_t max_rounds_without_improvement = jet_context.dynamic_negative_gain_factor ? std::max(1UL, static_cast<size_t>(std::ceil(static_cast<double>(jet_context.num_iterations) / max_dynamic_rounds))) : jet_context.num_iterations;
+    
     for (size_t dynamic_round = 0; dynamic_round < max_dynamic_rounds; ++dynamic_round) {
         if (jet_context.dynamic_negative_gain_factor) {
             if (max_dynamic_rounds >= 1) {
