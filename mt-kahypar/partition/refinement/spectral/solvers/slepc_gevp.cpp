@@ -216,7 +216,9 @@ void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
   // deflation
-  CallPetsc(EPSSetDeflationSpace(eps, evecs.size(), evecs.data()));
+  if (!tried_from_above) {
+    CallPetsc(EPSSetDeflationSpace(eps, evecs.size(), evecs.data()));
+  }
 
   // preconditioning
   /* TODO ??? */
