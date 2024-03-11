@@ -106,8 +106,8 @@ namespace mt_kahypar {
     /* vec<spectral::Vector> inputGraphLaplacianMatrix;
     spectral::Vector diagonal(numNodes);
     inputGraphLaplacian.getDiagonal(diagonal);
+    inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
     inputGraphLaplacianMatrix.push_back(diagonal);
-    //inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
     for(spectral::Vector row : inputGraphLaplacianMatrix) {
       std::ostringstream row_str;
       for (size_t i = 0; i < numNodes; i++) {
@@ -187,41 +187,68 @@ namespace mt_kahypar {
       spectral::Vector factor(n);
       spectral::Vector subtrahend(n);
       for (const HyperedgeID& he : hg->edges()) {
-        spectral::Skalar operand_dot_e = 0.0;
-        size_t edge_pin_count = 0;
-        for (const HypernodeID& pin : hg->pins(he)) {
-          operand_dot_e += operand[pin];
-          edge_pin_count++;
-        }
+        HypernodeID edge_size = hg->edgeSize(he);
 
-        // skip isolated vertices
-        if (edge_pin_count == 1) {
+        // isolated vertex
+        if (edge_size == 1) {
           continue;
         }
+        
+        spectral::Skalar operand_dot_e = 0.0;
+        for (const HypernodeID& pin : hg->pins(he)) {
+          operand_dot_e += operand[pin];
+        }
 
-        HypernodeID edge_size = hg->edgeSize(he); /* TODO weights */
-        spectral::Skalar clique_edge_weight = 1.0 / (-1.0 + edge_size);
+        spectral::Skalar clique_edge_weight = ((spectral::Skalar) hg->edgeWeight(he)) / (-1.0 + (spectral::Skalar) edge_size);
 
         for (const HypernodeID& pin : hg->pins(he)) {
-          factor.set(pin, factor[pin] + clique_edge_weight * edge_pin_count);
+          factor.set(pin, factor[pin] + clique_edge_weight * edge_size);
           subtrahend.set(pin, subtrahend[pin] + clique_edge_weight * operand_dot_e);
         }
       }
 
+      // isolated vertices
+      spectral::Skalar sum_operand = INT_MAX;
+      spectral::Skalar subtrahend_iso_default = 0.0;
+      spectral::Skalar zero = 0.0;
+      vec<spectral::Skalar*> subtrahend_iso;
+      subtrahend_iso.resize(n, &subtrahend_iso_default);
+      size_t isolated_vertices = 0;
+      for (const HypernodeID &v : hg->nodes()) {
+        if (hg->nodeDegree(v) > 0) {
+          continue;
+        }
+
+        isolated_vertices++;
+
+        if (sum_operand == INT_MAX) {
+            sum_operand = 0.0;
+            for (size_t i = 0; i < n; i++) {
+              sum_operand += operand[i];
+            }
+          }
+          
+          subtrahend_iso_default += operand[v];
+          subtrahend_iso[v] = &zero;
+          subtrahend.set(v, subtrahend[v] + sum_operand - ((spectral::Skalar) n) * operand[v]);
+      }
+
       // calculate result
-      target_vector.setGetter([](size_t i) { return 0.0; });
+      target_vector.reset();
       for (size_t i = 0; i < target_vector.dimension(); i++) {
-        target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i]);
+        target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i] - *subtrahend_iso[i]);
       }
     };
 
     target.calc_diagonal_ops[0] = [] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       for (const HypernodeID& node : hg->nodes()) {
-        size_t index = node; /* TODO calculate index */
+        if (hg->nodeDegree(node) == 0) {
+          target_vector.set(node, self->dimension() - 1);
+          continue;
+        }
         for (const HyperedgeID& edge : hg->incidentEdges(node)) {
-          /* TODO weights */
-          target_vector.set(node, target_vector[node] + 1);
+          target_vector.set(node, target_vector[node] + hg->edgeWeight(edge));
         }
       }
     };
