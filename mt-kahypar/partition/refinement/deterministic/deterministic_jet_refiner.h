@@ -287,14 +287,11 @@ private:
             std::swap(b, c);
         }
       } else {
-        
         // sort by afterburner order
         std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
           auto& [gain_a, to_a] = _gains_and_target[a];
           auto& [gain_b, to_b] = _gains_and_target[b];
-          const double r_gain_a = static_cast<double>(gain_a) / phg.nodeWeight(a);
-          const double r_gain_b = static_cast<double>(gain_b) / phg.nodeWeight(b);
-          return (r_gain_a < r_gain_b || (r_gain_a == r_gain_b && a < b));
+          return (gain_a < gain_b || (gain_a == gain_b && a < b));
         });
       }
       // update pin-counts for each pin
