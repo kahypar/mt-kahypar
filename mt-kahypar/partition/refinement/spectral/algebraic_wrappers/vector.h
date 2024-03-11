@@ -51,6 +51,11 @@ class Vector {
   Skalar *get_all();
   void set_all(const Skalar *data_array);
 
+  Skalar get_default();
+  void set_default(Skalar val);
+
+  void reset();
+
   Vector& operator+=(Vector& v);
  private:
   size_t dim;

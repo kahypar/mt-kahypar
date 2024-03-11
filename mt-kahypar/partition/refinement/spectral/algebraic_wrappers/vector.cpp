@@ -86,6 +86,18 @@ void Vector::set_all(const Skalar *data_array) {
   
 }
 
+Skalar Vector::get_default() {
+  return _default_value;
+}
+
+void Vector::set_default(Skalar val) {
+  _default_value = val;
+}
+
+void Vector::reset() {
+  data.clear();
+}
+
 template <typename F>
 void Vector::setGetter(F getter) {
   custom_getter = getter;
