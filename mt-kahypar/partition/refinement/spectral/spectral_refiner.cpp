@@ -316,16 +316,22 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
+    // definitions
     spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * phg.totalWeight());
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain.computeDeltaForHyperedge(sync_update);
-    };
-    
+    };    
+    spectral::Skalar split_index = 0;
     spectral::Vector &fiedler = embedding[1];
-
-    // index list for nodes
-    vec<HypernodeID> indices;
-    indices.assign(phg.nodes().begin(), phg.nodes().end());
+    vec<HypernodeID> indices(phg.nodes().begin(), phg.nodes().end());
+    auto move_node = [&](bool use_gain, bool dest) {
+      target[indices[split_index]] = dest ? 1 : 0;
+      if (use_gain) {
+        phg.changeNodePart(indices[split_index], dest ? 0 : 1, dest ? 1 : 0, objective_delta);
+      } else {
+        phg.changeNodePart(indices[split_index], dest ? 0 : 1, dest ? 1 : 0);
+      }
+    };
 
     // sort by fiedler entry
     std::sort(indices.begin(), indices.end(), [&](const HypernodeID& u, const HypernodeID& v) { return fiedler[u] < fiedler[v]; });
@@ -333,31 +339,30 @@ namespace mt_kahypar {
     // initialize with all nodes belonging to partition 1
     target.resize(numNodes, 1);
     setPartition(phg, target);
-    _gain.reset();
 
-    spectral::Skalar split_index = 0;
-    bool in_range = false;
-    bool quality_improves = false;
-    /* TODO check whole range */
-    while (!in_range || quality_improves) {
-      Gain delta_before = _gain.localDelta();
-      // move current node
+    // move into range
+    for (; phg.partWeight(1) > max_part_weight; move_node(false, false)) {
       split_index++;
-      target[indices[split_index]] = 0;
-      /* TODO only calc delta if in range */
-      phg.changeNodePart(indices[split_index], 1, 0, objective_delta);
-
-      // update conditions
-      if (!in_range) {
-        in_range = phg.partWeight(1) <= max_part_weight;
-      } else {
-        quality_improves = _gain.localDelta() - delta_before <= 0;
-      }
     }
     
-    // undo last move
-    phg.changeNodePart(indices[split_index], 0, 1, objective_delta);
-    target[indices[split_index]] = 1;
+    // find optimum in range
+    _gain.reset();
+    size_t best_index = split_index;
+    Gain best_delta = _gain.localDelta();
+    while (phg.partWeight(0) + phg.nodeWeight(indices[split_index + 1]) <= max_part_weight) {
+      split_index++;
+      move_node(true, false);
+
+      if (_gain.localDelta() <= best_delta) {
+        best_index = split_index;
+        best_delta =_gain.localDelta();
+      }  
+    }
+    
+    // undo bad moves
+    for (; best_index < split_index; split_index--) {
+      move_node(false, true);
+    }
   }
 
 
