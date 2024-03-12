@@ -408,14 +408,14 @@ namespace mt_kahypar {
       auto lp_algo = refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet && lp_algo != LabelPropagationAlgorithm::deterministic_combined) {
         refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
-      } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet || lp_algo == LabelPropagationAlgorithm::deterministic_combined) {
+      } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet || lp_algo == LabelPropagationAlgorithm::deterministic_combined|| lp_algo == LabelPropagationAlgorithm::deterministic) {
         refinement.rebalancer = RebalancingAlgorithm::deterministic;
       }
 
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic && lp_algo != LabelPropagationAlgorithm::deterministic_jet && lp_algo != LabelPropagationAlgorithm::deterministic_combined) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
-      } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet || lp_algo == LabelPropagationAlgorithm::deterministic_combined) {
+      } else if (lp_algo == LabelPropagationAlgorithm::deterministic_jet || lp_algo == LabelPropagationAlgorithm::deterministic_combined || lp_algo == LabelPropagationAlgorithm::deterministic) {
         initial_partitioning.refinement.rebalancer = RebalancingAlgorithm::deterministic;
       }
     }

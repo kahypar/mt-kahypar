@@ -78,6 +78,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_parti
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
       V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
     best_metrics.quality += delta;
+    DBG << "[REBALANCE] " << "delta=" << delta;
   }
   DBG << "[REBALANCE] " << "  imbalance=" << metrics::imbalance(phg, _context);
   _max_part_weights = nullptr;
