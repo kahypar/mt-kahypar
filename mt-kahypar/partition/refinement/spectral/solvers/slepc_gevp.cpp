@@ -224,10 +224,14 @@ void SLEPcGEVPSolver::solve() {
   /* TODO ??? */
 
   // solve
-  CallPetsc(EPSSolve(eps));
-  PetscInt nconv;
-  CallPetsc(EPSGetConverged(eps, &nconv));
-  solved = nconv > 0;
+  PetscErrorCode err = EPSSolve(eps);
+  if (err > 0) {
+    solved = false;
+  } else {
+    PetscInt nconv;
+    CallPetsc(EPSGetConverged(eps, &nconv));
+    solved = nconv > 0;
+  }
 
   // debug output
   /* TODO opt off for performance reasons? */
