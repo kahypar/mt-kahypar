@@ -37,7 +37,7 @@ class SLEPcGEVPSolver : public GEVPSolver {
  public:
   void setProblem(Operator& a, Operator& b) final;
 
-  void setProblem(Operator& a, Operator& b, Vector& trivial_evec, Skalar &trivial_eval) final;
+  void setProblem(Operator& a, Operator& b, vec<Vector>& trivial_evecs, vec<Skalar> &trivial_evals) final;
 
   int nextEigenpair(Skalar& eval, Vector& evec) final;
 

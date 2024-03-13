@@ -104,6 +104,8 @@ class SpectralRefiner final : public IRefiner {
   GainCalculator _gain;
 
   size_t numNodes;
+
+  bool isolatedNodeCompletionNotFeedTheirEvecs = false;
 };
 
 }  // namespace kahypar

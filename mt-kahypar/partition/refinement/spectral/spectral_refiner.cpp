@@ -153,7 +153,7 @@ namespace mt_kahypar {
     bool found_valid_solution = best_cutsize <= best_metrics.quality;
     best_metrics.quality = found_valid_solution ? best_cutsize : best_metrics.quality;
 
-    DBG << V(best_cutsize);
+    DBG << V(best_cutsize) << ", " << V(best_metrics.quality);
 
     if (found_valid_solution && best_index != candidateSolutions.size() - 1) {
       setPartition(phg, candidateSolutions[best_index]);
@@ -207,36 +207,10 @@ namespace mt_kahypar {
         }
       }
 
-      // isolated vertices
-      spectral::Skalar sum_operand = INT_MAX;
-      spectral::Skalar subtrahend_iso_default = 0.0;
-      spectral::Skalar zero = 0.0;
-      vec<spectral::Skalar*> subtrahend_iso;
-      subtrahend_iso.resize(n, &subtrahend_iso_default);
-      size_t isolated_vertices = 0;
-      for (const HypernodeID &v : hg->nodes()) {
-        if (hg->nodeDegree(v) > 0) {
-          continue;
-        }
-
-        isolated_vertices++;
-
-        if (sum_operand == INT_MAX) {
-            sum_operand = 0.0;
-            for (size_t i = 0; i < n; i++) {
-              sum_operand += operand[i];
-            }
-          }
-          
-          subtrahend_iso_default += operand[v];
-          subtrahend_iso[v] = &zero;
-          subtrahend.set(v, subtrahend[v] + sum_operand - ((spectral::Skalar) n) * operand[v]);
-      }
-
       // calculate result
       target_vector.reset();
       for (size_t i = 0; i < target_vector.dimension(); i++) {
-        target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i] - *subtrahend_iso[i]);
+        target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i]);
       }
     };
 
@@ -244,7 +218,7 @@ namespace mt_kahypar {
       Hypergraph *hg = (Hypergraph *) self->ctx;
       for (const HypernodeID& node : hg->nodes()) {
         if (hg->nodeDegree(node) == 0) {
-          target_vector.set(node, self->dimension() - 1);
+          target_vector.set(node, 0);
           continue;
         }
         for (const HyperedgeID& edge : hg->incidentEdges(node)) {
@@ -252,6 +226,55 @@ namespace mt_kahypar {
         }
       }
     };
+
+    // isolated vertices
+    if (isolatedNodeCompletionNotFeedTheirEvecs) {
+      target.effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
+        size_t n = operand.dimension();
+        Hypergraph *hg = (Hypergraph *) self->ctx;
+
+        spectral::Skalar sum_operand = INT_MAX;
+        spectral::Vector subtrahend(n);
+        spectral::Skalar subtrahend_iso_default = 0.0;
+        spectral::Skalar zero = 0.0;
+        vec<spectral::Skalar*> subtrahend_iso;
+        subtrahend_iso.resize(n, &subtrahend_iso_default);
+        size_t isolated_vertices = 0;
+
+        for (const HypernodeID &v : hg->nodes()) {
+          if (hg->nodeDegree(v) > 0) {
+            continue;
+          }
+
+          isolated_vertices++;
+
+          if (sum_operand == INT_MAX) {
+              sum_operand = 0.0;
+              for (size_t i = 0; i < n; i++) {
+                sum_operand += operand[i];
+              }
+            }
+            
+            subtrahend_iso_default += operand[v];
+            subtrahend_iso[v] = &zero;
+            subtrahend.set(v, subtrahend[v] + sum_operand - ((spectral::Skalar) n) * operand[v]);
+        }
+
+        // calculate result
+        for (size_t i = 0; i < target_vector.dimension(); i++) {
+          target_vector.set(i, target_vector[i] - subtrahend[i] - *subtrahend_iso[i]);
+        }
+      });
+
+      target.calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
+        Hypergraph *hg = (Hypergraph *) self->ctx;
+        for (const HypernodeID& node : hg->nodes()) {
+          if (hg->nodeDegree(node) == 0) {
+            target_vector.set(node, self->dimension() - 1);
+          }
+        }
+      });
+    }
   }
   
   
@@ -298,16 +321,27 @@ namespace mt_kahypar {
     generateHintGraphLaplacian(hintSolution, hintGraphLaplacian);
     
     spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
-    spectral::Vector one(numNodes, 1.0);
-    Skalar zero = 0.0;
+    vec<spectral::Vector> trivial_evecs;
+    vec<spectral::Skalar> trivial_evals;
+    trivial_evecs.push_back(spectral::Vector(numNodes, 1.0));
+    trivial_evals.push_back(0.0);
+    if (!isolatedNodeCompletionNotFeedTheirEvecs) {
+      for (const HypernodeID& node : hintSolution.nodes()) {
+        if (hintSolution.nodeDegree(node) == 0) {
+          spectral::Vector v(numNodes);
+          v.set(node, 1.0);
+          trivial_evecs.push_back(v);
+          trivial_evals.push_back(0.0);
+        }
+      }
+    }
     spectral::Operator dummy(numNodes);
-    solver.setProblem(graphLaplacian, dummy, one, zero);//baseBalance /*+ hintGraphLaplacian*/);
+    solver.setProblem(graphLaplacian, dummy, trivial_evecs, trivial_evals);//baseBalance /*+ hintGraphLaplacian*/);
 
     spectral::Skalar a;
     spectral::Vector v(numNodes);
 
-    size_t num_evecs = 2; /* only fiedler */
-    target.push_back(one);
+    size_t num_evecs = 1; /* only fiedler */
     while (target.size() < num_evecs) {
       solver.nextEigenpair(a, v); /* TODO assert return value is positive */
       target.push_back(v);
@@ -322,7 +356,7 @@ namespace mt_kahypar {
       _gain.computeDeltaForHyperedge(sync_update);
     };    
     spectral::Skalar split_index = 0;
-    spectral::Vector &fiedler = embedding[1];
+    spectral::Vector &fiedler = embedding.back();
     vec<HypernodeID> indices(phg.nodes().begin(), phg.nodes().end());
     auto move_node = [&](bool use_gain, bool dest) {
       target[indices[split_index]] = dest ? 1 : 0;

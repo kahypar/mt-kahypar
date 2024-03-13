@@ -116,17 +116,18 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
   PetscFunctionReturnVoid();
 }
 
-void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, Vector& trivial_evec, Skalar &trivial_eval) {
+void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, vec<Vector>& trivial_evecs, vec<Skalar> &trivial_evals) {
   PetscFunctionBeginUser;
   
   setProblem(a, b);
 
-  Vec v;
-  CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, trivial_evec.dimension(), &v));
-  vector2Vec(trivial_evec, v);
-  evecs.push_back(v);
-
-  evals.push_back(trivial_eval);
+  for (Vector& tevec : trivial_evecs) {
+    Vec v;
+    CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, tevec.dimension(), &v));
+    vector2Vec(tevec, v);
+    evecs.push_back(v);
+  }
+  evals.insert(evals.end(), trivial_evals.begin(), trivial_evals.end());
 
   PetscFunctionReturnVoid();
 }

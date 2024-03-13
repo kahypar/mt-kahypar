@@ -37,7 +37,7 @@ class GEVPSolver {
  public:
   virtual void setProblem(Operator& a, Operator& b) = 0;
 
-  virtual void setProblem(Operator& a, Operator& b, Vector& trivial_evec, Skalar &trivial_eval) = 0;
+  virtual void setProblem(Operator& a, Operator& b, vec<Vector>& trivial_evecs, vec<Skalar> &trivial_evals) = 0;
 
   // ! positive (negative) return value: ascending (descending), zero: no new pair found, returning last pair
   virtual int nextEigenpair(Skalar& eval, Vector& evec) = 0; /* TODO return rather all pairs, an iterator or YAGNI? */
