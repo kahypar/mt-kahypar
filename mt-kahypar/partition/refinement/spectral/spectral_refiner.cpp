@@ -170,6 +170,8 @@ namespace mt_kahypar {
       size_t n = operand.dimension();
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
+      spectral::Skalar weight_factor = 1.0;
+
       spectral::Vector factor(n);
       spectral::Vector subtrahend(n);
       for (const HyperedgeID& he : hg->edges()) {
@@ -185,7 +187,7 @@ namespace mt_kahypar {
           operand_dot_e += operand[pin];
         }
 
-        spectral::Skalar clique_edge_weight = ((spectral::Skalar) hg->edgeWeight(he)) / (-1.0 + (spectral::Skalar) edge_size);
+        spectral::Skalar clique_edge_weight = weight_factor * ((spectral::Skalar) hg->edgeWeight(he)) / (-1.0 + (spectral::Skalar) edge_size);
 
         for (const HypernodeID& pin : hg->pins(he)) {
           factor.set(pin, factor[pin] + clique_edge_weight * edge_size);
@@ -268,22 +270,22 @@ namespace mt_kahypar {
   void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     target.ctx = (void *) &hypergraph;
 
-    target.effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
+    target.effects[0] = [](Operator *self, Vector& operand, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
-      auto dimension = operand.dimension();
+      size_t dimension = operand.dimension();
 
-      spectral::Skalar sum_x = 0.0;
+      spectral::Skalar w_dot_x = 0.0;
       for (size_t i = 0; i < dimension; i++) {
-        sum_x += operand[i];
+        w_dot_x += ((spectral::Skalar) hg->nodeWeight(i)) * (((spectral::Skalar) 1.0) - operand[i]);
       }
       
       for (const HypernodeID& node : hg->nodes()) {
         size_t index = node; /* TODO calculate index */
-        target_vector.set(index, target_vector[index] + hg->nodeWeight(node) * (operand[index] - sum_x / dimension));
+        target_vector.set(index, target_vector[index] + ((spectral::Skalar) hg->nodeWeight(node)) * operand[index] * w_dot_x);
       }
-    });
+    };
 
-    target.calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
+    target.calc_diagonal_ops[0] = [] (Operator *self, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) self->ctx;
 
       spectral::Skalar total_node_weight = 0.0; // TODO use Hypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) ???
@@ -296,7 +298,7 @@ namespace mt_kahypar {
         spectral::Skalar weight = hg->nodeWeight(node);
         target_vector.set(index, target_vector[index] + weight * (total_node_weight - weight));
       }
-    });
+    };
   }
 
 
@@ -321,8 +323,8 @@ namespace mt_kahypar {
         }
       }
     }
-    spectral::Operator dummy(numNodes);
-    solver.setProblem(graphLaplacian, dummy, trivial_evecs, trivial_evals);//baseBalance /*+ hintGraphLaplacian*/);
+    // spectral::Operator dummy(numNodes); TODO flag
+    solver.setProblem(graphLaplacian, baseBalance, trivial_evecs, trivial_evals);//baseBalance /*+ hintGraphLaplacian*/);
 
     spectral::Skalar a;
     spectral::Vector v(numNodes);
