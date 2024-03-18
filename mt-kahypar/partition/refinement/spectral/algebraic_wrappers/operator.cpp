@@ -61,12 +61,30 @@ void Operator::getDiagonal(Vector& target) {
 }
 
 void Operator::getMatrix(vec<Vector> &target) {
+  applyOnMatrix([&](Vector &col) { target.push_back(col); });
+}
+
+template <typename P>
+void Operator::printMatrix(P printer) {
+  applyOnMatrix([&] (Vector &row) {
+    std::ostringstream row_str;
+    for (size_t i = 0; i < dimension(); i++) {
+      char buf[100];
+      sprintf(buf, " %+.2f", row[i]);
+      row_str << buf;
+    }
+    printer(row_str.str());
+  });
+}
+
+template <typename F>
+void Operator::applyOnMatrix(F fun) {
   Vector filter(dim);
   for (size_t i = 0; i < dim; i++) {
     filter.set(i, 1);
     Vector column(dim);
     apply(filter, column);
-    target.push_back(column);
+    fun(column);
     filter.set(i, 0);
   }
 }

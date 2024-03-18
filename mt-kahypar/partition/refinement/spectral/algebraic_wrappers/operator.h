@@ -45,6 +45,9 @@ class Operator {
 
   void getMatrix(vec<Vector> &target);
 
+  template <typename P>
+  void printMatrix(P printer);
+
   bool isSymmetric();
 
   Operator& operator+= (Operator& op);
@@ -56,6 +59,9 @@ class Operator {
 
  private:
   size_t dim;
+
+  template <typename F>
+  void applyOnMatrix(F fun);
 };
 
 }

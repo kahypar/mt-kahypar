@@ -103,24 +103,10 @@ namespace mt_kahypar {
     Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
 
-    /* vec<spectral::Vector> inputGraphLaplacianMatrix;
-    spectral::Vector diagonal(numNodes);
-    inputGraphLaplacian.getDiagonal(diagonal);
-    inputGraphLaplacian.getMatrix(inputGraphLaplacianMatrix);
-    inputGraphLaplacianMatrix.push_back(diagonal);
-    for(spectral::Vector row : inputGraphLaplacianMatrix) {
-      std::ostringstream row_str;
-      for (size_t i = 0; i < numNodes; i++) {
-        char buf[100];
-        sprintf(buf, " %+.2f", row[i]);
-        row_str << buf;
-      }
-      DBG << row_str.str();
-    } */
-
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
     buildWeightBalanceGraphLaplacian(inputHypergraph, weightBalanceLaplacian);
+    weightBalanceLaplacian.printMatrix([&] (std::string to_print) { DBG << to_print; });
 
     // actual refinement
 
