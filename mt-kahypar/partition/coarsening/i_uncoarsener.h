@@ -66,6 +66,14 @@ class IUncoarsener {
       return isTopLevelImpl();
     }
 
+    bool isBottomLevel() const {
+      return isBottomLevelImpl();
+    }
+
+    int currentLevel() const {
+      return currentLevelImpl();
+    }
+
     void projectToNextLevelAndRefine() {
       projectToNextLevelAndRefineImpl();
     }
@@ -110,6 +118,8 @@ class IUncoarsener {
   private:
     virtual void initializeImpl() = 0;
     virtual bool isTopLevelImpl() const = 0;
+    virtual bool isBottomLevelImpl() const = 0;
+    virtual int currentLevelImpl() const = 0;
     virtual void projectToNextLevelAndRefineImpl() = 0;
     virtual void refineImpl() = 0;
     virtual void rebalancingImpl() = 0;

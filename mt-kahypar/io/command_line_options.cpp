@@ -92,7 +92,8 @@ namespace mt_kahypar {
              "Partitioning mode: \n"
              " - direct: direct k-way partitioning\n"
              " - rb: recursive bipartitioning\n"
-             " - deep: deep multilevel partitioning")
+             " - deep: deep multilevel partitioning\n"
+             " - multicandidate: multicandidate partitioning\n")
             ("input-file-format",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
                if (s == "hmetis") {

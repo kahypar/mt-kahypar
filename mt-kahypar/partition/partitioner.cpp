@@ -33,6 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/partition/multicandidate.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/triangle_counting/triangle_counter.h"
@@ -356,6 +357,8 @@ namespace mt_kahypar {
     } else if (context.partition.mode == Mode::deep_multilevel) {
       ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
+    } else if (context.partition.mode == Mode::multicandidate) {
+      partitioned_hypergraph = Multicandidate<TypeTraits>::partition(hypergraph, context, target_graph);
     } else {
       throw InvalidParameterException("Invalid partitioning mode!");
     }

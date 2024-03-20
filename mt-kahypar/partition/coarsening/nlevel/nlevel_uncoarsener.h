@@ -111,6 +111,10 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
 
   bool isTopLevelImpl() const override;
 
+  bool isBottomLevelImpl() const override;
+
+  int currentLevelImpl() const override;
+
   void projectToNextLevelAndRefineImpl() override;
 
   void refineImpl() override;

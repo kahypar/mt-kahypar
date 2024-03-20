@@ -10,6 +10,7 @@ set(PartitionSources
         partitioner.cpp
         partitioner_facade.cpp
         multilevel.cpp
+        multicandidate.cpp
         context.cpp
         context_enum_classes.cpp
         conversion.cpp

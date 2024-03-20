@@ -120,6 +120,16 @@ namespace mt_kahypar {
     return _hierarchy.empty();
   }
 
+  template <typename TypeTraits>
+  bool NLevelUncoarsener<TypeTraits>::isBottomLevelImpl() const {
+    return false; //NOT SUPPORTED
+  }
+
+  template<typename TypeTraits>
+  int NLevelUncoarsener<TypeTraits>::currentLevelImpl() const {
+    return -1; //NOT SUPPORTED
+  }
+
   template<typename TypeTraits>
   void NLevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     BatchVector& batches = _hierarchy.back();

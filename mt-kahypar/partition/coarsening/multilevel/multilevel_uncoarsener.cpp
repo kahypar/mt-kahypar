@@ -69,10 +69,20 @@ namespace mt_kahypar {
     return _current_level < 0;
   }
 
+  template <typename TypeTraits>
+  bool MultilevelUncoarsener<TypeTraits>::isBottomLevelImpl() const {
+    return _current_level == _num_levels;
+  }
+
+  template<typename TypeTraits>
+  int MultilevelUncoarsener<TypeTraits>::currentLevelImpl() const {
+    return _current_level;
+  }
+
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
-    if ( _current_level == _num_levels ) {
+    if ( IUncoarsener<TypeTraits>::isBottomLevel() ) {
       // We always start with a refinement pass on the smallest hypergraph.
       // The next calls to this function will then project the partition to the next level
       // and perform refinement until we reach the input hypergraph.

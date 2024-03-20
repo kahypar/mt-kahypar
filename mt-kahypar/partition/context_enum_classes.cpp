@@ -103,6 +103,7 @@ namespace mt_kahypar {
       case Mode::recursive_bipartitioning: return os << "recursive_bipartitioning";
       case Mode::direct: return os << "direct_kway";
       case Mode::deep_multilevel: return os << "deep_multilevel";
+      case Mode::multicandidate: return os << "multicandidate";
       case Mode::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -308,6 +309,8 @@ namespace mt_kahypar {
       return Mode::direct;
     } else if (mode == "deep") {
       return Mode::deep_multilevel;
+    } else if (mode == "multicandidate") {
+      return Mode::multicandidate;
     }
     throw InvalidParameterException("Illegal option: " + mode);
     return Mode::UNDEFINED;

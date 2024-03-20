@@ -72,6 +72,7 @@ enum class Mode : uint8_t {
   recursive_bipartitioning,
   direct,
   deep_multilevel,
+  multicandidate,
   UNDEFINED
 };
 
