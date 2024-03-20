@@ -104,11 +104,7 @@ namespace {
         const PartitionID part_id = tmp_ids[hn];
         partition_pool.back()[hn] = part_id;
       });
-      std::cout << "num nodes = " << partitioned_hg.initialNumNodes() << std::endl;
     };
-
-    // TODO: Fill the hypergraph pool with the initial partitions
-    //hypergraph_pool.push_back({uncoarseningData.coarsestPartitionedHypergraph()});
 
     // ################## UNCOARSENING ##################
 
@@ -136,12 +132,7 @@ namespace {
       replacePartition(r);
       auto r_quality = metrics::quality(partitioned_hg, Objective::km1);
 
-      partitioned_hg.resetData();
-      partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-        const PartitionID part_id = tmp_ids[hn];
-        partitioned_hg.setOnlyNodePart(hn, part_id);
-      });
-      partitioned_hg.initializePartition();
+      replacePartition(tmp_ids);
       return l_quality > r_quality;
     };
     //
@@ -153,7 +144,6 @@ namespace {
     uncoarsener->initialize();
     int level = 3; //TODO: make this a parameter
     while(!uncoarsener->isTopLevel()) {
-      std::cout << "level = " << level << std::endl;
       if (level > 0) {
         for(int i = 0; i < level * 5; i++) {
           ip();
