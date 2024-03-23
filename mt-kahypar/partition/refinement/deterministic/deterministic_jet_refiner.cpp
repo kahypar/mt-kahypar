@@ -88,6 +88,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         if (total_gain <= 0) {
             add_node_fn();
             _locks.set(hn);
+            _afterburner_gain[hn] = total_gain;
         }
     };
 
@@ -135,11 +136,18 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             tmp_active_nodes.clear_sequential();
 
             if (phg.is_graph) {
-                tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
-                    const auto n = _active_nodes[j];
-                    afterburner(n, [&] {tmp_active_nodes.stream(n);});
-                });
-                _moves = tmp_active_nodes.copy_parallel();
+                for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
+                    tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
+                        const auto n = _active_nodes[j];
+                        afterburner(n, [&] {tmp_active_nodes.stream(n);});
+                    });
+                    _active_nodes = tmp_active_nodes.copy_parallel();
+                    tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
+                        const auto n = _active_nodes[j];
+                        _gains_and_target[n].first = _afterburner_gain[n];
+                    });
+                    tmp_active_nodes.clear_sequential();
+                }
             } else {
                 for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
                     hypergraphAfterburner(phg);
@@ -164,8 +172,8 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             // Apply all moves
             timer.start_timer("apply_moves", "Apply Moves");
             if (phg.is_graph) {
-                tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
-                    performMoveWithAttributedGain<true>(phg, _moves[i]);
+                tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t i) {
+                    performMoveWithAttributedGain<true>(phg, _active_nodes[i]);
                 });
             } else {
                 auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
