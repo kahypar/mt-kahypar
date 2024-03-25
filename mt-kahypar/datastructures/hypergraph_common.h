@@ -104,6 +104,22 @@ struct NodeWeight {
     }
   }*/
 
+  int32_t max(){
+    int32_t max = weights[0];
+    for(int i = 1; i < dimension; i++){
+      max = std::max(max, weights[i]);
+    }
+    return max;
+  }
+
+  int32_t min(){
+    int32_t minim = weights[0];
+    for(int i = 1; i < dimension; i++){
+      minim = std::min(minim, weights[i]);
+    }
+    return minim;
+  }
+
 
   NodeWeight operator =(const NodeWeight &nw){
     for(int i = 0; i < dimension; i++){
@@ -466,6 +482,14 @@ struct NodeWeight {
     }
   }
 
+  int weight() const{
+    int res = 0;
+    for(int i = 0; i < dimension; i++){
+      res += weights[i];
+    }
+    return res;
+  }
+
 };
 
 uint32_t scalar(NodeWeight &w1, NodeWeight &w2);
@@ -578,6 +602,10 @@ struct Move_with_transformed_gain {
 };
 
 
+struct PriorizableMove{
+  virtual bool is_positive();
+};
+
 
 
   struct Move_internal{
@@ -607,6 +635,59 @@ struct Move_with_transformed_gain {
       tmp_balance -= 0.0001;
     }
     gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
+    }
+
+    bool is_positive_move(){
+      return balance < -0.0000000001 || balance < 0.00000000001 && gain < 0;
+    }
+
+    void setGain(Gain g){
+      gain = g;
+    }
+
+    void addToGain(Gain g){
+      __atomic_add_fetch(&gain, g, std::memory_order_relaxed);
+    }
+  };
+
+  struct FallBackMove{
+    double gain_and_balance;
+    Gain gain;
+    double balance;
+
+    bool operator<(const FallBackMove move) const{
+      return (balance <= 0) && (move.balance <= 0) && gain_and_balance < move.gain_and_balance || !((balance <= 0) && (move.balance <= 0)) && balance < move.balance;
+    }
+    bool operator>(const FallBackMove move) const{
+      return (balance <= 0) && (move.balance <= 0) && gain_and_balance > move.gain_and_balance || !((balance <= 0) && (move.balance <= 0)) && balance > move.balance;
+    }
+
+    bool operator==(const FallBackMove move) const{
+      return gain_and_balance == move.gain_and_balance && gain == move.gain && balance == move.balance;
+    }
+
+    void recomputeBalance(){
+      Gain tmp_gain = gain;
+      double tmp_balance = balance;
+      if(gain <= 0){
+        tmp_gain -= 1;
+      }
+      if(balance <= 0){
+        tmp_balance -= 0.0001;
+      }
+      gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
+    }
+
+    bool is_positive_move(){
+      return true;
+    }
+
+    void setGain(Gain g){
+      gain = g;
+    }
+
+    void addToGain(Gain g){
+      __atomic_add_fetch(&gain, g, std::memory_order_relaxed);
     }
   };
 
@@ -755,11 +836,12 @@ struct Move_with_transformed_gain {
     }
 
   };*/
-  struct MoveQueue{
+  template<typename Move>
+  struct AbstractMoveQueue{
     using Gain_and_Balance=double;
     using  Balance=double;
     AddressablePQ<HypernodeID, Gain_and_Balance> top_moves;
-    std::vector<AddressablePQ<PartitionID, Move_internal>> queues_per_node;
+    std::vector<AddressablePQ<PartitionID, Move>> queues_per_node;
     std::vector<bool> locked;
     void initialize(HypernodeID num_nodes, PartitionID num_parts){
       top_moves.setSize(num_nodes);
@@ -769,25 +851,25 @@ struct Move_with_transformed_gain {
         queues_per_node[i].setSize(num_parts);
       }
     }
-    std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> deleteMax(){
+    std::pair<HypernodeID, std::pair<PartitionID, Move>> deleteMax(){
       ASSERT(top_moves.v.size() > 0);
       HypernodeID node = top_moves.deleteMax().first;
-      std::pair<PartitionID, Move_internal> move = queues_per_node[node].deleteMax();
+      std::pair<PartitionID, Move> move = queues_per_node[node].deleteMax();
       if(!queues_per_node[node].isEmpty()){
         top_moves.insert({node, queues_per_node[node].getMax().second.gain_and_balance});
       }      
       return{node, move};
     }
 
-    std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> getMax(){
+    std::pair<HypernodeID, std::pair<PartitionID, Move>> getMax(){
       ASSERT(top_moves.v.size() > 0);
       HypernodeID node = top_moves.getMax().first;
-      std::pair<PartitionID, Move_internal> move = queues_per_node[node].getMax();   
+      std::pair<PartitionID, Move> move = queues_per_node[node].getMax();   
       return{node, move};
     }
 
-    void insert(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move){
-      if(positive_move(move.second.second)){
+    void insert(std::pair<HypernodeID, std::pair<PartitionID, Move>> move){
+      if(move.second.second.is_positive_move()){
         ASSERT(queues_per_node.size() > move.first);
         queues_per_node[move.first].insert(move.second);
         update(move.first);
@@ -801,8 +883,8 @@ struct Move_with_transformed_gain {
         }
       }
     }
-    void insert_without_updating(std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> move, bool disabled = false){
-      if(positive_move(move.second.second) && !disabled){
+    void insert_without_updating(std::pair<HypernodeID, std::pair<PartitionID, Move>> move, bool disabled = false){
+      if(move.second.second.is_positive_move() && !disabled){
         ASSERT(queues_per_node.size() > move.first);
         queues_per_node[move.first].insert(move.second);
       }
@@ -819,55 +901,20 @@ struct Move_with_transformed_gain {
       return top_moves.isEmpty();
     }
 
-    void addBalance(HypernodeID hn, PartitionID to, Balance balance){
-      queues_per_node[hn].gains_and_balances[to].balance += balance;
-      if(!positive_move(queues_per_node[hn].gains_and_balances[to])){
-        if(queues_per_node[hn].isEnabled(to)){
-          queues_per_node[hn].disable(to);
-        }
-      }
-      else{
-        queues_per_node[hn].gains_and_balances[to].recomputeBalance();
-        if(!queues_per_node[hn].isEnabled(to)){
-          queues_per_node[hn].enable(to);
-        }
-        else{
-          queues_per_node[hn].check(to);
-        }
-      }
-    }
-
-    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
-      queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
-      if(!positive_move(queues_per_node[x.first].gains_and_balances[x.second.first])){
-        if(queues_per_node[x.first].isEnabled(x.second.first)){
-          queues_per_node[x.first].disable(x.second.first);
-        }
-      }
-      else{
-        queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
-        if(!queues_per_node[x.first].isEnabled(x.second.first)){
-          queues_per_node[x.first].enable(x.second.first);
-        }
-        else{
-          queues_per_node[x.first].check(x.second.first);
-        }
-      }
-      
+    Move get(std::pair<HypernodeID, PartitionID> move){
+      return queues_per_node[move.first].get(move.second);
     }
 
     void lock(HypernodeID hn){
       locked[hn] = true;
     }
 
-    bool positive_move(Move_internal move){
-      return move.balance < -0.0000000001 || move.balance < 0.00000000001 && move.gain < 0;
-    }
+    
     void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
-      __atomic_add_fetch(&queues_per_node[x.first].gains_and_balances[x.second.first].gain,x.second.second, std::memory_order_relaxed);
+      queues_per_node[x.first].gains_and_balances[x.second.first].addToGain(x.second.second);
     }
     void changeGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
-      queues_per_node[x.first].gains_and_balances[x.second.first].gain = x.second.second;
+      queues_per_node[x.first].gains_and_balances[x.second.first].setGain(x.second.second);
     }
     void update(HypernodeID hn){
       if(queues_per_node[hn].v.size() == 0 || locked[hn] == true){
@@ -895,6 +942,40 @@ struct Move_with_transformed_gain {
         queues_per_node[x.first].gains_and_balances[x.second].gain = 0;
         queues_per_node[x.first].gains_and_balances[x.second].balance = 0.0;
         disable(x);
+    }
+  };
+
+  struct MoveQueue : AbstractMoveQueue<Move_internal> {
+    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
+      queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
+      if(!queues_per_node[x.first].gains_and_balances[x.second.first].is_positive_move()){
+        if(queues_per_node[x.first].isEnabled(x.second.first)){
+          queues_per_node[x.first].disable(x.second.first);
+        }
+      }
+      else{
+        queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
+        if(!queues_per_node[x.first].isEnabled(x.second.first)){
+          queues_per_node[x.first].enable(x.second.first);
+        }
+        else{
+          queues_per_node[x.first].check(x.second.first);
+        }
+      }
+      
+    }
+  }; 
+
+  struct Fallback_MoveQueue : AbstractMoveQueue<FallBackMove>{
+    void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
+      queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
+      queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
+        if(!queues_per_node[x.first].isEnabled(x.second.first)){
+          queues_per_node[x.first].enable(x.second.first);
+        }
+        else{
+          queues_per_node[x.first].check(x.second.first);
+        }
     }
   };
 

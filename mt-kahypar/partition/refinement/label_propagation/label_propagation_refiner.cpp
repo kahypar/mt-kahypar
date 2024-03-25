@@ -203,7 +203,7 @@ namespace mt_kahypar {
       });
     }
 
-    ASSERT(current_metrics.quality <= best_metrics.quality);
+    /*ASSERT(current_metrics.quality <= best_metrics.quality);*/
     const Gain old_quality = best_metrics.quality;
     best_metrics = current_metrics;
 

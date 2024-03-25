@@ -89,10 +89,10 @@ class GainComputationBase {
 
   template<typename PartitionedHypergraph>
   std::vector<Move_md> allGains(const PartitionedHypergraph& phg,
-                          const HypernodeID hn) {
+                          const HypernodeID hn, Gain& isolated_block_gain) {
+
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
-    Gain isolated_block_gain = 0;
     tmp_scores.clear();
     std::vector<Move_md> gains;
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
@@ -160,9 +160,9 @@ class GainComputationBase {
   }*/
 
   template<typename PartitionedHypergraph>
-  tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq){
+  tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq, std::vector<Fallback_MoveQueue>* fmq = NULL){
     Derived* derived = static_cast<Derived*>(this);
-    return derived->getChangedMoves(phg, move, mq);
+    return derived->getChangedMoves(phg, move, mq, fmq);
   }
 
   template<typename PartitionedHypergraph>

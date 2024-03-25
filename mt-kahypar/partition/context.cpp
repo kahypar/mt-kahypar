@@ -311,7 +311,7 @@ namespace mt_kahypar {
       partition.max_part_weights.clear();
       NodeWeight weight;
       for(int i = 0; i < dimension; i++){
-        weight.weights[i] = std::ceil((1 + partition.epsilon[i]) * partition.perfect_balance_part_weights[0].weights[i]);
+        weight.weights[i] = std::ceil((1 + partition.epsilon[0]) * partition.perfect_balance_part_weights[0].weights[i]);
       }
       partition.max_part_weights.push_back(weight);
       for (PartitionID part = 1; part != partition.k; ++part) {
