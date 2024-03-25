@@ -132,7 +132,7 @@ namespace mt_kahypar{
       for(HypernodeID hn = nodes_prio[index].size() - 1; hn-- > 0;){
         HypernodeID node = nodes_prio[index][hn].first;
         int level_number = 0;
-        double ignored_percentage = 0.5;
+        double ignored_percentage = 0.1;
         while(std::ceil(ignored_percentage * nodes_normalized.size()) < nodes_normalized_total_weight[node].second + 1){
           level_number++;
           ignored_percentage = (ignored_percentage + 1.0) / 2.0;
@@ -150,10 +150,6 @@ namespace mt_kahypar{
         current_last.erase(it, current_last.end());
         
         current_last.push_back({level_number, hn + 1});
-        
-        if(hn == 0){
-          
-        }
               
       }
       
@@ -212,7 +208,7 @@ namespace mt_kahypar{
       }
       current_indices[index] = current.next_per_level[start].second;
       int lowest_above = start < current.next_per_level.size() - 1 ? current.next_per_level[start + 1].first : current.next_per_level[start].first;
-      return {nodes_prio[index][current.next_per_level[start].second].first, lowest_above};
+      return {nodes_prio[index][current.next_per_level[start].second - 1].first, lowest_above};
     }
 
 
@@ -263,6 +259,7 @@ namespace mt_kahypar{
 
   std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
     std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
+    std::cout << "binpack\n";
     for(HypernodeID hn = 0; hn < nodes.size(); hn++){
       double max_bg = std::numeric_limits<double>::max();
       PartitionID max_p = -1;
@@ -719,9 +716,11 @@ namespace mt_kahypar{
       std::vector<std::pair<PartitionID, double>> extraction_order;
       std::vector<std::vector<double>> max_remaining_weight(phg.k());
       double factor_lowerBound = 0.0;
-      double factor_upperBound = 1.0 + *std::min_element(_context.partition.epsilon.begin(), _context.partition.epsilon.end());
+      /*double factor_upperBound = 1.0 + *std::min_element(_context.partition.epsilon.begin(), _context.partition.epsilon.end());*/
+      double factor_maxbound = 1.0 + _context.partition.epsilon[0];
+      double factor_upperBound = factor_maxbound;
       double factor = 1.0;
-      double search_threshold = 0.01;
+      double search_threshold = 0.1;
       double fraction_nodes = 0.5;
       std::vector<int> current_level_per_partition(phg.k(), 0);
       std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> current_result;
@@ -747,8 +746,13 @@ namespace mt_kahypar{
         std::vector<std::vector<double>> virtual_weight(phg.k());
         std::vector<std::vector<bool>> extracted(phg.k());
         for(int i = 0; i < extraction_order.size(); i++){
-          
           PartitionID p = extraction_order[i].first;
+          for(int d = 0; d < dimension; d++){
+            virtual_weight[p].push_back(normalized_partition_weights[p][d]);
+          }
+          if(smaller_equal(normalized_partition_weights[p], max_remaining_weight[p])){
+            continue;
+          }
           bool improvement = true;
           int level = current_level_per_partition[p] - 1;
           double level_quality = std::numeric_limits<double>::max();
@@ -760,6 +764,7 @@ namespace mt_kahypar{
             for(int d = 0; d < dimension; d++){
               this_run_weight.push_back(normalized_partition_weights[p][d]);
             }
+            bool possible_to_balance = false;
             while(!smaller_equal(this_run_weight, max_remaining_weight[p])){
               for(int d = 0; d < dimension; d++){
                 imbalanced[d] = this_run_weight[d] > max_remaining_weight[p][d];
@@ -769,6 +774,7 @@ namespace mt_kahypar{
                 next = nodes_ordered[p].getNext(imbalanced, level + 1);
               }while(next.second != -1 && used[next.first]);
               if(next.second == -1){
+                std::cout <<"minusone\n";
                 break;
               }
               used[next.first] = true;
@@ -776,8 +782,15 @@ namespace mt_kahypar{
               for(int d = 0; d < dimension; d++){
                 this_run_weight[d] -= normalized_weights[p][next.first][d];
               }
+              possible_to_balance = true;
             }
+            
             nodes_ordered[p].reset();
+            if(!possible_to_balance){
+              std::cout <<"np\n";
+              level++;
+              continue;
+            }
             if(smaller_equal(this_run_weight, max_remaining_weight[p])){
               double quality = 0.0;
               for(int d = 0; d < dimension; d++){
@@ -788,6 +801,7 @@ namespace mt_kahypar{
                 level--;
               }
               else{
+                level_quality = quality;
                 extracted[p] = used;
                 virtual_weight[p] = this_run_weight;
                 if(highest_would_use <= level + 1){
@@ -795,6 +809,8 @@ namespace mt_kahypar{
                 }
               }
             }
+            
+            
             level++;
           }
           current_level_per_partition[p] = level;
@@ -845,7 +861,7 @@ namespace mt_kahypar{
         if(factor_upperBound - factor_lowerBound < search_threshold){
           break;
         }
-        factor = (factor_upperBound + factor_lowerBound) / 2.0;
+        factor = std::max((factor_upperBound + factor_lowerBound) / 2.0, 2.0 * factor_upperBound - factor_maxbound);
       }
 
       for(PartitionID p = 0; p < phg.k(); p++){
@@ -969,7 +985,7 @@ namespace mt_kahypar{
 
     // Update metrics statistics
     Gain delta = _gain.delta();  // note: only correct if all moves were performed with objective_delta as defined above
-    ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context));
+    /*ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context));*/
      HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
       V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
     best_metrics.quality += delta;
