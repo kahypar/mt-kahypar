@@ -81,8 +81,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         dist = std::max<size_t>(growth_factor * (last - first), max_subround_size);
       }
       last = std::min<size_t>(num_nodes_before_pass, first + dist);
-      std::cout << V(first) << ", " << V(last) << std::endl;
-
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
         const HypernodeID u = permutation.at(pos);
