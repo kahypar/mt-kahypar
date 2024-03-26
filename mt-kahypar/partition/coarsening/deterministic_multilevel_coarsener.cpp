@@ -39,10 +39,10 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   timer.start_timer("coarsening_pass", "Clustering");
 
   const Hypergraph& hg = Base::currentHypergraph();
-  size_t num_nodes = Base::currentNumNodes();
+  HypernodeID num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
   vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
-  tbb::parallel_for(UL(0), num_nodes, [&](HypernodeID u) {
+  tbb::parallel_for(HypernodeID(0), num_nodes, [&](HypernodeID u) {
     cluster_weight[u] = hg.nodeWeight(u);
     opportunistic_cluster_weight[u] = cluster_weight[u];
     propositions[u] = u;
@@ -58,11 +58,86 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
   const bool isTrianglePass = hg.is_graph && pass < _context.coarsening.num_triangle_levels;
   const bool isMatchingPass = pass < _context.coarsening.num_matching_levels;
+  const bool isPrefixDoublingPass = _context.coarsening.prefix_doubling;
   if (isTrianglePass) {
     calculateSharedTrianglesPerEdge();
+  } else if (isPrefixDoublingPass) {
+    permutation.shuffle(utils::IntegerRange<HypernodeID>{0, num_nodes}, _context.shared_memory.static_balancing_work_packages, config.prng); // need shuffle for prefix-doubling
+    round_seed = config.prng();
   }
+  constexpr size_t num_sequential_steps = 1000;
+  constexpr double growth_factor = 1.8;
+  constexpr double max_subround_size_fraction = 0.001;
+  const size_t max_subround_size = std::max<size_t>(1, num_nodes_before_pass * max_subround_size_fraction);
+
   size_t sub_round = 0;
-  if (!isMatchingPass) {
+  if (isPrefixDoublingPass) {
+    size_t last;
+    for (size_t first = 0; num_nodes > currentLevelContractionLimit() && first < num_nodes_before_pass; first = last) {
+      size_t dist = parallel::chunking::idiv_ceil(num_nodes_before_pass, config.num_sub_rounds);
+      if (first < num_sequential_steps) {
+        dist = 1;
+      } else {
+        dist = std::max<size_t>(growth_factor * (last - first), max_subround_size);
+      }
+      last = std::min<size_t>(num_nodes_before_pass, first + dist);
+      std::cout << V(first) << ", " << V(last) << std::endl;
+
+      // each vertex finds a cluster it wants to join
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        const HypernodeID u = permutation.at(pos);
+        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+          calculatePreferredTargetCluster(u, clusters);
+        }
+      });
+      handleNodeSwaps(first, last, hg);
+      tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+      // already approve if we can grant all requests for proposed cluster
+      // otherwise insert to shared vector so that we can group vertices by cluster
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        HypernodeID u = permutation.at(pos);
+        HypernodeID target = propositions[u];
+        if (target != u) {
+          if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
+            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+              num_contracted_nodes.local() += 1;
+            } else {
+              cluster_weights_to_fix.push_back_buffered(u);
+            }
+            clusters[u] = target;
+            cluster_weight[target] = opportunistic_cluster_weight[target];
+          } else {
+            if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+              // node u could still not move
+              cluster_weights_to_fix.push_back_buffered(u);
+            }
+            nodes_in_too_heavy_clusters.push_back_buffered(u);
+          }
+        }
+      });
+      num_nodes -= num_contracted_nodes.combine(std::plus<>());
+      nodes_in_too_heavy_clusters.finalize();
+      if (nodes_in_too_heavy_clusters.size() > 0) {
+        handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
+        nodes_in_too_heavy_clusters.clear();
+      }
+
+      // TODO: no need to fix cluster weights in the last subround
+      cluster_weights_to_fix.finalize();
+      if (cluster_weights_to_fix.size() > 0) {
+        tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
+          const HypernodeID hn = cluster_weights_to_fix[i];
+          const HypernodeID cluster = clusters[hn];
+          if (cluster != hn) {
+            cluster_weight[hn] -= hg.nodeWeight(hn);
+            opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+          }
+        });
+        cluster_weights_to_fix.clear();
+      }
+    }
+  } else if (!isMatchingPass) {
     const size_t contractable_nodes_per_subround = std::ceil(static_cast<double>(num_nodes - currentLevelContractionLimit()) / config.num_sub_rounds);
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
     for (;sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
