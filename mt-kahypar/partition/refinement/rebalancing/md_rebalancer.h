@@ -84,6 +84,13 @@ private:
                       vec<Move>* moves_linear,
                       Metrics& best_metrics);
 
+  
+  bool greedyRefiner(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                      vec<vec<Move>>* moves_by_part,
+                      vec<Move>* moves_linear,
+                      Metrics& best_metrics,
+                      std::vector<HypernodeID> nodes);
+
   void resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)

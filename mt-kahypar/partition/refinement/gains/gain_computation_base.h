@@ -160,9 +160,9 @@ class GainComputationBase {
   }*/
 
   template<typename PartitionedHypergraph>
-  tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq, std::vector<Fallback_MoveQueue>* fmq = NULL){
+  tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* mq, std::vector<HypernodeID> &id_to_index, HypernodeID invalid, std::vector<Fallback_MoveQueue>* fmq = NULL){
     Derived* derived = static_cast<Derived*>(this);
-    return derived->getChangedMoves(phg, move, mq, fmq);
+    return derived->getChangedMoves(phg, move, mq, id_to_index, invalid, fmq);
   }
 
   template<typename PartitionedHypergraph>
