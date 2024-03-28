@@ -321,7 +321,6 @@ namespace mt_kahypar{
 
   std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
     std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
-    std::cout << "binpack\n";
     for(HypernodeID hn = 0; hn < nodes.size(); hn++){
       double max_bg = std::numeric_limits<double>::max();
       PartitionID max_p = -1;
@@ -348,8 +347,64 @@ namespace mt_kahypar{
       limits[max_p] = minus(limits[max_p], weights[nodes[hn].second.first][nodes[hn].second.second]);
       packing[max_p].push_back(nodes[hn].second);
     }
+    std::cout << "limits\n";
+    for(PartitionID p = 0; p < limits.size(); p++){
+      for(int d = 0; d < dimension; d++){
+        std::cout << limits[p][d] << "\n";
+        if(limits[p][d] < 0.0){
+          return {false, packing};
+        }
+      }
+    }
     return {true, packing};
   }
+
+  std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing_best_fit(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
+    std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
+    for(HypernodeID hn = 0; hn < nodes.size(); hn++){
+      double min_bg = std::numeric_limits<double>::max();
+      PartitionID max_p = -1;
+      for(PartitionID p = 0; p < limits.size(); p++){
+        std::vector<double> new_limit = minus(limits[p], weights[nodes[hn].second.first][nodes[hn].second.second]);
+        bool too_big = false;
+        double this_bg = 0.0;
+        for(int d = 0; d < dimension; d++){
+          if(new_limit[d] <= 0.0){
+            too_big = true;
+          }
+          this_bg += new_limit[d];
+
+        }
+        if(too_big){
+          continue;
+        }
+        if(min_bg > this_bg){
+          max_p = p;
+          min_bg = this_bg;
+        }
+      }
+      if(max_p == -1){
+        return {false, packing};
+      }
+      limits[max_p] = minus(limits[max_p], weights[nodes[hn].second.first][nodes[hn].second.second]);
+      packing[max_p].push_back(nodes[hn].second);
+    }
+    for(PartitionID p = 0; p < limits.size(); p++){
+      for(int d = 0; d < dimension; d++){
+        if(limits[p][d] < 0.0){
+          return {false, packing};
+        }
+      }
+    }
+    return {true, packing};
+  }
+
+
+
+
+
+  
+
 
   std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing_random(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
     std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
@@ -402,6 +457,49 @@ namespace mt_kahypar{
       }
       limits[max_p] = minus(limits[max_p], weights[nodes[hn].second.first][nodes[hn].second.second]);
       packing[max_p].push_back(nodes[hn].second);
+    }
+    for(PartitionID p = 0; p < limits.size(); p++){
+      for(int d = 0; d < dimension; d++){
+        if(limits[p][d] < 0.0){
+          return {false, packing};
+        }
+      }
+    }
+    return {true, packing};
+  }
+
+
+  std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing_totally_random(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
+    std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
+    std::cout << "binpack\n";
+    for(HypernodeID hn = 0; hn < nodes.size(); hn++){
+      PartitionID to = -1;
+      for(PartitionID p = 0; p < limits.size(); p++){
+        to = std::rand() % limits.size();
+        std::vector<double> new_limit = minus(limits[p], weights[nodes[hn].second.first][nodes[hn].second.second]);
+        bool too_big = false;
+        for(int d = 0; d < dimension; d++){
+          if(new_limit[d] <= 0.0){
+            too_big = true;
+          }
+        }
+        if(too_big){
+          continue;
+        }
+        break;
+      }
+      if(to = -1){
+        return {false, packing};
+      }
+      limits[to] = minus(limits[to], weights[nodes[hn].second.first][nodes[hn].second.second]);
+      packing[to].push_back(nodes[hn].second);
+    }
+    for(PartitionID p = 0; p < limits.size(); p++){
+      for(int d = 0; d < dimension; d++){
+        if(limits[p][d] < 0.0){
+          return {false, packing};
+        }
+      }
     }
     return {true, packing};
   }
@@ -519,12 +617,13 @@ namespace mt_kahypar{
       for(PartitionID p = 0; p < phg.k(); p++){
         calcExceed(p);
       }
-      std::vector<std::vector<HypernodeID>> indices;
-      nodes_sorted.resize(mt_kahypar::dimension);
+      /*std::vector<std::vector<HypernodeID>> indices;
+      
       indices.resize(mt_kahypar::dimension);
       for(int i = 0; i < dimension; i++){
         indices[i].resize(phg.k());
-      }
+      }*/
+      nodes_sorted.resize(mt_kahypar::dimension);
       for(HypernodeID h = 0; h < nodes.size(); h++){
         HypernodeID hn = nodes[h];
         for(int i = 0; i < dimension; i++){
@@ -562,6 +661,7 @@ namespace mt_kahypar{
         for(int i = 0; i < moves.size(); i++){
           ASSERT(phg.partID(hn) != moves[i].to);
           ASSERT(phg.partID(hn) != -1);
+          
           queue.insert_without_updating({h, {moves[i].to, {moves[i].gain_and_balance, moves[i].gain, moves[i].balance}}});
         }
       }
@@ -606,6 +706,9 @@ namespace mt_kahypar{
           - (phg.partWeight(phg.partID(nodes[node])) > _context.partition.max_part_weights[phg.partID(nodes[node])])
           - (phg.partWeight(to) > _context.partition.max_part_weights[to])
           + (phg.partWeight(to) + phg.nodeWeight(nodes[node]) > _context.partition.max_part_weights[to]);
+        while(to == -1){
+          std::cout << "error\n";
+        }
         phg.changeNodePart(nodes[node], phg.partID(nodes[node]), to, objective_delta);
         calcExceed(from);
         calcExceed(to);
@@ -658,7 +761,7 @@ namespace mt_kahypar{
     double factor_maxbound;
     double factor_upperBound;
     double factor = 1.0;
-    double search_threshold = 0.001;
+    double search_threshold = 0.01;
     PartitionID k;
     std::vector<std::vector<double>> max_remaining_weight;
     std::vector<int> current_level_per_partition;
@@ -670,7 +773,7 @@ namespace mt_kahypar{
     std::vector<std::vector<double>> virtual_weight;
 
     std::vector<struct hypernodes_ordered> nodes_ordered;
-    bool first = true;
+    bool last = false;
 
 
 
@@ -698,33 +801,41 @@ namespace mt_kahypar{
     }
 
     bool hasNext(){
-      return factor_upperBound - factor_lowerBound > search_threshold || factor_lowerBound == 0.0;
+      return !last && (factor_upperBound - factor_lowerBound > search_threshold || factor_lowerBound == 0.0 && factor != 0.0);
+    }
+
+    void adjustFactor(bool success){
+      if(factor == 0.0){
+        last = true;
+      }
+      if(success){
+        factor_lowerBound = factor;
+      }
+      else{
+        factor_upperBound = factor;
+      }
+      if(factor_lowerBound == 0.0){
+        factor = 2.0 * factor_upperBound - factor_maxbound;
+      }
+      else{
+        factor = (factor_upperBound + factor_lowerBound) / 2.0;
+      }
+      if(factor_lowerBound == 0.0 && factor < search_threshold){
+        factor = 0.0;
+      }
     }
     
     std::vector<std::vector<bool>> calculate_S(bool success){ 
-      if(!first){
-        if(success){
-          factor_lowerBound = factor;
-        }
-        else{
-          factor_upperBound = factor;
-        }
-        factor = std::max((factor_upperBound + factor_lowerBound) / 2.0, 2.0 * factor_upperBound - factor_maxbound);
-        if(factor_lowerBound == 0.0 && factor_upperBound - factor_lowerBound <= search_threshold){
-          factor = 0.0;
-        }
-      }   
+      
 
       auto smaller_equal = [](std::vector<double> a, std::vector<double> b){
         for(size_t i = 0; i < a.size(); i++){
-          if(a[i] > b[i] + 0.00001){
+          if(a[i] > b[i] + 0.00000000001){
             return false;
           }
         }
         return true;
       };
-
-      first = false;
       std::vector<std::vector<double>> max_remaining_weight(k);
       for(PartitionID p = 0; p < k; p++){
         max_remaining_weight[p].resize(dimension);
@@ -734,6 +845,7 @@ namespace mt_kahypar{
       }
       std::vector<std::vector<bool>> extracted(k);
       for(PartitionID p = 0; p < k; p++){
+        extracted[p].resize(normalized_weights[p].size(), false);
         if(smaller_equal(normalized_partition_weights[p], max_remaining_weight[p])){
           continue;
         }
@@ -746,7 +858,6 @@ namespace mt_kahypar{
           int highest_would_use = 0;
           std::vector<double> this_run_weight;
           for(int d = 0; d < dimension; d++){
-            std::cout << normalized_partition_weights[p][d] << "\n";
             this_run_weight.push_back(normalized_partition_weights[p][d]);
           }
           bool possible_to_balance = true;
@@ -829,15 +940,17 @@ namespace mt_kahypar{
       DBG << "Starting multi-dimensional rebalancer";  // only printed if debug=true in header
       _gain.reset();
 
-      std::vector<HypernodeID> all_nodes(phg.initialNumNodes());
-      for(HypernodeID hn = 0; hn < all_nodes.size(); hn++){
-        all_nodes[hn] = hn;
+      std::vector<HypernodeID> all_nodes;
+      for(HypernodeID hn : phg.nodes()){
+        if(phg.partID(hn != -1)){
+          all_nodes.push_back(hn);
+        }
       }
 
       if(!greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, all_nodes)){
         std::cout << "fb activated";
         std::vector<HypernodeID> L;
-        const double L_threshold = 0.1;
+        const double L_threshold = 0.01;
 
         std::vector<std::vector<std::vector<double>>> normalized_weights(phg.k());
         //total Weight of each node (organized per partition)
@@ -866,6 +979,9 @@ namespace mt_kahypar{
 
         //initialize normalized_weights, totalWeight and normalized_partition_weights
         for(HypernodeID hn : phg.nodes()){
+          if(phg.partID(hn) == -1){
+            continue;
+          }
           PartitionID part = phg.partID(hn);
           double total_weight = 0.0;
           std::vector<double> weight;
@@ -941,11 +1057,27 @@ namespace mt_kahypar{
           std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
             return a.first > b.first;
           });
+          for(PartitionID p = 0; p < phg.k(); p++){
+            for(int d = 0; d < dimension; d++){
+              std::cout << limits[p][d] << "\n";
+            }
+          }
           std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> result = bin_packing(limits, bp_nodes, normalized_weights);
+          std::cout << "success: " << result.first << "\n";
           if(result.first){
             current_result = result.second;
           }
           else{
+            std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
+              return totalWeight[a.second.first][a.second.second].first > totalWeight[b.second.first][b.second.second].first;
+            });
+            result = bin_packing_best_fit(limits, bp_nodes, normalized_weights);
+            if(result.first){
+              std::cout << "succeeee\n";
+            current_result = result.second;
+          }
+          }
+          /*else{
             for(int i = 0; i < 20; i++){
               result = bin_packing_random(limits, bp_nodes, normalized_weights);
               if(result.first){
@@ -953,9 +1085,17 @@ namespace mt_kahypar{
                 break;
               }
             }
-          }
+            for(int i = 0; i < 20; i++){
+              result = bin_packing_totally_random(limits, bp_nodes, normalized_weights);
+              if(result.first){
+                current_result = result.second;
+                break;
+              }
+            }
+          }*/
           success = result.first;
           std::cout << s_calculator.factor << " " << s_calculator.factor_lowerBound << " " << s_calculator.factor_upperBound << " " << success << "\n";
+          s_calculator.adjustFactor(success);
             
         }
 
