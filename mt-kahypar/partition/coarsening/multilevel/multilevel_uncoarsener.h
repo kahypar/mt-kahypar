@@ -77,6 +77,8 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
 
   int currentLevelImpl() const override;
 
+  void stepNextLevelImpl() override;
+
   void projectToNextLevelAndRefineImpl() override;
 
   void refineImpl() override;

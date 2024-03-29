@@ -80,6 +80,11 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits>
+  void MultilevelUncoarsener<TypeTraits>::stepNextLevelImpl() {
+    --_current_level;
+  }
+
+  template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
     if ( IUncoarsener<TypeTraits>::isBottomLevel() ) {
