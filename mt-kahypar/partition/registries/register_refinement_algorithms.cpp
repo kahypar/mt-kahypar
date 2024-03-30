@@ -46,6 +46,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/deterministic/rebalancing/deterministic_rebalancer.h"
+#include "mt-kahypar/partition/refinement/deterministic/combined_deterministic_refiner.h"
 
 
 namespace mt_kahypar {
@@ -61,6 +62,11 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
 
 using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicJetRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using CombinedDeterministicDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                CombinedDeterministicRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -232,6 +238,9 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic_jet,
                                DeterministicJetDispatcher,
+                               getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic_combined,
+                               CombinedDeterministicDispatcher,
                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
