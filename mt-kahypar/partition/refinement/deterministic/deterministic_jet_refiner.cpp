@@ -134,9 +134,9 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             // label prop round
             _locks.reset();
             tmp_active_nodes.clear_sequential();
-
+            const size_t afterburner_iterations = dynamic_round == 0UL ? _context.refinement.deterministic_refinement.jet.afterburner_iterations : 1UL;
             if (phg.is_graph) {
-                for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
+                for (size_t i = 0; i < afterburner_iterations; ++i) {
                     tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
                         const auto n = _active_nodes[j];
                         afterburner(n, [&] {tmp_active_nodes.stream(n);});
@@ -149,7 +149,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                     tmp_active_nodes.clear_sequential();
                 }
             } else {
-                for (size_t i = 0; i < _context.refinement.deterministic_refinement.jet.afterburner_iterations; ++i) {
+                for (size_t i = 0; i < afterburner_iterations; ++i) {
                     hypergraphAfterburner(phg);
                     tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
                         const auto hn = _active_nodes[j];
