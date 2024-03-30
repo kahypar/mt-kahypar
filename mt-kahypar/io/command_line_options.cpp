@@ -425,6 +425,7 @@ namespace mt_kahypar {
              "- label_propagation\n"
              "- deterministic\n"
              "- deterministic_jet\n"
+             "- deterministic_combined\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.maximum_iterations :

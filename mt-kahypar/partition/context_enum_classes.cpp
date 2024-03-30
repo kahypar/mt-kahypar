@@ -271,6 +271,7 @@ namespace mt_kahypar {
       case LabelPropagationAlgorithm::label_propagation: return os << "label_propagation";
       case LabelPropagationAlgorithm::deterministic: return os << "deterministic";
       case LabelPropagationAlgorithm::deterministic_jet: return os << "deterministic_jet";
+      case LabelPropagationAlgorithm::deterministic_combined: return os << "deterministic_combined";
       case LabelPropagationAlgorithm::do_nothing: return os << "lp_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -551,6 +552,8 @@ namespace mt_kahypar {
       return LabelPropagationAlgorithm::deterministic;
     } else if (type == "deterministic_jet") {
       return LabelPropagationAlgorithm::deterministic_jet;
+    } else if (type == "deterministic_combined") {
+    return LabelPropagationAlgorithm::deterministic_combined;
     } else if (type == "do_nothing") {
       return LabelPropagationAlgorithm::do_nothing;
     }

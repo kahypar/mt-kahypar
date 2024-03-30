@@ -185,6 +185,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation,
   deterministic,
   deterministic_jet,
+  deterministic_combined,
   do_nothing
 };
 
