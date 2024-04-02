@@ -29,7 +29,7 @@ namespace mt_kahypar {
 namespace {
 
 void disableTimerAndStats(const Context& context) {
-  if (context.type == ContextType::main && context.partition.mode == Mode::direct) {
+  if (context.type == ContextType::main) {
     utils::Utilities& utils = utils::Utilities::instance();
     parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
     utils.getTimer(context.utility_id).disable();
@@ -38,7 +38,7 @@ void disableTimerAndStats(const Context& context) {
 }
 
 void enableTimerAndStats(const Context& context) {
-  if (context.type == ContextType::main && context.partition.mode == Mode::direct) {
+  if (context.type == ContextType::main) {
     utils::Utilities& utils = utils::Utilities::instance();
     parallel::MemoryPool::instance().activate_unused_memory_allocations();
     utils.getTimer(context.utility_id).enable();
@@ -58,6 +58,7 @@ void enableTimerAndStats(const Context& context) {
   
     const bool nlevel = context.isNLevelPartitioning();
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
+    utils::Stats& stats = utils::Utilities::instance().getStats(context.utility_id);
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id); 
     timer.start_timer("coarsening", "Coarsening");
     {
@@ -83,61 +84,12 @@ void enableTimerAndStats(const Context& context) {
       int initialLevel;
     };
     vec<Partition> partition_pool;
-    //vec<vec<PartitionID>> partition_pool;
+    
     auto uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
 
-    auto ip = [&]() {
-      partitioned_hg.resetData();
-      uncoarsener->updateMetrics();
-      DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
-      if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
-        degree_zero_hn_remover.removeDegreeZeroHypernodes(
-            partitioned_hg.hypergraph());
-      }
-
-      Context ip_context(context);
-      ip_context.type = ContextType::initial_partitioning;
-      ip_context.refinement = context.initial_partitioning.refinement;
-      disableTimerAndStats(context);
-      if (context.initial_partitioning.mode == Mode::direct) {
-        // The pool initial partitioner consist of several flat bipartitioning
-        // techniques. This case runs as a base case (k = 2) within recursive
-        // bipartitioning or the deep multilevel scheme.
-        ip_context.partition.verbose_output = false;
-        Pool<TypeTraits>::bipartition(partitioned_hg, ip_context);
-      } else if (context.initial_partitioning.mode ==
-                 Mode::recursive_bipartitioning) {
-        RecursiveBipartitioning<TypeTraits>::partition(
-            partitioned_hg, ip_context, target_graph);
-      } else if (context.initial_partitioning.mode == Mode::deep_multilevel) {
-        ASSERT(ip_context.partition.objective != Objective::steiner_tree);
-        ip_context.partition.verbose_output = false;
-        DeepMultilevel<TypeTraits>::partition(partitioned_hg, ip_context);
-      } else {
-        throw InvalidParameterException(
-            "Undefined initial partitioning algorithm");
-      }
-      enableTimerAndStats(context);
-      degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
-      uncoarsener->updateMetrics();
-      GainCachePtr::resetGainCache(uncoarsener->getGainCache());
-      timer.start_timer("refinement", "Refinement");
-      uncoarsener->refine();
-      timer.stop_timer("refinement");
-      partition_pool.push_back(Partition());
-      partition_pool.back().partIDs.resize(partitioned_hg.initialNumNodes());
-      partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-        partition_pool.back().partIDs[hn] = partitioned_hg.partID(hn);
-      });
-      partition_pool.back().quality = metrics::quality(partitioned_hg, Objective::km1);
-    };
-
-    // ################## UNCOARSENING ##################
-
-    // Functions
-
-    auto replacePartition = [&partitioned_hg, &uncoarsener](const Partition& partition) {
+    auto replacePartition = [&partitioned_hg,
+                             &uncoarsener](const Partition& partition) {
       partitioned_hg.resetData();
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const PartitionID part_id = partition.partIDs[hn];
@@ -145,10 +97,6 @@ void enableTimerAndStats(const Context& context) {
       });
       partitioned_hg.initializePartition();
       uncoarsener->updateMetrics();
-    };
-
-    auto isBetterThan = [](const Partition& l, const Partition& r) {
-      return l.quality < r.quality;
     };
 
     auto refine = [&](Partition& partition) {
@@ -162,6 +110,54 @@ void enableTimerAndStats(const Context& context) {
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         partition.partIDs[hn] = partitioned_hg.partID(hn);
       });
+    };
+
+    auto ip = [&](PartitionedHypergraph& phg, int current_level) {
+      //partitioned_hg.resetData();
+      //uncoarsener->updateMetrics();
+      phg.resetData();
+
+      Context ip_context(context);
+      ip_context.type = ContextType::initial_partitioning;
+      ip_context.refinement = context.initial_partitioning.refinement;
+      if (context.initial_partitioning.mode == Mode::direct) {
+        // The pool initial partitioner consist of several flat bipartitioning
+        // techniques. This case runs as a base case (k = 2) within recursive
+        // bipartitioning or the deep multilevel scheme.
+        ip_context.partition.verbose_output = false;
+        Pool<TypeTraits>::bipartition(phg, ip_context);
+      } else if (context.initial_partitioning.mode ==
+                 Mode::recursive_bipartitioning) {
+        RecursiveBipartitioning<TypeTraits>::partition(
+          phg, ip_context, target_graph);
+      } else if (context.initial_partitioning.mode == Mode::deep_multilevel) {
+        ASSERT(ip_context.partition.objective != Objective::steiner_tree);
+        ip_context.partition.verbose_output = false;
+        DeepMultilevel<TypeTraits>::partition(phg, ip_context);
+      } else {
+        throw InvalidParameterException(
+            "Undefined initial partitioning algorithm");
+      }
+      static std::mutex mutex;
+      {
+        std::lock_guard<std::mutex> lock(mutex);
+        Partition partition;
+        partition.partIDs.resize(phg.initialNumNodes());
+        phg.doParallelForAllNodes([&](const HypernodeID hn) {
+          partition.partIDs[hn] = phg.partID(hn);
+        });
+        refine(partition);
+        partition_pool.emplace_back(partition);
+        partition_pool.back().initialLevel = current_level;
+      }	
+    };
+
+    // ################## UNCOARSENING ##################
+
+    // Functions
+
+    auto isBetterThan = [](const Partition& l, const Partition& r) {
+      return l.quality < r.quality;
     };
 
     auto projAndRefine = [&](Partition& partition) {
@@ -183,13 +179,23 @@ void enableTimerAndStats(const Context& context) {
     int level = 3; //TODO: make this a parameter
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
+        //#### Initial Partitioning ####
         timer.start_timer("initial_partitioning", "Initial Partitioning");
-        for (int i = 0; i < level * 5; i++) {
-          ip();
-          partition_pool.back().initialLevel = level;
+        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
+          degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
+        disableTimerAndStats(context);
+        tbb::parallel_for(0, level * 5, [&](int i) {
+          auto hg = partitioned_hg.hypergraph().copy();
+          PartitionedHypergraph phg(context.partition.k, hg);
+          ip(phg, level);
+          std::cout << "Partition " << i << " done" << std::endl;
+        });
+        degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
+        enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning");
-
+        // ####
         std::cout << "level " << level << std::endl;
         std::cout << "Number of partitions: " << partition_pool.size() << std::endl;
 
@@ -300,7 +306,7 @@ void enableTimerAndStats(const Context& context) {
       }
     }
     if(partition_pool.size() == 0) {
-      ip();
+      ip(partitioned_hg, level);
     } else if (partition_pool.size() > 1){
       std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
       replacePartition(partition_pool[0]);
