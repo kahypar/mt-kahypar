@@ -615,7 +615,7 @@ struct PriorizableMove{
   double balance;
 
     bool operator<(const Move_internal move) const{
-      return gain_and_balance < move.gain_and_balance;
+      return gain_and_balance < move.gain_and_balance || gain_and_balance == move.gain_and_balance && gain > move.gain;
     }
     bool operator>(const Move_internal move) const{
       return gain_and_balance > move.gain_and_balance;
@@ -626,19 +626,16 @@ struct PriorizableMove{
     }
 
     void recomputeBalance(){
-    Gain tmp_gain = gain;
-    double tmp_balance = balance;
-    if(gain <= 0){
-      tmp_gain -= 1;
+    if(balance != 0.0){
+      gain_and_balance = gain > 0 ? gain * balance : gain / balance;
     }
-    if(balance <= 0){
-      tmp_balance -= 0.0001;
+    else{
+      gain_and_balance = gain > 0 ? 0.0 : std::numeric_limits<double>::max();
     }
-    gain_and_balance = tmp_gain > 0 ? -tmp_gain / tmp_balance : -tmp_gain * tmp_balance;
     }
 
     bool is_positive_move(){
-      return balance < -0.0000000001 || balance < 0.00000000001 && gain < 0;
+      return balance < 0.0 || balance <= 0.0 && gain > 0;
     }
 
     void setGain(Gain g){
@@ -650,7 +647,7 @@ struct PriorizableMove{
     }
   };
 
-  struct FallBackMove{
+  /*struct FallBackMove{
     double gain_and_balance;
     Gain gain;
     double balance;
@@ -689,7 +686,7 @@ struct PriorizableMove{
     void addToGain(Gain g){
       __atomic_add_fetch(&gain, g, std::memory_order_relaxed);
     }
-  };
+  };*/
 
   template<typename id, typename data>
   struct AddressablePQ{
@@ -884,6 +881,7 @@ struct PriorizableMove{
       }
     }
     void insert_without_updating(std::pair<HypernodeID, std::pair<PartitionID, Move>> move, bool disabled = false){
+      
       if(move.second.second.is_positive_move() && !disabled){
         ASSERT(queues_per_node.size() > move.first);
         queues_per_node[move.first].insert(move.second);
@@ -913,9 +911,7 @@ struct PriorizableMove{
     void addToGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].addToGain(x.second.second);
     }
-    void changeGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
-      queues_per_node[x.first].gains_and_balances[x.second.first].setGain(x.second.second);
-    }
+    
     void update(HypernodeID hn){
       if(queues_per_node[hn].v.size() == 0 || locked[hn] == true){
         top_moves.disable(hn);
@@ -964,9 +960,27 @@ struct PriorizableMove{
       }
       
     }
+
+    void changeGain(std::pair<HypernodeID, std::pair<PartitionID, Gain>> x){
+      queues_per_node[x.first].gains_and_balances[x.second.first].setGain(x.second.second);
+      if(!queues_per_node[x.first].gains_and_balances[x.second.first].is_positive_move()){
+        if(queues_per_node[x.first].isEnabled(x.second.first)){
+          queues_per_node[x.first].disable(x.second.first);
+        }
+      }
+      else{
+        queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
+        if(!queues_per_node[x.first].isEnabled(x.second.first)){
+          queues_per_node[x.first].enable(x.second.first);
+        }
+        else{
+          queues_per_node[x.first].check(x.second.first);
+        }
+      }
+    }
   }; 
 
-  struct Fallback_MoveQueue : AbstractMoveQueue<FallBackMove>{
+  /*struct Fallback_MoveQueue : AbstractMoveQueue<FallBackMove>{
     void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
       queues_per_node[x.first].gains_and_balances[x.second.first].recomputeBalance();
@@ -977,7 +991,7 @@ struct PriorizableMove{
           queues_per_node[x.first].check(x.second.first);
         }
     }
-  };
+  };*/
 
 
 struct Memento {

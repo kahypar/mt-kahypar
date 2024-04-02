@@ -85,7 +85,7 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
       }
     }
   }
-  template<typename PartitionedHypergraph>
+  /*template<typename PartitionedHypergraph>
   tbb::concurrent_vector<HypernodeID> getChangedMoves(const PartitionedHypergraph& phg, const Move move, MoveQueue* queue, std::vector<HypernodeID>& id_to_index, HypernodeID invalid, std::vector<Fallback_MoveQueue>* fallback_queue = NULL){
     tbb::concurrent_vector<HypernodeID> nodes;
     tbb::parallel_for_each(phg.incidentEdges(move.node).begin(), phg.incidentEdges(move.node).end(),[&](const HyperedgeID& he){
@@ -133,7 +133,7 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
       }                  
     });
     return nodes;
-  }
+  }*/
 
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {

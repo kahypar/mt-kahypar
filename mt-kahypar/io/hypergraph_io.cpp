@@ -521,7 +521,9 @@ namespace mt_kahypar::io {
         // This is necessary because we can only calculate unique edge ids
         // efficiently if the edges are deduplicated.
         if ( has_vertex_weights ) {
-          read_number(mapped_file, pos, length);
+          for(int d = 0; d < dimension; d++){
+            read_number(mapped_file, pos, length);
+          }          
         }
         HyperedgeID vertex_degree = 0;
         while (!is_line_ending(mapped_file, pos) && pos < length) {
@@ -642,7 +644,6 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
-
     // Read Metis Header
     bool has_edge_weights = false;
     bool has_vertex_weights = false;

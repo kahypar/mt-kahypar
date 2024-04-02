@@ -48,6 +48,7 @@ struct PartitioningParameters {
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   std::array<double, mt_kahypar::dimension> epsilon;
+  double node_threshold = 0.0;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;

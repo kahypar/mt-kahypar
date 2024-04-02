@@ -759,6 +759,9 @@ namespace mt_kahypar {
             ("blocks,k",
              po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
              "Number of blocks")
+             ("node_threshold, nt",
+             po::value<double>(&context.partition.node_threshold)->value_name("<double>")->required(),
+              "threshold for nodes for fallback")
             ("epsilon,e",
              po::value<std::vector<double>>()->value_name("<std::vector<double>>")->required()->notifier([&](const std::vector<double> d){
                 for(int i = 0; i < d.size(); i++){
