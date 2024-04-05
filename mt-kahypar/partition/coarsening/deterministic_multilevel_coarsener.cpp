@@ -65,7 +65,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     permutation.shuffle(utils::IntegerRange<HypernodeID>{0, num_nodes}, _context.shared_memory.static_balancing_work_packages, config.prng); // need shuffle for prefix-doubling
     round_seed = config.prng();
   }
-  constexpr size_t num_sequential_steps = 1000;
+  constexpr size_t num_sequential_steps = 150;
   constexpr double growth_factor = 1.8;
   constexpr double max_subround_size_fraction = 0.001;
   const size_t max_subround_size = std::max<size_t>(1, num_nodes_before_pass * max_subround_size_fraction);
