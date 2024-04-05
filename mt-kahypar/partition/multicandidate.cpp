@@ -177,6 +177,8 @@ void enableTimerAndStats(const Context& context) {
     uncoarsener->initialize();
     uncoarsener->stepNextLevel();
     int level = 3; //TODO: make this a parameter
+    std::cout << "Current Level: " << uncoarsener->currentLevel() << std::endl;
+    level = std::min(level, uncoarsener->currentLevel() + 2);
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
         //#### Initial Partitioning ####
@@ -186,7 +188,7 @@ void enableTimerAndStats(const Context& context) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
         disableTimerAndStats(context);
-        tbb::parallel_for(0, level * 5, [&](int i) {
+        tbb::parallel_for(0, level * 12, [&](int i) {
           auto hg = partitioned_hg.hypergraph().copy();
           PartitionedHypergraph phg(context.partition.k, hg);
           ip(phg, level);
@@ -305,12 +307,27 @@ void enableTimerAndStats(const Context& context) {
         timer.stop_timer("refinement");
       }
     }
-    if(partition_pool.size() == 0) {
-      ip(partitioned_hg, level);
-    } else if (partition_pool.size() > 1){
-      std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
-      replacePartition(partition_pool[0]);
+    if(partition_pool.size() == 0 || level == 1) {
+      std::cout << "Partition pool is empty or level == 1" << std::endl;
+      timer.start_timer("initial_partitioning", "Initial Partitioning");
+      DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+      if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
+        degree_zero_hn_remover.removeDegreeZeroHypernodes(
+            partitioned_hg.hypergraph());
+      }
+      disableTimerAndStats(context);
+      tbb::parallel_for(0, 12, [&](int i) {
+        auto hg = partitioned_hg.hypergraph().copy();
+        PartitionedHypergraph phg(context.partition.k, hg);
+        ip(phg, level);
+        std::cout << "Partition " << i << " done" << std::endl;
+      });
+      degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
+      enableTimerAndStats(context);
+      timer.stop_timer("initial_partitioning");
     }
+    std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
+    replacePartition(partition_pool[0]);
     uncoarsener->rebalancing();
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     return uncoarsener->movePartitionedHypergraph();
