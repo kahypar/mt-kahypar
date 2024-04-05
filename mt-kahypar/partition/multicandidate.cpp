@@ -325,9 +325,13 @@ void enableTimerAndStats(const Context& context) {
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
       enableTimerAndStats(context);
       timer.stop_timer("initial_partitioning");
+      std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
+      replacePartition(partition_pool[0]);
+    } else if (partition_pool.size() > 1) {
+      std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
+      replacePartition(partition_pool[0]);
     }
-    std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
-    replacePartition(partition_pool[0]);
+
     uncoarsener->rebalancing();
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     return uncoarsener->movePartitionedHypergraph();
