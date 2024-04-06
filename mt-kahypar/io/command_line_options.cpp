@@ -793,7 +793,10 @@ namespace mt_kahypar {
             ("i-lp-initial-block-size",
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
-             "Initial block size used for label propagation initial partitioner");
+             "Initial block size used for label propagation initial partitioner")
+                         (("i-cutoff-level"),
+             po::value<int>(&context.initial_partitioning.cutoff_level)->value_name("<int>")->default_value(3),
+             "Cutoff Level for multicandidate partitioning.");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;

@@ -176,8 +176,7 @@ void enableTimerAndStats(const Context& context) {
 
     uncoarsener->initialize();
     uncoarsener->stepNextLevel();
-    int level = 3; //TODO: make this a parameter
-    level = std::min(level, uncoarsener->currentLevel() + 2);
+    int level = std::min(context.initial_partitioning.cutoff_level, uncoarsener->currentLevel() + 2);
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
         //#### Initial Partitioning ####
