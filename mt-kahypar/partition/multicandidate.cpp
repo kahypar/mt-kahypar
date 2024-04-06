@@ -177,7 +177,6 @@ void enableTimerAndStats(const Context& context) {
     uncoarsener->initialize();
     uncoarsener->stepNextLevel();
     int level = 3; //TODO: make this a parameter
-    std::cout << "Current Level: " << uncoarsener->currentLevel() << std::endl;
     level = std::min(level, uncoarsener->currentLevel() + 2);
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
@@ -198,8 +197,6 @@ void enableTimerAndStats(const Context& context) {
         enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning");
         // ####
-        std::cout << "level " << level << std::endl;
-        std::cout << "Number of partitions: " << partition_pool.size() << std::endl;
 
         // Project the first partition in the partition pool to the next level and refine
         projAndRefine(partition_pool[0]);
@@ -253,11 +250,8 @@ void enableTimerAndStats(const Context& context) {
           int round = 0;
           // Do final tournament and choose winner and set the partitioned hypergraph to the winner
           while(partition_pool.size() > 1 && !uncoarsener->isTopLevel()) {
-            std::cout << "Round " << round++ << std::endl;
-            std::cout << "Number of partitions: " << partition_pool.size() << std::endl;
             // Print qualities of the partitions
             for(auto it = partition_pool.begin(); it != partition_pool.end(); it++) {
-              std::cout << "Quality: " << it->quality << std::endl;
             }
             int offset = partition_pool.size() % 2 ? 1 : 0;
             utils::Randomize::instance().parallelShuffleVector(
@@ -298,7 +292,6 @@ void enableTimerAndStats(const Context& context) {
           }
           std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
           replacePartition(partition_pool[0]);
-          std::cout << "Final partition quality: " << partition_pool[0].quality << std::endl;
         }
         --level;
       } else {
@@ -308,7 +301,6 @@ void enableTimerAndStats(const Context& context) {
       }
     }
     if(partition_pool.size() == 0 || level == 1) {
-      std::cout << "Partition pool is empty or level == 1" << std::endl;
       timer.start_timer("initial_partitioning", "Initial Partitioning");
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
@@ -320,7 +312,6 @@ void enableTimerAndStats(const Context& context) {
         auto hg = partitioned_hg.hypergraph().copy();
         PartitionedHypergraph phg(context.partition.k, hg);
         ip(phg, level);
-        std::cout << "Partition " << i << " done" << std::endl;
       });
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
       enableTimerAndStats(context);
@@ -332,6 +323,7 @@ void enableTimerAndStats(const Context& context) {
       replacePartition(partition_pool[0]);
     }
 
+    stats.add_stat("partition_source_level", partition_pool[0].initialLevel);
     uncoarsener->rebalancing();
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     return uncoarsener->movePartitionedHypergraph();
