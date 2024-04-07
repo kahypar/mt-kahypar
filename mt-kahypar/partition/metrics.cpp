@@ -87,7 +87,7 @@ template<Objective objective, typename PartitionedHypergraph>
 HyperedgeWeight compute_objective_sequentially(const PartitionedHypergraph& phg) {
   ObjectiveFunction<PartitionedHypergraph, objective> func;
   HyperedgeWeight obj = 0;
-  for (const HyperedgeID& he : phg.edges()) {
+  for (const HyperedgeID he : phg.edges()) {
     obj += func(phg, he);
   }
   return obj / (PartitionedHypergraph::is_graph ? 2 : 1);

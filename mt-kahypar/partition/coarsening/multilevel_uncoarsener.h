@@ -68,6 +68,8 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   MultilevelUncoarsener & operator= (const MultilevelUncoarsener &) = delete;
   MultilevelUncoarsener & operator= (MultilevelUncoarsener &&) = delete;
 
+  void doLastRefineImpl(PartitionedHypergraph *partitioned_hypergraph) override;
+
  private:
   void initializeImpl() override;
 

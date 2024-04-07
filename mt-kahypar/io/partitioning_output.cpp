@@ -422,10 +422,11 @@ std::array<double,mt_kahypar::dimension> parallel_avg(const std::vector<Hypernod
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const std::string& description) {
+                                  
+    ASSERT(hypergraph.k() == context.partition.k);
     if (context.partition.verbose_output) {
       LOG << description;
-      LOG << context.partition.objective << "      ="
-          << metrics::quality(hypergraph, context);
+      LOG << context.partition.objective << "      =" << metrics::quality(hypergraph, context);
       LOG << "imbalance =" << metrics_to_string(metrics::imbalance(hypergraph, context));
       LOG << "Part sizes and weights:";
       io::printPartWeightsAndSizes(hypergraph, context);

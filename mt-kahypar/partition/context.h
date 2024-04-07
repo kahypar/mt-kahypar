@@ -54,6 +54,8 @@ struct PartitioningParameters {
   size_t num_vcycles = 0;
   bool perform_parallel_recursion_in_deep_multilevel = true;
 
+  std::string partition_input_file = "";
+
   int time_limit = 0;
   bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;

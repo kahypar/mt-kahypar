@@ -51,6 +51,8 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
 
+#include <fstream>
+
 namespace mt_kahypar {
 
 namespace {
@@ -80,7 +82,6 @@ namespace {
     const bool is_vcycle) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-    PartitionedHypergraph partitioned_hg;
 
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(context);
@@ -105,8 +106,54 @@ namespace {
       }
     }
     timer.stop_timer("coarsening");
+    std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    if (uncoarseningData.nlevel) {
+      /*uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);*/
+    } else {
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
+    }
+    PartitionedHypergraph partitioned_hg;
+    int initial_num = hypergraph.initialNumEdges();
+    partitioned_hg = PartitionedHypergraph(context.partition.k, hypergraph);
 
-    // ################## INITIAL PARTITIONING ##################
+
+    std::ifstream myfile; 
+    myfile.open(context.partition.partition_input_file);
+    HypernodeID hn = 0;
+    while(myfile){
+      std::string nextline;
+      std::getline(myfile, nextline);
+      if(nextline != ""){
+        ASSERT(stoi(nextline) < partitioned_hg.k());
+        partitioned_hg.setOnlyNodePart(hn, stoi(nextline));
+      }
+      hn++;        
+    }
+    myfile.close();
+    partitioned_hg.initializePartition();
+
+
+
+
+
+
+    io::printPartitioningResults(partitioned_hg, context, "Before Results:");
+    std::cout <<"edges:" << partitioned_hg.initialNumEdges() << "\n";
+    uncoarsener->doLastRefine(&partitioned_hg);
+
+    for(HyperedgeID he : partitioned_hg.edges()){
+      if(he >= initial_num){
+        std::cout << "in: " << he << "\n";
+      }
+    
+  }
+    io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
+    return partitioned_hg;
+    
+
+    /*// ################## INITIAL PARTITIONING ##################
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
@@ -200,11 +247,10 @@ namespace {
         hypergraph, context, uncoarseningData, target_graph);
     }
     partitioned_hg = uncoarsener->uncoarsen();
-
+    partitioned_hg = uncoarsener->doLastRefine();
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     timer.stop_timer("refinement");
-
-    return partitioned_hg;
+    return partitioned_hg;*/
   }
 }
 
@@ -213,12 +259,11 @@ typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::p
   Hypergraph& hypergraph, const Context& context, const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hg =
     multilevel_partitioning<TypeTraits>(hypergraph, context, target_graph, false);
-
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
     partitionVCycle(hypergraph, partitioned_hg, context, target_graph);
   }
-
+  
   return partitioned_hg;
 }
 

@@ -84,6 +84,8 @@ namespace mt_kahypar {
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
              "Output folder for partition file")
+             ("partition-input-file,pif",
+             po::value<std::string>(&context.partition.partition_input_file)->value_name("<string>"), "")
             ("mode,m",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& mode) {

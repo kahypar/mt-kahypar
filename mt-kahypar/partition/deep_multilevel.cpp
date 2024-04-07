@@ -845,8 +845,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
   if (uncoarseningData.nlevel) {
-    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-      hypergraph, context, uncoarseningData, nullptr);
+    /*uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+      hypergraph, context, uncoarseningData, nullptr);*/
   } else {
     uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
       hypergraph, context, uncoarseningData, nullptr);
@@ -959,10 +959,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   }
 
   partitioned_hg = uncoarsener->movePartitionedHypergraph();
-
   io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
   timer.stop_timer("refinement");
-
   return current_k;
 }
 

@@ -52,8 +52,15 @@ class IUncoarsener {
       while ( !isTopLevel() ) {
         projectToNextLevelAndRefine();
       }
+      std::cout << "before rb\n";
       rebalancing();
+      std::cout << "after rb\n";
       return movePartitionedHypergraph();
+      std::cout << "aftermove\n";
+    }
+
+    void doLastRefine(PartitionedHypergraph *phg){
+      return doLastRefineImpl(phg);
     }
 
     void initialize() {
@@ -110,6 +117,7 @@ class IUncoarsener {
     virtual bool isTopLevelImpl() const = 0;
     virtual void projectToNextLevelAndRefineImpl() = 0;
     virtual void refineImpl() = 0;
+    virtual void doLastRefineImpl(PartitionedHypergraph *phg) = 0;
     virtual void rebalancingImpl() = 0;
     virtual gain_cache_t getGainCacheImpl() = 0;
     virtual HyperedgeWeight getObjectiveImpl() const = 0;

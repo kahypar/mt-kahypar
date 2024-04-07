@@ -347,10 +347,8 @@ namespace mt_kahypar{
       limits[max_p] = minus(limits[max_p], weights[nodes[hn].second.first][nodes[hn].second.second]);
       packing[max_p].push_back(nodes[hn].second);
     }
-    std::cout << "limits\n";
     for(PartitionID p = 0; p < limits.size(); p++){
       for(int d = 0; d < dimension; d++){
-        std::cout << limits[p][d] << "\n";
         if(limits[p][d] < 0.0){
           return {false, packing};
         }
@@ -543,7 +541,7 @@ namespace mt_kahypar{
                                                        Metrics& best_metrics, 
                                                        std::vector<HypernodeID> nodes){                                                        
 
-    std::cout << "start\n";                                                      
+    std::cout << "RebalancingRound: ";                                                      
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph); 
     auto weighed_imbalance = [&](){
       double res = 0.0;
@@ -554,12 +552,9 @@ namespace mt_kahypar{
       }
       return res;
     };
-    std::cout << "initial ib: " << weighed_imbalance() << "\n";                                                   
+    std::cout  << weighed_imbalance() << ",";                                                   
     std::vector<HypernodeID> id_to_index(phg.initialNumNodes(), nodes.size());
     for(HypernodeID h = 0; h < nodes.size(); h++){
-      if(phg.partID(nodes[h]) == -1){
-        std::cout << "error\n\n\n\n\n";
-      }
       id_to_index[nodes[h]] = h;
     }
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -695,17 +690,14 @@ namespace mt_kahypar{
     double bag = 0.0;
     while(imbalanced != 0 && !queue.isEmpty()){
       std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> max_move = queue.getMax();
-      if(_gain_cache.gain(max_move.first, phg.partID(nodes[max_move.first]), max_move.second.first) != max_move.second.second.gain){
+      /*if(_gain_cache.gain(max_move.first, phg.partID(nodes[max_move.first]), max_move.second.first) != max_move.second.second.gain){
         std::cout << _gain_cache.gain(max_move.first, phg.partID(nodes[max_move.first]), max_move.second.first) << "  " <<max_move.second.second.gain << "\n";
-      }
+      }*/
       ASSERT(max_move.first < nodes.size());
       ASSERT(phg.partID(max_move.first) != -1);
       ASSERT(max_move.second.first != -1);
       HypernodeID node = max_move.first;
       PartitionID from = phg.partID(nodes[node]);
-      while(from == -1){
-        std::cout << "test\n";
-      }
       PartitionID to = max_move.second.first;
       double balance = balance_gain(phg, nodes[node], from, to, horizontal_balance_used);
       if(balance > max_move.second.second.balance){
@@ -726,9 +718,6 @@ namespace mt_kahypar{
           - (phg.partWeight(from) > _context.partition.max_part_weights[from])
           - (phg.partWeight(to) > _context.partition.max_part_weights[to])
           + (phg.partWeight(to) + phg.nodeWeight(nodes[node]) > _context.partition.max_part_weights[to]);
-        while(to == -1){
-          std::cout << "error\n";
-        }
         std::vector<HyperedgeID> edges_with_gain_change;
         std::vector<HypernodeID> changed_nodes;
         changed_nodes.push_back(nodes[node]);
@@ -781,7 +770,7 @@ namespace mt_kahypar{
           if(counter % UPDATE_FREQUENCY == 0){
             counter++;
             
-            std::cout <<"gain: " << local_attributed_gain << " " << weighed_imbalance() << "\n";
+            std::cout << local_attributed_gain << "," << weighed_imbalance() << ",";
             for(HypernodeID hn = min_affected_node[i]; hn < nodes_sorted[i].size(); hn++){
               for(PartitionID p = 0; p < phg.k(); p++){
                 queue.changeBalance({nodes_sorted[i][hn].second, {p, balance_gain(phg, nodes[nodes_sorted[i][hn].second], 
@@ -799,7 +788,7 @@ namespace mt_kahypar{
         queue.checkSizes(phg.k());
       }                                                  
     }
-    std::cout << counter << " " << local_attributed_gain << "\n";
+    std::cout << local_attributed_gain << "," << weighed_imbalance() << "\n";
     return imbalanced == 0;
   }
 
@@ -979,8 +968,19 @@ namespace mt_kahypar{
                                                        vec<Move>* moves_linear,
                                                        Metrics& best_metrics) {
                                                       
-    auto start = std::chrono::high_resolution_clock::now();                                                  
+    auto start = std::chrono::high_resolution_clock::now();
+    std::cout << "start\n";                                                  
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    auto weighed_imbalance = [&](){
+      double res = 0.0;
+      for(PartitionID p = 0; p < phg.k(); p++){
+        for(int d = 0; d < dimension; d++){
+          res += std::max(0.0, (phg.partWeight(p).weights[d] - _context.partition.max_part_weights[p].weights[d]) * _context.partition.max_part_weights_inv[p][d]);
+        }
+      }
+      return res;
+    };
+    double ib_at_start = weighed_imbalance();
     resizeDataStructuresForCurrentK();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -1000,8 +1000,7 @@ namespace mt_kahypar{
         }
       }
 
-      if(true/*!greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, all_nodes)*/){
-        std::cout << "fb activated";
+      if(!greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, all_nodes)){
         std::vector<HypernodeID> L;
         const double L_threshold = _context.partition.node_threshold;
 
@@ -1124,13 +1123,13 @@ namespace mt_kahypar{
           std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
             return a.first > b.first;
           });
-          for(PartitionID p = 0; p < phg.k(); p++){
+          /*for(PartitionID p = 0; p < phg.k(); p++){
             for(int d = 0; d < dimension; d++){
               std::cout << limits[p][d] << "\n";
             }
-          }
+          }*/
           std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> result = bin_packing(limits, bp_nodes, normalized_weights);
-          std::cout << "success: " << result.first << "\n";
+          /*std::cout << "success: " << result.first << "\n";*/
           if(result.first){
             current_result = result.second;
           }
@@ -1140,7 +1139,6 @@ namespace mt_kahypar{
             });
             result = bin_packing_best_fit(limits, bp_nodes, normalized_weights);
             if(result.first){
-              std::cout << "succeeee\n";
             current_result = result.second;
           }
           }
@@ -1161,7 +1159,7 @@ namespace mt_kahypar{
             }
           }*/
           success = result.first;
-          std::cout << s_calculator.factor << " " << s_calculator.factor_lowerBound << " " << s_calculator.factor_upperBound << " " << success << "\n";
+          /*std::cout << s_calculator.factor << " " << s_calculator.factor_lowerBound << " " << s_calculator.factor_upperBound << " " << success << "\n";*/
           s_calculator.adjustFactor(success);
             
         }
@@ -1176,7 +1174,7 @@ namespace mt_kahypar{
                       });
           }
         }
-        std::cout << "fallback result: " << local_attributed_gain << "\n";
+        std::cout << "FallbackResult: " << ib_at_start << "," << weighed_imbalance() << "," << local_attributed_gain <<  "\n";
         return greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, L);
 
 

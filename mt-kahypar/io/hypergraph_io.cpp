@@ -706,6 +706,23 @@ namespace mt_kahypar::io {
     }
   }
 
+  /*template<typename PartitionedHypergraph>
+  void readPartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
+    if (filename.empty()) {
+      LOG << "No filename for partition file specified";
+    } else {
+      std::ifstream myfile; 
+      myfile.open(filename.c_str());
+      HypernodeID hn = 0;
+      while(myfile){
+        std::string nextline;
+        std::getline(myfile, nextline);
+        phg.setOnlyNodePart(hn, static_cast<int>(nextline));
+      }
+      myfile.close();
+    }
+  }*/
+
   namespace {
   #define WRITE_PARTITION_FILE(X) void writePartitionFile(const X& phg, const std::string& filename)
   }
