@@ -25,7 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -36,7 +36,7 @@
 namespace mt_kahypar {
 
 template<typename GraphAndGainTypes>
-MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
+MoveSequence DeterministicFlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
                                                      const Subhypergraph& sub_hg,
                                                      const HighResClockTimepoint& start) {
   const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
@@ -102,14 +102,14 @@ MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_h
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
 template<typename GraphAndGainTypes>
-bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_problem,
+bool DeterministicFlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_problem,
                                                 const HighResClockTimepoint& start,
                                                 bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
   bool result = false;
 
-  size_t iteration = 0;
+//  size_t iteration = 0;
 //   auto on_cut = [&] {
 //     if (++iteration == 25) {
 //       iteration = 0;
@@ -147,7 +147,7 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
 }
 
 template<typename GraphAndGainTypes>
-FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+FlowProblem DeterministicFlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                                  const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;
@@ -173,9 +173,9 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
 }
 
 namespace {
-#define FLOW_REFINER(X) FlowRefiner<X>
+#define DETERMINISTIC_FLOW_REFINER(X) DeterministicFlowRefiner<X>
 }
 
-INSTANTIATE_CLASS_WITH_VALID_TRAITS(FLOW_REFINER)
+INSTANTIATE_CLASS_WITH_VALID_TRAITS(DETERMINISTIC_FLOW_REFINER)
 
 } // namespace mt_kahypar

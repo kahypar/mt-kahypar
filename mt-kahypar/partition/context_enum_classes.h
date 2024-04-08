@@ -224,6 +224,7 @@ enum class FMAlgorithm : uint8_t {
 
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
+  deterministic,
   mock,
   do_nothing
 };

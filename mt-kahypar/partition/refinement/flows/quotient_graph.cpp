@@ -349,6 +349,7 @@ void QuotientGraph<TypeTraits>::initialize(const PartitionedHypergraph& phg) {
       }
     }
   });
+
   _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
 
   // Initalize block scheduler queue
@@ -524,17 +525,11 @@ template<typename TypeTraits>
 void QuotientGraph<TypeTraits>::DeterministicBlockScheduler::finalizeSearch(const BlockPair& blocks,
   const size_t round,
   const HyperedgeWeight improvement) {
-  ASSERT(round < _rounds.size());
-  bool block_0_becomes_active = false;
-  bool block_1_becomes_active = false;
   if (improvement > 0) {
-    block_0_becomes_active = true;
-    block_1_becomes_active = true;
-  }
-  if (block_0_becomes_active) {
     _active_blocks_for_next_round[blocks.i] = true;
     _active_blocks_for_next_round[blocks.j] = true;
   }
+
   _improvement_this_round += improvement;
   if (numRemainingBlocks() == 0) {
     // We consider a round as finished, if the previous round is also finished and there

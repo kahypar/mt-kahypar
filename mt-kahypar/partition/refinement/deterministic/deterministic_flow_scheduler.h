@@ -56,18 +56,31 @@ public:
 
     explicit DeterministicFlowScheduler(const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
-        gain_cache_t gain_cache,
         const Context& context,
-        IRebalancer& rebalancer) :
+        GainCache& gain_cache) :
         _context(context),
         _gain_cache(gain_cache),
         _gain_computation(context, true /* disable_randomization */),
         _current_k(context.partition.k),
+        _quotient_graph(num_hyperedges, context),
         _constructor(num_hypernodes, num_hyperedges, context),
         _phg(nullptr),
         _was_moved(num_hypernodes, uint8_t(false)) {
-        _refiner = FlowRefinementFactory::getInstance().createObject(context.refinement.flows.algorithm, num_hyperedges, context);
+        _refiner = FlowRefinementFactory::getInstance().createObject(FlowAlgorithm::flow_cutter, num_hyperedges, context);
     }
+
+    DeterministicFlowScheduler(const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const Context& context,
+        gain_cache_t gain_cache) :
+        DeterministicFlowScheduler(num_hypernodes, num_hyperedges, context,
+            GainCachePtr::cast<GainCache>(gain_cache)) {}
+
+    DeterministicFlowScheduler(const DeterministicFlowScheduler&) = delete;
+    DeterministicFlowScheduler(DeterministicFlowScheduler&&) = delete;
+
+    DeterministicFlowScheduler& operator= (const DeterministicFlowScheduler&) = delete;
+    DeterministicFlowScheduler& operator= (DeterministicFlowScheduler&&) = delete;
 
     struct PartWeightUpdateResult {
         bool is_balanced = true;
@@ -100,7 +113,7 @@ private:
 
 
     const Context& _context;
-    GainCache _gain_cache;
+    GainCache& _gain_cache;
     GainComputation _gain_computation;
     PartitionID _current_k;
 
@@ -111,7 +124,7 @@ private:
 
     SpinLock _apply_moves_lock;
 
-    IFlowRefiner _refiner;
+    std::unique_ptr<IFlowRefiner> _refiner;
 
     // ! Contains information of all cut hyperedges between the
 // ! blocks of the partition

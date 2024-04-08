@@ -46,14 +46,14 @@
 namespace mt_kahypar {
 
 template<typename GraphAndGainTypes>
-class FlowRefiner final : public IFlowRefiner {
+class DeterministicFlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
 
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
 
  public:
-  explicit FlowRefiner(const HyperedgeID num_hyperedges,
+  explicit DeterministicFlowRefiner(const HyperedgeID num_hyperedges,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -77,12 +77,12 @@ class FlowRefiner final : public IFlowRefiner {
       _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
   }
 
-  FlowRefiner(const FlowRefiner&) = delete;
-  FlowRefiner(FlowRefiner&&) = delete;
-  FlowRefiner & operator= (const FlowRefiner &) = delete;
-  FlowRefiner & operator= (FlowRefiner &&) = delete;
+  DeterministicFlowRefiner(const DeterministicFlowRefiner&) = delete;
+  DeterministicFlowRefiner(DeterministicFlowRefiner&&) = delete;
+  DeterministicFlowRefiner & operator= (const DeterministicFlowRefiner &) = delete;
+  DeterministicFlowRefiner & operator= (DeterministicFlowRefiner &&) = delete;
 
-  virtual ~FlowRefiner() = default;
+  virtual ~DeterministicFlowRefiner() = default;
 
  protected:
 

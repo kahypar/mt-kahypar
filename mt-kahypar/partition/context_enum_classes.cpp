@@ -324,6 +324,7 @@ std::ostream& operator<< (std::ostream& os, const FMAlgorithm& algo) {
 std::ostream& operator<< (std::ostream& os, const FlowAlgorithm& algo) {
   switch (algo) {
   case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
+  case FlowAlgorithm::deterministic: return os << "deterministic";
   case FlowAlgorithm::mock: return os << "mock";
   case FlowAlgorithm::do_nothing: return os << "do_nothing";
     // omit default case to trigger compiler warning for missing cases
@@ -657,6 +658,8 @@ FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
     return FlowAlgorithm::flow_cutter;
   } else if (type == "do_nothing") {
     return FlowAlgorithm::do_nothing;
+  } else if (type == "deterministic") {
+    return FlowAlgorithm::deterministic;
   }
   throw InvalidParameterException("Illegal option: " + type);
   return FlowAlgorithm::do_nothing;

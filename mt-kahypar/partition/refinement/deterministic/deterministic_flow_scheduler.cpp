@@ -11,9 +11,9 @@ bool DeterministicFlowScheduler<GraphAndGainTypes>::refineImpl(
   const vec<HypernodeID>&,
   Metrics& best_metrics,
   const double) {
-  constexpr size_t maxIterations = std::numeric_limits<size_t>::max();
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-
+  mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
+    utils::partitioned_hg_const_cast(phg);
   bool terminate = false;
   for (size_t round = 0; round < 20 && !terminate; ++round) {
     HyperedgeWeight improvement_this_round = 0;
@@ -31,14 +31,14 @@ bool DeterministicFlowScheduler<GraphAndGainTypes>::refineImpl(
       HyperedgeWeight delta = 0;
       bool improved_solution = false;
       if (sub_hg.numNodes() > 0) {
-        MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
+        MoveSequence sequence = _refiner->refine(partitioned_hg, sub_hg, std::chrono::high_resolution_clock::now());
         if (!sequence.moves.empty() && sequence.expected_improvement >= 0) {
           //timer.start_timer("apply_moves", "Apply Moves", true);
           improvement_this_round += sequence.expected_improvement;
-          delta = applyMoves(search_id, sequence);
+          delta = applyMoves(sequence);
           assert(delta == sequence.expected_improvement);
           improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
-         // timer.stop_timer("apply_moves");
+          // timer.stop_timer("apply_moves");
         }
       }
       _quotient_graph.finalizeSearchDeterministic(search_id, improved_solution ? delta : 0);
@@ -55,6 +55,8 @@ bool DeterministicFlowScheduler<GraphAndGainTypes>::refineImpl(
 template<typename GraphAndGainTypes>
 void DeterministicFlowScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+  mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
+    utils::partitioned_hg_const_cast(phg);
   _phg = &phg;
   resizeDataStructuresForCurrentK();
 
@@ -64,7 +66,6 @@ void DeterministicFlowScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_pa
     _max_part_weights[i] = std::max(
       phg.partWeight(i), _context.partition.max_part_weights[i]);
   }
-
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
   _quotient_graph.initialize(phg);
@@ -73,7 +74,7 @@ void DeterministicFlowScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_pa
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
     << ", Initial Num Threads =" << max_parallism;
-  _refiner.initialize(phg);
+  _refiner->initialize(partitioned_hg);
 }
 
 template<typename GraphAndGainTypes>
@@ -262,4 +263,10 @@ DeterministicFlowScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<Hypern
   _part_weights_lock.unlock();
   return res;
 }
+
+namespace {
+#define DETERMINISITC_FLOW_SCHEDULER(X) DeterministicFlowScheduler<X>
+}
+
+INSTANTIATE_CLASS_WITH_VALID_TRAITS(DETERMINISITC_FLOW_SCHEDULER)
 }

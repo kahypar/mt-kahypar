@@ -47,7 +47,8 @@
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/deterministic/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/deterministic/combined_deterministic_refiner.h"
-
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_flow_scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refiner.h"
 
 namespace mt_kahypar {
 using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
@@ -91,6 +92,10 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                DeterministicFlowScheduler,
+                                IRefiner,
+                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    DeterministicRebalancer,
@@ -108,7 +113,11 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                 FlowRefiner,
+                                 DeterministicFlowRefiner,
+                                 IFlowRefiner,
+                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+using DeterministicFlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                 DeterministicFlowRefiner,
                                  IFlowRefiner,
                                  kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -262,6 +271,9 @@ REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
                                    getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::deterministic,
+                                   DeterministicFlowSchedulerDispatcher,
+                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::deterministic,
@@ -278,5 +290,9 @@ REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                  FlowRefinementDispatcher,
                                  getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::deterministic,
+                                 DeterministicFlowRefinementDispatcher,
+                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
 }  // namespace mt_kahypar
