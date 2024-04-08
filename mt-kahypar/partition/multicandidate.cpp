@@ -186,7 +186,7 @@ void enableTimerAndStats(const Context& context) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
         disableTimerAndStats(context);
-        tbb::parallel_for(0, level * 12, [&](int i) {
+        tbb::parallel_for(0, level * 4, [&](int i) {
           auto hg = partitioned_hg.hypergraph().copy();
           PartitionedHypergraph phg(context.partition.k, hg);
           ip(phg, level);
@@ -246,7 +246,6 @@ void enableTimerAndStats(const Context& context) {
                                               }),
                               partition_pool.end());
         } else {
-          int round = 0;
           // Do final tournament and choose winner and set the partitioned hypergraph to the winner
           while(partition_pool.size() > 1 && !uncoarsener->isTopLevel()) {
             // Print qualities of the partitions
@@ -307,7 +306,7 @@ void enableTimerAndStats(const Context& context) {
             partitioned_hg.hypergraph());
       }
       disableTimerAndStats(context);
-      tbb::parallel_for(0, 12, [&](int i) {
+      tbb::parallel_for(0, 4, [&](int) {
         auto hg = partitioned_hg.hypergraph().copy();
         PartitionedHypergraph phg(context.partition.k, hg);
         ip(phg, level);
