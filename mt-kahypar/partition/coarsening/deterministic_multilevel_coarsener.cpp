@@ -339,7 +339,8 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           }
           for (const HypernodeID c : hg.nodes()) {
             if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
-              LOG << "ERROR wrong cluster_weight: " << V(sub_round) << ", " << V(c) << ", " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]) << std::endl;
+              LOG << "ERROR wrong cluster_weight: " << V(sub_round) << ", " << V(c) << ", " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]);
+              return false;
             }
           }
         }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");

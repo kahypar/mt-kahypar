@@ -413,7 +413,7 @@ private:
           HyperedgeID(0), hg.initialNumEdges()), HypernodeID(2),
           [&](const tbb::blocked_range<HyperedgeID>& r, HypernodeID init) -> HypernodeID {
         for (HyperedgeID e = r.begin(); e != r.end(); ++e) {
-          init = std::max(init, hg.edgeSize(e));
+            init = std::max(init, hg.edgeSize(e));
         }
         return init;
       }, [](HypernodeID l, HypernodeID r) -> HypernodeID { return std::max(l, r); }
@@ -421,11 +421,11 @@ private:
       size_t s = std::min<size_t>(10 * max_edge_size, initial_num_nodes);
       bloom_filter_mask = std::pow(2.0, std::ceil(std::log2(static_cast<double>(s))));
       bloom_filter_mask -= 1;
-      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
+      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask + 1);
     } else if (policy == EdgeDeduplicationPolicy::exact) {
       auto& hg = utils::cast<Hypergraph>(hypergraph);
       bloom_filter_mask = hg.initialNumNodes();
-      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask);
+      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask + 1);
     } else if (policy == EdgeDeduplicationPolicy::exponential_decay) {
       auto& hg = utils::cast<Hypergraph>(hypergraph);
       pins_per_cluster = tbb::enumerable_thread_specific<vec<size_t>>(hg.initialNumNodes());
