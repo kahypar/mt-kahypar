@@ -98,17 +98,12 @@ bool DeterministicLabelPropagationRefiner<GraphAndGainTypes>::refineImpl(
       size_t num_moves_in_sub_round = moves.size();
 
       if (num_moves_in_sub_round > 0) {
-        sub_round_improvement = applyMovesIf(phg, moves.getData(), num_moves_in_sub_round, [&](size_t pos) { return moves[pos].isValid(); });
-        Metrics metrics = { 0,0 };
-        mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
-        _rebalancer.jetRebalance(part_hg, metrics, true);
-        sub_round_improvement -= metrics.quality;
-        // bool reverted = false;
-        // std::tie(sub_round_improvement, reverted) = applyMovesByMaximalPrefixesInBlockPairs(phg);
-        // increase_sub_rounds |= reverted;
-        // if (sub_round_improvement > 0 && moves.size() > 0) {
-        //   sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
-        // }
+          bool reverted = false;
+          std::tie(sub_round_improvement, reverted) = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          increase_sub_rounds |= reverted;
+          if (sub_round_improvement > 0 && moves.size() > 0) {
+            sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+          }
       }
       round_improvement += sub_round_improvement;
       num_moves += num_moves_in_sub_round;
