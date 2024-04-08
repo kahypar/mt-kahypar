@@ -103,8 +103,8 @@ MoveSequence DeterministicFlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_
 
 template<typename GraphAndGainTypes>
 bool DeterministicFlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_problem,
-                                                const HighResClockTimepoint& start,
-                                                bool& time_limit_reached) {
+                                                const HighResClockTimepoint&,
+                                                bool&) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
   bool result = false;

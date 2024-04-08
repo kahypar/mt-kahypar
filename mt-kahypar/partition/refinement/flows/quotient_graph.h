@@ -301,11 +301,9 @@ class QuotientGraph {
       _next_scheduled_block_pair_idx(0),
       _active_block_pairs(),
       _active_blocks_for_next_round(context.partition.k, true),
-      _improvement_this_round(0) {
-      std::cout << "hi" << std::endl;
+      _improvement_this_round(0),
+      _is_scheduled(context.partition.k, false) {
       _active_block_pairs.reserve(context.partition.k / 2);
-      std::cout << "there" << std::endl;
-
     }
 
     // ! Initialize a round of the deterministic block scheduling strategy
@@ -320,7 +318,7 @@ class QuotientGraph {
     // ! Signals that the search on the corresponding block pair terminated.
     // ! If one the two blocks become active, we immediatly schedule all edges
     // ! adjacent in the quotient graph in the next round of active block scheduling
-    void finalizeSearch(const BlockPair& blocks,
+    bool finalizeSearch(const BlockPair& blocks,
       const size_t round,
       const HyperedgeWeight improvement);
 
@@ -337,6 +335,7 @@ class QuotientGraph {
 
     void reset() {
       _active_block_pairs.clear();
+      _is_scheduled.assign(_is_scheduled.size(), false);
     }
 
     bool isActiveBlockPair(const PartitionID i,
@@ -355,6 +354,7 @@ class QuotientGraph {
     vec<bool> _active_blocks_for_next_round;
 
     HyperedgeWeight _improvement_this_round;
+    vec<bool> _is_scheduled;
   };
 
 public:
@@ -458,7 +458,7 @@ public:
  * we reinsert all hyperedges that were used throughout the construction
  * and are still cut between the corresponding block.
  */
-  void finalizeSearchDeterministic(const SearchID search_id,
+  bool finalizeSearchDeterministic(const SearchID search_id,
     const HyperedgeWeight total_improvement);
 
   // ! Initializes the quotient graph. This includes to find
