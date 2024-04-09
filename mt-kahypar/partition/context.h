@@ -51,6 +51,7 @@ struct PartitioningParameters {
   double node_threshold = 0.0;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
+  int update_frequency = 0;
   size_t num_vcycles = 0;
   bool perform_parallel_recursion_in_deep_multilevel = true;
 
