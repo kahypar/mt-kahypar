@@ -67,18 +67,18 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   }
   constexpr size_t num_sequential_steps = 150;
   constexpr double growth_factor = 1.8;
-  constexpr double max_subround_size_fraction = 0.001;
+  constexpr double max_subround_size_fraction = 0.01;
   const size_t max_subround_size = std::max<size_t>(1, num_nodes_before_pass * max_subround_size_fraction);
 
   size_t sub_round = 0;
   if (isPrefixDoublingPass) {
     size_t last;
+    size_t dist;
     for (size_t first = 0; num_nodes > currentLevelContractionLimit() && first < num_nodes_before_pass; first = last) {
-      size_t dist = parallel::chunking::idiv_ceil(num_nodes_before_pass, config.num_sub_rounds);
       if (first < num_sequential_steps) {
         dist = 1;
       } else {
-        dist = std::max<size_t>(growth_factor * (last - first), max_subround_size);
+        dist = std::min<size_t>(growth_factor * (std::max(dist, 2UL)), max_subround_size);
       }
       last = std::min<size_t>(num_nodes_before_pass, first + dist);
       // each vertex finds a cluster it wants to join
