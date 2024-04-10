@@ -838,6 +838,9 @@ namespace mt_kahypar{
         queue.checkSizes(phg.k());
       }                                                  
     }
+    for(int x = 0; x < dimension; x++){
+              std::cout << min_affected_node[x] << " ";
+            }
 
 
     for(HypernodeID h = 0; h < nodes.size(); h++){
@@ -1064,6 +1067,7 @@ namespace mt_kahypar{
           all_nodes.push_back(hn);
         }
       }
+      std::cout << "size:" << all_nodes.size();
 
       if(!greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, all_nodes)){
         std::cout << "fb activated";

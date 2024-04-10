@@ -152,6 +152,7 @@ namespace mt_kahypar {
                                                                       Metrics& best_metrics,
                                                                       vec<Move>& rebalance_moves,
                                                                       bool unconstrained_lp) {
+                                                                        std::cout << "labelprop " << unconstrained_lp << "\n";
     Metrics current_metrics = best_metrics;
     _visited_he.reset();
     _next_active.reset();
@@ -253,6 +254,7 @@ namespace mt_kahypar {
                                                                  Metrics& best_metrics,
                                                                  Metrics& current_metrics,
                                                                  vec<Move>& rebalance_moves) {
+                                                                  std::cout << "applytests\n";
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("rebalance_lp", "Rebalance");
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
