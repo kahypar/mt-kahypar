@@ -45,7 +45,7 @@ struct BlockPair {
 template<typename TypeTraits>
 class QuotientGraph {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -302,10 +302,7 @@ class QuotientGraph {
       _active_block_pairs(),
       _active_blocks_for_next_round(context.partition.k, true),
       _improvement_this_round(0) {
-      std::cout << "hi" << std::endl;
       _active_block_pairs.reserve(context.partition.k / 2);
-      std::cout << "there" << std::endl;
-
     }
 
     // ! Initialize a round of the deterministic block scheduling strategy
@@ -325,7 +322,7 @@ class QuotientGraph {
       const HyperedgeWeight improvement);
 
     size_t numRemainingBlocks() const {
-      return _active_block_pairs.size() - _next_scheduled_block_pair_idx;
+      return _active_block_pairs.size() -  _next_scheduled_block_pair_idx;
     }
 
     void setObjective(const HyperedgeWeight objective) {
@@ -373,15 +370,12 @@ public:
     _deterministic_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches() {
-    std::cout << "tell me why" << std::endl;
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       for (PartitionID j = i + 1; j < _context.partition.k; ++j) {
         _quotient_graph[i][j].blocks.i = i;
         _quotient_graph[i][j].blocks.j = j;
       }
     }
-    std::cout << "tell" << std::endl;
-
   }
 
   QuotientGraph(const QuotientGraph&) = delete;

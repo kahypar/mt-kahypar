@@ -438,8 +438,6 @@ namespace mt_kahypar {
         std::min(shared_memory.num_threads, std::min(std::max(UL(1), static_cast<size_t>(
           refinement.flows.parallel_searches_multiplier * partition.k)),
             static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
-    } else if (refinement.flows.algorithm == FlowAlgorithm::deterministic ) {
-      refinement.flows.num_parallel_searches = 1;
     }
   }
 
