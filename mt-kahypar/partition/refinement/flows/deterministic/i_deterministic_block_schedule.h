@@ -33,9 +33,11 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_quotient_graph.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class IDeterministicBlockSchedule {
 
 public:
@@ -46,21 +48,21 @@ public:
 
     virtual ~IDeterministicBlockSchedule() = default;
 
-    void initialize(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
-        initializeImpl(hypergraph);
+    void initialize(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) {
+        initializeImpl(hypergraph, qg);
     }
 
-    vec<BlockPair> getNextRound() {
-        return getNextRoundImpl();
+    vec<BlockPair> getNextMatching(const DeterministicQuotientGraph<TypeTraits>& qg) {
+        return getNextMatchingImpl(qg);
     }
 
 protected:
     IDeterministicBlockSchedule() = default;
 
 private:
-    virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) = 0;
+    virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 
-    virtual vec<BlockPair> getNextRoundImpl() = 0;
+    virtual vec<BlockPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 };
 
 }  // namespace mt_kahypar
