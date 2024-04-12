@@ -658,7 +658,9 @@ FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
     return FlowAlgorithm::flow_cutter;
   } else if (type == "do_nothing") {
     return FlowAlgorithm::do_nothing;
-  } else if (type == "deterministic")
+  } else if (type == "deterministic") {
+    return FlowAlgorithm::deterministic;
+  }
   throw InvalidParameterException("Illegal option: " + type);
   return FlowAlgorithm::do_nothing;
 }

@@ -109,9 +109,8 @@ public:
         }
     }
 
-    DeterministicQuotientGraphEdge& getEdge(const PartitionedHypergraph& phg, const PartitionID a, const PartitionID b) {
-        const PartitionID i = std::min(a, b);
-        const PartitionID j = std::max(a, b);
+    DeterministicQuotientGraphEdge& getEdgeFiltered(const PartitionedHypergraph& phg, const PartitionID i, const PartitionID j) {
+        assert(i < j);
         DeterministicQuotientGraphEdge& quotientEdge = _edges[i][j];
         vec<HyperedgeID>& edges = quotientEdge.cut_hyperedges;
         for (size_t i = 0; i < edges.size(); ++i) {
@@ -127,6 +126,30 @@ public:
         // For determinism
         tbb::parallel_sort(edges.begin(), edges.end());
         return quotientEdge;
+    }
+
+    HyperedgeWeight getCutWeight(const PartitionID i, const PartitionID j)const {
+        assert(i < j);
+        return _edges[i][j].cut_hyperedge_weight;
+    }
+
+    HyperedgeWeight getImprovement(const PartitionID i, const PartitionID j)const {
+        assert(i < j);
+        return _edges[i][j].total_improvement;
+    }
+
+    void addNewCutHyperedge(const HyperedgeID he, const PartitionID block, const PartitionedHypergraph& phg) {
+        ASSERT(phg.pinCountInPart(he, block) > 0);
+        // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
+        for (const PartitionID& other_block : phg.connectivitySet(he)) {
+            if (other_block != block) {
+                _edges[std::min(block, other_block)][std::max(block, other_block)].addHyperedge(he, phg.edgeWeight(he));
+            }
+        }
+    }
+
+    void reportImprovement(const PartitionID i, const PartitionID j, const HyperedgeWeight improvement) {
+        _edges[i][j].total_improvement += improvement;
     }
 
 private:

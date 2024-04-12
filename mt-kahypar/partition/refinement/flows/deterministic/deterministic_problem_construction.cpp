@@ -122,7 +122,7 @@ Subhypergraph DeterministicProblemConstruction<TypeTraits>::construct(
     // We initialize the BFS with all cut hyperedges running
     // between the involved block associated with the search
     _bfs.clearQueue();
-    for (const HyperedgeID he : quotient_graph.getEdge(phg, block0, block1).getCutEdges()) {
+    for (const HyperedgeID he : quotient_graph.getEdgeFiltered(phg, block0, block1).getCutEdges()) {
         _bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
             max_weight_block_0, max_weight_block_1);
     }
