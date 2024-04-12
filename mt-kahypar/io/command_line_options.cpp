@@ -704,7 +704,8 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Flow Algorithms:\n"
              "- do_nothing\n"
-             "- flow_cutter")
+             "- flow_cutter\n"
+             "- deterministic")
             ((initial_partitioning ? "i-r-flow-parallel-search-multiplier" : "r-flow-parallel-search-multiplier"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.parallel_searches_multiplier :
                       &context.refinement.flows.parallel_searches_multiplier))->value_name("<double>"),
