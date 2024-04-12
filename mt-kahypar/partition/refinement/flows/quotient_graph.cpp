@@ -446,7 +446,7 @@ SearchID QuotientGraph<TypeTraits>::requestNewSearchDeterministic() {
 }
 
 template<typename TypeTraits>
-bool QuotientGraph<TypeTraits>::finalizeSearchDeterministic(const SearchID search_id,
+void QuotientGraph<TypeTraits>::finalizeSearchDeterministic(const SearchID search_id,
   const HyperedgeWeight total_improvement) {
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
@@ -462,10 +462,9 @@ bool QuotientGraph<TypeTraits>::finalizeSearchDeterministic(const SearchID searc
   }
   // In case the block pair becomes active,
   // we reinsert it into the queue
-  const bool roundFinished = _deterministic_block_scheduler.finalizeSearch(
+  _deterministic_block_scheduler.finalizeSearch(
     blocks, _searches[search_id].round, total_improvement);
   --_num_active_searches;
-  return roundFinished;
 }
 
 template<typename TypeTraits>
@@ -500,32 +499,30 @@ void QuotientGraph<TypeTraits>::DeterministicBlockScheduler::initialize(const bo
           _quotient_graph[lhs.i][lhs.j].cut_he_weight >
           _quotient_graph[rhs.i][rhs.j].cut_he_weight);
     });
+
+    if (debug) {
+      for (const BlockPair& blocks : _active_block_pairs) {
+        DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
+          << "Total Improvement =" << _quotient_graph[blocks.i][blocks.j].total_improvement << ","
+          << "Cut Weight =" << _quotient_graph[blocks.i][blocks.j].cut_he_weight << ")";
+      }
+    }
   }
 }
 
 template<typename TypeTraits>
 bool QuotientGraph<TypeTraits>::DeterministicBlockScheduler::popBlockPairFromQueue(BlockPair& blocks) {
-  while (_next_scheduled_block_pair_idx < _active_block_pairs.size()) {
-    const BlockPair& bp = _active_block_pairs[_next_scheduled_block_pair_idx];
+  if (_next_scheduled_block_pair_idx < _active_block_pairs.size()) {
+    blocks.i = _active_block_pairs[_next_scheduled_block_pair_idx].i;
+    blocks.j = _active_block_pairs[_next_scheduled_block_pair_idx].j;
     _next_scheduled_block_pair_idx++;
-    if (!_is_scheduled[bp.i] && !_is_scheduled[bp.j]) {
-      blocks.i = bp.i;
-      blocks.j = bp.j;
-      _is_scheduled[bp.i] = true;
-      _is_scheduled[bp.j] = true;
-      if (debug) {
-        DBG << "Schedule blocks (" << bp.i << "," << bp.j << ") in round << ("
-          << "Total Improvement =" << _quotient_graph[bp.i][bp.j].total_improvement << ","
-          << "Cut Weight =" << _quotient_graph[bp.i][bp.j].cut_he_weight << ")";
-      }
-      return true;
-    }
+    return true;
   }
   return false;
 }
 
 template<typename TypeTraits>
-bool QuotientGraph<TypeTraits>::DeterministicBlockScheduler::finalizeSearch(const BlockPair& blocks,
+void QuotientGraph<TypeTraits>::DeterministicBlockScheduler::finalizeSearch(const BlockPair& blocks,
   const size_t round,
   const HyperedgeWeight improvement) {
   if (improvement > 0) {
@@ -540,11 +537,7 @@ bool QuotientGraph<TypeTraits>::DeterministicBlockScheduler::finalizeSearch(cons
     DBG << GREEN << "Round" << (round + 1) << "terminates with improvement"
       << _improvement_this_round << "("
       << "Minimum Required Improvement =" << _min_improvement_per_round << ")" << END;
-
-    initialize(_is_input_hypergraph);
-    return true;
   }
-  return false;
 }
 
 template<typename TypeTraits>

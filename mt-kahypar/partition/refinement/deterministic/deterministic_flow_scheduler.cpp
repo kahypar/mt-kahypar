@@ -9,7 +9,7 @@ template<typename GraphAndGainTypes>
 bool DeterministicFlowScheduler<GraphAndGainTypes>::refineImpl(
   mt_kahypar_partitioned_hypergraph_t& hypergraph,
   const vec<HypernodeID>&,
-  Metrics&,
+  Metrics& best_metrics,
   const double) {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
@@ -18,33 +18,31 @@ bool DeterministicFlowScheduler<GraphAndGainTypes>::refineImpl(
   for (size_t round = 0; round < 20 && !terminate; ++round) {
     HyperedgeWeight improvement_this_round = 0;
     size_t processed_block_pairs = 0;
-      while (true) {
-        SearchID search_id = _quotient_graph.requestNewSearchDeterministic();
-        if (search_id == QuotientGraph<TypeTraits>::INVALID_SEARCH_ID) {
-          terminate = processed_block_pairs == 0;
-          break;
-        }
-        ++processed_block_pairs;
+    while (true) {
+      SearchID search_id = _quotient_graph.requestNewSearchDeterministic();
+      if (search_id == QuotientGraph<TypeTraits>::INVALID_SEARCH_ID) {
+        terminate = processed_block_pairs == 0;
+        break;
+      }
+      ++processed_block_pairs;
 
-        const Subhypergraph sub_hg = _constructor.construct(search_id, _quotient_graph, phg);
-        _quotient_graph.finalizeConstruction(search_id);
-        HyperedgeWeight delta = 0;
-        bool improved_solution = false;
-        if (sub_hg.numNodes() > 0) {
-          MoveSequence sequence = _refiner->refine(partitioned_hg, sub_hg, std::chrono::high_resolution_clock::now());
-          if (!sequence.moves.empty() && sequence.expected_improvement >= 0) {
-            //timer.start_timer("apply_moves", "Apply Moves", true);
-            improvement_this_round += sequence.expected_improvement;
-            delta = applyMoves(sequence);
-            assert(delta == sequence.expected_improvement);
-            improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
-            // timer.stop_timer("apply_moves");
-          }
-        }
-        if (_quotient_graph.finalizeSearchDeterministic(search_id, improved_solution ? delta : 0)) {
-          break;
+      const Subhypergraph sub_hg = _constructor.construct(search_id, _quotient_graph, phg);
+      _quotient_graph.finalizeConstruction(search_id);
+      HyperedgeWeight delta = 0;
+      bool improved_solution = false;
+      if (sub_hg.numNodes() > 0) {
+        MoveSequence sequence = _refiner->refine(partitioned_hg, sub_hg, std::chrono::high_resolution_clock::now());
+        if (!sequence.moves.empty() && sequence.expected_improvement >= 0) {
+          //timer.start_timer("apply_moves", "Apply Moves", true);
+          improvement_this_round += sequence.expected_improvement;
+          delta = applyMoves(sequence);
+          assert(delta == sequence.expected_improvement);
+          improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
+          // timer.stop_timer("apply_moves");
         }
       }
+      _quotient_graph.finalizeSearchDeterministic(search_id, improved_solution ? delta : 0);
+    }
   }
 
   // for (whfc::TimeReporter& local_timer : timers_thread_specific) {
@@ -70,7 +68,7 @@ void DeterministicFlowScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_pa
   }
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
-  _quotient_graph.initializeDeterministic(phg);
+  _quotient_graph.initialize(phg);
   timer.stop_timer("initialize_quotient_graph");
 
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
