@@ -47,7 +47,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/deterministic/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/deterministic/combined_deterministic_refiner.h"
-
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_scheduler.h"
 
 namespace mt_kahypar {
 using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
@@ -89,6 +89,11 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
 
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
+                                IRefiner,
+                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                DeterministicFlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -261,6 +266,9 @@ REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
+                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::deterministic,
+                                   DeterministicFlowSchedulerDispatcher,
                                    getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 

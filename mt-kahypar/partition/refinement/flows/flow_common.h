@@ -23,6 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
+#pragma once
 
 #include "datastructure/flow_hypergraph_builder.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
