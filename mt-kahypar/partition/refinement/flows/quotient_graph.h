@@ -60,11 +60,11 @@ class QuotientGraph {
       num_cut_hes(0),
       cut_he_weight(0),
       num_improvements_found(0),
-      total_improvement(0) {}
+      total_improvement(0) { }
 
     // ! Adds a cut hyperedge to this quotient graph edge
     void add_hyperedge(const HyperedgeID he,
-      const HyperedgeWeight weight);
+                       const HyperedgeWeight weight);
 
     void reset();
 
@@ -130,16 +130,16 @@ class QuotientGraph {
    */
   class ActiveBlockSchedulingRound {
 
-  public:
+   public:
     explicit ActiveBlockSchedulingRound(const Context& context,
-      vec<vec<QuotientGraphEdge>>& quotient_graph) :
+                                        vec<vec<QuotientGraphEdge>>& quotient_graph) :
       _context(context),
       _quotient_graph(quotient_graph),
       _unscheduled_blocks(),
       _round_improvement(0),
       _active_blocks_lock(),
       _active_blocks(context.partition.k, false),
-      _remaining_blocks(0) {}
+      _remaining_blocks(0) { }
 
     // ! Pops a block pair from the queue.
     // ! Returns true, if a block pair was successfully popped from the queue.
@@ -154,9 +154,9 @@ class QuotientGraph {
 
     // ! Signals that the search on the corresponding block pair terminated.
     void finalizeSearch(const BlockPair& blocks,
-      const HyperedgeWeight improvement,
-      bool& block_0_becomes_active,
-      bool& block_1_becomes_active);
+                        const HyperedgeWeight improvement,
+                        bool& block_0_becomes_active,
+                        bool& block_1_becomes_active);
 
     HyperedgeWeight roundImprovement() const {
       return _round_improvement.load(std::memory_order_relaxed);
@@ -171,8 +171,8 @@ class QuotientGraph {
       return _remaining_blocks;
     }
 
-    const Context& _context;
-    // ! Quotient graph
+   const Context& _context;
+   // ! Quotient graph
     vec<vec<QuotientGraphEdge>>& _quotient_graph;
     // ! Queue that contains all unscheduled block pairs of the current round
     tbb::concurrent_queue<BlockPair> _unscheduled_blocks;
@@ -200,9 +200,9 @@ class QuotientGraph {
    */
   class ActiveBlockScheduler {
 
-  public:
+   public:
     explicit ActiveBlockScheduler(const Context& context,
-      vec<vec<QuotientGraphEdge>>& quotient_graph) :
+                                  vec<vec<QuotientGraphEdge>>& quotient_graph) :
       _context(context),
       _quotient_graph(quotient_graph),
       _num_rounds(0),
@@ -211,11 +211,11 @@ class QuotientGraph {
       _terminate(false),
       _round_lock(),
       _first_active_round(0),
-      _is_input_hypergraph(false) {}
+      _is_input_hypergraph(false) { }
 
     // ! Initialize the first round of the active block scheduling strategy
     void initialize(const vec<uint8_t>& active_blocks,
-      const bool is_input_hypergraph);
+                    const bool is_input_hypergraph);
 
     // ! Pops a block pair from the queue.
     // ! Returns true, if a block pair was successfully popped from the queue.
@@ -227,12 +227,12 @@ class QuotientGraph {
     // ! If one the two blocks become active, we immediatly schedule all edges
     // ! adjacent in the quotient graph in the next round of active block scheduling
     void finalizeSearch(const BlockPair& blocks,
-      const size_t round,
-      const HyperedgeWeight improvement);
+                        const size_t round,
+                        const HyperedgeWeight improvement);
 
     size_t numRemainingBlocks() const {
       size_t num_remaining_blocks = 0;
-      for (size_t i = _first_active_round; i < _num_rounds; ++i) {
+      for ( size_t i = _first_active_round; i < _num_rounds; ++i ) {
         num_remaining_blocks += _rounds[i].numRemainingBlocks();
       }
       return num_remaining_blocks;
@@ -243,7 +243,7 @@ class QuotientGraph {
         _context.refinement.flows.min_relative_improvement_per_round * objective;
     }
 
-  private:
+   private:
 
     void reset() {
       _num_rounds.store(0);
@@ -253,7 +253,7 @@ class QuotientGraph {
     }
 
     bool isActiveBlockPair(const PartitionID i,
-      const PartitionID j) const;
+                           const PartitionID j) const;
 
     const Context& _context;
     // ! Quotient graph
@@ -277,7 +277,7 @@ class QuotientGraph {
     explicit Search(const BlockPair& blocks, const size_t round) :
       blocks(blocks),
       round(round),
-      is_finalized(false) {}
+      is_finalized(false) { }
 
     // ! Block pair on which this search operates on
     BlockPair blocks;
@@ -288,77 +288,11 @@ class QuotientGraph {
     bool is_finalized;
   };
 
-
-  class DeterministicBlockScheduler {
-
-  public:
-    explicit DeterministicBlockScheduler(const Context& context,
-      vec<vec<QuotientGraphEdge>>& quotient_graph) :
-      _context(context),
-      _quotient_graph(quotient_graph),
-      _min_improvement_per_round(0),
-      _is_input_hypergraph(false),
-      _next_scheduled_block_pair_idx(0),
-      _active_block_pairs(),
-      _active_blocks_for_next_round(context.partition.k, true),
-      _improvement_this_round(0) {
-      _active_block_pairs.reserve(context.partition.k / 2);
-    }
-
-    // ! Initialize a round of the deterministic block scheduling strategy
-    void initialize(const bool is_input_hypergraph);
-
-    // ! Pops a block pair from the queue.
-    // ! Returns true, if a block pair was successfully popped from the queue.
-    // ! The corresponding block pair and the round to which this blocks corresponds
-    // ! to are stored in blocks and round.
-    bool popBlockPairFromQueue(BlockPair& blocks);
-
-    // ! Signals that the search on the corresponding block pair terminated.
-    // ! If one the two blocks become active, we immediatly schedule all edges
-    // ! adjacent in the quotient graph in the next round of active block scheduling
-    void finalizeSearch(const BlockPair& blocks,
-      const size_t round,
-      const HyperedgeWeight improvement);
-
-    size_t numRemainingBlocks() const {
-      return _active_block_pairs.size() -  _next_scheduled_block_pair_idx;
-    }
-
-    void setObjective(const HyperedgeWeight objective) {
-      _min_improvement_per_round =
-        _context.refinement.flows.min_relative_improvement_per_round * objective;
-    }
-
-  private:
-
-    void reset() {
-      _active_block_pairs.clear();
-    }
-
-    bool isActiveBlockPair(const PartitionID i,
-      const PartitionID j) const;
-
-    const Context& _context;
-    // ! Quotient graph
-    vec<vec<QuotientGraphEdge>>& _quotient_graph;
-    // ! Minimum improvement per round to continue with next round
-    HyperedgeWeight _min_improvement_per_round;
-    // ! Indicate if the current hypergraph represents the input hypergraph
-    bool _is_input_hypergraph;
-
-    size_t _next_scheduled_block_pair_idx;
-    vec<BlockPair> _active_block_pairs;
-    vec<bool> _active_blocks_for_next_round;
-
-    HyperedgeWeight _improvement_this_round;
-  };
-
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
   explicit QuotientGraph(const HyperedgeID num_hyperedges,
-    const Context& context) :
+                         const Context& context) :
     _phg(nullptr),
     _context(context),
     _initial_num_edges(num_hyperedges),
@@ -367,11 +301,10 @@ public:
       vec<QuotientGraphEdge>(context.partition.k)),
     _register_search_lock(),
     _active_block_scheduler(context, _quotient_graph),
-    _deterministic_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches() {
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      for (PartitionID j = i + 1; j < _context.partition.k; ++j) {
+    for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
+      for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
         _quotient_graph[i][j].blocks.j = j;
       }
@@ -381,8 +314,8 @@ public:
   QuotientGraph(const QuotientGraph&) = delete;
   QuotientGraph(QuotientGraph&&) = delete;
 
-  QuotientGraph& operator= (const QuotientGraph&) = delete;
-  QuotientGraph& operator= (QuotientGraph&&) = delete;
+  QuotientGraph & operator= (const QuotientGraph &) = delete;
+  QuotientGraph & operator= (QuotientGraph &&) = delete;
 
   /**
    * Returns a new search id which is associated with a certain number
@@ -392,8 +325,6 @@ public:
    * available then INVALID_SEARCH_ID is returned.
    */
   SearchID requestNewSearch(FlowRefinerAdapter<TypeTraits>& refiner);
-
-  SearchID requestNewSearchDeterministic();
 
   // ! Returns the block pair on which the corresponding search operates on
   BlockPair getBlockPair(const SearchID search_id) const {
@@ -411,11 +342,11 @@ public:
     const BlockPair& blocks = _searches[search_id].blocks;
     const size_t num_cut_hes = _quotient_graph[blocks.i][blocks.j].num_cut_hes.load();
     std::shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
-      _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes,
-      utils::Randomize::instance().getGenerator());
-    for (size_t i = 0; i < num_cut_hes; ++i) {
+                 _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes,
+                 utils::Randomize::instance().getGenerator());
+    for ( size_t i = 0; i < num_cut_hes; ++i ) {
       const HyperedgeID he = _quotient_graph[blocks.i][blocks.j].cut_hes[i];
-      if (_phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0) {
+      if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
         f(he);
       }
     }
@@ -429,7 +360,7 @@ public:
    * block to 1 is responsible to call this function.
    */
   void addNewCutHyperedge(const HyperedgeID he,
-    const PartitionID block);
+                          const PartitionID block);
 
   /**
    * Notify the quotient graph that the construction of the corresponding
@@ -445,23 +376,11 @@ public:
    * and are still cut between the corresponding block.
    */
   void finalizeSearch(const SearchID search_id,
-    const HyperedgeWeight total_improvement);
-  /**
- * Notify the quotient graph that the corrseponding search terminated.
- * If the search improves the quality of the partition (success == true),
- * we reinsert all hyperedges that were used throughout the construction
- * and are still cut between the corresponding block.
- */
-  void finalizeSearchDeterministic(const SearchID search_id,
-    const HyperedgeWeight total_improvement);
+                      const HyperedgeWeight total_improvement);
 
   // ! Initializes the quotient graph. This includes to find
   // ! all cut hyperedges between all block pairs
   void initialize(const PartitionedHypergraph& phg);
-
-  // ! Initializes the quotient graph. This includes to find
-// ! all cut hyperedges between all block pairs
-  void initializeDeterministic(const PartitionedHypergraph& phg);
 
   void setObjective(const HyperedgeWeight objective) {
     _active_block_scheduler.setObjective(objective);
@@ -479,7 +398,7 @@ public:
 
   void changeNumberOfBlocks(const PartitionID new_k);
 
-private:
+ private:
 
   void resetQuotientGraphEdges();
 
@@ -499,8 +418,6 @@ private:
   SpinLock _register_search_lock;
   // ! Queue that contains all block pairs.
   ActiveBlockScheduler _active_block_scheduler;
-
-  DeterministicBlockScheduler _deterministic_block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
