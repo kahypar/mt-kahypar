@@ -529,11 +529,11 @@ EdgeRatingForMatching edgeRatingForMatchingFromString(const std::string& rating)
 }
 
 ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& strategy) {
-  if (strategy == "sh_uniform") {
+  if (strategy == "uniform") {
     return ClusterTieBreakingPolicy::sh_uniform;
   } else if (strategy == "mt_uniform") {
     return ClusterTieBreakingPolicy::mt_uniform;
-  } else if (strategy == "sh_geometric") {
+  } else if (strategy == "geometric") {
     return ClusterTieBreakingPolicy::sh_geometric;
   } else if (strategy == "mt_geometric") {
     return ClusterTieBreakingPolicy::mt_geometric;

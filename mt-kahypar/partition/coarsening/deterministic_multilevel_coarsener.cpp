@@ -100,13 +100,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
             // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
             if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
               num_contracted_nodes.local() += 1;
-            } else {
+            } else if (_context.coarsening.fix_cluster_weights) {
               cluster_weights_to_fix.push_back_buffered(u);
             }
             clusters[u] = target;
             cluster_weight[target] = opportunistic_cluster_weight[target];
           } else {
-            if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+            if (_context.coarsening.fix_cluster_weights && opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
               // node u could still not move
               cluster_weights_to_fix.push_back_buffered(u);
             }
@@ -121,18 +121,20 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         nodes_in_too_heavy_clusters.clear();
       }
 
-      // TODO: no need to fix cluster weights in the last subround
-      cluster_weights_to_fix.finalize();
-      if (cluster_weights_to_fix.size() > 0) {
-        tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
-          const HypernodeID hn = cluster_weights_to_fix[i];
-          const HypernodeID cluster = clusters[hn];
-          if (cluster != hn) {
-            cluster_weight[hn] -= hg.nodeWeight(hn);
-            opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
-          }
-        });
-        cluster_weights_to_fix.clear();
+      if (_context.coarsening.fix_cluster_weights) {
+        // TODO: no need to fix cluster weights in the last subround
+        cluster_weights_to_fix.finalize();
+        if (cluster_weights_to_fix.size() > 0) {
+          tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
+            const HypernodeID hn = cluster_weights_to_fix[i];
+            const HypernodeID cluster = clusters[hn];
+            if (cluster != hn) {
+              cluster_weight[hn] -= hg.nodeWeight(hn);
+              opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+            }
+          });
+          cluster_weights_to_fix.clear();
+        }
       }
     }
   } else if (!isMatchingPass) {
@@ -243,13 +245,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
               // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
               if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
                 num_contracted_nodes.local() += 1;
-              } else {
+              } else if (_context.coarsening.fix_cluster_weights) {
                 cluster_weights_to_fix.push_back_buffered(u);
               }
               clusters[u] = target;
               cluster_weight[target] = opportunistic_cluster_weight[target];
             } else {
-              if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+              if (_context.coarsening.fix_cluster_weights && opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
                 // node u could still not move
                 cluster_weights_to_fix.push_back_buffered(u);
               }
@@ -266,13 +268,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
                 // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
                 if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
                   num_contracted_nodes.local() += 1;
-                } else {
+                } else if (_context.coarsening.fix_cluster_weights) {
                   cluster_weights_to_fix.push_back_buffered(u);
                 }
                 clusters[u] = target;
                 cluster_weight[target] = opportunistic_cluster_weight[target];
               } else {
-                if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+                if (_context.coarsening.fix_cluster_weights && opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
                   // node u could still not move
                   cluster_weights_to_fix.push_back_buffered(u);
                 }
@@ -290,18 +292,20 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           nodes_in_too_heavy_clusters.clear();
         }
 
-        // TODO: no need to fix cluster weights in the last subround
-        cluster_weights_to_fix.finalize();
-        if (cluster_weights_to_fix.size() > 0) {
-          tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
-            const HypernodeID hn = cluster_weights_to_fix[i];
-            const HypernodeID cluster = clusters[hn];
-            if (cluster != hn) {
-              cluster_weight[hn] -= hg.nodeWeight(hn);
-              opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
-            }
-          });
-          cluster_weights_to_fix.clear();
+        if (_context.coarsening.fix_cluster_weights) {
+          // TODO: no need to fix cluster weights in the last subround
+          cluster_weights_to_fix.finalize();
+          if (cluster_weights_to_fix.size() > 0) {
+            tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
+              const HypernodeID hn = cluster_weights_to_fix[i];
+              const HypernodeID cluster = clusters[hn];
+              if (cluster != hn) {
+                cluster_weight[hn] -= hg.nodeWeight(hn);
+                opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+              }
+            });
+            cluster_weights_to_fix.clear();
+          }
         }
 
         if (_context.coarsening.use_adaptive_edge_size) {
