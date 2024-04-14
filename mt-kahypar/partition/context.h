@@ -135,6 +135,7 @@ struct CoarseningParameters {
   EdgeDeduplicationPolicy edge_deduplication_policy = EdgeDeduplicationPolicy::UNDEFINED;
 
   bool prefix_doubling = false;
+  bool fix_cluster_weights = true;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;

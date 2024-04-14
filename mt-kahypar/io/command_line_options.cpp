@@ -353,11 +353,11 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& rating) {
                        context.coarsening.cluster_tie_breaking_policy = mt_kahypar::clusterTieBreakingPolicyFromString(rating);
-                     })->default_value("sh_uniform"),
+                     })->default_value("uniform"),
              "Cluster Tie-breaking Policy:\n"
-             " - sh_uniform"
+             " - uniform"
              " - mt_uniform"
-             " - sh_geometric"
+             " - geometric"
              " - mt_geometric"
              " - first"
              " - last"
@@ -374,11 +374,16 @@ namespace mt_kahypar {
              " - bloom_2"
              " - bloom_3"
              " - exact"
+             " - exponential_decay"
              )
              ("c-prefix-doubling",
              po::value<bool>(&context.coarsening.prefix_doubling)->value_name(
                      "<bool>")->default_value(false),
-             "subround sizes according to prefix doubling");
+             "subround sizes according to prefix doubling")
+             ("c-fix-cluster-weights",
+             po::value<bool>(&context.coarsening.fix_cluster_weights)->value_name(
+                     "<bool>")->default_value(true),
+             "fix cluster weights after each sub round");
     return options;
   }
 
