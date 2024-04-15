@@ -661,28 +661,34 @@ namespace mt_kahypar{
         for(PartitionID p = 0; p < phg.k(); p++){
           indices[i][j] = getBorder(i, exceed[j]);
         }    
-      }*/
-      Gain quality = metrics::quality(phg, _context);
-      MoveQueue queue;
-      queue.initialize(nodes.size(), phg.k());
-      for(HypernodeID h = 0; h < nodes.size(); h++){
-        HypernodeID hn = nodes[h];
+      }*/     
+      auto get_max_move = [&](HypernodeID h){
+        PartitionID p_max = -1;
+        HypernodeID node = nodes[h];
+        Move_internal max_move = {std::numeric_limits<double>::max(), 0, 0.0};
+        p_max = -1;
         for(PartitionID p = 0; p < phg.k(); p++){
-          if(p == phg.partID(hn)){
-            ASSERT(_gain_cache.gain(hn, phg.partID(hn), p) == 0);
-            continue;
-          }
-          /*if(balance_gain(phg, hn, phg.partID(hn), p, true) < 0.0){
-            std::cout << "smaller\n";
-          }*/
-          Move_internal move = {0.0, _gain_cache.gain(hn, phg.partID(hn), p), balance_gain(phg, hn, phg.partID(hn), p, true)};
-          
+          Move_internal move = {0.0, _gain_cache.gain(node, phg.partID(node), p), balance_gain(phg, node, phg.partID(node), p, true)};
           move.recomputeBalance();
-          //std::cout << move.gain_and_balance << " " << move.gain << " " << move.balance << "\n";
-          queue.insert_without_updating({h, {p, move}});
+          if(move.is_positive_move() && (move.gain_and_balance < max_move.gain_and_balance || p == -1)){
+            max_move = move;
+            p_max = p;
+          }
         }
+        return std::pair<PartitionID, Move_internal>(p_max, max_move);
+      };
+
+      Gain quality = metrics::quality(phg, _context);
+      AddressablePQ<HypernodeID, double> queue;
+      queue.setSize(nodes.size());
+      //std::vector<AddressablePQ<PartitionID, Move_internal>> queue_per_node(nodes.size());
+      for(HypernodeID h = 0; h < nodes.size(); h++){
+        //queue_per_node[h].resize(phg.k());
+        HypernodeID hn = nodes[h];
+        
+        queue.insert({h, get_max_move(h).second.gain_and_balance});
       }
-      queue.check();
+
       PartitionID imbalanced = 0;
       for(PartitionID p = 0; p < phg.k(); p++){
         if(phg.partWeight(p) > _context.partition.max_part_weights[p]){
@@ -691,7 +697,7 @@ namespace mt_kahypar{
       }
 
       int counter = 0;
-      const int UPDATE_FREQUENCY = _context.partition.update_frequency;
+      const int UPDATE_FREQUENCY = std::ceil(_context.partition.update_frequency * nodes.size());
       bool horizontal_balance_used = true;
       std::vector<HypernodeID> min_affected_node;
       for(int d = 0; d < dimension; d++){
@@ -717,79 +723,81 @@ namespace mt_kahypar{
 
 
     while(imbalanced != 0 && !queue.isEmpty()){
+      std::pair<HypernodeID, double> max_node = queue.getMax();
+      std::pair<PartitionID, Move_internal> max_move = get_max_move(max_node.first);
+      Move move = {phg.partID(nodes[max_node.first]), max_move.first, nodes[max_node.first], max_move.second.gain};
 
-      
-      
-
-
-
-
-
-      std::pair<HypernodeID, std::pair<PartitionID, Move_internal>> max_move = queue.getMax();
-      if(_gain_cache.gain(max_move.first, phg.partID(nodes[max_move.first]), max_move.second.first) != max_move.second.second.gain){
-        std::cout << "wrong gain " << _gain_cache.gain(max_move.first, phg.partID(nodes[max_move.first]), max_move.second.first) << "  " <<max_move.second.second.gain << "\n";
-      }
-      ASSERT(max_move.first < nodes.size());
+      /*ASSERT(max_move.first < nodes.size());
       ASSERT(phg.partID(max_move.first) != -1);
-      ASSERT(max_move.second.first != -1);
-      HypernodeID node = max_move.first;
-      PartitionID from = phg.partID(nodes[node]);
-      while(from == -1){
-        std::cout << "test\n";
+      ASSERT(max_move.second.first != -1);*/
+      if(max_move.first == -1){
+        queue.deleteMax();
       }
-      PartitionID to = max_move.second.first;
-      double balance = balance_gain(phg, nodes[node], from, to, horizontal_balance_used);
-      if(balance > max_move.second.second.balance){
-        queue.changeBalance({node, {to, balance}});
-        queue.update(node);
+      else if(max_node.second < max_move.second.gain_and_balance){
+        queue.changeKey({max_node.first, max_move.second.gain_and_balance});
       }
       else{
-        bag += max_move.second.second.balance;
+        bag += max_move.second.gain_and_balance;
         queue.deleteMax();
         counter++;
-        Move_internal gains = max_move.second.second;
-        HypernodeWeight from_old = phg.partWeight(from);
-        HypernodeWeight to_old = phg.partWeight(to);
-        HypernodeWeight exceed_from_old = exceed[from];
-        HypernodeWeight exceed_to_old = exceed[to];
-        Move move = {phg.partID(nodes[node]), to, nodes[node], 0};
-        imbalanced += (phg.partWeight(from) - phg.nodeWeight(nodes[node]) > _context.partition.max_part_weights[from])
-          - (phg.partWeight(from) > _context.partition.max_part_weights[from])
-          - (phg.partWeight(to) > _context.partition.max_part_weights[to])
-          + (phg.partWeight(to) + phg.nodeWeight(nodes[node]) > _context.partition.max_part_weights[to]);
-        while(to == -1){
-          std::cout << "error\n";
-        }
+        HypernodeWeight exceed_from_old = exceed[move.from];
+        HypernodeWeight exceed_to_old = exceed[move.to];        
+        imbalanced += (phg.partWeight(move.from) - phg.nodeWeight(move.node) > _context.partition.max_part_weights[move.from])
+          - (phg.partWeight(move.from) > _context.partition.max_part_weights[move.from])
+          - (phg.partWeight(move.to) > _context.partition.max_part_weights[move.to])
+          + (phg.partWeight(move.to) + phg.nodeWeight(nodes[move.node]) > _context.partition.max_part_weights[move.to]);
         std::vector<HyperedgeID> edges_with_gain_change;
         std::vector<HypernodeID> changed_nodes;
-        changed_nodes.push_back(nodes[node]);
-        phg.changeNodePart(_gain_cache, nodes[node], from, to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
+        changed_nodes.push_back(move.node);
+        moves_linear->push_back(move);
+
+
+        //sanity check
+        /*HypernodeID hmax = -1;
+        PartitionID p = -1;
+        double max_gain = std::numeric_limits<double>::max();
+        for(PartitionID p = 0; p < phg.k(); p++){
+          for(HypernodeID hn = 0; hn < nodes.size(); hn++){
+            Move_internal m = get_max_move(hn).second;
+            m.balance = balance_gain(phg, hn, phg.partID(hn), p, true);
+            m.gain = _gain_cache.gain(hn, phg.partID(hn), p);
+            m.recomputeBalance();
+            if(m.gain_and_balance < max_gain && m.is_positive_move()){
+              max_gain = m.gain_and_balance;
+              hmax = hn;
+            }
+          }
+        }
+        std::cout << "cmp: " << max_move.second.gain_and_balance << " " << max_gain << " " << max_move.second.is_positive_move() << " " << queue.get(hmax) << "\n";*/
+        phg.changeNodePart(_gain_cache, move.node, move.from, move.to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
                         (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
                         if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
                           edges_with_gain_change.push_back(sync_update.he);
                         }
                       });
+        
         for(HyperedgeID& he : edges_with_gain_change){
           for(HypernodeID hn : phg.pins(he)){
             changed_nodes.push_back(hn);
           }
         }
         if constexpr (PartitionedHypergraph::is_graph) {
-          for (const auto e : phg.incidentEdges(node)) {
+          for (const auto e : phg.incidentEdges(move.node)) {
             HypernodeID v = phg.edgeTarget(e);
             changed_nodes.push_back(v);
           }
         }
-        for(HypernodeID hn : changed_nodes){
+        /*for(HypernodeID hn : changed_nodes){
           for(PartitionID p = 0; p < phg.k(); p++){
             if(id_to_index[hn] != nodes.size()){
+
               queue.changeGain({id_to_index[hn], {p, _gain_cache.gain(hn, phg.partID(hn), p)}});
             }
           }
-        }
-        calcExceed(from);
-        calcExceed(to);
+        }*/
+        calcExceed(move.from);
+        calcExceed(move.to);
         /*tbb::concurrent_vector<HypernodeID> changed_gain_nodes = _gain.getChangedMoves(phg, {move.from, move.to, move.node, 0}, &queue, id_to_index, nodes.size());
         std::vector<HypernodeID> changed_nodes;
         for(HypernodeID h = 0; h < changed_gain_nodes.size(); h++){
@@ -799,17 +807,17 @@ namespace mt_kahypar{
           queue.addToGain({node, {p, -gains.gain}});
           queue.changeBalance({node, {p, balance_gain(phg, nodes[node], to, p, horizontal_balance_used)}});
         }*/
-        changed_nodes.push_back(node);
+        changed_nodes.push_back(move.node);
         for(int i = 0; i < dimension; i++){
-          if(exceed[from].weights[i] < 0 && (exceed_from_old.weights[i] > 0 || -exceed_from_old.weights[i] < nodes_sorted[i][nodes_sorted[i].size() - 1].first)){
+          if(exceed[move.from].weights[i] < 0 && (exceed_from_old.weights[i] > 0 || -exceed_from_old.weights[i] < nodes_sorted[i][nodes_sorted[i].size() - 1].first)){
             HypernodeID border = exceed_from_old.weights[i] < 0 ? getBorder(i, exceed_from_old) : 0;
             min_affected_node[i] = std::min(min_affected_node[i], border);
           }
-          if(exceed[to].weights[i] > 0 && (exceed_to_old.weights[i] < 0 || exceed_to_old.weights[i] < nodes_sorted[i][nodes_sorted[i].size() - 1].first)){
+          if(exceed[move.to].weights[i] > 0 && (exceed_to_old.weights[i] < 0 || exceed_to_old.weights[i] < nodes_sorted[i][nodes_sorted[i].size() - 1].first)){
             HypernodeID border = exceed_to_old.weights[i] > 0 ? getBorder(i, exceed_to_old) : 0;
             min_affected_node[i] = std::min(min_affected_node[i], border);
           }
-          if(counter % UPDATE_FREQUENCY == 0){
+          if(counter % UPDATE_FREQUENCY == 0 || queue.isEmpty()){
             counter++;
             
             std::cout <<"gain: " << local_attributed_gain << " " << weighed_imbalance() << "\n";
@@ -819,10 +827,10 @@ namespace mt_kahypar{
             }
             std::cout << "\n";
             for(HypernodeID hn = min_affected_node[i]; hn < nodes_sorted[i].size(); hn++){
-              for(PartitionID p = 0; p < phg.k(); p++){
+              /*for(PartitionID p = 0; p < phg.k(); p++){
                 queue.changeBalance({nodes_sorted[i][hn].second, {p, balance_gain(phg, nodes[nodes_sorted[i][hn].second], 
                 phg.partID(nodes[nodes_sorted[i][hn].second]), p, horizontal_balance_used)}});
-              }
+              }*/
               changed_nodes.push_back(nodes[nodes_sorted[i][hn].second]);
             }
             for(int i = 0; i < dimension; i++){
@@ -832,10 +840,15 @@ namespace mt_kahypar{
         }
         for(size_t i = 0; i < changed_nodes.size(); i++){
           if(id_to_index[changed_nodes[i]] != nodes.size()){
-            queue.update(id_to_index[changed_nodes[i]]);
+            std::pair<PartitionID, Move_internal> best_move = get_max_move(id_to_index[changed_nodes[i]]);
+            if(!best_move.second.is_positive_move()){
+              queue.invalidate(id_to_index[changed_nodes[i]]);
+            }
+            else{
+              queue.changeKey({id_to_index[changed_nodes[i]], best_move.second.gain_and_balance});
+            }
           }          
         }
-        queue.checkSizes(phg.k());
       }                                                  
     }
     for(int x = 0; x < dimension; x++){
@@ -843,13 +856,13 @@ namespace mt_kahypar{
             }
 
 
-    for(HypernodeID h = 0; h < nodes.size(); h++){
+    /*for(HypernodeID h = 0; h < nodes.size(); h++){
       for(PartitionID p = 0; p < phg.k(); p++){
         if(queue.queues_per_node[h].gains_and_balances[p].gain != _gain_cache.gain(nodes[h], phg.partID(nodes[h]), p)){
           std::cout << "error!!!!!!!!\n\n\n\n\n";
         }
       }
-    }
+    }*/
 
     /*int i = 1;
       while(i*2 < queue.top_moves.v.size()){
@@ -1074,6 +1087,9 @@ namespace mt_kahypar{
         std::vector<HypernodeID> L;
         const double L_threshold = _context.partition.node_threshold;
 
+        //weights of the partition just taking V/L into account
+        std::vector<HypernodeWeight> partition_weight_included;
+
         std::vector<std::vector<std::vector<double>>> normalized_weights(phg.k());
         //total Weight of each node (organized per partition)
         std::vector<std::vector<std::pair<double,HypernodeID>>> totalWeight(phg.k());
@@ -1095,6 +1111,7 @@ namespace mt_kahypar{
           normalized_perfect_weights[p].resize(dimension);
           for(int d = 0; d < dimension; d++){
             normalized_partition_weights[p][d] = 0.0;
+            partition_weight_included.push_back(HypernodeWeight(0));
             normalized_perfect_weights[p][d] = _context.partition.perfect_balance_part_weights[p].weights[d] * _context.partition.max_part_weights_inv[p][d];
           }
         }
@@ -1137,120 +1154,131 @@ namespace mt_kahypar{
             map_index_to_id[part].push_back(hn);
             normalized_weights[part].push_back(weight);
             totalWeight_ordered[part].push_back({total_weight, map_id_to_index[hn]});
+            partition_weight_included[part] += phg.nodeWeight(hn);
           }
           else{
             L.push_back(hn);
           }
           
         }
+
+        bool overloaded = false;
         for(PartitionID p = 0; p < phg.k(); p++){
-          for(int d = 0 ; d < dimension; d++){
-            normalized_partition_weights[p][d] = part_weight_without_L[p].weights[d] * _context.partition.max_part_weights_inv[p][d];
-          }
+          overloaded = overloaded || partition_weight_included[p] > _context.partition.max_part_weights[p];
         }
 
-        for(PartitionID p = 0; p < phg.k(); p++){
-          std::sort(totalWeight_ordered[p].begin(), totalWeight_ordered[p].end());
-          totalWeight[p].resize(totalWeight_ordered[p].size());
-          for(HypernodeID hn = 0; hn < totalWeight_ordered[p].size(); hn++){
-            totalWeight[p][(totalWeight_ordered[p][hn]).second] = {(totalWeight_ordered[p][hn]).first, hn};
-          }
-        }
+        if(overloaded){
 
-        struct S_Calculator s_calculator;
-        s_calculator.initialize(normalized_weights, totalWeight, normalized_partition_weights, 
-          normalized_perfect_weights, _context.partition.epsilon[0]);
-        bool success = true;
-        std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> current_result(phg.k());
-        while(s_calculator.hasNext()){
-          std::vector<std::vector<bool>> extracted = s_calculator.calculate_S(success);
-          std::vector<std::pair<double, std::pair<PartitionID,HypernodeID>>> bp_nodes;
-          std::vector<std::pair<double, std::pair<PartitionID,HypernodeID>>> bp_nodes_absolute;
-          std::vector<std::vector<double>> limits(phg.k());
           for(PartitionID p = 0; p < phg.k(); p++){
-            for(int d = 0; d < dimension; d++){
-              limits[p].push_back(1.0);
-            }
-            for(HypernodeID hn = 0; hn < extracted[p].size(); hn++){
-              if(extracted[p][hn]){
-                double min = std::numeric_limits<double>::max();
-                double max = std::numeric_limits<double>::min();
-                for(int d = 0; d < dimension; d++){
-                  min = std::min(min, normalized_weights[p][hn][d]);
-                  max = std::max(max, normalized_weights[p][hn][d]);
-                  
-                }
-                bp_nodes.push_back({(max - min) / max, {p, hn}});
-                bp_nodes_absolute.push_back({(max - min), {p, hn}});
-              }
-              else{
-                for(int d = 0; d < dimension; d++){
-                  limits[p][d] -= normalized_weights[p][hn][d];
-                }
-              }
+            for(int d = 0 ; d < dimension; d++){
+              normalized_partition_weights[p][d] = part_weight_without_L[p].weights[d] * _context.partition.max_part_weights_inv[p][d];
             }
           }
-          std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
-            return a.first > b.first;
-          });
+
           for(PartitionID p = 0; p < phg.k(); p++){
-            for(int d = 0; d < dimension; d++){
-              std::cout << limits[p][d] << "\n";
+            std::sort(totalWeight_ordered[p].begin(), totalWeight_ordered[p].end());
+            totalWeight[p].resize(totalWeight_ordered[p].size());
+            for(HypernodeID hn = 0; hn < totalWeight_ordered[p].size(); hn++){
+              totalWeight[p][(totalWeight_ordered[p][hn]).second] = {(totalWeight_ordered[p][hn]).first, hn};
             }
           }
-          std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> result = bin_packing(limits, bp_nodes, normalized_weights);
-          std::cout << "success: " << result.first << "\n";
-          if(result.first){
-            current_result = result.second;
-          }
-          else{
+
+          struct S_Calculator s_calculator;
+          s_calculator.initialize(normalized_weights, totalWeight, normalized_partition_weights, 
+            normalized_perfect_weights, _context.partition.epsilon[0]);
+          bool success = true;
+          std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> current_result(phg.k());
+          while(s_calculator.hasNext()){
+            std::vector<std::vector<bool>> extracted = s_calculator.calculate_S(success);
+            std::vector<std::pair<double, std::pair<PartitionID,HypernodeID>>> bp_nodes;
+            std::vector<std::pair<double, std::pair<PartitionID,HypernodeID>>> bp_nodes_absolute;
+            std::vector<std::vector<double>> limits(phg.k());
+            for(PartitionID p = 0; p < phg.k(); p++){
+              for(int d = 0; d < dimension; d++){
+                limits[p].push_back(1.0);
+              }
+              for(HypernodeID hn = 0; hn < extracted[p].size(); hn++){
+                if(extracted[p][hn]){
+                  double min = std::numeric_limits<double>::max();
+                  double max = std::numeric_limits<double>::min();
+                  for(int d = 0; d < dimension; d++){
+                    min = std::min(min, normalized_weights[p][hn][d]);
+                    max = std::max(max, normalized_weights[p][hn][d]);
+                    
+                  }
+                  bp_nodes.push_back({(max - min) / max, {p, hn}});
+                  bp_nodes_absolute.push_back({(max - min), {p, hn}});
+                }
+                else{
+                  for(int d = 0; d < dimension; d++){
+                    limits[p][d] -= normalized_weights[p][hn][d];
+                  }
+                }
+              }
+            }
             std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
-              return totalWeight[a.second.first][a.second.second].first > totalWeight[b.second.first][b.second.second].first;
+              return a.first > b.first;
             });
-            result = bin_packing_best_fit(limits, bp_nodes, normalized_weights);
+            for(PartitionID p = 0; p < phg.k(); p++){
+              for(int d = 0; d < dimension; d++){
+                std::cout << limits[p][d] << "\n";
+              }
+            }
+            std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> result = bin_packing(limits, bp_nodes, normalized_weights);
+            std::cout << "success: " << result.first << "\n";
             if(result.first){
-              std::cout << "succeeee\n";
-            current_result = result.second;
-          }
-          }
-          /*else{
-            for(int i = 0; i < 20; i++){
-              result = bin_packing_random(limits, bp_nodes, normalized_weights);
+              current_result = result.second;
+            }
+            else{
+              std::sort(bp_nodes.begin(), bp_nodes.end(), [&](auto a, auto b){
+                return totalWeight[a.second.first][a.second.second].first > totalWeight[b.second.first][b.second.second].first;
+              });
+              result = bin_packing_best_fit(limits, bp_nodes, normalized_weights);
               if(result.first){
-                current_result = result.second;
-                break;
+                std::cout << "succeeee\n";
+              current_result = result.second;
+            }
+            }
+            /*else{
+              for(int i = 0; i < 20; i++){
+                result = bin_packing_random(limits, bp_nodes, normalized_weights);
+                if(result.first){
+                  current_result = result.second;
+                  break;
+                }
               }
-            }
-            for(int i = 0; i < 20; i++){
-              result = bin_packing_totally_random(limits, bp_nodes, normalized_weights);
-              if(result.first){
-                current_result = result.second;
-                break;
+              for(int i = 0; i < 20; i++){
+                result = bin_packing_totally_random(limits, bp_nodes, normalized_weights);
+                if(result.first){
+                  current_result = result.second;
+                  break;
+                }
               }
-            }
-          }*/
-          success = result.first;
-          std::cout << s_calculator.factor << " " << s_calculator.factor_lowerBound << " " << s_calculator.factor_upperBound << " " << success << "\n";
-          s_calculator.adjustFactor(success);
-            
-        }
-        Gain local_attributed_gain = 0;
-        for(PartitionID p = 0; p < phg.k(); p++){
-          for(HypernodeID hn = 0; hn < current_result[p].size(); hn++){
-            HypernodeID node = map_index_to_id[current_result[p][hn].first][current_result[p][hn].second];
-            /*phg.changeNodePart(node, phg.partID(node), p, objective_delta);*/
-            if(phg.partID(node) == p){
-              continue;
-            }
-            phg.changeNodePart(_gain_cache, node, phg.partID(node), p, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
-                        local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
-                        (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
-                      });
+            }*/
+            success = result.first;
+            std::cout << s_calculator.factor << " " << s_calculator.factor_lowerBound << " " << s_calculator.factor_upperBound << " " << success << "\n";
+            s_calculator.adjustFactor(success);
+              
           }
+          Gain local_attributed_gain = 0;
+          for(PartitionID p = 0; p < phg.k(); p++){
+            for(HypernodeID hn = 0; hn < current_result[p].size(); hn++){
+              HypernodeID node = map_index_to_id[current_result[p][hn].first][current_result[p][hn].second];
+              /*phg.changeNodePart(node, phg.partID(node), p, objective_delta);*/
+              if(phg.partID(node) == p){
+                continue;
+              }
+              moves_linear->push_back({phg.partID(node), p, node, _gain_cache.gain(node, phg.partID(node), p)});
+              phg.changeNodePart(_gain_cache, node, phg.partID(node), p, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
+                          local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
+                          (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
+                        });
+            }
+          }
+          std::cout << "fallback result: " << local_attributed_gain << "\n";
         }
-        std::cout << "fallback result: " << local_attributed_gain << "\n";
-        return greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, L);
-
+        //return greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, L);
+        
 
         
 
@@ -1263,7 +1291,23 @@ namespace mt_kahypar{
       }
       // TODO: rebalancing logic goes here
     
-    
+    bool res = greedyRefiner(hypergraph, moves_by_part, moves_linear, best_metrics, all_nodes);
+
+    if (moves_by_part != nullptr) {
+      moves_by_part->resize(_context.partition.k);
+      for (auto& direction : *moves_by_part) direction.clear();
+      for (size_t i = 0; i < moves_linear->size(); ++i) {
+        (*moves_by_part)[((*moves_linear)[i]).from].push_back((*moves_linear)[i]);
+      }
+    } /*else if (moves_linear != nullptr) {
+      moves_linear->clear();
+      moves_linear->reserve(num_moves_performed);
+      for (size_t i = 0; i < num_moves_performed; ++i) {
+        moves_linear->push_back(_moves[i]);
+      }
+    }*/
+
+
 
       if (moves_by_part != nullptr) {
         moves_by_part->resize(_context.partition.k);
@@ -1285,7 +1329,7 @@ namespace mt_kahypar{
       std::chrono::duration<double> elapsed_seconds = end - start;
       auto x = std::chrono::duration_cast<std::chrono::microseconds>(elapsed_seconds);
     
-      return false;
+      return res;
     }
   }
 

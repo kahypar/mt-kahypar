@@ -128,8 +128,8 @@ namespace mt_kahypar {
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
              ("update_frequency",
-             po::value<int>(&context.partition.update_frequency)->value_name("<int>")->default_value(0),
-             "Update frequency for md_rebalancer")
+             po::value<double>(&context.partition.update_frequency)->value_name("<double>")->default_value(0),
+             "frequency of node updates in md_rebalancer")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")

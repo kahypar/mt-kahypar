@@ -161,6 +161,23 @@ namespace mt_kahypar {
         timer.stop_timer("rebalance_fm");
 
         if (!moves_by_part.empty()) {
+          std::vector<std::vector<std::vector<Move>>> moves_sorted;
+          moves_sorted.resize(phg.k());
+          for(PartitionID p = 0; p < phg.k(); p++){
+            moves_sorted[p].resize(dimension);
+            for(Move m : moves_by_part[p]){
+              int max_dim = 0;
+              int weight = phg.nodeWeight(m.node).weights[0] * context.partition.max_part_weights_inv[p][0];
+              for(int d = 1; d < dimension; d++){
+                if(weight < phg.nodeWeight(m.node).weights[d] * context.partition.max_part_weights_inv[p][d]){
+                  weight = phg.nodeWeight(m.node).weights[d] * context.partition.max_part_weights_inv[p][d];
+                  max_dim = d;
+                }
+              }
+              moves_sorted[p][max_dim].push_back(m);
+            }
+          }
+          
           // compute new move sequence where each imbalanced move is immediately rebalanced
           interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
         }

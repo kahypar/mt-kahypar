@@ -49,6 +49,7 @@ struct PartitioningParameters {
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   std::array<double, mt_kahypar::dimension> epsilon;
   double node_threshold = 0.0;
+  double update_frequency = 0.0001;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   int update_frequency = 0;

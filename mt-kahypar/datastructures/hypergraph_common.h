@@ -617,6 +617,9 @@ struct PriorizableMove{
     bool operator<(const Move_internal move) const{
       return gain_and_balance < move.gain_and_balance || gain_and_balance == move.gain_and_balance && gain > move.gain;
     }
+    bool operator<=(const Move_internal move) const{
+      return gain_and_balance < move.gain_and_balance || gain_and_balance == move.gain_and_balance && gain >= move.gain;
+    }
     bool operator>(const Move_internal move) const{
       return gain_and_balance > move.gain_and_balance;
     }
@@ -688,7 +691,7 @@ struct PriorizableMove{
     }
   };*/
 
-  template<typename id, typename data>
+  /*template<typename id, typename data>
   struct AddressablePQ{
     std::vector<id> v;
     std::vector<id> references;
@@ -819,7 +822,7 @@ struct PriorizableMove{
         siftUp(x);
       }
     }
-  };
+  };*/
 
   /*struct Queues_per_node{
     using Balance=double;
@@ -833,7 +836,7 @@ struct PriorizableMove{
     }
 
   };*/
-  template<typename Move>
+  /*template<typename Move>
   struct AbstractMoveQueue{
     using Gain_and_Balance=double;
     using  Balance=double;
@@ -939,9 +942,9 @@ struct PriorizableMove{
         queues_per_node[x.first].gains_and_balances[x.second].balance = 0.0;
         disable(x);
     }
-  };
+  };*/
 
-  struct MoveQueue : AbstractMoveQueue<Move_internal> {
+  /*struct MoveQueue : AbstractMoveQueue<Move_internal> {
     void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
       queues_per_node[x.first].gains_and_balances[x.second.first].balance = x.second.second;
       if(!queues_per_node[x.first].gains_and_balances[x.second.first].is_positive_move()){
@@ -978,7 +981,7 @@ struct PriorizableMove{
         }
       }
     }
-  }; 
+  };*/ 
 
   /*struct Fallback_MoveQueue : AbstractMoveQueue<FallBackMove>{
     void changeBalance(std::pair<HypernodeID, std::pair<PartitionID, Balance>> x){
@@ -1079,6 +1082,155 @@ template<>
 struct PartitionedGraphType<ds::DynamicGraph> {
   static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_GRAPH_PARTITIONING;
 };
+
+
+
+
+  template<typename id, typename data>
+  struct AddressablePQ{
+    std::vector<id> pq;
+    std::vector<id> references;
+    std::vector<data> items;
+    std::vector<bool> in_use;
+    void setSize(id size){
+      references.resize(size);
+      items.resize(size);
+      in_use.resize(size, false);
+    }
+
+    bool isInRange(id index){
+      return index >= 0 && index < pq.size();
+    }
+    id getParent(id index){
+      return (index - 1)/ 2;
+    }
+    id getChild(id index){
+      return 2 * index + 1;
+    }
+    void insert(std::pair<id, data> x){
+      references[x.first] = pq.size();
+      pq.push_back(x.first);
+      items[x.first] = x.second;
+      in_use[x.first] = true;
+      siftUp(pq.size() - 1);
+    }
+
+    void swapInPQ(size_t index1, size_t index2){
+      ASSERT(references[pq[index1]] == index1);
+      ASSERT(references[pq[index2]] == index2);
+      references[pq[index1]] = index2;
+      references[pq[index2]] = index1;
+      size_t tmp = pq[index1];
+      pq[index1] = pq[index2];
+      pq[index2] = tmp;
+    }
+    
+    void siftUp(size_t index){
+      if(index == 0){
+        return;
+      }
+      size_t parent = getParent(index);
+      if(items[pq[index]] < items[pq[parent]]){
+        swapInPQ(index, parent);
+        siftUp(parent);
+      }
+    }
+
+    void siftDown(size_t index){
+      if(getChild(index) >= pq.size()) return;
+      size_t child1 = getChild(index);
+      size_t child2 = std::min(child1 + 1, pq.size() - 1);
+      size_t chosen_child = child1 + static_cast<size_t>((items[pq[child1]] > items[pq[child2]]));
+      if(items[pq[index]] > items[pq[chosen_child]]){
+        swapInPQ(index, chosen_child);
+        siftDown(chosen_child); 
+      }
+    }
+
+    void changeKey(std::pair<id,data> pair){
+      if(!in_use[pair.first]){
+        insert(pair);
+      }
+      else{
+        if(pair.second < items[pair.first]){
+          items[pair.first] = pair.second;
+          siftUp(references[pair.first]);
+        }
+        else{
+          items[pair.first] = pair.second;
+          siftDown(references[pair.first]);
+        }
+      }
+      
+    }
+
+    std::pair<id, data> getMax(){
+      return {pq[0], items[pq[0]]};
+    }
+
+    std::pair<id, data> deleteMax(){
+      auto tmp = std::pair<id, data>(pq[0], items[pq[0]]);
+      invalidate(pq[0]);
+      return tmp;
+    }
+
+    void invalidate(id idx){
+      if(in_use[idx]){
+        in_use[idx] = false;
+        pq[references[idx]] = pq[pq.size() - 1];
+        references[pq[references[idx]]] = references[idx];
+        pq.pop_back();
+        if(references[idx] < pq.size()){
+          siftDown(references[idx]);
+        }
+      }
+    }
+
+    bool isEmpty(){
+      return pq.size() == 0;
+    }
+
+    data get(id idx){
+      return items[idx];
+    }
+
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 }
