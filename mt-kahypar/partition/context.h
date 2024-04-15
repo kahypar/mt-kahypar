@@ -275,6 +275,8 @@ struct InitialPartitioningParameters {
   size_t population_size = 16;
   size_t contraction_limit_multiplier = std::numeric_limits<size_t>::max();
   int cutoff_level = 1;
+  float multicandidate_temperature = 0.0;
+  float multicandidate_cooling_rate = 0.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

@@ -796,7 +796,13 @@ namespace mt_kahypar {
              "Initial block size used for label propagation initial partitioner")
                          (("i-cutoff-level"),
              po::value<int>(&context.initial_partitioning.cutoff_level)->value_name("<int>")->default_value(3),
-             "Cutoff Level for multicandidate partitioning.");
+             "Cutoff Level for multicandidate partitioning.")
+            ("i-multicandidate-temperature",
+             po::value<float>(&context.initial_partitioning.multicandidate_temperature)->value_name("<float>")->default_value(0.0),
+             "Temperature for winner selection during multicandidate tournament.")
+            ("i-multicandidate-cooling-rate",
+             po::value<float>(&context.initial_partitioning.multicandidate_cooling_rate)->value_name("<float>")->default_value(0.0),
+             "Cooling rate for temperature during multicandidate tournament.");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;
