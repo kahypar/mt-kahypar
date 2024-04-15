@@ -799,10 +799,11 @@ namespace mt_kahypar {
              "Cutoff Level for multicandidate partitioning.")
             ("i-multicandidate-temperature",
              po::value<float>(&context.initial_partitioning.multicandidate_temperature)->value_name("<float>")->default_value(0.0),
-             "Temperature for winner selection during multicandidate tournament.")
+             "Temperature for winner selection during multicandidate tournament."
+             "If this value is 0, then the winner always advances. If this value is 1, then the winner is selected completely at random.")
             ("i-multicandidate-cooling-rate",
              po::value<float>(&context.initial_partitioning.multicandidate_cooling_rate)->value_name("<float>")->default_value(0.0),
-             "Cooling rate for temperature during multicandidate tournament.");
+             "Cooling rate for temperature during multicandidate tournament. The temperature gets multiplied by this value every round");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;

@@ -233,7 +233,7 @@ void enableTimerAndStats(const Context& context) {
           std::vector<bool> winners(partition_pool.size(), true);
           int offset = partition_pool.size() % 2 ? 1 : 2;
           utils::Randomize::instance().parallelShuffleVector(partition_pool, offset, partition_pool.size());
-          bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < temperature;
+          bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < (temperature * 0.5);
           for(size_t i = offset; i < partition_pool.size(); i += 2) {
             if(isBetterThan(partition_pool[i], partition_pool[i + 1]) != temperature_eval) {
               winners[i + 1] = false;
@@ -258,7 +258,7 @@ void enableTimerAndStats(const Context& context) {
                 partition_pool, offset, partition_pool.size());
 
             std::vector<bool> winners(partition_pool.size(), true);
-            bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < temperature;
+            bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < (temperature * 0.5);
             for (size_t i = offset; i < partition_pool.size(); i += 2) {
               if (isBetterThan(partition_pool[i], partition_pool[i + 1]) != temperature_eval) {
                 winners[i + 1] = false;
@@ -290,6 +290,7 @@ void enableTimerAndStats(const Context& context) {
             for(auto it = partition_pool.begin(); it != partition_pool.end(); it++) {
               refine(*it);
             }
+            temperature *= context.initial_partitioning.multicandidate_cooling_rate;
           }
           std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
           replacePartition(partition_pool[0]);
