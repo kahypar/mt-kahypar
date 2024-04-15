@@ -42,7 +42,7 @@ namespace mt_kahypar {
 template<typename GraphAndGainTypes>
 class DeterministicFlowRefiner {
 
-    static constexpr bool debug = false;
+    static constexpr bool debug = true;
     static constexpr bool sequential = true;
 
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
@@ -76,7 +76,10 @@ public:
 
     virtual ~DeterministicFlowRefiner() = default;
 
-    void initialize(PartitionedHypergraph& phg) {}
+    void initialize(PartitionedHypergraph&) {
+        _flow_hg.clear();
+        _whfc_to_node.clear();
+    }
 
     MoveSequence refine(PartitionedHypergraph& phg, DeterministicQuotientGraph<TypeTraits>& quotientGraph, const PartitionID block0, const PartitionID block1) {
         return refineImpl(phg, quotientGraph, block0, block1);
@@ -92,10 +95,11 @@ private:
         const PartitionID block1) {
         MoveSequence sequence{ { }, 0 };
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
+        DBG << sub_hg;
         FlowProblem flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-
+        DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
         bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1);
-
+        DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
         if (flowcutter_succeeded) {
             extractMoveSequence(phg, flow_problem, sequence, block0, block1);
         }
@@ -130,7 +134,7 @@ private:
     void extractMoveSequence(const PartitionedHypergraph& phg, const FlowProblem& flow_problem, MoveSequence& sequence, const PartitionID block0, const PartitionID block1) {
         // We apply the solution if it either improves the cut or the balance of
         // the bipartition induced by the two blocks
-
+        DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
         HyperedgeWeight new_cut = flow_problem.non_removable_cut;
         HypernodeWeight max_part_weight;
         if (sequential) {
@@ -140,7 +144,6 @@ private:
             new_cut += _parallel_hfc.cs.flow_algo.flow_value;
             max_part_weight = std::max(_parallel_hfc.cs.source_weight, _parallel_hfc.cs.target_weight);
         }
-
         const bool improved_solution = new_cut < flow_problem.total_cut ||
             (new_cut == flow_problem.total_cut && max_part_weight < std::max(flow_problem.weight_of_block_0, flow_problem.weight_of_block_1));
 

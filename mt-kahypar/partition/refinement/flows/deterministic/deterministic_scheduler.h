@@ -44,7 +44,7 @@ template<typename GraphAndGainTypes>
 class DeterministicFlowRefinementScheduler final : public IRefiner {
 
     static constexpr bool debug = false;
-    static constexpr bool enable_heavy_assert = false;
+    static constexpr bool enable_heavy_assert = true;
 
     using TypeTraits = typename GraphAndGainTypes::TypeTraits;
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
@@ -99,7 +99,7 @@ private:
                 part_weight_deltas[move.to] += node_weight;
             }
         }
-        HyperedgeWeight improvement;
+        HyperedgeWeight improvement = 0;
         vec<NewCutHyperedge> new_cut_hes;
         auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
             improvement -= AttributedGains::gain(sync_update);
@@ -111,7 +111,8 @@ private:
             }
         };
         applyMoveSequence(phg, _gain_cache, sequence, delta_func, _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
-        assert(improvment == sequence.expected_improvement);
+        DBG << V(improvement) << ", " << V(sequence.expected_improvement);
+        assert(improvement == sequence.expected_improvement);
         addCutHyperedgesToQuotientGraph(new_cut_hes, phg);
         return improvement;
     }

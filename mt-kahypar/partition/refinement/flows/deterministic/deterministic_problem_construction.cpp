@@ -107,6 +107,8 @@ Subhypergraph DeterministicProblemConstruction<TypeTraits>::construct(
     const PartitionID block1) {
     Subhypergraph sub_hg;
     _bfs.reset();
+    _bfs.block0 = block0;
+    _bfs.block1 = block1;
     sub_hg.block_0 = block0;
     sub_hg.block_1 = block1;
     sub_hg.weight_of_block_0 = 0;

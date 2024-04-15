@@ -66,8 +66,8 @@ public:
 template<typename TypeTraits>
 class DeterministicQuotientGraph {
 
-    static constexpr bool debug = false;
-    static constexpr bool enable_heavy_assert = false;
+    static constexpr bool debug = true;
+    static constexpr bool enable_heavy_assert = true;
 
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
@@ -111,20 +111,43 @@ public:
 
     DeterministicQuotientGraphEdge& getEdgeFiltered(const PartitionedHypergraph& phg, const PartitionID i, const PartitionID j) {
         assert(i < j);
+        if constexpr (debug) {
+            DBG << "REQUESTING edge for blocks " << V(i) << ", " << V(j);
+            const auto& q = _edges[i][j];
+            DBG << V(q.cut_hyperedge_weight) << V(q.cut_hyperedges.size()) << V(q.num_cut_hyperedges) << V(q.total_improvement);
+        }
         DeterministicQuotientGraphEdge& quotientEdge = _edges[i][j];
         vec<HyperedgeID>& edges = quotientEdge.cut_hyperedges;
-        for (size_t i = 0; i < edges.size(); ++i) {
-            const HyperedgeID he = edges[i];
+        for (size_t idx = 0; idx < edges.size(); ++idx) {
+            const HyperedgeID he = edges[idx];
+            if constexpr (debug) {
+                size_t count0 = 0;
+                size_t count1 = 0;
+                for (const HypernodeID pin : phg.pins(he)) {
+                    if (phg.partID(pin) == i) count0++;
+                    if (phg.partID(pin) == j) count1++;
+                }
+                assert(count0 == phg.pinCountInPart(he, i));
+                assert(count1 == phg.pinCountInPart(he, j));
+            }
             if (phg.pinCountInPart(he, i) == 0 || phg.pinCountInPart(he, j) == 0) {
-                edges[i] = edges.back();
+                edges[idx] = edges.back();
                 edges.pop_back();
                 quotientEdge.num_cut_hyperedges--;
                 quotientEdge.cut_hyperedge_weight -= phg.edgeWeight(he);
-                --i;
+                --idx;
             }
         }
         // For determinism
         tbb::parallel_sort(edges.begin(), edges.end());
+        if constexpr (debug) {
+            DBG << "AFTER FILTERING edge for blocks " << V(i) << ", " << V(j);
+            const auto& q = _edges[i][j];
+            DBG << V(q.cut_hyperedge_weight) << V(q.cut_hyperedges.size()) << V(q.num_cut_hyperedges) << V(q.total_improvement);
+            // for (const auto e : quotientEdge.cut_hyperedges) {
+            //     DBG << e << ", ";
+            // }
+        }
         return quotientEdge;
     }
 
@@ -152,7 +175,7 @@ public:
         _edges[i][j].total_improvement += improvement;
     }
 
-private:
+    //private:
     vec<vec<DeterministicQuotientGraphEdge>> _edges;
     PartitionID _k;
     bool _dirty;
