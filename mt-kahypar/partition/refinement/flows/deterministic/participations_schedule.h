@@ -39,7 +39,7 @@ namespace mt_kahypar {
 
 template<typename TypeTraits>
 class ParticipationsSchedule final : public IDeterministicBlockSchedule<TypeTraits> {
-
+    static constexpr bool debug = false;
 
     ParticipationsSchedule(const ParticipationsSchedule&) = delete;
     ParticipationsSchedule(ParticipationsSchedule&&) = delete;
@@ -54,7 +54,8 @@ public:
         _partitions_sorted_by_participations(),
         _scheduled(context.partition.k, false),
         _round(0),
-        _k(context.partition.k) {}
+        _k(context.partition.k),
+        _rng(context.partition.seed) {}
 
     void resetForNewRound(const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
@@ -72,6 +73,7 @@ public:
                 }
             }
         }
+        _partitions_sorted_by_participations.clear();
         _partitions_sorted_by_participations.reserve(_k);
         for (PartitionID i = 0; i < _k; ++i) {
             if (_participations[i] > 0) {
@@ -100,29 +102,44 @@ private:
         _round = 0;
     }
 
-    vec<BlockPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
-        vec<BlockPair> tasks;
+    vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
+        vec<ScheduledPair> tasks;
         tasks.reserve(_k / 2);
-        for (size_t i = 0; i < _partitions_sorted_by_participations.size() - 1; ++i) {
-            const PartitionID block0 = _partitions_sorted_by_participations[i];
-            if (_scheduled[block0]) continue;
-            for (size_t j = i + 1; j < _partitions_sorted_by_participations.size(); ++j) {
-                const PartitionID block1 = _partitions_sorted_by_participations[j];
-                if (_scheduled[block1] || _processed[block0][block1]) continue;
-
-                if (isEligible(block0, block1, qg)) {
-                    addBlockPair(block0, block1);
-                    tasks.push_back({ block0, block1 });
-                    --i;
-                    break;
+        assert(_scheduled.size() == size_t(_k));
+        assert(_partitions_sorted_by_participations.size() <= size_t(_k));
+        if (_partitions_sorted_by_participations.size() > 0) {
+            for (size_t i = 0; i < _partitions_sorted_by_participations.size() - 1; ++i) {
+                const PartitionID block0 = _partitions_sorted_by_participations[i];
+                assert(block0 < _k);
+                if (_scheduled[block0]) continue;
+                for (size_t j = i + 1; j < _partitions_sorted_by_participations.size(); ++j) {
+                    const PartitionID block1 = _partitions_sorted_by_participations[j];
+                    assert(block1 < _k);
+                    if (_scheduled[block1] || _processed[block0][block1] || block0 == block1) continue;
+                    const PartitionID smaller = std::min(block0, block1);
+                    const PartitionID larger = std::max(block0, block1);
+                    if (isEligible(smaller, larger, qg)) {
+                        addBlockPair(smaller, larger);
+                        tasks.push_back({ {smaller, larger}, _rng()});
+                        i--;
+                        break;
+                    }
                 }
+                if (tasks.size() == size_t(_k) / 2) { break; }
             }
-            if (tasks.size() == size_t(_k) / 2) { break; }
+        }
+        if constexpr (debug) {
+            for (const auto& t : tasks) {
+                DBG << "Scheduling: (" << t.bp.i << ", " << t.bp.j << ", " << t.seed << ") in round " << _round;
+            }
         }
         return tasks;
     }
 
     void addBlockPair(const PartitionID i, const PartitionID j) {
+        DBG << V(i) << ", " << V(j);
+        assert(i < _k);
+        assert(j < _k);
         _processed[i][j] = true;
         _scheduled[i] = true;
         _scheduled[j] = true;
@@ -147,6 +164,7 @@ private:
     }
 
     bool isEligible(const PartitionID i, const PartitionID j, const DeterministicQuotientGraph<TypeTraits>& qg) {
+        DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
         const HyperedgeWeight improvement = qg.getImprovement(i, j);
@@ -165,6 +183,7 @@ private:
     vec<bool> _scheduled;
     size_t _round;
     PartitionID _k;
+    std::mt19937 _rng;
 };
 
 }  // namespace mt_kahypar

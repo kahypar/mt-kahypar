@@ -11,28 +11,33 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     const double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     _schedule.initialize(hypergraph, _quotient_graph);
-    size_t maxRounds = 5;
+    size_t maxRounds = 1;
     std::atomic<HyperedgeWeight> overall_delta(0);
     for (size_t round = 0; round < maxRounds; ++round) {
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+        vec<MoveSequence> sequences(_scheduled_blocks.size());
         while (_scheduled_blocks.size() > 0) {
             tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
-                const BlockPair& bp = _scheduled_blocks[i];
+                const ScheduledPair& sp = _scheduled_blocks[i];
                 auto& refiner = _refiners.local();
-                MoveSequence moves = refiner.refine(phg, _quotient_graph, bp.i, bp.j);
+                refiner.initialize(phg);
+                MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
+                sequences[i] = moves;
                 const HyperedgeWeight improvement = applyMoves(moves, phg);
                 overall_delta += improvement;
-                reportResults(bp.i, bp.j, moves);
-                _quotient_graph.reportImprovement(bp.i, bp.j, improvement);
+                reportResults(sp.bp.i, sp.bp.j, moves);
+                _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
+                assert(metrics::isBalanced(phg, _context));
             });
+            _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         }
         _schedule.resetForNewRound(_quotient_graph);
     }
 
     // Update metrics statistics
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + overall_delta == metrics::quality(phg, _context),
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality - overall_delta == metrics::quality(phg, _context),
         V(best_metrics.quality) << V(overall_delta) << V(metrics::quality(phg, _context)));
-    best_metrics.quality += overall_delta;
+    best_metrics.quality -= overall_delta;
     best_metrics.imbalance = metrics::imbalance(phg, _context);
 
     // Update Gain Cache

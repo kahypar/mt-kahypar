@@ -76,12 +76,14 @@ public:
 
     virtual ~DeterministicFlowRefiner() = default;
 
-    void initialize(PartitionedHypergraph& phg) {}
-
-    MoveSequence refine(PartitionedHypergraph& phg, DeterministicQuotientGraph<TypeTraits>& quotientGraph, const PartitionID block0, const PartitionID block1) {
-        return refineImpl(phg, quotientGraph, block0, block1);
+    void initialize(PartitionedHypergraph&) {
+        _flow_hg.clear();
+        _whfc_to_node.clear();
     }
 
+    MoveSequence refine(PartitionedHypergraph& phg, DeterministicQuotientGraph<TypeTraits>& quotientGraph, const PartitionID block0, const PartitionID block1, const size_t seed) {
+        return refineImpl(phg, quotientGraph, block0, block1, seed);
+    }
 
 
 private:
@@ -89,13 +91,12 @@ private:
     MoveSequence refineImpl(PartitionedHypergraph& phg,
         DeterministicQuotientGraph<TypeTraits>& quotientGraph,
         const PartitionID block0,
-        const PartitionID block1) {
+        const PartitionID block1,
+        const size_t seed) {
         MoveSequence sequence{ { }, 0 };
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
         FlowProblem flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-
-        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1);
-
+        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
         if (flowcutter_succeeded) {
             extractMoveSequence(phg, flow_problem, sequence, block0, block1);
         }
@@ -103,7 +104,7 @@ private:
 
     }
 
-    bool runFlowCutter(FlowProblem& flow_problem, const PartitionID block0, const PartitionID block1) {
+    bool runFlowCutter(FlowProblem& flow_problem, const PartitionID block0, const PartitionID block1, const size_t seed) {
         whfc::Node s = flow_problem.source;
         whfc::Node t = flow_problem.sink;
         if (sequential) {
@@ -113,6 +114,7 @@ private:
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
             _sequential_hfc.reset();
+            _sequential_hfc.setSeed(seed);
             _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);
         } else {
@@ -122,6 +124,7 @@ private:
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
             _parallel_hfc.reset();
+            _parallel_hfc.setSeed(seed);
             _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);
         }
@@ -140,7 +143,6 @@ private:
             new_cut += _parallel_hfc.cs.flow_algo.flow_value;
             max_part_weight = std::max(_parallel_hfc.cs.source_weight, _parallel_hfc.cs.target_weight);
         }
-
         const bool improved_solution = new_cut < flow_problem.total_cut ||
             (new_cut == flow_problem.total_cut && max_part_weight < std::max(flow_problem.weight_of_block_0, flow_problem.weight_of_block_1));
 

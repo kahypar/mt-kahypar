@@ -113,14 +113,24 @@ public:
         assert(i < j);
         DeterministicQuotientGraphEdge& quotientEdge = _edges[i][j];
         vec<HyperedgeID>& edges = quotientEdge.cut_hyperedges;
-        for (size_t i = 0; i < edges.size(); ++i) {
-            const HyperedgeID he = edges[i];
+        for (size_t idx = 0; idx < edges.size(); ++idx) {
+            const HyperedgeID he = edges[idx];
+            if constexpr (debug) {
+                size_t count0 = 0;
+                size_t count1 = 0;
+                for (const HypernodeID pin : phg.pins(he)) {
+                    if (phg.partID(pin) == i) count0++;
+                    if (phg.partID(pin) == j) count1++;
+                }
+                assert(count0 == phg.pinCountInPart(he, i));
+                assert(count1 == phg.pinCountInPart(he, j));
+            }
             if (phg.pinCountInPart(he, i) == 0 || phg.pinCountInPart(he, j) == 0) {
-                edges[i] = edges.back();
+                edges[idx] = edges.back();
                 edges.pop_back();
                 quotientEdge.num_cut_hyperedges--;
                 quotientEdge.cut_hyperedge_weight -= phg.edgeWeight(he);
-                --i;
+                --idx;
             }
         }
         // For determinism

@@ -99,7 +99,7 @@ private:
                 part_weight_deltas[move.to] += node_weight;
             }
         }
-        HyperedgeWeight improvement;
+        HyperedgeWeight improvement = 0;
         vec<NewCutHyperedge> new_cut_hes;
         auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
             improvement -= AttributedGains::gain(sync_update);
@@ -111,7 +111,8 @@ private:
             }
         };
         applyMoveSequence(phg, _gain_cache, sequence, delta_func, _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
-        assert(improvment == sequence.expected_improvement);
+        DBG << V(improvement) << ", " << V(sequence.expected_improvement);
+        assert(improvement == sequence.expected_improvement);
         addCutHyperedgesToQuotientGraph(new_cut_hes, phg);
         return improvement;
     }
@@ -182,7 +183,7 @@ private:
 
     const Context& _context;
     GainCache& _gain_cache;
-    vec<BlockPair> _scheduled_blocks;
+    vec<ScheduledPair> _scheduled_blocks;
     tbb::enumerable_thread_specific<DeterministicFlowRefiner<GraphAndGainTypes>> _refiners;
     DeterministicQuotientGraph<TypeTraits> _quotient_graph;
     ParticipationsSchedule<TypeTraits> _schedule;
