@@ -135,20 +135,15 @@ namespace {
     partitioned_hg.initializePartition();
 
 
+    /*for(HypernodeID hn : partitioned_hg.nodes()){
+      std::cout << partitioned_hg.partID(hn) << "\n";
+    }*/
 
-
-
+    std::cout << "Before Results: " << metrics::quality(partitioned_hg, context, false)<< " " << metrics::imbalance(partitioned_hg, context)[0] << " " <<  metrics::imbalance(partitioned_hg, context)[1] << "\n";
 
     io::printPartitioningResults(partitioned_hg, context, "Before Results:");
-    std::cout <<"edges:" << partitioned_hg.initialNumEdges() << "\n";
     uncoarsener->doLastRefine(&partitioned_hg);
 
-    for(HyperedgeID he : partitioned_hg.edges()){
-      if(he >= initial_num){
-        std::cout << "in: " << he << "\n";
-      }
-    
-  }
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     return partitioned_hg;
     

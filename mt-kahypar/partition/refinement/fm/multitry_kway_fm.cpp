@@ -99,25 +99,24 @@ namespace mt_kahypar {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     if (fm_strategy->includesUnconstrained()) {
+      std::cout << "unconstrained\n";
       max_part_weights = setupMaxPartWeights(context);
     }
-
+    
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
       }
-
       const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
       if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
         sharedData.unconstrained.initialize<GraphAndGainTypes>(context, phg, gain_cache);
         timer.stop_timer("initialize_data_unconstrained");
       }
-
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
       roundInitialization(phg, refinement_nodes);
       timer.stop_timer("collect_border_nodes");
-
+      
       size_t num_border_nodes = sharedData.refinementNodes.unsafe_size();
       if (num_border_nodes == 0) {
         break;
@@ -130,14 +129,18 @@ namespace mt_kahypar {
         num_seeds = std::min(num_seeds, context.refinement.fm.num_seed_nodes);
         num_seeds = std::max(num_seeds, UL(1));
       }
-
+      
       timer.start_timer("find_moves", "Find Moves");
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
                              num_tasks, num_seeds, round);
       timer.stop_timer("find_moves");
-
+      /*for(PartitionID p = 0; p < phg.k(); p++){
+        std::cout << (phg.partWeight(p) < max_part_weights[p]) << "\n"; 
+      }
+      std::cout << !isBalanced(phg, max_part_weights) << "\n";*/
+     
       if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
         vec<vec<Move>> moves_by_part;
 
@@ -155,13 +158,14 @@ namespace mt_kahypar {
           });
         }
         HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-
+        std::cout << "before rebalancer\n";
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
         rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
+        std::cout << "afterrb\n";
         timer.stop_timer("rebalance_fm");
 
         if (!moves_by_part.empty()) {
-          std::vector<std::vector<std::vector<Move>>> moves_sorted;
+          /*std::vector<std::vector<std::vector<Move>>> moves_sorted;
           moves_sorted.resize(phg.k());
           for(PartitionID p = 0; p < phg.k(); p++){
             moves_sorted[p].resize(dimension);
@@ -176,7 +180,7 @@ namespace mt_kahypar {
               }
               moves_sorted[p][max_dim].push_back(m);
             }
-          }
+          }*/
           
           // compute new move sequence where each imbalanced move is immediately rebalanced
           interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
