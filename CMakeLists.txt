@@ -14,20 +14,21 @@ set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
 set(SLEPC $ENV{SLEPC_DIR}/$ENV{PETSC_ARCH})
 set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig:${SLEPC}/lib/pkgconfig)
 
-# Remove the lines below if you do not wish to have PETSc determine the compilers
-execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE C_COMPILER)
-SET(CMAKE_C_COMPILER ${C_COMPILER})
-execute_process ( COMMAND pkg-config PETSc --variable=cxxcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CXX_COMPILER)
-if (CXX_COMPILER)
-  SET(CMAKE_CXX_COMPILER ${CXX_COMPILER})
-endif (CXX_COMPILER)
-execute_process ( COMMAND pkg-config PETSc --variable=fcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE FORTRAN_COMPILER)
-if (FORTRAN_COMPILER)
-  SET(CMAKE_Fortran_COMPILER ${FORTRAN_COMPILER})
-  enable_language(Fortran)
-endif (FORTRAN_COMPILER)
+# Remove the lines below if you do not wish to have PETSc determine the compilers TODO
+#execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE C_COMPILER)
+#SET(CMAKE_C_COMPILER ${C_COMPILER})
+#execute_process ( COMMAND pkg-config PETSc --variable=cxxcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE CXX_COMPILER)
+#if (CXX_COMPILER)
+#  SET(CMAKE_CXX_COMPILER ${CXX_COMPILER})
+#endif (CXX_COMPILER)
+#execute_process ( COMMAND pkg-config PETSc --variable=fcompiler COMMAND tr -d '\n' OUTPUT_VARIABLE FORTRAN_COMPILER)
+#if (FORTRAN_COMPILER)
+#  SET(CMAKE_Fortran_COMPILER ${FORTRAN_COMPILER})
+#  enable_language(Fortran)
+#endif (FORTRAN_COMPILER)
 
 # end SLEPc
+# SET(CMAKE_CXX_COMPILER gcc-10)
 
 
 project(MtKaHyPar CXX C)
@@ -367,6 +368,8 @@ if(NOT MSVC)
     message(STATUS "Default linker")
   endif()
 
+  # set(LDFLAGS "-Wl,--copy-dt-needed-entries")
+
   include(CheckSSE4_2)
   if( BUILTIN_POPCNT )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
@@ -428,7 +431,28 @@ add_subdirectory(python)
 # SLEPc TODO only execute if needed
 find_package(PkgConfig REQUIRED)
 pkg_search_module(SLEPC REQUIRED IMPORTED_TARGET SLEPc)
-target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
+#target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
+# julia TODO
+execute_process(COMMAND julia -e "print(joinpath(Sys.BINDIR, Base.DATAROOTDIR, \"julia\"))" OUTPUT_VARIABLE JL_SHARE)
+message(STATUS "JL_SHARE: ${JL_SHARE}")
+execute_process(COMMAND $(JL_SHARE)/julia-config.jl --cflags OUTPUT_VARIABLE JL_CFLAGS)
+execute_process(COMMAND $(JL_SHARE)/julia-config.jl --ldflags OUTPUT_VARIABLE JL_LDFLAGS)
+execute_process(COMMAND $(JL_SHARE)/julia-config.jl --ldlibs OUTPUT_VARIABLE JL_LDLIBS)
+set(CFLAGS "${CFLAGS} ${JL_CFLAGS}")
+set(CXXFLAGS "${CXXFLAGS} ${JL_CFLAGS}")
+set(LDFLAGS "${LDFLAGS} ${JL_LDFLAGS}")
+set(LDLIBS "${LDLIBS} ${JL_LDLIBS}")
+
+# find_library(jluna REQUIRED
+#     NAMES jluna
+#     PATHS /home/julian/Dokumente/Studium/BA/jluna-1.0.1
+# )
+# target_link_libraries(MtKaHyPar ${jluna} /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/lib/libjulia.so )
+target_link_libraries(MtKaHyPar /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/lib/libjulia.so )
+# target_include_directories(MtKaHyPar PRIVATE /home/julian/Dokumente/Studium/BA/jluna-1.0.1/include/jluna/ /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/include/julia/)
+target_include_directories(MtKaHyPar PRIVATE /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/include/julia/)
+# target_compile_features(MtKaHyPar PRIVATE cxx_std_20)
+# target_link_libraries(MtKaHyPar m)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)

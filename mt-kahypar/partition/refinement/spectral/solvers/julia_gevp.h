@@ -22,27 +22,37 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#pragma once
-
-#include <cstddef>
-
-#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
-#include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.h"
-#include "mt-kahypar/partition/refinement/spectral/datatypes.h"
+#include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
 
 namespace mt_kahypar {
 namespace spectral {
 
-class GEVPSolver {
+class JuliaGEVPSolver : public GEVPSolver {
  public:
-  virtual void setProblem(Operator& a, Operator& b) = 0;
+  void setProblem(Operator& a, Operator& b) final;
 
-  virtual void setProblem(Operator& a, Operator& b, vec<Vector>& evecs, vec<Skalar> &evals, size_t num_deflation_epairs) = 0;
+  void setProblem(Operator& a, Operator& b, vec<Vector>& evecs, vec<Skalar> &evals, size_t num_deflation_epairs) final;
 
-  // ! positive (negative) return value: ascending (descending), zero: no new pair found, returning last pair
-  virtual int nextEigenpair(Skalar& eval, Vector& evec, bool try_from_above) = 0; /* TODO return rather all pairs, an iterator or YAGNI? */
+  int nextEigenpair(Skalar& eval, Vector& evec, bool try_from_above) final;
 
-  virtual ~GEVPSolver() = default;
+  ~JuliaGEVPSolver() final;
+  
+ private:
+ 
+  static bool julia_initialized;
+
+  // attributes
+  Operator *op_a = nullptr;
+  Operator *op_b = nullptr;
+
+  bool solved = false;
+  vec<Skalar> evals;
+  vec<Vector> evecs;
+  size_t epairs_found;
+  size_t num_deflation_epairs;
+
+  // methods
+  void solve();
 };
 
 }

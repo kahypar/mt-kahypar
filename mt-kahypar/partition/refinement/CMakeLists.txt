@@ -1,3 +1,5 @@
+# add_subdirectory(spectral)
+
 set(RefinementSources
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp

@@ -81,6 +81,7 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
   op_b = &b;
 
   solved = false;
+  epairs_found = 0;
 
   size_t n = op_a->dimension();
 
@@ -116,23 +117,25 @@ void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b) {
   PetscFunctionReturnVoid();
 }
 
-void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, vec<Vector>& trivial_evecs, vec<Skalar> &trivial_evals) {
+void SLEPcGEVPSolver::setProblem(Operator& a, Operator& b, vec<Vector>& known_evecs, vec<Skalar> &known_evals, size_t deflation_epairs) {
   PetscFunctionBeginUser;
-  
+
   setProblem(a, b);
 
-  for (Vector& tevec : trivial_evecs) {
+  for (Vector& tevec : known_evecs) {
     Vec v;
     CallPetsc(VecCreateSeq(GLOBAL_COMMUNICATOR, tevec.dimension(), &v));
     vector2Vec(tevec, v);
     evecs.push_back(v);
   }
-  evals.insert(evals.end(), trivial_evals.begin(), trivial_evals.end());
+  evals.insert(evals.end(), known_evals.begin(), known_evals.end());
+
+  num_deflation_epairs = deflation_epairs;
 
   PetscFunctionReturnVoid();
 }
 
-int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
+int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec, bool try_from_above) {
   PetscFunctionBeginUser;
 
   // call solver
@@ -148,7 +151,7 @@ int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
       tried_from_above = true;
       CallPetsc(EPSSetOperators(eps, mat_B, mat_A));
       CallPetsc(EPSSetWhichEigenpairs(eps, EPS_LARGEST_REAL));
-      return nextEigenpair(eval, evec);
+      return nextEigenpair(eval, evec, try_from_above);
     }
   }
 
@@ -171,6 +174,7 @@ int SLEPcGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec) {
   
   evals.push_back(kr);
   evecs.push_back(xr);
+  epairs_found++;
 
   if (tried_from_above) {
     tried_from_above = false;
@@ -200,7 +204,7 @@ void SLEPcGEVPSolver::end_slepc() {
   
   CallPetsc(EPSDestroy(&eps));
 
-  //CallPetsc(SlepcFinalize());
+  /* CallPetsc(SlepcFinalize()); TODO execute this somehow */
 
   slepc_running = false;
 
@@ -217,7 +221,12 @@ void SLEPcGEVPSolver::solve() {
   PetscFunctionBeginUser;
 
   // deflation
-  CallPetsc(EPSSetDeflationSpace(eps, evecs.size(), evecs.data()));
+  CallPetsc(EPSSetDeflationSpace(eps, num_deflation_epairs, evecs.data()));
+
+  // initial vectors
+  if (num_deflation_epairs + epairs_found < evecs.size()) {
+    CallPetsc(EPSSetInitialSpace(eps, evecs.size() - num_deflation_epairs - epairs_found, evecs.data() + num_deflation_epairs));
+  }
 
   // preconditioning
   /* TODO ??? */

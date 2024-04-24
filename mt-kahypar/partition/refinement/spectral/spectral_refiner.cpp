@@ -24,7 +24,9 @@
 
 #include "mt-kahypar/partition/refinement/spectral/spectral_refiner.h"
 // #include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
-#include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp" /* TODO only makeshift */
+// #include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp" /* TODO only makeshift */
+#include "mt-kahypar/partition/refinement/spectral/solvers/julia_gevp.cpp"
+
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -343,11 +345,8 @@ namespace mt_kahypar {
     // DBG << "---- balance";
     // balanceOperator.printMatrix([&](std::string s){DBG<<s;});
     
-    spectral::SLEPcGEVPSolver solver; /* TODO get gevp variant otherwise */
-    vec<spectral::Vector> trivial_evecs;
-    vec<spectral::Skalar> trivial_evals;
-    trivial_evecs.push_back(spectral::Vector(numNodes, 1.0));
-    trivial_evals.push_back(0.0);
+    spectral::JuliaGEVPSolver solver;
+    // spectral::SLEPcGEVPSolver solver;
     vec<spectral::Vector> known_evecs;
     vec<spectral::Skalar> known_evals;
     // trivial 1 0 epair
