@@ -11,4 +11,6 @@ foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_precompile_headers(${modtarget} PRIVATE datatypes.h)
 endforeach()
 
+# TODO add julia package install script
+
 # set_source_files_properties(${Solver} PROPERTIES COMPILE_OPTIONS -std=c++20)
