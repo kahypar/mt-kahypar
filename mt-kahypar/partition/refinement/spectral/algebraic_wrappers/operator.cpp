@@ -32,16 +32,23 @@ namespace spectral {
 Operator::Operator(size_t dimension) {
   dim = dimension;
   // initialize with id
-  effects.push_back([](Operator *self, Vector& operand, Vector& target_vector) {
+  effects.push_back([](void *ctx, Vector& operand, Vector& target_vector) {
+    unused(ctx);
     for (size_t i = 0; i < operand.dimension(); i++) {
       target_vector.set(i, operand[i]);
     }
   });
-  calc_diagonal_ops.push_back([] (Operator *self, Vector& target_vector) {
+  calc_diagonal_ops.push_back([] (void *ctx, Vector& target_vector) {
+    unused(ctx);
     for (size_t i = 0; i < target_vector.dimension(); i++) {
       target_vector.set(i, 1.0);
     }
   });
+  ctx_exporter.push_back([] (void *ctx, vec<size_t> &target_vector) {
+    unused(ctx);
+    unused(target_vector);
+  });
+  ctx.push_back(nullptr);
 }
 
 size_t Operator::dimension() {
@@ -49,14 +56,14 @@ size_t Operator::dimension() {
 }
 
 void Operator::apply(Vector& operand, Vector& target) {
-  for (auto effect: effects) {
-    effect(this, operand, target);
+  for (size_t i = 0; i < effects.size(); i++) {
+    effects[i](ctx[i], operand, target);
   }
 }
 
 void Operator::getDiagonal(Vector& target) {
-  for (auto op: calc_diagonal_ops) {
-    op(this, target);
+  for (size_t i = 0; i < calc_diagonal_ops.size(); i++) {
+    calc_diagonal_ops[i](ctx[i], target);
   }
 }
 
@@ -93,8 +100,14 @@ bool Operator::isSymmetric() {
   return true; /* TODO */
 }
 
+void Operator::exportContext(size_t index, vec<size_t> &target) {
+  ctx_exporter[index](ctx[index], target);
+}
+
 Operator& Operator::operator+=(Operator& op) { /* TODO not that clean algebraically nor softwaretechnically */
   effects.insert(effects.end(), op.effects.begin(), op.effects.end());
+  calc_diagonal_ops.insert(calc_diagonal_ops.end(), op.calc_diagonal_ops.begin(), op.calc_diagonal_ops.end());
+  ctx.insert(ctx.end(), op.ctx.begin(), op.ctx.end());
   return *this;
 }
 

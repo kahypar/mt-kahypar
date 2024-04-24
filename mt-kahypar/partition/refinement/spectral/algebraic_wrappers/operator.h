@@ -50,12 +50,15 @@ class Operator {
 
   bool isSymmetric();
 
+  void exportContext(size_t index, vec<size_t> &target);
+
   Operator& operator+= (Operator& op);
 
-  vec<std::function<void(Operator*, Vector&, Vector&)>> effects;
-  vec<std::function<void(Operator*, Vector&)>> calc_diagonal_ops;
+  vec<std::function<void(void*, Vector&, Vector&)>> effects;
+  vec<std::function<void(void*, Vector&)>> calc_diagonal_ops;
+  vec<std::function<void(void*, vec<size_t>&)>> ctx_exporter;
 
-  void *ctx;
+  vec<void *> ctx;
 
  private:
   size_t dim;
