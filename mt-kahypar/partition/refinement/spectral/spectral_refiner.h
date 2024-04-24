@@ -84,9 +84,9 @@ class SpectralRefiner final : public IRefiner {
 
   void buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target);
 
-  void generate2WayVertexEmbedding(spectral::Operator& baseBalance, spectral::Operator& graphLaplacian, PartitionedHypergraph& hintSolution, vec<spectral::Vector>& target);
+  void generate2WayVertexEmbedding(Hypergraph &hypergraph, spectral::Operator& baseBalance, spectral::Operator& graphLaplacian, vec<PartitionID>& hintSolution, Gain &hint_quality, vec<spectral::Vector>& target);
 
-  void generateHintGraphLaplacian(PartitionedHypergraph& hintSolution, spectral::Operator& target);
+  void generateHintGraphLaplacian(vec<PartitionID> &hintSolution, spectral::Operator& target);
 
   void generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target); /* TODO aliase */
 
