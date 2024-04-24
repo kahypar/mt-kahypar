@@ -10,9 +10,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # set root of location to find PETSc's and SLEPc's pkg-config
-set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
-set(SLEPC $ENV{SLEPC_DIR}/$ENV{PETSC_ARCH})
-set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig:${SLEPC}/lib/pkgconfig)
+# set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
+# set(SLEPC $ENV{SLEPC_DIR}/$ENV{PETSC_ARCH})
+# set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig:${SLEPC}/lib/pkgconfig)
 
 # Remove the lines below if you do not wish to have PETSc determine the compilers TODO
 #execute_process ( COMMAND pkg-config PETSc --variable=ccompiler COMMAND tr -d '\n' OUTPUT_VARIABLE C_COMPILER)
@@ -429,8 +429,8 @@ add_subdirectory(tests)
 add_subdirectory(python)
 
 # SLEPc TODO only execute if needed
-find_package(PkgConfig REQUIRED)
-pkg_search_module(SLEPC REQUIRED IMPORTED_TARGET SLEPc)
+# find_package(PkgConfig REQUIRED)
+# pkg_search_module(SLEPC REQUIRED IMPORTED_TARGET SLEPc)
 #target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
 # julia TODO
 execute_process(COMMAND julia -e "print(joinpath(Sys.BINDIR, Base.DATAROOTDIR, \"julia\"))" OUTPUT_VARIABLE JL_SHARE)
