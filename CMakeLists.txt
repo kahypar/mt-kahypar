@@ -432,12 +432,19 @@ add_subdirectory(python)
 # find_package(PkgConfig REQUIRED)
 # pkg_search_module(SLEPC REQUIRED IMPORTED_TARGET SLEPc)
 #target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
+
 # julia TODO
-execute_process(COMMAND julia -e "print(joinpath(Sys.BINDIR, Base.DATAROOTDIR, \"julia\"))" OUTPUT_VARIABLE JL_SHARE)
+if(ENV{JL_DIR})
+  set(JL_SHARE "${ENV{JL_DIR}}")
+else()
+  execute_process(COMMAND julia -e "print(joinpath(Sys.BINDIR, Base.DATAROOTDIR, \"julia\"))" OUTPUT_VARIABLE JL_SHARE)
+endif()
 message(STATUS "JL_SHARE: ${JL_SHARE}")
+
 execute_process(COMMAND $(JL_SHARE)/julia-config.jl --cflags OUTPUT_VARIABLE JL_CFLAGS)
 execute_process(COMMAND $(JL_SHARE)/julia-config.jl --ldflags OUTPUT_VARIABLE JL_LDFLAGS)
 execute_process(COMMAND $(JL_SHARE)/julia-config.jl --ldlibs OUTPUT_VARIABLE JL_LDLIBS)
+
 set(CFLAGS "${CFLAGS} ${JL_CFLAGS}")
 set(CXXFLAGS "${CXXFLAGS} ${JL_CFLAGS}")
 set(LDFLAGS "${LDFLAGS} ${JL_LDFLAGS}")
@@ -448,9 +455,9 @@ set(LDLIBS "${LDLIBS} ${JL_LDLIBS}")
 #     PATHS /home/julian/Dokumente/Studium/BA/jluna-1.0.1
 # )
 # target_link_libraries(MtKaHyPar ${jluna} /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/lib/libjulia.so )
-target_link_libraries(MtKaHyPar /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/lib/libjulia.so )
+target_link_libraries(MtKaHyPar $(JL_SHARE)/../../lib/libjulia.so )
 # target_include_directories(MtKaHyPar PRIVATE /home/julian/Dokumente/Studium/BA/jluna-1.0.1/include/jluna/ /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/include/julia/)
-target_include_directories(MtKaHyPar PRIVATE /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/include/julia/)
+target_include_directories(MtKaHyPar PRIVATE $(JL_SHARE)/../../include/julia/)
 # target_compile_features(MtKaHyPar PRIVATE cxx_std_20)
 # target_link_libraries(MtKaHyPar m)
 
