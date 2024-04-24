@@ -434,8 +434,8 @@ add_subdirectory(python)
 #target_link_libraries(MtKaHyPar PkgConfig::SLEPC)
 
 # julia TODO
-if(ENV{JL_DIR})
-  set(JL_SHARE "${ENV{JL_DIR}}")
+if(DEFINED ENV{JL_DIR})
+  set(JL_SHARE $ENV{JL_DIR})
 else()
   execute_process(COMMAND julia -e "print(joinpath(Sys.BINDIR, Base.DATAROOTDIR, \"julia\"))" OUTPUT_VARIABLE JL_SHARE)
 endif()
@@ -455,9 +455,9 @@ set(LDLIBS "${LDLIBS} ${JL_LDLIBS}")
 #     PATHS /home/julian/Dokumente/Studium/BA/jluna-1.0.1
 # )
 # target_link_libraries(MtKaHyPar ${jluna} /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/lib/libjulia.so )
-target_link_libraries(MtKaHyPar $(JL_SHARE)/../../lib/libjulia.so )
+target_link_libraries(MtKaHyPar ${JL_SHARE}/../../lib/libjulia.so )
 # target_include_directories(MtKaHyPar PRIVATE /home/julian/Dokumente/Studium/BA/jluna-1.0.1/include/jluna/ /home/julian/.julia/juliaup/julia-1.10.2+0.x64.linux.gnu/include/julia/)
-target_include_directories(MtKaHyPar PRIVATE $(JL_SHARE)/../../include/julia/)
+target_include_directories(MtKaHyPar PRIVATE ${JL_SHARE}/../../include/julia/)
 # target_compile_features(MtKaHyPar PRIVATE cxx_std_20)
 # target_link_libraries(MtKaHyPar m)
 
