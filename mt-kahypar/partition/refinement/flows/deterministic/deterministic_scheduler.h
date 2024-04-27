@@ -44,7 +44,7 @@ template<typename GraphAndGainTypes>
 class DeterministicFlowRefinementScheduler final : public IRefiner {
 
     static constexpr bool debug = false;
-    static constexpr bool enable_heavy_assert = true;
+    static constexpr bool enable_heavy_assert = false;
 
     using TypeTraits = typename GraphAndGainTypes::TypeTraits;
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
@@ -183,7 +183,7 @@ private:
 
     const Context& _context;
     GainCache& _gain_cache;
-    vec<BlockPair> _scheduled_blocks;
+    vec<ScheduledPair> _scheduled_blocks;
     tbb::enumerable_thread_specific<DeterministicFlowRefiner<GraphAndGainTypes>> _refiners;
     DeterministicQuotientGraph<TypeTraits> _quotient_graph;
     ParticipationsSchedule<TypeTraits> _schedule;

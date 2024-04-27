@@ -42,7 +42,7 @@ namespace mt_kahypar {
 template<typename GraphAndGainTypes>
 class DeterministicFlowRefiner {
 
-    static constexpr bool debug = true;
+    static constexpr bool debug = false;
     static constexpr bool sequential = true;
 
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
@@ -81,10 +81,9 @@ public:
         _whfc_to_node.clear();
     }
 
-    MoveSequence refine(PartitionedHypergraph& phg, DeterministicQuotientGraph<TypeTraits>& quotientGraph, const PartitionID block0, const PartitionID block1) {
-        return refineImpl(phg, quotientGraph, block0, block1);
+    MoveSequence refine(PartitionedHypergraph& phg, DeterministicQuotientGraph<TypeTraits>& quotientGraph, const PartitionID block0, const PartitionID block1, const size_t seed) {
+        return refineImpl(phg, quotientGraph, block0, block1, seed);
     }
-
 
 
 private:
@@ -92,13 +91,14 @@ private:
     MoveSequence refineImpl(PartitionedHypergraph& phg,
         DeterministicQuotientGraph<TypeTraits>& quotientGraph,
         const PartitionID block0,
-        const PartitionID block1) {
+        const PartitionID block1,
+        const size_t seed) {
         MoveSequence sequence{ { }, 0 };
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
         DBG << sub_hg;
         FlowProblem flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
         DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
-        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1);
+        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
         DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
         if (flowcutter_succeeded) {
             extractMoveSequence(phg, flow_problem, sequence, block0, block1);
@@ -107,7 +107,7 @@ private:
 
     }
 
-    bool runFlowCutter(FlowProblem& flow_problem, const PartitionID block0, const PartitionID block1) {
+    bool runFlowCutter(FlowProblem& flow_problem, const PartitionID block0, const PartitionID block1, const size_t seed) {
         whfc::Node s = flow_problem.source;
         whfc::Node t = flow_problem.sink;
         if (sequential) {
@@ -117,6 +117,7 @@ private:
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
             _sequential_hfc.reset();
+            _sequential_hfc.setSeed(seed);
             _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);
         } else {
@@ -126,6 +127,7 @@ private:
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
             _parallel_hfc.reset();
+            _parallel_hfc.setSeed(seed);
             _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);
         }

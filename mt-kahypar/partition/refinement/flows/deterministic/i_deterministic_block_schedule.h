@@ -36,7 +36,10 @@
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_quotient_graph.h"
 
 namespace mt_kahypar {
-
+struct ScheduledPair {
+    BlockPair bp;
+    size_t seed;
+};
 template<typename TypeTraits>
 class IDeterministicBlockSchedule {
 
@@ -52,7 +55,7 @@ public:
         initializeImpl(hypergraph, qg);
     }
 
-    vec<BlockPair> getNextMatching(const DeterministicQuotientGraph<TypeTraits>& qg) {
+    vec<ScheduledPair> getNextMatching(const DeterministicQuotientGraph<TypeTraits>& qg) {
         return getNextMatchingImpl(qg);
     }
 
@@ -62,7 +65,7 @@ protected:
 private:
     virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 
-    virtual vec<BlockPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
+    virtual vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 };
 
 }  // namespace mt_kahypar

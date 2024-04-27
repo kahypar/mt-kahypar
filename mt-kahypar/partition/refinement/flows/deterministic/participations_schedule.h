@@ -39,7 +39,7 @@ namespace mt_kahypar {
 
 template<typename TypeTraits>
 class ParticipationsSchedule final : public IDeterministicBlockSchedule<TypeTraits> {
-    static constexpr bool debug = true;
+    static constexpr bool debug = false;
 
     ParticipationsSchedule(const ParticipationsSchedule&) = delete;
     ParticipationsSchedule(ParticipationsSchedule&&) = delete;
@@ -54,7 +54,8 @@ public:
         _partitions_sorted_by_participations(),
         _scheduled(context.partition.k, false),
         _round(0),
-        _k(context.partition.k) {}
+        _k(context.partition.k),
+        _rng(context.partition.seed) {}
 
     void resetForNewRound(const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
@@ -101,8 +102,8 @@ private:
         _round = 0;
     }
 
-    vec<BlockPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
-        vec<BlockPair> tasks;
+    vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
+        vec<ScheduledPair> tasks;
         tasks.reserve(_k / 2);
         assert(_scheduled.size() == size_t(_k));
         assert(_partitions_sorted_by_participations.size() <= size_t(_k));
@@ -119,7 +120,7 @@ private:
                     const PartitionID larger = std::max(block0, block1);
                     if (isEligible(smaller, larger, qg)) {
                         addBlockPair(smaller, larger);
-                        tasks.push_back({ smaller, larger });
+                        tasks.push_back({ {smaller, larger}, _rng()});
                         i--;
                         break;
                     }
@@ -129,7 +130,7 @@ private:
         }
         if constexpr (debug) {
             for (const auto& t : tasks) {
-                DBG << "Scheduling: (" << t.i << ", " << t.j << ") in round " << _round;
+                DBG << "Scheduling: (" << t.bp.i << ", " << t.bp.j << ", " << t.seed << ") in round " << _round;
             }
         }
         return tasks;
@@ -182,6 +183,7 @@ private:
     vec<bool> _scheduled;
     size_t _round;
     PartitionID _k;
+    std::mt19937 _rng;
 };
 
 }  // namespace mt_kahypar

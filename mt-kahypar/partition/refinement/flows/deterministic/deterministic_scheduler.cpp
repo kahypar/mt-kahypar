@@ -17,30 +17,29 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         vec<MoveSequence> sequences(_scheduled_blocks.size());
         while (_scheduled_blocks.size() > 0) {
-            //tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
-            for (size_t i = _scheduled_blocks.size()-1; i < _scheduled_blocks.size(); --i) {
-                const BlockPair& bp = _scheduled_blocks[i];
+            tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
+                //for (size_t i = 0; i < _scheduled_blocks.size(); ++i) {
+                //for (size_t i = _scheduled_blocks.size() - 1; i < _scheduled_blocks.size(); --i) {
+                const ScheduledPair& sp = _scheduled_blocks[i];
                 auto& refiner = _refiners.local();
                 refiner.initialize(phg);
-                MoveSequence moves = refiner.refine(phg, _quotient_graph, bp.i, bp.j);
+                MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
                 sequences[i] = moves;
-                // const HyperedgeWeight improvement = applyMoves(moves, phg);
-                // overall_delta += improvement;
-                // reportResults(bp.i, bp.j, moves);
-                // _quotient_graph.reportImprovement(bp.i, bp.j, improvement);
-                // assert(metrics::isBalanced(phg, _context));
-            }//);
-            for (size_t i = 0; i < sequences.size(); ++i) {
-                const BlockPair bp = _scheduled_blocks[i];
-                MoveSequence& moves = sequences[i];
                 const HyperedgeWeight improvement = applyMoves(moves, phg);
-                std::cout << V(improvement) << ", " << V(moves.moves.size()) << std::endl;
                 overall_delta += improvement;
-                reportResults(bp.i, bp.j, moves);
-                _quotient_graph.reportImprovement(bp.i, bp.j, improvement);
+                reportResults(sp.bp.i, sp.bp.j, moves);
+                _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
                 assert(metrics::isBalanced(phg, _context));
-            }
-            std::cout << metrics::quality(phg, _context)<< std::endl;;
+            });
+            // for (size_t i = 0; i < sequences.size(); ++i) {
+            //     const BlockPair& bp = _scheduled_blocks[i].bp;
+            //     MoveSequence& moves = sequences[i];
+            //     const HyperedgeWeight improvement = applyMoves(moves, phg);
+            //     overall_delta += improvement;
+            //     reportResults(bp.i, bp.j, moves);
+            //     _quotient_graph.reportImprovement(bp.i, bp.j, improvement);
+            //     assert(metrics::isBalanced(phg, _context));
+            // }
             _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         }
         _schedule.resetForNewRound(_quotient_graph);
