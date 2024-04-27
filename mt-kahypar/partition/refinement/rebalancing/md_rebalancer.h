@@ -38,6 +38,7 @@ class MDRebalancer final : public IRebalancer {
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
   using GainCache = typename GraphAndGainTypes::GainCache;
   using GainCalculator = typename GraphAndGainTypes::GainComputation;
+   using MoveID=uint32_t;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -77,6 +78,12 @@ public:
                                       vec<Move>&,
                                       Metrics&,
                                       const double) override final;
+  
+  bool labelPropagation(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                       vec<vec<Move>>* moves_by_part,
+                                                       vec<Move>* moves_linear,
+                                                       Metrics& best_metrics, 
+                                                       std::vector<HypernodeID> nodes, double allowed_imbalance, bool balance=false);
 
 private:
   bool refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
@@ -89,7 +96,24 @@ private:
                       vec<vec<Move>>* moves_by_part,
                       vec<Move>* moves_linear,
                       Metrics& best_metrics,
-                      std::vector<HypernodeID> nodes);
+                      std::vector<HypernodeID> nodes, bool balance);
+
+  void interleaveMoveSequenceWithRebalancingMoves(
+                      mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                      const vec<HypernodeWeight>& initialPartWeights,
+                      const std::vector<HypernodeWeight>& max_part_weights,
+                      vec<Move>& refinement_moves,
+                      vec<vec<Move>>& rebalancing_moves_by_part,
+                      vec<Move>& move_order);
+
+  void insertMovesToBalanceBlock(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                        const PartitionID block,
+                                                                        const std::vector<HypernodeWeight>& max_part_weights,
+                                                                        const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                        MoveID& next_move_index,
+                                                                        vec<HypernodeWeight>& current_part_weights,
+                                                                        vec<MoveID>& current_rebalancing_move_index,
+                                                                        vec<Move>& move_order);
 
   void resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures

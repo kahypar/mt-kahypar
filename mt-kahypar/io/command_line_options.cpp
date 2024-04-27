@@ -130,6 +130,9 @@ namespace mt_kahypar {
              ("update_frequency",
              po::value<double>(&context.partition.update_frequency)->value_name("<double>")->default_value(0),
              "frequency of node updates in md_rebalancer")
+             ("allowed-refinement-imbalance",
+             po::value<double>(&context.partition.allowed_imbalance_refine)->value_name("<double>")->default_value(0),
+             "max imbalance of refinement in md_rebalancer")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")

@@ -1,0 +1,665 @@
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm14.weighted.metis, #Vertices: 147605, #Edges: 387382, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 7978, communication volume: 11505.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.080
+     constraint #1:  1.030 out of 0.002
+     constraint #2:  1.025 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 52 connected components and the resulting
+   partitioning after removing the cut edges has 57 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.040 sec
+  Partitioning: 		   0.203 sec   (METIS time)
+  Reporting:    		   0.070 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  28.255 MB
+  rusage.ru_maxrss:		  35.324 MB
+  proc/self/stat/VmPeak:	  39.039 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm03.weighted.metis, #Vertices: 23136, #Edges: 62312, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 5167, communication volume: 5957.
+
+ - Balance:
+     constraint #0:  1.028 out of 0.430
+     constraint #1:  1.030 out of 0.005
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 27 connected components and the resulting
+   partitioning after removing the cut edges has 40 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.006 sec
+  Partitioning: 		   0.060 sec   (METIS time)
+  Reporting:    		   0.003 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   4.578 MB
+  rusage.ru_maxrss:		   7.789 MB
+  proc/self/stat/VmPeak:	   9.660 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm16.weighted.metis, #Vertices: 183484, #Edges: 571793, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 10534, communication volume: 13387.
+
+ - Balance:
+     constraint #0:  1.020 out of 0.076
+     constraint #1:  1.012 out of 0.001
+     constraint #2:  1.027 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 27 connected components and the resulting
+   partitioning after removing the cut edges has 30 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.063 sec
+  Partitioning: 		   0.235 sec   (METIS time)
+  Reporting:    		   0.104 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  38.397 MB
+  rusage.ru_maxrss:		  47.258 MB
+  proc/self/stat/VmPeak:	  52.891 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm08.weighted.metis, #Vertices: 51309, #Edges: 141547, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 7587, communication volume: 8790.
+
+ - Balance:
+     constraint #0:  1.032 out of 0.484
+     constraint #1:  1.032 out of 0.007
+     constraint #2:  1.032 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 20 connected components and the resulting
+   partitioning after removing the cut edges has 42 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.014 sec
+  Partitioning: 		   0.089 sec   (METIS time)
+  Reporting:    		   0.008 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  10.197 MB
+  rusage.ru_maxrss:		  14.176 MB
+  proc/self/stat/VmPeak:	  16.871 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm04.weighted.metis, #Vertices: 27507, #Edges: 70093, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 4392, communication volume: 5665.
+
+ - Balance:
+     constraint #0:  1.029 out of 0.366
+     constraint #1:  1.027 out of 0.011
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 39 connected components and the resulting
+   partitioning after removing the cut edges has 67 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.007 sec
+  Partitioning: 		   0.056 sec   (METIS time)
+  Reporting:    		   0.004 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   5.226 MB
+  rusage.ru_maxrss:		   8.422 MB
+  proc/self/stat/VmPeak:	  10.465 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm11.weighted.metis, #Vertices: 70558, #Edges: 189437, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 4816, communication volume: 6293.
+
+ - Balance:
+     constraint #0:  1.029 out of 0.179
+     constraint #1:  1.030 out of 0.002
+     constraint #2:  1.020 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 45 connected components and the resulting
+   partitioning after removing the cut edges has 48 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.019 sec
+  Partitioning: 		   0.102 sec   (METIS time)
+  Reporting:    		   0.014 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  13.187 MB
+  rusage.ru_maxrss:		  17.793 MB
+  proc/self/stat/VmPeak:	  20.621 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm07.weighted.metis, #Vertices: 45926, #Edges: 124981, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 5026, communication volume: 6565.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.190
+     constraint #1:  1.030 out of 0.002
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 36 connected components and the resulting
+   partitioning after removing the cut edges has 47 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.014 sec
+  Partitioning: 		   0.075 sec   (METIS time)
+  Reporting:    		   0.007 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   8.676 MB
+  rusage.ru_maxrss:		  12.535 MB
+  proc/self/stat/VmPeak:	  14.809 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm13.weighted.metis, #Vertices: 84199, #Edges: 242774, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 5021, communication volume: 6080.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.169
+     constraint #1:  1.026 out of 0.002
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 112 connected components and the resulting
+   partitioning after removing the cut edges has 116 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.025 sec
+  Partitioning: 		   0.107 sec   (METIS time)
+  Reporting:    		   0.023 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  16.701 MB
+  rusage.ru_maxrss:		  21.883 MB
+  proc/self/stat/VmPeak:	  24.863 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm10.weighted.metis, #Vertices: 69429, #Edges: 211733, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 7180, communication volume: 9224.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.192
+     constraint #1:  1.030 out of 0.002
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 26 connected components and the resulting
+   partitioning after removing the cut edges has 45 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.019 sec
+  Partitioning: 		   0.096 sec   (METIS time)
+  Reporting:    		   0.019 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  14.110 MB
+  rusage.ru_maxrss:		  18.746 MB
+  proc/self/stat/VmPeak:	  21.535 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm02.weighted.metis, #Vertices: 19601, #Edges: 54976, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 3683, communication volume: 4034.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.454
+     constraint #1:  1.017 out of 0.005
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 46 connected components and the resulting
+   partitioning after removing the cut edges has 64 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.005 sec
+  Partitioning: 		   0.051 sec   (METIS time)
+  Reporting:    		   0.003 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   4.082 MB
+  rusage.ru_maxrss:		   7.219 MB
+  proc/self/stat/VmPeak:	   8.934 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm01.weighted.metis, #Vertices: 12752, #Edges: 34862, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 2074, communication volume: 2620.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.255
+     constraint #1:  1.030 out of 0.002
+     constraint #2:  1.012 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 21 connected components and the resulting
+   partitioning after removing the cut edges has 28 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.005 sec
+  Partitioning: 		   0.029 sec   (METIS time)
+  Reporting:    		   0.002 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   2.301 MB
+  rusage.ru_maxrss:		   4.977 MB
+  proc/self/stat/VmPeak:	   6.699 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm06.weighted.metis, #Vertices: 32498, #Edges: 91270, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 5479, communication volume: 6761.
+
+ - Balance:
+     constraint #0:  1.038 out of 0.542
+     constraint #1:  1.038 out of 0.002
+     constraint #2:  1.038 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 30 connected components and the resulting
+   partitioning after removing the cut edges has 38 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.010 sec
+  Partitioning: 		   0.058 sec   (METIS time)
+  Reporting:    		   0.005 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   6.660 MB
+  rusage.ru_maxrss:		   9.973 MB
+  proc/self/stat/VmPeak:	  11.988 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm18.weighted.metis, #Vertices: 210613, #Edges: 580799, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 10911, communication volume: 13917.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.039
+     constraint #1:  1.030 out of 0.000
+     constraint #2:  1.029 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 30 connected components and the resulting
+   partitioning after removing the cut edges has 42 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.063 sec
+  Partitioning: 		   0.301 sec   (METIS time)
+  Reporting:    		   0.119 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  41.876 MB
+  rusage.ru_maxrss:		  54.285 MB
+  proc/self/stat/VmPeak:	  57.070 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm05.weighted.metis, #Vertices: 29347, #Edges: 93899, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 9042, communication volume: 10853.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.000
+     constraint #1:  1.030 out of 0.000
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 670 connected components and the resulting
+   partitioning after removing the cut edges has 683 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.009 sec
+  Partitioning: 		   0.064 sec   (METIS time)
+  Reporting:    		   0.004 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		   6.939 MB
+  rusage.ru_maxrss:		  10.289 MB
+  proc/self/stat/VmPeak:	  12.406 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm17.weighted.metis, #Vertices: 185495, #Edges: 656595, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 12104, communication volume: 17452.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.038
+     constraint #1:  1.030 out of 0.000
+     constraint #2:  1.013 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 25 connected components and the resulting
+   partitioning after removing the cut edges has 33 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.060 sec
+  Partitioning: 		   0.306 sec   (METIS time)
+  Reporting:    		   0.121 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  45.130 MB
+  rusage.ru_maxrss:		  55.027 MB
+  proc/self/stat/VmPeak:	  60.793 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm12.weighted.metis, #Vertices: 71076, #Edges: 234434, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 10193, communication volume: 12598.
+
+ - Balance:
+     constraint #0:  1.030 out of 0.257
+     constraint #1:  1.030 out of 0.004
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 23 connected components and the resulting
+   partitioning after removing the cut edges has 37 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.022 sec
+  Partitioning: 		   0.113 sec   (METIS time)
+  Reporting:    		   0.019 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  15.981 MB
+  rusage.ru_maxrss:		  20.863 MB
+  proc/self/stat/VmPeak:	  23.672 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm09.weighted.metis, #Vertices: 53395, #Edges: 153759, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 3846, communication volume: 4662.
+
+ - Balance:
+     constraint #0:  1.027 out of 0.217
+     constraint #1:  1.027 out of 0.002
+     constraint #2:  1.030 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 42 connected components and the resulting
+   partitioning after removing the cut edges has 50 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.015 sec
+  Partitioning: 		   0.064 sec   (METIS time)
+  Reporting:    		   0.008 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  10.557 MB
+  rusage.ru_maxrss:		  14.727 MB
+  proc/self/stat/VmPeak:	  16.980 MB
+******************************************************************************
+******************************************************************************
+METIS 5.2.1 Copyright 1998-22, Regents of the University of Minnesota
+ (HEAD: unknown, Built on: Apr  5 2024, 09:28:08)
+ size of idx_t: 32bits, real_t: 32bits, idx_t *: 64bits
+
+Graph Information -----------------------------------------------------------
+ Name: /home/konstantin/hypergraph_partitioner/metis_4d/ibm15.weighted.metis, #Vertices: 161570, #Edges: 509579, #Parts: 4
+ Balancing constraints: 3
+
+Options ---------------------------------------------------------------------
+ ptype=kway, objtype=cut, ctype=shem, rtype=greedy, iptype=metisrb
+ dbglvl=0, ufactor=1.030, no2hop=NO, minconn=NO, contig=NO
+ ondisk=NO, nooutput=NO
+ seed=-1, niparts=-1, niter=10, ncuts=1
+
+Direct k-way Partitioning ---------------------------------------------------
+ - Edgecut: 17254, communication volume: 20319.
+
+ - Balance:
+     constraint #0:  1.037 out of 0.440
+     constraint #1:  1.037 out of 0.002
+     constraint #2:  1.037 out of 0.000
+
+ - Subdomain connectivity: max: 3, min: 3, avg: 3.00
+
+ - The original graph had 37 connected components and the resulting
+   partitioning after removing the cut edges has 56 components.
+Timing Information ----------------------------------------------------------
+  I/O:          		   0.047 sec
+  Partitioning: 		   0.269 sec   (METIS time)
+  Reporting:    		   0.091 sec
+
+Memory Information ----------------------------------------------------------
+  Max memory used:		  35.001 MB
+  rusage.ru_maxrss:		  43.055 MB
+  proc/self/stat/VmPeak:	  47.547 MB
+******************************************************************************

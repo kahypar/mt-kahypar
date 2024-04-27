@@ -318,7 +318,7 @@ namespace mt_kahypar {
         _rebalancer->initialize(phg);
       }
 
-      if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+      /*if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         std::cout << "lp\n";
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
         _label_propagation->initialize(phg);
@@ -327,10 +327,10 @@ namespace mt_kahypar {
         _timer.start_timer("label_propagation", "Label Propagation");
         improvement_found |= _label_propagation->refine(phg, dummy, _current_metrics, time_limit);
         _timer.stop_timer("label_propagation");
-      }
+      }*/
 
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        std::cout << "fm\n";
+        //std::cout << "fm\n";
         _timer.start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         _fm->initialize(phg);
         _timer.stop_timer("initialize_fm_refiner");

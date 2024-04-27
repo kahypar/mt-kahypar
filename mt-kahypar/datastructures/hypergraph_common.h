@@ -39,7 +39,7 @@
 #include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
-static constexpr size_t dimension = 4;
+static constexpr size_t dimension = 3;
 struct NodeWeight {
   std::array<int32_t, dimension> weights;
 
@@ -601,30 +601,22 @@ struct Move_with_transformed_gain {
   }
 };
 
+  struct Move_Internal{
+    double gain_and_balance;
+    Gain gain;
+    double balance;
 
-struct PriorizableMove{
-  virtual bool is_positive();
-};
-
-
-
-  struct Move_internal{
-    
-  double gain_and_balance;
-  Gain gain;
-  double balance;
-
-    bool operator<(const Move_internal move) const{
+    bool operator<(const Move_Internal move) const{
       return gain_and_balance < move.gain_and_balance || gain_and_balance == move.gain_and_balance && gain > move.gain;
     }
-    bool operator<=(const Move_internal move) const{
+    bool operator<=(const Move_Internal move) const{
       return gain_and_balance < move.gain_and_balance || gain_and_balance == move.gain_and_balance && gain >= move.gain;
     }
-    bool operator>(const Move_internal move) const{
+    bool operator>(const Move_Internal move) const{
       return gain_and_balance > move.gain_and_balance;
     }
 
-    bool operator==(const Move_internal move) const{
+    bool operator==(const Move_Internal move) const{
       return gain_and_balance == move.gain_and_balance && gain == move.gain && balance == move.balance;
     }
 
@@ -637,16 +629,26 @@ struct PriorizableMove{
     }
     }
 
-    bool is_positive_move(){
-      return balance < 0.0 || balance <= 0.0 && gain > 0;
-    }
-
     void setGain(Gain g){
       gain = g;
     }
 
     void addToGain(Gain g){
       __atomic_add_fetch(&gain, g, std::memory_order_relaxed);
+    }
+  };
+
+  struct Rebalance_Move : Move_Internal{
+    bool is_positive_move(){
+      return balance < 0.0 || balance <= 0.0 && gain > 0;
+    }
+    
+  };
+
+  struct Refinement_Move : Move_Internal{
+    
+    bool is_positive_move(){
+      return gain > 0 || gain == 0 && balance <= 0.0;
     }
   };
 

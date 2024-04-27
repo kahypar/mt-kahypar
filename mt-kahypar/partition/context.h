@@ -50,6 +50,7 @@ struct PartitioningParameters {
   std::array<double, mt_kahypar::dimension> epsilon;
   double node_threshold = 0.0;
   double update_frequency = 0.0001;
+  double allowed_imbalance_refine=0.2;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
