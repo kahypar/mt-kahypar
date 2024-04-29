@@ -141,6 +141,7 @@ void enableTimerAndStats(const Context& context) {
       static std::mutex mutex;
       {
         std::lock_guard<std::mutex> lock(mutex);
+        timer.stop_timer("initial_partitioning");
         Partition partition;
         partition.partIDs.resize(phg.initialNumNodes());
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -149,6 +150,7 @@ void enableTimerAndStats(const Context& context) {
         refine(partition);
         partition_pool.emplace_back(partition);
         partition_pool.back().initialLevel = current_level;
+        timer.start_timer("initial_partitioning", "Initial Partitioning");
       }	
     };
 
@@ -182,19 +184,23 @@ void enableTimerAndStats(const Context& context) {
       if (level > 0) {
         //#### Initial Partitioning ####
         timer.start_timer("initial_partitioning", "Initial Partitioning");
+        timer.start_timer("initial_partitioning_level_" + std::to_string(level), "Initial Partitioning Level " + std::to_string(level));
         DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
         disableTimerAndStats(context);
         tbb::parallel_for(0, level * 4, [&](int i) {
+          timer.start_timer("hypergraph_copy", "Hypergraph Copy");
           auto hg = partitioned_hg.hypergraph().copy();
+          timer.stop_timer("hypergraph_copy");
           PartitionedHypergraph phg(context.partition.k, hg);
           ip(phg, level);
           std::cout << "Partition " << i << " done" << std::endl;
         });
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
         enableTimerAndStats(context);
+        timer.stop_timer("initial_partitioning_level_" + std::to_string(level));
         timer.stop_timer("initial_partitioning");
         // ####
 
@@ -205,8 +211,9 @@ void enableTimerAndStats(const Context& context) {
         for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
           vec<PartitionID> tmp_partition;
           tmp_partition.resize(partitioned_hg.initialNumNodes());
+          timer.start_timer("array_copy", "Array Copy");
           std::copy(it->partIDs.begin(), it->partIDs.end(), tmp_partition.begin());
-
+          timer.stop_timer("array_copy");
           it->partIDs.resize(partitioned_hg.initialNumNodes());
           partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
             const HypernodeID coarse_hn = (uncoarseningData.hierarchy)[uncoarsener->currentLevel() + 1].mapToContractedHypergraph(hn);
@@ -225,6 +232,7 @@ void enableTimerAndStats(const Context& context) {
             --level;
             continue;
           }
+          timer.start_timer("local_tournament_level_" + std::to_string(level), "Local Tournament Level " + std::to_string(level));
           // Sort the array of partitioned hypergraphs by quality
           std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
           // first step: mark the winners of each match
@@ -247,12 +255,10 @@ void enableTimerAndStats(const Context& context) {
                                                 return !winners[&p - &partition_pool[0]];
                                               }),
                               partition_pool.end());
+          timer.stop_timer("local_tournament_level_" + std::to_string(level));
         } else {
           // Do final tournament and choose winner and set the partitioned hypergraph to the winner
           while(partition_pool.size() > 1 && !uncoarsener->isTopLevel()) {
-            // Print qualities of the partitions
-            for(auto it = partition_pool.begin(); it != partition_pool.end(); it++) {
-            }
             int offset = partition_pool.size() % 2 ? 1 : 0;
             utils::Randomize::instance().parallelShuffleVector(
                 partition_pool, offset, partition_pool.size());
@@ -278,8 +284,9 @@ void enableTimerAndStats(const Context& context) {
             for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
               vec<PartitionID> tmp_partition;
               tmp_partition.resize(partitioned_hg.initialNumNodes());
+              timer.start_timer("array_copy", "Array Copy");
               std::copy(it->partIDs.begin(), it->partIDs.end(), tmp_partition.begin());
-
+              timer.stop_timer("array_copy");
               it->partIDs.resize(partitioned_hg.initialNumNodes());
               partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
                 const HypernodeID coarse_hn = (uncoarseningData.hierarchy)[uncoarsener->currentLevel() + 1].mapToContractedHypergraph(hn);
