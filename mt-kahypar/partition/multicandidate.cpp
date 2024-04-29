@@ -191,9 +191,7 @@ void enableTimerAndStats(const Context& context) {
         }
         disableTimerAndStats(context);
         tbb::parallel_for(0, level * 4, [&](int i) {
-          timer.start_timer("hypergraph_copy", "Hypergraph Copy");
           auto hg = partitioned_hg.hypergraph().copy();
-          timer.stop_timer("hypergraph_copy");
           PartitionedHypergraph phg(context.partition.k, hg);
           ip(phg, level);
           std::cout << "Partition " << i << " done" << std::endl;
@@ -211,9 +209,7 @@ void enableTimerAndStats(const Context& context) {
         for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
           vec<PartitionID> tmp_partition;
           tmp_partition.resize(partitioned_hg.initialNumNodes());
-          timer.start_timer("array_copy", "Array Copy");
           std::copy(it->partIDs.begin(), it->partIDs.end(), tmp_partition.begin());
-          timer.stop_timer("array_copy");
           it->partIDs.resize(partitioned_hg.initialNumNodes());
           partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
             const HypernodeID coarse_hn = (uncoarseningData.hierarchy)[uncoarsener->currentLevel() + 1].mapToContractedHypergraph(hn);
@@ -259,6 +255,7 @@ void enableTimerAndStats(const Context& context) {
         } else {
           // Do final tournament and choose winner and set the partitioned hypergraph to the winner
           while(partition_pool.size() > 1 && !uncoarsener->isTopLevel()) {
+            timer.start_timer("final_tournament", "Final Tournament");
             int offset = partition_pool.size() % 2 ? 1 : 0;
             utils::Randomize::instance().parallelShuffleVector(
                 partition_pool, offset, partition_pool.size());
@@ -284,9 +281,7 @@ void enableTimerAndStats(const Context& context) {
             for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
               vec<PartitionID> tmp_partition;
               tmp_partition.resize(partitioned_hg.initialNumNodes());
-              timer.start_timer("array_copy", "Array Copy");
               std::copy(it->partIDs.begin(), it->partIDs.end(), tmp_partition.begin());
-              timer.stop_timer("array_copy");
               it->partIDs.resize(partitioned_hg.initialNumNodes());
               partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
                 const HypernodeID coarse_hn = (uncoarseningData.hierarchy)[uncoarsener->currentLevel() + 1].mapToContractedHypergraph(hn);
@@ -298,6 +293,7 @@ void enableTimerAndStats(const Context& context) {
               refine(*it);
             }
             temperature *= context.initial_partitioning.multicandidate_cooling_rate;
+            timer.stop_timer("final_tournament");
           }
           std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
           replacePartition(partition_pool[0]);
