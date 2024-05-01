@@ -144,7 +144,7 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct SpectralParameters {
   SpectralAlgorithm algorithm = SpectralAlgorithm::do_nothing;
-  // TODO
+  std::string config_path = "";
 };
 
 std::ostream & operator<< (std::ostream& str, const SpectralParameters& params);

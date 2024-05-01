@@ -55,6 +55,7 @@ class SpectralRefiner final : public IRefiner {
     _gain(_context) {
       unused(num_hypernodes);
       unused(num_hyperedges);
+      readConfigFile();
     }
 
   explicit SpectralRefiner(const HypernodeID num_hypernodes,
@@ -70,6 +71,10 @@ class SpectralRefiner final : public IRefiner {
   SpectralRefiner & operator= (const SpectralRefiner &) = delete;
   SpectralRefiner & operator= (SpectralRefiner &&) = delete;
 
+  struct Params {
+    size_t numCandidates = 1;
+  };
+
  private:
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
@@ -77,6 +82,8 @@ class SpectralRefiner final : public IRefiner {
                   double) final;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
+
+  void readConfigFile();
 
   bool partition(PartitionedHypergraph &phg, Metrics &best_metrics);
 
@@ -102,6 +109,8 @@ class SpectralRefiner final : public IRefiner {
   GainCache& _gain_cache;
 
   GainCalculator _gain;
+
+  Params params;
 
   size_t numNodes;
 

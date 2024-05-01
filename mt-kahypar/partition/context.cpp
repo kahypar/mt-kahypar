@@ -134,7 +134,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const SpectralParameters& params) {
     str << "  Spectral Parameters:" << std::endl;
     str << "    Algorithm:                        " << params.algorithm << std::endl;
-    // TODO
+    str << "    Config File:                      " << params.config_path << std::endl;
     return str;
   }
 

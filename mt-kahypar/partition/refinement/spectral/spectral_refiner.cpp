@@ -501,6 +501,14 @@ namespace mt_kahypar {
     };
   }
 
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::readConfigFile() {
+    /* TODO due to procastination, this is currently interpreted as beta */
+    if (_context.refinement.spectral.config_path.length() > 0) {
+      params.numCandidates = (size_t) std::stoi(_context.refinement.spectral.config_path, nullptr);
+    }
+  }
+
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {

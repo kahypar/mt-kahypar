@@ -403,6 +403,16 @@ namespace mt_kahypar {
              "Spectral Algorithm:\n"
              "- spectral\n"
              "- do_nothing")
+            ((initial_partitioning ? "i-r-spectral-config" : "r-spectral-config"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& path) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.spectral.config_path = path;
+                       } else {
+                         context.refinement.spectral.config_path = path;
+                       }
+                     })->default_value(""),
+             "Spectral Config File")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
