@@ -143,6 +143,10 @@ class Array {
         return (_ptr - other._ptr);
       }
 
+      friend void swap(ArrayIterator &one, ArrayIterator &other) {
+        std::swap(*one, *other);
+      }
+
     private:
       T* _ptr;
 
