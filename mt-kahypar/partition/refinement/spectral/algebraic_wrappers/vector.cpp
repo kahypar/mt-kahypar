@@ -79,11 +79,7 @@ Skalar *Vector::get_all() {
 }
 
 void Vector::set_all(const Skalar *data_array) {
-  data.insert(data.begin(), data_array, data_array + (data.size() * sizeof(Skalar)));
-  /* for (size_t i = 0; i < dimension(); i++) {
-    set(i, data_array[i]);
-  } */
-  
+  data.insert(data.begin(), data_array, data_array + dimension());
 }
 
 Skalar Vector::get_default() {
