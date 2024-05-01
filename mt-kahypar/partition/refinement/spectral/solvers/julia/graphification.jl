@@ -65,7 +65,7 @@ function hypergraph2graph(hgraph::__hypergraph__,
     grph_i = grph_i[1:ptr]
     grph_j = grph_j[1:ptr]
     grph_w = grph_w[1:ptr]
-    n = max(maximum(grph_i), maximum(grph_j))
+    n = hgraph.num_vertices # max(maximum(grph_i), maximum(grph_j))
     adj_matrix = sparse(grph_i, 
                         grph_j, 
                         grph_w, 

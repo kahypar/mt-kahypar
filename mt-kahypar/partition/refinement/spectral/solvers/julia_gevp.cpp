@@ -80,13 +80,20 @@ void JuliaGEVPSolver::solve() {
 
   vec<uint64_t> hgr; /* TODO type */
   op_a->exportContext(0, hgr);
-  vec<uint64_t> hint;
-  op_b->exportContext(0, hint);
-
   size_t n = hgr[0];
   size_t m = hgr[1];
 
+  vec<uint64_t> hint;
+  op_b->exportContext(0, hint);
+
+  vec<double> deflation_evecs;
+  for (size_t i = 0; i < num_deflation_epairs; i++) {
+    deflation_evecs.insert(deflation_evecs.end(), evecs[i].get_all(), evecs[i].get_all() + n);
+  }
+
+
   jl_value_t *node_array_type = jl_apply_array_type((jl_value_t *) jl_uint64_type, 1); /* TODO check sizeof HypernodeID */
+  jl_value_t *double_array_type = jl_apply_array_type((jl_value_t *) jl_float64_type, 1); 
 
   /* jl_array_t *node_weights = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2, n, 0);
   jl_array_t *edge_weights = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2 + n, m, 0);
@@ -95,6 +102,7 @@ void JuliaGEVPSolver::solve() {
   
   jl_array_t *hgr_jl = jl_ptr_to_array_1d(node_array_type, hgr.data(), hgr.size(), 0);
   jl_array_t *hint_jl = jl_ptr_to_array_1d(node_array_type, hint.data(), hint.size(), 0);
+  jl_array_t *constraints_jl = jl_ptr_to_array_1d(double_array_type, deflation_evecs.data(), num_deflation_epairs * n, 0);
 
   // jl_value_t *res = jl_eval_string("typeof(include('')) == Module ? sqrt(2.) : 0.");
   // DBG << (jl_typeis(res, jl_float64_type) ? jl_unbox_float64(res) : -1.);
@@ -110,10 +118,12 @@ void JuliaGEVPSolver::solve() {
   // jl_function_t *test = (jl_function_t *) jl_eval_string("test_julia_from_c");
   // jl_call0(test);
   // jl_eval_string("using GraphSignals");
-  jl_function_t *solve = (jl_function_t *) jl_eval_string("solve_lobpcg");//"solve_lobpcg");
-  jl_array_t *evecs_jl = (jl_array_t *) jl_call2(solve, (jl_value_t *) hgr_jl, (jl_value_t *) hint_jl);
+
+  jl_function_t *solve = (jl_function_t *) jl_eval_string("solve_lobpcg");
+  DBG << "launching Julia code...";
+  jl_array_t *evecs_jl = (jl_array_t *) jl_call3(solve, (jl_value_t *) hgr_jl, (jl_value_t *) hint_jl, (jl_value_t *) constraints_jl);
+
   Vector result(n);
-  DBG << n;
   result.set_all((Skalar *) jl_array_data(evecs_jl));
   evecs.push_back(result);
 }

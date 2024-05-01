@@ -2,10 +2,13 @@ using LinearAlgebra
 using LinearMaps
 using IterativeSolvers
 using SparseArrays
+using Random
 
 include("hypergraph.jl")
 include("cmg/CombinatorialMultigrid.jl")
 include("graphification.jl")
+
+include("config.jl")
 
 function LinearAlgebra.ldiv!(c::AbstractVecOrMat{T}, 
         P::CombinatorialMultigrid.lPreconditioner, 
@@ -89,7 +92,7 @@ function hint_laplacian(hint::AbstractArray, x::AbstractArray)
 end
 
 function import_hypergraph(hgr_data::AbstractArray)
-    data = [convert(Int64, x) for x in hgr_data]
+    data = convert(AbstractArray{Int64, 1}, hgr_data)
     n = data[1]
     m = data[2]
     pin_list_indices = data[(2 + n + m + 1) : (2 + n + m + (m + 1))]
@@ -110,33 +113,74 @@ function calc_degrees(hgr::__hypergraph__)
     return degs
 end
 
-function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray)
-    hgr = import_hypergraph(hgr_data)
-    lap_matrix = sparse(reduce(hcat, [hgr_laplacian(hgr, [i == j ? 1. : 0. for j in 1 : hgr.num_vertices]) for i in 1 : hgr.num_vertices]))
-    
-    amap = LinearMap(x -> hgr_laplacian(hgr, x), issymmetric=true, hgr.num_vertices)
-    bmap = LinearMap(x -> weight_balance_laplacian(hgr, x) + hint_laplacian(hint, x), hgr.num_vertices)
-
-    evecs = Float64[]
-    (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(hgr.num_vertices) ./ 1e06) + lap_matrix)
-    results = lobpcg(amap, 
-            bmap, 
-            false, 
-            1, 
-            tol=1e-40,
-            # maxiter=20, 
-            P = CombinatorialMultigrid.lPreconditioner(pfunc), 
-            log = true)
-    evecs = results.X
-    
-    n = length(evecs)
-    @info "$results"
-    @info "$n:$evecs"
-
-    return convert(AbstractArray{Float64}, evecs)
+function laplacianize_adj_mat(adj::SparseMatrixCSC)
+    res = deepcopy(adj)
+    for i in 1 : adj.n
+        res[i, i] = -sum(adj[i, 1 : adj.n])
+    end
+    return -res
 end
 
-function test_julia_from_c(args...)
-    print("hello world!")
-    return convert(AbstractArray{Float64}, [42.])
+function inform(graph_size::Integer, big_graphs::Bool, message::String)
+    if (graph_size < 25 && !big_graphs) || (graph_size > 25000 && big_graphs)
+        @info "$message"
+    end
+end
+
+function make_a_op(hgr)
+    return LinearMap(x -> hgr_laplacian(hgr, x) + config_lapOpShift * x,
+        hgr.num_vertices, issymmetric=true, isposdef=true)
+end
+
+function make_b_op(hgr, hint)
+    return LinearMap(x -> config_weightVsHint * weight_balance_laplacian(hgr, x)
+            + (1.0 - config_weightVsHint) *hint_laplacian(hint, x) + config_lapOpShift * x,
+        hgr.num_vertices, issymmetric=true, isposdef=true)
+end
+
+# TODO: set number of evecs
+function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
+    hgr = import_hypergraph(hgr_data)
+    n = hgr.num_vertices
+    m = hgr.num_hyperedges
+    @info "received hypergraph with n=$n, m=$m"
+    inform(n, false, string(convert(AbstractArray{Int64}, hgr_data)))
+
+    hint_partition = convert(AbstractArray{Int64, 1}, hint)
+    deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
+    inform(n, false, "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
+    
+    amap = make_a_op(hgr)
+    bmap = make_b_op(hgr, hint_partition)
+
+    inform(n, true, "building laplacian...")
+    rand_lap_matrix = laplacianize_adj_mat(hypergraph2graph(hgr, config_randLapCycles))
+    inform(n, true, "preparing preconditioning...")
+    (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + rand_lap_matrix)
+    inform(n, true, "preconditioning...")
+    preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+    
+    evecs = Float64[]
+    try
+        @info "launching LOBPCG..."
+        results = lobpcg(amap, 
+            bmap, 
+            false, 
+            config_numEvecs, 
+            tol = 1e-40,
+            maxiter = config_lobpcgMaxIters, 
+            P = preconditioner,
+            C = deflation_space,
+            log = true)
+        evecs = results.X
+        # @info "$results"
+    catch e
+        @info "failed due to $e"
+        evecs = ones(Float64, n)
+    end
+
+    rounded_evecs = map(x -> round(x, sigdigits = 2), evecs)
+    inform(n, false, "$rounded_evecs")
+
+    return convert(AbstractArray{Float64}, evecs)
 end
