@@ -59,15 +59,7 @@ namespace mt_kahypar {
     timer.start_timer("partition_sp", "Partition");
     bool found_new_partition = partition(partionedHypergraph, best_metrics);
     timer.stop_timer("partition_sp");
-    if (found_new_partition) {
-      DBG << "found new partitioning solution";
-    }
     DBG << "Spectral Refiner finished partitioning";
-
-    // recalculate metrics
-    
-    /* TODO */
-
 
     HEAVY_REFINEMENT_ASSERT(partionedHypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
@@ -121,7 +113,7 @@ namespace mt_kahypar {
     Gain best_cutsize;
     size_t best_index;
 
-    for (int i = 0; i < 1 /* TODO argv "beta" */; i++) {
+    for (int i = 0; i < params.numCandidates; i++) {
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
         generate2WayVertexEmbedding(inputHypergraph, weightBalanceLaplacian, inputGraphLaplacian, candidateSolutions.back(), cut_sizes.back(), embedding);
@@ -142,10 +134,16 @@ namespace mt_kahypar {
       
     }
 
+    bool found_new_partition = best_cutsize == best_metrics.quality && inputPartition != candidateSolutions[best_index];
     bool found_valid_solution = best_cutsize <= best_metrics.quality;
-    best_metrics.quality = found_valid_solution ? best_cutsize : best_metrics.quality;
 
-    DBG << V(best_cutsize) << ", " << V(best_metrics.quality);
+    DBG << "spectral results: "
+      << (found_valid_solution ? "found valid solution, " : "")
+      << (found_new_partition ? "found alternative partition, " : "")
+      << V(best_cutsize) << ", "
+      << V(best_metrics.quality);
+
+    best_metrics.quality = found_valid_solution ? best_cutsize : best_metrics.quality;
 
     if (found_valid_solution && best_index != candidateSolutions.size() - 1) {
       setPartition(phg, candidateSolutions[best_index]);
@@ -275,8 +273,14 @@ namespace mt_kahypar {
 
       // format: n, m, node weights, edge weights, pin list indices, pin lists
 
+      size_t m = hg->initialNumEdges();
+      if (hg->is_graph) {
+        // graph edges are stored directed
+        m /= 2;
+      }
+
       result.push_back(hg->initialNumNodes());
-      result.push_back(hg->initialNumEdges());
+      result.push_back(m);
 
       for (const HypernodeID n : hg->nodes()) {
         result.push_back(hg->nodeWeight(n));
@@ -288,6 +292,14 @@ namespace mt_kahypar {
       pin_indices.push_back(0);
 
       for (const HyperedgeID e : hg->edges()) {
+        if (hg->is_graph) {
+          auto pin_iter = hg->pins(e).begin();
+          if (*pin_iter > *(++pin_iter)) {
+            // backwards edge
+            continue;
+          }
+        }
+
         result.push_back(hg->edgeWeight(e));
         pin_indices.push_back(pin_indices.back() + hg->edgeSize(e));
         for (const HyperedgeID pin : hg->pins(e)) {
