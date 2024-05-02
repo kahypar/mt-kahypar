@@ -121,9 +121,15 @@ function laplacianize_adj_mat(adj::SparseMatrixCSC)
     return -res
 end
 
+function inform(message::String)
+    if (config_verbose)
+        @info message
+    end
+end
+
 function inform(graph_size::Integer, big_graphs::Bool, message::String)
     if (graph_size < 25 && !big_graphs) || (graph_size > 25000 && big_graphs)
-        @info "$message"
+        inform(message)
     end
 end
 
@@ -143,7 +149,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     hgr = import_hypergraph(hgr_data)
     n = hgr.num_vertices
     m = hgr.num_hyperedges
-    @info "received hypergraph with n=$n, m=$m"
+    inform("received hypergraph with n=$n, m=$m")
     inform(n, false, string(convert(AbstractArray{Int64}, hgr_data)))
 
     hint_partition = convert(AbstractArray{Int64, 1}, hint)
@@ -164,7 +170,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     
     evecs = Float64[]
     try
-        @info "launching LOBPCG..."
+        inform("launching LOBPCG...")
         results = lobpcg(amap, 
             bmap, 
             false, 
@@ -175,9 +181,9 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             C = deflation_space,
             log = true)
         evecs = results.X
-        # @info "$results"
+        # inform("$results")
     catch e
-        @info "failed due to $e"
+        inform("failed due to $e")
         evecs = ones(Float64, n)
     end
 
