@@ -99,13 +99,13 @@ void enableTimerAndStats(const Context& context) {
       uncoarsener->updateMetrics();
     };
 
-    auto refine = [&](Partition& partition) {
+    auto refine = [&](Partition& partition, int level) {
       replacePartition(partition);
       GainCachePtr::resetGainCache(uncoarsener->getGainCache());
-      timer.start_timer("refinement", "Refinement");
+      timer.start_timer("refinement_level_" + std::to_string(level), "Refinement Level " + std::to_string(level));
       uncoarsener->refine();
       partition.quality = metrics::quality(partitioned_hg, Objective::km1);
-      timer.stop_timer("refinement");
+      timer.stop_timer("refinement_level_" + std::to_string(level));
       partition.partIDs.resize(partitioned_hg.initialNumNodes());
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         partition.partIDs[hn] = partitioned_hg.partID(hn);
@@ -147,7 +147,7 @@ void enableTimerAndStats(const Context& context) {
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
           partition.partIDs[hn] = phg.partID(hn);
         });
-        refine(partition);
+        refine(partition, current_level);
         partition_pool.emplace_back(partition);
         partition_pool.back().initialLevel = current_level;
         timer.start_timer("initial_partitioning", "Initial Partitioning");
@@ -162,12 +162,12 @@ void enableTimerAndStats(const Context& context) {
       return l.quality < r.quality;
     };
 
-    auto projAndRefine = [&](Partition& partition) {
+    auto projAndRefine = [&](Partition& partition, int level) {
       replacePartition(partition);
-      timer.start_timer("refinement", "Refinement");
+      timer.start_timer("refinement_level_" + std::to_string(level), "Project and Refine Level " + std::to_string(level));
       uncoarsener->projectToNextLevelAndRefine();
       partition.quality = metrics::quality(partitioned_hg, Objective::km1);
-      timer.stop_timer("refinement");
+      timer.stop_timer("refinement_level_" + std::to_string(level));
       partition.partIDs.resize(partitioned_hg.initialNumNodes());
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         partition.partIDs[hn] = partitioned_hg.partID(hn);
@@ -189,7 +189,7 @@ void enableTimerAndStats(const Context& context) {
         if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
-        disableTimerAndStats(context);
+        //disableTimerAndStats(context);
         tbb::parallel_for(0, level * 4, [&](int i) {
           auto hg = partitioned_hg.hypergraph().copy();
           PartitionedHypergraph phg(context.partition.k, hg);
@@ -197,13 +197,13 @@ void enableTimerAndStats(const Context& context) {
           std::cout << "Partition " << i << " done" << std::endl;
         });
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
-        enableTimerAndStats(context);
+        //enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning_level_" + std::to_string(level));
         timer.stop_timer("initial_partitioning");
         // ####
 
         // Project the first partition in the partition pool to the next level and refine
-        projAndRefine(partition_pool[0]);
+        projAndRefine(partition_pool[0], level);
 
         // Project the rest of the partitions in the partition pool to the next level
         for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
@@ -219,7 +219,7 @@ void enableTimerAndStats(const Context& context) {
         }
         // Refine all partitions
         for (auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
-          refine(*it);
+          refine(*it, level);
         }
 
         // Do local tournament
@@ -277,7 +277,7 @@ void enableTimerAndStats(const Context& context) {
                                }),
                 partition_pool.end());
             // Project the partitions in the partition pool to the next level and refine
-            projAndRefine(partition_pool[0]);
+            projAndRefine(partition_pool[0], 0);
             for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
               vec<PartitionID> tmp_partition;
               tmp_partition.resize(partitioned_hg.initialNumNodes());
@@ -290,7 +290,7 @@ void enableTimerAndStats(const Context& context) {
               });
             }
             for(auto it = partition_pool.begin(); it != partition_pool.end(); it++) {
-              refine(*it);
+              refine(*it, 0);
             }
             temperature *= context.initial_partitioning.multicandidate_cooling_rate;
             timer.stop_timer("final_tournament");
@@ -301,9 +301,9 @@ void enableTimerAndStats(const Context& context) {
         temperature *= context.initial_partitioning.multicandidate_cooling_rate;
         --level;
       } else {
-        timer.start_timer("refinement", "Refinement");
+        timer.start_timer("refinement_level_0", "Last Refinement");
         uncoarsener->projectToNextLevelAndRefine();
-        timer.stop_timer("refinement");
+        timer.stop_timer("refinement_level_0");
       }
     }
     if(partition_pool.size() == 0 || level == 1) {
