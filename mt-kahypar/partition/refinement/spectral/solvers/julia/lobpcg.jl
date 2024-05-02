@@ -115,10 +115,11 @@ end
 
 function laplacianize_adj_mat(adj::SparseMatrixCSC)
     res = deepcopy(adj)
-    inform("deepcopy created")
+    inform(adj.n, true, "deepcopy created")
     @sync Threads.@threads for i in 1 : adj.n
         res[i, i] = -sum(adj[i, 1 : adj.n])
     end
+    inform(adj.n, true, "degrees calculated")
     return -res
 end
 
