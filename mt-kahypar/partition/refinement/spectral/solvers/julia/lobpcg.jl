@@ -115,7 +115,7 @@ end
 
 function laplacianize_adj_mat(adj::SparseMatrixCSC)
     res = deepcopy(adj)
-    for i in 1 : adj.n
+    @sync Threads.@threads for i in 1 : adj.n
         res[i, i] = -sum(adj[i, 1 : adj.n])
     end
     return -res
@@ -181,7 +181,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             C = deflation_space,
             log = true)
         evecs = results.X
-        # inform("$results")
+        inform("successful")
     catch e
         inform("failed due to $e")
         evecs = ones(Float64, n)
