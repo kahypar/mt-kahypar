@@ -158,7 +158,7 @@ function cmg_!(A::T, A_::T) where {T<:SparseMatrixCSC}
             islast = true
             iterative = true
             flag = 3 # indicates stagnation
-            @warn "CMG convergence may be slow due to matrix density. Future versions of CMG will eliminate this problem."
+            # @warn "CMG convergence may be slow due to matrix density. Future versions of CMG will eliminate this problem."
             break
         end
 
