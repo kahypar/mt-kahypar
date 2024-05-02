@@ -153,8 +153,10 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     amap = make_a_op(hgr)
     bmap = make_b_op(hgr, hint_partition)
 
+    inform(n, true, "dehyperize to adjaciency matrix...")
+    rand_adj_matrix = hypergraph2graph(hgr, config_randLapCycles)
     inform(n, true, "building laplacian...")
-    rand_lap_matrix = laplacianize_adj_mat(hypergraph2graph(hgr, config_randLapCycles))
+    rand_lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
     inform(n, true, "preparing preconditioning...")
     (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + rand_lap_matrix)
     inform(n, true, "preconditioning...")
@@ -180,7 +182,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     end
 
     rounded_evecs = map(x -> round(x, sigdigits = 2), evecs)
-    inform(n, false, "$rounded_evecs")
+    inform(n, false, "result: $rounded_evecs")
 
     return convert(AbstractArray{Float64}, evecs)
 end
