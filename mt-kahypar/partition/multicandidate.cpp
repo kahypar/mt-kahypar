@@ -141,7 +141,8 @@ void enableTimerAndStats(const Context& context) {
       static std::mutex mutex;
       {
         std::lock_guard<std::mutex> lock(mutex);
-        timer.stop_timer("initial_partitioning");
+        timer.stop_timer("initial_partitioning_level_" + std::to_string(current_level));
+        timer.stop_timer("main_initial_partitioning");
         Partition partition;
         partition.partIDs.resize(phg.initialNumNodes());
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -150,7 +151,10 @@ void enableTimerAndStats(const Context& context) {
         refine(partition, current_level);
         partition_pool.emplace_back(partition);
         partition_pool.back().initialLevel = current_level;
-        timer.start_timer("initial_partitioning", "Initial Partitioning");
+        timer.start_timer("main_initial_partitioning",
+                          "Main Initial Partitioning Runs");
+        timer.start_timer("initial_partitioning_level_" + std::to_string(current_level),
+                          "Initial Partitioning Level " + std::to_string(current_level));
       }	
     };
 
@@ -183,7 +187,7 @@ void enableTimerAndStats(const Context& context) {
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
         //#### Initial Partitioning ####
-        timer.start_timer("initial_partitioning", "Initial Partitioning");
+        timer.start_timer("main_initial_partitioning", "Main Initial Partitioning Runs");
         timer.start_timer("initial_partitioning_level_" + std::to_string(level), "Initial Partitioning Level " + std::to_string(level));
         DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
@@ -199,7 +203,7 @@ void enableTimerAndStats(const Context& context) {
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
         //enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning_level_" + std::to_string(level));
-        timer.stop_timer("initial_partitioning");
+        timer.stop_timer("main_initial_partitioning");
         // ####
 
         // Project the first partition in the partition pool to the next level and refine
@@ -307,7 +311,7 @@ void enableTimerAndStats(const Context& context) {
       }
     }
     if(partition_pool.size() == 0 || level == 1) {
-      timer.start_timer("initial_partitioning", "Initial Partitioning");
+      timer.start_timer("last_initial_partitioning", "Initial Partitioning");
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
         degree_zero_hn_remover.removeDegreeZeroHypernodes(
@@ -321,7 +325,7 @@ void enableTimerAndStats(const Context& context) {
       });
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
       enableTimerAndStats(context);
-      timer.stop_timer("initial_partitioning");
+      timer.stop_timer("last_initial_partitioning");
       std::sort(partition_pool.begin(), partition_pool.end(), isBetterThan);
       replacePartition(partition_pool[0]);
     } else if (partition_pool.size() > 1) {
