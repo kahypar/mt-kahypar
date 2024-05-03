@@ -99,14 +99,14 @@ void enableTimerAndStats(const Context& context) {
       uncoarsener->updateMetrics();
     };
 
-    auto refine = [&](Partition& partition, int level, int key) {
+    auto refine = [&](Partition& partition, int level, std::string key) {
       replacePartition(partition);
       GainCachePtr::resetGainCache(uncoarsener->getGainCache());
-      timer.start_timer("refinement_level_" + std::to_string(level) + "_" + std::to_string(key),
-                        "Refinement Level " + std::to_string(level));
+      timer.start_timer("refinement_level_" + std::to_string(level) + "_" + key,
+                        "Refinement Level " + std::to_string(level) + ": " + key);
       uncoarsener->refine();
       partition.quality = metrics::quality(partitioned_hg, Objective::km1);
-      timer.stop_timer("refinement_level_" + std::to_string(level) + "_" + std::to_string(key));
+      timer.stop_timer("refinement_level_" + std::to_string(level) + "_" + key);
       partition.partIDs.resize(partitioned_hg.initialNumNodes());
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         partition.partIDs[hn] = partitioned_hg.partID(hn);
@@ -149,7 +149,7 @@ void enableTimerAndStats(const Context& context) {
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
           partition.partIDs[hn] = phg.partID(hn);
         });
-        refine(partition, current_level, 0);
+        refine(partition, current_level, "PostIP");
         partition_pool.emplace_back(partition);
         partition_pool.back().initialLevel = current_level;
         timer.start_timer("main_initial_partitioning",
@@ -167,13 +167,13 @@ void enableTimerAndStats(const Context& context) {
       return l.quality < r.quality;
     };
 
-    auto projAndRefine = [&](Partition& partition, int level, int key) {
+    auto projAndRefine = [&](Partition& partition, int level, std::string key) {
       replacePartition(partition);
-      timer.start_timer("refinement_level_" + std::to_string(level) + "_" + std::to_string(key),
-                        "Project and Refine Level " + std::to_string(level));
+      timer.start_timer("refinement_level_" + std::to_string(level) + "_" + key,
+                        "Refinement Level " + std::to_string(level) + ": " + key);
       uncoarsener->projectToNextLevelAndRefine();
       partition.quality = metrics::quality(partitioned_hg, Objective::km1);
-      timer.stop_timer("refinement_level_" + std::to_string(level) + "_" + std::to_string(key));
+      timer.stop_timer("refinement_level_" + std::to_string(level) + "_" + key);
       partition.partIDs.resize(partitioned_hg.initialNumNodes());
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         partition.partIDs[hn] = partitioned_hg.partID(hn);
@@ -209,7 +209,7 @@ void enableTimerAndStats(const Context& context) {
         // ####
 
         // Project the first partition in the partition pool to the next level and refine
-        projAndRefine(partition_pool[0], level, 2);
+        projAndRefine(partition_pool[0], level, "ProjectionBeetwenLevels");
 
         // Project the rest of the partitions in the partition pool to the next level
         for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
@@ -225,7 +225,7 @@ void enableTimerAndStats(const Context& context) {
         }
         // Refine all partitions
         for (auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
-          refine(*it, level, 1);
+          refine(*it, level, "RefinementBeetwenLevels");
         }
 
         // Do local tournament
@@ -283,7 +283,7 @@ void enableTimerAndStats(const Context& context) {
                                }),
                 partition_pool.end());
             // Project the partitions in the partition pool to the next level and refine
-            projAndRefine(partition_pool[0], 0, 3);
+            projAndRefine(partition_pool[0], 0, "FinalTournamentSingleProjection");
             for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
               vec<PartitionID> tmp_partition;
               tmp_partition.resize(partitioned_hg.initialNumNodes());
@@ -296,7 +296,7 @@ void enableTimerAndStats(const Context& context) {
               });
             }
             for(auto it = partition_pool.begin(); it != partition_pool.end(); it++) {
-              refine(*it, 0, 4);
+              refine(*it, 0, "FinalTournamentProjectionBeetwenLevels");
             }
             temperature *= context.initial_partitioning.multicandidate_cooling_rate;
             timer.stop_timer("final_tournament");
