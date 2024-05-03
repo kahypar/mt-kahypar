@@ -142,8 +142,8 @@ void enableTimerAndStats(const Context& context) {
       static std::mutex mutex;
       {
         std::lock_guard<std::mutex> lock(mutex);
-        timer.stop_timer("initial_partitioning_level_" + std::to_string(current_level));
-        timer.stop_timer("main_initial_partitioning");
+        //timer.stop_timer("initial_partitioning_level_" + std::to_string(current_level));
+        //timer.stop_timer("main_initial_partitioning");
         Partition partition;
         partition.partIDs.resize(phg.initialNumNodes());
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -152,10 +152,10 @@ void enableTimerAndStats(const Context& context) {
         refine(partition, current_level, "PostIP");
         partition_pool.emplace_back(partition);
         partition_pool.back().initialLevel = current_level;
-        timer.start_timer("main_initial_partitioning",
-                          "Main Initial Partitioning Runs");
-        timer.start_timer("initial_partitioning_level_" + std::to_string(current_level),
-                          "Initial Partitioning Level " + std::to_string(current_level));
+        //timer.start_timer("main_initial_partitioning",
+        //                  "Main Initial Partitioning Runs");
+        //timer.start_timer("initial_partitioning_level_" + std::to_string(current_level),
+        //                  "Initial Partitioning Level " + std::to_string(current_level));
       }	
     };
 
@@ -209,7 +209,7 @@ void enableTimerAndStats(const Context& context) {
         // ####
 
         // Project the first partition in the partition pool to the next level and refine
-        projAndRefine(partition_pool[0], level, "ProjectionBeetwenLevels");
+        projAndRefine(partition_pool[0], level, "RefinementBetweenLevels");
 
         // Project the rest of the partitions in the partition pool to the next level
         for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
@@ -225,7 +225,7 @@ void enableTimerAndStats(const Context& context) {
         }
         // Refine all partitions
         for (auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
-          refine(*it, level, "RefinementBeetwenLevels");
+          refine(*it, level, "RefinementBetweenLevels");
         }
 
         // Do local tournament
@@ -283,7 +283,8 @@ void enableTimerAndStats(const Context& context) {
                                }),
                 partition_pool.end());
             // Project the partitions in the partition pool to the next level and refine
-            projAndRefine(partition_pool[0], 0, "FinalTournamentSingleProjection");
+            projAndRefine(partition_pool[0], 0,
+                          "FinalTournamentProjectionBeetwenLevels");
             for(auto it = std::next(partition_pool.begin()); it != partition_pool.end(); it++) {
               vec<PartitionID> tmp_partition;
               tmp_partition.resize(partitioned_hg.initialNumNodes());
