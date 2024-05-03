@@ -3,6 +3,7 @@ using LinearMaps
 using IterativeSolvers
 using SparseArrays
 using Random
+using GraphSignals
 
 include("hypergraph.jl")
 include("cmg/CombinatorialMultigrid.jl")
@@ -105,6 +106,15 @@ function import_hypergraph(hgr_data::AbstractArray)
         data[(2 + n + 1) : (2 + n + m)])
 end
 
+function check_hypergraph_is_graph(hgr::__hypergraph__)
+    for i in 1 : hgr.num_hyperedges
+        if hgr.eptr[i + 1] - hgr.eptr[i] > 2
+            return false
+        end
+    end
+    return true
+end
+
 function calc_degrees(hgr::__hypergraph__)
     degs = zeros(hgr.num_vertices)
     for v in hgr.eind
@@ -113,14 +123,46 @@ function calc_degrees(hgr::__hypergraph__)
     return degs
 end
 
-function laplacianize_adj_mat(adj::SparseMatrixCSC)
+function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
     res = deepcopy(adj)
     inform(adj.n, true, "deepcopy created")
-    @sync Threads.@threads for i in 1 : adj.n
-        res[i, i] = -sum(adj[i, 1 : adj.n])
-    end
+    laplacianize_adj_mat!(res, graph)
+    return res
+end
+
+function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
+    # degree(v) = sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
+    # degs = zeros(adj.n)
+    # @sync Threads.@threads for i in 1 : adj.n
+    #     degs[i] = degree(i)
+    # end
+    
+    # degs = adj * ones(adj.n)
+    
+    degs = GraphSignals.degrees(adj)
     inform(adj.n, true, "degrees calculated")
-    return -res
+
+    @sync Threads.@threads for i in 1 : adj.n
+        adj[i, i] = -degs[i]
+    end
+    adj.nzval[:] = -adj.nzval[:]
+end
+
+function graph_lap_matrix(g::__hypergraph__)
+    is = g.eind[1 : 2 : end]
+    js = g.eind[2 : 2 : end]
+    vs = g.hwts
+    res = sparse(vcat(is, js), vcat(js, is), convert(AbstractArray{Float64, 1}, vcat(vs, vs)), g.num_vertices, g.num_vertices)
+
+    laplacianize_adj_mat!(res)
+
+    return res
+end
+
+function pretty_print(A)
+    str = IOBuffer()
+    show(IOContext(str, :compact => false), "text/plain", A)
+    return String(take!(str))
 end
 
 function inform(message::String)
@@ -130,7 +172,7 @@ function inform(message::String)
 end
 
 function inform(graph_size::Integer, big_graphs::Bool, message::String)
-    if (graph_size < 25 && !big_graphs) || (graph_size > 25000 && big_graphs)
+    if (graph_size < config_verbose_limits[1] && !big_graphs) || (graph_size > config_verbose_limits[2] && big_graphs)
         inform(message)
     end
 end
@@ -151,23 +193,28 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     hgr = import_hypergraph(hgr_data)
     n = hgr.num_vertices
     m = hgr.num_hyperedges
-    inform("received hypergraph with n=$n, m=$m")
+    is_graph = check_hypergraph_is_graph(hgr)
+    inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m")
     inform(n, false, string(convert(AbstractArray{Int64}, hgr_data)))
-
+    
     hint_partition = convert(AbstractArray{Int64, 1}, hint)
     deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
     inform(n, false, "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
     
     amap = make_a_op(hgr)
     bmap = make_b_op(hgr, hint_partition)
-
-    inform(n, true, "dehyperize to adjaciency matrix...")
-    rand_adj_matrix = hypergraph2graph(hgr, config_randLapCycles)
-    inform(n, true, "building laplacian...")
-    rand_lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
-    inform(n, true, "preparing preconditioning...")
-    (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + rand_lap_matrix)
+    
+    lap_matrix = spdiagm([])
+    if is_graph
+        lap_matrix = graph_lap_matrix(hgr)
+    else
+        inform(n, true, "building adjaciency matrix...")
+        rand_adj_matrix::SparseMatrixCSC = hypergraph2graph(hgr, config_randLapCycles)
+        inform(n, true, "building laplacian...")
+        lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
+    end
     inform(n, true, "preconditioning...")
+    (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
     preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
     
     evecs = Float64[]
