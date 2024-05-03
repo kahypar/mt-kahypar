@@ -150,6 +150,14 @@ public:
         }
         return quotientEdge;
     }
+    template<typename F>
+    void doForAllCutHyperedgesOfPair(const PartitionedHypergraph& phg, const PartitionID i, const PartitionID j, const F& f) {
+        for (const HyperedgeID he: _edges[i][j].cut_hyperedges) {
+            if (phg.pinCountInPart(he, i) > 0 && phg.pinCountInPart(he, j) > 0) {
+                f(he);
+            }
+        }
+    }
 
     HyperedgeWeight getCutWeight(const PartitionID i, const PartitionID j)const {
         assert(i < j);

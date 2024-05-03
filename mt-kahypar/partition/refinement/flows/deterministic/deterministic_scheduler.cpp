@@ -10,12 +10,18 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     Metrics& best_metrics,
     const double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    Metrics current_metrics = best_metrics;
     _schedule.initialize(hypergraph, _quotient_graph);
-    size_t maxRounds = 1;
-    std::atomic<HyperedgeWeight> overall_delta(0);
-    for (size_t round = 0; round < maxRounds; ++round) {
+    HyperedgeWeight overall_delta = 0;
+    HyperedgeWeight minImprovement = 0;
+    std::atomic<HyperedgeWeight> round_delta(std::numeric_limits<HyperedgeWeight>::max());
+    DBG << "NEW LEVEL";
+    while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
+        DBG << V(round_delta) << ", " << V(minImprovement) << ", " << V(_schedule.hasActiveBlocks());
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         vec<MoveSequence> sequences(_scheduled_blocks.size());
+        round_delta = 0;
+        minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
         while (_scheduled_blocks.size() > 0) {
             tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
                 //for (size_t i = 0; i < _scheduled_blocks.size(); ++i) {
@@ -26,7 +32,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
                 sequences[i] = moves;
                 const HyperedgeWeight improvement = applyMoves(moves, phg);
-                overall_delta += improvement;
+                round_delta += improvement;
                 reportResults(sp.bp.i, sp.bp.j, moves);
                 _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
                 assert(metrics::isBalanced(phg, _context));
@@ -41,6 +47,8 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
             //     assert(metrics::isBalanced(phg, _context));
             // }
             _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+            overall_delta += round_delta;
+            current_metrics.quality -= round_delta;
         }
         _schedule.resetForNewRound(_quotient_graph);
     }

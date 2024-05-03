@@ -55,21 +55,25 @@ public:
         _scheduled(context.partition.k, false),
         _round(0),
         _k(context.partition.k),
-        _rng(context.partition.seed) {}
+        _rng(context.partition.seed)//,
+        /*_active_block_pairs(_k)*/ {}
 
     void resetForNewRound(const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
-        _active_blocks.assign(_active_blocks.size(), true);
+        std::swap(_active_blocks, _active_blocks_next_round);
         _active_blocks_next_round.assign(_active_blocks_next_round.size(), false);
         _participations.assign(_participations.size(), 0);
-        for (auto& v : _processed) {
-            v.assign(v.size(), false);
-        }
+        // for (auto& active_pairs : _active_block_pairs) {
+        //     active_pairs.clear();
+        //     active_pairs.reserve(_k - 1);
+        // }
         for (PartitionID i = 0; i < _k - 1; ++i) {
             for (PartitionID j = i + 1; j < _k; ++j) {
                 if (isEligible(i, j, qg)) {
                     _participations[i]++;
                     _participations[j]++;
+                    //_active_block_pairs[i].push_back(j);
+                    //_active_block_pairs[j].push_back(i);
                 }
             }
         }
@@ -83,7 +87,23 @@ public:
         std::sort(_partitions_sorted_by_participations.begin(), _partitions_sorted_by_participations.end(), [&](const PartitionID i, const PartitionID j) {
             return _participations[i] > _participations[j] || (_participations[i] == _participations[j] && i < j);
         });
+        // for (PartitionID i = 0; i < _k; ++i) {
+        //     auto& active_pairs = _active_block_pairs[i];
+        //     std::sort(active_pairs.begin(), active_pairs.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
+        //         return qg.getImprovement(i, lhs) >
+        //             qg.getImprovement(i, rhs) ||
+        //             (qg.getImprovement(i, lhs) ==
+        //                 qg.getImprovement(i, rhs) &&
+        //                 qg.getCutWeight(i, lhs) >
+        //                 qg.getCutWeight(i, rhs));
+        //     });
+        // }
+
         _round++;
+    }
+
+    bool hasActiveBlocks() {
+        return _partitions_sorted_by_participations.size() > 0;
     }
 
 
@@ -98,6 +118,10 @@ public:
 private:
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) {
         unused(hypergraph);
+        _active_blocks_next_round.assign(_active_blocks_next_round.size(), true);
+        for (auto& v : _processed) {
+            v.assign(v.size(), false);
+        }
         resetForNewRound(qg);
         _round = 0;
     }
@@ -108,10 +132,11 @@ private:
         assert(_scheduled.size() == size_t(_k));
         assert(_partitions_sorted_by_participations.size() <= size_t(_k));
         if (_partitions_sorted_by_participations.size() > 0) {
-            for (size_t i = 0; i < _partitions_sorted_by_participations.size() - 1; ++i) {
+            for (size_t i = 0; i < _partitions_sorted_by_participations.size(); ++i) {
                 const PartitionID block0 = _partitions_sorted_by_participations[i];
                 assert(block0 < _k);
                 if (_scheduled[block0]) continue;
+                //for (PartitionID block1 : _active_block_pairs[i]) {
                 for (size_t j = i + 1; j < _partitions_sorted_by_participations.size(); ++j) {
                     const PartitionID block1 = _partitions_sorted_by_participations[j];
                     assert(block1 < _k);
@@ -120,7 +145,7 @@ private:
                     const PartitionID larger = std::max(block0, block1);
                     if (isEligible(smaller, larger, qg)) {
                         addBlockPair(smaller, larger);
-                        tasks.push_back({ {smaller, larger}, _rng()});
+                        tasks.push_back({ {smaller, larger}, _rng() });
                         i--;
                         break;
                     }
@@ -164,15 +189,14 @@ private:
     }
 
     bool isEligible(const PartitionID i, const PartitionID j, const DeterministicQuotientGraph<TypeTraits>& qg) {
-        DBG << "isEligible: " << V(i) << ", " << V(j);
+        //DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
-        const HyperedgeWeight improvement = qg.getImprovement(i, j);
+        //const HyperedgeWeight improvement = qg.getImprovement(i, j);
         return weight > 0                               // cut between blocks
             && (_active_blocks[i] || _active_blocks[j]) // at least one block active
             && !_scheduled[i] && !_scheduled[j]         // none of the blocks is already scheduled
-            && !_processed[i][j]                        // the pairing has not been processed yet
-            && (_round < 2 || improvement > 0);
+            && !_processed[i][j];                        // the pairing has not been processed yet
     }
 
     vec<uint8_t> _active_blocks;
@@ -184,6 +208,7 @@ private:
     size_t _round;
     PartitionID _k;
     std::mt19937 _rng;
+    //vec<vec<PartitionID>> _active_block_pairs;
 };
 
 }  // namespace mt_kahypar

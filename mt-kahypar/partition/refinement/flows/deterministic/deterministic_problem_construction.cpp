@@ -128,6 +128,10 @@ Subhypergraph DeterministicProblemConstruction<TypeTraits>::construct(
         _bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
             max_weight_block_0, max_weight_block_1);
     }
+    // quotient_graph.doForAllCutHyperedgesOfPair(phg, block0, block1, [&](const HyperedgeID& he) {
+    //     _bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
+    //     max_weight_block_0, max_weight_block_1);
+    // });
     _bfs.swap_with_next_queue();
 
     // BFS
