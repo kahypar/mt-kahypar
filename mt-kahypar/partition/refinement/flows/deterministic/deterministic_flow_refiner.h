@@ -97,17 +97,19 @@ private:
         const size_t seed) {
         MoveSequence sequence{ { }, 0 };
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
-        // TODO: Decide wether to use sequential or parallel problem construction?
-        FlowProblem flow_problem;
-        if (sequential) {
-            flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-        } else {
-            flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-        }
-        if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
-            bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
-            if (flowcutter_succeeded) {
-                extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+        if (sub_hg.numNodes() > 0) {
+
+            FlowProblem flow_problem;
+            if (sequential) {
+                flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+            } else {
+                flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+            }
+            if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
+                bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
+                if (flowcutter_succeeded) {
+                    extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+                }
             }
         }
         return sequence;
@@ -181,17 +183,17 @@ private:
 
 
     const Context& _context;
-    FlowHypergraphBuilder _flow_hg;
+    FlowHypergraphBuilder _flow_hg; // reset
 
     whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
     whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
-    SequentialConstruction<GraphAndGainTypes> _sequential_construction;
+    SequentialConstruction<GraphAndGainTypes> _sequential_construction; // reset
     ParallelConstruction<GraphAndGainTypes> _parallel_construction;
 
-    DeterministicProblemConstruction<TypeTraits> _problem_construction;
+    DeterministicProblemConstruction<TypeTraits> _problem_construction; // reset
 
-    vec<HypernodeID> _whfc_to_node;
+    vec<HypernodeID> _whfc_to_node; // reset
 
 };
 }  // namespace mt_kahypar

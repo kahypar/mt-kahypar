@@ -55,11 +55,12 @@ public:
         _scheduled(context.partition.k, false),
         _round(0),
         _k(context.partition.k),
-        _rng(context.partition.seed) {}
+        _rng(context.partition.seed)//,
+        /*_active_block_pairs(_k)*/ {}
 
     void resetForNewRound(const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
-        _active_blocks.assign(_active_blocks.size(), true);
+        std::swap(_active_blocks, _active_blocks_next_round);
         _active_blocks_next_round.assign(_active_blocks_next_round.size(), false);
         _participations.assign(_participations.size(), 0);
         for (auto& v : _processed) {
@@ -86,9 +87,14 @@ public:
         _round++;
     }
 
+    bool hasActiveBlocks() {
+        DBG << (_partitions_sorted_by_participations.size() > 0);
+        return _partitions_sorted_by_participations.size() > 0;
+    }
+
 
     void reportResults(const PartitionID block0, const PartitionID block1, const MoveSequence& sequence) {
-        if (sequence.moves.size() > 0) {
+        if (sequence.expected_improvement > 0) {
             // There was improvement
             _active_blocks_next_round[block0] = true;
             _active_blocks_next_round[block1] = true;
@@ -98,17 +104,19 @@ public:
 private:
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) {
         unused(hypergraph);
+        _active_blocks_next_round.assign(_active_blocks_next_round.size(), true);
         resetForNewRound(qg);
         _round = 0;
     }
 
     vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
+        _scheduled.assign(_scheduled.size(), false);
         vec<ScheduledPair> tasks;
         tasks.reserve(_k / 2);
         assert(_scheduled.size() == size_t(_k));
         assert(_partitions_sorted_by_participations.size() <= size_t(_k));
         if (_partitions_sorted_by_participations.size() > 0) {
-            for (size_t i = 0; i < _partitions_sorted_by_participations.size() - 1; ++i) {
+            for (size_t i = 0; i < _partitions_sorted_by_participations.size(); ++i) {
                 const PartitionID block0 = _partitions_sorted_by_participations[i];
                 assert(block0 < _k);
                 if (_scheduled[block0]) continue;
@@ -120,7 +128,7 @@ private:
                     const PartitionID larger = std::max(block0, block1);
                     if (isEligible(smaller, larger, qg)) {
                         addBlockPair(smaller, larger);
-                        tasks.push_back({ {smaller, larger}, _rng()});
+                        tasks.push_back({ {smaller, larger}, _rng() });
                         i--;
                         break;
                     }
@@ -137,7 +145,6 @@ private:
     }
 
     void addBlockPair(const PartitionID i, const PartitionID j) {
-        DBG << V(i) << ", " << V(j);
         assert(i < _k);
         assert(j < _k);
         _processed[i][j] = true;
@@ -153,7 +160,13 @@ private:
         for (size_t i = 0; i < _partitions_sorted_by_participations.size(); ++i) {
             if (_partitions_sorted_by_participations[i] == id) {
                 size_t swapPosition = i + 1;
-                while (swapPosition < _partitions_sorted_by_participations.size() && _participations[_partitions_sorted_by_participations[swapPosition]] > _participations[_partitions_sorted_by_participations[i]]) { swapPosition++; }
+                while (swapPosition < _partitions_sorted_by_participations.size()
+                    && (
+                        _participations[_partitions_sorted_by_participations[swapPosition]] > _participations[_partitions_sorted_by_participations[i]]
+                        || (_participations[_partitions_sorted_by_participations[swapPosition]] == _participations[_partitions_sorted_by_participations[i]] && _partitions_sorted_by_participations[swapPosition] < _partitions_sorted_by_participations[i])
+                        )) {
+                    swapPosition++;
+                }
                 swapPosition--;
                 assert(swapPosition < _partitions_sorted_by_participations.size());
                 std::swap(_partitions_sorted_by_participations[i], _partitions_sorted_by_participations[swapPosition]);
@@ -167,12 +180,10 @@ private:
         DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
-        const HyperedgeWeight improvement = qg.getImprovement(i, j);
         return weight > 0                               // cut between blocks
             && (_active_blocks[i] || _active_blocks[j]) // at least one block active
             && !_scheduled[i] && !_scheduled[j]         // none of the blocks is already scheduled
-            && !_processed[i][j]                        // the pairing has not been processed yet
-            && (_round < 2 || improvement > 0);
+            && !_processed[i][j];                        // the pairing has not been processed yet
     }
 
     vec<uint8_t> _active_blocks;

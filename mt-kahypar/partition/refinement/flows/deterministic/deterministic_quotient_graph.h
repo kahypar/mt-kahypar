@@ -33,7 +33,6 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/randomize.h"
 #include <tbb/parallel_sort.h>
 
 namespace mt_kahypar {
@@ -50,17 +49,14 @@ public:
 
     void reset() {
         cut_hyperedges.clear();
-        cut_hyperedge_weight = 0;
-        num_cut_hyperedges = 0;
-    }
-    vec<HyperedgeID>& getCutEdges() {
-        return cut_hyperedges;
+        cut_hyperedge_weight.store(0, std::memory_order_relaxed);
+        num_cut_hyperedges.store(0, std::memory_order_relaxed);
     }
 
-    vec<HyperedgeID> cut_hyperedges;
-    size_t num_cut_hyperedges;
-    HyperedgeWeight cut_hyperedge_weight;
-    HyperedgeWeight total_improvement;
+    tbb::concurrent_vector<HyperedgeID> cut_hyperedges; // reset
+    CAtomic<size_t> num_cut_hyperedges; // reset
+    CAtomic<HyperedgeWeight> cut_hyperedge_weight; // reset
+    CAtomic<HyperedgeWeight> total_improvement; // NOT reset but ok
 };
 
 template<typename TypeTraits>
@@ -136,6 +132,20 @@ public:
         // For determinism
         tbb::parallel_sort(edges.begin(), edges.end());
         return quotientEdge;
+    }
+    template<typename F>
+    void doForAllCutHyperedgesOfPair(const PartitionedHypergraph& phg, const PartitionID i, const PartitionID j, const F& f) {
+        auto& edges = _edges[i][j].cut_hyperedges;
+        const size_t num_cut_hes = _edges[i][j].num_cut_hyperedges;
+        tbb::parallel_sort(edges.begin(), edges.begin() + num_cut_hes);
+        HyperedgeID prev_he = kInvalidHyperedge;
+        for (size_t k = 0; k < num_cut_hes; ++k) {
+            const HyperedgeID he = edges[k];
+            if (phg.pinCountInPart(he, i) > 0 && phg.pinCountInPart(he, j) > 0 && he != prev_he) {
+                f(he);
+            }
+            prev_he = he;
+        }
     }
 
     HyperedgeWeight getCutWeight(const PartitionID i, const PartitionID j)const {

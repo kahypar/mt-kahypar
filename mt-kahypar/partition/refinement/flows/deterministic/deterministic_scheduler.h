@@ -62,7 +62,11 @@ public:
         _refiners(num_hypernodes, num_hyperedges, context),
         _quotient_graph(context),
         _schedule(context),
-        _was_moved(num_hypernodes, uint8_t(false)) {}
+        _was_moved(num_hypernodes, uint8_t(false)),
+        _apply_moves_lock(),
+        num_hyperedges(num_hyperedges),
+        num_hypernodes(num_hypernodes),
+        _new_cut_hes() {}
 
     DeterministicFlowRefinementScheduler(const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
@@ -89,6 +93,7 @@ private:
     }
 
     HyperedgeWeight applyMoves(MoveSequence& sequence, PartitionedHypergraph& phg) {
+        _apply_moves_lock.lock();
         // Compute Part Weight Deltas
         vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
         for (Move& move : sequence.moves) {
@@ -100,20 +105,19 @@ private:
             }
         }
         HyperedgeWeight improvement = 0;
-        vec<NewCutHyperedge> new_cut_hes;
         auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
             improvement -= AttributedGains::gain(sync_update);
 
             // Collect hyperedges with new blocks in its connectivity set
             if (sync_update.pin_count_in_to_part_after == 1) {
                 // the corresponding block will be set in applyMoveSequence(...) function
-                new_cut_hes.emplace_back(NewCutHyperedge{ sync_update.he, kInvalidPartition });
+                _new_cut_hes.emplace_back(NewCutHyperedge{ sync_update.he, kInvalidPartition });
             }
         };
-        applyMoveSequence(phg, _gain_cache, sequence, delta_func, _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
+        applyMoveSequence(phg, _gain_cache, sequence, delta_func, _context.forceGainCacheUpdates(), _was_moved);
         DBG << V(improvement) << ", " << V(sequence.expected_improvement);
         assert(improvement == sequence.expected_improvement);
-        addCutHyperedgesToQuotientGraph(new_cut_hes, phg);
+        _apply_moves_lock.unlock();
         return improvement;
     }
 
@@ -128,8 +132,7 @@ private:
         const MoveSequence& sequence,
         const F& objective_delta,
         const bool gain_cache_update,
-        vec<uint8_t>& was_moved,
-        vec<NewCutHyperedge>& new_cut_hes) {
+        vec<uint8_t>& was_moved) {
         for (const Move& move : sequence.moves) {
             ASSERT(move.from == phg.partID(move.node));
             if (move.from != move.to) {
@@ -138,20 +141,20 @@ private:
                 was_moved[move.node] = uint8_t(true);
                 // If move increases the pin count of some hyperedges in block 'move.to' to one 1
                 // we set the corresponding block here.
-                int i = new_cut_hes.size() - 1;
-                while (i >= 0 && new_cut_hes[i].block == kInvalidPartition) {
-                    new_cut_hes[i].block = move.to;
+                int i = _new_cut_hes.size() - 1;
+                while (i >= 0 && _new_cut_hes[i].block == kInvalidPartition) {
+                    _new_cut_hes[i].block = move.to;
                     --i;
                 }
             }
         }
     }
 
-    void addCutHyperedgesToQuotientGraph(const vec<NewCutHyperedge>& new_cut_hes, const PartitionedHypergraph& phg) {
-        for (const NewCutHyperedge& new_cut_he : new_cut_hes) {
-            ASSERT(new_cut_he.block != kInvalidPartition);
+    void addCutHyperedgesToQuotientGraph(const PartitionedHypergraph& phg) {
+        tbb::parallel_for(0UL, _new_cut_hes.size(), [&](const size_t i) {
+            const NewCutHyperedge& new_cut_he = _new_cut_hes[i];
             _quotient_graph.addNewCutHyperedge(new_cut_he.he, new_cut_he.block, phg);
-        }
+        });
     }
 
     template<typename F>
@@ -188,6 +191,10 @@ private:
     DeterministicQuotientGraph<TypeTraits> _quotient_graph;
     ParticipationsSchedule<TypeTraits> _schedule;
     vec<uint8_t> _was_moved;
+    SpinLock _apply_moves_lock; // reset
+    const HyperedgeID num_hyperedges;
+    const HypernodeID num_hypernodes;
+    vec<NewCutHyperedge> _new_cut_hes;
 };
 
 }  // namespace kahypar
