@@ -131,15 +131,16 @@ function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__,
 end
 
 function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
-    # degree(v) = sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
-    # degs = zeros(adj.n)
-    # @sync Threads.@threads for i in 1 : adj.n
-    #     degs[i] = degree(i)
-    # end
+    degree(v) = sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
+    degs = zeros(adj.n)
+    @sync Threads.@threads for i in 1 : adj.n
+        degs[i] = degree(i)
+    end
     
     # degs = adj * ones(adj.n)
     
-    degs = GraphSignals.degrees(adj)
+    # degs = GraphSignals.degrees(adj)
+
     inform(adj.n, true, "degrees calculated")
 
     @sync Threads.@threads for i in 1 : adj.n
@@ -211,7 +212,11 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         inform(n, true, "building adjaciency matrix...")
         rand_adj_matrix::SparseMatrixCSC = hypergraph2graph(hgr, config_randLapCycles)
         inform(n, true, "building laplacian...")
-        lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
+        try
+            lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
+        catch e
+            @info sprint(showerror, e)
+        end
     end
     inform(n, true, "preconditioning...")
     (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
