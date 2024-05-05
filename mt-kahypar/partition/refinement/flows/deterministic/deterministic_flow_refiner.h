@@ -95,21 +95,33 @@ private:
         const PartitionID block0,
         const PartitionID block1,
         const size_t seed) {
+        //utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
         MoveSequence sequence{ { }, 0 };
+        //timer.start_timer("problem_construction", "Problem Construction", true);
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
+        //timer.stop_timer("problem_construction");
         DBG << sub_hg;
+
         // TODO: Decide wether to use sequential or parallel problem construction?
+        //timer.start_timer("construct_flow_hypergraph", "Flow Hypergraph Construction", true);
         FlowProblem flow_problem;
         if (sequential) {
             flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
         } else {
             flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
         }
-        DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
-        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
-        DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
-        if (flowcutter_succeeded) {
-            extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+        if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
+            //timer.stop_timer("construct_flow_hypergraph");
+            DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
+            //timer.start_timer("run_flow_cutter", "Run Flow Cutter", true);
+            bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
+            //timer.stop_timer("run_flow_cutter");
+            DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
+            if (flowcutter_succeeded) {
+                //timer.start_timer("extract_move_sequence", "Extract Move Sequence", true);
+                extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+                //timer.stop_timer("extract_move_sequence");
+            }
         }
         return sequence;
 
