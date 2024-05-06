@@ -204,21 +204,23 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     bmap = make_b_op(hgr, hint_partition)
     
     lap_matrix = spdiagm([])
-    inform(n, true, "building adjaciency matrix...")
-    if is_graph
-        lap_matrix = graph_adj_matrix(hgr)
-    else
-        lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
-    end
-    inform(n, true, "building laplacian...")
+    preconditioner = CombinatorialMultigrid.lPreconditioner(x -> x)
     try
+        inform(n, true, "building adjaciency matrix...")
+        if is_graph
+            lap_matrix = graph_adj_matrix(hgr)
+        else
+            lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
+        end
+        inform(n, true, "building laplacian...")
         laplacianize_adj_mat!(lap_matrix)
+        inform(n, false, pretty_print(lap_matrix))
+        inform(n, true, "preconditioning...")
+        (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
+        preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
     catch e
         @info sprint(showerror, e)
     end
-    inform(n, true, "preconditioning...")
-    (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
-    preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
     
     evecs = Float64[]
     try
