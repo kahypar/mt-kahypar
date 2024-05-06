@@ -143,7 +143,7 @@ function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__
 
     inform(adj.n, true, "degrees calculated")
 
-    Threads.@threads for i in 1 : adj.n
+    for i in 1 : adj.n
         adj[i, i] = -degs[i]
     end
     adj.nzval[:] = -adj.nzval[:]
