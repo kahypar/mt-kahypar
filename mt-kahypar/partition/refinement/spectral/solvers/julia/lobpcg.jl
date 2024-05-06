@@ -184,12 +184,13 @@ end
 
 # TODO: set number of evecs
 function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
+    inform(hgr_data[1], false, "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
+
     hgr = import_hypergraph(hgr_data)
     n = hgr.num_vertices
     m = hgr.num_hyperedges
     is_graph = check_hypergraph_is_graph(hgr)
     inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m")
-    inform(n, false, string(convert(AbstractArray{Int64}, hgr_data)))
     
     hint_partition = convert(AbstractArray{Int64, 1}, hint)
     deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
@@ -198,27 +199,23 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     amap = make_a_op(hgr)
     bmap = make_b_op(hgr, hint_partition)
     
-    lap_matrix = spdiagm([])
-    preconditioner = CombinatorialMultigrid.lPreconditioner(x -> x)
     try
         inform(n, true, "building adjaciency matrix...")
+        lap_matrix = spdiagm([])
         if is_graph
             lap_matrix = graph_adj_matrix(hgr)
         else
             lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
         end
+
         inform(n, true, "building laplacian...")
         lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
         inform(n, false, pretty_print(lap_matrix))
+
         inform(n, true, "preconditioning...")
         (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
         preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
-    catch e
-        @info sprint(showerror, e)
-    end
-    
-    evecs = Float64[]
-    try
+       
         inform("launching LOBPCG...")
         results = lobpcg(amap, 
             bmap, 
@@ -231,13 +228,10 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             log = true)
         evecs = results.X
         inform("LOBPCG successful")
+        inform(n, false, "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
+        return convert(AbstractArray{Float64}, evecs)
     catch e
-        evecs = ones(Float64, n)
-        inform("LOBPCG failed due to " * sprint(showerror, e))
+        inform("failed due to " * sprint(showerror, e))
+        return ones(Float64, n)
     end
-
-    rounded_evecs = map(x -> round(x, sigdigits = 2), evecs)
-    inform(n, false, "result: $rounded_evecs")
-
-    return convert(AbstractArray{Float64}, evecs)
 end
