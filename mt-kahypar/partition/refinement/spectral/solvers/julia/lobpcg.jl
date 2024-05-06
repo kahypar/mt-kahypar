@@ -124,13 +124,6 @@ function calc_degrees(hgr::__hypergraph__)
 end
 
 function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
-    res = deepcopy(adj)
-    inform(adj.n, true, "deepcopy created")
-    laplacianize_adj_mat!(res, graph)
-    return res
-end
-
-function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
     degree(v) = sum(adj.nzval[adj.colptr[v] : adj.colptr[v + 1] - 1])#sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
     degs = zeros(adj.n)
     Threads.@threads for i in 1 : adj.n
@@ -143,15 +136,12 @@ function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__
 
     inform(adj.n, true, "degrees calculated")
 
-    for i in 1 : adj.n
-        adj[i, i] = -degs[i]
-    end
+    (is, js, vs) = findnz(adj)
+    vs_ = -vs
 
-    inform(adj.n, true, "degrees set")
+    inform(adj.n, true, "matrix prepared")
 
-    adj.nzval[:] = -adj.nzval[:]
-
-    inform(adj.n, true, "laplacian completed")
+    return sparse(vcat(is, 1 : adj.n), vcat(js, 1 : adj.n), vcat(vs_, degs), adj.n, adj.n)
 end
 
 function graph_adj_matrix(g::__hypergraph__)
@@ -218,7 +208,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
         end
         inform(n, true, "building laplacian...")
-        laplacianize_adj_mat!(lap_matrix, is_graph ? hgr : nothing)
+        lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
         inform(n, false, pretty_print(lap_matrix))
         inform(n, true, "preconditioning...")
         (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
