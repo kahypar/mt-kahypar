@@ -184,11 +184,11 @@ end
 
 # TODO: set number of evecs
 function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    inform(hgr_data[1], false, "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
+    n = hgr_data[1]
+    inform(n, false, "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
 
     try
         hgr = import_hypergraph(hgr_data)
-        n = hgr.num_vertices
         m = hgr.num_hyperedges
         is_graph = check_hypergraph_is_graph(hgr)
         inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m")
@@ -232,9 +232,9 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
 
         return convert(AbstractArray{Float64}, evecs)
     catch e
-        inform("failed due to " * sprint(showerror, e))
+        inform("failed due to " * string(e) * ": " * sprint(showerror, e))
         inform(sprint((io, v) -> show(io, "text/plain", v), stacktrace(catch_backtrace())))
-        
+
         return ones(Float64, n)
     end
 end
