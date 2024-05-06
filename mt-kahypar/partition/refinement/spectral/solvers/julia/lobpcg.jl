@@ -133,7 +133,7 @@ end
 function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
     degree(v) = sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
     degs = zeros(adj.n)
-    @sync Threads.@threads for i in 1 : adj.n
+    Threads.@threads for i in 1 : adj.n
         degs[i] = degree(i)
     end
     
@@ -143,19 +143,17 @@ function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__
 
     inform(adj.n, true, "degrees calculated")
 
-    @sync Threads.@threads for i in 1 : adj.n
+    Threads.@threads for i in 1 : adj.n
         adj[i, i] = -degs[i]
     end
     adj.nzval[:] = -adj.nzval[:]
 end
 
-function graph_lap_matrix(g::__hypergraph__)
+function graph_adj_matrix(g::__hypergraph__)
     is = g.eind[1 : 2 : end]
     js = g.eind[2 : 2 : end]
     vs = g.hwts
     res = sparse(vcat(is, js), vcat(js, is), convert(AbstractArray{Float64, 1}, vcat(vs, vs)), g.num_vertices, g.num_vertices)
-
-    laplacianize_adj_mat!(res)
 
     return res
 end
@@ -206,17 +204,17 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     bmap = make_b_op(hgr, hint_partition)
     
     lap_matrix = spdiagm([])
+    inform(n, true, "building adjaciency matrix...")
     if is_graph
-        lap_matrix = graph_lap_matrix(hgr)
+        lap_matrix = graph_adj_matrix(hgr)
     else
-        inform(n, true, "building adjaciency matrix...")
-        rand_adj_matrix::SparseMatrixCSC = hypergraph2graph(hgr, config_randLapCycles)
-        inform(n, true, "building laplacian...")
-        try
-            lap_matrix = laplacianize_adj_mat(rand_adj_matrix)
-        catch e
-            @info sprint(showerror, e)
-        end
+        lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
+    end
+    inform(n, true, "building laplacian...")
+    try
+        laplacianize_adj_mat!(lap_matrix)
+    catch e
+        @info sprint(showerror, e)
     end
     inform(n, true, "preconditioning...")
     (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
@@ -235,10 +233,10 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             C = deflation_space,
             log = true)
         evecs = results.X
-        inform("successful")
+        inform("LOBPCG successful")
     catch e
-        inform("failed due to $e")
         evecs = ones(Float64, n)
+        inform("LOBPCG failed due to " * sprint(showerror, e))
     end
 
     rounded_evecs = map(x -> round(x, sigdigits = 2), evecs)
