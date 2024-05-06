@@ -146,7 +146,12 @@ function laplacianize_adj_mat!(adj::SparseMatrixCSC, graph::Union{__hypergraph__
     for i in 1 : adj.n
         adj[i, i] = -degs[i]
     end
+
+    inform(adj.n, true, "degrees set")
+
     adj.nzval[:] = -adj.nzval[:]
+
+    inform(adj.n, true, "laplacian completed")
 end
 
 function graph_adj_matrix(g::__hypergraph__)
