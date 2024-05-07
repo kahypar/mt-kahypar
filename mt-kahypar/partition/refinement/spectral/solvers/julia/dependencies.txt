@@ -1,3 +1,4 @@
 LinearMaps
 IterativeSolvers
 LDLFactorizations
+GraphSignals
