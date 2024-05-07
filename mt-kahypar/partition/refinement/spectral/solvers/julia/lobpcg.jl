@@ -161,7 +161,7 @@ end
 
 function inform(message::String)
     if (config_verbose)
-        @info message
+        print("[julia]: " * message * "\n")
     end
 end
 
@@ -191,11 +191,12 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         n = hgr.num_vertices
         m = hgr.num_hyperedges
         is_graph = check_hypergraph_is_graph(hgr)
-        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m")
+        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(length(deflation_evecs) / n) * " deflation vectors")
         
         hint_partition = convert(AbstractArray{Int64, 1}, hint)
         deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
         inform(n, false, "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
+        inform(n, true, "prepared hint and deflation space")
         
         amap = make_a_op(hgr)
         bmap = make_b_op(hgr, hint_partition)
