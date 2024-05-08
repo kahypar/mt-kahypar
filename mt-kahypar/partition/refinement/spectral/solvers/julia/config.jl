@@ -8,6 +8,6 @@ config_lapOpShift=0.01
 config_weightOpVariant="paper"
 config_hintOpVariant="paper"
 config_randLapCycles=1
-config_lobpcgMaxIters=30
+config_lobpcgMaxIters=42
 config_verbose=true
 config_verbose_limits=[25, 500]

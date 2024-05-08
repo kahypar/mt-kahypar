@@ -162,6 +162,7 @@ end
 function inform(message::String)
     if (config_verbose)
         print("[julia]: " * message * "\n")
+        flush(stdout)
     end
 end
 
@@ -191,7 +192,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         n = hgr.num_vertices
         m = hgr.num_hyperedges
         is_graph = check_hypergraph_is_graph(hgr)
-        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(length(deflation_evecs) / n) * " deflation vectors")
+        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vectors")
         
         hint_partition = convert(AbstractArray{Int64, 1}, hint)
         deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
@@ -212,10 +213,16 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         inform(n, true, "building laplacian...")
         lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
         inform(n, false, pretty_print(lap_matrix))
-
+        
         inform(n, true, "preconditioning...")
-        (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
-        preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+        preconditioner = nothing
+        try
+            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
+            preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+        catch e
+            inform("didnt use preconditioner due to " * sprint(showerror, e))
+            inform(sprint((io, v) -> show(io, "text/plain", v), stacktrace(catch_backtrace())))
+        end
        
         inform("launching LOBPCG...")
         results = lobpcg(amap, 
