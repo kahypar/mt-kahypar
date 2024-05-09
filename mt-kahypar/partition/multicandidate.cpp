@@ -197,17 +197,29 @@ void enableTimerAndStats(const Context& context) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
         disableTimerAndStats(context);
+       //tbb::parallel_for(0, level * 4, [&](int i) {
+       //  auto hg = partitioned_hg.hypergraph().copy();
+       //  PartitionedHypergraph phg(context.partition.k, hg);
+       //  ip(phg, level);
+       //  std::cout << "Partition " << i << " done" << std::endl;
+       //});
 
-        std::vector<tbb::task_arena> arenas((level * 4));
-        for(int i = 0; i < level * 4; i++) {
-          arenas[i].initialize(context.shared_memory.num_threads / (level * 4));
+        std::vector<tbb::task_arena> arenas((level * 2));
+        for(int i = 0; i < level * 2; i++) {
+          arenas[i].initialize(context.shared_memory.num_threads / (level * 2));
         }
-        tbb::parallel_for(0, level * 4, [&](int i) {
+        tbb::parallel_for(0, level * 2, [&](int i) {
           arenas[i].execute([&] {
             auto hg = partitioned_hg.hypergraph().copy();
             PartitionedHypergraph phg(context.partition.k, hg);
             ip(phg, level);
             std::cout << "Partition " << i << " done" << std::endl;
+          });
+          arenas[i].execute([&] {
+            auto hg = partitioned_hg.hypergraph().copy();
+            PartitionedHypergraph phg(context.partition.k, hg);
+            ip(phg, level);
+            std::cout << "Partition " << (level * 2) + i << " done" << std::endl;
           });
         });
 
