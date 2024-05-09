@@ -11,6 +11,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "tbb/parallel_for.h"
+#include "tbb/task_arena.h"
 
 
 #include "mt-kahypar/partition/factories.h"
@@ -195,15 +196,23 @@ void enableTimerAndStats(const Context& context) {
         if (context.initial_partitioning.remove_degree_zero_hns_before_ip) {
           degree_zero_hn_remover.removeDegreeZeroHypernodes(partitioned_hg.hypergraph());
         }
-        //disableTimerAndStats(context);
+        disableTimerAndStats(context);
+
+        std::vector<tbb::task_arena> arenas((level * 4));
+        for(int i = 0; i < level * 4; i++) {
+          arenas[i].initialize(context.shared_memory.num_threads / (level * 4));
+        }
         tbb::parallel_for(0, level * 4, [&](int i) {
-          auto hg = partitioned_hg.hypergraph().copy();
-          PartitionedHypergraph phg(context.partition.k, hg);
-          ip(phg, level);
-          std::cout << "Partition " << i << " done" << std::endl;
+          arenas[i].execute([&] {
+            auto hg = partitioned_hg.hypergraph().copy();
+            PartitionedHypergraph phg(context.partition.k, hg);
+            ip(phg, level);
+            std::cout << "Partition " << i << " done" << std::endl;
+          });
         });
+
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
-        //enableTimerAndStats(context);
+        enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning_level_" + std::to_string(level));
         timer.stop_timer("main_initial_partitioning");
         // ####
