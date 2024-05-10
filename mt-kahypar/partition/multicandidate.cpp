@@ -204,22 +204,30 @@ void enableTimerAndStats(const Context& context) {
        //  std::cout << "Partition " << i << " done" << std::endl;
        //});
 
-        std::vector<tbb::task_arena> arenas((level * 2));
-        for(int i = 0; i < level * 2; i++) {
-          arenas[i].initialize(context.shared_memory.num_threads / (level * 2));
-        }
-        tbb::parallel_for(0, level * 2, [&](int i) {
-          arenas[i].execute([&] {
+        //std::vector<tbb::task_arena> arenas((level * 4));
+        //for(int i = 0; i < level * 4; i++) {
+        //  arenas[i].initialize(static_cast<int>(context.shared_memory.num_threads / (level * 4)));
+        //  std::cout << "arena " << i << " initialized to " << (context.shared_memory.num_threads / (level * 4)) << " threads" << std::endl;
+        //}
+        //tbb::parallel_for(0, 4, [&](int i) {
+        //  arenas[i].execute([&] {
+        //    auto hg = partitioned_hg.hypergraph().copy();
+        //    PartitionedHypergraph phg(context.partition.k, hg);
+        //    ip(phg, level);
+        //    std::cout << "Partition " << i << " done" << std::endl;
+        //    std::cout << "running on " << tbb::this_task_arena::max_concurrency() << " threads" << std::endl;
+        //  });
+        //});
+
+        tbb::parallel_for(0, 4 * level, [&](int i) {
+          int num_threads = std::max(context.shared_memory.num_threads / (4 * level), (size_t) 1);
+          tbb::task_arena arena(num_threads);
+          arena.execute([&] {
             auto hg = partitioned_hg.hypergraph().copy();
             PartitionedHypergraph phg(context.partition.k, hg);
             ip(phg, level);
             std::cout << "Partition " << i << " done" << std::endl;
-          });
-          arenas[i].execute([&] {
-            auto hg = partitioned_hg.hypergraph().copy();
-            PartitionedHypergraph phg(context.partition.k, hg);
-            ip(phg, level);
-            std::cout << "Partition " << (level * 2) + i << " done" << std::endl;
+            std::cout << "Ran on " << tbb::this_task_arena::max_concurrency() << " threads" << std::endl;
           });
         });
 
