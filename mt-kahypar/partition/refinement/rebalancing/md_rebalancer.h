@@ -91,12 +91,18 @@ private:
                       vec<Move>* moves_linear,
                       Metrics& best_metrics);
 
+  void simple_lp(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                       vec<vec<Move>>* moves_by_part,
+                                                       vec<Move>* moves_linear,
+                                                       Metrics& best_metrics, 
+                                                       std::vector<HypernodeID> nodes, double allowed_imbalance, bool balance, Gain& local_attributed_gain);
+
   
   bool greedyRefiner(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                       vec<vec<Move>>* moves_by_part,
                       vec<Move>* moves_linear,
                       Metrics& best_metrics,
-                      std::vector<HypernodeID> nodes, bool balance);
+                      std::vector<HypernodeID> nodes, bool balance, Gain& local_attributed_gain);
 
   void interleaveMoveSequenceWithRebalancingMoves(
                       mt_kahypar_partitioned_hypergraph_t& hypergraph,

@@ -134,7 +134,6 @@ namespace {
     myfile.close();
     partitioned_hg.initializePartition();
 
-
     /*for(HypernodeID hn : partitioned_hg.nodes()){
       std::cout << partitioned_hg.partID(hn) << "\n";
     }*/

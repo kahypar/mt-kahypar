@@ -51,6 +51,13 @@ struct PartitioningParameters {
   double node_threshold = 0.0;
   double update_frequency = 0.0001;
   double allowed_imbalance_refine=0.2;
+  bool refine_l1_tiebreak = false;
+  bool refine_metis_tiebreak = true;
+  bool rebalance_pq_l1 = true;
+  bool rebalance_pq_max = false;
+  bool rebalance_pq_combined = false;
+  bool rebalance_l1 = true;
+  bool rebalance_max = false;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;

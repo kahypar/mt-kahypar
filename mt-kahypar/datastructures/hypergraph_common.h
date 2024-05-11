@@ -39,7 +39,7 @@
 #include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
-static constexpr size_t dimension = 3;
+static constexpr size_t dimension = 2;
 struct NodeWeight {
   std::array<int32_t, dimension> weights;
 
@@ -1158,7 +1158,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
           items[pair.first] = pair.second;
           siftUp(references[pair.first]);
         }
-        else{
+        else if(pair.second > items[pair.first]){
           items[pair.first] = pair.second;
           siftDown(references[pair.first]);
         }
