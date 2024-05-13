@@ -19,15 +19,18 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
         DBG << V(round_delta) << ", " << V(minImprovement) << ", " << V(_schedule.hasActiveBlocks());
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
-        vec<MoveSequence> sequences(_scheduled_blocks.size());
         round_delta = 0;
         minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
+        _new_cut_hes.clear();
         while (_scheduled_blocks.size() > 0) {
+            vec<MoveSequence> sequences(_scheduled_blocks.size());
             tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
                 //for (size_t i = 0; i < _scheduled_blocks.size(); ++i) {
-                //for (size_t i = _scheduled_blocks.size() - 1; i < _scheduled_blocks.size(); --i) {
+                    //for (size_t i = _scheduled_blocks.size() - 1; i < _scheduled_blocks.size(); --i) {
                 const ScheduledPair& sp = _scheduled_blocks[i];
-                auto& refiner = _refiners.local();
+                //auto& refiner = _refiners.local();
+                DeterministicFlowRefiner<GraphAndGainTypes> refiner(num_hypernodes, num_hyperedges,
+                    _context);
                 refiner.initialize(phg);
                 MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
                 sequences[i] = moves;
@@ -35,21 +38,27 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 round_delta += improvement;
                 reportResults(sp.bp.i, sp.bp.j, moves);
                 _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
-                assert(metrics::isBalanced(phg, _context));
             });
+            addCutHyperedgesToQuotientGraph(phg);
+            //tbb::parallel_for(0UL, sequences.size(), [&](const size_t i) {
             // for (size_t i = 0; i < sequences.size(); ++i) {
+            //     //    for (size_t i = sequences.size() - 1; i < sequences.size(); --i) {
             //     const BlockPair& bp = _scheduled_blocks[i].bp;
             //     MoveSequence& moves = sequences[i];
             //     const HyperedgeWeight improvement = applyMoves(moves, phg);
-            //     overall_delta += improvement;
+            //     round_delta += improvement;
             //     reportResults(bp.i, bp.j, moves);
             //     _quotient_graph.reportImprovement(bp.i, bp.j, improvement);
-            //     assert(metrics::isBalanced(phg, _context));
-            // }
+            // }//);
+            //_quotient_graph.initialize(phg);
+            assert(metrics::isBalanced(phg, _context));
+
+            DBG << "#################################################### NEXT MATCHING ######################################################";
             _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
             overall_delta += round_delta;
             current_metrics.quality -= round_delta;
         }
+        DBG << "************************************************************ NEW ROUND *********************************************************";
         _schedule.resetForNewRound(_quotient_graph);
     }
 

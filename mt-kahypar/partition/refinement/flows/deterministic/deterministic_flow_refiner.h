@@ -101,26 +101,28 @@ private:
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
         //timer.stop_timer("problem_construction");
         DBG << sub_hg;
+        if (sub_hg.numNodes() > 0) {
 
-        // TODO: Decide wether to use sequential or parallel problem construction?
-        //timer.start_timer("construct_flow_hypergraph", "Flow Hypergraph Construction", true);
-        FlowProblem flow_problem;
-        if (sequential) {
-            flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-        } else {
-            flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-        }
-        if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
-            //timer.stop_timer("construct_flow_hypergraph");
-            DBG << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
-            //timer.start_timer("run_flow_cutter", "Run Flow Cutter", true);
-            bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
-            //timer.stop_timer("run_flow_cutter");
-            DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
-            if (flowcutter_succeeded) {
-                //timer.start_timer("extract_move_sequence", "Extract Move Sequence", true);
-                extractMoveSequence(phg, flow_problem, sequence, block0, block1);
-                //timer.stop_timer("extract_move_sequence");
+            // TODO: Decide wether to use sequential or parallel problem construction?
+            //timer.start_timer("construct_flow_hypergraph", "Flow Hypergraph Construction", true);
+            FlowProblem flow_problem;
+            if (sequential) {
+                flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+            } else {
+                flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+            }
+            if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
+                //timer.stop_timer("construct_flow_hypergraph");
+                DBG << V(block0) << V(block1) << V(flow_problem.non_removable_cut) << ", " << V(flow_problem.sink) << ", " << V(flow_problem.source) << ", " << V(flow_problem.total_cut) << ", " << V(flow_problem.weight_of_block_0) << ", " << V(flow_problem.weight_of_block_1);
+                //timer.start_timer("run_flow_cutter", "Run Flow Cutter", true);
+                bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
+                //timer.stop_timer("run_flow_cutter");
+                DBG << V(flowcutter_succeeded) << V(block0) << V(block1);
+                if (flowcutter_succeeded) {
+                    //timer.start_timer("extract_move_sequence", "Extract Move Sequence", true);
+                    extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+                    //timer.stop_timer("extract_move_sequence");
+                }
             }
         }
         return sequence;
@@ -194,17 +196,17 @@ private:
 
 
     const Context& _context;
-    FlowHypergraphBuilder _flow_hg;
+    FlowHypergraphBuilder _flow_hg; // reset
 
     whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
     whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
-    SequentialConstruction<GraphAndGainTypes> _sequential_construction;
+    SequentialConstruction<GraphAndGainTypes> _sequential_construction; // reset
     ParallelConstruction<GraphAndGainTypes> _parallel_construction;
 
-    DeterministicProblemConstruction<TypeTraits> _problem_construction;
+    DeterministicProblemConstruction<TypeTraits> _problem_construction; // reset
 
-    vec<HypernodeID> _whfc_to_node;
+    vec<HypernodeID> _whfc_to_node; // reset
 
 };
 }  // namespace mt_kahypar

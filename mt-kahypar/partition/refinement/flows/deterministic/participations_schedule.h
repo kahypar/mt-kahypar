@@ -127,6 +127,7 @@ private:
     }
 
     vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
+        _scheduled.assign(_scheduled.size(), false);
         vec<ScheduledPair> tasks;
         tasks.reserve(_k / 2);
         assert(_scheduled.size() == size_t(_k));
@@ -178,7 +179,13 @@ private:
         for (size_t i = 0; i < _partitions_sorted_by_participations.size(); ++i) {
             if (_partitions_sorted_by_participations[i] == id) {
                 size_t swapPosition = i + 1;
-                while (swapPosition < _partitions_sorted_by_participations.size() && _participations[_partitions_sorted_by_participations[swapPosition]] > _participations[_partitions_sorted_by_participations[i]]) { swapPosition++; }
+                while (swapPosition < _partitions_sorted_by_participations.size()
+                    && (
+                        _participations[_partitions_sorted_by_participations[swapPosition]] > _participations[_partitions_sorted_by_participations[i]]
+                        || (_participations[_partitions_sorted_by_participations[swapPosition]] == _participations[_partitions_sorted_by_participations[i]] && _partitions_sorted_by_participations[swapPosition] < _partitions_sorted_by_participations[i])
+                        )) {
+                    swapPosition++;
+                }
                 swapPosition--;
                 assert(swapPosition < _partitions_sorted_by_participations.size());
                 std::swap(_partitions_sorted_by_participations[i], _partitions_sorted_by_participations[swapPosition]);

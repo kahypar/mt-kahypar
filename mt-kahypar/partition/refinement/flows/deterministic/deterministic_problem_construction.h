@@ -91,18 +91,18 @@ class DeterministicProblemConstruction {
             }
         }
 
-        PartitionID block0;
-        PartitionID block1;
-        size_t current_distance;
-        parallel::scalable_queue<HypernodeID> queue;
-        parallel::scalable_queue<HypernodeID> next_queue;
-        vec<bool> visited_hn;
-        vec<bool> visited_he;
-        vec<bool> contained_hes;
-        vec<bool> locked_blocks;
-        HypernodeWeight queue_weight_block_0;
-        HypernodeWeight queue_weight_block_1;
-        bool lock_queue;
+        PartitionID block0; // reset
+        PartitionID block1; // reset
+        size_t current_distance; // reset
+        parallel::scalable_queue<HypernodeID> queue; // reset
+        parallel::scalable_queue<HypernodeID> next_queue; // reset
+        vec<bool> visited_hn; // reset
+        vec<bool> visited_he; // reset
+        vec<bool> contained_hes; // reset
+        vec<bool> locked_blocks; // reset
+        HypernodeWeight queue_weight_block_0; // reset
+        HypernodeWeight queue_weight_block_1; // reset
+        bool lock_queue; // reset
     };
 
 public:
@@ -136,12 +136,12 @@ private:
         vec<bool>& locked_blocks) const;
 
     const Context& _context;
-    double _scaling;
-    HypernodeID _num_hypernodes;
-    HyperedgeID _num_hyperedges;
+    double _scaling; // constatn
+    HypernodeID _num_hypernodes; // nur inital einmal verwendet
+    HyperedgeID _num_hyperedges; // nur inistial einmal verwerndet
 
     // ! Contains data required for BFS construction algorithm
-    BFSData _bfs;
+    BFSData _bfs; // reset
 };
 
 }  // namespace kahypar
