@@ -204,7 +204,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
     
         inform(n, true, "building adjaciency matrix...")
         lap_matrix = spdiagm([])
-        if is_graph and !config_approximateGraphs
+        if is_graph && !config_approximateGraphs
             lap_matrix = graph_adj_matrix(hgr)
         else
             lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
