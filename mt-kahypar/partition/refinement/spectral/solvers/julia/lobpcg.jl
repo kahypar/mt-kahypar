@@ -179,7 +179,7 @@ end
 
 function make_b_op(hgr, hint)
     return LinearMap(x -> config_weightVsHint * weight_balance_laplacian(hgr, x)
-            + (1.0 - config_weightVsHint) *hint_laplacian(hint, x) + config_lapOpShift * x,
+            + (1.0 - config_weightVsHint) *hint_laplacian(hint, x) + config_balanceShift * x,
         hgr.num_vertices, issymmetric=true, isposdef=true)
 end
 
@@ -217,7 +217,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         inform(n, true, "preconditioning...")
         preconditioner = nothing
         try
-            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) ./ 1e06) + lap_matrix)
+            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) .* config_preCondShift) + lap_matrix)
             preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
         catch e
             inform("didnt use preconditioner due to " * sprint(showerror, e))
