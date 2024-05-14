@@ -38,7 +38,8 @@ class MDRebalancer final : public IRebalancer {
   using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
   using GainCache = typename GraphAndGainTypes::GainCache;
   using GainCalculator = typename GraphAndGainTypes::GainComputation;
-   using MoveID=uint32_t;
+  using MoveID=uint32_t;
+  using PQID=uint64_t;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -120,6 +121,18 @@ private:
                                                                         vec<HypernodeWeight>& current_part_weights,
                                                                         vec<MoveID>& current_rebalancing_move_index,
                                                                         vec<Move>& move_order);
+                                                                    
+  double L1_balance_gain(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                          const HypernodeID node,
+                          const PartitionID block);
+
+  int get_max_dimension(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+      HypernodeID hn);
+
+  bool betterBalanceKWay(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+        HypernodeWeight vwgt, 
+        int a1, PartitionID p1, 
+        int a2, PartitionID p2);
 
   void resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures

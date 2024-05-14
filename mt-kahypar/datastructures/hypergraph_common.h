@@ -636,6 +636,40 @@ struct Move_with_transformed_gain {
     void addToGain(Gain g){
       __atomic_add_fetch(&gain, g, std::memory_order_relaxed);
     }
+
+    //used to compare moves without having to perform a division
+    bool isBetter(Move_Internal other){
+      if(balance == 0.0){
+        if(other.balance < 0.0){
+          return false;
+        }
+        else{
+          return gain > other.gain;
+        }
+      }
+      else if(other.balance == 0.0){
+        return true;
+      }
+      else{
+        double d1 = gain;
+        double d2 = other.gain;
+        if(d1 > 0){
+          d1 *= balance;
+        }
+        else{
+          d2 *= -balance;
+          d1 *= -1.0;
+        }
+        if(other.gain > 0){
+          d2 *= other.balance;
+        }
+        else{
+          d1 *= -other.balance;
+          d2 *= -1.0;
+        }
+        return d1 < d2;
+      }
+    }
   };
 
   struct Rebalance_Move : Move_Internal{

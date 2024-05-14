@@ -133,6 +133,39 @@ namespace mt_kahypar {
              ("allowed-refinement-imbalance",
              po::value<double>(&context.partition.allowed_imbalance_refine)->value_name("<double>")->default_value(0),
              "max imbalance of refinement in md_rebalancer")
+             ("refine-l1-tiebreak",
+             po::value<bool>(&context.partition.refine_l1_tiebreak)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("refine-metis-tiebreak",
+             po::value<bool>(&context.partition.refine_metis_tiebreak)->value_name("<bool>")->default_value(true),
+             "use l1 as tiebreak")
+             ("rebalance-pq-l1",
+             po::value<bool>(&context.partition.rebalance_pq_l1)->value_name("<bool>")->default_value(true),
+             "use l1 as tiebreak")
+             ("rebalance-pq-max",
+             po::value<bool>(&context.partition.rebalance_pq_max)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("rebalance-pq-combined",
+             po::value<bool>(&context.partition.rebalance_pq_combined)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("rebalance-l1",
+             po::value<bool>(&context.partition.rebalance_l1)->value_name("<bool>")->default_value(true),
+             "use l1 as tiebreak")
+             ("rebalance-max",
+             po::value<bool>(&context.partition.rebalance_max)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("rebalance-several-pqs",
+             po::value<bool>(&context.partition.rebalancer_several_pqs)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("rebalance-guarantee-best",
+             po::value<bool>(&context.partition.rebalancer_guarantee_best)->value_name("<bool>")->default_value(true),
+             "use l1 as tiebreak")
+             ("rebalance-update-all",
+             po::value<bool>(&context.partition.rebalancer_update_all)->value_name("<bool>")->default_value(true),
+             "update also worsened moves at periodic updates")
+             ("refine-combined-tiebreak",
+             po::value<bool>(&context.partition.refine_combined_tiebreak)->value_name("<bool>")->default_value(false),
+             "update also worsened moves at periodic updates")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")

@@ -58,6 +58,12 @@ struct PartitioningParameters {
   bool rebalance_pq_combined = false;
   bool rebalance_l1 = true;
   bool rebalance_max = false;
+  bool rebalancer_several_pqs = false;
+  bool rebalancer_guarantee_best = true;
+  bool rebalancer_use_move_cache = false;
+  bool rebalancer_update_all = false;
+  bool rebalancer_approximate_worsened_move = false;
+  bool refine_combined_tiebreak = false;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
