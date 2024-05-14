@@ -277,6 +277,7 @@ struct InitialPartitioningParameters {
   int cutoff_level = 1;
   float multicandidate_temperature = 0.0;
   float multicandidate_cooling_rate = 0.0;
+  size_t multicandidate_config = 1;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

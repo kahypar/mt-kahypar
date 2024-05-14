@@ -186,7 +186,16 @@ void enableTimerAndStats(const Context& context) {
     uncoarsener->initialize();
     uncoarsener->stepNextLevel();
     float temperature = context.initial_partitioning.multicandidate_temperature;
-    int level = std::min(context.initial_partitioning.cutoff_level, uncoarsener->currentLevel() + 2);
+    int config = context.initial_partitioning.multicandidate_config;
+    int level;
+    if(config == 4) {
+      level = std::min(5,
+                           uncoarsener->currentLevel() + 2);
+    } else {
+      level = std::min(context.initial_partitioning.cutoff_level,
+                           uncoarsener->currentLevel() + 2);
+    }
+
     while(!uncoarsener->isTopLevel()) {
       if (level > 0) {
         //#### Initial Partitioning ####
@@ -215,22 +224,39 @@ void enableTimerAndStats(const Context& context) {
         //    PartitionedHypergraph phg(context.partition.k, hg);
         //    ip(phg, level);
         //    std::cout << "Partition " << i << " done" << std::endl;
-        //    std::cout << "running on " << tbb::this_task_arena::max_concurrency() << " threads" << std::endl;
+        //    std::cout << "Used threads: " << 3 * context.shared_memory.num_threads / 4 << std::endl;
         //  });
         //});
-
-        tbb::parallel_for(0, 4 * level, [&](int i) {
-          int num_threads = std::max(context.shared_memory.num_threads / (4 * level), (size_t) 1);
-          tbb::task_arena arena(num_threads);
-          arena.execute([&] {
+        if (config == 2) {
+          tbb::parallel_for(0, level * 3, [&](int i) {
             auto hg = partitioned_hg.hypergraph().copy();
             PartitionedHypergraph phg(context.partition.k, hg);
             ip(phg, level);
             std::cout << "Partition " << i << " done" << std::endl;
             std::cout << "Ran on " << tbb::this_task_arena::max_concurrency() << " threads" << std::endl;
           });
-        });
-
+        } else if (config == 3) {
+          tbb::parallel_for(0, level * 2, [&](int i) {
+            auto hg = partitioned_hg.hypergraph().copy();
+            PartitionedHypergraph phg(context.partition.k, hg);
+            ip(phg, level);
+            std::cout << "Partition " << i << " done" << std::endl;
+          });
+        } else if (config == 4) {
+          tbb::parallel_for(0, 3, [&](int i) {
+            auto hg = partitioned_hg.hypergraph().copy();
+            PartitionedHypergraph phg(context.partition.k, hg);
+            ip(phg, level);
+            std::cout << "Partition " << i << " done" << std::endl;
+          });
+        } else {
+          tbb::parallel_for(0, level * 4, [&](int i) {
+            auto hg = partitioned_hg.hypergraph().copy();
+            PartitionedHypergraph phg(context.partition.k, hg);
+            ip(phg, level);
+            std::cout << "Partition " << i << " done" << std::endl;
+          });
+        }
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
         enableTimerAndStats(context);
         timer.stop_timer("initial_partitioning_level_" + std::to_string(level));
@@ -270,7 +296,12 @@ void enableTimerAndStats(const Context& context) {
           // mark the first 1 or 2 elements as winners depending on whether 
           // the number of partitions is even or odd
           std::vector<bool> winners(partition_pool.size(), true);
-          int offset = partition_pool.size() % 2 ? 1 : 2;
+          int offset;
+          if(config != 5) {
+            offset = partition_pool.size() % 2 ? 1 : 2;
+          } else {
+            offset = 0;
+          }
           utils::Randomize::instance().parallelShuffleVector(partition_pool, offset, partition_pool.size());
           bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < (temperature * 0.5);
           for(size_t i = offset; i < partition_pool.size(); i += 2) {

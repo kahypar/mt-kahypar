@@ -794,9 +794,14 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
              "Initial block size used for label propagation initial partitioner")
-                         (("i-cutoff-level"),
-             po::value<int>(&context.initial_partitioning.cutoff_level)->value_name("<int>")->default_value(3),
+            ("i-cutoff-level",
+             po::value<int>(&context.initial_partitioning.cutoff_level)->value_name(
+                     "<int>")->default_value(3),
              "Cutoff Level for multicandidate partitioning.")
+            ("i-multicandidate-config",
+             po::value<size_t>(&context.initial_partitioning.multicandidate_config)->value_name(
+                     "<size_t>")->default_value(1),
+                   "Multicandidate configuration for multicandidate partitioning.")
             ("i-multicandidate-temperature",
              po::value<float>(&context.initial_partitioning.multicandidate_temperature)->value_name("<float>")->default_value(0.0),
              "Temperature for winner selection during multicandidate tournament."
