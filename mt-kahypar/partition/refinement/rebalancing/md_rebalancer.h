@@ -105,6 +105,13 @@ private:
                       Metrics& best_metrics,
                       std::vector<HypernodeID> nodes, bool balance, Gain& local_attributed_gain);
 
+  double L1_balance_gain(PartitionedHypergraph* hypergraph,
+                          const HypernodeID node,
+                          const PartitionID to);
+                        
+  bool metis_tiebreak(mt_kahypar_partitioned_hypergraph_t& hypergraph,HypernodeID hn, PartitionID p1, PartitionID p2);
+
+
   void interleaveMoveSequenceWithRebalancingMoves(
                       mt_kahypar_partitioned_hypergraph_t& hypergraph,
                       const vec<HypernodeWeight>& initialPartWeights,
@@ -122,17 +129,10 @@ private:
                                                                         vec<MoveID>& current_rebalancing_move_index,
                                                                         vec<Move>& move_order);
                                                                     
-  double L1_balance_gain(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                          const HypernodeID node,
-                          const PartitionID block);
 
   int get_max_dimension(mt_kahypar_partitioned_hypergraph_t& hypergraph,
       HypernodeID hn);
 
-  bool betterBalanceKWay(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-        HypernodeWeight vwgt, 
-        int a1, PartitionID p1, 
-        int a2, PartitionID p2);
 
   void resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures

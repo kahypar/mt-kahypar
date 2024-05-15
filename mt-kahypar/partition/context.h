@@ -53,6 +53,9 @@ struct PartitioningParameters {
   double allowed_imbalance_refine=0.2;
   bool refine_l1_tiebreak = false;
   bool refine_metis_tiebreak = true;
+  bool refine_combined_tiebreak = false;
+  bool refine_metis_gain = false;  
+  bool refine_metis_move_criterion = true;
   bool rebalance_pq_l1 = true;
   bool rebalance_pq_max = false;
   bool rebalance_pq_combined = false;
@@ -63,7 +66,6 @@ struct PartitioningParameters {
   bool rebalancer_use_move_cache = false;
   bool rebalancer_update_all = false;
   bool rebalancer_approximate_worsened_move = false;
-  bool refine_combined_tiebreak = false;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
