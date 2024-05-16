@@ -44,7 +44,7 @@ template<typename GraphAndGainTypes>
 class DeterministicFlowRefiner {
 
     static constexpr bool debug = false;
-    static constexpr bool sequential = false;
+    static constexpr bool sequential = true;
 
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using TypeTraits = typename GraphAndGainTypes::TypeTraits;
