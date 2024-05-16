@@ -149,11 +149,15 @@ public:
     template<typename F>
     void doForAllCutHyperedgesOfPair(const PartitionedHypergraph& phg, const PartitionID i, const PartitionID j, const F& f) {
         auto& edges = _edges[i][j].cut_hyperedges;
-        tbb::parallel_sort(edges.begin(), edges.end());
-        for (const HyperedgeID he : edges) {
-            if (phg.pinCountInPart(he, i) > 0 && phg.pinCountInPart(he, j) > 0) {
+        const size_t num_cut_hes = _edges[i][j].num_cut_hyperedges;
+        tbb::parallel_sort(edges.begin(), edges.begin() + num_cut_hes);
+        HyperedgeID prev_he = kInvalidHyperedge;
+        for (size_t k = 0; k < num_cut_hes; ++k) {
+            const HyperedgeID he = edges[k];
+            if (phg.pinCountInPart(he, i) > 0 && phg.pinCountInPart(he, j) > 0 && he != prev_he) {
                 f(he);
             }
+            prev_he = he;
         }
     }
 

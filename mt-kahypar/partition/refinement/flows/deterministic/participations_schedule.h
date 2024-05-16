@@ -63,6 +63,9 @@ public:
         std::swap(_active_blocks, _active_blocks_next_round);
         _active_blocks_next_round.assign(_active_blocks_next_round.size(), false);
         _participations.assign(_participations.size(), 0);
+        for (auto& v : _processed) {
+            v.assign(v.size(), false);
+        }
         // for (auto& active_pairs : _active_block_pairs) {
         //     active_pairs.clear();
         //     active_pairs.reserve(_k - 1);
@@ -103,12 +106,13 @@ public:
     }
 
     bool hasActiveBlocks() {
+        DBG << (_partitions_sorted_by_participations.size() > 0);
         return _partitions_sorted_by_participations.size() > 0;
     }
 
 
     void reportResults(const PartitionID block0, const PartitionID block1, const MoveSequence& sequence) {
-        if (sequence.moves.size() > 0) {
+        if (sequence.expected_improvement > 0) {
             // There was improvement
             _active_blocks_next_round[block0] = true;
             _active_blocks_next_round[block1] = true;
@@ -119,9 +123,6 @@ private:
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) {
         unused(hypergraph);
         _active_blocks_next_round.assign(_active_blocks_next_round.size(), true);
-        for (auto& v : _processed) {
-            v.assign(v.size(), false);
-        }
         resetForNewRound(qg);
         _round = 0;
     }
@@ -163,7 +164,7 @@ private:
     }
 
     void addBlockPair(const PartitionID i, const PartitionID j) {
-        DBG << V(i) << ", " << V(j);
+        //DBG << V(i) << ", " << V(j);
         assert(i < _k);
         assert(j < _k);
         _processed[i][j] = true;
@@ -196,7 +197,7 @@ private:
     }
 
     bool isEligible(const PartitionID i, const PartitionID j, const DeterministicQuotientGraph<TypeTraits>& qg) {
-        //DBG << "isEligible: " << V(i) << ", " << V(j);
+        DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
         //const HyperedgeWeight improvement = qg.getImprovement(i, j);

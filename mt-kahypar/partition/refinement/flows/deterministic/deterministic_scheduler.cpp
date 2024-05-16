@@ -15,13 +15,13 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     HyperedgeWeight overall_delta = 0;
     HyperedgeWeight minImprovement = 0;
     std::atomic<HyperedgeWeight> round_delta(std::numeric_limits<HyperedgeWeight>::max());
-    DBG << "NEW LEVEL";
+    DBG << "";
+    DBG << "------------------------------------------------------NEW LEVEL-----------------------------------------------------------------------";
+    minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
     while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
-        DBG << V(round_delta) << ", " << V(minImprovement) << ", " << V(_schedule.hasActiveBlocks());
+        DBG << V(round_delta) << ", " << V(minImprovement) << ", ";
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         round_delta = 0;
-        minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
-        _new_cut_hes.clear();
         while (_scheduled_blocks.size() > 0) {
             vec<MoveSequence> sequences(_scheduled_blocks.size());
             tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
@@ -40,6 +40,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
             });
             addCutHyperedgesToQuotientGraph(phg);
+            _new_cut_hes.clear();
             //tbb::parallel_for(0UL, sequences.size(), [&](const size_t i) {
             // for (size_t i = 0; i < sequences.size(); ++i) {
             //     //    for (size_t i = sequences.size() - 1; i < sequences.size(); --i) {
