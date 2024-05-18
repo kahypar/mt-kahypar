@@ -66,7 +66,10 @@ namespace mt_kahypar{
     virtual std::vector<HypernodeID> updateRequired() = 0;
 
     virtual void update(HypernodeID hn, PriorityType value) = 0;
+
     virtual void invalidate(HypernodeID hn) = 0;
+
+    virtual PriorityType get_entry(HypernodeID hn) = 0;
   };
 
   template <typename PriorityType> struct SimplePQ : NodePQ<PriorityType>{
@@ -104,6 +107,10 @@ namespace mt_kahypar{
     }
 
     void update(HypernodeID hn, PriorityType value){}
+
+    PriorityType get_entry(HypernodeID hn){
+      return queue.items[hn];
+    }
   };
 
   template <typename PartitionedHypergraph, typename PriorityType> struct pd_PQ : NodePQ<PriorityType>{
@@ -232,6 +239,11 @@ namespace mt_kahypar{
       }
     }
 
+    PriorityType get_entry(HypernodeID hn){
+      PQID idx = get_pq_id(hn);
+      return queue[idx].items[id_to_index[hn]];
+    }
+
   };
 
   template<typename GraphAndGainTypes, typename PriorityType> struct PriorityComputer{
@@ -289,24 +301,32 @@ namespace mt_kahypar{
 
     void performMove(Move move){
       moved[move.node] = round;
+      registerMove(move);
+    }
+    void registerMove(Move move){
       if(updateNodeAfterOwnMove(move)){
         insert_into_boundary(move.node);
       }
       for(HyperedgeID he : phg->incidentEdges(move.node)){
         HypernodeID h = phg->edgeTarget(he);
         updateNodeAfterOtherMove(h, he, move);
-        adjustNode(h);
+        if(moved[h] != round){
+          adjustNode(h);
+        }        
       }
     }
     private: 
       void adjustNode(HypernodeID hn){
         std::pair<bool,PriorityType> prio = computePriority(hn);
-        if(prio.first){
-          if(moved[hn] < round){
+        if(moved[hn] < round){
+          if(prio.first){
             pq->changeKey(hn, prio.second);
-          }          
-          insert_into_boundary(hn);
-        }
+            insert_into_boundary(hn);
+          }
+          else{
+            pq->invalidate(hn);
+          }
+        }          
       }
       virtual void initializationImpl() = 0;
       virtual std::pair<bool,PriorityType> computePriority(HypernodeID hn) = 0;
@@ -324,7 +344,7 @@ namespace mt_kahypar{
     }
 
     std::pair<bool,Gain> computePriority(HypernodeID hn){
-      Gain gain = 0;
+      Gain gain = -1;
       for(PartitionID p = 0; p < this->phg->k(); p++){
         if(p != this->phg->partID(hn) && this->gain_cache->gain(hn, this->phg->partID(hn), p) > gain){
           gain = this->gain_cache->gain(hn, this->phg->partID(hn), p);
@@ -1431,10 +1451,10 @@ namespace mt_kahypar{
         for(size_t i = 0; i < changed_nodes.size(); i++){
           if(!moved[changed_nodes[i]]){
             std::pair<PartitionID, Move_Internal> best_move = get_max_move(changed_nodes[i]);
-            if(/*(counter % UPDATE_FREQUENCY == 0) && */!is_positive_move(best_move.second)){
+            if(false/*(counter % UPDATE_FREQUENCY == 0) && !is_positive_move(best_move.second)*/){
               queue->invalidate(changed_nodes[i]);
             }
-            else if(true/*(counter % UPDATE_FREQUENCY == 0) || queue.items[changed_nodes[i]] > best_move.second.gain_and_balance*/){
+            else if(/*(counter % UPDATE_FREQUENCY == 0) || */queue->get_entry(changed_nodes[i]) > best_move.second.gain_and_balance){
               queue->changeKey(changed_nodes[i], best_move.second.gain_and_balance);
             }
           }          
@@ -1724,7 +1744,7 @@ namespace mt_kahypar{
       std::cout << "setup\n";
       vec<vec<Move>> moves_by_part;
       prio_computer->initialize();
-      Gain quality = metrics::quality(*phg, *_context);
+      Gain quality = 0/*metrics::quality(*phg, *_context)*/;
       int refiner_rounds = 10;
       Gain local_attributed_gain = 0;
       std::cout << "first lp: " << quality << "\n";
@@ -1734,7 +1754,7 @@ namespace mt_kahypar{
         vec<Move> moves_linear;
         greedyRefiner(&moves_by_part, &moves_linear, best_metrics, all_nodes, local_attributed_gain);
         for(Move m : moves_linear){
-          prio_computer->performMove(m);
+          prio_computer->registerMove(m);
         }
         std::cout << "after greedy: " << quality + local_attributed_gain << "\n";
         prio_computer->reinitialize();
@@ -1742,7 +1762,6 @@ namespace mt_kahypar{
         std::cout << "after lp: " << quality + local_attributed_gain << "\n";
       }
       vec<Move> refine_moves;
-      quality = quality + local_attributed_gain;
       local_attributed_gain = 0;
       prio_computer->reinitialize();
       simple_lp(&moves_by_part, &refine_moves, best_metrics, all_nodes, _context->partition.allowed_imbalance_refine, false, local_attributed_gain, refiner_rounds);
@@ -1750,7 +1769,7 @@ namespace mt_kahypar{
       if(!metrics::isBalanced(*phg, *_context)){
         greedyRefiner(&moves_by_part, &refine_moves, best_metrics, all_nodes, local_attributed_gain);
         for(size_t i = idx; i < refine_moves.size(); i++){
-          prio_computer->performMove(refine_moves[i]);
+          prio_computer->registerMove(refine_moves[i]);
         }
         prio_computer->reinitialize();
         simple_lp(&moves_by_part, &refine_moves, best_metrics, all_nodes, 0.0, false, local_attributed_gain, refiner_rounds);        
@@ -1813,6 +1832,17 @@ namespace mt_kahypar{
         return balance2 < balance1;
       };
 
+      auto totalBalanceMetis = [&](){
+        std::vector<double> imbalances;
+        for(PartitionID p = 0; p < phg->k(); p++){
+          for(int d = 0; d < dimension; d++){
+            imbalances.push_back((phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * _context->partition.max_part_weights_inv[p][d]);
+          }
+        }
+        std::sort(imbalances.begin(), imbalances.end());
+        return imbalances;
+      };
+
       auto kahypar_betterToMove = [&](HypernodeID h, PartitionID p){
         return L1_balance_gain(h, p) < 0.0;
       };
@@ -1825,14 +1855,18 @@ namespace mt_kahypar{
           (L1_balance_gain(hn, p1) < L1_balance_gain(hn, p2));
       };
       
-      NodePQ<PriorityType>* pq = prio_computer->get_pq();      
+      NodePQ<PriorityType>* pq = prio_computer->get_pq();
+      std::vector<double> imbalance = totalBalanceMetis();      
       for(int i = 0; i < num_rounds; i++){
         if(i != 0){
           prio_computer->reinitialize();
         }
         if(pq->isEmpty()) break;
         HypernodeID num_moves = 0;
+        HypernodeID num_loops = 0;
+        Gain gain = 0;
         while(!pq->isEmpty()){
+          num_loops++;
           std::pair<HypernodeID,Gain> max_node = pq->deleteMax();
           HypernodeID hn = max_node.first;
           std::pair<PartitionID,Gain> max_move = {-1, 0};
@@ -1847,9 +1881,9 @@ namespace mt_kahypar{
           }
           if(max_move.first != -1){
             Move move = {phg->partID(hn), max_move.first, hn, _gain_cache->gain(hn, phg->partID(hn), max_move.first)};
+            gain += move.gain;
             num_moves++;
             std::vector<HyperedgeID> edges_with_gain_change;
-            std::vector<HypernodeID> changed_nodes;
             phg->changeNodePart(*_gain_cache, move.node, move.from, move.to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
                             local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
                             (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
@@ -1864,9 +1898,23 @@ namespace mt_kahypar{
             prio_computer->performMove(move);                 
           }        
         }
-        if(num_moves==0) break;    
+        if(num_moves==0) break;
+        std::vector<double> tmp_balance = totalBalanceMetis();
+        if(gain > 0){
+          imbalance = tmp_balance;
+          continue;
+        }
+        for(PartitionID p = 1; p <= phg->k(); p++){
+          if(tmp_balance[phg->k() - p] < imbalance[phg->k() - p]){
+            imbalance = tmp_balance;
+            continue;
+          }
+          if(tmp_balance[phg->k() - p] > imbalance[phg->k() - p]){
+            break;
+          }
+        }
+        break;    
       }
-      std::cout << "endlp\n";
     }
 
     bool greedyRefiner(vec<vec<Move>>* moves_by_part,vec<Move>* moves_linear,
@@ -2006,7 +2054,9 @@ namespace mt_kahypar{
             }
           }
           if(counter % UPDATE_FREQUENCY == 0/*queuesEmpty()*/){
-            
+            /*for(HypernodeID hn : phg->nodes()){
+              changed_nodes.push_back(hn);
+            }*/
             for(int i = 0; i < dimension; i++){          
               HypernodeID min_affected_node = nodes_sorted[i].size() - 1;
               for(PartitionID p = 0; p < phg->k(); p++){
@@ -2031,7 +2081,7 @@ namespace mt_kahypar{
             for(PartitionID p = 0; p < phg->k(); p++){
               highest_part_weights[p] = phg->partWeight(p);
               lowest_part_weights[p] = phg->partWeight(p);
-            }       
+            }    
           }
           for(size_t i = 0; i < changed_nodes.size(); i++){
             if(!moved[changed_nodes[i]]){
@@ -2039,7 +2089,7 @@ namespace mt_kahypar{
               if(/*(counter % UPDATE_FREQUENCY == 0) && */!is_positive_move(best_move.second)){
                 queue->invalidate(changed_nodes[i]);
               }
-              else if(true/*(counter % UPDATE_FREQUENCY == 0) || queue.items[changed_nodes[i]] > best_move.second.gain_and_balance*/){
+              else if(/*(counter % UPDATE_FREQUENCY == 0) ||*/ queue->get_entry(changed_nodes[i]) > best_move.second.gain_and_balance){
                 queue->changeKey(changed_nodes[i], best_move.second.gain_and_balance);
               }
             }          
