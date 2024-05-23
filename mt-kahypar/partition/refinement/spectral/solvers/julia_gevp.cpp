@@ -28,7 +28,10 @@
 
 #include "mt-kahypar/partition/refinement/spectral/datatypes.h"
 
+#include <filesystem>
+
 #include <julia.h>
+JULIA_DEFINE_FAST_TLS
 // #include <jluna.hpp>
 
 
@@ -43,7 +46,9 @@ void JuliaGEVPSolver::setProblem(Operator& a, Operator& b) {
   if (!julia_initialized) {
     jl_init();
     /* TODO path */
-    jl_eval_string("cd(\"/home/julian/Dokumente/Studium/BA/mt-kahypar/mt-kahypar/partition/refinement/spectral/solvers/julia/\");include(\"lobpcg.jl\")");
+    std::filesystem::path file_path = __FILE__;
+    file_path = file_path.parent_path() / "julia";
+    jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"lobpcg.jl\")").c_str());
 
     julia_initialized = true;
   }
