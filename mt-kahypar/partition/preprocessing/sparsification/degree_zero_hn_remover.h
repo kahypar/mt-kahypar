@@ -52,12 +52,12 @@ class DegreeZeroHypernodeRemover {
   DegreeZeroHypernodeRemover & operator= (DegreeZeroHypernodeRemover &&) = delete;
 
   // ! Remove all degree zero vertices
-  HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+  HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph, bool force) {
     const HypernodeID current_num_nodes =
       hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     for ( const HypernodeID& hn : hypergraph.nodes()  ) {
-      if ( current_num_nodes - num_removed_degree_zero_hypernodes <= _context.coarsening.contraction_limit) {
+      if ( !force && current_num_nodes - num_removed_degree_zero_hypernodes <= _context.coarsening.contraction_limit) {
         break;
       }
       if ( hypergraph.nodeDegree(hn) == 0 && !hypergraph.isFixed(hn) ) {
@@ -67,6 +67,10 @@ class DegreeZeroHypernodeRemover {
       }
     }
     return num_removed_degree_zero_hypernodes;
+  }
+
+  HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+    return removeDegreeZeroHypernodes(hypergraph, false);
   }
 
   // ! Restore degree-zero vertices
