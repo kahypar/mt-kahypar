@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 
 #include <iostream>
 
@@ -78,14 +79,19 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   bool SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& phg, Metrics &best_metrics) {
+    Hypergraph& inputHypergraph  = phg.hypergraph();
+
+    auto dzhr = DegreeZeroHypernodeRemover<GraphAndGainTypes>(_context);
+    DBG << "removed single pins: " << dzhr.removeDegreeZeroHypernodes(inputHypergraph, true);
+    phg.setHypergraph(inputHypergraph);
+
     if constexpr (Hypergraph::is_graph) {
       /* TODO */
     }
 
-    Hypergraph& inputHypergraph  = phg.hypergraph();
     const PartitionID k = phg.k(); /* TODO extract from argv */
     
-    numNodes = inputHypergraph.initialNumNodes();
+    numNodes = inputHypergraph.initialNumNodes() - inputHypergraph.numRemovedHypernodes();
 
     vec<PartitionID> inputPartition;
     inputPartition.reserve(numNodes);
@@ -150,6 +156,8 @@ namespace mt_kahypar {
     } else {
       setPartition(phg, inputPartition);
     }
+
+    dzhr.restoreDegreeZeroHypernodes(phg);
 
     return found_valid_solution;
   }
@@ -270,6 +278,7 @@ namespace mt_kahypar {
 
     target.ctx_exporter[0] = [] (void *ctx, vec<size_t> &result) {
       Hypergraph *hg = (Hypergraph *) ctx;
+      size_t n = hg->initialNumNodes() - hg->numRemovedHypernodes();
 
       // format: n, m, node weights, edge weights, pin list indices, pin lists
 
@@ -279,7 +288,7 @@ namespace mt_kahypar {
         m /= 2;
       }
 
-      result.push_back(hg->initialNumNodes());
+      result.push_back(n);
       result.push_back(m);
 
       for (const HypernodeID n : hg->nodes()) {
