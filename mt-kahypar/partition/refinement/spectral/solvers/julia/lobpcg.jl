@@ -50,6 +50,34 @@ function hgr_laplacian(hg::__hypergraph__, x::AbstractArray)
     return [x[v] * factor[v] - subtrahend[v] for v in 1 : n]
 end
 
+# kspecpart variant
+function hgr_laplacian(hypergraph::__hypergraph__, x::AbstractArray, epsilon::Int)
+    eind = hypergraph.eind
+    eptr = hypergraph.eptr
+    n = length(x)
+    m = hypergraph.num_hyperedges
+    y = zeros(Float64, n)
+    w = hypergraph.hwts
+
+    for j in 1:m
+        first_valid_entry = eptr[j]
+        first_invalid_entry = eptr[j+1]
+        k = first_invalid_entry - first_valid_entry
+        scale = (floor(k/2) * ceil(k/2))/(k-1)
+        sm = 0.0
+        for t in first_valid_entry:first_invalid_entry-1
+            sm += x[eind[t]]
+        end
+        sm /= k
+        for t in first_valid_entry:first_invalid_entry-1
+            idx = eind[t]
+            #y[idx] += w[j] * (x[idx] - sm)/scale
+            y[idx] += w[j] * (x[idx] - sm)/(scale*epsilon)
+        end
+    end
+    return y
+end
+
 function weight_balance_laplacian(hg::__hypergraph__, x::AbstractArray)
     n = hg.num_vertices
     m = hg.num_hyperedges
@@ -60,6 +88,21 @@ function weight_balance_laplacian(hg::__hypergraph__, x::AbstractArray)
     total_weight = sum(hg.vwts)
 
     return [hg.vwts[v] * (total_weight * x[v] - w_dot_x) for v in 1 : n]
+end
+
+#kspecpart variant
+function weight_balance_laplacian(x::AbstractArray, 
+    vwts::Vector{Int}, 
+    multiplier::AbstractArray)
+twt = sum(vwts)
+n = size(x, 1)
+y = zeros(Float64, n)
+s = multiplier[1]/twt
+kvec = vwts'x
+@sync Threads.@threads for j in 1:n
+y[j] += twt * ((vwts[j] * x[j]) - ((kvec * vwts[j])/twt)) * s
+end
+return y
 end
 
 function hint_laplacian(hint::AbstractArray, x::AbstractArray)
@@ -89,6 +132,21 @@ function hint_laplacian(hint::AbstractArray, x::AbstractArray)
         y[i] = x[i] * (p0 ? n_1 : n_0) - (p0 ? x_1 : x_0)
     end
 
+    return y
+end
+
+function hint_laplacian_kspecpart(hint::AbstractArray, x::AbstractArray)
+    (p1, p2) = [map(((i, p),) -> i, Iterators.filter(((i, p),) -> p == pid, enumerate(hint))) for pid in 0 : 1]
+    n = length(x)
+    y = zeros(n)
+    d1 = ones(length(p1))
+    d2 = ones(length(p2))
+    t1 = Threads.@spawn (sum(d2) .* d1 .* x[p1] - d1 * (d2' * x[p2]))
+    t2 = Threads.@spawn (sum(d1) .* d2 .* x[p2] - d2 * (d1' * x[p1])) 
+    t1 = fetch(t1)
+    t2 = fetch(t2)
+    y[p1] = t1
+    y[p2] = t2
     return y
 end
 
@@ -173,13 +231,20 @@ function inform(graph_size::Integer, big_graphs::Bool, message::String)
 end
 
 function make_a_op(hgr)
-    return LinearMap(x -> hgr_laplacian(hgr, x) + config_lapOpShift * x,
+    return LinearMap((config_lapOpVariant == "paper" ?
+            x -> hgr_laplacian(hgr, x) + config_lapOpShift * x
+            : x -> hgr_laplacian(hgr, x, config_lapOpVariant)),
         hgr.num_vertices, issymmetric=true, isposdef=true)
 end
 
-function make_b_op(hgr, hint)
-    return LinearMap(x -> config_weightVsHint * weight_balance_laplacian(hgr, x)
-            + (1.0 - config_weightVsHint) *hint_laplacian(hint, x) + config_balanceShift * x,
+function make_b_op(hgr, hint, acc)
+    return LinearMap(x -> config_weightVsHint * 
+                (config_weightOpVariant == "paper" ? weight_balance_laplacian(hgr, x)
+                    : weight_balance_laplacian(x, hgr.vwts, acc))
+            + (1.0 - config_weightVsHint) *
+                (config_hintOpVariant == "paper" ? hint_laplacian(hint, x)
+                    : hint_laplacian_kspecpart(hint, x))
+            + config_balanceShift * x,
         hgr.num_vertices, issymmetric=true, isposdef=true)
 end
 
@@ -192,7 +257,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         n = hgr.num_vertices
         m = hgr.num_hyperedges
         is_graph = check_hypergraph_is_graph(hgr)
-        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vectors")
+        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vector(s)")
         
         hint_partition = convert(AbstractArray{Int64, 1}, hint)
         deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
@@ -200,7 +265,8 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         inform(n, true, "prepared hint and deflation space")
         
         amap = make_a_op(hgr)
-        bmap = make_b_op(hgr, hint_partition)
+        bacc = ones(size(hgr.vwts, 2))
+        bmap = make_b_op(hgr, hint_partition, bacc)
     
         inform(n, true, "building adjaciency matrix...")
         lap_matrix = spdiagm([])
