@@ -3,7 +3,6 @@ using LinearMaps
 using IterativeSolvers
 using SparseArrays
 using Random
-using GraphSignals
 
 include("hypergraph.jl")
 include("cmg/CombinatorialMultigrid.jl")
@@ -190,8 +189,6 @@ function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__,
     
     # degs = adj * ones(adj.n)
     
-    # degs = GraphSignals.degrees(adj)
-
     inform(adj.n, true, "degrees calculated")
 
     (is, js, vs) = findnz(adj)
