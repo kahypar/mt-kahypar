@@ -185,7 +185,7 @@ TEST_F(DeterminismTest, Coarsening) {
     uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
-    coarsener.coarsen();
+    coarsener.coarsen("");
     if (i == 0) {
       mt_kahypar_hypergraph_t first_hg = coarsener.coarsestHypergraph();
       first = utils::cast<Hypergraph>(first_hg).copy();
@@ -242,7 +242,7 @@ TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
   uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
   mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
   DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
-  coarsener.coarsen();
+  coarsener.coarsen("");
   hypergraph = utils::cast<Hypergraph>(coarsener.coarsestHypergraph()).copy();
   partitioned_hypergraph = PartitionedHypergraph(
           context.partition.k, hypergraph, parallel_tag_t());

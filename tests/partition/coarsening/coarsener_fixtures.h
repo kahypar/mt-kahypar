@@ -148,7 +148,7 @@ class ACoarsener : public Test {
 
   void doCoarsening() {
     coarsener->disableRandomization();
-    coarsener->coarsen();
+    coarsener->coarsen("");
   }
 
   void decreasesNumberOfPins(const size_t number_of_pins) {

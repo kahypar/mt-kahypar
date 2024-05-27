@@ -96,7 +96,7 @@ namespace {
         context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
         context, uncoarsening::to_pointer(uncoarseningData));
       
-      coarsener->coarsen();
+      coarsener->coarsen(context.partition.contraction_input_file);
 
       if (context.partition.verbose_output) {
         mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
@@ -114,7 +114,7 @@ namespace {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
     }
-    PartitionedHypergraph partitioned_hg;
+    /*PartitionedHypergraph partitioned_hg;
     int initial_num = hypergraph.initialNumEdges();
     partitioned_hg = PartitionedHypergraph(context.partition.k, hypergraph);
 
@@ -132,19 +132,43 @@ namespace {
       hn++;        
     }
     myfile.close();
-    partitioned_hg.initializePartition();
+    partitioned_hg.initializePartition();*/
 
     /*for(HypernodeID hn : partitioned_hg.nodes()){
       std::cout << partitioned_hg.partID(hn) << "\n";
     }*/
+    PartitionedHypergraph& partitioned_hg = uncoarseningData.coarsestPartitionedHypergraph();
+
+    std::ifstream myfile; 
+    std::cout << context.partition.contraction_input_file << "\n";
+    myfile.open(context.partition.contraction_input_file);
+    HypernodeID hn = 0;
+    while(myfile){
+      std::string nextline;
+      std::getline(myfile, nextline);
+      if(nextline.rfind("IP") != -1){
+        /*ASSERT(stoi(nextline) < partitioned_hg.k());*/
+        std::stringstream ss(nextline);  
+        std::string word;
+        ss >> word;
+        for(HypernodeID hn = 0; hn < partitioned_hg.initialNumNodes(); hn++){
+          ss >> word;
+          partitioned_hg.setOnlyNodePart(hn, stoi(word));
+        }
+        
+      }       
+    }
+    myfile.close();
+    partitioned_hg.initializePartition();
 
     std::cout << "Before Results: " << metrics::quality(partitioned_hg, context, false)<< " " << metrics::imbalance(partitioned_hg, context)[0] << " " <<  metrics::imbalance(partitioned_hg, context)[1] << "\n";
 
     io::printPartitioningResults(partitioned_hg, context, "Before Results:");
-    uncoarsener->doLastRefine(&partitioned_hg);
+    PartitionedHypergraph back = uncoarsener->uncoarsen();
+    /*partitioned_hg = uncoarsener->doLastRefine(&partitioned_hg);*/
 
-    io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
-    return partitioned_hg;
+    io::printPartitioningResults(back, context, "Local Search Results:");
+    return back;
     
 
     /*// ################## INITIAL PARTITIONING ##################

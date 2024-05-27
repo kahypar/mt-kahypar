@@ -66,6 +66,10 @@ struct PartitioningParameters {
   bool rebalancer_use_move_cache = false;
   bool rebalancer_update_all = false;
   bool rebalancer_approximate_worsened_move = false;
+  bool use_l1_factor_decrease = false;
+  bool use_fallback = false;
+  double l1_start_factor = 0.9999;
+  std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;

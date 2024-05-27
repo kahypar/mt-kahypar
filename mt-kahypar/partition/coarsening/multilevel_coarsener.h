@@ -139,7 +139,7 @@ class MultilevelCoarsener : public ICoarsener,
     return Base::currentNumNodes() > _context.coarsening.contraction_limit;
   }
 
-  bool coarseningPassImpl() override {
+  bool coarseningPassImpl(std::string input) override {
     HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
     Hypergraph& current_hg = Base::currentHypergraph();
     DBG << V(_pass_nr)
@@ -150,7 +150,13 @@ class MultilevelCoarsener : public ICoarsener,
     // Random shuffle vertices of current hypergraph
     _current_vertices.resize(current_hg.initialNumNodes());
     parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
-    tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
+    std::stringstream ss(input);  
+    std::string word;
+    for(HypernodeID hn = 0; hn < current_hg.initialNumNodes(); hn++){
+      ss >> word;
+      cluster_ids[hn] = stoi(word);
+    }
+    /*tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
       ASSERT(hn < _current_vertices.size());
       // Reset clustering
       _current_vertices[hn] = hn;
@@ -210,10 +216,10 @@ class MultilevelCoarsener : public ICoarsener,
       return false;
     }
     _progress_bar += (num_hns_before_pass - current_num_nodes);
-
+    */
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
-    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
+    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), true /* deterministic */, round_start);
     _timer.stop_timer("contraction");
 
     ++_pass_nr;

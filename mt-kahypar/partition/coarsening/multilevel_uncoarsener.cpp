@@ -66,15 +66,16 @@ namespace mt_kahypar {
     return _current_level < 0;
   }
 
+  
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
-    std::cout << "test\n\n";
-    if ( _current_level == _num_levels) {
+    if ( _current_level == _num_levels ) {
       // We always start with a refinement pass on the smallest hypergraph.
       // The next calls to this function will then project the partition to the next level
       // and perform refinement until we reach the input hypergraph.
-      IUncoarsener<TypeTraits>::refine();
+      /*IUncoarsener<TypeTraits>::refine();*/
+      rebalancingImpl();
       _progress.setObjective(_current_metrics.quality);
       _progress += partitioned_hg.initialNumNodes();
     } else {
@@ -94,9 +95,6 @@ namespace mt_kahypar {
       partitioned_hg.resetData();
       GainCachePtr::resetGainCache(_gain_cache);
 
-
-      /*readPartitionFile(partitioned_hg, _context.partition.partition_input_file);*/
-
       // Assign nodes of current level to their corresponding representative of the previous level
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[_current_level].mapToContractedHypergraph(hn);
@@ -104,48 +102,32 @@ namespace mt_kahypar {
         ASSERT(block != kInvalidPartition && block < partitioned_hg.k());
         partitioned_hg.setOnlyNodePart(hn, block);
       });
-      if(_current_level==0){
-        std::ifstream myfile; 
-        myfile.open(_context.partition.partition_input_file);
-        HypernodeID hn = 0;
-        while(myfile){
-          std::string nextline;
-          std::getline(myfile, nextline);
-          std::cout << nextline;
-          if(nextline != ""){
-            ASSERT(partitioned_hg.k() == 2);
-            ASSERT(stoi(nextline) < partitioned_hg.k());
-            partitioned_hg.setOnlyNodePart(hn, stoi(nextline));
-          }        
-        }
-        myfile.close();
-      }
       partitioned_hg.initializePartition();
       _timer.stop_timer("projecting_partition");
 
-      std::cout << "quality: " << metrics::quality(partitioned_hg, _context) << "\n\n\n";
-
+      /*_rebalancer->refine(phg, {}, _current_metrics, 0.0);*/
       // Improve partition
-      IUncoarsener<TypeTraits>::refine();
+      rebalancingImpl();
+      /*IUncoarsener<TypeTraits>::refine();*/
 
       // Update Progress Bar
       _progress.setObjective(_current_metrics.quality);
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
-      std::cout << "done\n";
     }
 
-    /*ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
-      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));*/
+    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
 
     --_current_level;
   }
+  
 
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::rebalancingImpl() {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
     std::cout << static_cast<int>(_context.type == ContextType::main);
-    if (_context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if (_context.type == ContextType::main/* && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)*/) {
       std::cout << "rebalancing\n\n\n";
       const HyperedgeWeight quality_before = _current_metrics.quality;
       if (_context.partition.verbose_output) {
@@ -165,6 +147,7 @@ namespace mt_kahypar {
         _timer.start_timer("rebalance", "Rebalance");
         mt_kahypar_partitioned_hypergraph_t phg =
           utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
+        _rebalancer->initialize(phg);
         _rebalancer->refine(phg, {}, _current_metrics, 0.0);
         _timer.stop_timer("rebalance");
 
@@ -220,12 +203,13 @@ namespace mt_kahypar {
     std::cout << "after\n";
   }
 
+
+
+
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::refineImpl() {
     PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
     const double time_limit = Base::refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
-    std::cout << "test\n";
-    
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
@@ -276,9 +260,9 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        /*ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
+        ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
           "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
-          "does not match the metric updated by the refiners" << V(_current_metrics.quality));*/
+          "does not match the metric updated by the refiners" << V(_current_metrics.quality));
       }
 
       const HyperedgeWeight metric_after = _current_metrics.quality;
@@ -294,6 +278,7 @@ namespace mt_kahypar {
       DBG << "--------------------------------------------------\n";
     }
   }
+
 
 
   template<typename TypeTraits>

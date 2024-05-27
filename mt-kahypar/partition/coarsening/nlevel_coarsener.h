@@ -179,7 +179,7 @@ class NLevelCoarsener : public ICoarsener,
     _cl_tracker.initialize(_initial_num_nodes);
   }
 
-  bool coarseningPassImpl() override {
+  bool coarseningPassImpl(std::string input) override {
     DBG << V(_pass_nr) << V(_cl_tracker.currentNumNodes());
     const HypernodeID num_hns_before_pass = _cl_tracker.currentNumNodes();
 

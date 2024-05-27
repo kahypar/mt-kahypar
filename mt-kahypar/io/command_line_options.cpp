@@ -86,6 +86,8 @@ namespace mt_kahypar {
              "Output folder for partition file")
              ("partition-input-file,pif",
              po::value<std::string>(&context.partition.partition_input_file)->value_name("<string>"), "")
+             ("contraction-input-file,cif",
+             po::value<std::string>(&context.partition.contraction_input_file)->value_name("<string>"), "")
             ("mode,m",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& mode) {
@@ -139,6 +141,15 @@ namespace mt_kahypar {
              ("allowed-refinement-imbalance",
              po::value<double>(&context.partition.allowed_imbalance_refine)->value_name("<double>")->default_value(0),
              "max imbalance of refinement in md_rebalancer")
+             ("l1-factor",
+             po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(0.9999),
+             "l1 factor")
+             ("use-fallback",
+             po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(false),
+             "use fallback instead of adapting max weights")
+             ("use-fallback",
+             po::value<bool>(&context.partition.use_l1_factor_decrease)->value_name("<bool>")->default_value(false),
+             "in deadlock case, adapt rebalancers max weights")
              ("refine-l1-tiebreak",
              po::value<bool>(&context.partition.refine_l1_tiebreak)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")

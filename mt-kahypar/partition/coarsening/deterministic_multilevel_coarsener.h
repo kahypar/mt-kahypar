@@ -101,7 +101,7 @@ private:
     }
   }
 
-  bool coarseningPassImpl() override;
+  bool coarseningPassImpl(std::string input) override;
 
   bool shouldNotTerminateImpl() const override {
     return Base::currentNumNodes() > _context.coarsening.contraction_limit;

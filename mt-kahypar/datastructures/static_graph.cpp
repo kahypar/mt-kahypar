@@ -116,7 +116,7 @@ namespace mt_kahypar::ds {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
       ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
       // Weight vector is atomic => thread-safe
-      node_weights[coarse_node] += nodeWeight(node);
+      node_weights[coarse_node].add_fetch(nodeWeight(node), std::memory_order_relaxed);
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });
