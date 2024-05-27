@@ -222,6 +222,10 @@ class DynamicGraph {
       return copy;
     }
 
+    IDType operator~ () {
+      return _max_id;
+    }
+
     bool operator!= (const HypergraphElementIterator& rhs) {
       return _id != rhs._id;
     }

@@ -328,6 +328,10 @@ class StaticHypergraph {
       return _id == rhs._id;
     }
 
+    IDType operator~ () {
+      return _max_id;
+    }
+
    private:
     // Handle to the HypergraphElement the iterator currently points to
     IDType _id = 0;

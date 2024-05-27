@@ -274,6 +274,10 @@ class StaticGraph {
       return _id == rhs._id;
     }
 
+    HypernodeID operator~ () {
+      return _max_id;
+    }
+
    private:
     // Handle to the node the iterator currently points to
     HypernodeID _id = 0;
