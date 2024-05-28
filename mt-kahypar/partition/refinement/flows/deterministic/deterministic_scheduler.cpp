@@ -56,9 +56,9 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
 
             DBG << "#################################################### NEXT MATCHING ######################################################";
             _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
-            overall_delta += round_delta;
-            current_metrics.quality -= round_delta;
         }
+        overall_delta += round_delta;
+        current_metrics.quality -= round_delta;
         DBG << "************************************************************ NEW ROUND *********************************************************";
         _schedule.resetForNewRound(_quotient_graph);
     }
