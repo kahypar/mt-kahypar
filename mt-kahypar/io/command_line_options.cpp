@@ -147,7 +147,7 @@ namespace mt_kahypar {
              ("use-fallback",
              po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(false),
              "use fallback instead of adapting max weights")
-             ("use-fallback",
+             ("use-l1-factor-decrease",
              po::value<bool>(&context.partition.use_l1_factor_decrease)->value_name("<bool>")->default_value(false),
              "in deadlock case, adapt rebalancers max weights")
              ("refine-l1-tiebreak",

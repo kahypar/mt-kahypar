@@ -75,7 +75,7 @@ namespace mt_kahypar{
   };
 
 
-template <typename GraphAndGainTypes> struct lazyPQComputer{
+  template <typename GraphAndGainTypes> struct lazyPQComputer{
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using GainCache = typename GraphAndGainTypes::GainCache;
     PartitionedHypergraph* phg;
@@ -83,16 +83,17 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
     const Context* _context;
     std::vector<std::vector<AddressablePQ<HypernodeID,double>>> queues;
     std::vector<std::vector<bool>> is_initialized;
-    std::vector<HypernodeID> *id_to_index;
-    std::vector<std::vector<HypernodeID>> *index_to_id;
+    std::vector<HypernodeID> id_to_index;
+    std::vector<std::vector<HypernodeID>> index_to_id;
     std::vector<std::pair<HypernodeID,HypernodeID>> id_ed;
-    std::vector<bool> *is_extracted;
+    std::vector<bool> is_extracted;
 
-    lazyPQComputer(PartitionedHypergraph *hg, GainCache *gc, Context *ct){
+    lazyPQComputer(PartitionedHypergraph *hg, GainCache *gc, const Context *ct){
       phg = hg;
       _gain_cache = gc;
       _context = ct;
       queues.resize(phg->k());
+      is_extracted.resize(phg->initialNumNodes(), false);
       is_initialized.resize(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
         queues[p].resize(dimension);
@@ -107,13 +108,19 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
           id_ed[hn].second += _gain_cache->benefitTerm(hn, p);
         }
       }
+      id_to_index.resize(phg->initialNumNodes());
+      index_to_id.resize(dimension * phg->k());
+      for(HypernodeID hn : phg->nodes()){
+        id_to_index[hn] = index_to_id[phg->partID(hn)].size();
+        index_to_id[phg->partID(hn)].push_back(hn);
+      }
     }
 
     AddressablePQ<HypernodeID,double> *get_pq(int k, int d){
       if(!is_initialized[k][d]){
-        queues[k][d].setSize((*index_to_id)[k].size());
-        for(HypernodeID h = 0; h < (*index_to_id)[k].size(); h++){
-          HypernodeID hn = (*index_to_id)[k][h];
+        queues[k][d].setSize(index_to_id[k].size());
+        for(HypernodeID h = 0; h < index_to_id[k].size(); h++){
+          HypernodeID hn = index_to_id[k][h];
           
           queues[k][d].changeKey({h, get_prio(hn, k, d)});
         }
@@ -132,17 +139,21 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
     }
 
     void extract(HypernodeID hn){
+      is_extracted[hn] = true;
       for(HyperedgeID he : phg->incidentEdges(hn)){
         HypernodeID et = phg->edgeTarget(he);
         if(phg->partID(et) == phg->partID(hn)){
-          id_ed[et].first--;
+          id_ed[et].first -= phg->edgeWeight(he);
         }
         else{
-          id_ed[et].second--;
+          id_ed[et].second -= phg->edgeWeight(he);
         }
         for(int d = 0; d < dimension; d++){
           if(is_initialized[phg->partID(et)][d]){
-            queues[phg->partID(et)][d].changeKey({id_to_index[et], get_prio(et, phg->partID(et), d)});
+            std::pair<HypernodeID,double> val;
+            val.first = id_to_index[et];
+            val.second = get_prio(et, phg->partID(et), d);
+            queues[phg->partID(et)][d].changeKey(val);
           }
         }
       }
@@ -150,9 +161,9 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
 
     HypernodeID deleteMax(PartitionID p, int dim){
       get_pq(p, dim);
-      HypernodeID max = (*index_to_id)[p][queues[p][dim].deleteMax().first];
-      while((*is_extracted)[max]){
-        max = (*index_to_id)[p][queues[p][dim].deleteMax().first];
+      HypernodeID max = index_to_id[p][queues[p][dim].deleteMax().first];
+      while(is_extracted[max]){
+        max = index_to_id[p][queues[p][dim].deleteMax().first];
       }
       extract(max);
       return max;
@@ -165,8 +176,9 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
 
     PartitionedHypergraph *phg;
     std::vector<HypernodeID> *nodes;
-    Context *_context;
+    const Context *_context;
     HypernodeID current_idx = 0;
+    HypernodeID last_success = 0;
     std::vector<bool> used;
     std::vector<bool> available;
     std::vector<std::vector<std::pair<HypernodeID, int32_t>>> ns_1d;
@@ -175,12 +187,13 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
 
     std::vector<PartitionID> partitioning;
 
-    Binpacker(std::vector<HypernodeID> *n, PartitionedHypergraph *hg, Context *c){
+    Binpacker(std::vector<HypernodeID> *n, PartitionedHypergraph *hg, const Context *c){
       phg = hg;
       nodes = n;
       available.resize(phg->initialNumNodes(), false);
       used.resize(phg->initialNumNodes(), false);
       partitioning.resize(phg->initialNumNodes(), -1);
+      ns_1d.resize(dimension);
       _context = c;
     }
 
@@ -214,13 +227,17 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
       update_sorted_list(&ns_total_weight, get_normalized_weight);
     }
 
-    void update_sorted_list(std::vector<auto> *nodes_sorted, auto get_priority){
+    template<typename T>
+    void update_sorted_list(std::vector<std::pair<HypernodeID,T>> *nodes_sorted, auto get_priority){
       HypernodeID num_nodes_before = nodes_sorted->size();
       for(HypernodeID idx = num_nodes_before; idx < nodes->size(); idx++){
           nodes_sorted->push_back({(*nodes)[idx], get_priority((*nodes)[idx])});
       }
-      std::sort(nodes_sorted->begin() + num_nodes_before, nodes_sorted->end());
-      std::vector<std::pair<HypernodeID, int32_t>> tmp_nodes(nodes_sorted->size());
+      std::sort(nodes_sorted->begin() + num_nodes_before, nodes_sorted->end(), [](std::pair<HypernodeID,T> a,
+       std::pair<HypernodeID,T> b){
+        return a.second > b.second;
+       });
+      std::vector<std::pair<HypernodeID, T>> tmp_nodes(nodes_sorted->size());
       HypernodeID idx_1 = 0;
       HypernodeID idx_2 = num_nodes_before;
       HypernodeID counter = 0;
@@ -247,13 +264,20 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
       }
       for(HypernodeID hn = 0; hn < nodes->size(); hn++){
         (*nodes_sorted)[hn] = tmp_nodes[hn];
+        if(hn < nodes->size() - 1){
+          ASSERT(tmp_nodes[hn].second >= tmp_nodes[hn + 1].second);
+        }
       }
     }
 
     std::vector<HypernodeID> next_nodes(std::vector<HypernodeID>& ns_1d_idx, HypernodeID& tw_idx, HypernodeID& hld_idx){
       std::vector<HypernodeID> res;
       for(int d = 0; d < ns_1d_idx.size(); d++){
+        //std::cout << "size: " << ns_1d[d].size() << "\n";
         HypernodeID idx = ns_1d_idx[d];
+        //std::cout << "idx:" << idx << "\n";
+        //std::cout << "a " << available[ns_1d[d][idx].first] << " " << used[ns_1d[d][idx].first] << "\n";
+        //std::cout << "node " << ns_1d[d][idx].first << "\n";
         while(idx < ns_1d[d].size() && (!available[ns_1d[d][idx].first] || used[ns_1d[d][idx].first])) idx++;
         ns_1d_idx[d] = idx;
         if(idx < ns_1d[d].size()) res.push_back(ns_1d[d][idx].first);
@@ -266,34 +290,56 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
     }
 
     bool binpack(HypernodeID new_num, std::vector<HypernodeWeight> virtual_weight, auto penalty){
+      ASSERT(nodes->size() >= new_num);
+      ASSERT(nodes->size() <= phg->initialNumNodes());
+      HypernodeID old_index = current_idx;
+      current_idx = new_num;
+      for(int p = 0; p < phg->k(); p++){
+        virtual_weight[p] = _context->partition.max_part_weights[p] - virtual_weight[p];
+      }
       for(HypernodeID idx = 0; idx < new_num; idx++){
         used[(*nodes)[idx]] = false;
       }
-      if(new_num > ns_total_weight.size()){
-        update_sorted_lists();
-        for(HypernodeID idx = new_num; idx < nodes->size(); idx++){
+      if(new_num > old_index){
+        for(HypernodeID idx = old_index; idx < new_num; idx++){
           available[(*nodes)[idx]] = true;
         }
       }
       else{
-        for(HypernodeID idx = new_num; idx < nodes->size(); idx++){
+        for(HypernodeID idx = new_num; idx < old_index; idx++){
           available[(*nodes)[idx]] = false;
         }
       }
+      for(int i = 0; i < new_num; i++){
+        ASSERT(available[(*nodes)[i]]);
+      }
+      for(int i = new_num; i < nodes->size(); i++){
+        ASSERT(!available[(*nodes)[i]]);
+      }
+      if(new_num > ns_total_weight.size()){
+        //std::cout << "higher " << ns_total_weight.size() << " " << new_num << " " << nodes->size() << "\n";
+        
+        update_sorted_lists();
+        for(int d = 0; d < dimension; d++){
+          ASSERT(ns_1d[d].size() == ns_total_weight.size());
+        }
+        ASSERT(ns_total_weight.size() == high_low_diff.size());
+        ASSERT(ns_total_weight.size() == nodes->size());
+      }
       HypernodeID nodesleft = new_num;
 
-      current_idx = new_num;
       std::vector<HypernodeID> ns_1d_idx(dimension, 0);
       HypernodeID tw_idx = 0;
       HypernodeID hld_idx = 0;
       std::vector<std::pair<HypernodeID,PartitionID>> tmp_partitioning;
       while(nodesleft > 0){
-        HypernodeID chosen_node;
+        HypernodeID chosen_node = 0;
         PartitionID chosen_p;
-
         std::vector<HypernodeID> next = next_nodes(ns_1d_idx, tw_idx, hld_idx);
-        double max_penn_diff = std::numeric_limits<double>::max();
+        double max_penn_diff = -1.0;
+        ASSERT(next.size() > 0);
         for(HypernodeID hn : next){
+          ASSERT(!used[hn] && available[hn]);
           double best_pen = std::numeric_limits<double>::max();
           double second_best_pen = std::numeric_limits<double>::max();
           PartitionID best_p = -1;
@@ -313,15 +359,35 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
             chosen_p = best_p;
           }
         }
-
         virtual_weight[chosen_p] -= phg->nodeWeight(chosen_node);
         tmp_partitioning.push_back({chosen_node, chosen_p});
         used[chosen_node] = true;        
         nodesleft--;
       }
+      ASSERT(tmp_partitioning.size() == new_num);
       for(auto pair : tmp_partitioning){
         partitioning[pair.first] = pair.second;
       }
+      for(PartitionID p = 0; p < phg->k(); p++){
+        std::cout << "weights:\n";
+        for(int d = 0; d < dimension; d++){
+          std::cout << virtual_weight[p].weights[d] << " ";
+        }
+        std::cout << "\n";
+      }
+      for(HypernodeID hn = 0; hn < new_num; hn++){
+        ASSERT(available[(*nodes)[hn]] && used[(*nodes)[hn]]);
+        ASSERT(partitioning[(*nodes)[hn]] != -1);
+      }
+
+      for(HypernodeID idx = new_num; idx < last_success; idx++){
+        partitioning[(*nodes)[idx]] = -1;
+      } 
+      last_success = new_num;  
+      for(HypernodeID hn = new_num; hn < nodes->size(); hn++){
+        ASSERT(partitioning[(*nodes)[hn]] == -1);
+      }   
+      return true;
     }
   };
 
@@ -1521,12 +1587,11 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
       int refiner_rounds = 10;
       Gain local_attributed_gain = 0;
       std::cout << "first lp: " << quality << "\n";
-      const double l1_factor = _context->partition.l1_factor;
       simple_lp(&moves_by_part, NULL, best_metrics, 0.0, false, local_attributed_gain, refiner_rounds);
       std::cout << "after first lp: " << quality + local_attributed_gain << "\n"; 
       if(!metrics::isBalanced(*phg, *_context)){
         vec<Move> moves_linear;
-        greedyRefiner(&moves_by_part, &moves_linear, best_metrics, local_attributed_gain, l1_factor);
+        rebalancing(&moves_by_part, &moves_linear, best_metrics, local_attributed_gain);
         for(Move m : moves_linear){
           prio_computer->registerMove(m);
         }
@@ -1544,22 +1609,7 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
         size_t first_refinement_num_moves = refine_moves.size();
         vec<Move> rebalance_moves; 
         if(!metrics::isBalanced(*phg, *_context)){          
-          greedyRefiner(&moves_by_part, &rebalance_moves, best_metrics, local_attributed_gain, l1_factor);
-          double factor = l1_factor;
-          while(!metrics::isBalanced(*phg, *_context) && factor >= 0.97){
-            std::array<double, mt_kahypar::dimension> tmp_ib = metrics::imbalance(*phg, *_context);
-            double imbalance = 0.0;
-            for(int d = 0; d < dimension; d++){
-              imbalance = std::max(imbalance, tmp_ib[d]);
-            }
-            factor -= imbalance;
-            for(size_t idx = 1; idx <= rebalance_moves.size(); idx++){
-              Move move = rebalance_moves[rebalance_moves.size() - idx];
-              phg->changeNodePart(*_gain_cache, move.node, move.to, move.from, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {});
-            }
-            rebalance_moves.resize(0);
-            greedyRefiner(&moves_by_part, &rebalance_moves, best_metrics, local_attributed_gain, factor);
-          }
+          rebalancing(&moves_by_part, &rebalance_moves, best_metrics, local_attributed_gain);          
           for(size_t i = 0; i < rebalance_moves.size(); i++){
             prio_computer->registerMove(rebalance_moves[i]);
           }
@@ -1601,19 +1651,34 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
             }
             factor -= imbalance;
             for(size_t idx = 1; idx <= rebalance_moves->size(); idx++){
-              Move move = rebalance_moves[rebalance_moves->size() - idx];
-              phg->changeNodePart(*_gain_cache, move.node, move.to, move.from, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {});
+              Move move = (*rebalance_moves)[rebalance_moves->size() - idx];
+              phg->changeNodePart(*_gain_cache, move.node, move.to, move.from, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update){
+                            local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
+                            (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
+                            
+                          });
             }
             rebalance_moves->resize(0);
-            greedyRefiner(&moves_by_part, &rebalance_moves, best_metrics, local_attributed_gain, factor);
+            greedyRefiner(moves_by_part, rebalance_moves, best_metrics, local_attributed_gain, factor);
           }
         }
         else if(_context->partition.use_fallback){
+          std::cout << "fallback\n";
           HypernodeID size = rebalance_moves->size();
-          fallback(rebalance_moves);
+          if(!fallback(rebalance_moves)) return;
           for(HypernodeID idx = size; idx < rebalance_moves->size(); idx++){
-            phg->changeNodePart(*_gain_cache, rebalance_moves[idx].node, rebalance_moves[idx].from, rebalance_moves[idx].to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {});
+            phg->changeNodePart(*_gain_cache, (*rebalance_moves)[idx].node, (*rebalance_moves)[idx].from, (*rebalance_moves)[idx].to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update){
+                            local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
+                            (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
+                            
+                          });
           }
+          for(PartitionID p = 0; p < phg->k(); p++){
+            if(!(phg->partWeight(p) <= _context->partition.max_part_weights[p])){
+              std::cout << "part: " << p << "\n";
+            }
+          }
+          ASSERT(metrics::isBalanced(*phg, *_context));
         }
       }
     }
@@ -1984,8 +2049,7 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
       return imbalanced == 0;
     }
 
-    void fallback(vec<Move> *fallback_moves){
-      
+    bool fallback(vec<Move> *fallback_moves){
       auto get_heaviest_dim = [&](HypernodeWeight nw){
         int dim = -1;
         double weight = -1.0;
@@ -2031,36 +2095,31 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
       Binpacker<GraphAndGainTypes> binpacker = Binpacker<GraphAndGainTypes>(&S, phg, _context);
       
       std::vector<std::vector<AddressablePQ<HypernodeID,double>>> queues(phg->k());
-      std::vector<std::vector<HypernodeID>> nodes_by_part;
-      nodes_by_part.resize(phg->k());
 
       for(PartitionID p = 0; p < phg->k(); p++){
         virtual_weight[p] = phg->partWeight(p);
       }
 
-      for(HypernodeID hn : phg->nodes()){
-        nodes_by_part[phg->partID(hn)].push_back(hn);
-      }
       double S_weight = 0.0;
       auto extract = [&](PartitionID p){
         int heaviest_dim = get_heaviest_dim(virtual_weight[p]);
         HypernodeID hn = PQComputer.deleteMax(p, heaviest_dim);
         virtual_weight[p] -= phg->nodeWeight(hn);
         S.push_back(hn);
-        S_weight += get_normalized_weight(hn);
+        S_weight += get_normalized_weight(phg->nodeWeight(hn));
       };
       for(PartitionID p = 0; p < phg->k(); p++){
         while(!(virtual_weight[p] <= _context->partition.max_part_weights[p])){
           extract(p);
         }
       }
-
-      
       double goal = S_weight;
-      const double threshold = 0.003;
+      const double threshold = 0.0003 / dimension;
 
       while(true){
+        //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         while(S_weight < goal){
+          //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           double max_pen = 0.0;
           double max_p = -1;
           for(PartitionID p = 0; p < phg->k(); p++){
@@ -2072,42 +2131,96 @@ template <typename GraphAndGainTypes> struct lazyPQComputer{
           }
           extract(max_p);
         }
-        if(binpacker.binpack(S.size(), virtual_weight, penalty)) break;
+        if(binpacker.binpack(S.size(), virtual_weight, penalty)){
+          std::cout << "success\n";
+          break;
+        }
+        else{
+          std::cout << "nosucc\n";
+        }
+        ASSERT([&]{
+          std::vector<HypernodeWeight> test;
+          for(int p = 0; p < phg->k(); p++){
+            test.push_back(virtual_weight[p]);
+          }
+          for(HypernodeID hn : S){
+            test[phg->partID(hn)] += phg->nodeWeight(hn);
+          }
+          for(PartitionID p = 0; p < phg->k(); p++){
+            if(test[p] != phg->partWeight(p)) return false;
+          }
+          return true;
+        }(), "bwugi");
         goal *= 2.0;
+        if(goal > dimension * phg->k()) return false;
+        std::cout << "goal: " << goal << " "; 
       }
       HypernodeID last_idx = S.size() - 1;
+      HypernodeID succ_idx = 0;
       double lower = goal / 2.0;
       double upper = goal;
       double current = (upper + lower) / 2.0;
       while(upper - lower > threshold){
+        std::cout << "current " << current << " ";
         while(S_weight > current){
-          S_weight -= get_normalized_weight(S[last_idx]);
+          S_weight -= get_normalized_weight(phg->nodeWeight(S[last_idx]));
+          virtual_weight[phg->partID(S[last_idx])] += phg->nodeWeight(S[last_idx]);
           last_idx--;
         }
         while(S_weight < current){
           last_idx++;
-          S_weight += get_normalized_weight(S[last_idx]);          
+          virtual_weight[phg->partID(S[last_idx])] -= phg->nodeWeight(S[last_idx]);
+          S_weight += get_normalized_weight(phg->nodeWeight(S[last_idx]));          
         }
         if(binpacker.binpack(last_idx + 1, virtual_weight, penalty)){
+          std::cout << "succ2 ";
+          succ_idx = last_idx + 1;
           upper = current;
         }
         else{
           lower = current;
         }
+        int c = 0;
+        for(HypernodeID hn : S){
+          if(binpacker.partitioning[hn] != -1){
+            c++;
+          }
+        } 
+        std::cout << "sizes " << c << " " << succ_idx << "\n";
+        ASSERT(c == succ_idx);
+        ASSERT([&]{
+          std::vector<HypernodeWeight> test;
+          for(int p = 0; p < phg->k(); p++){
+            test.push_back(virtual_weight[p]);
+          }
+          for(HypernodeID h = 0; h < last_idx + 1; h++){
+            HypernodeID hn = S[h];
+            test[phg->partID(hn)] += phg->nodeWeight(hn);
+          }
+          for(PartitionID p = 0; p < phg->k(); p++){
+            if(test[p] != phg->partWeight(p)) return false;
+          }
+          return true;
+        }(), "bwugi");
         current = (upper + lower) / 2.0;
       }
+      int counter = 0;
       for(HypernodeID hn : S){
         if(binpacker.partitioning[hn] != -1){
+          counter++;
+        }
+        if(binpacker.partitioning[hn] != -1 && binpacker.partitioning[hn] != phg->partID(hn)){
           Move move = {phg->partID(hn), binpacker.partitioning[hn], hn, 0};
+          //std::cout << "move: " << move.node << " " << move.from << " " << move.to << "\n";
           fallback_moves->push_back(move);
         }
       }
+      std::cout << "sizes " << counter << " " << succ_idx << "\n";
+      ASSERT(counter == succ_idx);
+      return true;
     }
   };
 
-
-
-  
 
   template <typename GraphAndGainTypes>
   bool MDRebalancer<GraphAndGainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
