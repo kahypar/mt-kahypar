@@ -130,12 +130,21 @@ namespace mt_kahypar{
     }
 
     double get_prio(HypernodeID hn, int k, int d){
-      double gain = id_ed[hn].first - (id_ed[hn].first + id_ed[hn].second) / phg->k();
+      double gain = id_ed[hn].first - (id_ed[hn].second) / (phg->k() - 1);
+      ASSERT(gain >= 0);
       double weight = phg->nodeWeight(hn).weights[d] * _context->partition.max_part_weights_inv[k][d];
+      double other_weight = 0.0;
+      for(int d1 = 0; d1 < dimension; d1++){
+        if(d1 == d) continue;
+        other_weight += phg->nodeWeight(hn).weights[d1] * _context->partition.max_part_weights_inv[k][d1];
+      }
+      other_weight /= phg->k() - 1;
       if(weight <= 0.0){
         return std::numeric_limits<double>::max();
       }
-      return gain >= 0.0 ? gain / weight : gain * weight;
+      weight = weight - other_weight;
+      return weight >= 0 ? -weight / gain : -weight * gain;
+      //return gain >= 0.0 ? gain / weight : gain * weight;
     }
 
     void extract(HypernodeID hn){
@@ -161,13 +170,16 @@ namespace mt_kahypar{
 
     HypernodeID deleteMax(PartitionID p, int dim){
       get_pq(p, dim);
-      HypernodeID max = index_to_id[p][queues[p][dim].deleteMax().first];
+      std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
+      std::cout << "new gain: " << max_pair.second << "\n";
+      HypernodeID max = index_to_id[p][max_pair.first];
       while(is_extracted[max]){
         max = index_to_id[p][queues[p][dim].deleteMax().first];
       }
       extract(max);
       return max;
-    }    
+    }
+ 
   };
 
 
@@ -290,6 +302,7 @@ namespace mt_kahypar{
     }
 
     bool binpack(HypernodeID new_num, std::vector<HypernodeWeight> virtual_weight, auto penalty){
+      ASSERT(new_num > 0);
       ASSERT(nodes->size() >= new_num);
       ASSERT(nodes->size() <= phg->initialNumNodes());
       HypernodeID old_index = current_idx;
@@ -1644,6 +1657,7 @@ namespace mt_kahypar{
         if(_context->partition.use_l1_factor_decrease){
           double factor = _context->partition.l1_start_factor;
           while(!metrics::isBalanced(*phg, *_context) && factor >= 0.97){
+            std::cout << "factor: " << factor << "\n";
             std::array<double, mt_kahypar::dimension> tmp_ib = metrics::imbalance(*phg, *_context);
             double imbalance = 0.0;
             for(int d = 0; d < dimension; d++){
@@ -2099,9 +2113,27 @@ namespace mt_kahypar{
       for(PartitionID p = 0; p < phg->k(); p++){
         virtual_weight[p] = phg->partWeight(p);
       }
+      std::cout << "imbalances:\n";
+      for(PartitionID p = 0; p < phg->k(); p++){
+        for(int d = 0; d < dimension; d++){
+          std::cout << phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d] << " ";
+        }
+        std::cout << "\n";
+      }
+
+      auto print_parts = [&](){
+        for(PartitionID p = 0; p < phg->k(); p++){
+          for(int d = 0; d < dimension; d++){
+            std::cout << virtual_weight[p].weights[d] * _context->partition.max_part_weights_inv[p][d] << " ";
+          }
+          std::cout << " | ";
+        }
+        std::cout << " ||| ";
+      };
 
       double S_weight = 0.0;
       auto extract = [&](PartitionID p){
+        print_parts();
         int heaviest_dim = get_heaviest_dim(virtual_weight[p]);
         HypernodeID hn = PQComputer.deleteMax(p, heaviest_dim);
         virtual_weight[p] -= phg->nodeWeight(hn);
@@ -2114,7 +2146,10 @@ namespace mt_kahypar{
         }
       }
       double goal = S_weight;
+      double starting_goal = goal;
       const double threshold = 0.0003 / dimension;
+
+      HypernodeID starting_index = S.size();
 
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
@@ -2153,11 +2188,11 @@ namespace mt_kahypar{
         }(), "bwugi");
         goal *= 2.0;
         if(goal > dimension * phg->k()) return false;
-        std::cout << "goal: " << goal << " "; 
+        std::cout << "goal: " << goal << " ";
       }
       HypernodeID last_idx = S.size() - 1;
-      HypernodeID succ_idx = 0;
-      double lower = goal / 2.0;
+      HypernodeID succ_idx = S.size();
+      double lower = std::max(goal / 2.0, starting_goal);
       double upper = goal;
       double current = (upper + lower) / 2.0;
       while(upper - lower > threshold){
@@ -2172,6 +2207,7 @@ namespace mt_kahypar{
           virtual_weight[phg->partID(S[last_idx])] -= phg->nodeWeight(S[last_idx]);
           S_weight += get_normalized_weight(phg->nodeWeight(S[last_idx]));          
         }
+        ASSERT(last_idx + 1 >= starting_index);
         if(binpacker.binpack(last_idx + 1, virtual_weight, penalty)){
           std::cout << "succ2 ";
           succ_idx = last_idx + 1;
@@ -2205,7 +2241,12 @@ namespace mt_kahypar{
         current = (upper + lower) / 2.0;
       }
       int counter = 0;
+      std::cout << "S: ";
       for(HypernodeID hn : S){
+        for(int d = 0; d < dimension; d++){
+          std::cout << phg->nodeWeight(hn).weights[d] << " ";
+        }
+        std::cout << "| ";
         if(binpacker.partitioning[hn] != -1){
           counter++;
         }
