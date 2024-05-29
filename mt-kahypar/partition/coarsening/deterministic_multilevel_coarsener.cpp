@@ -829,7 +829,8 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::performMatching(vec<Hyperno
   }
   size_t contracted_nodes = 0;
   std::fill(matched_nodes.begin(), matched_nodes.end(), false);
-  for (const HyperedgeID he : hg.edges()) {
+  for (const RatedEdge& rated : edge_ratings) {
+    const HypernodeID he = rated.he;
     bool alreadyMatched = false;
     HypernodeWeight combinedWeight = 0;
     HypernodeID target = kInvalidHypernode;
