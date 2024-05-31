@@ -79,19 +79,18 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   bool SpectralRefiner<GraphAndGainTypes>::partition(PartitionedHypergraph& phg, Metrics &best_metrics) {
-    Hypergraph& inputHypergraph  = phg.hypergraph();
-
+    // remove single pins
     auto dzhr = DegreeZeroHypernodeRemover<GraphAndGainTypes>(_context);
-    DBG << "removed single pins: " << dzhr.removeDegreeZeroHypernodes(inputHypergraph, true);
-    phg.setHypergraph(inputHypergraph);
+    size_t numRemovedSinglePins = dzhr.removeDegreeZeroHypernodes(phg.hypergraph(), true);
+    DBG << "removed single pins: " << numRemovedSinglePins;
 
     if constexpr (Hypergraph::is_graph) {
       /* TODO */
     }
 
-    const PartitionID k = phg.k(); /* TODO extract from argv */
-    
-    numNodes = inputHypergraph.initialNumNodes() - inputHypergraph.numRemovedHypernodes();
+    const PartitionID k = phg.k(); /* TODO extract from argv? */    
+    numNodes = 0;
+    for (auto np = phg.nodes().begin(); *np < ~np; *(++np) & ++numNodes) {}
 
     vec<PartitionID> inputPartition;
     inputPartition.reserve(numNodes);
@@ -101,13 +100,13 @@ namespace mt_kahypar {
 
     // dehyperisation
     Operator inputGraphLaplacian(numNodes);
-    dehyperizeToLaplacian(inputHypergraph, inputGraphLaplacian);
+    dehyperizeToLaplacian(phg.hypergraph(), inputGraphLaplacian);
     // DBG << "---- Laplace";
     // inputGraphLaplacian.printMatrix([&](std::string s){DBG<<s;});
 
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
-    buildWeightBalanceGraphLaplacian(inputHypergraph, weightBalanceLaplacian);
+    buildWeightBalanceGraphLaplacian(phg.hypergraph(), weightBalanceLaplacian);
 
     // actual refinement
 
@@ -122,7 +121,7 @@ namespace mt_kahypar {
     for (int i = 0; i < params.numCandidates; i++) {
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
-        generate2WayVertexEmbedding(inputHypergraph, weightBalanceLaplacian, inputGraphLaplacian, candidateSolutions.back(), cut_sizes.back(), embedding);
+        generate2WayVertexEmbedding(phg.hypergraph(), weightBalanceLaplacian, inputGraphLaplacian, candidateSolutions.back(), cut_sizes.back(), embedding);
       } else {
         /* TODO */
       }
@@ -166,9 +165,8 @@ namespace mt_kahypar {
   template <typename Collection>
   void SpectralRefiner<GraphAndGainTypes>::setPartition(PartitionedHypergraph &phg, Collection &partition) {
     phg.resetPartition(); /* TODO change changed nodes only? */
-    for (size_t i = 0; i < numNodes; i++) {
-      HypernodeID node = i; /* TODO calculate index */
-      phg.setNodePart(node, partition[i]);
+    for (auto nptr = phg.nodes().begin(), i = 0UL; i < numNodes; *(++nptr) & ++i) {
+      phg.setNodePart(*nptr, partition[i]);
     }
   }
 
@@ -216,7 +214,7 @@ namespace mt_kahypar {
 
     target.calc_diagonal_ops[0] = [] (void *ctx, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) ctx;
-      for (auto nptr = hg->nodes().begin(), i = 0; *nptr <= ~nptr; *(++nptr) & ++i) {
+      for (auto nptr = hg->nodes().begin(), i = 0UL; i < target_vector.dimension(); *(++nptr) & ++i) {
         for (const HyperedgeID& edge : hg->incidentEdges(*nptr)) {
           target_vector.set(i, target_vector[i] + hg->edgeWeight(edge));
         }
@@ -225,11 +223,13 @@ namespace mt_kahypar {
 
     target.ctx_exporter[0] = [] (void *ctx, vec<size_t> &result) {
       Hypergraph *hg = (Hypergraph *) ctx;
-      size_t n = hg->initialNumNodes() - hg->numRemovedHypernodes();
 
       // format: n, m, node weights, edge weights, pin list indices, pin lists
 
+      size_t n = 0;
+      for (auto np = hg->nodes().begin(); *np < ~np; *(++np) & ++n) {}
       size_t m = hg->initialNumEdges();
+
       if (hg->is_graph) {
         // graph edges are stored directed
         m /= 2;
@@ -241,11 +241,16 @@ namespace mt_kahypar {
       for (const HypernodeID &n : hg->nodes()) {
         result.push_back(hg->nodeWeight(n));
       }
-      
+
       vec<size_t> pin_indices;
       vec<size_t> pin_lists;
       
       pin_indices.push_back(0);
+
+      spectral::Vector node_index_map(hg->initialNumNodes());
+      for (auto nptr = hg->nodes().begin(), i = 0UL; i < n; *(++nptr) & ++i) {
+        node_index_map.set(*nptr, i);
+      }
 
       for (const HyperedgeID &e : hg->edges()) {
         if (hg->is_graph) {
@@ -258,8 +263,8 @@ namespace mt_kahypar {
 
         result.push_back(hg->edgeWeight(e));
         pin_indices.push_back(pin_indices.back() + hg->edgeSize(e));
-        for (const HyperedgeID pin : hg->pins(e)) {
-          pin_lists.push_back(pin);
+        for (const HypernodeID &pin : hg->pins(e)) {
+          pin_lists.push_back(node_index_map[pin]);
         }
       }
       
@@ -282,17 +287,19 @@ namespace mt_kahypar {
         w_dot_x += ((spectral::Skalar) hg->nodeWeight(i)) * operand[i];
       }
       
-      for (auto nptr = hg->nodes().begin(), i = 0; *nptr <= ~nptr; *(++nptr) & ++i) {
-        target_vector.set(i, target_vector[i] + hg->nodeWeight(*nptr) * (((spectral::Skalar) hg->totalWeight()) * operand[i] - w_dot_x));
+      HypernodeWeight current_total_weight = hg->totalWeight() - hg->weightOfRemovedDegreeZeroVertices();
+      for (auto nptr = hg->nodes().begin(), i = 0UL; i < dimension; *(++nptr) & ++i) {
+        target_vector.set(i, target_vector[i] + hg->nodeWeight(*nptr) * (((spectral::Skalar) current_total_weight) * operand[i] - w_dot_x));
       }
     };
 
     target.calc_diagonal_ops[0] = [] (void *ctx, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) ctx;
 
-      for (auto nptr = hg->nodes().begin(), i = 0; *nptr <= ~nptr; *(++nptr) & ++i) {
+      HypernodeWeight current_total_weight = hg->totalWeight() - hg->weightOfRemovedDegreeZeroVertices();
+      for (auto nptr = hg->nodes().begin(), i = 0UL; i < target_vector.dimension(); *(++nptr) & ++i) {
         spectral::Skalar weight = hg->nodeWeight(*nptr);
-        target_vector.set(i, target_vector[i] + weight * (hg->totalWeight() - weight));
+        target_vector.set(i, target_vector[i] + weight * (current_total_weight - weight));
       }
     };
   }
@@ -325,7 +332,7 @@ namespace mt_kahypar {
     }
     known_evecs.push_back(hint);
     known_evals.push_back(hint_quality);
-    /* spectral::Operator dummy(numNodes); TODO flag */
+    // spectral::Operator dummy(numNodes); TODO flag
     solver.setProblem(graphLaplacian, balanceOperator, known_evecs, known_evals, known_evals.size() - 1);
 
     spectral::Skalar a;
@@ -348,7 +355,7 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
     // definitions
-    spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * phg.totalWeight());
+    spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain.computeDeltaForHyperedge(sync_update);
     };    
@@ -368,6 +375,7 @@ namespace mt_kahypar {
     std::sort(indices.begin(), indices.end(), [&](const HypernodeID& u, const HypernodeID& v) { return fiedler[u] < fiedler[v]; });
 
     // initialize with all nodes belonging to partition 1
+    target.clear();
     target.resize(numNodes, 1);
     setPartition(phg, target);
 

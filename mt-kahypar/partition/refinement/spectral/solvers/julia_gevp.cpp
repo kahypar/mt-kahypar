@@ -45,7 +45,6 @@ bool JuliaGEVPSolver::julia_initialized = false;
 void JuliaGEVPSolver::setProblem(Operator& a, Operator& b) {
   if (!julia_initialized) {
     jl_init();
-    /* TODO path */
     std::filesystem::path file_path = __FILE__;
     file_path = file_path.parent_path() / "julia";
     jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"lobpcg.jl\")").c_str());
@@ -96,41 +95,26 @@ void JuliaGEVPSolver::solve() {
     deflation_evecs.insert(deflation_evecs.end(), evecs[i].get_all(), evecs[i].get_all() + n);
   }
 
-
   jl_value_t *node_array_type = jl_apply_array_type((jl_value_t *) jl_uint64_type, 1); /* TODO check sizeof HypernodeID */
   jl_value_t *double_array_type = jl_apply_array_type((jl_value_t *) jl_float64_type, 1); 
-
-  /* jl_array_t *node_weights = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2, n, 0);
-  jl_array_t *edge_weights = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2 + n, m, 0);
-  jl_array_t *pin_indices = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2 + n + m, m + 1, 0);
-  jl_array_t *pin_lists = jl_ptr_to_array_1d(node_array_type, hgr.data() + 2 + n + m + (m + 1), hgr.size() - (2 + n + m + (m + 1)), 0); */
   
   jl_array_t *hgr_jl = jl_ptr_to_array_1d(node_array_type, hgr.data(), hgr.size(), 0);
   jl_array_t *hint_jl = jl_ptr_to_array_1d(node_array_type, hint.data(), hint.size(), 0);
   jl_array_t *constraints_jl = jl_ptr_to_array_1d(double_array_type, deflation_evecs.data(), num_deflation_epairs * n, 0);
 
-  // jl_value_t *res = jl_eval_string("typeof(include('')) == Module ? sqrt(2.) : 0.");
-  // DBG << (jl_typeis(res, jl_float64_type) ? jl_unbox_float64(res) : -1.);
-  // jl_function_t *func = (jl_function_t *) jl_get_function(jl_main_module, "pwd");
-  // jl_value_t *res = (jl_value_t *) jl_call0(func);
-  // DBG << ((const char *) jl_string_ptr(res));
-  
-  // jl_function_t *print = (jl_function_t *) jl_eval_string("print");
-  // jl_call2(print, (jl_value_t *) hgr_jl, (jl_value_t *) hint_jl);
-
-  // jl_module_t *GEVP = (jl_module_t *) jl_eval_string("GEVP");
-  // jl_function_t *func = (jl_function_t *) jl_get_function(GEVP, "test_julia_from_c");//"solve_lobpcg");
-  // jl_function_t *test = (jl_function_t *) jl_eval_string("test_julia_from_c");
-  // jl_call0(test);
-  // jl_eval_string("using GraphSignals");
-
   jl_function_t *solve = (jl_function_t *) jl_eval_string("solve_lobpcg");
+
   DBG << "launching Julia code...";
+
   jl_array_t *evecs_jl = (jl_array_t *) jl_call3(solve, (jl_value_t *) hgr_jl, (jl_value_t *) hint_jl, (jl_value_t *) constraints_jl);
+
+  JL_GC_PUSH1(evecs_jl);
 
   Vector result(n);
   result.set_all((Skalar *) jl_array_data(evecs_jl));
   evecs.push_back(result);
+
+  JL_GC_POP();
 }
 
 JuliaGEVPSolver::~JuliaGEVPSolver() {
