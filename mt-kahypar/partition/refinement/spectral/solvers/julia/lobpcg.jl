@@ -154,10 +154,12 @@ function import_hypergraph(hgr_data::AbstractArray)
     n = data[1]
     m = data[2]
     pin_list_indices = data[(2 + n + m + 1) : (2 + n + m + (m + 1))]
+    pin_lists = data[(2 + n + m + (m + 1) + 1) : length(data)]
+
     return build_hypergraph(n,
         m,
         pin_list_indices .+ 1,
-        data[(2 + n + m + (m + 1) + 1) : length(data)] .+ 1,
+        pin_lists .+ 1,
         -ones(Int, n),
         data[(2 + 1) : (2 + n)],
         data[(2 + n + 1) : (2 + n + m)])
@@ -247,6 +249,7 @@ end
 
 # TODO: set number of evecs
 function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
+    inform("julia launched")
     inform(hgr_data[1], false, "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
 
     try
