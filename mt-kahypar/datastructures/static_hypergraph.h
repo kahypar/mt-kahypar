@@ -981,7 +981,7 @@ class StaticHypergraph {
   HypernodeID _num_hypernodes;
   // ! Number of removed hypernodes
   HypernodeID _num_removed_hypernodes;
-  // ! Number of removed degree zero hypernodes
+  // ! Weight of removed degree zero hypernodes
   HypernodeWeight _removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
