@@ -23,7 +23,7 @@ function build_hypergraph(num_vertices::Int,
         first_invalid_entry = eptr[i+1]
         for j in first_valid_entry:first_invalid_entry-1
             v = eind[j]
-            push!(vertices_lists[Threads.threadid()][v], i)
+            push!(vertices_lists[findfirst(x->x==Threads.threadid(), Threads.threadpooltids(Threads.threadpool()))][v], i)
         end
     end
     vertices_list = [Vector{Int}() for _ in 1:num_vertices]
