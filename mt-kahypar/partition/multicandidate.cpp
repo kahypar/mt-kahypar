@@ -302,13 +302,24 @@ void enableTimerAndStats(const Context& context) {
           } else {
             offset = 0;
           }
-          utils::Randomize::instance().parallelShuffleVector(partition_pool, offset, partition_pool.size());
-          bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < (temperature * 0.5);
-          for(size_t i = offset; i < partition_pool.size(); i += 2) {
-            if(isBetterThan(partition_pool[i], partition_pool[i + 1]) != temperature_eval) {
-              winners[i + 1] = false;
-            } else {
-              winners[i] = false;
+
+          if(config == 6) {
+            for(size_t i = offset; i < partition_pool.size(); i++) {
+              if(i > partition_pool.size() / 2) {
+                winners[i] = false;
+              }
+            }
+          } else if (config == 7) {
+            winners[0] = false;
+          } else {
+            utils::Randomize::instance().parallelShuffleVector(partition_pool, offset, partition_pool.size());
+            bool temperature_eval = utils::Randomize::instance().getRandomFloat(0.0, 1.0, THREAD_ID) < (temperature * 0.5);
+            for(size_t i = offset; i < partition_pool.size(); i += 2) {
+              if(isBetterThan(partition_pool[i], partition_pool[i + 1]) != temperature_eval) {
+                winners[i + 1] = false;
+              } else {
+                winners[i] = false;
+              }
             }
           }
           //erase the losers
