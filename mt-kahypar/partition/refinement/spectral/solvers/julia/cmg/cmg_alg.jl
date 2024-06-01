@@ -1,3 +1,10 @@
+function checktimeout(timer::Timer)
+    yield()
+    if !isopen(timer)
+        error("timeout")
+    end
+end
+
 ## define structures
 struct lPreconditioner{T}
     f::T
@@ -105,11 +112,11 @@ end
 
 ##
 
-function cmg_preconditioner_lap(A::SparseMatrixCSC)
-    cmg_!(A, A)
+function cmg_preconditioner_lap(A::SparseMatrixCSC; timeout = typemax(Core.Real))
+    cmg_!(A, A, Timer(timeout))
 end
 
-function cmg_!(A::T, A_::T) where {T<:SparseMatrixCSC}
+function cmg_!(A::T, A_::T, timer::Timer) where {T<:SparseMatrixCSC}
     A_o = A
     flag = Int64(0)
     sflag = Int64(0)
@@ -174,8 +181,10 @@ function cmg_!(A::T, A_::T) where {T<:SparseMatrixCSC}
         if nc == 1
             break
         end
-    end
 
+        checktimeout(timer)
+    end
+    
     # code for last hierarchy level
     if flag == 0
         j += 1
@@ -183,9 +192,13 @@ function cmg_!(A::T, A_::T) where {T<:SparseMatrixCSC}
         ldlt = ldl(B)
         push!(H, HierarchyLevel(true, true, false,B, Float64[], Int64[], 0, n, nnz(ldlt.L), ldlt))
     end
-
+    
+    checktimeout(timer)
+    
     X = init_LevelAux(H)
+    checktimeout(timer)
     W = init_Workspace(H)
+    checktimeout(timer)
     M = init_Hierarchy(H)
 
 

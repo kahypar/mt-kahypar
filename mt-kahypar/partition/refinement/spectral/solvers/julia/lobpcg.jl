@@ -256,6 +256,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         hgr = import_hypergraph(hgr_data)
         n = hgr.num_vertices
         m = hgr.num_hyperedges
+        inform(n, false, string(hgr))
         is_graph = check_hypergraph_is_graph(hgr)
         inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vector(s)")
         
@@ -283,7 +284,9 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
         inform(n, true, "preconditioning...")
         preconditioner = nothing
         try
-            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(spdiagm(ones(n) .* config_preCondShift) + lap_matrix)
+            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(
+                spdiagm(ones(n) .* config_preCondShift) + lap_matrix,
+                timeout = config_stepTimeout)
             preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
         catch e
             inform("didnt use preconditioner due to " * sprint(showerror, e))
