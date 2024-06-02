@@ -82,15 +82,19 @@ int JuliaGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec, bool try_from_abo
 void JuliaGEVPSolver::solve() {
   bool debug = true;
 
+  DBG << "exporting contexts...";
+
   vec<uint64_t> hgr; /* TODO type */
   op_a->exportContext(0, hgr);
   size_t n = hgr[0];
   size_t m = hgr[1];
 
+  DBG << "laplacian exported";
+
   vec<uint64_t> hint;
   op_b->exportContext(0, hint);
 
-  DBG << "contexts exported";
+  DBG << "hint exported";
 
   vec<double> deflation_evecs;
   for (size_t i = 0; i < num_deflation_epairs; i++) {
@@ -111,6 +115,8 @@ void JuliaGEVPSolver::solve() {
   DBG << "launching Julia code...";
 
   jl_array_t *evecs_jl = (jl_array_t *) jl_call3(solve, (jl_value_t *) hgr_jl, (jl_value_t *) hint_jl, (jl_value_t *) constraints_jl);
+
+  DBG << "returning result...";
 
   JL_GC_PUSH1(evecs_jl);
 

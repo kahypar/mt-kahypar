@@ -84,6 +84,8 @@ namespace mt_kahypar {
     size_t numRemovedSinglePins = dzhr.removeDegreeZeroHypernodes(phg.hypergraph(), true);
     DBG << "removed single pins: " << numRemovedSinglePins;
 
+    DBG << "setting up...";
+
     if constexpr (Hypergraph::is_graph) {
       /* TODO */
     }
@@ -125,6 +127,7 @@ namespace mt_kahypar {
     DBG << "solution vec prepared";
 
     for (int i = 0; i < params.numCandidates; i++) {
+      DBG << "generating embedding...";
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
         generate2WayVertexEmbedding(phg.hypergraph(), weightBalanceLaplacian, inputGraphLaplacian, candidateSolutions.back(), cut_sizes.back(), embedding);
@@ -132,13 +135,12 @@ namespace mt_kahypar {
         /* TODO */
       }
 
-      DBG << "embedding generated";
+      DBG << "computing solution...";
 
       vec<PartitionID> newSolution;
       generateSolution(phg, embedding, newSolution);
       candidateSolutions.push_back(newSolution);
 
-      DBG << "solution computed";
 
       // calulate metrics
       cut_sizes.push_back(metrics::quality(phg, _context, !_context.refinement.label_propagation.execute_sequential));
@@ -148,6 +150,8 @@ namespace mt_kahypar {
       }
       
     }
+
+    DBG << "finished partitioning";
 
     bool found_new_partition = best_cutsize == best_metrics.quality && inputPartition != candidateSolutions[best_index];
     bool found_valid_solution = best_cutsize <= best_metrics.quality;

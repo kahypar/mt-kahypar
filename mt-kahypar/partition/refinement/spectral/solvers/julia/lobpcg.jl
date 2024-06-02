@@ -238,19 +238,19 @@ end
 # TODO: set number of evecs
 function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
     inform("julia launched")
-    inform(hgr_data[1], false, "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
+    inform(hgr_data[1], false, () -> "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
 
     try
         hgr = import_hypergraph(hgr_data)
         n = hgr.num_vertices
         m = hgr.num_hyperedges
-        inform(n, false, string(hgr))
+        inform(n, false, () -> string(hgr))
         is_graph = check_hypergraph_is_graph(hgr)
         inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vector(s)")
         
         hint_partition = convert(AbstractArray{Int64, 1}, hint)
         deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
-        inform(n, false, "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
+        inform(n, false, () -> "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
         inform(n, true, "prepared hint and deflation space")
         
         amap = make_a_op(hgr)
@@ -267,7 +267,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
 
         inform(n, true, "building laplacian...")
         lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
-        inform(n, false, pretty_print(lap_matrix))
+        inform(n, false, () -> pretty_print(lap_matrix))
         
         inform(n, true, "preconditioning...")
         preconditioner = nothing
@@ -278,7 +278,7 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
         catch e
             inform("didnt use preconditioner due to " * sprint(showerror, e))
-            inform(sprint((io, v) -> show(io, "text/plain", v), stacktrace(catch_backtrace())))
+            @print_backtrace
         end
        
         inform("launching LOBPCG...")
@@ -293,12 +293,12 @@ function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_ev
             log = true)
         evecs = results.X
         inform("LOBPCG successful")
-        inform(n, false, "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
+        inform(n, false, () -> "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
 
         return convert(AbstractArray{Float64}, evecs)
     catch e
         inform("failed due to " * sprint(showerror, e))
-        inform(sprint((io, v) -> show(io, "text/plain", v), stacktrace(catch_backtrace())))
+        @print_backtrace
 
         return ones(Float64, hgr_data[1])
     end
