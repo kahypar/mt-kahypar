@@ -52,6 +52,7 @@ namespace mt_kahypar {
 
     // disable the gain cache for spectral partitioning
     _gain_cache.reset();
+    _gain.reset();
 
 
     // implementation goes here
