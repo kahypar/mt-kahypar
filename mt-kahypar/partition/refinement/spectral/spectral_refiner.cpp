@@ -122,6 +122,8 @@ namespace mt_kahypar {
     Gain best_cutsize;
     size_t best_index;
 
+    DBG << "solution vec prepared";
+
     for (int i = 0; i < params.numCandidates; i++) {
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
@@ -136,7 +138,7 @@ namespace mt_kahypar {
       generateSolution(phg, embedding, newSolution);
       candidateSolutions.push_back(newSolution);
 
-      DBG << "solution generated";
+      DBG << "solution computed";
 
       // calulate metrics
       cut_sizes.push_back(metrics::quality(phg, _context, !_context.refinement.label_propagation.execute_sequential));
@@ -342,6 +344,8 @@ namespace mt_kahypar {
     known_evals.push_back(hint_quality); */
     // spectral::Operator dummy(numNodes); TODO flag
     solver.setProblem(graphLaplacian, balanceOperator, known_evecs, known_evals, known_evals.size()/*  - 1 */);
+
+    DBG << "eigenproblem set";
 
     spectral::Skalar a;
     spectral::Vector v(numNodes);

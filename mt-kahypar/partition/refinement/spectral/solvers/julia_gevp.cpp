@@ -90,10 +90,14 @@ void JuliaGEVPSolver::solve() {
   vec<uint64_t> hint;
   op_b->exportContext(0, hint);
 
+  DBG << "contexts exported";
+
   vec<double> deflation_evecs;
   for (size_t i = 0; i < num_deflation_epairs; i++) {
     deflation_evecs.insert(deflation_evecs.end(), evecs[i].get_all(), evecs[i].get_all() + n);
   }
+
+  DBG << "deflation space prepared";
 
   jl_value_t *node_array_type = jl_apply_array_type((jl_value_t *) jl_uint64_type, 1); /* TODO check sizeof HypernodeID */
   jl_value_t *double_array_type = jl_apply_array_type((jl_value_t *) jl_float64_type, 1); 
