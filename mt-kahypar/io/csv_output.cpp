@@ -39,7 +39,7 @@ namespace mt_kahypar::io::csv {
 
 std::string header() {
   return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-    "objective,km1,cut,initial_km1,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
+    "objective,km1,cut,initial_km1,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime,managePartition,activeNodes,afterburner,applyMoves,rebalance,quality,copyMoves,sorting,findPrefix,exeMoves"
     "\n";
 }
 
@@ -82,18 +82,17 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("initial_partitioning") << sep;
   s << timer.get("preprocessing") << sep;
   // refinement
+  s << timer.get("manage_partition") << sep;
   s << timer.get("active_nodes") << sep;
   s << timer.get("afterburner") << sep;
   s << timer.get("apply_moves") << sep;
+  s << timer.get("reb_quality") << sep;
   // rebalancing
-  s << timer.get("top_level_rebalance") << sep;
   s << timer.get("rebalance") << sep;
-  s << timer.get("gain_computation") << sep;
-  s << timer.get("copy_moves") << sep;
-  s << timer.get("sorting") << sep;
-  s << timer.get("find_moves") << sep;
-  s << timer.get("exe_moves") << sep;
-  s << timer.get("reb_quality");
+  s << timer.get("reb_copy_moves") << sep;
+  s << timer.get("reb_sort") << sep;
+  s << timer.get("reb_find_prefix") << sep;
+  s << timer.get("reb_exe_moves");
   return s.str();
 }
 

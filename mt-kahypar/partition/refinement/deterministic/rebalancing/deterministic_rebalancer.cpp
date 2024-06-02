@@ -94,10 +94,17 @@ void DeterministicRebalancer< GraphAndGainTypes>::initializeDataStructures(const
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::updateImbalance(const PartitionedHypergraph& phg) {
   _num_imbalanced_parts = 0;
+  _most_imbalanced_part = 0;
+  _max_imbalance = 0;
   _num_valid_targets = 0;
   for (PartitionID part = 0; part < _context.partition.k; ++part) { // TODO: Not worth parallelizing?!
-    if (imbalance(phg, part) > 0) {
+    const HypernodeWeight imb = imbalance(phg, part);
+    if (imb > 0) {
       ++_num_imbalanced_parts;
+      if (imb > _max_imbalance) {
+        _max_imbalance = imb;
+        _most_imbalanced_part = part;
+      }
     } else if (isValidTarget(phg, part, 0)) {
       ++_num_valid_targets;
     }
@@ -153,12 +160,14 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
 template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   for (auto& moves : tmp_potential_moves) {
     moves.clear_sequential();
   }
 
   // calculate gain and target for each node in a overweight part
   // group moves by source part
+  timer.start_timer("reb_calculate_moves", "Reb: Calculate Moves");
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
@@ -169,16 +178,30 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       }
     }
   });
+  timer.stop_timer("reb_calculate_moves");
   tbb::parallel_for(0UL, _moves.size(), [&](const size_t part) {
+    const bool measureTime = part == _most_imbalanced_part;
     if (tmp_potential_moves[part].size() > 0) {
+      if (measureTime) {
+        timer.start_timer("reb_copy_moves", "Reb: Copy Moves");
+      }
       _moves[part] = tmp_potential_moves[part].copy_parallel();
       const size_t move_size = _moves[part].size();
-
+      if (measureTime) {
+        timer.stop_timer("reb_copy_moves");
+      }
       if (move_size > 0) {
+        if (measureTime) {
+          timer.start_timer("reb_sort", "Reb: Sort");
+        }
         // sort the moves from each overweight part by priority
         parlay::sort_inplace(_moves[part], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
           return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
         });
+        if (measureTime) {
+          timer.stop_timer("reb_sort");
+          timer.start_timer("reb_find_prefix", "Reb: Find Prefix");
+        }
         // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
         size_t last_move_idx = 0;
         if (move_size > _context.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves) {
@@ -197,6 +220,10 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
             sum += phg.nodeWeight(_moves[part][last_move_idx].hn);
           }
         }
+        if (measureTime) {
+          timer.stop_timer("reb_find_prefix");
+          timer.start_timer("reb_exe_moves", "Reb: Execute Moves");
+        }
         if (phg.is_graph) {
           tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
             const auto& move = _moves[part][j];
@@ -207,6 +234,9 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
             const auto& move = _moves[part][j];
             changeNodePart<false>(phg, move.hn, part, move.to, false);
           });
+        }
+        if (measureTime) {
+          timer.stop_timer("reb_exe_moves");
         }
       }
     }

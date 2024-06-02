@@ -119,12 +119,13 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         }
         size_t rounds_without_improvement = 0;
         for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
+            timer.start_timer("manage_partition", "Manage Partition");
             if (_current_partition_is_best) {
                 storeCurrentPartition(phg, _best_partition);
             } else {
                 storeCurrentPartition(phg, _current_partition);
             }
-
+            timer.stop_timer("manage_partition");
             HEAVY_REFINEMENT_ASSERT(noInvalidPartitions(phg, _best_partition));
             timer.start_timer("active_nodes", "Active Nodes");
             computeActiveNodesFromGraph(phg);
@@ -197,18 +198,10 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             if (!metrics::isBalanced(phg, _context)) {
                 DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
                 const bool run_until_balanced = rounds_without_improvement == max_rounds_without_improvement - 1 && was_already_balanced;
-                if (top_level) {
-                    timer.start_timer("top_level_rebalance", "Top Level Rebalance");
-                } else {
-                    timer.start_timer("rebalance", "Rebalance");
-                }
+                timer.start_timer("rebalance", "Rebalance");
                 mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
                 _rebalancer.jetRebalance(part_hg, current_metrics, run_until_balanced);
-                if (top_level) {
-                    timer.stop_timer("top_level_rebalance");
-                } else {
-                    timer.stop_timer("rebalance");
-                }
+                timer.stop_timer("rebalance");
                 DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << metrics::imbalance(phg, _context);
             }
             timer.start_timer("reb_quality", "Quality after Rebalancing");
@@ -238,12 +231,14 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         phg.resetEdgeSynchronization();
         if (!_current_partition_is_best) {
             DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
+            timer.start_timer("manage_partition", "Manage Partition");
             if (phg.is_graph) {
                 rollbackToBestPartition<true>(phg);
             } else {
                 rollbackToBestPartition<false>(phg);
             }
             current_metrics = best_metrics;
+            timer.stop_timer("manage_partition");
         }
         HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
             V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
