@@ -33,7 +33,7 @@ function build_hypergraph(num_vertices::Int,
     vertices_list = [Vector{Int}() for _ in 1:num_vertices]
     vertices_lists .|> enumerate .|> (vlist -> (vlist .|> (i_vvec -> append!(vertices_list[i_vvec[1]], i_vvec[2]))))
     inform(num_vertices, true, "vertices lists assembled")
-    Threads.@threads for i in 1:num_vertices
+    Threads.@sync Threads.@threads for i in 1:num_vertices
         sort!(vertices_list[i])
     end
     inform(num_vertices, true, "vertices lists sorted")

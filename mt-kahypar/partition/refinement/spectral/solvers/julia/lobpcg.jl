@@ -99,7 +99,7 @@ n = size(x, 1)
 y = zeros(Float64, n)
 s = multiplier[1]/twt
 kvec = vwts'x
-@sync Threads.@threads for j in 1:n
+Threads.@sync Threads.@threads for j in 1:n
 y[j] += twt * ((vwts[j] * x[j]) - ((kvec * vwts[j])/twt)) * s
 end
 return y
@@ -186,7 +186,7 @@ end
 function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
     degree(v) = sum(adj.nzval[adj.colptr[v] : adj.colptr[v + 1] - 1])#sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
     degs = zeros(adj.n)
-    Threads.@threads for i in 1 : adj.n
+    Threads.@sync Threads.@threads for i in 1 : adj.n
         degs[i] = degree(i)
     end
     
