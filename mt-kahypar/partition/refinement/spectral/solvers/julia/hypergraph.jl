@@ -19,6 +19,7 @@ function build_hypergraph(num_vertices::Int,
                         fixed_vertices::Vector{Int},
                         vwts::Vector{Int},
                         hwts::Vector{Int})
+    inform(num_vertices, true, "building hypergraph object...")
     vertices_lists = [[Vector{Int}() for i in 1:num_vertices] for _ in 1:Threads.nthreads()]
     Threads.@sync Threads.@threads for i in 1:num_hyperedges
         first_valid_entry = eptr[i]
