@@ -92,6 +92,8 @@ namespace mt_kahypar {
     numNodes = 0;
     for (auto np = phg.nodes().begin(); *np < ~np; *(++np) & ++numNodes) {}
 
+    DBG << "node count calculated";
+
     vec<PartitionID> inputPartition;
     inputPartition.reserve(numNodes);
     for (const HypernodeID node : phg.nodes()) {
@@ -107,6 +109,8 @@ namespace mt_kahypar {
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
     buildWeightBalanceGraphLaplacian(phg.hypergraph(), weightBalanceLaplacian);
+
+    DBG << "problem operators set";
 
     // actual refinement
 
@@ -126,9 +130,13 @@ namespace mt_kahypar {
         /* TODO */
       }
 
+      DBG << "embedding generated";
+
       vec<PartitionID> newSolution;
       generateSolution(phg, embedding, newSolution);
       candidateSolutions.push_back(newSolution);
+
+      DBG << "solution generated";
 
       // calulate metrics
       cut_sizes.push_back(metrics::quality(phg, _context, !_context.refinement.label_propagation.execute_sequential));
