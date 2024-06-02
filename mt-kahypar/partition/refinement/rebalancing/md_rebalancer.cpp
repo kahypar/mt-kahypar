@@ -1824,6 +1824,7 @@ namespace mt_kahypar{
               prio_computer->performMove(move);                 
             }        
           }
+          std::cout << "round: " << i << " " << gain << "\n";
           if(num_moves==0) break;
           std::vector<double> tmp_balance = totalBalanceMetis();
           if(gain > 0){
@@ -1843,6 +1844,7 @@ namespace mt_kahypar{
         }
       }
       else{
+        std::cout << "else\n\n\n";
         std::vector<HypernodeID> nodes;
         for(HypernodeID hn : phg->nodes()){
           nodes.push_back(hn);
@@ -1854,6 +1856,8 @@ namespace mt_kahypar{
           HypernodeID num_loops = 0;
           Gain gain = 0;
           for(HypernodeID hn : nodes){
+            if(phg->initialNumNodes() == 169) std::cout << " " << hn;
+            
             num_loops++;
             std::pair<PartitionID,Gain> max_move = {-1, 0};
             for(PartitionID p = 0; p < phg->k(); p++){
@@ -1883,6 +1887,7 @@ namespace mt_kahypar{
                               
             }        
           }
+          std::cout << "round: " << i << " " << gain << "\n";
           if(num_moves==0) break;
           std::vector<double> tmp_balance = totalBalanceMetis();
           if(gain > 0){
