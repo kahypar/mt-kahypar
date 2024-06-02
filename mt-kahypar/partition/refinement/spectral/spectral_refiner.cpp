@@ -334,14 +334,14 @@ namespace mt_kahypar {
     known_evecs.push_back(spectral::Vector(numNodes, 1.0));
     known_evals.push_back(0.0);
     // target vector
-    spectral::Vector hint(numNodes);
+    /* spectral::Vector hint(numNodes);
     for (size_t i = 0; i < numNodes; i++) {
       hint.set(i, hintSolution[i] == (PartitionID) 0 ? 1 : -1);
     }
     known_evecs.push_back(hint);
-    known_evals.push_back(hint_quality);
+    known_evals.push_back(hint_quality); */
     // spectral::Operator dummy(numNodes); TODO flag
-    solver.setProblem(graphLaplacian, balanceOperator, known_evecs, known_evals, known_evals.size() - 1);
+    solver.setProblem(graphLaplacian, balanceOperator, known_evecs, known_evals, known_evals.size()/*  - 1 */);
 
     spectral::Skalar a;
     spectral::Vector v(numNodes);
