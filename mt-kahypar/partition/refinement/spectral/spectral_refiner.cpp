@@ -103,11 +103,15 @@ namespace mt_kahypar {
       inputPartition.push_back(phg.partID(node));
     }
 
+    DBG << "hint read";
+
     // dehyperisation
     Operator inputGraphLaplacian(numNodes);
     dehyperizeToLaplacian(phg.hypergraph(), inputGraphLaplacian);
     // DBG << "---- Laplace";
     // inputGraphLaplacian.printMatrix([&](std::string s){DBG<<s;});
+
+    DBG << "laplacian set up";
 
     // weight-balance graph construction
     Operator weightBalanceLaplacian(numNodes);
