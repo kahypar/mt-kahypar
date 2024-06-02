@@ -132,6 +132,12 @@ namespace mt_kahypar {
              ("update_frequency",
              po::value<double>(&context.partition.update_frequency)->value_name("<double>")->default_value(0),
              "frequency of node updates in md_rebalancer")
+             ("l-threshold",
+             po::value<double>(&context.partition.L_threshold)->value_name("<double>")->default_value(0.0),
+             "L threshold")
+             ("random-order",
+             po::value<bool>(&context.partition.refine_random_order)->value_name("<bool>")->default_value(0),
+             "node traversal in random order")        
              ("refine-metis-gain",
              po::value<bool>(&context.partition.refine_metis_gain)->value_name("<bool>")->default_value(false),
              "max imbalance of refinement in md_rebalancer")

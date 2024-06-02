@@ -56,6 +56,7 @@ struct PartitioningParameters {
   bool refine_combined_tiebreak = false;
   bool refine_metis_gain = false;  
   bool refine_metis_move_criterion = true;
+  bool refine_random_order = false;
   bool rebalance_pq_l1 = true;
   bool rebalance_pq_max = false;
   bool rebalance_pq_combined = false;
@@ -69,6 +70,8 @@ struct PartitioningParameters {
   bool use_l1_factor_decrease = false;
   bool use_fallback = false;
   double l1_start_factor = 0.9999;
+  double L_threshold = 0.0;
+
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
