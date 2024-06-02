@@ -494,7 +494,16 @@ namespace mt_kahypar {
     unused(phg);
   }
 
+  template <typename GraphAndGainTypes>
+  void SpectralRefiner<GraphAndGainTypes>::initializeSolver() {
+    JuliaGEVPSolver::initialize();
+  }
 
+
+  template <typename GraphAndGainTypes>
+  SpectralRefiner<GraphAndGainTypes>::~SpectralRefiner() {
+    JuliaGEVPSolver::exit();
+  }
 
   namespace {
   #define SPECTRAL_REFINER(X) SpectralRefiner<X>

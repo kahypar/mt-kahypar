@@ -44,10 +44,7 @@ bool JuliaGEVPSolver::julia_initialized = false;
 
 void JuliaGEVPSolver::setProblem(Operator& a, Operator& b) {
   if (!julia_initialized) {
-    jl_init();
-    std::filesystem::path file_path = __FILE__;
-    file_path = file_path.parent_path() / "julia";
-    jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"lobpcg.jl\")").c_str());
+    
 
     julia_initialized = true;
   }
@@ -131,6 +128,17 @@ JuliaGEVPSolver::~JuliaGEVPSolver() {
   if (julia_initialized) {
     // jl_atexit_hook(0);
   }
+}
+
+void JuliaGEVPSolver::initialize() {
+  jl_init();
+  std::filesystem::path file_path = __FILE__;
+  file_path = file_path.parent_path() / "julia";
+  jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"lobpcg.jl\")").c_str());
+}
+
+void JuliaGEVPSolver::exit() {
+  jl_atexit_hook(0);
 }
 
 }

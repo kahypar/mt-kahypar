@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
+
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/operator.h"
 #include "mt-kahypar/partition/refinement/spectral/algebraic_wrappers/vector.h"
 
@@ -56,6 +57,7 @@ class SpectralRefiner final : public IRefiner {
       unused(num_hypernodes);
       unused(num_hyperedges);
       readConfigFile();
+      initializeSolver();
     }
 
   explicit SpectralRefiner(const HypernodeID num_hypernodes,
@@ -70,6 +72,8 @@ class SpectralRefiner final : public IRefiner {
 
   SpectralRefiner & operator= (const SpectralRefiner &) = delete;
   SpectralRefiner & operator= (SpectralRefiner &&) = delete;
+
+  ~SpectralRefiner();
 
   struct Params {
     size_t numCandidates = 1;
@@ -100,6 +104,7 @@ class SpectralRefiner final : public IRefiner {
   template <typename Collection>
   void setPartition(PartitionedHypergraph &phg, Collection &partition);
 
+  void initializeSolver();
 
   void resizeDataStructuresForCurrentK() {
     /* TODO to be implemented far in the future */

@@ -36,6 +36,9 @@ class JuliaGEVPSolver : public GEVPSolver {
   int nextEigenpair(Skalar& eval, Vector& evec, bool try_from_above) final;
 
   ~JuliaGEVPSolver() final;
+
+  static void initialize();
+  static void exit();
   
  private:
  
