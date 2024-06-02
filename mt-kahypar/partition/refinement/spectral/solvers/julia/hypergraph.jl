@@ -1,3 +1,5 @@
+include("utils.jl")
+
 struct __hypergraph__
     num_vertices::Int
     num_hyperedges::Int
@@ -26,11 +28,14 @@ function build_hypergraph(num_vertices::Int,
             push!(vertices_lists[findfirst(x->x==Threads.threadid(), Threads.threadpooltids(Threads.threadpool()))][v], i)
         end
     end
+    inform(num_vertices, true, "vertices lists computed")
     vertices_list = [Vector{Int}() for _ in 1:num_vertices]
     vertices_lists .|> enumerate .|> (vlist -> (vlist .|> (i_vvec -> append!(vertices_list[i_vvec[1]], i_vvec[2]))))
+    inform(num_vertices, true, "vertices lists assembled")
     Threads.@threads for i in 1:num_vertices
         sort!(vertices_list[i])
     end
+    inform(num_vertices, true, "vertices lists sorted")
 
     vind = Int[]
     vptr = Int[1]

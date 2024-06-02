@@ -7,6 +7,7 @@ using Random
 include("hypergraph.jl")
 include("cmg/CombinatorialMultigrid.jl")
 include("graphification.jl")
+include("utils.jl")
 
 include("config.jl")
 
@@ -214,19 +215,6 @@ function pretty_print(A)
     str = IOBuffer()
     show(IOContext(str, :compact => false), "text/plain", A)
     return String(take!(str))
-end
-
-function inform(message::String)
-    if (config_verbose)
-        print("[julia]: " * message * "\n")
-        flush(stdout)
-    end
-end
-
-function inform(graph_size::Integer, big_graphs::Bool, message::String)
-    if (graph_size < config_verbose_limits[1] && !big_graphs) || (graph_size > config_verbose_limits[2] && big_graphs)
-        inform(message)
-    end
 end
 
 function make_a_op(hgr)
