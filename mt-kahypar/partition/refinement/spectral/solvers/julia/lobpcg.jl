@@ -186,7 +186,7 @@ end
 function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
     degree(v) = sum(adj.nzval[adj.colptr[v] : adj.colptr[v + 1] - 1])#sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
     degs = zeros(adj.n)
-    Threads.@sync Threads.@threads for i in 1 : adj.n
+    #=Threads.@sync Threads.@threads=# for i in 1 : adj.n
         degs[i] = degree(i)
     end
     
