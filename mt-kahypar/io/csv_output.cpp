@@ -89,6 +89,7 @@ std::string serialize(const PartitionedHypergraph& phg,
   s << timer.get("reb_quality") << sep;
   // rebalancing
   s << timer.get("rebalance") << sep;
+  s << timer.get("reb_calculate_moves") << sep;
   s << timer.get("reb_copy_moves") << sep;
   s << timer.get("reb_sort") << sep;
   s << timer.get("reb_find_prefix") << sep;
