@@ -138,7 +138,7 @@ void JuliaGEVPSolver::initialize() {
 }
 
 void JuliaGEVPSolver::exit() {
-  jl_atexit_hook(0);
+  // jl_atexit_hook(0);
 }
 
 }
