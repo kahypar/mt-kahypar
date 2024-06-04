@@ -48,7 +48,6 @@ struct PartitioningParameters {
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   std::array<double, mt_kahypar::dimension> epsilon;
-  double node_threshold = 0.0;
   double update_frequency = 0.0001;
   double allowed_imbalance_refine=0.2;
   bool refine_l1_tiebreak = false;
