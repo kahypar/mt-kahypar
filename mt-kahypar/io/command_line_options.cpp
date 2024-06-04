@@ -174,6 +174,9 @@ namespace mt_kahypar {
              ("rebalance-pq-combined",
              po::value<bool>(&context.partition.rebalance_pq_combined)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
+             ("fallback-large-node-threshold",
+             po::value<bool>(&context.partition.fallback_large_node_threshold)->value_name("<double>")->default_value(0.03),
+             "use l1 as tiebreak")
              ("rebalance-l1",
              po::value<bool>(&context.partition.rebalance_l1)->value_name("<bool>")->default_value(true),
              "use l1 as tiebreak")

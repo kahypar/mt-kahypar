@@ -1631,7 +1631,7 @@ namespace mt_kahypar{
       prio_computer->initialize();
       Gain quality = 0/*metrics::quality(*phg, *_context)*/;
       Gain local_attributed_gain = 0;
-      constraint_refinement(best_metrics, local_attributed_gain);
+      //constraint_refinement(best_metrics, local_attributed_gain);
       ASSERT([&]{
         for(HypernodeID hn : phg->nodes()){
           if(phg->partID(hn) == -1) return false;
@@ -1724,6 +1724,7 @@ namespace mt_kahypar{
 
     void unconstraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
       double allowed_ib = _context->partition.allowed_imbalance_refine;
+      std::cout << "before " << local_attributed_gain << "\n";
       for(int r = 0; r < 10; r++){
         vec<Move> moves;
         round++;
@@ -1731,10 +1732,13 @@ namespace mt_kahypar{
         Gain before_gain = local_attributed_gain;
         prio_computer->reinitialize();
         simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking);
+        std::cout << "lp: " << local_attributed_gain << "\n";
         rebalancing(&moves, best_metrics, local_attributed_gain);
+        std::cout << "rb: " << local_attributed_gain << "\n";
         prio_computer->reinitialize();
         simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, false);
         if(local_attributed_gain - before_gain > 0 || !metrics::isBalanced(*phg, *_context)){
+          std::cout << "failure\n";
           for(HypernodeID i = 1; i <= moves.size() - before_moves; i++){
             HypernodeID idx = moves.size() - i;
             ASSERT(moves[idx].from != -1);
@@ -1743,7 +1747,7 @@ namespace mt_kahypar{
                             (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);                          
                           });
           }
-          allowed_ib /= 2.0;
+          //allowed_ib /= 2.0;
         }
       }
     }
@@ -1900,7 +1904,6 @@ namespace mt_kahypar{
           }        
         }         
       }     
-      std::cout << "endlp:" << local_attributed_gain - before_gain << "\n";
     }
 
     bool greedyRefiner(vec<Move>* moves_linear,
@@ -1978,10 +1981,6 @@ namespace mt_kahypar{
       int32_t estimated_num_moves = 0;
       for(PartitionID p = 0; p < phg->k(); p++){
         for(int d = 0; d < dimension; d++){
-          /*std::cout << " " << (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * 
-            _context->partition.max_part_weights_inv[p][d] << " " << std::max(estimated_num_moves, static_cast<int32_t>(std::ceil(nums_per_part[p] * 
-            (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * 
-            _context->partition.max_part_weights_inv[p][d]))) << "\n";*/
           estimated_num_moves = std::max(estimated_num_moves, static_cast<int32_t>(std::ceil(nums_per_part[p] * 
             (std::max(0, phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d])) * 
             _context->partition.max_part_weights_inv[p][d])));
