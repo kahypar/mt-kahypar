@@ -94,7 +94,6 @@ namespace mt_kahypar {
       partitioned_hg.extractPartIDs(_block_ids);
       partitioned_hg.resetData();
       GainCachePtr::resetGainCache(_gain_cache);
-
       // Assign nodes of current level to their corresponding representative of the previous level
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[_current_level].mapToContractedHypergraph(hn);

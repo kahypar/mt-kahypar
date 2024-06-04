@@ -49,17 +49,17 @@ class ICoarsener {
     initialize();
     bool should_continue = true;
     int pass_nr = 0;
-
     std::ifstream myfile; 
     myfile.open(ipf);
     HypernodeID hn = 0;
     while(myfile){
       std::string nextline;
       std::getline(myfile, nextline);
-      if(nextline.rfind("IP") == 0) break;
+      if(nextline.rfind("IP") == 0 || nextline.rfind(" ") == -1) break;
       coarseningPassImpl(nextline);        
     }
     myfile.close();
+       
     // Coarsening algorithms proceed in passes where each pass computes a clustering
     // of the nodes and subsequently contracts it. Each pass induces one level of the
     // hierarchy. The coarsening algorithms proceeds until the number of nodes equals

@@ -1128,6 +1128,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
     std::vector<id> references;
     std::vector<data> items;
     std::vector<bool> in_use;
+    uint64_t num_swaps = 0;
     void setSize(id size){
       references.resize(size);
       items.resize(size);
@@ -1159,6 +1160,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
       size_t tmp = pq[index1];
       pq[index1] = pq[index2];
       pq[index2] = tmp;
+      num_swaps++;
     }
     
     void siftUp(size_t index){

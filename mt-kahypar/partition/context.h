@@ -71,6 +71,7 @@ struct PartitioningParameters {
   bool use_fallback = false;
   double l1_start_factor = 0.9999;
   double L_threshold = 0.0;
+  bool vertex_locking = false;
 
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();

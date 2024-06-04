@@ -147,8 +147,11 @@ namespace mt_kahypar {
              ("allowed-refinement-imbalance",
              po::value<double>(&context.partition.allowed_imbalance_refine)->value_name("<double>")->default_value(0),
              "max imbalance of refinement in md_rebalancer")
+             ("vertex-locking",
+             po::value<bool>(&context.partition.vertex_locking)->value_name("<bool>")->default_value(false),
+             "max imbalance of refinement in md_rebalancer")
              ("l1-factor",
-             po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(0.9999),
+             po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(1.0),
              "l1 factor")
              ("use-fallback",
              po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(false),
