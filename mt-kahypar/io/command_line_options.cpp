@@ -156,6 +156,9 @@ namespace mt_kahypar {
              ("use-fallback",
              po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(false),
              "use fallback instead of adapting max weights")
+             ("rebalance-guarantee-best",
+             po::value<bool>(&context.partition.fallback_extract_equally)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
              ("use-l1-factor-decrease",
              po::value<bool>(&context.partition.use_l1_factor_decrease)->value_name("<bool>")->default_value(false),
              "in deadlock case, adapt rebalancers max weights")
@@ -175,7 +178,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.partition.rebalance_pq_combined)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("fallback-large-node-threshold",
-             po::value<bool>(&context.partition.fallback_large_node_threshold)->value_name("<double>")->default_value(0.03),
+             po::value<double>(&context.partition.fallback_large_node_threshold)->value_name("<double>")->default_value(0.03),
              "use l1 as tiebreak")
              ("rebalance-l1",
              po::value<bool>(&context.partition.rebalance_l1)->value_name("<bool>")->default_value(true),

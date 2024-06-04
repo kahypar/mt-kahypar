@@ -69,6 +69,7 @@ struct PartitioningParameters {
   bool rebalancer_approximate_worsened_move = false;
   bool use_l1_factor_decrease = false;
   bool use_fallback = false;
+  bool fallback_extract_equally = false;
   double l1_start_factor = 0.9999;
   double L_threshold = 0.0;
   bool vertex_locking = false;

@@ -118,9 +118,18 @@ namespace mt_kahypar{
       index_to_id.resize(dimension * phg->k());
       for(HypernodeID hn : phg->nodes()){
         if((*L)[hn]) continue;
+        if(totalweight(phg->nodeWeight(hn)) > _context->partition.fallback_large_node_threshold) continue;
         id_to_index[hn] = index_to_id[phg->partID(hn)].size();
         index_to_id[phg->partID(hn)].push_back(hn);
       }
+    }
+
+    double totalweight(HypernodeWeight hn){
+      double res = 0.0;
+      for(int d = 0; d < dimension; d++){
+        res += hn.weights[d] * _context->partition.max_part_weights_inv[0][d];
+      }
+      return res;
     }
 
     AddressablePQ<HypernodeID,double> *get_pq(int k, int d){
@@ -2271,19 +2280,38 @@ namespace mt_kahypar{
 
       HypernodeID starting_index = S.size();
 
+      auto select_max_pen_p = [&](){
+        double max_pen = 0.0;
+        double max_p = -1;
+        for(PartitionID p = 0; p < phg->k(); p++){
+          double pen = penalty(virtual_weight[p]);
+          if(pen > max_pen){
+            max_pen = pen;
+            max_p = p;
+          }
+        }
+        return max_p;
+      };
+
+      auto select_heaviest_p = [&](){
+        double max_p = -1;
+        double max_weight = 0.0;
+        for(PartitionID p = 0; p < phg->k(); p++){
+          for(int d = 0; d < dimension; d++){
+            if(phg->partWeight(p).weights[d] * _context->partition.max_part_weights_inv[p][d] > max_weight){
+              max_weight = phg->partWeight(p).weights[d] * _context->partition.max_part_weights_inv[p][d];
+              max_p = p;
+            }
+          }
+        }
+        return max_p;
+      };
+
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
-          double max_pen = 0.0;
-          double max_p = -1;
-          for(PartitionID p = 0; p < phg->k(); p++){
-            double pen = penalty(virtual_weight[p]);
-            if(pen > max_pen){
-              max_pen = pen;
-              max_p = p;
-            }
-          }
+          PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
           extract(max_p);
         }
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
