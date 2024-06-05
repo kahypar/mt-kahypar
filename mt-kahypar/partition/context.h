@@ -73,6 +73,7 @@ struct PartitioningParameters {
   double L_threshold = 0.0;
   bool vertex_locking = false;
   double fallback_large_node_threshold;
+  bool refiner_consider_weight;
 
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();

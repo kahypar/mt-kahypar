@@ -52,11 +52,10 @@ class IUncoarsener {
       while ( !isTopLevel() ) {
         projectToNextLevelAndRefine();
       }
-      std::cout << "before rb\n";
+      /*std::cout << "before rb\n";
       rebalancing();
-      std::cout << "after rb\n";
+      std::cout << "after rb\n";*/
       return movePartitionedHypergraph();
-      std::cout << "aftermove\n";
     }
 
     void doLastRefine(PartitionedHypergraph *phg){

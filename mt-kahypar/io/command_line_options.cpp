@@ -192,6 +192,9 @@ namespace mt_kahypar {
              ("rebalance-guarantee-best",
              po::value<bool>(&context.partition.rebalancer_guarantee_best)->value_name("<bool>")->default_value(true),
              "use l1 as tiebreak")
+             ("refiner-consider-weight",
+             po::value<bool>(&context.partition.refiner_consider_weight)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
              ("rebalance-update-all",
              po::value<bool>(&context.partition.rebalancer_update_all)->value_name("<bool>")->default_value(true),
              "update also worsened moves at periodic updates")
