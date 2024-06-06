@@ -56,12 +56,11 @@ namespace mt_kahypar {
 
 
     // implementation goes here
-    DBG << "Spectral Refiner called";
+    LOG << "Spectral Refiner called";
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("partition_sp", "Partition");
     bool found_new_partition = partition(partionedHypergraph, best_metrics);
     timer.stop_timer("partition_sp");
-    DBG << "Spectral Refiner finished partitioning";
 
     HEAVY_REFINEMENT_ASSERT(partionedHypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
@@ -74,6 +73,8 @@ namespace mt_kahypar {
     Gain delta = old_quality - best_metrics.quality;
     ASSERT(delta >= 0, "Refiner worsened solution quality");
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("spectral_improvement", delta);
+    
+    DBG << "Spectral Refiner finished";
     return delta > 0;
   }
 
@@ -83,7 +84,7 @@ namespace mt_kahypar {
     // remove single pins
     auto dzhr = DegreeZeroHypernodeRemover<GraphAndGainTypes>(_context);
     size_t numRemovedSinglePins = dzhr.removeDegreeZeroHypernodes(phg.hypergraph(), true);
-    DBG << "removed single pins: " << numRemovedSinglePins;
+    LOG << "removed single pins: " << numRemovedSinglePins;
 
     DBG << "setting up...";
 
@@ -156,12 +157,12 @@ namespace mt_kahypar {
       
     }
 
-    DBG << "finished partitioning";
+    LOG << "finished partitioning";
 
     bool found_new_partition = best_cutsize == best_metrics.quality && inputPartition != candidateSolutions[best_index];
     bool found_valid_solution = best_cutsize <= best_metrics.quality;
 
-    DBG << "spectral results: "
+    LOG << "spectral results: "
       << (found_valid_solution ? "found valid solution, " : "")
       << (found_new_partition ? "found alternative partition, " : "")
       << V(best_cutsize) << ", "
@@ -376,42 +377,56 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
     // definitions
-    spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
-    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
-      _gain.computeDeltaForHyperedge(sync_update);
-    };    
     spectral::Skalar split_index = 0;
     spectral::Vector &fiedler = embedding.back();
-    vec<HypernodeID> indices(phg.nodes().begin(), phg.nodes().end());
-    auto move_node = [&](bool use_gain, bool dest) {
-      target[indices[split_index]] = dest ? 1 : 0;
+    vec<size_t> node_indices_fiedler;
+    vec<HypernodeID> index_node_map(phg.nodes().begin(), phg.nodes().end());
+
+    const spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
+    const auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      _gain.computeDeltaForHyperedge(sync_update);
+    };    
+    const auto move_next_node = [&](bool use_gain, bool dest) {
+      !dest && split_index++;
+      size_t node_index = node_indices_fiedler[split_index];
+      HypernodeID node = index_node_map[node_index];
+      target[node_index] = dest ? 1 : 0;
       if (use_gain) {
-        phg.changeNodePart(indices[split_index], dest ? 0 : 1, dest ? 1 : 0, objective_delta);
+        phg.changeNodePart(node, dest ? 0 : 1, dest ? 1 : 0, objective_delta);
       } else {
-        phg.changeNodePart(indices[split_index], dest ? 0 : 1, dest ? 1 : 0);
+        phg.changeNodePart(node, dest ? 0 : 1, dest ? 1 : 0);
       }
+      dest && split_index --;
     };
 
     // sort by fiedler entry
-    std::sort(indices.begin(), indices.end(), [&](const HypernodeID& u, const HypernodeID& v) { return fiedler[u] < fiedler[v]; });
+    for (size_t i = 0; i < numNodes; node_indices_fiedler.push_back(i++)) {}
+    std::sort(node_indices_fiedler.begin(), node_indices_fiedler.end(),
+      [&](const size_t& u, const size_t& v) { return fiedler[u] < fiedler[v]; });
 
-    // initialize with all nodes belonging to partition 1
+    // initialize with all nodes belonging to partition 1 except for first
     target.clear();
     target.resize(numNodes, 1);
+    target[node_indices_fiedler[0]] = 0;
     setPartition(phg, target);
 
     // move into range
-    for (; phg.partWeight(1) > max_part_weight; move_node(false, false)) {
-      split_index++;
+    while (phg.partWeight(1) > max_part_weight) {
+      move_next_node(false, false);
+    }
+
+    if (numNodes < 20 && debug) {
+      for (size_t i=0; i < fiedler.dimension(); i++) {
+        DBG << target[i];
+      }
     }
     
     // find optimum in range
     _gain.reset();
     size_t best_index = split_index;
     Gain best_delta = _gain.localDelta();
-    while (phg.partWeight(0) + phg.nodeWeight(indices[split_index + 1]) <= max_part_weight) {
-      split_index++;
-      move_node(true, false);
+    while (phg.partWeight(0) + phg.nodeWeight(index_node_map[node_indices_fiedler[split_index + 1]]) <= max_part_weight) {
+      move_next_node(true, false);
 
       if (_gain.localDelta() <= best_delta) {
         best_index = split_index;
@@ -420,8 +435,14 @@ namespace mt_kahypar {
     }
     
     // undo bad moves
-    for (; best_index < split_index; split_index--) {
-      move_node(false, true);
+    while (best_index < split_index) {
+      move_next_node(false, true);
+    }
+
+    if (numNodes < 20 && debug) {
+      for (const auto p : target) {
+        DBG << p;
+      }
     }
   }
 
