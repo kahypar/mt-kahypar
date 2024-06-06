@@ -77,7 +77,7 @@ int JuliaGEVPSolver::nextEigenpair(Skalar& eval, Vector& evec, bool try_from_abo
 }
 
 void JuliaGEVPSolver::solve() {
-  bool debug = true;
+  bool debug = false;
 
   DBG << "exporting contexts...";
 
@@ -107,7 +107,7 @@ void JuliaGEVPSolver::solve() {
   jl_array_t *hint_jl = jl_ptr_to_array_1d(node_array_type, hint.data(), hint.size(), 0);
   jl_array_t *constraints_jl = jl_ptr_to_array_1d(double_array_type, deflation_evecs.data(), num_deflation_epairs * n, 0);
 
-  jl_function_t *solve = (jl_function_t *) jl_eval_string("solve_lobpcg");
+  jl_function_t *solve = (jl_function_t *) jl_eval_string("main_lobpcg_tree_distill");
 
   DBG << "launching Julia code...";
 
@@ -134,7 +134,7 @@ void JuliaGEVPSolver::initialize() {
   jl_init();
   std::filesystem::path file_path = __FILE__;
   file_path = file_path.parent_path() / "julia";
-  jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"lobpcg.jl\")").c_str());
+  jl_eval_string(("cd(\"" + file_path.string() + "\");include(\"main.jl\")").c_str());
 }
 
 void JuliaGEVPSolver::exit() {

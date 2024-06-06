@@ -4,9 +4,10 @@ using IterativeSolvers
 using SparseArrays
 using Random
 
-include("hypergraph.jl")
+include("graph/hypergraph.jl")
+include("graph/graphification.jl")
+include("graph/matrices.jl")
 include("cmg/CombinatorialMultigrid.jl")
-include("graphification.jl")
 include("utils.jl")
 
 include("config.jl")
@@ -18,203 +19,6 @@ function LinearAlgebra.ldiv!(c::AbstractVecOrMat{T},
     for k in 1:m
         c[:, k] = P.f(b[:, k])
     end
-end
-
-function hgr_laplacian(hg::__hypergraph__, x::AbstractArray)
-    n = hg.num_vertices
-    m = hg.num_hyperedges
-    eind = hg.eind
-    eptr = hg.eptr
-    
-    factor = zeros(Float64, n)
-    subtrahend = zeros(Float64, n)
-    
-    for e in 1:m
-        first_valid_entry = eptr[e]
-        first_invalid_entry = eptr[e + 1]
-        k = first_invalid_entry - first_valid_entry
-        
-        operand_dot_e = 0.0
-        for pin in first_valid_entry : first_invalid_entry - 1
-            operand_dot_e += x[eind[pin]]
-        end
-        
-        clique_edge_weight = convert(Float64, hg.hwts[e]) / (convert(Float64, k) - 1.0)
-        
-        for pin in first_valid_entry : first_invalid_entry - 1
-            factor[eind[pin]] += clique_edge_weight * convert(Float64, k)
-            subtrahend[eind[pin]] += clique_edge_weight * operand_dot_e
-        end
-    end
-
-    return [x[v] * factor[v] - subtrahend[v] for v in 1 : n]
-end
-
-# kspecpart variant
-function hgr_laplacian(hypergraph::__hypergraph__, x::AbstractArray, epsilon::Int)
-    eind = hypergraph.eind
-    eptr = hypergraph.eptr
-    n = length(x)
-    m = hypergraph.num_hyperedges
-    y = zeros(Float64, n)
-    w = hypergraph.hwts
-
-    for j in 1:m
-        first_valid_entry = eptr[j]
-        first_invalid_entry = eptr[j+1]
-        k = first_invalid_entry - first_valid_entry
-        scale = (floor(k/2) * ceil(k/2))/(k-1)
-        sm = 0.0
-        for t in first_valid_entry:first_invalid_entry-1
-            sm += x[eind[t]]
-        end
-        sm /= k
-        for t in first_valid_entry:first_invalid_entry-1
-            idx = eind[t]
-            #y[idx] += w[j] * (x[idx] - sm)/scale
-            y[idx] += w[j] * (x[idx] - sm)/(scale*epsilon)
-        end
-    end
-    return y
-end
-
-function weight_balance_laplacian(hg::__hypergraph__, x::AbstractArray)
-    n = hg.num_vertices
-    m = hg.num_hyperedges
-    eind = hg.eind
-    eptr = hg.eptr
-    
-    w_dot_x = sum([hg.vwts[v] * x[v] for v in 1 : n])
-    total_weight = sum(hg.vwts)
-
-    return [hg.vwts[v] * (total_weight * x[v] - w_dot_x) for v in 1 : n]
-end
-
-#kspecpart variant
-function weight_balance_laplacian(x::AbstractArray, 
-    vwts::Vector{Int}, 
-    multiplier::AbstractArray)
-twt = sum(vwts)
-n = size(x, 1)
-y = zeros(Float64, n)
-s = multiplier[1]/twt
-kvec = vwts'x
-Threads.@sync Threads.@threads for j in 1:n
-y[j] += twt * ((vwts[j] * x[j]) - ((kvec * vwts[j])/twt)) * s
-end
-return y
-end
-
-function hint_laplacian(hint::AbstractArray, x::AbstractArray)
-    n = length(hint)
-    
-    # partition counts
-    n_0 = 0
-
-    # partial sums of x
-    x_0 = 0.0
-    x_1 = 0.0
-    
-    for i in 1 : n
-        if hint[i] == 0
-            n_0 += 1
-            x_0 += x[i]
-        else
-            x_1 += x[i]
-        end
-    end
-
-    n_1 = n - n_0
-
-    y = zeros(Float64, n)
-    for i in 1 : n
-        p0 = hint[i] == 0
-        y[i] = x[i] * (p0 ? n_1 : n_0) - (p0 ? x_1 : x_0)
-    end
-
-    return y
-end
-
-function hint_laplacian_kspecpart(hint::AbstractArray, x::AbstractArray)
-    (p1, p2) = [map(((i, p),) -> i, Iterators.filter(((i, p),) -> p == pid, enumerate(hint))) for pid in 0 : 1]
-    n = length(x)
-    y = zeros(n)
-    d1 = ones(length(p1))
-    d2 = ones(length(p2))
-    t1 = Threads.@spawn (sum(d2) .* d1 .* x[p1] - d1 * (d2' * x[p2]))
-    t2 = Threads.@spawn (sum(d1) .* d2 .* x[p2] - d2 * (d1' * x[p1])) 
-    t1 = fetch(t1)
-    t2 = fetch(t2)
-    y[p1] = t1
-    y[p2] = t2
-    return y
-end
-
-function import_hypergraph(hgr_data::AbstractArray)
-    data = convert(AbstractArray{Int64, 1}, hgr_data)
-    n = data[1]
-    m = data[2]
-    pin_list_indices = data[(2 + n + m + 1) : (2 + n + m + (m + 1))]
-    pin_lists = data[(2 + n + m + (m + 1) + 1) : length(data)]
-
-    return build_hypergraph(n,
-        m,
-        pin_list_indices .+ 1,
-        pin_lists .+ 1,
-        -ones(Int, n),
-        data[(2 + 1) : (2 + n)],
-        data[(2 + n + 1) : (2 + n + m)])
-end
-
-function check_hypergraph_is_graph(hgr::__hypergraph__)
-    for i in 1 : hgr.num_hyperedges
-        if hgr.eptr[i + 1] - hgr.eptr[i] > 2
-            return false
-        end
-    end
-    return true
-end
-
-function calc_degrees(hgr::__hypergraph__)
-    degs = zeros(hgr.num_vertices)
-    for v in hgr.eind
-        degs[v] += 1
-    end
-    return degs
-end
-
-function laplacianize_adj_mat(adj::SparseMatrixCSC, graph::Union{__hypergraph__, Nothing} = nothing)
-    degree(v) = sum(adj.nzval[adj.colptr[v] : adj.colptr[v + 1] - 1])#sum(adj[v, 1 : adj.n])#(isnothing(graph) ? -sum(adj[v, 1 : adj.n]) : (graph.vptr[v + 1] - graph.vptr[v]) .* weights TODO)
-    degs = zeros(adj.n)
-    #=Threads.@sync Threads.@threads=# for i in 1 : adj.n
-        degs[i] = degree(i)
-    end
-    
-    # degs = adj * ones(adj.n)
-    
-    inform(adj.n, true, "degrees calculated")
-
-    (is, js, vs) = findnz(adj)
-    vs_ = -vs
-
-    inform(adj.n, true, "matrix prepared")
-
-    return sparse(vcat(is, 1 : adj.n), vcat(js, 1 : adj.n), vcat(vs_, degs), adj.n, adj.n)
-end
-
-function graph_adj_matrix(g::__hypergraph__)
-    is = g.eind[1 : 2 : end]
-    js = g.eind[2 : 2 : end]
-    vs = g.hwts
-    res = sparse(vcat(is, js), vcat(js, is), convert(AbstractArray{Float64, 1}, vcat(vs, vs)), g.num_vertices, g.num_vertices)
-
-    return res
-end
-
-function pretty_print(A)
-    str = IOBuffer()
-    show(IOContext(str, :compact => false), "text/plain", A)
-    return String(take!(str))
 end
 
 function make_a_op(hgr)
@@ -235,71 +39,56 @@ function make_b_op(hgr, hint, acc)
         hgr.num_vertices, issymmetric=true, isposdef=true)
 end
 
-# TODO: set number of evecs
-function solve_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    inform("julia launched")
-    inform(hgr_data[1], false, () -> "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, hgr_data)))
+function solve_lobpcg(hgr::__hypergraph__, hint_partition::AbstractArray{Int}, deflation_space::AbstractArray{Float64, 2}, nev::Int)
+    n = hgr.num_vertices
+    m = hgr.num_hyperedges
+    inform(n, false, () -> string(hgr))
+    is_graph = check_hypergraph_is_graph(hgr)
 
-    try
-        hgr = import_hypergraph(hgr_data)
-        n = hgr.num_vertices
-        m = hgr.num_hyperedges
-        inform(n, false, () -> string(hgr))
-        is_graph = check_hypergraph_is_graph(hgr)
-        inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m, " * string(convert(Int, length(deflation_evecs) / n)) * " deflation vector(s)")
-        
-        hint_partition = convert(AbstractArray{Int64, 1}, hint)
-        deflation_space = reshape(convert(AbstractArray{Float64, 1}, deflation_evecs), n, convert(Int64, length(deflation_evecs) / n))
-        inform(n, false, () -> "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
-        inform(n, true, "prepared hint and deflation space")
-        
-        amap = make_a_op(hgr)
-        bacc = ones(size(hgr.vwts, 2))
-        bmap = make_b_op(hgr, hint_partition, bacc)
+    inform("received " * (is_graph ? "" : "hyper") * "graph with n=$n, m=$m")
+    inform_dbg(n, false, () -> "received hint partiton: $hint_partition\nreceived deflation space: $deflation_space")
     
-        inform(n, true, "building adjaciency matrix...")
-        lap_matrix = spdiagm([])
-        if is_graph && !config_approximateGraphs
-            lap_matrix = graph_adj_matrix(hgr)
-        else
-            lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
-        end
+    amap = make_a_op(hgr)
+    bacc = ones(size(hgr.vwts, 2))
+    bmap = make_b_op(hgr, hint_partition, bacc)
 
-        inform(n, true, "building laplacian...")
-        lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
-        inform(n, false, () -> pretty_print(lap_matrix))
-        
-        inform(n, true, "preconditioning...")
-        preconditioner = nothing
-        try
-            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(
-                spdiagm(ones(n) .* config_preCondShift) + lap_matrix,
-                timeout = config_stepTimeout)
-            preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
-        catch e
-            inform("didnt use preconditioner due to " * sprint(showerror, e))
-            @print_backtrace
-        end
-       
-        inform("launching LOBPCG...")
-        results = lobpcg(amap, 
-            bmap, 
-            false, 
-            config_numEvecs, 
-            tol = 1e-40,
-            maxiter = config_lobpcgMaxIters, 
-            P = preconditioner,
-            C = deflation_space,
-            log = true)
-        evecs = results.X
-        inform("LOBPCG successful")
-        inform(n, false, () -> "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
-
-        return convert(AbstractArray{Float64}, evecs)
-    catch e
-        inform("failed due to " * sprint(showerror, e))
-        @print_backtrace
-
-        return ones(Float64, hgr_data[1])
+    inform_dbg(n, true, "building adjaciency matrix...")
+    lap_matrix = spdiagm([])
+    if is_graph && !config_approximateGraphs
+        lap_matrix = graph_adj_matrix(hgr)
+    else
+        lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
     end
+
+    inform_dbg(n, true, "building laplacian...")
+    lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
+    inform(n, false, () -> pretty_print(lap_matrix))
+    
+    inform_dbg(n, true, "preconditioning...")
+    preconditioner = nothing
+    try
+        (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(
+            spdiagm(ones(n) .* config_preCondShift) + lap_matrix,
+            timeout = config_stepTimeout)
+        preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+    catch e
+        inform("didnt use preconditioner due to " * sprint(showerror, e))
+        @print_backtrace
+    end
+    
+    inform("launching LOBPCG...")
+    results = lobpcg(amap, 
+        bmap, 
+        false, 
+        nev, 
+        tol = 1e-40,
+        maxiter = config_lobpcgMaxIters, 
+        P = preconditioner,
+        C = deflation_space,
+        log = true)
+    evecs = results.X
+    inform("LOBPCG successful")
+    inform_dbg(n, false, () -> "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
+
+    return evecs
 end

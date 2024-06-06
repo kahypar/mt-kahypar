@@ -1,4 +1,4 @@
-include("utils.jl")
+include("../utils.jl")
 
 struct __hypergraph__
     num_vertices::Int
@@ -19,7 +19,7 @@ function build_hypergraph(num_vertices::Int,
                         fixed_vertices::Vector{Int},
                         vwts::Vector{Int},
                         hwts::Vector{Int})
-    inform(num_vertices, true, "building hypergraph object...")
+    inform_dbg(num_vertices, true, "building hypergraph object...")
     vertices_list = [Vector{Int}() for _ in 1:num_vertices] # vertices_lists = [[Vector{Int}() for i in 1:num_vertices] for _ in 1:Threads.nthreads()]
     #=Threads.@sync Threads.@threads=# for i in 1:num_hyperedges
         first_valid_entry = eptr[i]
@@ -29,7 +29,7 @@ function build_hypergraph(num_vertices::Int,
             push!(vertices_list[v], i)#s[findfirst(x->x==Threads.threadid(), Threads.threadpooltids(Threads.threadpool()))][v], i)
         end
     end
-    inform(num_vertices, true, "vertices lists computed")
+    inform_dbg(num_vertices, true, "vertices lists computed")
     # vertices_list = [Vector{Int}() for _ in 1:num_vertices]
     # vertices_lists .|> enumerate .|> (vlist -> (vlist .|> (i_vvec -> append!(vertices_list[i_vvec[1]], i_vvec[2]))))
     # inform(num_vertices, true, "vertices lists assembled")
@@ -54,4 +54,29 @@ function build_hypergraph(num_vertices::Int,
                         fixed_vertices, 
                         vwts, 
                         hwts)
+end
+
+function import_hypergraph(hgr_data::AbstractArray)
+    data = convert(AbstractArray{Int64, 1}, hgr_data)
+    n = data[1]
+    m = data[2]
+    pin_list_indices = data[(2 + n + m + 1) : (2 + n + m + (m + 1))]
+    pin_lists = data[(2 + n + m + (m + 1) + 1) : length(data)]
+
+    return build_hypergraph(n,
+        m,
+        pin_list_indices .+ 1,
+        pin_lists .+ 1,
+        -ones(Int, n),
+        data[(2 + 1) : (2 + n)],
+        data[(2 + n + 1) : (2 + n + m)])
+end
+
+function check_hypergraph_is_graph(hgr::__hypergraph__)
+    for i in 1 : hgr.num_hyperedges
+        if hgr.eptr[i + 1] - hgr.eptr[i] > 2
+            return false
+        end
+    end
+    return true
 end

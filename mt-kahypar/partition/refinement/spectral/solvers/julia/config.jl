@@ -12,6 +12,6 @@ config_hintOpVariant="paper"
 config_randLapCycles=1
 config_lobpcgMaxIters=42
 config_approximateGraphs=false
+config_stepTimeout=120
 config_verbose=true
 config_verbose_limits=[25, 500]
-config_stepTimeout=600
