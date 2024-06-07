@@ -4,7 +4,7 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     partition_file = "$(config_tmpDir)/triton_part_input_$identifier.part.2" 
     write_partition(partition, partition_file)
 
-    tcl_line = "$(config_installationsPrefix)triton_part_refine" *
+    tcl_line = "triton_part_refine" *
             " -hypergraph_file $hypergraph_file" *
             " -partition_file $partition_file" *
             " -num_parts $num_parts" *
@@ -21,7 +21,9 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     close(f)
 
     f = open(sh_file, "w")
-    line = "$(config_installationsPrefix)openroad $tcl_file > $log_file"
+    line = "PATH=\$PATH:$(config_installationsPrefix)"
+    println(f, line)
+    line = "openroad $tcl_file > $log_file"
     println(f, line)
     close(f)
 
@@ -40,7 +42,7 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
 
     refined_partition = read_hint_file(partition_file)
 
-    rm = "rm $tcl_file $sh_file $partition_file"# $log_file"
+    rm = "rm $tcl_file $sh_file $partition_file $log_file"
     run(`sh -c $rm`, wait = true)
 
     return refined_partition

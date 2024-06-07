@@ -107,10 +107,19 @@ function metis(graph_file::String,
             ub_factor::Int,
             metis_opts::Int)
     log_file = config_tmpDir * "/metis" * string(metis_opts) * "." * string(Dates.now()) * ".log.txt"
-    metis_command = "$(config_installationsPrefix)gpmetis $graph_file $num_parts -ptype=rb -ufactor=$ub_factor -seed=$seed -dbglvl=0 > $log_file"
-    run(`sh -c $metis_command`, wait=true)
-    rm_cmd = "rm -r " * log_file
-    run(`sh -c $rm_cmd`, wait=true)
-    rm_cmd = "rm -r " * graph_file
+    sh_file = config_tmpDir * "/run_metis_$(split(graph_file,"/")[end]).sh"
+
+    f = open(sh_file, "w")
+    line = "PATH=\$PATH:$(config_installationsPrefix)"
+    println(f, line)
+    line = "gpmetis $graph_file $num_parts -ptype=rb -ufactor=$ub_factor -seed=$seed -dbglvl=0 > $log_file"
+    println(f, line)
+    close(f)
+    cmd = "chmod 777 " * sh_file 
+    run(`sh -c $cmd`, wait=true)
+
+    run(`$sh_file`, wait=true)
+
+    rm_cmd = "rm -r $log_file $graph_file $sh_file"
     run(`sh -c $rm_cmd`, wait=true)
 end

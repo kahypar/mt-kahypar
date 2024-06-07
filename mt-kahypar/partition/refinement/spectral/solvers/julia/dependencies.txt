@@ -2,3 +2,10 @@ LinearMaps
 IterativeSolvers
 LDLFactorizations
 SimpleWeightedGraphs
+Combinatorics
+Laplacians
+SimpleGraphs
+LightGraphs
+Graphs
+SimpleTraits
+DataStructures
