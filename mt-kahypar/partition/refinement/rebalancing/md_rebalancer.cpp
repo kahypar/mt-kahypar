@@ -83,7 +83,7 @@ namespace mt_kahypar{
   };
 
   template <typename GraphAndGainTypes> struct RefineQueue{
-    virtual void initialize(std::vector<HypernodeID> *insertion_order) = 0;
+    virtual void initialize(std::vector<HypernodeID> *insertion_order, std::vector<int> *m, int *r) = 0;
     virtual void update(Move move) = 0;
     virtual HypernodeID deleteMax() = 0;
     virtual bool isEmpty() = 0;
@@ -95,13 +95,17 @@ namespace mt_kahypar{
     AddressablePQ<HypernodeID,Gain> queue;
     GainCache* _gain_cache;
     PartitionedHypergraph *phg;
+    std::vector<int> *moved_in_round;
+    int *last_successfull_round;
 
     GainQueue(GainCache* gc, PartitionedHypergraph *p){
       _gain_cache = gc;
       phg = p;
     }
 
-    void initialize(std::vector<HypernodeID> *insertion_order){
+    void initialize(std::vector<HypernodeID> *insertion_order, std::vector<int> *m, int *lsr){
+      moved_in_round = m;
+      last_successfull_round = lsr;
       queue.setSize(phg->initialNumNodes());
       for(HypernodeID hn : (*insertion_order)){
         check(hn);
@@ -120,6 +124,7 @@ namespace mt_kahypar{
     }
 
     void check(HypernodeID hn){
+      if((*moved_in_round)[hn] >= *last_successfull_round) return;
       Gain max_gain = -1;
       for(PartitionID p = 0; p < phg->k(); p++){
         if(_gain_cache->gain(hn, phg->partID(hn), p) > max_gain){
@@ -137,16 +142,21 @@ namespace mt_kahypar{
   template <typename GraphAndGainTypes> struct MetisQueue : RefineQueue<GraphAndGainTypes>{
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using GainCache = typename GraphAndGainTypes::GainCache;
-    AddressablePQ<HypernodeID,double> queue;
+    AddressablePQ<HypernodeID,Gain> queue;
     GainCache* _gain_cache;
     PartitionedHypergraph *phg;
+    std::vector<int> *moved_in_round;
+    int *last_successfull_round;
 
     MetisQueue(GainCache* gc, PartitionedHypergraph *p){
       _gain_cache = gc;
       phg = p;
+      
     }
 
-    void initialize(std::vector<HypernodeID> *insertion_order){
+    void initialize(std::vector<HypernodeID> *insertion_order, std::vector<int> *m, int *lsr){
+      moved_in_round = m;
+      last_successfull_round = lsr;
       queue.setSize(phg->initialNumNodes());
       for(HypernodeID hn : (*insertion_order)){
         check(hn);
@@ -165,6 +175,7 @@ namespace mt_kahypar{
     }
 
     void check(HypernodeID hn){
+      if((*moved_in_round)[hn] >= *last_successfull_round) return;
       Gain max_gain = -1;
       for(PartitionID p = 0; p < phg->k(); p++){
         if(_gain_cache->gain(hn, phg->partID(hn), p) > max_gain){
@@ -1305,6 +1316,7 @@ namespace mt_kahypar{
     std::vector<tbb::concurrent_vector<std::pair<HypernodeID, HypernodeID>>> nodes_sorted;
     std::vector<int> moved_in_round;
     int round;
+    int last_successfull_round;
     //used for random permutations
     std::vector<HypernodeID> nodes;
 
@@ -1317,6 +1329,7 @@ namespace mt_kahypar{
       refine_queue = rfq;
       moved_in_round.resize(phg->initialNumNodes(), -5);
       round = 0;
+      last_successfull_round = 0;
     }
 
     void setup_nodes_sorted(){
@@ -1434,6 +1447,7 @@ namespace mt_kahypar{
     void unconstraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
       double allowed_ib = _context->partition.allowed_imbalance_refine;
       for(int r = 0; r < 10; r++){
+        std::cout << r << "\n";
         vec<Move> moves;
         round++;
         HypernodeID before_moves = moves.size();
@@ -1468,7 +1482,9 @@ namespace mt_kahypar{
           }
           //allowed_ib /= 2.0;
         }
-        if(!improvement && !new_node_moved) return;
+        else{
+          last_successfull_round = round;
+        }
       }
     }
 
@@ -1537,7 +1553,7 @@ namespace mt_kahypar{
       bool new_node_moved = false;
       if(!_context->partition.refine_random_order){           
         Gain gain = 0;
-        refine_queue->initialize(&nodes);
+        refine_queue->initialize(&nodes, &moved_in_round, &last_successfull_round);
         while(!refine_queue->isEmpty()){
           HypernodeID hn = refine_queue->deleteMax();
           std::pair<PartitionID,Gain> max_move = {-1, 0};
@@ -1565,7 +1581,6 @@ namespace mt_kahypar{
             if(moves_linear != NULL){
               moves_linear->push_back({move.from, max_move.first, hn, local_attributed_gain});
             }
-            if(moved_in_round[hn] < round - 1) new_node_moved = true;
             moved_in_round[hn] = round;
             refine_queue->update({move.from, max_move.first, hn, local_attributed_gain});  
             num_moves++;                      
@@ -1665,8 +1680,7 @@ namespace mt_kahypar{
       ASSERT(queue->isEmpty());
       std::vector<HypernodeID> nums_per_part(phg->k(), 0);
       if(L == NULL){
-        for(HypernodeID hn : phg->nodes()){
-          if(_context->partition.vertex_locking && moved_in_round[hn] == round) continue;   
+        for(HypernodeID hn : phg->nodes()){  
           ASSERT(hn < phg->initialNumNodes());
           std::pair<PartitionID,Move_Internal> max_move =  get_max_move(hn);
           nums_per_part[phg->partID(hn)]++;    
@@ -1678,7 +1692,6 @@ namespace mt_kahypar{
       else{
         for(HypernodeID hn : (*L)){   
           ASSERT(hn < phg->initialNumNodes());
-          if(_context->partition.vertex_locking && moved_in_round[hn] == round) continue;
           std::pair<PartitionID,Move_Internal> max_move =  get_max_move(hn);    
           nums_per_part[phg->partID(hn)]++;  
           if(max_move.first != -1){
@@ -1755,7 +1768,7 @@ namespace mt_kahypar{
       auto update_nodes = [&](std::vector<HypernodeID> *changed_nodes){
         for(size_t i = 0; i < changed_nodes->size(); i++){
           ASSERT((*changed_nodes)[i] < phg->initialNumNodes());
-          if((!_context->partition.vertex_locking || moved_in_round[(*changed_nodes)[i]] < round) && (L == NULL || is_in_L[(*changed_nodes)[i]])){
+          if(L == NULL || is_in_L[(*changed_nodes)[i]]){
             std::pair<PartitionID, Move_Internal> best_move = get_max_move((*changed_nodes)[i]);
             if(/*(counter % UPDATE_FREQUENCY == 0) && */best_move.first == -1){
               queue->invalidate((*changed_nodes)[i]);
@@ -1804,7 +1817,6 @@ namespace mt_kahypar{
           std::vector<HyperedgeID> edges_with_gain_change;         
           ASSERT(move.from != move.to);
           ASSERT(move.to != -1);
-          ASSERT(moved_in_round[move.node] < round);
           phg->changeNodePart(*_gain_cache, move.node, move.from, move.to, HypernodeWeight(true), []{}, [&](const SynchronizedEdgeUpdate& sync_update) {
                           local_attributed_gain += (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
                           (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
@@ -1813,7 +1825,6 @@ namespace mt_kahypar{
                           }
                         });
           queue->move(move.from, move.to);
-          moved_in_round[move.node] = round;
           for(int d = 0; d < dimension; d++){
             lowest_part_weights[move.from].weights[d] = std::min(lowest_part_weights[move.from].weights[d], phg->partWeight(move.from).weights[d]);
             highest_part_weights[move.to].weights[d] = std::max(highest_part_weights[move.to].weights[d], phg->partWeight(move.to).weights[d]);
@@ -1867,7 +1878,7 @@ namespace mt_kahypar{
         
         ASSERT([&]{
           for(HypernodeID hn : phg->nodes()){
-            if(get_max_move(hn).first != -1 && (moved_in_round[hn] < round && (L == NULL || is_in_L[hn]))){
+            if(get_max_move(hn).first != -1 && (L == NULL || is_in_L[hn])){
               std::cout << hn << " " << phg->partID(hn) << " " << get_max_move(hn).first << " " << get_max_move(hn).second.gain << " " << get_max_move(hn).second.balance << "\n";
               for(int d = 0; d < dimension; d++){
                 std::cout << phg->nodeWeight(hn).weights[d] << " " << phg->partWeight(phg->partID(hn)).weights[d] << " " << _context->partition.max_part_weights[0].weights[d] << "\n";
@@ -2130,7 +2141,7 @@ namespace mt_kahypar{
     };
 
     if(_context.partition.refine_metis_gain){
-      MetisQueue<GraphAndGainTypes> rfq = MetisQueue<GraphAndGainTypes>(&_gain_cache, &phg);
+      MetisQueue<GraphAndGainTypes> rfq(&_gain_cache, &phg);
       if(_context.partition.rebalancer_several_pqs){
         pd_PQ<PartitionedHypergraph,double> queue = pd_PQ<PartitionedHypergraph,double>(&phg, &_context);
         Refiner<GraphAndGainTypes> refiner = Refiner<GraphAndGainTypes>(&queue, &phg, &_gain_cache, &_context, &rfq);
