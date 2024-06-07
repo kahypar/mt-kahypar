@@ -1,10 +1,9 @@
 include("config.jl")
+using DelimitedFiles
 
 function inform(message::String)
-    if (config_verbose)
-        print("[julia]: " * message * "\n")
-        flush(stdout)
-    end
+    print("[julia]: " * message * "\n")
+    flush(stdout)
 end
 
 function inform(graph_size::Integer, big_graphs::Bool, message::String)
@@ -17,7 +16,7 @@ function inform(graph_size::Integer, big_graphs::Bool, message_getter::Function)
     end
 end
 
-inform_dbg = config_verbose ? inform : x -> nothing
+inform_dbg = config_verbose ? inform : (x...) -> nothing
 
 macro print_backtrace()
     quote 
@@ -29,4 +28,11 @@ function pretty_print(A)
     str = IOBuffer()
     show(IOContext(str, :compact => false), "text/plain", A)
     return String(take!(str))
+end
+
+function read_hint_file(file_name::String)
+    line_count = 0
+    p = readdlm(file_name, Int)
+    partition = p[:,1]
+    return partition
 end

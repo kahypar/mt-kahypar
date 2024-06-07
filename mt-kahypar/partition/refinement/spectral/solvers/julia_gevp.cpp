@@ -107,7 +107,7 @@ void JuliaGEVPSolver::solve() {
   jl_array_t *hint_jl = jl_ptr_to_array_1d(node_array_type, hint.data(), hint.size(), 0);
   jl_array_t *constraints_jl = jl_ptr_to_array_1d(double_array_type, deflation_evecs.data(), num_deflation_epairs * n, 0);
 
-  jl_function_t *solve = (jl_function_t *) jl_eval_string("main_lobpcg_tree_distill");
+  jl_function_t *solve = (jl_function_t *) jl_eval_string("main_auto");
 
   DBG << "launching Julia code...";
 

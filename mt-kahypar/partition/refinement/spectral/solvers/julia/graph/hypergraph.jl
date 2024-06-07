@@ -72,6 +72,46 @@ function import_hypergraph(hgr_data::AbstractArray)
         data[(2 + n + 1) : (2 + n + m)])
 end
 
+function write_hypergraph(hgraph::__hypergraph__, fname::String)
+    n = hgraph.num_vertices
+    e = hgraph.num_hyperedges
+    hedges = hgraph.eind
+    eptr = hgraph.eptr
+    hwts = hgraph.hwts
+    vwts = hgraph.vwts
+    fixed = hgraph.fixed
+    wt_flag = maximum(vwts) > 1 ? true : false
+    f = open(fname, "w")
+    println(f, e, " ", n, " 11")
+
+    for i in 1:e
+        start_idx = eptr[i]
+        end_idx = eptr[i+1]-1
+        print(f, hwts[i])
+        for j in start_idx:end_idx
+            print(f, " ", hedges[j])
+        end
+        print(f, "\n")
+    end
+    for i in 1:n
+        if wt_flag == 0
+            println(f, vwts[i])
+        else
+            println(f, vwts[i]+1)
+        end
+    end
+
+    close(f)
+
+    if maximum(fixed) > -1
+        f = open(fname*".fixed", "w")
+        for i in 1:n
+            println(f, fixed_vtxs[i])
+        end
+        close(f)
+    end
+end
+
 function check_hypergraph_is_graph(hgr::__hypergraph__)
     for i in 1 : hgr.num_hyperedges
         if hgr.eptr[i + 1] - hgr.eptr[i] > 2
@@ -79,4 +119,36 @@ function check_hypergraph_is_graph(hgr::__hypergraph__)
         end
     end
     return true
+end
+
+function write_partition(partition::Vector{Int},
+    partition_file_name::String)
+f = open(partition_file_name, "w")
+for i in 1:length(partition)
+println(f, partition[i])
+end
+close(f)
+end
+
+function golden_evaluator(hypergraph::__hypergraph__,
+    num_parts::Int,
+    partition::Vector{Int})
+cutsize = 0
+for i in 1:hypergraph.num_hyperedges
+first_valid_entry = hypergraph.eptr[i]
+first_invalid_entry = hypergraph.eptr[i+1]
+for j in first_valid_entry+1 : first_invalid_entry-1
+v = hypergraph.eind[j]
+if (partition[hypergraph.eind[j]] != partition[hypergraph.eind[j-1]])
+cutsize += hypergraph.hwts[i]
+break
+end
+end
+end
+balance = zeros(Int, num_parts)
+for i in 1:hypergraph.num_vertices
+p = partition[i]
+balance[p+1] += hypergraph.vwts[i]
+end
+return (cutsize, balance)
 end

@@ -1,4 +1,5 @@
 include("../utils.jl")
+include("../config.jl")
 
 function hgr_laplacian(hg::__hypergraph__, x::AbstractArray)
     n = hg.num_vertices
@@ -154,4 +155,12 @@ function graph_adj_matrix(g::__hypergraph__)
     res = sparse(vcat(is, js), vcat(js, is), convert(AbstractArray{Float64, 1}, vcat(vs, vs)), g.num_vertices, g.num_vertices)
 
     return res
+end
+
+function adjacency_matrix(g::__hypergraph__)
+    if check_hypergraph_is_graph(g) && !config_approximateGraphs
+        return graph_adj_matrix(g)
+    else
+        return hypergraph2graph(g, config_randLapCycles)
+    end
 end

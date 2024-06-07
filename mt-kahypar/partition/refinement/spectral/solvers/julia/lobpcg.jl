@@ -1,9 +1,3 @@
-using LinearAlgebra
-using LinearMaps
-using IterativeSolvers
-using SparseArrays
-using Random
-
 include("graph/hypergraph.jl")
 include("graph/graphification.jl")
 include("graph/matrices.jl")
@@ -39,7 +33,11 @@ function make_b_op(hgr, hint, acc)
         hgr.num_vertices, issymmetric=true, isposdef=true)
 end
 
-function solve_lobpcg(hgr::__hypergraph__, hint_partition::AbstractArray{Int}, deflation_space::AbstractArray{Float64, 2}, nev::Int)
+function solve_lobpcg(hgr::__hypergraph__,
+        hint_partition::AbstractArray{Int},
+        deflation_space::AbstractArray{Float64, 2},
+        nev::Int,
+        adjacency_matrix::AbstractArray{Float64, 2})
     n = hgr.num_vertices
     m = hgr.num_hyperedges
     inform(n, false, () -> string(hgr))
@@ -52,16 +50,8 @@ function solve_lobpcg(hgr::__hypergraph__, hint_partition::AbstractArray{Int}, d
     bacc = ones(size(hgr.vwts, 2))
     bmap = make_b_op(hgr, hint_partition, bacc)
 
-    inform_dbg(n, true, "building adjaciency matrix...")
-    lap_matrix = spdiagm([])
-    if is_graph && !config_approximateGraphs
-        lap_matrix = graph_adj_matrix(hgr)
-    else
-        lap_matrix = hypergraph2graph(hgr, config_randLapCycles)
-    end
-
     inform_dbg(n, true, "building laplacian...")
-    lap_matrix = laplacianize_adj_mat(lap_matrix, is_graph ? hgr : nothing)
+    lap_matrix = laplacianize_adj_mat(adjacency_matrix, is_graph ? hgr : nothing)
     inform(n, false, () -> pretty_print(lap_matrix))
     
     inform_dbg(n, true, "preconditioning...")
