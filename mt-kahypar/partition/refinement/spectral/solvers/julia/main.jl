@@ -4,6 +4,7 @@ using IterativeSolvers
 using SparseArrays
 using Random
 
+include("config.jl")
 include("utils.jl")
 include("graph/hypergraph.jl")
 include("graph/matrices.jl")
@@ -41,4 +42,4 @@ function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, 
     end)
 end
 
-main_auto = main_lobpcg_tree_distill
+main_auto = getfield(Main, Symbol(config_main))
