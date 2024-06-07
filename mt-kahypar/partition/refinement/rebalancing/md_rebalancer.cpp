@@ -1434,13 +1434,13 @@ namespace mt_kahypar{
       for(int i = 0; i < 10; i++){
         Gain before_quality = local_attributed_gain;
         round++;
-        simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, false);
+        simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, std::numeric_limits<int>::max());
         if(before_quality == local_attributed_gain) break;
       }      
       if(!metrics::isBalanced(*phg, *_context)){
         vec<Move> m;
         rebalancing(&m, best_metrics, local_attributed_gain);  
-        simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, false);
+        simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, std::numeric_limits<int>::max());
       }
     }
 
@@ -1452,7 +1452,7 @@ namespace mt_kahypar{
         round++;
         HypernodeID before_moves = moves.size();
         Gain before_gain = local_attributed_gain;
-        bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking);
+        bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         if(local_attributed_gain == before_gain){
           ASSERT([&]{
             for(HypernodeID hn : phg->nodes()){
@@ -1468,7 +1468,7 @@ namespace mt_kahypar{
           rebalancing(&moves, best_metrics, local_attributed_gain);
         }
         std::cout << "rb: " << local_attributed_gain << "\n";
-        simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, false);
+        simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         bool improvement = local_attributed_gain - before_gain < 0 && metrics::isBalanced(*phg, *_context);
         if(local_attributed_gain - before_gain > 0 || !metrics::isBalanced(*phg, *_context)){
           std::cout << "failure\n";
@@ -1489,7 +1489,7 @@ namespace mt_kahypar{
     }
 
     bool simple_lp(vec<Move>* moves_linear,Metrics& best_metrics, 
-      double allowed_imbalance, Gain& local_attributed_gain, bool vertex_locking){
+      double allowed_imbalance, Gain& local_attributed_gain, int last_succ_round){
       std::vector<HypernodeWeight> max_part_weights(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
         for(int d = 0; d < dimension; d++){
@@ -1553,7 +1553,7 @@ namespace mt_kahypar{
       bool new_node_moved = false;
       if(!_context->partition.refine_random_order){           
         Gain gain = 0;
-        refine_queue->initialize(&nodes, &moved_in_round, &last_successfull_round);
+        refine_queue->initialize(&nodes, &moved_in_round, &last_succ_round);
         while(!refine_queue->isEmpty()){
           HypernodeID hn = refine_queue->deleteMax();
           std::pair<PartitionID,Gain> max_move = {-1, 0};
@@ -1720,6 +1720,7 @@ namespace mt_kahypar{
       
       int other_counter = 0;
       const int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
+      uint64_t num_update_swaps = 0;
 
       std::vector<HypernodeWeight> highest_part_weights;
       std::vector<HypernodeWeight> lowest_part_weights;
@@ -1850,6 +1851,7 @@ namespace mt_kahypar{
           if(counter % UPDATE_FREQUENCY == 0){            
             completeUpdate(&changed_nodes);            
           }
+          uint64_t tmp_swaps = queue->num_swaps();
           update_nodes(&changed_nodes);
           if(counter % UPDATE_FREQUENCY != 0){
             for(HypernodeID hn : queue->updateRequired()){
@@ -1857,17 +1859,17 @@ namespace mt_kahypar{
               std::pair<PartitionID,Move_Internal> max_move = get_max_move(hn);
               if(max_move.first == -1) continue;
               queue->update(hn, max_move.second.gain_and_balance);
-            }
-            
-          }          
+            }            
+          }
+          num_update_swaps += queue->num_swaps() - tmp_swaps;          
         }
-        if(queue->isEmpty()){
+        if(queue->isEmpty() && counter % UPDATE_FREQUENCY != 0){
           std::vector<HypernodeID> cn2;
           completeUpdate(&cn2);
           update_nodes(&cn2);                  
         }                                                 
       }      
-      std::cout << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << "\n";
+      std::cout << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << num_update_swaps << "\n";
       if(imbalanced != 0){
         for(PartitionID p = 0; p < phg->k(); p++){
           for(int d = 0; d < dimension; d++){
