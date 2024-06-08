@@ -61,7 +61,8 @@ struct PartitioningParameters {
   bool rebalance_pq_combined = false;
   bool rebalance_l1 = true;
   bool rebalance_max = false;
-  bool rebalancer_several_pqs = false;
+  bool rebalancer_k_pqs = false;
+  bool rebalancer_kd_pqs = false;
   bool rebalancer_guarantee_best = true;
   bool rebalancer_use_move_cache = false;
   bool rebalancer_update_all = false;
@@ -74,6 +75,13 @@ struct PartitioningParameters {
   bool vertex_locking = false;
   double fallback_large_node_threshold;
   bool refiner_consider_weight;
+  bool assure_balance;
+  bool use_unconstraint;
+  bool use_constraint;
+  bool constraint_in_unconstraint;
+  int penalty_metric_idx;
+  bool boundary_update_optimization;
+  bool sorted_nodes_update_optimization;
 
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();

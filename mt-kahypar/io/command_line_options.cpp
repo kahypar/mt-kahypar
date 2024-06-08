@@ -150,6 +150,15 @@ namespace mt_kahypar {
              ("vertex-locking",
              po::value<bool>(&context.partition.vertex_locking)->value_name("<bool>")->default_value(false),
              "max imbalance of refinement in md_rebalancer")
+             ("assure-balance",
+             po::value<bool>(&context.partition.assure_balance)->value_name("<bool>")->default_value(true),
+             "max imbalance of refinement in md_rebalancer")
+             ("constraint-in-unconstraint",
+             po::value<bool>(&context.partition.constraint_in_unconstraint)->value_name("<bool>")->default_value(true),
+             "max imbalance of refinement in md_rebalancer")
+             ("penalty-metric-idx",
+             po::value<int>(&context.partition.penalty_metric_idx)->value_name("<bool>")->default_value(0),
+             "max imbalance of refinement in md_rebalancer")
              ("l1-factor",
              po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(1.0),
              "l1 factor")
@@ -161,6 +170,9 @@ namespace mt_kahypar {
              "use l1 as tiebreak")
              ("use-l1-factor-decrease",
              po::value<bool>(&context.partition.use_l1_factor_decrease)->value_name("<bool>")->default_value(false),
+             "in deadlock case, adapt rebalancers max weights")
+             ("use-unconstraint",
+             po::value<bool>(&context.partition.use_unconstraint)->value_name("<bool>")->default_value(true),
              "in deadlock case, adapt rebalancers max weights")
              ("refine-l1-tiebreak",
              po::value<bool>(&context.partition.refine_l1_tiebreak)->value_name("<bool>")->default_value(false),
@@ -186,8 +198,11 @@ namespace mt_kahypar {
              ("rebalance-max",
              po::value<bool>(&context.partition.rebalance_max)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
-             ("rebalance-several-pqs",
-             po::value<bool>(&context.partition.rebalancer_several_pqs)->value_name("<bool>")->default_value(false),
+             ("rebalance-k-pqs",
+             po::value<bool>(&context.partition.rebalancer_k_pqs)->value_name("<bool>")->default_value(false),
+             "use l1 as tiebreak")
+             ("rebalancekd-pqs",
+             po::value<bool>(&context.partition.rebalancer_kd_pqs)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("rebalance-guarantee-best",
              po::value<bool>(&context.partition.rebalancer_guarantee_best)->value_name("<bool>")->default_value(true),
