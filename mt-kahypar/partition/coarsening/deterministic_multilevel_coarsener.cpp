@@ -778,7 +778,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::performMatching(vec<Hyperno
     calculateAndSortEdgeRatings(rf);
   } else if (_context.coarsening.edge_rating_for_matching == EdgeRatingForMatching::heavy_edge) {
     auto rf = [&](const Hypergraph& hg, const HyperedgeID he) {
-      return static_cast<double>(hg.edgeWeight(he)) / (hg.edgeWeight(he) - 1);
+      return static_cast<double>(hg.edgeWeight(he)) / (hg.edgeSize(he) - 1);
     };
     calculateAndSortEdgeRatings(rf);
   } else if (_context.coarsening.edge_rating_for_matching == EdgeRatingForMatching::expansion) {
