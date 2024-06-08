@@ -156,6 +156,12 @@ namespace mt_kahypar {
              ("constraint-in-unconstraint",
              po::value<bool>(&context.partition.constraint_in_unconstraint)->value_name("<bool>")->default_value(true),
              "max imbalance of refinement in md_rebalancer")
+             ("boundary-update",
+             po::value<bool>(&context.partition.boundary_update_optimization)->value_name("<bool>")->default_value(false),
+             "max imbalance of refinement in md_rebalancer")
+             ("sorted-nodes",
+             po::value<bool>(&context.partition.sorted_nodes_update_optimization)->value_name("<bool>")->default_value(false),
+             "max imbalance of refinement in md_rebalancer")
              ("penalty-metric-idx",
              po::value<int>(&context.partition.penalty_metric_idx)->value_name("<bool>")->default_value(0),
              "max imbalance of refinement in md_rebalancer")
