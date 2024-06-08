@@ -1570,7 +1570,8 @@ namespace mt_kahypar{
         constraint_refinement(best_metrics, local_attributed_gain);
       }
       else{
-        rebalancing(NULL, best_metrics, local_attributed_gain, _context->partition.assure_balance);
+        vec<Move> tmp_moves;
+        rebalancing(&tmp_moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
       }
       ASSERT([&]{
         for(HypernodeID hn : phg->nodes()){
@@ -1676,6 +1677,7 @@ namespace mt_kahypar{
         if(local_attributed_gain == before_gain){
           ASSERT([&]{
             for(HypernodeID hn : phg->nodes()){
+              if(moved_in_round[hn] >= last_successfull_round) continue;
               for(PartitionID p = 0; p < phg->k(); p++){
                 if(_gain_cache->gain(hn, phg->partID(hn), p) > 0) return false;
               }

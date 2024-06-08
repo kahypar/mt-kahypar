@@ -201,7 +201,7 @@ namespace mt_kahypar {
              ("rebalance-k-pqs",
              po::value<bool>(&context.partition.rebalancer_k_pqs)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
-             ("rebalancekd-pqs",
+             ("rebalance-kd-pqs",
              po::value<bool>(&context.partition.rebalancer_kd_pqs)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("rebalance-guarantee-best",
