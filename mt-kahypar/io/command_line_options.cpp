@@ -180,6 +180,9 @@ namespace mt_kahypar {
              ("use-unconstraint",
              po::value<bool>(&context.partition.use_unconstraint)->value_name("<bool>")->default_value(true),
              "in deadlock case, adapt rebalancers max weights")
+             ("use-constraint",
+             po::value<bool>(&context.partition.use_constraint)->value_name("<bool>")->default_value(true),
+             "in deadlock case, adapt rebalancers max weights")
              ("refine-metis-tiebreak",
              po::value<bool>(&context.partition.refine_metis_tiebreak)->value_name("<bool>")->default_value(true),
              "use l1 as tiebreak")
