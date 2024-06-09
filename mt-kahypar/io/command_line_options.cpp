@@ -183,9 +183,6 @@ namespace mt_kahypar {
              ("refine-metis-tiebreak",
              po::value<bool>(&context.partition.refine_metis_tiebreak)->value_name("<bool>")->default_value(true),
              "use l1 as tiebreak")
-             ("rebalance-pq-combined",
-             po::value<bool>(&context.partition.rebalance_pq_combined)->value_name("<bool>")->default_value(false),
-             "use l1 as tiebreak")
              ("fallback-large-node-threshold",
              po::value<double>(&context.partition.fallback_large_node_threshold)->value_name("<double>")->default_value(0.03),
              "use l1 as tiebreak")
@@ -197,9 +194,6 @@ namespace mt_kahypar {
              "use l1 as tiebreak")
              ("rebalance-guarantee-best",
              po::value<bool>(&context.partition.rebalancer_guarantee_best)->value_name("<bool>")->default_value(true),
-             "use l1 as tiebreak")
-             ("refiner-consider-weight",
-             po::value<bool>(&context.partition.refiner_consider_weight)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
