@@ -48,40 +48,40 @@ struct PartitioningParameters {
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   std::array<double, mt_kahypar::dimension> epsilon;
-  double update_frequency = 0.0001;
+
+  bool use_unconstraint;
+  bool use_constraint;
+  bool constraint_in_unconstraint;
+
+  bool vertex_locking = false;
+
   double allowed_imbalance_refine=0.2;
-  bool refine_l1_tiebreak = false;
   bool refine_metis_tiebreak = true;
-  bool refine_combined_tiebreak = false;
   bool refine_metis_gain = false;  
   bool refine_metis_move_criterion = true;
   bool refine_random_order = false;
-  bool rebalance_pq_l1 = true;
-  bool rebalance_pq_max = false;
-  bool rebalance_pq_combined = false;
-  bool rebalance_l1 = true;
-  bool rebalance_max = false;
+
+  double update_frequency = 0.0001;  
   bool rebalancer_k_pqs = false;
   bool rebalancer_kd_pqs = false;
   bool rebalancer_guarantee_best = true;
   bool rebalancer_use_move_cache = false;
-  bool rebalancer_update_all = false;
-  bool rebalancer_approximate_worsened_move = false;
-  bool use_l1_factor_decrease = false;
-  bool use_fallback = false;
-  bool fallback_extract_equally = false;
-  double l1_start_factor = 0.9999;
-  double L_threshold = 0.0;
-  bool vertex_locking = false;
-  double fallback_large_node_threshold;
-  bool refiner_consider_weight;
-  bool assure_balance;
-  bool use_unconstraint;
-  bool use_constraint;
-  bool constraint_in_unconstraint;
-  int penalty_metric_idx;
+  bool rebalancer_approximate_worsened_move = false;  
+  
   bool boundary_update_optimization;
   bool sorted_nodes_update_optimization;
+
+  double l1_start_factor = 0.9999;
+
+  bool assure_balance;
+
+  bool use_l1_factor_decrease = false;
+  double decrease_exponent = 1.0;
+
+  double L_threshold = 0.0;
+  double fallback_large_node_threshold;
+  bool fallback_extract_equally = false;
+  int penalty_metric_idx;
 
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();

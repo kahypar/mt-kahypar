@@ -1768,8 +1768,12 @@ namespace mt_kahypar{
         return _context->partition.refine_metis_move_criterion ? betterToMove(hn, p) : kahypar_betterToMove(hn,p);
       };
       auto refine_tiebreak = [&](HypernodeID hn, PartitionID p1, PartitionID p2){
-        return _context->partition.refine_metis_tiebreak ? betterBalanceKWay(phg->nodeWeight(hn), 1, p1, 1, p2) :
-          (L1_balance_gain(hn, p1) < L1_balance_gain(hn, p2));
+        if(_context->partition.refine_metis_tiebreak){
+          return betterBalanceKWay(phg->nodeWeight(hn), 1, p1, 1, p2);
+        }
+        double g1 = L1_balance_gain(hn, p1);
+        double g2 = L1_balance_gain(hn, p2);
+        return g1 < g2 || g1 == g2 && betterBalanceKWay(phg->nodeWeight(hn), 1, p1, 1, p2);
       };
 
       HypernodeID num_moves = 0;
@@ -2043,6 +2047,7 @@ namespace mt_kahypar{
         }
       };
 
+      uint64_t initialization_swaps = queue->num_swaps();
       while(!queue->isEmpty() && (imbalanced != 0) ){
         std::pair<PartitionID, Move_Internal> max_move;
         max_move.first = -1;
@@ -2131,7 +2136,7 @@ namespace mt_kahypar{
           update_nodes(&cn2);                  
         }                                                 
       }      
-      std::cout << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << num_update_swaps << "\n";
+      std::cout << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << initialization_swaps << " " << num_update_swaps << "\n";
       if(imbalanced != 0){
         for(PartitionID p = 0; p < phg->k(); p++){
           for(int d = 0; d < dimension; d++){
@@ -2245,6 +2250,20 @@ namespace mt_kahypar{
       };
 
       auto penalty5 = [&](HypernodeWeight weight){
+        double minw = std::numeric_limits<double>::max();
+        double maxw = std::numeric_limits<double>::min();
+        double avg = 0.0;
+        for(int d = 0; d < dimension; d++){
+          double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
+          minw = std::min(minw, tmp);
+          maxw = std::max(maxw,tmp);
+          avg += tmp;
+        }
+        avg /= phg->k();
+        return (maxw - minw) / (1.0 - avg);
+      };
+
+      auto penalty6 = [&](HypernodeWeight weight){
         double minw = std::numeric_limits<double>::max();
         double maxw = std::numeric_limits<double>::min();
         double avg = 0.0;

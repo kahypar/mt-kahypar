@@ -156,10 +156,10 @@ namespace mt_kahypar {
              ("constraint-in-unconstraint",
              po::value<bool>(&context.partition.constraint_in_unconstraint)->value_name("<bool>")->default_value(true),
              "max imbalance of refinement in md_rebalancer")
-             ("boundary-update",
+             ("boundary-update-optimization",
              po::value<bool>(&context.partition.boundary_update_optimization)->value_name("<bool>")->default_value(false),
              "max imbalance of refinement in md_rebalancer")
-             ("sorted-nodes",
+             ("sorted-nodes-optimization",
              po::value<bool>(&context.partition.sorted_nodes_update_optimization)->value_name("<bool>")->default_value(false),
              "max imbalance of refinement in md_rebalancer")
              ("penalty-metric-idx",
@@ -168,41 +168,26 @@ namespace mt_kahypar {
              ("l1-factor",
              po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(1.0),
              "l1 factor")
-             ("use-fallback",
-             po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(false),
-             "use fallback instead of adapting max weights")
              ("fallback-extract-equally",
              po::value<bool>(&context.partition.fallback_extract_equally)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("use-l1-factor-decrease",
              po::value<bool>(&context.partition.use_l1_factor_decrease)->value_name("<bool>")->default_value(false),
              "in deadlock case, adapt rebalancers max weights")
+             ("decrease-exponent",
+             po::value<double>(&context.partition.decrease_exponent)->value_name("<double>")->default_value(1.0),
+             "in deadlock case, adapt rebalancers max weights")
              ("use-unconstraint",
              po::value<bool>(&context.partition.use_unconstraint)->value_name("<bool>")->default_value(true),
              "in deadlock case, adapt rebalancers max weights")
-             ("refine-l1-tiebreak",
-             po::value<bool>(&context.partition.refine_l1_tiebreak)->value_name("<bool>")->default_value(false),
-             "use l1 as tiebreak")
              ("refine-metis-tiebreak",
              po::value<bool>(&context.partition.refine_metis_tiebreak)->value_name("<bool>")->default_value(true),
-             "use l1 as tiebreak")
-             ("rebalance-pq-l1",
-             po::value<bool>(&context.partition.rebalance_pq_l1)->value_name("<bool>")->default_value(true),
-             "use l1 as tiebreak")
-             ("rebalance-pq-max",
-             po::value<bool>(&context.partition.rebalance_pq_max)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("rebalance-pq-combined",
              po::value<bool>(&context.partition.rebalance_pq_combined)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("fallback-large-node-threshold",
              po::value<double>(&context.partition.fallback_large_node_threshold)->value_name("<double>")->default_value(0.03),
-             "use l1 as tiebreak")
-             ("rebalance-l1",
-             po::value<bool>(&context.partition.rebalance_l1)->value_name("<bool>")->default_value(true),
-             "use l1 as tiebreak")
-             ("rebalance-max",
-             po::value<bool>(&context.partition.rebalance_max)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
              ("rebalance-k-pqs",
              po::value<bool>(&context.partition.rebalancer_k_pqs)->value_name("<bool>")->default_value(false),
@@ -216,12 +201,6 @@ namespace mt_kahypar {
              ("refiner-consider-weight",
              po::value<bool>(&context.partition.refiner_consider_weight)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
-             ("rebalance-update-all",
-             po::value<bool>(&context.partition.rebalancer_update_all)->value_name("<bool>")->default_value(true),
-             "update also worsened moves at periodic updates")
-             ("refine-combined-tiebreak",
-             po::value<bool>(&context.partition.refine_combined_tiebreak)->value_name("<bool>")->default_value(false),
-             "update also worsened moves at periodic updates")
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")
