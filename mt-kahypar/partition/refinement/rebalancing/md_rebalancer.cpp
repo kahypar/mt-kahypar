@@ -1569,7 +1569,7 @@ namespace mt_kahypar{
       if(_context->partition.use_constraint){
         constraint_refinement(best_metrics, local_attributed_gain);
       }
-      else{
+      else if(!metrics::isBalanced(*phg, *_context)){
         vec<Move> tmp_moves;
         rebalancing(&tmp_moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
       }
