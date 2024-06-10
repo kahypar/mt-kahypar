@@ -318,7 +318,7 @@ namespace mt_kahypar{
     std::pair<HypernodeID,bool> deleteMax(PartitionID p, int dim){
       get_pq(p, dim);
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
-      std::cout << "new gain: " << max_pair.second << "\n";
+      //std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
       while(is_extracted[max]){
         if(queues[p][dim].isEmpty()) return {0, false};
@@ -529,7 +529,7 @@ namespace mt_kahypar{
       for(auto pair : tmp_partitioning){
         partitioning[pair.first] = pair.second;
       }
-      for(PartitionID p = 0; p < phg->k(); p++){
+      /*for(PartitionID p = 0; p < phg->k(); p++){
         std::cout << "weights:\n";
         for(int d = 0; d < dimension; d++){
           std::cout << virtual_weight[p].weights[d] << " ";
@@ -539,15 +539,15 @@ namespace mt_kahypar{
       for(HypernodeID hn = 0; hn < new_num; hn++){
         ASSERT(available[(*nodes)[hn]] && used[(*nodes)[hn]]);
         ASSERT(partitioning[(*nodes)[hn]] != -1);
-      }
+      }*/
 
       for(HypernodeID idx = new_num; idx < last_success; idx++){
         partitioning[(*nodes)[idx]] = -1;
       } 
       last_success = new_num;  
-      for(HypernodeID hn = new_num; hn < nodes->size(); hn++){
+      /*for(HypernodeID hn = new_num; hn < nodes->size(); hn++){
         ASSERT(partitioning[(*nodes)[hn]] == -1);
-      }   
+      }*/   
       return true;
     }
   };
@@ -2340,7 +2340,7 @@ namespace mt_kahypar{
 
       double S_weight = 0.0;
       auto extract = [&](PartitionID p){
-        print_parts();
+        //print_parts();
         int heaviest_dim = get_heaviest_dim(virtual_weight[p]);
         std::pair<HypernodeID,bool> nextnode = PQComputer.deleteMax(p, heaviest_dim);
         if(!nextnode.second) return false;
@@ -2455,7 +2455,7 @@ namespace mt_kahypar{
             c++;
           }
         } 
-        std::cout << "sizes " << c << " " << succ_idx << "\n";
+        /*std::cout << "sizes " << c << " " << succ_idx << "\n";*/
         ASSERT(c == succ_idx);
         ASSERT([&]{
           std::vector<HypernodeWeight> test;
@@ -2474,12 +2474,11 @@ namespace mt_kahypar{
         current = (upper + lower) / 2.0;
       }
       int counter = 0;
-      std::cout << "S: ";
       for(HypernodeID hn : S){
-        for(int d = 0; d < dimension; d++){
+        /*for(int d = 0; d < dimension; d++){
           std::cout << phg->nodeWeight(hn).weights[d] << " ";
         }
-        std::cout << "| ";
+        std::cout << "| ";*/
         if(binpacker.partitioning[hn] != -1){
           counter++;
         }
@@ -2490,7 +2489,7 @@ namespace mt_kahypar{
           fallback_moves->push_back(move);
         }
       }
-      std::cout << "sizes " << counter << " " << succ_idx << "\n";
+      /*std::cout << "sizes " << counter << " " << succ_idx << "\n";*/
       ASSERT(counter == succ_idx);
       return true;
     }
