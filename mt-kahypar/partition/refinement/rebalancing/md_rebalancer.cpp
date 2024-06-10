@@ -271,6 +271,7 @@ namespace mt_kahypar{
 
     double get_prio(HypernodeID hn, int k, int d){
       double gain = id_ed[hn].first - (id_ed[hn].second) / (phg->k() - 1);
+      gain = std::max(gain, 1.0 / phg->k());
       ASSERT(gain >= 0);
       double weight = phg->nodeWeight(hn).weights[d] * _context->partition.max_part_weights_inv[k][d];
       double other_weight = 0.0;
