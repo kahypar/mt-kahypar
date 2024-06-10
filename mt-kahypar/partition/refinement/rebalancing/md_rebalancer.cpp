@@ -285,7 +285,7 @@ namespace mt_kahypar{
         if(d1 == d) continue;
         other_weight += phg->nodeWeight(hn).weights[d1] * _context->partition.max_part_weights_inv[k][d1];
       }
-      other_weight /= phg->k() - 1;
+      other_weight /= dimension - 1;
       if(weight <= 0.0){
         return std::numeric_limits<double>::max();
       }
@@ -1646,8 +1646,7 @@ namespace mt_kahypar{
                             
                           });
           }
-          std::cout << "l size " << L.size() << "\n\n\n";
-          if(L.size() > 0 && !metrics::isBalanced(*phg, *_context)){
+          if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
           for(PartitionID p = 0; p < phg->k(); p++){
