@@ -221,6 +221,12 @@ namespace mt_kahypar{
       phg = hg;
       _gain_cache = gc;
       _context = ct;
+      double max_ib = 0.0;
+      for(PartitionID p = 0; p < phg->k(); p++){
+        for(int d = 0; d < dimension; d++){
+          max_ib = std::max(max_ib, (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * _context->partition.max_part_weights_inv[p][d]);
+        }
+      }
       L = l;
       queues.resize(phg->k());
       is_extracted.resize(phg->initialNumNodes(), false);
@@ -242,7 +248,7 @@ namespace mt_kahypar{
       index_to_id.resize(dimension * phg->k());
       for(HypernodeID hn : phg->nodes()){
         if((*L)[hn]) continue;
-        if(totalweight(phg->nodeWeight(hn)) > _context->partition.fallback_large_node_threshold) continue;
+        if(totalweight(phg->nodeWeight(hn)) > std::max(_context->partition.fallback_large_node_threshold, dimension * max_ib)) continue;
         id_to_index[hn] = index_to_id[phg->partID(hn)].size();
         index_to_id[phg->partID(hn)].push_back(hn);
       }
@@ -309,16 +315,17 @@ namespace mt_kahypar{
       }
     }
 
-    HypernodeID deleteMax(PartitionID p, int dim){
+    std::pair<HypernodeID,bool> deleteMax(PartitionID p, int dim){
       get_pq(p, dim);
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
       std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
       while(is_extracted[max]){
+        if(queues[p][dim].isEmpty()) return {0, false};
         max = index_to_id[p][queues[p][dim].deleteMax().first];
       }
       extract(max);
-      return max;
+      return {max, true};
     }
 
   };
@@ -2336,14 +2343,17 @@ namespace mt_kahypar{
       auto extract = [&](PartitionID p){
         print_parts();
         int heaviest_dim = get_heaviest_dim(virtual_weight[p]);
-        HypernodeID hn = PQComputer.deleteMax(p, heaviest_dim);
+        std::pair<HypernodeID,bool> nextnode = PQComputer.deleteMax(p, heaviest_dim);
+        if(!nextnode.second) return false;
+        HypernodeID hn = nextnode.first;
         virtual_weight[p] -= phg->nodeWeight(hn);
         S.push_back(hn);
         S_weight += get_normalized_weight(phg->nodeWeight(hn));
+        return true;
       };
       for(PartitionID p = 0; p < phg->k(); p++){
         while(!(virtual_weight[p] <= _context->partition.max_part_weights[p])){
-          extract(p);
+          if(!extract(p)) return false;
         }
       }
       double goal = S_weight;
@@ -2383,7 +2393,7 @@ namespace mt_kahypar{
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
-          extract(max_p);
+          if(!extract(max_p)) return false;
         }
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
           std::cout << "success\n";
