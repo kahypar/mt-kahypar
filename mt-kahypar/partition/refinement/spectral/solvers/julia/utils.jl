@@ -36,3 +36,5 @@ function read_hint_file(file_name::String)
     partition = p[:,1]
     return partition
 end
+
+EXTEND_PATH_COMMAND = "PATH=\$PATH:$(config_installationsPrefix)/bin"
