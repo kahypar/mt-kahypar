@@ -32,7 +32,7 @@ function main(input, method)
 end
 
 function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    return main((hgr_data, hint, deflation_evecs), (g, h, e, a, f) -> solve_lobpcg(g, h, e, 1, a))
+    return main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> solve_lobpcg(g, h, e, 1, a))
 end
 
 function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
