@@ -1646,7 +1646,8 @@ namespace mt_kahypar{
                             
                           });
           }
-          if(L.size() > 0){
+          std::cout << "l size " << L.size() << "\n\n\n";
+          if(L.size() > 0 && !metrics::isBalanced(*phg, *_context)){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
           for(PartitionID p = 0; p < phg->k(); p++){
