@@ -1849,7 +1849,7 @@ namespace mt_kahypar{
           }        
         }         
       }
-      std::cout << "lp: " << num_moves << " " << local_attributed_gain << "\n";  
+      std::cout << "lp: " << num_moves << " " << local_attributed_gain - before_gain << "\n";  
       return new_node_moved;   
     }
 
@@ -1956,8 +1956,6 @@ namespace mt_kahypar{
         }
       }
 
-      std::cout << estimated_num_moves << " enm\n";
-
       PartitionID imbalanced = 0;
       for(PartitionID p = 0; p < phg->k(); p++){
         if(phg->partWeight(p) > _context->partition.max_part_weights[p]){
@@ -1965,7 +1963,6 @@ namespace mt_kahypar{
         }
       }
 
-      
       int other_counter = 0;
       const int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
       uint64_t num_update_swaps = 0;
@@ -2048,6 +2045,8 @@ namespace mt_kahypar{
       };
 
       uint64_t initialization_swaps = queue->num_swaps();
+      int num_frequent_updates = 0;
+      int num_empty_queue_updates = 0;
       while(!queue->isEmpty() && (imbalanced != 0) ){
         std::pair<PartitionID, Move_Internal> max_move;
         max_move.first = -1;
@@ -2115,7 +2114,8 @@ namespace mt_kahypar{
               changed_nodes.push_back(v);            
             }
           }
-          if(counter % UPDATE_FREQUENCY == 0){            
+          if(counter % UPDATE_FREQUENCY == 0){
+            num_frequent_updates++;            
             completeUpdate(&changed_nodes);            
           }
           uint64_t tmp_swaps = queue->num_swaps();
@@ -2131,13 +2131,14 @@ namespace mt_kahypar{
           num_update_swaps += queue->num_swaps() - tmp_swaps;          
         }
         if(queue->isEmpty() && counter % UPDATE_FREQUENCY != 0){
+          num_empty_queue_updates++;
           std::vector<HypernodeID> cn2;
           completeUpdate(&cn2);
           update_nodes(&cn2);                  
         }                                                 
       }      
-      std::cout << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << initialization_swaps << " " << num_update_swaps << "\n";
-      if(imbalanced != 0){
+      std::cout << estimated_num_moves << " " << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << initialization_swaps << " " << num_update_swaps << "\n";
+      /*if(imbalanced != 0){
         for(PartitionID p = 0; p < phg->k(); p++){
           for(int d = 0; d < dimension; d++){
             std::cout << phg->partWeight(p).weights[d] << "\n";
@@ -2157,7 +2158,7 @@ namespace mt_kahypar{
           }
           return true;
         }(), "didnt correct update");
-      }
+      }*/
       return imbalanced == 0;
     }
 
