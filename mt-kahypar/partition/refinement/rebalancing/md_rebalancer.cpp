@@ -2357,8 +2357,8 @@ namespace mt_kahypar{
       }
       double goal = S_weight;
       double starting_goal = goal;
-
       HypernodeID starting_index = S.size();
+      HypernodeID last_idx_lower = starting_index;
 
       auto select_max_pen_p = [&](){
         double max_pen = 0.0;
@@ -2399,6 +2399,7 @@ namespace mt_kahypar{
           break;
         }
         else{
+          last_idx_lower = S.size() - 1;
           std::cout << "nosucc\n";
         }
         ASSERT([&]{
@@ -2421,9 +2422,11 @@ namespace mt_kahypar{
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
       double lower = std::max(goal / 2.0, starting_goal);
+      HypernodeID last_idx_upper = S.size() - 1;
       double upper = goal;
       double current = (upper + lower) / 2.0;
-      while(upper - lower > threshold){
+      double search_threshold = 0.005;
+      while(last_idx_upper - last_idx_lower > 1){
         std::cout << "current " << current << " ";
         while(S_weight > current){
           S_weight -= get_normalized_weight(phg->nodeWeight(S[last_idx]));
@@ -2440,9 +2443,11 @@ namespace mt_kahypar{
           std::cout << "succ2 ";
           succ_idx = last_idx + 1;
           upper = current;
+          last_idx_upper = last_idx;
         }
         else{
           lower = current;
+          last_idx_lower = last_idx;
         }
         int c = 0;
         for(HypernodeID hn : S){
