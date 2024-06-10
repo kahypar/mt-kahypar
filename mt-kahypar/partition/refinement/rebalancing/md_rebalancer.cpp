@@ -2302,7 +2302,7 @@ namespace mt_kahypar{
         ASSERT(dim >= 0);
         ASSERT(dim < dimension);
         ASSERT(phg->partID(hn) != -1, hn);
-        if(phg->nodeWeight(hn).weights[dim] * _context->partition.max_part_weights_inv[phg->partID(hn)][dim] > threshold){
+        if(phg->nodeWeight(hn).weights[dim] * _context->partition.max_part_weights_inv[phg->partID(hn)][dim] < threshold){
           (*L)[hn] = true;
           virtual_weight[phg->partID(hn)] -= phg->nodeWeight(hn);
         }
