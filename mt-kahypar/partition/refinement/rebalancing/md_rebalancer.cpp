@@ -1574,10 +1574,7 @@ namespace mt_kahypar{
       }
       Gain quality = 0;
       Gain local_attributed_gain = 0;
-      if(_context->partition.use_constraint){
-        constraint_refinement(best_metrics, local_attributed_gain);
-      }
-      else if(!metrics::isBalanced(*phg, *_context)){
+      if(!metrics::isBalanced(*phg, *_context)){
         vec<Move> tmp_moves;
         rebalancing(&tmp_moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
       }
@@ -1587,6 +1584,9 @@ namespace mt_kahypar{
         }
         return true;
       }(), "fail");
+      if(_context->partition.use_constraint){
+        constraint_refinement(best_metrics, local_attributed_gain);
+      }
       if(_context->partition.use_unconstraint){
         unconstraint_refinement(best_metrics, local_attributed_gain);
       }
@@ -1659,18 +1659,17 @@ namespace mt_kahypar{
       }
     }
 
-    void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
+    void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){     
+      if(!metrics::isBalanced(*phg, *_context)){
+        vec<Move> m;
+        rebalancing(&m, best_metrics, local_attributed_gain, _context->partition.assure_balance);  
+      }
       for(int i = 0; i < 10; i++){
         Gain before_quality = local_attributed_gain;
         round++;
         simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, std::numeric_limits<int>::max());
         if(before_quality == local_attributed_gain) break;
-      }      
-      if(!metrics::isBalanced(*phg, *_context)){
-        vec<Move> m;
-        rebalancing(&m, best_metrics, local_attributed_gain, _context->partition.assure_balance);  
-        simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, std::numeric_limits<int>::max());
-      }
+      } 
     }
 
     void unconstraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
