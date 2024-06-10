@@ -21,10 +21,8 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     close(f)
 
     f = open(sh_file, "w")
-    line = "PATH=\$PATH:$(config_installationsPrefix)"
-    println(f, line)
-    line = "openroad $tcl_file > $log_file"
-    println(f, line)
+    println(f, EXTEND_PATH_COMMAND)
+    println(f, "openroad $tcl_file > $log_file")
     close(f)
 
     cmd = "chmod 777 " * sh_file 

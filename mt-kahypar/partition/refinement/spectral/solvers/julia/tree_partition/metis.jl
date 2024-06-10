@@ -110,8 +110,7 @@ function metis(graph_file::String,
     sh_file = config_tmpDir * "/run_metis_$(split(graph_file,"/")[end]).sh"
 
     f = open(sh_file, "w")
-    line = "PATH=\$PATH:$(config_installationsPrefix)"
-    println(f, line)
+    println(f, EXTEND_PATH_COMMAND)
     line = "gpmetis $graph_file $num_parts -ptype=rb -ufactor=$ub_factor -seed=$seed -dbglvl=0 > $log_file"
     println(f, line)
     close(f)
