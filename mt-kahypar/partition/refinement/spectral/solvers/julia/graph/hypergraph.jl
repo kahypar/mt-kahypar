@@ -72,16 +72,17 @@ function import_hypergraph(hgr_data::AbstractArray)
         data[(2 + n + 1) : (2 + n + m)])
 end
 
-function write_hypergraph(hgraph::__hypergraph__, fname::String)
-    n = hgraph.num_vertices
-    e = hgraph.num_hyperedges
-    hedges = hgraph.eind
-    eptr = hgraph.eptr
-    hwts = hgraph.hwts
-    vwts = hgraph.vwts
-    fixed = hgraph.fixed
+function write_hypergraph(hgr::__hypergraph__, fname::Union{String, Nothing} = nothing)
+    n = hgr.num_vertices
+    e = hgr.num_hyperedges
+    hedges = hgr.eind
+    eptr = hgr.eptr
+    hwts = hgr.hwts
+    vwts = hgr.vwts
+    fixed = hgr.fixed
     wt_flag = maximum(vwts) > 1 ? true : false
-    f = open(fname, "w")
+    hgr_file = isnothing(fname) ? "$config_tmpDir/$(hgr.num_vertices)_$(hgr.num_hyperedges)_$(time()).hgr" : fname
+    f = open(hgr_file, "w")
     println(f, e, " ", n, " 11")
 
     for i in 1:e
@@ -104,12 +105,14 @@ function write_hypergraph(hgraph::__hypergraph__, fname::String)
     close(f)
 
     if maximum(fixed) > -1
-        f = open(fname*".fixed", "w")
+        f = open(hgr_file*".fixed", "w")
         for i in 1:n
             println(f, fixed_vtxs[i])
         end
         close(f)
     end
+    
+    return hgr_file
 end
 
 function check_hypergraph_is_graph(hgr::__hypergraph__)

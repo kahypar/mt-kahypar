@@ -158,6 +158,7 @@ function graph_adj_matrix(g::__hypergraph__)
 end
 
 function adjacency_matrix(g::__hypergraph__)
+    inform_dbg(g.num_vertices, true, "building adjaciency matrix...")
     if check_hypergraph_is_graph(g) && !config_approximateGraphs
         return graph_adj_matrix(g)
     else

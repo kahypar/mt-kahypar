@@ -382,7 +382,7 @@ namespace mt_kahypar {
     vec<size_t> node_indices_fiedler;
     vec<HypernodeID> index_node_map(phg.nodes().begin(), phg.nodes().end());
 
-    const spectral::Skalar max_part_weight = round(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
+    const spectral::Skalar max_part_weight = ceil(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
     const auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain.computeDeltaForHyperedge(sync_update);
     };    

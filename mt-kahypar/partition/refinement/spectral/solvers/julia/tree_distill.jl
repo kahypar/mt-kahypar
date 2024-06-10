@@ -3,11 +3,17 @@ include("config.jl")
 include("tree_partition/tree_partition.jl")
 include("tree_partition/triton_part_refine.jl")
 
-function tree_distill(embedding::AbstractArray{Float64, 2}, hgr::__hypergraph__, adj_matrix::SparseMatrixCSC, hint::AbstractArray{Int})
+function tree_distill(embedding::AbstractArray{Float64, 2},
+        hgr::__hypergraph__,
+        adj_matrix::SparseMatrixCSC,
+        hint::AbstractArray{Int},
+        hgr_file_in::Union{String, Nothing} = nothing)
+    
+    hgr_file = isnothing(hgr_file_in) ? write_hypergraph(hgr) : hgr_file_in
     fixed_vertices = __pindex__(Int[], Int[])
     total_weight = sum(hgr.vwts)
-    max_part_weight = round(Int, (1 + config_e) * (total_weight * 0.5))
-    ub_factor = convert(Int, config_e * 100)
+    max_part_weight = ceil(Int, (1 + config_e) * (total_weight / config_k))
+    ub_factor = ceil(Int, config_e * (100. / config_k))
     # tree partition
     tree_partitions = tree_partition(adj_matrix, 
                                     embedding, 
@@ -19,9 +25,6 @@ function tree_distill(embedding::AbstractArray{Float64, 2}, hgr::__hypergraph__,
     partitions = []
     cutsizes = Int[]
     cut_dictionary = Dict{Int, Int}()
-
-    hgr_file = "$config_tmpDir/$(hgr.num_vertices)_$(hgr.num_hyperedges)_$(time()).hgr"
-    write_hypergraph(hgr, hgr_file)
 
     # refine tree partitions
     for i in 1 : length(tree_partitions)
@@ -56,7 +59,9 @@ function tree_distill(embedding::AbstractArray{Float64, 2}, hgr::__hypergraph__,
 
     candidate = best_partitions[1]
 
-    run(`rm $hgr_file`)
+    if isnothing(hgr_file_in)
+        run(`rm $hgr_file`)
+    end
 
     return candidate
 end

@@ -20,10 +20,9 @@ function main(input, method)
         hgr = import_hypergraph(input[1])
         hint_partition = convert(AbstractArray{Int64}, input[2])
         deflation_space = reshape(convert(AbstractArray{Float64}, input[3]), n, convert(Int, length(input[3]) / n))
-
-        inform_dbg(n, true, "building adjaciency matrix...")
         adj_matrix = adjacency_matrix(hgr)
-        method(hgr, hint_partition, deflation_space, adj_matrix)
+
+        return method(hgr, hint_partition, deflation_space, adj_matrix)
     catch e
         inform("failed due to " * sprint(showerror, e))
         @print_backtrace
@@ -33,11 +32,11 @@ function main(input, method)
 end
 
 function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> solve_lobpcg(g, h, e, 1, a))
+    return main((hgr_data, hint, deflation_evecs), (g, h, e, a, f) -> solve_lobpcg(g, h, e, 1, a))
 end
 
 function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    main((hgr_data, hint, deflation_evecs), function(g::__hypergraph__, h::AbstractArray{Int}, e::AbstractArray{Float64, 2}, a::SparseMatrixCSC)
+    return main((hgr_data, hint, deflation_evecs), function(g::__hypergraph__, h::AbstractArray{Int}, e::AbstractArray{Float64, 2}, a::SparseMatrixCSC)
         return tree_distill(solve_lobpcg(g, h, e, config_numEvecs, a), g, a, h) 
     end)
 end

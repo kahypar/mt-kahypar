@@ -9,7 +9,7 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
             " -partition_file $partition_file" *
             " -num_parts $num_parts" *
             " -balance_constraint $ub_factor" *
-            " -seed $seed"
+            " -seed $(abs(seed))"
 
     tcl_file = config_tmpDir * "/run_triton_part_refiner.$identifier.tcl"
     log_file = config_tmpDir * "/$identifier.log"
@@ -32,13 +32,7 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     cmd = "chmod 777 " * tcl_file
     run(`sh -c $cmd`, wait = true)
 
-    triton_part_refiner_cmd = `$sh_file
-                                $hypergraph_file
-                                $partition
-                                $num_parts
-                                $ub_factor
-                                $seed`
-    run(triton_part_refiner_cmd, wait=true)
+    run(`$sh_file`, wait=true)
 
     refined_partition = read_hint_file(partition_file)
 
