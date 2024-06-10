@@ -865,7 +865,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
     }
 
     std::pair<id, data> deleteMax(){
-      ASSERT(in_use[0]);
+      ASSERT(in_use[pq[0]]);
       auto tmp = std::pair<id, data>(pq[0], items[pq[0]]);
       invalidate(pq[0]);
       return tmp;
