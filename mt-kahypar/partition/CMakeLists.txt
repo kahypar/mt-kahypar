@@ -1,12 +1,14 @@
 add_subdirectory(preprocessing)
 add_subdirectory(coarsening)
 add_subdirectory(refinement)
+add_subdirectory(evolutionary)
 add_subdirectory(initial_partitioning)
 add_subdirectory(mapping)
 add_subdirectory(registries)
 
 set(PartitionSources
         deep_multilevel.cpp
+        evo_partitioner.cpp
         partitioner.cpp
         partitioner_facade.cpp
         multilevel.cpp

@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/evo_partitioner.cpp"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/csv_output.h"
@@ -50,9 +51,31 @@ namespace internal {
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
+    PartitionedHypergraph partitioned_hg;
     // Partition Hypergraph
-    PartitionedHypergraph partitioned_hg =
-      Partitioner<TypeTraits>::partition(hg, context, target_graph);
+
+    context.partition_evolutionary = true;
+    context.partition.time_limit = 5;
+
+    context.evolutionary.population_size=10;
+    context.evolutionary.dynamic_population_size=false;
+    context.evolutionary.dynamic_population_amount_of_time=0.15;
+    context.evolutionary.diversify_interval=1;
+    context.evolutionary.random_combine_strategy=true;
+    context.evolutionary.edge_frequency_chance=0.5;
+    context.evolutionary.edge_frequency_amount=3;
+    context.evolutionary.gamma=0.5;
+    context.evolutionary.unlimited_coarsening_contraction=true;
+    context.evolutionary.mutation_chance=0.5;
+    context.evolutionary.random_vcycles=true;
+
+    if (context.partition_evolutionary && context.partition.time_limit > 0) {
+      partitioned_hg =
+        EvoPartitioner<TypeTraits>::partition(hg, context, target_graph);
+    } else {
+      partitioned_hg =
+        Partitioner<TypeTraits>::partition(hg, context, target_graph);
+    }
 
     return mt_kahypar_partitioned_hypergraph_t {
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
@@ -75,7 +98,7 @@ namespace internal {
     #ifndef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if ( type == MULTILEVEL_GRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
       throw InvalidParameterException(
-        "Graph partitioning features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON "
+        "Graph partitioniliming features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON "
         "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
