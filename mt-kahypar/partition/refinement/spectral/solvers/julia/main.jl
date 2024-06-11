@@ -8,6 +8,7 @@ include("config.jl")
 include("utils.jl")
 include("graph/hypergraph.jl")
 include("graph/matrices.jl")
+include("graph/isolate_islands.jl")
 include("lobpcg.jl")
 include("tree_distill.jl")
 
@@ -18,11 +19,24 @@ function main(input, method)
 
     try
         hgr = import_hypergraph(input[1])
-        hint_partition = convert(AbstractArray{Int64}, input[2])
-        deflation_space = reshape(convert(AbstractArray{Float64}, input[3]), n, convert(Int, length(input[3]) / n))
-        adj_matrix = adjacency_matrix(hgr)
+        (hgr_processed, original_indices, new_indices, unused_indices) = isolate_islands(hgr)
+        n_processed = hgr_processed.num_vertices
 
-        return method(hgr, hint_partition, deflation_space, adj_matrix)
+        hint_partition = convert(AbstractArray{Int64}, input[2])
+        hint_processed = @view hint_partition[original_indices]
+
+        deflation_space = reshape(convert(AbstractArray{Float64}, input[3]), n, convert(Int, length(input[3]) / n))
+        deflation_space_processed = deflation_space[original_indices, :]
+
+        adj_matrix = adjacency_matrix(hgr_processed)
+
+        result_processed = method(hgr_processed, hint_processed, deflation_space_processed, adj_matrix)
+
+        result = zeros(Float64, n)
+        result[original_indices] = result_processed
+        result[unused_indices] = hint_partition[unused_indices]
+
+        return result
     catch e
         inform("failed due to " * sprint(showerror, e))
         @print_backtrace
