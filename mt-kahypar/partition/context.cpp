@@ -58,6 +58,7 @@ namespace mt_kahypar {
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
+    str << "  time limit:                         " << params.time_limit << "s" << std::endl;
     str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
     str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
     if ( params.use_individual_part_weights ) {
@@ -99,6 +100,7 @@ namespace mt_kahypar {
     str << "    Rating Function:                  " << params.rating_function << std::endl;
     str << "    Heavy Node Penalty:               " << params.heavy_node_penalty_policy << std::endl;
     str << "    Acceptance Policy:                " << params.acceptance_policy << std::endl;
+    str << "    Partition Policy:                 " << params.partition_policy << std::endl;
     return str;
   }
 
@@ -252,6 +254,18 @@ namespace mt_kahypar {
     str << "  Number of used NUMA nodes:          " << TBBInitializer::instance().num_used_numa_nodes() << std::endl;
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
+    return str;
+  }
+
+  std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params) {
+    str << "Evolutionary Parameters:              " << std::endl;
+    str << "  Population Size:                    " << params.population_size << std::endl;
+    str << "  Mutation Chance                     " << params.mutation_chance << std::endl;
+    str << "  Edge Frequency Chance               " << params.edge_frequency_chance << std::endl;
+    str << "  Replace Strategy                    " << params.replace_strategy << std::endl;
+    str << "  Combine Strategy                    " << params.combine_strategy << std::endl;
+    str << "  Mutation Strategy                   " << params.mutate_strategy << std::endl;
+    str << "  Diversification Interval            " << params.diversify_interval << std::endl;
     return str;
   }
 
@@ -952,6 +966,10 @@ namespace mt_kahypar {
     }
     str << context.shared_memory
         << "-------------------------------------------------------------------------------";
+    if (context.partition_evolutionary) {
+      str << context.evolutionary
+          << "-------------------------------------------------------------------------------";
+    }
     return str;
   }
 }
