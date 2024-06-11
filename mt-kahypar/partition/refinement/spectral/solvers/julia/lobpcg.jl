@@ -80,5 +80,5 @@ function solve_lobpcg(hgr::__hypergraph__,
     inform("LOBPCG successful")
     inform_dbg(n, false, () -> "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
 
-    return evecs
+    return reshape(evecs, n, config_numEvecs)
 end
