@@ -14,6 +14,7 @@ function overlay_partitions(partitions, hgr, hgr_file, best_cut)
     write_partition(partition_projected, specpart_partition_name)
     triton_part_refine(hgr_file, specpart_partition_name, config_k, ub_factor, config_seed, 0)
     partition_projected = read_hint_file(specpart_partition_name)
+    run(`rm $specpart_partition_name`)
     cutsize = golden_evaluator(hgr, config_k, partition_projected)
 
     inform("overlay cut $cutsize")

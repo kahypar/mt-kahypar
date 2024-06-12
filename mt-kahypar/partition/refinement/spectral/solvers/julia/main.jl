@@ -21,6 +21,7 @@ function main(input, method)
         hgr = import_hypergraph(input[1])
         (hgr_processed, original_indices, new_indices, unused_indices) = isolate_islands(hgr)
         n_processed = hgr_processed.num_vertices
+        inform("removed islands containing $(n - n_processed) nodes")
 
         hint_partition = convert(AbstractArray{Int64}, input[2])
         hint_processed = @view hint_partition[original_indices]
