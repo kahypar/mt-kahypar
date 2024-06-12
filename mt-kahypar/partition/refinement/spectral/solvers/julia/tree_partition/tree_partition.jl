@@ -21,33 +21,38 @@ function reweigh_graph(adj::SparseMatrixCSC,
                     lst::Bool)
     n = size(X, 1)
     nev = size(X, 2)
-    offset = 0
     g = SimpleWeightedGraph(adj)
-    g_copy = deepcopy(g)
-    ewts = g_copy.weights
-    for i in 1:length(ewts.colptr)-1
-        row_len = ewts.colptr[i+1] - ewts.colptr[i]
-        for row in 1:row_len
-            row_x = ewts.rowval[row+offset]
-            distance = 0.0
-            for d in 1:nev
-                span = X[row_x, d] - X[i, d]
-                if lst == true
-                    if span == 0.0
-                        distance += 1e09
-                    else
-                        distance += 1/(span*span) 
-                    end
-                else
-                    distance += abs(span)
-                end
-            end
-            ewts.nzval[row+offset] = distance
+    ewts = g.weights
+    (is, js, vs) = findnz(g.weights)
+    is_r = Int[]
+    js_r = Int[]
+    vs_r = Int[]
+    # lower left
+    offset = 0
+    for index in 1:length(vs)
+        i = is[index]
+        j = js[index]
+        if j <= i
+            continue
         end
-        offset += row_len
+        distance = 0.0
+        for d in 1:nev
+            span = X[i, d] - X[j, d]
+            if lst == true
+                if span <= 1e-09
+                    distance += 1e09
+                else
+                    distance += 1/(span*span) 
+                end
+            else
+                distance += abs(span)
+            end
+        end
+        push!(is_r, i)
+        push!(js_r, j)
+        push!(vs_r, convert(Int, isnan(distance) ? 1e09 : round(distance)))
     end
-    g_copy.weights = ewts
-    return g_copy
+    return SimpleWeightedGraph(sparse(vcat(is_r, js_r), vcat(js_r, is_r), vcat(vs_r, vs_r)))
 end
 
 function reweigh_graph_with_cuts(adj::SparseMatrixCSC, 
@@ -274,10 +279,10 @@ function two_way_linear_tree_sweep(T::SimpleWeightedGraphs.SimpleGraph,
         SimpleWeightedGraphs.rem_edge!(T, cut_point, pred[cut_point])
         comps = SimpleWeightedGraphs.connected_components(T)
         partition = find_labels(comps, num_vertices)
-        @info "Cutsize from tree sweep $(cut_cost[cut_point])"
+        inform("Cutsize from tree sweep $(cut_cost[cut_point])")
         (cutsize, ~) = golden_evaluator(hgraph, config_k, partition)
     else
-        @info "Tree sweep failed to return a valid cut"
+        inform("Tree sweep failed to return a valid cut")
     end
     return (partition, cutsize, cut_point)
 end
@@ -340,7 +345,7 @@ function METIS_tree_partition(T::SimpleWeightedGraphs.SimpleGraph,
     end
     close(pfile)
     (cutsize, ~) = golden_evaluator(hgraph, config_k, partition)
-    @info "Cutsize from metis  $cutsize"
+    inform("Cutsize from metis  $cutsize")
     return (partition, cutsize)
 end
 
@@ -406,9 +411,9 @@ function k_way_linear_tree_sweep(T::SimpleWeightedGraphs.SimpleGraph,
         comps = SimpleWeightedGraphs.connected_components(tree_recursive)
         recursive_partition = find_labels(comps, hgraph.num_vertices)
         (cutsize, balance) = golden_evaluator(hgraph, num_parts, recursive_partition)
-        @info "Cutsize from tree sweep $cutsize with balance $balance"
+        inform("Cutsize from tree sweep $cutsize with balance $balance")
     else 
-        @info "Tree sweep failed to return a valid cut"
+        inform("Tree sweep failed to return a valid cut")
     end
     return (recursive_partition, cutsize)
 end
@@ -470,7 +475,7 @@ function tree_partition(adj::SparseMatrixCSC,
                 if type == 3
                     X_thr = X_thr[:,1]
                 end
-                @info "Using eigenvectors $(evecs[j])"
+                inform_dbg("Using eigenvectors $(evecs[j])")
                 #clique_expansion = reweigh_graph_with_cuts(adj, hgraph, X_thr, lst)
                 clique_expansion = reweigh_graph(adj, X_thr, lst)
                 (tree, tree_matrix) = construct_tree(clique_expansion, X_thr, type)
