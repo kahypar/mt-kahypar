@@ -4,6 +4,17 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     partition_file = "$(config_tmpDir)/triton_part_input_$identifier.part.2" 
     write_partition(partition, partition_file)
 
+    triton_part_refine(hypergraph_file, partition_file, num_parts, ub_factor, seed, id)
+    
+    refined_partition = read_hint_file(partition_file)
+    
+    rm = "rm $tcl_file $sh_file $partition_file $log_file"
+    run(`sh -c $rm`, wait = true)
+    
+    return refined_partition
+end
+    
+function triton_part_refine(hypergraph_file::String, partition_file::String, num_parts::Int, ub_factor::Int, seed::Int, id::Int)
     tcl_line = "triton_part_refine" *
             " -hypergraph_file $hypergraph_file" *
             " -partition_file $partition_file" *
@@ -31,11 +42,4 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     run(`sh -c $cmd`, wait = true)
 
     run(`$sh_file`, wait=true)
-
-    refined_partition = read_hint_file(partition_file)
-
-    rm = "rm $tcl_file $sh_file $partition_file $log_file"
-    run(`sh -c $rm`, wait = true)
-
-    return refined_partition
 end
