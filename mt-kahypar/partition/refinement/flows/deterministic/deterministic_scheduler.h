@@ -95,15 +95,15 @@ private:
     HyperedgeWeight applyMoves(MoveSequence& sequence, PartitionedHypergraph& phg) {
         _apply_moves_lock.lock();
         // Compute Part Weight Deltas
-        vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
-        for (Move& move : sequence.moves) {
-            move.from = phg.partID(move.node);
-            if (move.from != move.to) {
-                const HypernodeWeight node_weight = phg.nodeWeight(move.node);
-                part_weight_deltas[move.from] -= node_weight;
-                part_weight_deltas[move.to] += node_weight;
-            }
-        }
+        // vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
+        // for (Move& move : sequence.moves) {
+        //     move.from = phg.partID(move.node);
+        //     if (move.from != move.to) {
+        //         const HypernodeWeight node_weight = phg.nodeWeight(move.node);
+        //         part_weight_deltas[move.from] -= node_weight;
+        //         part_weight_deltas[move.to] += node_weight;
+        //     }
+        // }
         HyperedgeWeight improvement = 0;
         auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
             improvement -= AttributedGains::gain(sync_update);
@@ -199,6 +199,7 @@ private:
     const HyperedgeID num_hyperedges;
     const HypernodeID num_hypernodes;
     vec<NewCutHyperedge> _new_cut_hes;
+    std::atomic<size_t> _solved_flow_problems = 0;
 };
 
 }  // namespace kahypar

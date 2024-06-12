@@ -119,6 +119,10 @@ public:
         }
     }
 
+    void setTopLevelFlag() {
+        _top_level = true;
+    }
+
 private:
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) {
         unused(hypergraph);
@@ -200,11 +204,15 @@ private:
         DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
-        //const HyperedgeWeight improvement = qg.getImprovement(i, j);
-        return weight > 0                               // cut between blocks
-            && (_active_blocks[i] || _active_blocks[j]) // at least one block active
+        const bool skip_small_cuts = !_top_level;
+        const bool contains_enough_cut_hes =
+            (skip_small_cuts && weight > 10) ||
+            (!skip_small_cuts && weight > 0);
+        return (_active_blocks[i] || _active_blocks[j]) // at least one block active
             && !_scheduled[i] && !_scheduled[j]         // none of the blocks is already scheduled
-            && !_processed[i][j];                        // the pairing has not been processed yet
+            && !_processed[i][j]                        // the pairing has not been processed yet
+            && (_round == 0 || qg.getImprovement(i, j) > 0)
+            && contains_enough_cut_hes;
     }
 
     vec<uint8_t> _active_blocks;
@@ -216,6 +224,7 @@ private:
     size_t _round;
     PartitionID _k;
     std::mt19937 _rng;
+    bool _top_level = false;
     //vec<vec<PartitionID>> _active_block_pairs;
 };
 

@@ -10,6 +10,14 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     Metrics& best_metrics,
     const double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    if (num_hypernodes == phg.initialNumNodes()) {
+        _schedule.setTopLevelFlag();
+    }
+    // if (!metrics::isBalanced(phg, _context)) {
+    //     std::cout << "input is unbalanced" << std::endl;
+    // } else {
+    //     std::cout << "balanced" << std::endl;
+    // }
     Metrics current_metrics = best_metrics;
     _schedule.initialize(hypergraph, _quotient_graph);
     HyperedgeWeight overall_delta = 0;
@@ -19,27 +27,47 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     DBG << "------------------------------------------------------NEW LEVEL-----------------------------------------------------------------------";
     minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
     while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
-        DBG << V(round_delta) << ", " << V(minImprovement) << ", ";
+        //std::cout << V(round_delta) << ", " << V(minImprovement) << ", " << std::endl;
         _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         round_delta = 0;
+        minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
         while (_scheduled_blocks.size() > 0) {
-            vec<MoveSequence> sequences(_scheduled_blocks.size());
+            //vec<MoveSequence> sequences(_scheduled_blocks.size());
             tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
                 //for (size_t i = 0; i < _scheduled_blocks.size(); ++i) {
                     //for (size_t i = _scheduled_blocks.size() - 1; i < _scheduled_blocks.size(); --i) {
+                //std::cout << "0" << std::endl;
                 const ScheduledPair& sp = _scheduled_blocks[i];
                 //auto& refiner = _refiners.local();
+                //std::cout << "1" << std::endl;
+
                 DeterministicFlowRefiner<GraphAndGainTypes> refiner(num_hypernodes, num_hyperedges,
-                    _context);
+                     _context);
                 refiner.initialize(phg);
+                //std::cout << "2" << std::endl;
+
                 MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
-                sequences[i] = moves;
+                //std::cout << "3" << std::endl;
+                //sequences[i] = moves;
                 const HyperedgeWeight improvement = applyMoves(moves, phg);
+                //std::cout << "4" << std::endl;
+
                 round_delta += improvement;
                 reportResults(sp.bp.i, sp.bp.j, moves);
                 _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
+                //std::cout << "5" << std::endl;
+
+                //_solved_flow_problems++;
+                // for (auto v : moves.moves) {
+                //     std::cout << "(" << v.from << ", " << v.to << ", " << v.node << ", " << v.gain + ")";
+                // }
+                //std::cout << std::endl;
             });
+            //std::cout << "6" << std::endl;
+
             addCutHyperedgesToQuotientGraph(phg);
+            //std::cout << "7" << std::endl;
+
             _new_cut_hes.clear();
             //tbb::parallel_for(0UL, sequences.size(), [&](const size_t i) {
             // for (size_t i = 0; i < sequences.size(); ++i) {
@@ -53,7 +81,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
             // }//);
             //_quotient_graph.initialize(phg);
             assert(metrics::isBalanced(phg, _context));
-
+            //std::cout << V(_solved_flow_problems) << std::endl;
             DBG << "#################################################### NEXT MATCHING ######################################################";
             _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
         }
