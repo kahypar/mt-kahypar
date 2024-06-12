@@ -159,7 +159,7 @@ function hyperedges_removal(partitions::Vector,
     intersect_cut = Vector{Int}(1:hgraph.num_hyperedges)
     hyperedges = Vector{Int}(1:hgraph.num_hyperedges)
     for i in 1:m
-        partition = partitions[i]
+        partition = convert(Vector{Int}, partitions[i])
         (cut_edges, ~, ~, ~, ~) = gen_partition_profile(hgraph, partition)
         cut_edges_indices = findall(!iszero, cut_edges)
         union!(union_cut, cut_edges_indices)
