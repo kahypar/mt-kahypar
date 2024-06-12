@@ -14,7 +14,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     fixed_vertices = __pindex__(Int[], Int[])
     total_weight = sum(hgr.vwts)
     max_part_weight = ceil(Int, (1 + config_e) * (total_weight / config_k))
-    ub_factor = ceil(Int, config_e * (100. / config_k))
+    ub_factor = ceil(Int, config_e * 100.)
     # tree partition
     tree_partitions = tree_partition(adj_matrix, 
                                     embedding, 
@@ -58,7 +58,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     end
     push!(best_partitions, hint)
 
-    (candidate, cut) = overlay_partitions(best_partitions, hgr)
+    (candidate, cut) = overlay_partitions(best_partitions, hgr, hgr_file)
 
     inform("cut from tree distilling $cut")
 
