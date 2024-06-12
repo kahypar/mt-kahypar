@@ -57,8 +57,7 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
     partition = zeros(Int, hgraph.num_vertices)
     hgr_file_name = config_tmpDir * "/" * "coarse.hgr"
     write_hypergraph_ol(hgraph, hgr_file_name)
-    if (hgraph.num_hyperedges < 1500 && num_parts == 2)
-        ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor)
+    if (hgraph.num_hyperedges < 1500 && num_parts == 2 && ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor))
         pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
@@ -77,7 +76,8 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
                 rtype = 1,
                 vcycle = 1,
                 reconst = 0,
-                dbglvl = 0
+                dbglvl = 0,
+                ub_factor = ub_factor
             )            
         end
 
@@ -95,8 +95,7 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
         run(rm_cmd, wait=true)
         rm_cmd = `rm $pfile`
         run(rm_cmd, wait=true)
-    elseif (hgraph.num_hyperedges < 300 && num_parts > 2)
-        ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor)
+    elseif (hgraph.num_hyperedges < 300 && num_parts > 2 && ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor))
         pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
@@ -115,7 +114,8 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
                 rtype = 1,
                 vcycle = 1,
                 reconst = 0,
-                dbglvl = 0
+                dbglvl = 0,
+                ub_factor = ub_factor
             )
         end
 
@@ -191,10 +191,17 @@ function hmetis(; kwargs...)
 end
 
 function ilp_part(; kwargs...)
-    log_file = "$config_tmpDir/ilp_part_log_$(time())"
-    ilp_string = EXTEND_PATH_COMMAND * " ilp_part" * " " * kwargs[:hgr_file_name] * " $config_k $(kwargs[:ub_factor]) > $log_file"
-    ilp_command = `sh -c $ilp_string`
-    inform("running ilp...")
-    run(ilp_command, wait = true)
-    run(`rm $log_file`)
+    try
+        log_file = "$config_tmpDir/ilp_part_log_$(time())"
+        ilp_string = EXTEND_PATH_COMMAND * " ilp_part" * " " * kwargs[:hgr_file_name] * " $config_k $(kwargs[:ub_factor]) > $log_file 2>&1"
+        ilp_command = `sh -c $ilp_string`
+        print("running ilp...")
+        run(ilp_command, wait = true)
+        # run(`rm $log_file`)
+        print(" - success\n")
+        return true
+    catch e
+        print(" - fail\n")
+        return false
+    end
 end

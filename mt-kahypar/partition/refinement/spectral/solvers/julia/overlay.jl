@@ -1,6 +1,6 @@
 include("overlay/contraction.jl")
 
-function overlay_partitions(partitions, hgr, hgr_file)
+function overlay_partitions(partitions, hgr, hgr_file, best_cut)
     ub_factor = ceil(Int, config_e * 100)
     hgraph_contracted, clusters = overlay(partitions, hgr)
     refined_partition = optimal_partitioner(hgraph_contracted, config_k, ub_factor)
@@ -15,6 +15,12 @@ function overlay_partitions(partitions, hgr, hgr_file)
     triton_part_refine(hgr_file, specpart_partition_name, config_k, ub_factor, config_seed, 0)
     partition_projected = read_hint_file(specpart_partition_name)
     cutsize = golden_evaluator(hgr, config_k, partition_projected)
-    
-    return partition_projected, cutsize
+
+    inform("overlay cut $cutsize")
+
+    if best_cut < cutsize[1]
+        return partitions[1], best_cut
+    else    
+        return partition_projected, cutsize[1]
+    end
 end
