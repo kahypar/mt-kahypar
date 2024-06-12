@@ -194,6 +194,7 @@ function ilp_part(; kwargs...)
     log_file = "$config_tmpDir/ilp_part_log_$(time())"
     ilp_string = EXTEND_PATH_COMMAND * " ilp_part" * " " * kwargs[:hgr_file_name] * " $config_k $(kwargs[:ub_factor]) > $log_file"
     ilp_command = `sh -c $ilp_string`
+    inform("running ilp...")
     run(ilp_command, wait = true)
     run(`rm $log_file`)
 end
