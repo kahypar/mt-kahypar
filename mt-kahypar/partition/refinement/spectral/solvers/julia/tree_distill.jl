@@ -2,6 +2,7 @@ include("utils.jl")
 include("config.jl")
 include("tree_partition/tree_partition.jl")
 include("tree_partition/triton_part_refine.jl")
+include("overlay.jl")
 
 function tree_distill(embedding::AbstractArray{Float64, 2},
         hgr::__hypergraph__,
@@ -34,7 +35,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
         if haskey(cut_dictionary, cutsize) == false
             push!(cut_dictionary, cutsize => i)
         end
-        @info "[specpart] Refined partition $i with cutsize $cutsize $balance" 
+        inform("[specpart] Refined partition $i with cutsize $cutsize $balance")
     end
 
     # select best partitions
@@ -53,11 +54,13 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     solns_to_pick = min(config_numSolutions, length(unique_cutsizes))
     for i in 1:solns_to_pick
         push!(best_partitions, unique_partitions[sorted_partition_ids[i]])
-        @info "[specpart] partition picked with cutsize $(unique_cutsizes[sorted_partition_ids[i]])" 
+        inform("[specpart] partition picked with cutsize $(unique_cutsizes[sorted_partition_ids[i]])")
     end
     push!(best_partitions, hint)
 
-    candidate = best_partitions[1]
+    (candidate, cut) = overlay_partitions(best_partitions, hgr)
+
+    inform("cut from tree distilling $cut")
 
     if isnothing(hgr_file_in)
         run(`rm $hgr_file`)
