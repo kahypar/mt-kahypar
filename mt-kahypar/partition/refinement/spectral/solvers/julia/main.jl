@@ -50,8 +50,17 @@ function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_eve
 end
 
 function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    return main((hgr_data, hint, deflation_evecs), function(g::__hypergraph__, h::AbstractArray{Int}, e::AbstractArray{Float64, 2}, a::SparseMatrixCSC)
-        return tree_distill(solve_lobpcg(g, h, e, config_numEvecs, a), g, a, h) 
+    return main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> tree_distill(solve_lobpcg(g, h, e, config_numEvecs, a), g, a, h))
+end
+
+function main_kspecpart(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
+    return main((hgr_data, hint, deflation_evecs), function (g, h, e, a)
+        candidates = []
+        hgr_file = write_hypergraph(g)
+        for i in 1 : config_numCandidates
+            push!(candidates, tree_distill(solve_lobpcg(g, h, e, config_numEvecs, a), g, a, h, hgr_file))
+        end
+        overlay_partitions(candidates, g, hgr_file)
     end)
 end
 

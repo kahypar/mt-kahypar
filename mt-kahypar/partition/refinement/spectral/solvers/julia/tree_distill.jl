@@ -58,7 +58,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     end
     push!(best_partitions, hint)
 
-    (candidate, cut) = overlay_partitions(best_partitions, hgr, hgr_file)
+    (solution, cut) = overlay_partitions(best_partitions, hgr, hgr_file)
 
     inform("cut from tree distilling $cut")
 
@@ -66,5 +66,5 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
         run(`rm $hgr_file`)
     end
 
-    return candidate
+    return solution
 end
