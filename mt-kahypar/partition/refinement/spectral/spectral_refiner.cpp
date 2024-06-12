@@ -96,6 +96,8 @@ namespace mt_kahypar {
     numNodes = 0;
     for (auto np = phg.nodes().begin(); *np < ~np; *(++np) & ++numNodes) {}
 
+    max_part_weight = ceil(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
+
     DBG << "node count calculated";
 
     vec<PartitionID> inputPartition;
@@ -127,8 +129,8 @@ namespace mt_kahypar {
     candidateSolutions.push_back(inputPartition);
     vec<Gain> cut_sizes;
     cut_sizes.push_back(best_metrics.quality);
-    Gain best_cutsize;
-    size_t best_index;
+    Gain best_cutsize = -1;
+    size_t best_index = -1;
 
     DBG << "solution vec prepared";
 
@@ -141,20 +143,41 @@ namespace mt_kahypar {
         /* TODO */
       }
 
-      DBG << "computing solution...";
 
       vec<PartitionID> newSolution;
-      generateSolution(phg, embedding, newSolution);
+      phg.resetPartition();
+      Skalar eps = 1.0e-9;
+      bool is_partition = true;
+      for (auto nptr = phg.nodes().begin(), i = 0UL; i < numNodes; *(++nptr) & ++i) {
+        if (!is_partition) {
+          DBG << "computing solution...";
+          newSolution.clear();
+          generateSolution(phg, embedding, newSolution);
+          break;
+        }
+        Skalar v = embedding.back()[i];
+        if (v < eps && v > -eps) {
+          newSolution.push_back(0);
+        } else if (v < 1.0 + eps && v > 1.0 - eps) {
+          newSolution.push_back(1);
+        } else {
+          is_partition = false;
+          continue;
+        }
+        phg.setNodePart(*nptr, newSolution[i]);
+        if (phg.partWeight(newSolution[i]) > max_part_weight) {
+          is_partition = false;
+        }
+      }
       candidateSolutions.push_back(newSolution);
 
 
       // calulate metrics
       cut_sizes.push_back(metrics::quality(phg, _context, !_context.refinement.label_propagation.execute_sequential));
-      if (i == 0 || cut_sizes.back() < best_cutsize) {
+      if (best_index == -1 || cut_sizes.back() < best_cutsize) {
         best_cutsize = cut_sizes.back();
         best_index = candidateSolutions.size() - 1;
       }
-      
     }
 
     LOG << "finished partitioning";
@@ -382,7 +405,6 @@ namespace mt_kahypar {
     vec<size_t> node_indices_fiedler;
     vec<HypernodeID> index_node_map(phg.nodes().begin(), phg.nodes().end());
 
-    const spectral::Skalar max_part_weight = ceil(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
     const auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain.computeDeltaForHyperedge(sync_update);
     };    

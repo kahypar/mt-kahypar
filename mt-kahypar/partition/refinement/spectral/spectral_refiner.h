@@ -118,6 +118,7 @@ class SpectralRefiner final : public IRefiner {
   Params params;
 
   size_t numNodes;
+  spectral::Skalar max_part_weight;
 
   bool isolatedNodeCompletionNotFeedTheirEvecs = false;
 };
