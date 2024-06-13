@@ -39,8 +39,11 @@ function triton_part_refine(hypergraph_file::String, partition_file::String, num
     cmd = "chmod 777 " * tcl_file
     run(`sh -c $cmd`, wait = true)
 
-    run(`$sh_file`, wait=true)
-
+    try
+        run(`$sh_file`, wait=true)
+    catch e
+        inform("triton_part failed")
+    end
     rm = "rm $tcl_file $sh_file $log_file"
     run(`sh -c $rm`, wait = true)
 end
