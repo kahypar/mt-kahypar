@@ -5,6 +5,7 @@ function overlay_partitions(partitions, hgr, hgr_file, best_cut)
     hgraph_contracted, clusters = overlay(partitions, hgr)
     refined_partition = optimal_partitioner(hgraph_contracted, config_k, ub_factor)
     cutsize = golden_evaluator(hgraph_contracted, config_k, refined_partition)
+    inform("unrefined overlay cut $cutsize")
     partition_projected = zeros(Int, hgr.num_vertices)
     for i in 1:length(clusters)
         cid = clusters[i]

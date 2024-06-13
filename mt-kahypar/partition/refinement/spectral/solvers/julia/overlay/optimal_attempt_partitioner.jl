@@ -134,7 +134,7 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
         rm_cmd = `rm $pfile`
         run(rm_cmd, wait=true)
     else
-        # 10 parallel runs of hMETIS
+        inform("10 parallel runs of hMETIS")
         parallel_runs = 10
         runs = 10
         ctype = 1
