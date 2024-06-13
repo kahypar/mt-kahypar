@@ -119,7 +119,7 @@ function metis(graph_file::String,
 
     run(`$sh_file`, wait=true)
 
-    if not config_verbose
+    if !config_verbose
         rm_cmd = "rm -r $log_file $graph_file $sh_file"
         run(`sh -c $rm_cmd`, wait=true)
     end

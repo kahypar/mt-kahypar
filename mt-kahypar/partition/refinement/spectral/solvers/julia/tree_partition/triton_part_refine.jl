@@ -6,7 +6,7 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     
     refined_partition = read_hint_file(partition_file)
     
-    if not config_verbose
+    if !config_verbose
         rm = "rm $partition_file"
         run(`sh -c $rm`, wait = true)
     end
@@ -47,7 +47,7 @@ function triton_part_refine(hypergraph_file::String, partition_file::String, num
         inform("triton_part failed")
     end
 
-    if not config_verbose
+    if !config_verbose
         rm = "rm $tcl_file $sh_file $log_file"
         run(`sh -c $rm`, wait = true)
     end

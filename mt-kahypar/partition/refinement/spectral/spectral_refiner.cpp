@@ -150,7 +150,7 @@ namespace mt_kahypar {
       bool is_partition = true;
       for (auto nptr = phg.nodes().begin(), i = 0UL; i < numNodes; *(++nptr) & ++i) {
         if (!is_partition) {
-          DBG << "computing solution...";
+          LOG << "recomputing solution...";
           newSolution.clear();
           generateSolution(phg, embedding, newSolution);
           break;

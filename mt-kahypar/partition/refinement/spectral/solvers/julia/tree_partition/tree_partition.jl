@@ -536,7 +536,7 @@ function tree_partition(adj::SparseMatrixCSC,
             end
         end
     end
-    if not config_verbose
+    if !config_verbose
         rm_cmd = "rm -r " * config_tmpDir * "/*.part." * string(config_k)
         run(`sh -c $rm_cmd`, wait=true)
     end
