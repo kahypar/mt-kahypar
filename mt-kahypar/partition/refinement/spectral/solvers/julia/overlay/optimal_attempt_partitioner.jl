@@ -187,7 +187,9 @@ function hmetis(; kwargs...)
     hmetis_string = "$EXTEND_PATH_COMMAND hmetis $(kwargs[:hgr_file_name]) $config_k $(kwargs[:ub_factor]) $(kwargs[:runs]) $(kwargs[:ctype]) $(kwargs[:rtype]) $(kwargs[:vcycle]) $(kwargs[:reconst]) $(kwargs[:dbglvl]) > $log_file"
     hmetis_command = `sh -c $hmetis_string`
     run(hmetis_command, wait=true)
-    run(`rm $log_file`)
+    if not config_verbose
+        run(`rm $log_file`)
+    end
 end
 
 function ilp_part(; kwargs...)
@@ -197,7 +199,9 @@ function ilp_part(; kwargs...)
         ilp_command = `sh -c $ilp_string`
         print("running ilp...")
         run(ilp_command, wait = true)
-        # run(`rm $log_file`)
+        if not config_verbose
+            run(`rm $log_file`)
+        end
         print(" - success\n")
         return true
     catch e
