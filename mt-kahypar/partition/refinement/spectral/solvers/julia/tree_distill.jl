@@ -13,7 +13,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     hgr_file = isnothing(hgr_file_in) ? write_hypergraph(hgr) : hgr_file_in
     fixed_vertices = __pindex__(Int[], Int[])
     total_weight = sum(hgr.vwts)
-    ub_factor = ceil(Int, config_e * 50.)
+    ub_factor = floor(Int, config_e * 50.)
     max_part_weight = ceil(Int, total_weight * ((1.0 / config_k) + (ub_factor / 100.0)))
     # tree partition
     tree_partitions = tree_partition(adj_matrix, 
