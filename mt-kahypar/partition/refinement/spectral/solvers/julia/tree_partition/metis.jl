@@ -1,6 +1,5 @@
 include("../config.jl")
 
-using Dates 
 # using Metis
 using SparseArrays
 using LightGraphs, Graphs
@@ -83,7 +82,7 @@ end
 
 function build_metis_graph(tree::SimpleWeightedGraph, 
                          metis_opts::Int)
-    file_name = config_tmpDir * "/" * "metis_graph" * string(metis_opts) * "." * string(Dates.now()) * ".gr"
+    file_name = config_tmpDir * "/" * "metis_graph" * string(metis_opts) * "_$(time()).gr"
     f = open(file_name, "w")
     wts = tree.weights
     println(f, SimpleWeightedGraphs.nv(tree), " ", SimpleWeightedGraphs.ne(tree), " 001")
@@ -106,7 +105,7 @@ function metis(graph_file::String,
             seed::Int, 
             ub_factor::Int,
             metis_opts::Int)
-    log_file = config_tmpDir * "/metis" * string(metis_opts) * "." * string(Dates.now()) * ".log.txt"
+    log_file = config_tmpDir * "/metis" * string(metis_opts) * "_$(time()).log.txt"
     sh_file = config_tmpDir * "/run_metis_$(split(graph_file,"/")[end]).sh"
 
     f = open(sh_file, "w")
@@ -120,7 +119,7 @@ function metis(graph_file::String,
     run(`$sh_file`, wait=true)
 
     if !config_verbose
-        rm_cmd = "rm -r $log_file $graph_file $sh_file"
+        rm_cmd = "rm -rf $log_file $sh_file"
         run(`sh -c $rm_cmd`, wait=true)
     end
 end

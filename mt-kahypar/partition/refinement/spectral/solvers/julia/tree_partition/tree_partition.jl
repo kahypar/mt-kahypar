@@ -335,7 +335,8 @@ function METIS_tree_partition(T::SimpleWeightedGraphs.SimpleGraph,
     g = SimpleWeightedGraph(T_matrix)
     gname = build_metis_graph(g, metis_opts)
     metis(gname, config_k, seed, ub_factor, metis_opts)
-    pname = gname * ".part." * string(config_k)
+    run(`rm -f $gname`)
+    pname = gname * ".part.$config_k"
     pfile = open(pname, "r")
     partition = zeros(Int, hgraph.num_vertices)
     partition_i = 0
@@ -344,6 +345,7 @@ function METIS_tree_partition(T::SimpleWeightedGraphs.SimpleGraph,
         partition[partition_i] = parse(Int, ln)
     end
     close(pfile)
+    run(`rm -f $pname`)
     (cutsize, ~) = golden_evaluator(hgraph, config_k, partition)
     inform("Cutsize from metis  $cutsize")
     return (partition, cutsize)
@@ -535,10 +537,6 @@ function tree_partition(adj::SparseMatrixCSC,
                 end
             end
         end
-    end
-    if !config_verbose
-        rm_cmd = "rm -r " * config_tmpDir * "/*.part." * string(config_k)
-        run(`sh -c $rm_cmd`, wait=true)
     end
     return partitions
 end

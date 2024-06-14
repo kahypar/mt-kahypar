@@ -55,10 +55,10 @@ end
 
 function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::Int)
     partition = zeros(Int, hgraph.num_vertices)
-    hgr_file_name = config_tmpDir * "/" * "coarse.hgr"
+    hgr_file_name = config_tmpDir * "/" * "coarse_$(time()).hgr"
     write_hypergraph_ol(hgraph, hgr_file_name)
+    pfile = hgr_file_name * ".part.$num_parts"
     if (hgraph.num_hyperedges < 1500 && num_parts == 2 && ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor))
-        pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
         for ln in eachline(f)
@@ -81,7 +81,6 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
             )            
         end
 
-        pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
         for ln in eachline(f)
@@ -91,12 +90,11 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
         end
         close(f)
         
-        rm_cmd = `rm $hgr_file_name`
+        rm_cmd = `rm -f $hgr_file_name`
         run(rm_cmd, wait=true)
-        rm_cmd = `rm $pfile`
+        rm_cmd = `rm -f $pfile`
         run(rm_cmd, wait=true)
     elseif (hgraph.num_hyperedges < 300 && num_parts > 2 && ilp_part(hgr_file_name = hgr_file_name, ub_factor = ub_factor))
-        pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
         for ln in eachline(f)
@@ -119,7 +117,6 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
             )
         end
 
-        pfile = hgr_file_name * ".part." * string(num_parts)
         f = open(pfile, "r")
         itr = 0
         for ln in eachline(f)
@@ -129,9 +126,9 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
         end
         close(f)
         
-        rm_cmd = `rm $hgr_file_name`
+        rm_cmd = `rm -f $hgr_file_name`
         run(rm_cmd, wait=true)
-        rm_cmd = `rm $pfile`
+        rm_cmd = `rm -f $pfile`
         run(rm_cmd, wait=true)
     else
         inform("10 parallel runs of hMETIS")
@@ -160,7 +157,7 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
             )
         end
         for i in 1:parallel_runs
-            local_hgr_name = hgr_file_name * "." * string(i)
+            local_hgr_name = hgr_file_name * ".$i"
             local_pfile_name = local_hgr_name * ".part." * string(num_parts)
             f = open(local_pfile_name, "r")
             itr = 0
@@ -171,11 +168,11 @@ function optimal_partitioner(hgraph::__hypergraph__, num_parts::Int, ub_factor::
             end
             close(f)
             (cutsizes[i], ~) = golden_evaluator(hgraph, num_parts, partitions[i])
-            rm_cmd = `rm $local_hgr_name $local_pfile_name`
+            rm_cmd = `rm -f $local_hgr_name $local_pfile_name`
             run(rm_cmd, wait=true)
         end
         ~, best_cut_idx = findmin(cutsizes)
-        rm_cmd = `rm $hgr_file_name`
+        rm_cmd = `rm -f $hgr_file_name`
         run(rm_cmd, wait=true)
         partition = partitions[best_cut_idx]
     end
@@ -188,21 +185,21 @@ function hmetis(; kwargs...)
     hmetis_command = `sh -c $hmetis_string`
     run(hmetis_command, wait=true)
     if !config_verbose
-        run(`rm $log_file`)
+        run(`rm -f $log_file`)
     end
 end
 
 function ilp_part(; kwargs...)
     try
         log_file = "$config_tmpDir/ilp_part_log_$(time())"
-        ilp_string = EXTEND_PATH_COMMAND * " ilp_part" * " " * kwargs[:hgr_file_name] * " $config_k $(kwargs[:ub_factor]) >> $log_file 2>&1"
+        ilp_string = "$EXTEND_PATH_COMMAND ilp_part $(kwargs[:hgr_file_name]) $config_k $(kwargs[:ub_factor]) >> $log_file 2>&1"
         log_cmd = "echo \"$ilp_string\" > $log_file"
         run(`sh -c $log_cmd`, wait=true)
         ilp_command = `sh -c $ilp_string`
         print("running ilp...")
         run(ilp_command, wait = true)
         if !config_verbose
-            run(`rm $log_file`)
+            run(`rm -f $log_file`)
         end
         print(" - success\n")
         return true

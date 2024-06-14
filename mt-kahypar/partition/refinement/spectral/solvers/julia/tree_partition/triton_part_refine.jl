@@ -2,12 +2,13 @@ function triton_part_refine(hypergraph_file::String, partition::AbstractArray{In
     partition_file = "$(config_tmpDir)/triton_part_input_$identifier.part.2" 
     write_partition(partition, partition_file)
 
-    triton_part_refine(hypergraph_file, partition_file, num_parts, ub_factor, seed, identifier)
-    
-    refined_partition = read_hint_file(partition_file)
+    refined_partition = partition
+    if triton_part_refine(hypergraph_file, partition_file, num_parts, ub_factor, seed, identifier)
+        refined_partition = read_hint_file(partition_file)
+    end
     
     if !config_verbose
-        rm = "rm $partition_file"
+        rm = "rm -f $partition_file"
         run(`sh -c $rm`, wait = true)
     end
 
@@ -41,16 +42,20 @@ function triton_part_refine(hypergraph_file::String, partition_file::String, num
     cmd = "chmod 777 " * tcl_file
     run(`sh -c $cmd`, wait = true)
 
+    success = true
     try
         run(`$sh_file`, wait=true)
     catch e
         inform("triton_part failed")
+        success = false
     end
 
     if !config_verbose
-        rm = "rm $tcl_file $sh_file $log_file"
+        rm = "rm -f $tcl_file $sh_file $log_file"
         run(`sh -c $rm`, wait = true)
     end
+
+    return success
 end
 
 triton_part_refine(h, p, n, u, s, id::Int) = triton_part_refine(h, p, n, u, s, split(h, "/")[end] * string(id))

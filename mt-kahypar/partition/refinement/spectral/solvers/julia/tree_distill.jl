@@ -63,7 +63,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     inform("cut from tree distilling $cut")
 
     if isnothing(hgr_file_in)
-        run(`rm $hgr_file`)
+        run(`rm -f $hgr_file`)
     end
 
     return solution, cut
