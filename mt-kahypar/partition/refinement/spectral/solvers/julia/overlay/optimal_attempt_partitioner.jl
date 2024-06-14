@@ -44,7 +44,8 @@ function check_balance(hgraph::__hypergraph__, partition::Vector{Int}, num_parts
         blocks[partition[i]+1] += hgraph.vwts[i]
     end
 
-    max_balance = Int(ceil((50 + ub_factor) * sum(hgraph.vwts)/100))
+    total_weight = sum(hgraph.hwts)
+    max_balance = max(floor(Int, total_weight * 0.5 * (1.0 + ub_factor / 100.)), ceil(total_weight / 2.))
     for i in 1:num_parts
         if blocks[i] > max_balance
             return false

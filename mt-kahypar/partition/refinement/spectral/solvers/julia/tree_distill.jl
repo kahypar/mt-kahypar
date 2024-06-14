@@ -14,7 +14,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     fixed_vertices = __pindex__(Int[], Int[])
     total_weight = sum(hgr.vwts)
     ub_factor = floor(Int, config_e * 50.)
-    max_part_weight = ceil(Int, total_weight * ((1.0 / config_k) + (ub_factor / 100.0)))
+    max_part_weight = max(floor(Int, total_weight * 0.5 * (1.0 + config_e)), ceil(total_weight / 2.))
     # tree partition
     tree_partitions = tree_partition(adj_matrix, 
                                     embedding, 

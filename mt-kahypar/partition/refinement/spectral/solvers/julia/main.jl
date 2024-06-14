@@ -68,4 +68,6 @@ function main_kspecpart(hgr_data::AbstractArray, hint::AbstractArray, deflation_
     end)
 end
 
+main_nothing = (d, h, e) -> ones(Float64, d[1])
+
 main_auto = getfield(Main, Symbol(config_main))

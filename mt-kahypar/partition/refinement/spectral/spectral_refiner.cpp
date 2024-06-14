@@ -96,7 +96,10 @@ namespace mt_kahypar {
     numNodes = 0;
     for (auto np = phg.nodes().begin(); *np < ~np; *(++np) & ++numNodes) {}
 
-    max_part_weight = ceil(0.5 * (_context.partition.epsilon + 1) * (phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices()));
+    HypernodeWeight total_weight = phg.totalWeight() - phg.hypergraph().weightOfRemovedDegreeZeroVertices();
+    max_part_weight = floor(0.5 * (_context.partition.epsilon + 1) * total_weight);
+    HypernodeWeight max_optimal_weight = ceil(total_weight / float(k));
+    max_part_weight = max_part_weight < max_optimal_weight ? max_optimal_weight : max_part_weight;
 
     DBG << "node count calculated";
 
