@@ -131,12 +131,11 @@ private:
         _round = 0;
     }
 
-    vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) {
+    size_t getNextMatchingImpl(tbb::concurrent_queue<ScheduledPair>& tasks, const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
-        vec<ScheduledPair> tasks;
-        tasks.reserve(_k / 2);
         assert(_scheduled.size() == size_t(_k));
         assert(_partitions_sorted_by_participations.size() <= size_t(_k));
+        size_t taskSize = 0;
         if (_partitions_sorted_by_participations.size() > 0) {
             for (size_t i = 0; i < _partitions_sorted_by_participations.size(); ++i) {
                 const PartitionID block0 = _partitions_sorted_by_participations[i];
@@ -151,20 +150,22 @@ private:
                     const PartitionID larger = std::max(block0, block1);
                     if (isEligible(smaller, larger, qg)) {
                         addBlockPair(smaller, larger);
-                        tasks.push_back({ {smaller, larger}, _rng() });
+                        tasks.push({ {smaller, larger}, _rng() });
+                        taskSize++;
                         i--;
                         break;
                     }
                 }
-                if (tasks.size() == size_t(_k) / 2) { break; }
+                if (taskSize == size_t(_k) / 2) { break; }
             }
         }
         if constexpr (debug) {
-            for (const auto& t : tasks) {
+            for (auto it = tasks.unsafe_begin(); it != tasks.unsafe_end(); ++it) {
+                auto t = *it;
                 DBG << "Scheduling: (" << t.bp.i << ", " << t.bp.j << ", " << t.seed << ") in round " << _round;
             }
         }
-        return tasks;
+        return taskSize;
     }
 
     void addBlockPair(const PartitionID i, const PartitionID j) {

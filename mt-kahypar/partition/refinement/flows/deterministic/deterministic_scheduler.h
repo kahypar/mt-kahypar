@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "tbb/concurrent_queue.h"
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
@@ -58,15 +60,21 @@ public:
         GainCache& gain_cache) :
         _context(context),
         _gain_cache(gain_cache),
-        _scheduled_blocks(),
-        _refiners(num_hypernodes, num_hyperedges, context),
+        // _scheduled_blocks(),
+        _refiners(),
         _quotient_graph(context),
         _schedule(context),
         _was_moved(num_hypernodes, uint8_t(false)),
         _apply_moves_lock(),
         num_hyperedges(num_hyperedges),
         num_hypernodes(num_hypernodes),
-        _new_cut_hes() {}
+        _new_cut_hes(),
+        _scheduled_blocks() {
+        _refiners.reserve(_context.partition.k);
+        for (PartitionID i = 0; i < (_context.partition.k / 2); ++i) {
+            _refiners.emplace_back(std::make_unique<DeterministicFlowRefiner<GraphAndGainTypes>>(num_hypernodes, num_hyperedges, context));
+        }
+    }
 
     DeterministicFlowRefinementScheduler(const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
@@ -190,8 +198,8 @@ private:
 
     const Context& _context;
     GainCache& _gain_cache; // sollte?
-    vec<ScheduledPair> _scheduled_blocks; // reset
-    tbb::enumerable_thread_specific<DeterministicFlowRefiner<GraphAndGainTypes>> _refiners; // reset
+    //vec<ScheduledPair> _scheduled_blocks; // reset
+    vec<std::unique_ptr<DeterministicFlowRefiner<GraphAndGainTypes>>> _refiners; // reset
     DeterministicQuotientGraph<TypeTraits> _quotient_graph; // reset
     ParticipationsSchedule<TypeTraits> _schedule; // sequential
     vec<uint8_t> _was_moved; // reset
@@ -200,6 +208,7 @@ private:
     const HypernodeID num_hypernodes;
     vec<NewCutHyperedge> _new_cut_hes;
     std::atomic<size_t> _solved_flow_problems = 0;
+    tbb::concurrent_queue<ScheduledPair> _scheduled_blocks;
 };
 
 }  // namespace kahypar

@@ -28,40 +28,39 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
     while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
         //std::cout << V(round_delta) << ", " << V(minImprovement) << ", " << std::endl;
-        _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+        size_t numScheduledBlocks = _schedule.getNextMatching(_scheduled_blocks, _quotient_graph);
         round_delta = 0;
         minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
-        while (_scheduled_blocks.size() > 0) {
+        while (numScheduledBlocks > 0) {
             //vec<MoveSequence> sequences(_scheduled_blocks.size());
-            tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
-                //for (size_t i = 0; i < _scheduled_blocks.size(); ++i) {
-                    //for (size_t i = _scheduled_blocks.size() - 1; i < _scheduled_blocks.size(); --i) {
-                //std::cout << "0" << std::endl;
-                const ScheduledPair& sp = _scheduled_blocks[i];
-                //auto& refiner = _refiners.local();
-                //std::cout << "1" << std::endl;
+            tbb::parallel_for(0UL, _refiners.size(), [&](const size_t refinerIdx) {
+                auto& refiner = *_refiners[refinerIdx];
+                ScheduledPair sp;
+                while (_scheduled_blocks.try_pop(sp)) {
+                    //std::cout << "1" << std::endl;
 
-                DeterministicFlowRefiner<GraphAndGainTypes> refiner(num_hypernodes, num_hyperedges,
-                     _context);
-                refiner.initialize(phg);
-                //std::cout << "2" << std::endl;
+                    // DeterministicFlowRefiner<GraphAndGainTypes> refiner(num_hypernodes, num_hyperedges,
+                    //      _context);
+                    refiner.initialize(phg);
+                    //std::cout << "2" << std::endl;
 
-                MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
-                //std::cout << "3" << std::endl;
-                //sequences[i] = moves;
-                const HyperedgeWeight improvement = applyMoves(moves, phg);
-                //std::cout << "4" << std::endl;
+                    MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
+                    //std::cout << "3" << std::endl;
+                    //sequences[i] = moves;
+                    const HyperedgeWeight improvement = applyMoves(moves, phg);
+                    //std::cout << "4" << std::endl;
 
-                round_delta += improvement;
-                reportResults(sp.bp.i, sp.bp.j, moves);
-                _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
-                //std::cout << "5" << std::endl;
+                    round_delta += improvement;
+                    reportResults(sp.bp.i, sp.bp.j, moves);
+                    _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
+                    //std::cout << "5" << std::endl;
 
-                //_solved_flow_problems++;
-                // for (auto v : moves.moves) {
-                //     std::cout << "(" << v.from << ", " << v.to << ", " << v.node << ", " << v.gain + ")";
-                // }
-                //std::cout << std::endl;
+                    //_solved_flow_problems++;
+                    // for (auto v : moves.moves) {
+                    //     std::cout << "(" << v.from << ", " << v.to << ", " << v.node << ", " << v.gain + ")";
+                    // }
+                    //std::cout << std::endl;
+                }
             });
             //std::cout << "6" << std::endl;
 
@@ -83,7 +82,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
             assert(metrics::isBalanced(phg, _context));
             //std::cout << V(_solved_flow_problems) << std::endl;
             DBG << "#################################################### NEXT MATCHING ######################################################";
-            _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+            numScheduledBlocks = _schedule.getNextMatching(_scheduled_blocks, _quotient_graph);
         }
         overall_delta += round_delta;
         current_metrics.quality -= round_delta;
