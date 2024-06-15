@@ -36,6 +36,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/participations_schedule.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/participation_improvement_schedule.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_common.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_quotient_graph.h"
@@ -201,13 +202,12 @@ private:
     //vec<ScheduledPair> _scheduled_blocks; // reset
     vec<std::unique_ptr<DeterministicFlowRefiner<GraphAndGainTypes>>> _refiners; // reset
     DeterministicQuotientGraph<TypeTraits> _quotient_graph; // reset
-    ParticipationsSchedule<TypeTraits> _schedule; // sequential
+    ParticipationImprovementSchedule<TypeTraits> _schedule; // sequential
     vec<uint8_t> _was_moved; // reset
     SpinLock _apply_moves_lock; // reset
     const HyperedgeID num_hyperedges;
     const HypernodeID num_hypernodes;
     vec<NewCutHyperedge> _new_cut_hes;
-    std::atomic<size_t> _solved_flow_problems = 0;
     tbb::concurrent_queue<ScheduledPair> _scheduled_blocks;
 };
 

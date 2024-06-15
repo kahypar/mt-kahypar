@@ -39,7 +39,7 @@ namespace mt_kahypar {
 
 class DeterministicQuotientGraphEdge {
 public:
-    DeterministicQuotientGraphEdge() : cut_hyperedges(), num_cut_hyperedges(0UL), cut_hyperedge_weight(0), total_improvement(0) {}
+    DeterministicQuotientGraphEdge() : cut_hyperedges(), num_cut_hyperedges(0UL), cut_hyperedge_weight(0), total_improvement(0), previously_scheduled(false) {}
 
     void addHyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
         cut_hyperedges.push_back(he);
@@ -51,12 +51,14 @@ public:
         cut_hyperedges.clear();
         cut_hyperedge_weight.store(0, std::memory_order_relaxed);
         num_cut_hyperedges.store(0, std::memory_order_relaxed);
+        previously_scheduled = false;
     }
 
     tbb::concurrent_vector<HyperedgeID> cut_hyperedges; // reset
     CAtomic<size_t> num_cut_hyperedges; // reset
     CAtomic<HyperedgeWeight> cut_hyperedge_weight; // reset
     CAtomic<HyperedgeWeight> total_improvement; // NOT reset but ok
+    bool previously_scheduled;
 };
 
 template<typename TypeTraits>
@@ -171,6 +173,11 @@ public:
         return _edges[i][j].total_improvement;
     }
 
+    bool wasAlreadyScheduled(const PartitionID i, const PartitionID j)const {
+        assert(i < j);
+        return _edges[i][j].previously_scheduled;
+    }
+
     void addNewCutHyperedge(const HyperedgeID he, const PartitionID block, const PartitionedHypergraph& phg) {
         ASSERT(phg.pinCountInPart(he, block) > 0);
         // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
@@ -183,6 +190,7 @@ public:
 
     void reportImprovement(const PartitionID i, const PartitionID j, const HyperedgeWeight improvement) {
         _edges[i][j].total_improvement += improvement;
+        _edges[i][j].previously_scheduled = true;
     }
 
     //private:
