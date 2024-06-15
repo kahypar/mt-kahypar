@@ -1655,15 +1655,12 @@ namespace mt_kahypar{
             }
           }
           ASSERT(metrics::isBalanced(*phg, *_context));
+          if(_context->partition.constrained_refinement_after_fallback) constraint_refinement(best_metrics, local_attributed_gain);
         }
       }
     }
 
     void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){     
-      if(!metrics::isBalanced(*phg, *_context)){
-        vec<Move> m;
-        rebalancing(&m, best_metrics, local_attributed_gain, _context->partition.assure_balance);  
-      }
       for(int i = 0; i < 10; i++){
         Gain before_quality = local_attributed_gain;
         round++;
@@ -1971,7 +1968,7 @@ namespace mt_kahypar{
       }
 
       int other_counter = 0;
-      const int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
+      int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
       uint64_t num_update_swaps = 0;
 
       std::vector<HypernodeWeight> highest_part_weights;
@@ -2123,7 +2120,7 @@ namespace mt_kahypar{
           }
           if(counter % UPDATE_FREQUENCY == 0){
             num_frequent_updates++;            
-            completeUpdate(&changed_nodes);            
+            completeUpdate(&changed_nodes);          
           }
           uint64_t tmp_swaps = queue->num_swaps();
           update_nodes(&changed_nodes);
@@ -2142,7 +2139,8 @@ namespace mt_kahypar{
           std::vector<HypernodeID> cn2;
           completeUpdate(&cn2);
           update_nodes(&cn2);                  
-        }                                                 
+        }    
+        if(counter > estimated_num_moves && counter % UPDATE_FREQUENCY == 0) UPDATE_FREQUENCY *= 2;                                            
       }      
       std::cout << estimated_num_moves << " " << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << initialization_swaps << " " << num_update_swaps << "\n";
       /*if(imbalanced != 0){

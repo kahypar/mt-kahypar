@@ -83,6 +83,8 @@ struct PartitioningParameters {
   bool fallback_extract_equally = false;
   int penalty_metric_idx;
 
+  bool constrained_refinement_after_fallback = false;
+
   std::string contraction_input_file = "";
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
