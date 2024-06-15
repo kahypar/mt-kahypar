@@ -51,14 +51,14 @@ public:
         cut_hyperedges.clear();
         cut_hyperedge_weight.store(0, std::memory_order_relaxed);
         num_cut_hyperedges.store(0, std::memory_order_relaxed);
-        previously_scheduled = false;
+        previously_scheduled.store(false, std::memory_order_relaxed);
     }
 
     tbb::concurrent_vector<HyperedgeID> cut_hyperedges; // reset
     CAtomic<size_t> num_cut_hyperedges; // reset
     CAtomic<HyperedgeWeight> cut_hyperedge_weight; // reset
     CAtomic<HyperedgeWeight> total_improvement; // NOT reset but ok
-    bool previously_scheduled;
+    CAtomic<bool> previously_scheduled;
 };
 
 template<typename TypeTraits>
@@ -190,7 +190,7 @@ public:
 
     void reportImprovement(const PartitionID i, const PartitionID j, const HyperedgeWeight improvement) {
         _edges[i][j].total_improvement += improvement;
-        _edges[i][j].previously_scheduled = true;
+        _edges[i][j].previously_scheduled.store(true);
     }
 
     //private:

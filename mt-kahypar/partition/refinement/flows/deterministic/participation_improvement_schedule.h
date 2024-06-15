@@ -94,12 +94,12 @@ public:
         tbb::parallel_for(PartitionID(0), _k, [&](const size_t i) {
             auto& active_pairs = _active_block_pairs[i];
             std::sort(active_pairs.begin(), active_pairs.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
-                return qg.getImprovement(i, lhs) >
-                    qg.getImprovement(i, rhs) ||
-                    (qg.getImprovement(i, lhs) ==
-                        qg.getImprovement(i, rhs) &&
-                        qg.getCutWeight(i, lhs) >
-                        qg.getCutWeight(i, rhs));
+                const HyperedgeWeight lImprove = qg.getImprovement(i, lhs);
+                const HyperedgeWeight rImprove = qg.getImprovement(i, rhs);
+                const HyperedgeWeight lCut = qg.getCutWeight(i, lhs);
+                const HyperedgeWeight rCut = qg.getCutWeight(i, rhs);
+
+                return std::tie(lImprove, lCut, lhs) > std::tie(rImprove, rCut, rhs);
             });
         });
 
@@ -107,14 +107,12 @@ public:
     }
 
     bool hasActiveBlocks() {
-        DBG << (_partitions_sorted_by_participations.size() > 0);
         return _partitions_sorted_by_participations.size() > 0;
     }
 
 
     void reportResults(const PartitionID block0, const PartitionID block1, const MoveSequence& sequence) {
         if (sequence.expected_improvement > 0) {
-            // There was improvement
             _active_blocks_next_round[block0] = true;
             _active_blocks_next_round[block1] = true;
         }
@@ -144,8 +142,6 @@ private:
                 assert(block0 < _k);
                 if (_scheduled[block0]) continue;
                 for (PartitionID block1 : _active_block_pairs[block0]) {
-                    // for (size_t j = i + 1; j < _partitions_sorted_by_participations.size(); ++j) {
-                    //     const PartitionID block1 = _partitions_sorted_by_participations[j];
                     assert(block1 < _k);
                     if (_scheduled[block1] || _processed[block0][block1] || block0 == block1) continue;
                     const PartitionID smaller = std::min(block0, block1);
