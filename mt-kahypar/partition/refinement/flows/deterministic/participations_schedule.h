@@ -212,7 +212,7 @@ private:
         return (_active_blocks[i] || _active_blocks[j]) // at least one block active
             && !_scheduled[i] && !_scheduled[j]         // none of the blocks is already scheduled
             && !_processed[i][j]                        // the pairing has not been processed yet
-            && (_round == 0 || qg.getImprovement(i, j) > 0)
+            && (!qg.wasAlreadyScheduled(i, j) || qg.getImprovement(i, j) > 0)
             && contains_enough_cut_hes;
     }
 
