@@ -140,7 +140,8 @@ class ParallelConstruction {
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
-                                      vec<HypernodeID>& whfc_to_node);
+                                      vec<HypernodeID>& whfc_to_node,
+                                      const bool deterministic = false);
 
   // ! Only for testing
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
@@ -148,6 +149,7 @@ class ParallelConstruction {
                                       const PartitionID block_0,
                                       const PartitionID block_1,
                                       vec<HypernodeID>& whfc_to_node,
+                                      const bool deterministic,
                                       const bool default_construction);
 
  private:
@@ -155,13 +157,15 @@ class ParallelConstruction {
                                const Subhypergraph& sub_hg,
                                const PartitionID block_0,
                                const PartitionID block_1,
-                               vec<HypernodeID>& whfc_to_node);
+                               vec<HypernodeID>& whfc_to_node,
+                               const bool deterministic = false);
 
   FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg,
                                             const PartitionID block_0,
                                             const PartitionID block_1,
-                                            vec<HypernodeID>& whfc_to_node);
+                                            vec<HypernodeID>& whfc_to_node,
+                                            const bool deterministic = false);
 
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,

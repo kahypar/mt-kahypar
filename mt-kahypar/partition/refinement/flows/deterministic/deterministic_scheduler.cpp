@@ -27,7 +27,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
         minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
         while (numScheduledBlocks > 0) {
             timer.start_timer("flow_refiner", "Flow_Refiner");
-                tbb::parallel_for(0UL, _refiners.size(), [&](const size_t refinerIdx) {
+            tbb::parallel_for(0UL, _refiners.size(), [&](const size_t refinerIdx) {
                 auto& refiner = *_refiners[refinerIdx];
                 ScheduledPair sp;
                 while (_scheduled_blocks.try_pop(sp)) {
