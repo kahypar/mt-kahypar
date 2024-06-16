@@ -86,7 +86,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
                                                                           const Subhypergraph& sub_hg,
                                                                           const PartitionID block_0,
                                                                           const PartitionID block_1,
-                                                                          vec<HypernodeID>& whfc_to_node) {
+                                                                          vec<HypernodeID>& whfc_to_node,
+                                                                          const bool deterministic) {
   FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
@@ -108,7 +109,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
     flow_problem.non_removable_cut = 0;
     flow_problem.total_cut = 0;
   } else {
-    _flow_hg.finalizeParallel();
+    _flow_hg.finalizeParallel(deterministic);
 
     if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
@@ -132,6 +133,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
                                                                           const PartitionID block_0,
                                                                           const PartitionID block_1,
                                                                           vec<HypernodeID>& whfc_to_node,
+                                                                          const bool deterministic,
                                                                           const bool default_construction) {
   FlowProblem flow_problem;
   if ( default_construction ) {
@@ -152,7 +154,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
     flow_problem.non_removable_cut = 0;
     flow_problem.total_cut = 0;
   } else {
-    _flow_hg.finalizeParallel();
+    _flow_hg.finalizeParallel(deterministic);
 
     if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
