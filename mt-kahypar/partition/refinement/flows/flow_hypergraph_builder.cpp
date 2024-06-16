@@ -182,7 +182,17 @@ void FlowHypergraphBuilder::finalizeParallel(const bool deterministic) {
       p.he_inc_iter = whfc::InHeIndex(ind_he);
     }
   });
-
+  if (deterministic) {
+    tbb::parallel_for(UL(0), numNodes(), [&](const size_t i) {
+      const whfc::Node n(i);
+      std::sort(beginHyperedges(n), endHyperedges(n), [&](const InHe& a, const InHe& b) {
+        return a.e < b.e;
+      });
+      for (const auto& idx : incidentHyperedgeIndices(n)) {
+        pins[incident_hyperedges[idx].pin_iter].he_inc_iter = idx;
+      }
+    });
+  }
   ASSERT([&]() {
     size_t num_pins = 0;
     for ( const whfc::Node& u : nodeIDs() ) {

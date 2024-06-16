@@ -95,12 +95,12 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node, deterministic);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
     // Algorithm constructs a temporary pin list, therefore it could have overheads
     // for hypergraphs with small hyperedges.
-    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node, deterministic);
   }
 
   if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
@@ -140,12 +140,12 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node, deterministic);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
     // Algorithm constructs a temporary pin list, therefore it could have overheads
     // for hypergraphs with small hyperedges.
-    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node, deterministic);
   }
 
   if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
@@ -177,7 +177,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
                                                                    const Subhypergraph& sub_hg,
                                                                    const PartitionID block_0,
                                                                    const PartitionID block_1,
-                                                                   vec<HypernodeID>& whfc_to_node) {
+  vec<HypernodeID>& whfc_to_node,
+  const bool deterministic) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -303,7 +304,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
                    ( tmp_pins[0] == flow_problem.source ||
                      tmp_pins[0] == flow_problem.sink), tmp_pins.end());
 
-          if ( tmp_pins.size() > 1 ) {
+          if (tmp_pins.size() > 1 && !deterministic) {
             const TmpHyperedge identical_net = _identical_nets.get(he_hash, tmp_pins);
             if ( identical_net.e == whfc::invalidHyperedge ) {
               const size_t pin_start = pin_idx;
@@ -322,6 +323,18 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
               // Current hyperedge is identical to an already added
               __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e), he_weight, __ATOMIC_RELAXED);
             }
+          } else if (tmp_pins.size() > 1 && deterministic) {
+            const size_t pin_start = pin_idx;
+            const size_t pin_end = pin_start + tmp_pins.size();
+            for (size_t i = 0; i < tmp_pins.size(); ++i) {
+              _flow_hg.addPin(tmp_pins[i], idx, pin_idx++);
+            }
+            TmpHyperedge tmp_e{ he_hash, idx, e++ };
+            if (_context.refinement.flows.determine_distance_from_cut &&
+              phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) {
+              _cut_hes.push_back(tmp_e);
+            }
+            _flow_hg.finishHyperedge(tmp_e.e, he_weight, idx, pin_start, pin_end);
           }
         }
       }
@@ -341,7 +354,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
                                                                                 const Subhypergraph& sub_hg,
                                                                                 const PartitionID block_0,
                                                                                 const PartitionID block_1,
-                                                                                vec<HypernodeID>& whfc_to_node) {
+  vec<HypernodeID>& whfc_to_node,
+  const bool deterministic) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -477,7 +491,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
               hash += kahypar::math::hash(pins_of_bucket[i].pin);
             }
 
-            if ( tmp_pins.size() > 1 ) {
+            if (tmp_pins.size() > 1 && !deterministic) {
               const TmpHyperedge identical_net = _identical_nets.get(hash, tmp_pins);
               if ( identical_net.e == whfc::invalidHyperedge ) {
                 const size_t pin_start = pin_idx;
@@ -496,6 +510,18 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
                 // Current hyperedge is identical to an already added
                 __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e), he_weight, __ATOMIC_RELAXED);
               }
+            } else if (tmp_pins.size() > 1 && deterministic) {
+              const size_t pin_start = pin_idx;
+              const size_t pin_end = pin_start + tmp_pins.size();
+              for (const whfc::Node& pin : tmp_pins) {
+                _flow_hg.addPin(pin, idx, pin_idx++);
+              }
+              TmpHyperedge tmp_e{ hash, idx, current_he++ };
+              if (_context.refinement.flows.determine_distance_from_cut &&
+                actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) {
+                _cut_hes.push_back(tmp_e);
+              }
+              _flow_hg.finishHyperedge(tmp_e.e, he_weight, idx, pin_start, pin_end);
             }
           }
         }

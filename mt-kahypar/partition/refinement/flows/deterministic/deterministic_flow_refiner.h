@@ -109,7 +109,7 @@ private:
             if (sequential) {
                 flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
             } else {
-                flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+                flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node, true /*deterministic*/);
             }
             if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
                 //timer.stop_timer("construct_flow_hypergraph");
