@@ -71,8 +71,9 @@ public:
         num_hypernodes(num_hypernodes),
         _new_cut_hes(),
         _scheduled_blocks() {
-        _refiners.reserve(_context.partition.k);
-        for (PartitionID i = 0; i < (_context.partition.k / 2); ++i) {
+        size_t numRefiners = std::min(size_t(_context.partition.k / 2), _context.shared_memory.num_threads);
+        _refiners.reserve(numRefiners);
+        for (size_t i = 0; i < numRefiners; ++i) {
             _refiners.emplace_back(std::make_unique<DeterministicFlowRefiner<GraphAndGainTypes>>(num_hypernodes, num_hyperedges, context));
         }
     }
