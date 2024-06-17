@@ -526,12 +526,12 @@ namespace mt_kahypar{
         nodesleft--;
         std::cout << "node: \n";
         for(int d = 0; d < dimension; d++){
-          std::cout << phg->nodeWeight(chosen_node).weights[d] / _context->partition.max_part_weights[0].weights[d] << " ";
+          std::cout << static_cast<double>(phg->nodeWeight(chosen_node).weights[d]) * _context->partition.max_part_weights_inv[0][d] << " ";
         }
+        std::cout << "weights:\n";
         for(PartitionID p = 0; p < phg->k(); p++){
-          std::cout << "weights:\n";
           for(int d = 0; d < dimension; d++){
-            std::cout << virtual_weight[p].weights[d] / _context->partition.max_part_weights[p].weights[d] << " ";
+            std::cout << static_cast<double>(virtual_weight[p].weights[d]) * _context->partition.max_part_weights_inv[p][d] << " ";
           }
           std::cout << "  ";
         }
