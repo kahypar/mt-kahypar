@@ -31,6 +31,7 @@ function main(input, method)
 
         adj_matrix = adjacency_matrix(hgr_processed)
 
+        global global_best = nothing
         golden_evaluator_glob(hgr_processed, config_k, hint_processed)
         result_processed = method(hgr_processed, hint_processed, deflation_space_processed, adj_matrix)
 
