@@ -135,7 +135,7 @@ end
 
 function golden_evaluator(hypergraph::__hypergraph__,
     num_parts::Int,
-    partition::Vector{Int})
+    partition::AbstractArray{Int})
     cutsize = 0
     for i in 1:hypergraph.num_hyperedges
         first_valid_entry = hypergraph.eptr[i]
@@ -154,4 +154,12 @@ function golden_evaluator(hypergraph::__hypergraph__,
         balance[p+1] += hypergraph.vwts[i]
     end
     return (cutsize, balance)
+end
+
+function golden_evaluator_glob(g, k, p)
+    result = golden_evaluator(g, k, p)
+    if isnothing(global_best) || (result[1] < global_best[1] && check_balance(g, result[2], floor(Int, config_e * 50.)))
+        global global_best = (result[1], p)
+    end
+    return result
 end

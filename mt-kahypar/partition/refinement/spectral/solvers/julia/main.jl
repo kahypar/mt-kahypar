@@ -31,6 +31,7 @@ function main(input, method)
 
         adj_matrix = adjacency_matrix(hgr_processed)
 
+        golden_evaluator_glob(hgr_processed, config_k, hint_processed)
         result_processed = method(hgr_processed, hint_processed, deflation_space_processed, adj_matrix)
 
         result = zeros(Float64, n)
@@ -64,10 +65,14 @@ function main_kspecpart(hgr_data::AbstractArray, hint::AbstractArray, deflation_
             hint = candidates[end][1]
         end
         sort!(candidates, by = x->x[2])
-        return overlay_partitions(map(c->c[1], candidates), g, hgr_file, candidates[1][2])[1]
+        overlay_partitions(map(c->c[1], candidates), g, hgr_file, candidates[1][2])
+        inform("best cut from specpart $(global_best[1])")
+        return global_best[2]
     end)
 end
 
 main_nothing = (d, h, e) -> ones(Float64, d[1])
 
 main_auto = getfield(Main, Symbol(config_main))
+
+global_best = nothing

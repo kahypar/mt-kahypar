@@ -14,7 +14,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     fixed_vertices = __pindex__(Int[], Int[])
     total_weight = sum(hgr.vwts)
     ub_factor = floor(Int, config_e * 50.)
-    max_part_weight = max(floor(Int, total_weight * 0.5 * (1.0 + config_e)), ceil(total_weight / 2.))
+    max_part_weight = Int(max(floor(Int, total_weight * 0.5 * (1.0 + config_e)), ceil(total_weight / 2.)))
     # tree partition
     tree_partitions = tree_partition(adj_matrix, 
                                     embedding, 
@@ -30,7 +30,7 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     # refine tree partitions
     for i in 1 : length(tree_partitions)
         push!(partitions, triton_part_refine(hgr_file, tree_partitions[i][1], config_k, ub_factor, config_seed, i))
-        (cutsize, balance) = golden_evaluator(hgr, config_k, partitions[i])
+        (cutsize, balance) = golden_evaluator_glob(hgr, config_k, partitions[i])
         push!(cutsizes, cutsize)
         if haskey(cut_dictionary, cutsize) == false
             push!(cut_dictionary, cutsize => i)

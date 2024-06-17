@@ -17,7 +17,7 @@ function overlay_partitions(partitions, hgr, hgr_file, best_cut)
         partition_projected = read_hint_file(specpart_partition_name)
     end
     run(`rm -f $specpart_partition_name`)
-    cutsize = golden_evaluator(hgr, config_k, partition_projected)
+    cutsize = golden_evaluator_glob(hgr, config_k, partition_projected)
 
     inform("overlay cut $cutsize")
 
