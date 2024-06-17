@@ -526,7 +526,7 @@ namespace mt_kahypar{
         nodesleft--;
         std::cout << "node: \n";
         for(int d = 0; d < dimension; d++){
-          std::cout << static_cast<double>(phg->nodeWeight(chosen_node).weights[d]) * _context->partition.max_part_weights_inv[0][d] << " ";
+          std::cout << static_cast<double>(phg->nodeWeight(chosen_node).weights[d]) * _context->partition.max_part_weights_inv[0][d] << " " << chosen_p << " ";
         }
         std::cout << "weights:\n";
         for(PartitionID p = 0; p < phg->k(); p++){
