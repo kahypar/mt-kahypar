@@ -524,6 +524,17 @@ namespace mt_kahypar{
         tmp_partitioning.push_back({chosen_node, chosen_p});
         used[chosen_node] = true;        
         nodesleft--;
+        std::cout << "node: \n";
+        for(int d = 0; d < dimension; d++){
+          std::cout << phg->nodeWeight(chosen_node).weights[d] << " ";
+        }
+        for(PartitionID p = 0; p < phg->k(); p++){
+          std::cout << "weights:\n";
+          for(int d = 0; d < dimension; d++){
+            std::cout << virtual_weight[p].weights[d] << " ";
+          }
+          std::cout << "\n";
+        }
       }
       ASSERT(tmp_partitioning.size() == new_num);
       for(auto pair : tmp_partitioning){
