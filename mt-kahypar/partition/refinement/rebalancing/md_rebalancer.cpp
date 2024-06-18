@@ -524,7 +524,7 @@ namespace mt_kahypar{
         tmp_partitioning.push_back({chosen_node, chosen_p});
         used[chosen_node] = true;        
         nodesleft--;
-        std::cout << "node: \n";
+        /*std::cout << "node: \n";
         for(int d = 0; d < dimension; d++){
           std::cout << static_cast<double>(phg->nodeWeight(chosen_node).weights[d]) * _context->partition.max_part_weights_inv[0][d] << " " << chosen_p << " ";
         }
@@ -535,7 +535,7 @@ namespace mt_kahypar{
           }
           std::cout << "  ";
         }
-        std::cout << "\n";
+        std::cout << "\n";*/
       }
       ASSERT(tmp_partitioning.size() == new_num);
       for(auto pair : tmp_partitioning){
