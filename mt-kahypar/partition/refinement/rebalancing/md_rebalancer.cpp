@@ -1649,7 +1649,8 @@ namespace mt_kahypar{
           HypernodeID size = rebalance_moves->size();
           vec<bool> L(phg->initialNumNodes(), false);
           auto start = std::chrono::high_resolution_clock::now(); 
-          if(!fallback(rebalance_moves, &L)){
+          std::pair<double,bool> fallback_res = fallback(rebalance_moves, &L);
+          if(!fallback_res.second){
             std::cout << "fallback failure\n";
             return;
           } 
@@ -1665,7 +1666,7 @@ namespace mt_kahypar{
           }
           auto end = std::chrono::high_resolution_clock::now();
           std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start); // ticks to time
-          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << d.count() << "\n";
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << fallback_res.second << "," << d.count() << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
@@ -2179,7 +2180,7 @@ namespace mt_kahypar{
       return imbalanced == 0;
     }
 
-    bool fallback(vec<Move> *fallback_moves, vec<bool> *L){
+    std::pair<double,bool> fallback(vec<Move> *fallback_moves, vec<bool> *L){
       const double threshold = _context->partition.L_threshold;
       auto get_heaviest_dim = [&](HypernodeWeight nw){
         int dim = -1;
@@ -2402,7 +2403,7 @@ namespace mt_kahypar{
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
-          if(!extract(max_p)) return false;
+          if(!extract(max_p)) return {0.0,false};
         }
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
           std::cout << "success\n";
@@ -2426,8 +2427,7 @@ namespace mt_kahypar{
           return true;
         }(), "bwugi");
         goal *= 2.0;
-        if(goal > dimension * phg->k()) return false;
-        std::cout << "goal: " << goal << " ";
+        if(goal > dimension * phg->k()) return {0.0,false};
       }
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
@@ -2437,7 +2437,6 @@ namespace mt_kahypar{
       double current = (upper + lower) / 2.0;
       double search_threshold = 0.005;
       while(highest_possible_idx - lowest_possible_idx > 0 && upper - lower > search_threshold){
-        std::cout << "current " << current << " ";
         while(S_weight > current){
           S_weight -= get_normalized_weight(phg->nodeWeight(S[last_idx]));
           virtual_weight[phg->partID(S[last_idx])] += phg->nodeWeight(S[last_idx]);
@@ -2477,7 +2476,7 @@ namespace mt_kahypar{
             test[phg->partID(hn)] += phg->nodeWeight(hn);
           }
           for(PartitionID p = 0; p < phg->k(); p++){
-            if(test[p] != phg->partWeight(p)) return false;
+            if(test[p] != phg->partWeight(p)) return {0.0,false};
           }
           return true;
         }(), "bwugi");
@@ -2501,7 +2500,7 @@ namespace mt_kahypar{
       }
       /*std::cout << "sizes " << counter << " " << succ_idx << "\n";*/ 
       ASSERT(counter == succ_idx);
-      return true;
+      return {goal / (static_cast<double>(phg->k() * dimension)), true};
     }
   };
 
