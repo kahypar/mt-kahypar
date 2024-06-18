@@ -1666,7 +1666,7 @@ namespace mt_kahypar{
           }
           auto end = std::chrono::high_resolution_clock::now();
           std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start); // ticks to time
-          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << fallback_res.second << "," << d.count() << "\n";
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << fallback_res.first << "," << d.count() << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
