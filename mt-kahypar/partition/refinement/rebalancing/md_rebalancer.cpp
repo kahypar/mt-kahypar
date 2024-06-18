@@ -2476,7 +2476,7 @@ namespace mt_kahypar{
             test[phg->partID(hn)] += phg->nodeWeight(hn);
           }
           for(PartitionID p = 0; p < phg->k(); p++){
-            if(test[p] != phg->partWeight(p)) return {0.0,false};
+            if(test[p] != phg->partWeight(p)) return false;
           }
           return true;
         }(), "bwugi");
