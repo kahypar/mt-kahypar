@@ -2406,12 +2406,10 @@ namespace mt_kahypar{
           if(!extract(max_p)) return {0.0,false};
         }
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
-          std::cout << "success\n";
           break;
         }
         else{
           lowest_possible_idx = S.size() - 1;
-          std::cout << "nosucc\n";
         }
         ASSERT([&]{
           std::vector<HypernodeWeight> test;
@@ -2449,7 +2447,6 @@ namespace mt_kahypar{
         }
         ASSERT(last_idx + 1 >= starting_size);
         if(binpacker.binpack(last_idx + 1, virtual_weight, penalty)){
-          std::cout << "succ2 ";
           succ_idx = last_idx + 1;
           upper = current;
           highest_possible_idx = last_idx;
@@ -2500,7 +2497,7 @@ namespace mt_kahypar{
       }
       /*std::cout << "sizes " << counter << " " << succ_idx << "\n";*/ 
       ASSERT(counter == succ_idx);
-      return {goal / (static_cast<double>(phg->k() * dimension)), true};
+      return {goal / (double)(phg->k() * dimension), true};
     }
   };
 
