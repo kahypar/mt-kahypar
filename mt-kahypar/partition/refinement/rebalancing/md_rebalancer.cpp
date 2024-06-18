@@ -1646,9 +1646,13 @@ namespace mt_kahypar{
         }
         else{
           HypernodeID size = rebalance_moves->size();
-          std::cout << "fallback\n";
           vec<bool> L(phg->initialNumNodes(), false);
-          if(!fallback(rebalance_moves, &L)) return;
+          auto start = std::chrono::high_resolution_clock::now(); 
+          if(!fallback(rebalance_moves, &L)){
+            std::cout << "fallback failure\n";
+            return;
+          } 
+          Gain before_gain = local_attributed_gain;
           for(HypernodeID idx = size; idx < rebalance_moves->size(); idx++){
             ASSERT((*rebalance_moves)[idx].from == phg->partID((*rebalance_moves)[idx].node));
             ASSERT((*rebalance_moves)[idx].to != -1);
@@ -1658,21 +1662,24 @@ namespace mt_kahypar{
                             
                           });
           }
+          auto end = std::chrono::high_resolution_clock::now();
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << end-start << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
-          for(PartitionID p = 0; p < phg->k(); p++){
+          /*for(PartitionID p = 0; p < phg->k(); p++){
             if(!(phg->partWeight(p) <= _context->partition.max_part_weights[p])){
               std::cout << "part: " << p << "\n";
             }
-          }
+          }*/
           ASSERT(metrics::isBalanced(*phg, *_context));
           if(_context->partition.constrained_refinement_after_fallback) constraint_refinement(best_metrics, local_attributed_gain);
         }
       }
     }
 
-    void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){     
+    void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
+      std::cout << "constrained:\n";     
       for(int i = 0; i < 10; i++){
         Gain before_quality = local_attributed_gain;
         round++;
@@ -1682,6 +1689,7 @@ namespace mt_kahypar{
     }
 
     void unconstraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
+      std::cout << "unconstrained:\n";
       double allowed_ib = _context->partition.allowed_imbalance_refine;
       for(int r = 0; r < 10; r++){
         std::cout << r << "\n";
@@ -1705,11 +1713,11 @@ namespace mt_kahypar{
         if(!metrics::isBalanced(*phg, *_context)){
           rebalancing(&moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
         }
-        std::cout << "rb: " << local_attributed_gain << "\n";
         if(_context->partition.constraint_in_unconstraint){
           simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         }        
         bool improvement = local_attributed_gain - before_gain < 0 && metrics::isBalanced(*phg, *_context);
+        std::cout << "rebalancing: " << local_attributed_gain - before_gain << "\n";
         if(local_attributed_gain - before_gain > 0 || _context->partition.assure_balance && !metrics::isBalanced(*phg, *_context)){
           std::cout << "failure\n";
           for(HypernodeID i = 1; i <= moves.size() - before_moves; i++){
@@ -1730,6 +1738,7 @@ namespace mt_kahypar{
 
     bool simple_lp(vec<Move>* moves_linear,Metrics& best_metrics, 
       double allowed_imbalance, Gain& local_attributed_gain, int last_succ_round){
+      auto start = std::chrono::high_resolution_clock::now(); 
       std::vector<HypernodeWeight> max_part_weights(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
         for(int d = 0; d < dimension; d++){
@@ -1865,7 +1874,8 @@ namespace mt_kahypar{
           }        
         }         
       }
-      std::cout << "lp: " << num_moves << " " << local_attributed_gain - before_gain << "\n";  
+      auto end = std::chrono::high_resolution_clock::now(); 
+      std::cout << "lp: " << num_moves << "," << local_attributed_gain - before_gain <<  "," << end -start << "\n";  
       return new_node_moved;   
     }
 
@@ -1875,7 +1885,9 @@ namespace mt_kahypar{
     }
 
     bool greedyRefiner(vec<Move>* moves_linear,
-      Metrics& best_metrics, Gain& local_attributed_gain, double l1_factor, vec<HypernodeID> *L){                                                       
+      Metrics& best_metrics, Gain& local_attributed_gain, double l1_factor, vec<HypernodeID> *L){
+      auto start = std::chrono::high_resolution_clock::now(); 
+      auto before_gain = local_attributed_gain;                                                      
       std::vector<HypernodeWeight> max_part_weights_modified(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
         max_part_weights_modified[p] = l1_factor * _context->partition.max_part_weights[p];
@@ -1982,6 +1994,7 @@ namespace mt_kahypar{
       int other_counter = 0;
       int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
       uint64_t num_update_swaps = 0;
+      int num_update_rounds = 0;
 
       std::vector<HypernodeWeight> highest_part_weights;
       std::vector<HypernodeWeight> lowest_part_weights;
@@ -2144,38 +2157,22 @@ namespace mt_kahypar{
               queue->update(hn, max_move.second.gain_and_balance);
             }            
           }
-          num_update_swaps += queue->num_swaps() - tmp_swaps;          
+          num_update_swaps += queue->num_swaps() - tmp_swaps;
+          num_update_rounds++;          
         }
         if(queue->isEmpty() && counter % UPDATE_FREQUENCY != 0){
           num_empty_queue_updates++;
+          uint64_t tmp_swaps = queue->num_swaps();
           std::vector<HypernodeID> cn2;
           completeUpdate(&cn2);
-          update_nodes(&cn2);                  
+          update_nodes(&cn2);
+          num_update_swaps += queue->num_swaps() - tmp_swaps;
+          num_update_rounds++;                   
         }    
         if(counter > estimated_num_moves && counter % UPDATE_FREQUENCY == 0) UPDATE_FREQUENCY *= 2;                                            
-      }      
-      std::cout << estimated_num_moves << " " << counter - 1 << " " << other_counter << " " << local_attributed_gain << " " << imbalanced << " " << queue->isEmpty() << " " << queue->num_swaps() << " " << initialization_swaps << " " << num_update_swaps << "\n";
-      /*if(imbalanced != 0){
-        for(PartitionID p = 0; p < phg->k(); p++){
-          for(int d = 0; d < dimension; d++){
-            std::cout << phg->partWeight(p).weights[d] << "\n";
-          }
-          std::cout << "\n";
-        }
-        
-        ASSERT([&]{
-          for(HypernodeID hn : phg->nodes()){
-            if(get_max_move(hn).first != -1 && (L == NULL || is_in_L[hn])){
-              std::cout << hn << " " << phg->partID(hn) << " " << get_max_move(hn).first << " " << get_max_move(hn).second.gain << " " << get_max_move(hn).second.balance << "\n";
-              for(int d = 0; d < dimension; d++){
-                std::cout << phg->nodeWeight(hn).weights[d] << " " << phg->partWeight(phg->partID(hn)).weights[d] << " " << _context->partition.max_part_weights[0].weights[d] << "\n";
-              }
-              return false;
-            }
-          }
-          return true;
-        }(), "didnt correct update");
-      }*/
+      }  
+      auto end = std::chrono::high_resolution_clock::now();    
+      std::cout << "greedyRebalancer: " << estimated_num_moves << "," << counter - 1 << "," << other_counter << "," << local_attributed_gain - before_gain << "," << imbalanced << "," << queue->isEmpty() << "," << queue->num_swaps() << "," << initialization_swaps << "," << num_update_rounds << "," << num_update_swaps << "," << end - start << "\n";
       return imbalanced == 0;
     }
 
@@ -2499,7 +2496,7 @@ namespace mt_kahypar{
           fallback_moves->push_back(move);
         }
       }
-      /*std::cout << "sizes " << counter << " " << succ_idx << "\n";*/
+      /*std::cout << "sizes " << counter << " " << succ_idx << "\n";*/ 
       ASSERT(counter == succ_idx);
       return true;
     }
