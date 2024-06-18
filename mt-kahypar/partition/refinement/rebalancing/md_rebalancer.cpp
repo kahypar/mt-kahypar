@@ -1655,6 +1655,12 @@ namespace mt_kahypar{
             return;
           } 
           Gain before_gain = local_attributed_gain;
+          double max_ib = 0.0;
+          for(PartitionID p = 0; p < phg->k(); p++){
+            for(int d = 0; d < dimension; d++){
+              max_ib = std::max(max_ib, (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * _context->partition.max_part_weights_inv[p][d]);
+            }
+          }
           for(HypernodeID idx = size; idx < rebalance_moves->size(); idx++){
             ASSERT((*rebalance_moves)[idx].from == phg->partID((*rebalance_moves)[idx].node));
             ASSERT((*rebalance_moves)[idx].to != -1);
@@ -1666,7 +1672,7 @@ namespace mt_kahypar{
           }
           auto end = std::chrono::high_resolution_clock::now();
           std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start); // ticks to time
-          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << fallback_res.first << "," << d.count() << "\n";
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << "," << max_ib << "," << fallback_res.first << "," << d.count() << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
@@ -2331,13 +2337,13 @@ namespace mt_kahypar{
       
       std::vector<std::vector<AddressablePQ<HypernodeID,double>>> queues(phg->k());
 
-      std::cout << "imbalances:\n";
+      /*std::cout << "imbalances:\n";
       for(PartitionID p = 0; p < phg->k(); p++){
         for(int d = 0; d < dimension; d++){
           std::cout << phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d] << " ";
         }
         std::cout << "\n";
-      }
+      }*/
 
       auto print_parts = [&](){
         for(PartitionID p = 0; p < phg->k(); p++){
