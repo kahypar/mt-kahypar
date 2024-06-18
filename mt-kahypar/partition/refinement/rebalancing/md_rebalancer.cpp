@@ -317,6 +317,7 @@ namespace mt_kahypar{
 
     std::pair<HypernodeID,bool> deleteMax(PartitionID p, int dim){
       get_pq(p, dim);
+      if(queues[p][dim].isEmpty()) return {0, false};
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
       //std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
@@ -1693,7 +1694,6 @@ namespace mt_kahypar{
       std::cout << "unconstrained:\n";
       double allowed_ib = _context->partition.allowed_imbalance_refine;
       for(int r = 0; r < 10; r++){
-        std::cout << r << "\n";
         vec<Move> moves;
         round++;
         HypernodeID before_moves = moves.size();
