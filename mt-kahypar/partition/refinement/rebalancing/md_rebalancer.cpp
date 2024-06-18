@@ -1663,7 +1663,8 @@ namespace mt_kahypar{
                           });
           }
           auto end = std::chrono::high_resolution_clock::now();
-          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << end-start << "\n";
+          std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start); // ticks to time
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << d.count() << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
@@ -1875,7 +1876,8 @@ namespace mt_kahypar{
         }         
       }
       auto end = std::chrono::high_resolution_clock::now(); 
-      std::cout << "lp: " << num_moves << "," << local_attributed_gain - before_gain <<  "," << end -start << "\n";  
+      std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      std::cout << "lp: " << num_moves << "," << local_attributed_gain - before_gain <<  "," << d.count() << "\n";  
       return new_node_moved;   
     }
 
@@ -2172,7 +2174,8 @@ namespace mt_kahypar{
         if(counter > estimated_num_moves && counter % UPDATE_FREQUENCY == 0) UPDATE_FREQUENCY *= 2;                                            
       }  
       auto end = std::chrono::high_resolution_clock::now();    
-      std::cout << "greedyRebalancer: " << estimated_num_moves << "," << counter - 1 << "," << other_counter << "," << local_attributed_gain - before_gain << "," << imbalanced << "," << queue->isEmpty() << "," << queue->num_swaps() << "," << initialization_swaps << "," << num_update_rounds << "," << num_update_swaps << "," << end - start << "\n";
+      std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start);
+      std::cout << "greedyRebalancer: " << estimated_num_moves << "," << counter - 1 << "," << other_counter << "," << local_attributed_gain - before_gain << "," << imbalanced << "," << queue->isEmpty() << "," << queue->num_swaps() << "," << initialization_swaps << "," << num_update_rounds << "," << num_update_swaps << "," << d.count() << "\n";
       return imbalanced == 0;
     }
 
