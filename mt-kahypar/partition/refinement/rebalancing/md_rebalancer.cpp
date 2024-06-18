@@ -2363,7 +2363,7 @@ namespace mt_kahypar{
       };
       for(PartitionID p = 0; p < phg->k(); p++){
         while(!(virtual_weight[p] <= _context->partition.max_part_weights[p])){
-          if(!extract(p)) return false;
+          if(!extract(p)) return {0.0,false};
         }
       }
       double goal = S_weight;
