@@ -2,7 +2,7 @@ include("config.jl")
 using DelimitedFiles
 
 function inform(message::String)
-    print("[julia]: " * message * "\n")
+    print("[julia]: " * message[1:min(end,200)] * "\n")
     flush(stdout)
 end
 
