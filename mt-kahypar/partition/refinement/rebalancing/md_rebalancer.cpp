@@ -320,14 +320,20 @@ namespace mt_kahypar{
       get_pq(p, dim);
       std::cout << "afterfirst\n";
       if(queues[p][dim].isEmpty()) return {0, false};
+      std::cout << "1\n";
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
+      std::cout << "2\n";
       //std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
+      std::cout << "3\n";
       while(is_extracted[max]){
+        std::cout << "4\n";
         if(queues[p][dim].isEmpty()) return {0, false};
         max = index_to_id[p][queues[p][dim].deleteMax().first];
       }
+      std::cout << "5\n";
       extract(max);
+      std::cout << "6\n";
       return {max, true};
       std::cout << "out\n";
     }
