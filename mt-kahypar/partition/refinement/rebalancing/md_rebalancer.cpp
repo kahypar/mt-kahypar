@@ -2393,7 +2393,7 @@ namespace mt_kahypar{
       HypernodeID lowest_possible_idx = starting_size - 1;
 
       auto select_max_pen_p = [&](){
-        double max_pen = 0.0;
+        double max_pen = std::numeric_limits<double>::min();
         double max_p = -1;
         for(PartitionID p = 0; p < phg->k(); p++){
           double pen = penalty(virtual_weight[p]);
