@@ -44,7 +44,8 @@ function triton_part_refine(hypergraph_file::String, partition_file::String, num
 
     success = true
     try
-        run(`$sh_file`, wait=true)
+        t = @elapsed run(`$sh_file`, wait=true)
+        inform("triton_part took $(t)s")
     catch e
         inform("triton_part failed")
         success = false

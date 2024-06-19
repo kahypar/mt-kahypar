@@ -16,12 +16,15 @@ function tree_distill(embedding::AbstractArray{Float64, 2},
     ub_factor = floor(Int, config_e * 50.)
     max_part_weight = Int(max(floor(Int, total_weight * 0.5 * (1.0 + config_e)), ceil(total_weight / 2.)))
     # tree partition
-    tree_partitions = tree_partition(adj_matrix, 
+    t = @elapsed begin
+        tree_partitions = tree_partition(adj_matrix, 
                                     embedding, 
                                     hgr, 
                                     fixed_vertices, 
                                     ub_factor,
                                     [total_weight - max_part_weight, max_part_weight])
+    end
+    inform("tree partioning took $(t)s")
     
     partitions = []
     cutsizes = Int[]

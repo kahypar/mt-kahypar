@@ -57,27 +57,32 @@ function solve_lobpcg(hgr::__hypergraph__,
     inform_dbg(n, true, "preconditioning...")
     preconditioner = nothing
     try
-        (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(
-            spdiagm(ones(n) .* config_preCondShift) + lap_matrix,
-            timeout = config_stepTimeout)
-        preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+        t = @elapsed begin
+            (pfunc, hierarchy) = CombinatorialMultigrid.cmg_preconditioner_lap(
+                spdiagm(ones(n) .* config_preCondShift) + lap_matrix,
+                timeout = config_stepTimeout)
+            preconditioner = CombinatorialMultigrid.lPreconditioner(pfunc)
+        end
+        inform("preconditioning took $(t)s")
     catch e
         inform("didnt use preconditioner due to " * sprint(showerror, e))
         @print_backtrace
     end
     
     inform("launching LOBPCG...")
-    results = lobpcg(amap, 
-        bmap, 
-        false, 
-        nev, 
-        tol = 1e-40,
-        maxiter = config_lobpcgMaxIters, 
-        P = preconditioner,
-        C = deflation_space,
-        log = true)
+    t = @elapsed begin
+        results = lobpcg(amap, 
+            bmap, 
+            false, 
+            nev, 
+            tol = 1e-40,
+            maxiter = config_lobpcgMaxIters, 
+            P = preconditioner,
+            C = deflation_space,
+            log = true)
+    end
     evecs = results.X
-    inform("LOBPCG successful")
+    inform("LOBPCG successful in $(t)s")
     inform_dbg(n, false, () -> "result: " * string(map(x -> round(x, sigdigits = 2), evecs)))
 
     return reshape(evecs, n, config_numEvecs)
