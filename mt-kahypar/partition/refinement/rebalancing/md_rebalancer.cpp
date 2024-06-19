@@ -316,6 +316,7 @@ namespace mt_kahypar{
     }
 
     std::pair<HypernodeID,bool> deleteMax(PartitionID p, int dim){
+      std::cout << "into\n";
       get_pq(p, dim);
       if(queues[p][dim].isEmpty()) return {0, false};
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
@@ -327,6 +328,7 @@ namespace mt_kahypar{
       }
       extract(max);
       return {max, true};
+      std::cout << "out\n";
     }
 
   };
