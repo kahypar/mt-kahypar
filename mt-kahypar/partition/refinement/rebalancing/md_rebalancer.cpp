@@ -1672,7 +1672,7 @@ namespace mt_kahypar{
           }
           auto end = std::chrono::high_resolution_clock::now();
           std::chrono::milliseconds d = std::chrono::duration_cast<std::chrono::milliseconds>(end -start); // ticks to time
-          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << "," << max_ib << "," << fallback_res.first << "," << d.count() << "\n";
+          std::cout << "fallback: " << local_attributed_gain - before_gain << "," << max_ib << "," << fallback_res.first << "," << d.count() << "\n";
           if(!metrics::isBalanced(*phg, *_context) && _context->partition.L_threshold != 0.0){
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor);
           } 
@@ -1718,6 +1718,7 @@ namespace mt_kahypar{
           }(), "fail");
           break;
         }      
+        Gain before_rebalancing_gain = local_attributed_gain;
         if(!metrics::isBalanced(*phg, *_context)){
           rebalancing(&moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
         }
@@ -1725,7 +1726,7 @@ namespace mt_kahypar{
           simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         }        
         bool improvement = local_attributed_gain - before_gain < 0 && metrics::isBalanced(*phg, *_context);
-        std::cout << "rebalancing: " << local_attributed_gain - before_gain << "\n";
+        std::cout << "rebalancing: " << local_attributed_gain - before_rebalancing_gain << "," << local_attributed_gain - before_gain << "\n";
         if(local_attributed_gain - before_gain > 0 || _context->partition.assure_balance && !metrics::isBalanced(*phg, *_context)){
           std::cout << "failure\n";
           for(HypernodeID i = 1; i <= moves.size() - before_moves; i++){
