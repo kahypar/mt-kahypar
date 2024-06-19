@@ -160,6 +160,7 @@ namespace {
         std::stringstream ss(nextline);  
         std::string word;
         ss >> word;
+        std::cout << "init num nodes: " << partitioned_hg.initialNumNodes() << "\n";
         for(HypernodeID hn = 0; hn < partitioned_hg.initialNumNodes(); hn++){
           ss >> word;
           partitioned_hg.setOnlyNodePart(hn, stoi(word));
