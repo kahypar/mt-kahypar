@@ -319,6 +319,7 @@ namespace mt_kahypar{
       std::cout << "into\n";
       get_pq(p, dim);
       std::cout << "afterfirst\n";
+      std::cout << p << " " << dim << "\n";
       if(queues[p][dim].isEmpty()){
         std::cout << "deleted\n";
         return {0, false};
