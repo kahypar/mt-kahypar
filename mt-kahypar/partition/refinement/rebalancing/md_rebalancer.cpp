@@ -2411,7 +2411,9 @@ namespace mt_kahypar{
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
+          std::cout << "beforee\n";
           if(!extract(max_p)) return {0.0,false};
+          std::cout << "aftere\n";
         }
         std::cout << "beforebp\n";
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
