@@ -316,30 +316,19 @@ namespace mt_kahypar{
     }
 
     std::pair<HypernodeID,bool> deleteMax(PartitionID p, int dim){
-      std::cout << "into\n";
       get_pq(p, dim);
-      std::cout << "afterfirst\n";
-      std::cout << p << " " << dim << "\n";
       if(queues[p][dim].isEmpty()){
-        std::cout << "deleted\n";
         return {0, false};
       } 
-      std::cout << "1\n";
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
-      std::cout << "2\n";
       //std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
-      std::cout << "3\n";
       while(is_extracted[max]){
-        std::cout << "4\n";
         if(queues[p][dim].isEmpty()) return {0, false};
         max = index_to_id[p][queues[p][dim].deleteMax().first];
       }
-      std::cout << "5\n";
       extract(max);
-      std::cout << "6\n";
       return {max, true};
-      std::cout << "out\n";
     }
 
   };
@@ -2201,7 +2190,6 @@ namespace mt_kahypar{
     }
 
     std::pair<double,bool> fallback(vec<Move> *fallback_moves, vec<bool> *L){
-      std::cout << "start fallback\n";
       const double threshold = _context->partition.L_threshold;
       auto get_heaviest_dim = [&](HypernodeWeight nw){
         int dim = -1;
@@ -2252,6 +2240,7 @@ namespace mt_kahypar{
         for(int d = 0; d < dimension; d++){
           imbalance += (normalized_weights[d] - avg) *  (normalized_weights[d] - avg);
         }
+        if(imbalance == 0.0) return 0.0;
         return imbalance / (1.0 - avg);
       };
 
@@ -2418,23 +2407,17 @@ namespace mt_kahypar{
         }
         return max_p;
       };
-      std::cout << "beforeextr\n";
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
-          std::cout << "beforee\n";
           if(!extract(max_p)) return {0.0,false};
-          std::cout << "aftere\n";
         }
-        std::cout << "beforebp\n";
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
-          std::cout << "afterbp\n";
           break;
         }
         else{
-          std::cout << "afterbp\n";
           lowest_possible_idx = S.size() - 1;
         }
         ASSERT([&]{
@@ -2453,7 +2436,6 @@ namespace mt_kahypar{
         goal *= 2.0;
         if(goal > dimension * phg->k()) return {0.0,false};
       }
-      std::cout << "firstsucc\n";
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
       double lower = std::max(goal / 2.0, starting_goal);
