@@ -2405,7 +2405,7 @@ namespace mt_kahypar{
         }
         return max_p;
       };
-
+      std::cout << "beforeextr\n";
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         while(S_weight < goal){
