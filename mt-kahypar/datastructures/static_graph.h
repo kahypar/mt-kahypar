@@ -640,7 +640,7 @@ class StaticGraph {
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
-    node(u).enable();
+    //node(u).enable();
     ASSERT(nodeDegree(u) == 0);
   }
 
