@@ -319,7 +319,10 @@ namespace mt_kahypar{
       std::cout << "into\n";
       get_pq(p, dim);
       std::cout << "afterfirst\n";
-      if(queues[p][dim].isEmpty()) return {0, false};
+      if(queues[p][dim].isEmpty()){
+        std::cout << "deleted\n";
+        return {0, false};
+      } 
       std::cout << "1\n";
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
       std::cout << "2\n";
