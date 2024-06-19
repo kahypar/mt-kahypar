@@ -2413,10 +2413,13 @@ namespace mt_kahypar{
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
           if(!extract(max_p)) return {0.0,false};
         }
+        std::cout << "beforebp\n";
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
+          std::cout << "afterbp\n";
           break;
         }
         else{
+          std::cout << "afterbp\n";
           lowest_possible_idx = S.size() - 1;
         }
         ASSERT([&]{
