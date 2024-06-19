@@ -2232,7 +2232,7 @@ namespace mt_kahypar{
           normalized_weights[d] = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
           avg += normalized_weights[d];
         }
-        avg /= phg->k();
+        avg /= dimension;
         double imbalance = 0.0;
         for(int d = 0; d < dimension; d++){
           imbalance += (normalized_weights[d] - avg) *  (normalized_weights[d] - avg);
@@ -2247,7 +2247,7 @@ namespace mt_kahypar{
           normalized_weights[d] = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
           avg += normalized_weights[d];
         }
-        avg /= phg->k();
+        avg /= dimension;
         double imbalance = 0.0;
         for(int d = 0; d < dimension; d++){
           imbalance += (normalized_weights[d] - avg) *  (normalized_weights[d] - avg);
@@ -2274,7 +2274,7 @@ namespace mt_kahypar{
           maxw = std::max(maxw,tmp);
           avg += tmp;
         }
-        avg /= phg->k();
+        avg /= dimension;
         return (1.0 - avg) / (1.0 - maxw);
       };
 
@@ -2299,7 +2299,7 @@ namespace mt_kahypar{
           maxw = std::max(maxw,tmp);
           avg += tmp;
         }
-        avg /= phg->k();
+        avg /= dimension;
         return (maxw - minw) / (1.0 - avg);
       };
 
@@ -2313,7 +2313,7 @@ namespace mt_kahypar{
           maxw = std::max(maxw,tmp);
           avg += tmp;
         }
-        avg /= phg->k();
+        avg /= dimension;
         return (maxw - minw) / (1.0 - avg);
       };
 
