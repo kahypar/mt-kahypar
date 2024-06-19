@@ -146,6 +146,7 @@ namespace {
     HypernodeID hn = 0;
     bool is_partfile = false;
     HypernodeID h = 0;
+    int counter = 0;
     while(myfile){
       std::string nextline;
       std::getline(myfile, nextline);
@@ -153,6 +154,7 @@ namespace {
         is_partfile = true;
       }
       if(is_partfile && nextline != ""){
+        counter++;
         partitioned_hg.setOnlyNodePart(h, stoi(nextline));
       }
       else if(nextline.rfind("IP") != -1){
@@ -160,7 +162,6 @@ namespace {
         std::stringstream ss(nextline);  
         std::string word;
         ss >> word;
-        std::cout << "init num nodes: " << partitioned_hg.initialNumNodes() << "\n";
         for(HypernodeID hn = 0; hn < partitioned_hg.initialNumNodes(); hn++){
           ss >> word;
           partitioned_hg.setOnlyNodePart(hn, stoi(word));
@@ -171,7 +172,7 @@ namespace {
     }
     myfile.close();
     partitioned_hg.initializePartition();
-
+    std::cout << "counter::" << counter << "\n\n";
     std::cout << "Before Results: " << metrics::quality(partitioned_hg, context, false)<< " " << metrics::imbalance(partitioned_hg, context)[0] << " " <<  metrics::imbalance(partitioned_hg, context)[1] << "\n";
 
     io::printPartitioningResults(partitioned_hg, context, "Before Results:");
