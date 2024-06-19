@@ -155,6 +155,7 @@ namespace {
       }
       if(is_partfile && nextline != ""){
         counter++;
+        if(!partitioned_hg.nodeIsEnabled(h)) std::cout << "notenabled";
         partitioned_hg.setOnlyNodePart(h, stoi(nextline));
       }
       else if(nextline.rfind("IP") != -1){
