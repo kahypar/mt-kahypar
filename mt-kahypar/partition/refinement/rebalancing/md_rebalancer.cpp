@@ -2188,6 +2188,7 @@ namespace mt_kahypar{
     }
 
     std::pair<double,bool> fallback(vec<Move> *fallback_moves, vec<bool> *L){
+      std::cout << "start fallback\n";
       const double threshold = _context->partition.L_threshold;
       auto get_heaviest_dim = [&](HypernodeWeight nw){
         int dim = -1;
