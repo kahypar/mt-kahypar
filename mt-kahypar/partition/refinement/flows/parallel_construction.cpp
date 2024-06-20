@@ -33,6 +33,8 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+
 
 namespace mt_kahypar {
 
@@ -179,6 +181,9 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
                                                                    const PartitionID block_1,
   vec<HypernodeID>& whfc_to_node,
   const bool deterministic) {
+  if (deterministic) {
+    return constructDefaultDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
+  }
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -346,6 +351,230 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
   });
   _flow_hg.finalizeHyperedges();
 
+  return flow_problem;
+}
+
+template<typename GraphAndGainTypes>
+FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterministic(const PartitionedHypergraph& phg,
+  const Subhypergraph& sub_hg,
+  const PartitionID block_0,
+  const PartitionID block_1,
+  vec<HypernodeID>& whfc_to_node) {
+  ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
+  FlowProblem flow_problem;
+  flow_problem.total_cut = 0;
+  flow_problem.non_removable_cut = 0;
+  _node_to_whfc.clear();
+
+  tbb::parallel_invoke([&]() {
+    _node_to_whfc.clear();
+    _node_to_whfc.setMaxSize(sub_hg.numNodes());
+  }, [&] {
+    whfc_to_node.resize(sub_hg.numNodes() + 2);
+  }, [&] {
+    _flow_hg.allocateNodes(sub_hg.numNodes() + 2);
+  });
+
+  if (_context.refinement.flows.determine_distance_from_cut) {
+    _cut_hes.clear();
+  }
+
+  // Add refinement nodes to flow network
+  tbb::parallel_invoke([&] {
+    // Add source nodes
+    flow_problem.source = whfc::Node(0);
+    whfc_to_node[flow_problem.source] = kInvalidHypernode;
+    _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(
+      std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
+      const HypernodeID hn = sub_hg.nodes_of_block_0[i];
+      const whfc::Node u(1 + i);
+      whfc_to_node[u] = hn;
+      _node_to_whfc[hn] = u;
+      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
+    });
+  }, [&] {
+    // Add sink nodes
+    flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
+    whfc_to_node[flow_problem.sink] = kInvalidHypernode;
+    _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(
+      std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
+    tbb::parallel_for(UL(0), sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
+      const HypernodeID hn = sub_hg.nodes_of_block_1[i];
+      const whfc::Node u(flow_problem.sink + 1 + i);
+      whfc_to_node[u] = hn;
+      _node_to_whfc[hn] = u;
+      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
+    });
+  });
+  flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
+  flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
+
+  const HyperedgeID max_hyperedges = sub_hg.hes.size();
+  const HypernodeID max_pins = sub_hg.num_pins + max_hyperedges;
+  _flow_hg.allocateHyperedgesAndPins(max_hyperedges, max_pins);
+  _tmp_contraction_buffer.resize(max_hyperedges);
+  vec<DeterministicHyperedge>& tmp_hyperedges = _tmp_contraction_buffer.tmp_hyperedges;
+  vec<uint8_t>& valid_hyperedges = _tmp_contraction_buffer.valid_hyperedges;
+  auto cs2 = [](const HypernodeID x) { return x * x; };
+  auto push_into_tmp_pins = [&](vec<whfc::Node>& tmp_pins, const whfc::Node pin,
+    size_t& current_hash, const bool is_source_or_sink) {
+    tmp_pins.push_back(pin);
+    current_hash += cs2(pin);
+    if (is_source_or_sink) {
+      // According to Lars: Adding to source or sink to the start of
+      // each pin list improves running time
+      std::swap(tmp_pins[0], tmp_pins.back());
+    }
+  };
+  ds::ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
+  hyperedge_hash_map.reserve_for_estimated_number_of_insertions(max_hyperedges);
+  // Contract Hyperedges
+  tbb::parallel_for(ID(0), max_hyperedges, [&](const size_t i) {
+    const HypernodeID& he = sub_hg.hes[i];
+    if (!FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1)) {
+      // Copy hyperedge and pins to temporary buffer
+      size_t he_hash = 0;
+      tmp_hyperedges[i].weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
+      tmp_hyperedges[i].pins.clear();
+      tmp_hyperedges[i].pins.reserve(phg.edgeSize(he));
+      valid_hyperedges[i] = 1;
+      bool connectToSource = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
+      bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
+      if ((phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ||
+        FlowNetworkConstruction::isCut(phg, he, block_0, block_1)) {
+        __atomic_fetch_add(&flow_problem.total_cut, tmp_hyperedges[i].weight, __ATOMIC_RELAXED);
+      }
+      for (const HypernodeID& pin : phg.pins(he)) {
+        whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
+        if (whfc_pin) {
+          push_into_tmp_pins(tmp_hyperedges[i].pins, *whfc_pin, he_hash, false);
+        } else {
+          const PartitionID pin_block = phg.partID(pin);
+          connectToSource |= pin_block == block_0;
+          connectToSink |= pin_block == block_1;
+        }
+      }
+
+      const bool empty_hyperedge = tmp_hyperedges[i].pins.size() == 0;
+      const bool connected_to_source_and_sink = connectToSource && connectToSink;
+      if (connected_to_source_and_sink) {
+        // Hyperedge is connected to source and sink which means we can not remove it
+        // from the cut with the current flow problem => remove he from flow problem
+        __atomic_fetch_add(&flow_problem.non_removable_cut, tmp_hyperedges[i].weight, __ATOMIC_RELAXED);
+      } else if (!empty_hyperedge) {
+        if (connectToSource) {
+          push_into_tmp_pins(tmp_hyperedges[i].pins, flow_problem.source, he_hash, true);
+        } else if (connectToSink) {
+          push_into_tmp_pins(tmp_hyperedges[i].pins, flow_problem.sink, he_hash, true);
+        }
+
+
+        if (tmp_hyperedges[i].pins.size() > 1) {
+          // Compute hash of contracted hyperedge
+          hyperedge_hash_map.insert(he_hash,
+            ContractedHyperedgeInformation{ i, he_hash, tmp_hyperedges[i].pins.size(), true });
+          std::sort(tmp_hyperedges[i].pins.begin() +
+            (tmp_hyperedges[i].pins[0] == flow_problem.source ||
+              tmp_hyperedges[i].pins[0] == flow_problem.sink), tmp_hyperedges[i].pins.end());
+        } else {
+          // Hyperedge becomes a single-pin hyperedge
+          valid_hyperedges[i] = 0;
+        }
+      } else {
+        valid_hyperedges[i] = 0;
+      }
+    }
+  });
+
+  auto check_if_hyperedges_are_parallel = [&](const HyperedgeID lhs,
+    const HyperedgeID rhs) {
+    const DeterministicHyperedge& lhs_he = tmp_hyperedges[lhs];
+    const DeterministicHyperedge& rhs_he = tmp_hyperedges[rhs];
+    if (lhs_he.pins.size() == rhs_he.pins.size()) {
+      for (size_t i = 0; i < lhs_he.pins.size(); ++i) {
+        if (lhs_he.pins[i] != rhs_he.pins[i]) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
+    auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
+    std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
+      [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
+      return std::tie(lhs.hash, lhs.size, lhs.he) < std::tie(rhs.hash, rhs.size, rhs.he);
+    });
+
+    // Parallel Hyperedge Detection
+    for (size_t i = 0; i < hyperedge_bucket.size(); ++i) {
+      ContractedHyperedgeInformation& contracted_he_lhs = hyperedge_bucket[i];
+      if (contracted_he_lhs.valid) {
+        const HyperedgeID lhs_he = contracted_he_lhs.he;
+        HyperedgeWeight lhs_weight = tmp_hyperedges[lhs_he].weight;
+        for (size_t j = i + 1; j < hyperedge_bucket.size(); ++j) {
+          ContractedHyperedgeInformation& contracted_he_rhs = hyperedge_bucket[j];
+          const HyperedgeID rhs_he = contracted_he_rhs.he;
+          if (contracted_he_rhs.valid &&
+            contracted_he_lhs.hash == contracted_he_rhs.hash &&
+            check_if_hyperedges_are_parallel(lhs_he, rhs_he)) {
+            // Hyperedges are parallel
+            lhs_weight += tmp_hyperedges[rhs_he].weight;
+            contracted_he_rhs.valid = false;
+            valid_hyperedges[rhs_he] = false;
+          } else if (contracted_he_lhs.hash != contracted_he_rhs.hash) {
+            // In case, hash of both are not equal we go to the next hyperedge
+            // because we compared it with all hyperedges that had an equal hash
+            break;
+          }
+        }
+        tmp_hyperedges[lhs_he].weight = lhs_weight;
+      }
+    }
+    hyperedge_hash_map.free(bucket);
+  });
+
+  _flow_hg.setNumCSRBuckets(NUM_CSR_BUCKETS);
+  const size_t step = max_hyperedges / NUM_CSR_BUCKETS + (max_hyperedges % NUM_CSR_BUCKETS != 0);
+  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS, [&](const size_t idx) {
+    const size_t start = std::min(step * idx, static_cast<size_t>(max_hyperedges));
+    const size_t end = std::min(step * (idx + 1), static_cast<size_t>(max_hyperedges));
+    const size_t num_hes = end - start;
+    size_t num_pins = 0;
+    for (size_t i = start; i < end; ++i) {
+      if (valid_hyperedges[i]) {
+        num_pins += tmp_hyperedges[i].pins.size();
+      }
+    }
+    _flow_hg.initializeCSRBucket(idx, num_hes, num_pins);
+
+    whfc::Hyperedge e(0);
+    size_t pin_idx = 0;
+    for (size_t i = start; i < end; ++i) {
+      const HyperedgeID he = sub_hg.hes[i];
+      if (valid_hyperedges[i]) {
+        const size_t pin_start = pin_idx;
+        const size_t pin_end = pin_start + tmp_hyperedges[i].pins.size();
+        for (size_t j = 0; j < tmp_hyperedges[i].pins.size(); ++j) {
+          _flow_hg.addPin(tmp_hyperedges[i].pins[j], idx, pin_idx++);
+        }
+        TmpHyperedge tmp_e{ 0, idx, e++ };
+        if (_context.refinement.flows.determine_distance_from_cut &&
+          phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) {
+          _cut_hes.push_back(tmp_e);
+        }
+        _flow_hg.finishHyperedge(tmp_e.e, tmp_hyperedges[i].weight, idx, pin_start, pin_end);
+      }
+    }
+  });
+  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS, [&](const size_t idx) {
+    _flow_hg.finalizeCSRBucket(idx);
+  });
+  _flow_hg.finalizeHyperedges();
   return flow_problem;
 }
 
