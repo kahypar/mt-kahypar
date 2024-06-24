@@ -321,7 +321,6 @@ namespace mt_kahypar{
         return {0, false};
       } 
       std::pair<HypernodeID, double> max_pair = queues[p][dim].deleteMax();
-      //std::cout << "new gain: " << max_pair.second << "\n";
       HypernodeID max = index_to_id[p][max_pair.first];
       while(is_extracted[max]){
         if(queues[p][dim].isEmpty()) return {0, false};
@@ -436,11 +435,7 @@ namespace mt_kahypar{
     std::vector<HypernodeID> next_nodes(std::vector<HypernodeID>& ns_1d_idx, HypernodeID& tw_idx, HypernodeID& hld_idx){
       std::vector<HypernodeID> res;
       for(int d = 0; d < ns_1d_idx.size(); d++){
-        //std::cout << "size: " << ns_1d[d].size() << "\n";
         HypernodeID idx = ns_1d_idx[d];
-        //std::cout << "idx:" << idx << "\n";
-        //std::cout << "a " << available[ns_1d[d][idx].first] << " " << used[ns_1d[d][idx].first] << "\n";
-        //std::cout << "node " << ns_1d[d][idx].first << "\n";
         while(idx < ns_1d[d].size() && (!available[ns_1d[d][idx].first] || used[ns_1d[d][idx].first])) idx++;
         ns_1d_idx[d] = idx;
         if(idx < ns_1d[d].size()) res.push_back(ns_1d[d][idx].first);
@@ -481,7 +476,6 @@ namespace mt_kahypar{
         ASSERT(!available[(*nodes)[i]]);
       }
       if(new_num > ns_total_weight.size()){
-        //std::cout << "higher " << ns_total_weight.size() << " " << new_num << " " << nodes->size() << "\n";
         
         update_sorted_lists();
         for(int d = 0; d < dimension; d++){
@@ -527,34 +521,11 @@ namespace mt_kahypar{
         tmp_partitioning.push_back({chosen_node, chosen_p});
         used[chosen_node] = true;        
         nodesleft--;
-        /*std::cout << "node: \n";
-        for(int d = 0; d < dimension; d++){
-          std::cout << static_cast<double>(phg->nodeWeight(chosen_node).weights[d]) * _context->partition.max_part_weights_inv[0][d] << " " << chosen_p << " ";
-        }
-        std::cout << "weights:\n";
-        for(PartitionID p = 0; p < phg->k(); p++){
-          for(int d = 0; d < dimension; d++){
-            std::cout << static_cast<double>(virtual_weight[p].weights[d]) * _context->partition.max_part_weights_inv[p][d] << " ";
-          }
-          std::cout << "  ";
-        }
-        std::cout << "\n";*/
       }
       ASSERT(tmp_partitioning.size() == new_num);
       for(auto pair : tmp_partitioning){
         partitioning[pair.first] = pair.second;
       }
-      /*for(PartitionID p = 0; p < phg->k(); p++){
-        std::cout << "weights:\n";
-        for(int d = 0; d < dimension; d++){
-          std::cout << virtual_weight[p].weights[d] << " ";
-        }
-        std::cout << "\n";
-      }
-      for(HypernodeID hn = 0; hn < new_num; hn++){
-        ASSERT(available[(*nodes)[hn]] && used[(*nodes)[hn]]);
-        ASSERT(partitioning[(*nodes)[hn]] != -1);
-      }*/
 
       for(HypernodeID idx = new_num; idx < last_success; idx++){
         partitioning[(*nodes)[idx]] = -1;
@@ -686,6 +657,9 @@ namespace mt_kahypar{
     void invalidate(HypernodeID hn){
       PQID idx = phg->partID(hn);
       ASSERT(idx != -1);
+      ASSERT(idx < queue.size());
+      ASSERT(idx < top_queues.references.size());
+      ASSERT(hn < id_to_index.size());
       queue[idx].invalidate(id_to_index[hn]);
       if(queue[idx].isEmpty()){
         top_queues.invalidate(idx);
@@ -698,22 +672,16 @@ namespace mt_kahypar{
     void changeKey(HypernodeID hn, PriorityType prio){
       ASSERT(hn < phg->initialNumNodes());
       PQID idx = phg->partID(hn);
-      std::cout << "test21\n";
       ASSERT(idx != -1);
       ASSERT(idx < queue.size());
       double queue_max = queue[idx].isEmpty() ? std::numeric_limits<double>::max() : queue[idx].getMax().second;
-      ASSERT(false);
-      std::cout << "test22\n";
       ASSERT(hn < id_to_index.size());
       ASSERT(id_to_index[hn] != -1);
       ASSERT(id_to_index[hn] < queue[idx].references.size());
       queue[idx].changeKey({id_to_index[hn], prio});
-      std::cout << "test23\n";
       if(queue[idx].getMax().second != queue_max){
-        std::cout << "test24\n";
         top_queues.changeKey({idx, queue[idx].getMax().second});
       }
-      std::cout << "test25\n";
     }
 
     void move(PartitionID from, PartitionID to){
@@ -1440,7 +1408,6 @@ namespace mt_kahypar{
 
   std::pair<bool, std::vector<std::vector<std::pair<PartitionID, HypernodeID>>>> bin_packing_random(std::vector<std::vector<double>> limits, std::vector<std::pair<double, std::pair<PartitionID, HypernodeID>>> nodes, std::vector<std::vector<std::vector<double>>> weights){
     std::vector<std::vector<std::pair<PartitionID, HypernodeID>>> packing(limits.size());
-    std::cout << "binpack\n";
     HypernodeID number_random_assertions = std::rand() % nodes.size();
     for(HypernodeID hn = 0; hn < number_random_assertions; hn++){
       PartitionID to = -1;
@@ -1914,6 +1881,7 @@ namespace mt_kahypar{
       auto start = std::chrono::high_resolution_clock::now(); 
       auto before_gain = local_attributed_gain;                                                      
       std::vector<HypernodeWeight> max_part_weights_modified(phg->k());
+      std::vector<bool> moved(phg->initialNumNodes(), false);
       for(PartitionID p = 0; p < phg->k(); p++){
         max_part_weights_modified[p] = l1_factor * _context->partition.max_part_weights[p];
       }                                                       
@@ -2042,7 +2010,9 @@ namespace mt_kahypar{
               if(phg->partWeight(p).weights[i] < _context->partition.max_part_weights[p].weights[i] && phg->partWeight(p).weights[i] < highest_part_weights[p].weights[i]){
                 int prior_diff = _context->partition.max_part_weights[p].weights[i] - highest_part_weights[p].weights[i];
                 while(min_affected_node >= 0 && nodes_sorted[i][min_affected_node].first > prior_diff || prior_diff < 0){
-                  changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
+                  if(!moved[nodes_sorted[i][min_affected_node].second]){
+                    changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
+                  }                  
                   if(min_affected_node == 0) break;
                   min_affected_node--;
                 }
@@ -2050,7 +2020,9 @@ namespace mt_kahypar{
               else if(phg->partWeight(p).weights[i] > _context->partition.max_part_weights[p].weights[i] && phg->partWeight(p).weights[i] > lowest_part_weights[p].weights[i]){
                 int prior_diff = lowest_part_weights[p].weights[i] -  _context->partition.max_part_weights[p].weights[i];
                 while(min_affected_node >= 0 && nodes_sorted[i][min_affected_node].first > prior_diff || prior_diff < 0){
-                  changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
+                  if(!moved[nodes_sorted[i][min_affected_node].second]){
+                    changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
+                  }
                   if(min_affected_node == 0) break;
                   min_affected_node--;
                 }
@@ -2066,15 +2038,23 @@ namespace mt_kahypar{
           for(PartitionID p = 0; p < phg->k(); p++){
             if(!(phg->partWeight(p) <= _context->partition.max_part_weights[p])){
               for(HypernodeID hn : (*queue->nodes_by_part())[p]){
-                changed_nodes->push_back(hn);
+                if(!moved[hn]){
+                  changed_nodes->push_back(hn);
+                }
               }
             }
           }
-          for(HypernodeID hn : *positive_nodes.updateBoundary()) changed_nodes->push_back(hn);
+          for(HypernodeID hn : *positive_nodes.updateBoundary()){
+            if(!moved[hn]){
+              changed_nodes->push_back(hn);
+            }
+          }
         }
         else{
           for(HypernodeID hn : phg->nodes()){
-            changed_nodes->push_back(hn);
+            if(!moved[hn]){
+              changed_nodes->push_back(hn);
+            }
           }
         }
       };
@@ -2083,21 +2063,17 @@ namespace mt_kahypar{
       auto update_nodes = [&](std::vector<HypernodeID> *changed_nodes){
         for(size_t i = 0; i < changed_nodes->size(); i++){
           ASSERT((*changed_nodes)[i] < phg->initialNumNodes());
+          if(moved[(*changed_nodes)[i]]) continue;
           if(L == NULL || is_in_L[(*changed_nodes)[i]]){
             if(_context->partition.boundary_update_optimization){
-              std::cout << "test13\n";
               checkIfPositiveNode((*changed_nodes)[i]);
             }            
-            std::pair<PartitionID, Move_Internal> best_move = get_max_move((*changed_nodes)[i]);
-            std::cout << "test15\n";
+            std::pair<PartitionID, Move_Internal> best_move = get_max_move((*changed_nodes)[i]);;
             if(/*(counter % UPDATE_FREQUENCY == 0) && */best_move.first == -1){
-              std::cout << "test14\n";
               queue->invalidate((*changed_nodes)[i]);
             }
             else if(/*(counter % UPDATE_FREQUENCY == 0) ||*/!queue->isValid((*changed_nodes)[i]) || queue->get_entry((*changed_nodes)[i]) != best_move.second.gain_and_balance){
-              std::cout << "test16\n";
               queue->changeKey((*changed_nodes)[i], best_move.second.gain_and_balance);
-              std::cout << "test20\n";
             }
           }         
         }
@@ -2107,14 +2083,12 @@ namespace mt_kahypar{
       int num_frequent_updates = 0;
       int num_empty_queue_updates = 0;
       while(!queue->isEmpty() && (imbalanced != 0) ){
-        std::cout << "test\n";
         std::pair<PartitionID, Move_Internal> max_move;
         max_move.first = -1;
         std::pair<HypernodeID, double> max_node = queue->getMax();
         ASSERT(max_node.first < phg->initialNumNodes());
         max_move = get_max_move(max_node.first);
         if(max_move.first == -1){
-          std::cout << "test6\n";
           queue->deleteMax();
           other_counter++;
         }
@@ -2123,7 +2097,6 @@ namespace mt_kahypar{
 
           }
           else{
-            std::cout << "test7\n";
             if(is_positive_move(max_move.second)){
               queue->changeKey(max_node.first, max_move.second.gain_and_balance);
             }
@@ -2134,12 +2107,10 @@ namespace mt_kahypar{
           }
         }
         else{
-          std::cout << "test2\n";
           ASSERT(max_node.first < phg->initialNumNodes());
           ASSERT(phg->partID(max_node.first) != -1);
           Move move = {phg->partID(max_node.first), max_move.first, max_node.first, max_move.second.gain};
           queue->deleteMax();
-          std::cout << "test3\n";
           counter++;      
           imbalanced += (phg->partWeight(move.from) - phg->nodeWeight(move.node) > _context->partition.max_part_weights[move.from])
             - (phg->partWeight(move.from) > _context->partition.max_part_weights[move.from])
@@ -2160,6 +2131,7 @@ namespace mt_kahypar{
             lowest_part_weights[move.from].weights[d] = std::min(lowest_part_weights[move.from].weights[d], phg->partWeight(move.from).weights[d]);
             highest_part_weights[move.to].weights[d] = std::max(highest_part_weights[move.to].weights[d], phg->partWeight(move.to).weights[d]);
           }
+          moved[move.node] = true;
           if(moves_linear != NULL){
             move.gain = local_attributed_gain;
             moves_linear->push_back(move);
@@ -2169,25 +2141,23 @@ namespace mt_kahypar{
           std::vector<HypernodeID> changed_nodes;
           for(HyperedgeID& he : edges_with_gain_change){
             for(HypernodeID hn : phg->pins(he)){
+              if(moved[hn]) continue;
               changed_nodes.push_back(hn);
             }
           }
           if constexpr (PartitionedHypergraph::is_graph) {
             for (const auto e : phg->incidentEdges(move.node)) {
               HypernodeID v = phg->edgeTarget(e);
+              if(moved[v]) continue;
               changed_nodes.push_back(v);            
             }
           }
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) == 0){
-            std::cout << "test4\n";
             num_frequent_updates++;            
             completeUpdate(&changed_nodes);          
           }
-          std::cout << "test9\n";
           uint64_t tmp_swaps = queue->num_swaps();
-          std::cout << "test11\n";
           update_nodes(&changed_nodes);
-          std::cout << "test10\n";
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
             for(HypernodeID hn : queue->updateRequired()){
               ASSERT(hn < phg->initialNumNodes());
@@ -2200,7 +2170,6 @@ namespace mt_kahypar{
           num_update_rounds++;          
         }
         if(queue->isEmpty() && counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
-          std::cout << "test5\n";
           num_empty_queue_updates++;
           uint64_t tmp_swaps = queue->num_swaps();
           std::vector<HypernodeID> cn2;
@@ -2369,13 +2338,6 @@ namespace mt_kahypar{
       
       std::vector<std::vector<AddressablePQ<HypernodeID,double>>> queues(phg->k());
 
-      /*std::cout << "imbalances:\n";
-      for(PartitionID p = 0; p < phg->k(); p++){
-        for(int d = 0; d < dimension; d++){
-          std::cout << phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d] << " ";
-        }
-        std::cout << "\n";
-      }*/
 
       auto print_parts = [&](){
         for(PartitionID p = 0; p < phg->k(); p++){
