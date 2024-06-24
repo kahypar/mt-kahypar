@@ -2165,6 +2165,7 @@ namespace mt_kahypar{
             num_frequent_updates++;            
             completeUpdate(&changed_nodes);          
           }
+          std::cout << "test9\n";
           uint64_t tmp_swaps = queue->num_swaps();
           update_nodes(&changed_nodes);
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
