@@ -696,15 +696,22 @@ namespace mt_kahypar{
     }
 
     void changeKey(HypernodeID hn, PriorityType prio){
+      ASSERT(hn < phg->initialNumNodes());
       PQID idx = phg->partID(hn);
+      std::cout << "test21\n";
       ASSERT(idx != -1);
+      ASSERT(idx < queue.size());
       double queue_max = queue[idx].isEmpty() ? std::numeric_limits<double>::max() : queue[idx].getMax().second;
-      ASSERT(id_to_index[hn] != -1);
+      std::cout << "test22\n";
       ASSERT(hn < id_to_index.size());
+      ASSERT(id_to_index[hn] != -1);
       queue[idx].changeKey({id_to_index[hn], prio});
+      std::cout << "test23\n";
       if(queue[idx].getMax().second != queue_max){
+        std::cout << "test24\n";
         top_queues.changeKey({idx, queue[idx].getMax().second});
       }
+      std::cout << "test25\n";
     }
 
     void move(PartitionID from, PartitionID to){
