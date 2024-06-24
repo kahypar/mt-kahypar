@@ -685,6 +685,7 @@ namespace mt_kahypar{
 
     void invalidate(HypernodeID hn){
       PQID idx = phg->partID(hn);
+      ASSERT(idx != -1);
       queue[idx].invalidate(id_to_index[hn]);
       if(queue[idx].isEmpty()){
         top_queues.invalidate(idx);
@@ -2072,13 +2073,17 @@ namespace mt_kahypar{
           ASSERT((*changed_nodes)[i] < phg->initialNumNodes());
           if(L == NULL || is_in_L[(*changed_nodes)[i]]){
             if(_context->partition.boundary_update_optimization){
+              std::cout << "test13\n";
               checkIfPositiveNode((*changed_nodes)[i]);
             }            
             std::pair<PartitionID, Move_Internal> best_move = get_max_move((*changed_nodes)[i]);
+            std::cout << "test15\n";
             if(/*(counter % UPDATE_FREQUENCY == 0) && */best_move.first == -1){
+              std::cout << "test14\n";
               queue->invalidate((*changed_nodes)[i]);
             }
             else if(/*(counter % UPDATE_FREQUENCY == 0) ||*/!queue->isValid((*changed_nodes)[i]) || queue->get_entry((*changed_nodes)[i]) != best_move.second.gain_and_balance){
+              std::cout << "test16\n";
               queue->changeKey((*changed_nodes)[i], best_move.second.gain_and_balance);
             }
           }         
@@ -2167,6 +2172,7 @@ namespace mt_kahypar{
           }
           std::cout << "test9\n";
           uint64_t tmp_swaps = queue->num_swaps();
+          std::cout << "test11\n";
           update_nodes(&changed_nodes);
           std::cout << "test10\n";
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
