@@ -697,7 +697,10 @@ namespace mt_kahypar{
 
     void changeKey(HypernodeID hn, PriorityType prio){
       PQID idx = phg->partID(hn);
+      ASSERT(idx != -1);
       double queue_max = queue[idx].isEmpty() ? std::numeric_limits<double>::max() : queue[idx].getMax().second;
+      ASSERT(id_to_index[hn] != -1);
+      ASSERT(hn < id_to_index.size());
       queue[idx].changeKey({id_to_index[hn], prio});
       if(queue[idx].getMax().second != queue_max){
         top_queues.changeKey({idx, queue[idx].getMax().second});
@@ -2085,6 +2088,7 @@ namespace mt_kahypar{
             else if(/*(counter % UPDATE_FREQUENCY == 0) ||*/!queue->isValid((*changed_nodes)[i]) || queue->get_entry((*changed_nodes)[i]) != best_move.second.gain_and_balance){
               std::cout << "test16\n";
               queue->changeKey((*changed_nodes)[i], best_move.second.gain_and_balance);
+              std::cout << "test20\n";
             }
           }         
         }
