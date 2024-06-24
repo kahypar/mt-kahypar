@@ -2168,6 +2168,7 @@ namespace mt_kahypar{
           std::cout << "test9\n";
           uint64_t tmp_swaps = queue->num_swaps();
           update_nodes(&changed_nodes);
+          std::cout << "test10\n";
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
             for(HypernodeID hn : queue->updateRequired()){
               ASSERT(hn < phg->initialNumNodes());
