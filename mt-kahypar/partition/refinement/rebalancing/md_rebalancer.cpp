@@ -705,6 +705,7 @@ namespace mt_kahypar{
       std::cout << "test22\n";
       ASSERT(hn < id_to_index.size());
       ASSERT(id_to_index[hn] != -1);
+      ASSERT(id_to_index[hn] < queue[idx].references.size());
       queue[idx].changeKey({id_to_index[hn], prio});
       std::cout << "test23\n";
       if(queue[idx].getMax().second != queue_max){
