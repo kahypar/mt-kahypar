@@ -845,15 +845,20 @@ struct PartitionedGraphType<ds::DynamicGraph> {
 
     void changeKey(std::pair<id,data> pair){
       ASSERT(pair.first < in_use.size());
+      ASSERT(pair.first < items.size());
+      ASSERT(pair.first >= 0);
       if(!in_use[pair.first]){
+        std::cout << "test40\n";
         insert(pair);
       }
       else{
         if(pair.second < items[pair.first]){
+          std::cout << "test41\n";
           items[pair.first] = pair.second;
           siftUp(references[pair.first]);
         }
         else if(pair.second > items[pair.first]){
+          std::cout << "test42\n";
           items[pair.first] = pair.second;
           siftDown(references[pair.first]);
         }
