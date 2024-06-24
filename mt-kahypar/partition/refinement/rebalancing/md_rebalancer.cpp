@@ -2089,6 +2089,7 @@ namespace mt_kahypar{
       int num_frequent_updates = 0;
       int num_empty_queue_updates = 0;
       while(!queue->isEmpty() && (imbalanced != 0) ){
+        std::cout << "test\n";
         std::pair<PartitionID, Move_Internal> max_move;
         max_move.first = -1;
         std::pair<HypernodeID, double> max_node = queue->getMax();
