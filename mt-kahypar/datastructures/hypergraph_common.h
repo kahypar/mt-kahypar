@@ -844,6 +844,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
     }
 
     void changeKey(std::pair<id,data> pair){
+      ASSERT(pair.first < in_use.size());
       if(!in_use[pair.first]){
         insert(pair);
       }
