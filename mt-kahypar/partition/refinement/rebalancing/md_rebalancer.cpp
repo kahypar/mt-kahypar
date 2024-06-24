@@ -2096,6 +2096,7 @@ namespace mt_kahypar{
         ASSERT(max_node.first < phg->initialNumNodes());
         max_move = get_max_move(max_node.first);
         if(max_move.first == -1){
+          std::cout << "test6\n";
           queue->deleteMax();
           other_counter++;
         }
@@ -2104,6 +2105,7 @@ namespace mt_kahypar{
 
           }
           else{
+            std::cout << "test7\n";
             if(is_positive_move(max_move.second)){
               queue->changeKey(max_node.first, max_move.second.gain_and_balance);
             }
@@ -2177,6 +2179,7 @@ namespace mt_kahypar{
           num_update_rounds++;          
         }
         if(queue->isEmpty() && counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) != 0){
+          std::cout << "test5\n";
           num_empty_queue_updates++;
           uint64_t tmp_swaps = queue->num_swaps();
           std::vector<HypernodeID> cn2;
