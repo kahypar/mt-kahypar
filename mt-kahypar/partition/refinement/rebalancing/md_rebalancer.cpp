@@ -2114,10 +2114,12 @@ namespace mt_kahypar{
           }
         }
         else{
+          std::cout << "test2\n";
           ASSERT(max_node.first < phg->initialNumNodes());
           ASSERT(phg->partID(max_node.first) != -1);
           Move move = {phg->partID(max_node.first), max_move.first, max_node.first, max_move.second.gain};
           queue->deleteMax();
+          std::cout << "test3\n";
           counter++;      
           imbalanced += (phg->partWeight(move.from) - phg->nodeWeight(move.node) > _context->partition.max_part_weights[move.from])
             - (phg->partWeight(move.from) > _context->partition.max_part_weights[move.from])
@@ -2157,6 +2159,7 @@ namespace mt_kahypar{
             }
           }
           if(counter % static_cast<int>(std::ceil(static_cast<double>(UPDATE_FREQUENCY) / _context->partition.update_frequency)) == 0){
+            std::cout << "test4\n";
             num_frequent_updates++;            
             completeUpdate(&changed_nodes);          
           }
