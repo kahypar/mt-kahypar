@@ -61,7 +61,7 @@ struct PartitioningParameters {
   bool refine_metis_move_criterion = true;
   bool refine_random_order = false;
 
-  double update_frequency = 0.0001;  
+  double update_frequency = 1;  
   bool rebalancer_k_pqs = false;
   bool rebalancer_kd_pqs = false;
   bool rebalancer_guarantee_best = true;

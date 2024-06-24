@@ -2004,7 +2004,7 @@ namespace mt_kahypar{
       }
 
       int other_counter = 0;
-      int UPDATE_FREQUENCY = std::ceil(_context->partition.update_frequency * estimated_num_moves);
+      int UPDATE_FREQUENCY = estimated_num_moves;
       uint64_t num_update_swaps = 0;
       int num_update_rounds = 0;
 
@@ -2155,13 +2155,13 @@ namespace mt_kahypar{
               changed_nodes.push_back(v);            
             }
           }
-          if(counter % UPDATE_FREQUENCY == 0){
+          if(counter % std::ceil(UPDATE_FREQUENCY * _context->partition.update_frequency) == 0){
             num_frequent_updates++;            
             completeUpdate(&changed_nodes);          
           }
           uint64_t tmp_swaps = queue->num_swaps();
           update_nodes(&changed_nodes);
-          if(counter % UPDATE_FREQUENCY != 0){
+          if(counter % std::ceil(UPDATE_FREQUENCY * _context->partition.update_frequency) != 0){
             for(HypernodeID hn : queue->updateRequired()){
               ASSERT(hn < phg->initialNumNodes());
               std::pair<PartitionID,Move_Internal> max_move = get_max_move(hn);
@@ -2172,7 +2172,7 @@ namespace mt_kahypar{
           num_update_swaps += queue->num_swaps() - tmp_swaps;
           num_update_rounds++;          
         }
-        if(queue->isEmpty() && counter % UPDATE_FREQUENCY != 0){
+        if(queue->isEmpty() && counter % std::ceil(UPDATE_FREQUENCY * _context->partition.update_frequency) != 0){
           num_empty_queue_updates++;
           uint64_t tmp_swaps = queue->num_swaps();
           std::vector<HypernodeID> cn2;
