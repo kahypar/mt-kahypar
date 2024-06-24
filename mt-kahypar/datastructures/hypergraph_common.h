@@ -847,6 +847,7 @@ struct PartitionedGraphType<ds::DynamicGraph> {
       ASSERT(pair.first < in_use.size());
       ASSERT(pair.first < items.size());
       ASSERT(pair.first >= 0);
+      std::cout << "test50\n";
       if(!in_use[pair.first]){
         std::cout << "test40\n";
         insert(pair);
