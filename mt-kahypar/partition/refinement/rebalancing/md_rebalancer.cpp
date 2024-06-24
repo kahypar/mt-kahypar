@@ -702,6 +702,7 @@ namespace mt_kahypar{
       ASSERT(idx != -1);
       ASSERT(idx < queue.size());
       double queue_max = queue[idx].isEmpty() ? std::numeric_limits<double>::max() : queue[idx].getMax().second;
+      ASSERT(false);
       std::cout << "test22\n";
       ASSERT(hn < id_to_index.size());
       ASSERT(id_to_index[hn] != -1);
