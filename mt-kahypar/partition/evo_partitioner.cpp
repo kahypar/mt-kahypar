@@ -1,7 +1,6 @@
 #include "evo_partitioner.h"
 #include "partitioner.cpp"
 
-
 namespace mt_kahypar {
 
     template<typename TypeTraits>
@@ -44,13 +43,7 @@ namespace mt_kahypar {
         partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
             partitioned_hypergraph.setOnlyNodePart(hn, best[hn]);
         });
-        LOG << "Before initialization";
         partitioned_hypergraph.initializePartition();
-        LOG << "After initialization";
-        /*for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
-            partitioned_hypergraph.setOnlyNodePart(hn, best[hn]);
-        }
-        partitioned_hypergraph.initializePartition();*/
 
         ASSERT([&] {
             bool success = true;
@@ -97,6 +90,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     void EvoPartitioner<TypeTraits>::generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+        context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
         //context.evolutionary.dynamic_population_size = true;
         //context.evolutionary.population_size = 50;
@@ -118,17 +112,14 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
-        context.evolutionary.edge_frequency_amount = sqrt(context.evolutionary.population_size);
-        LOG << "EDGE-FREQUENCY-AMOUNT";
-        LOG << context.evolutionary.edge_frequency_amount;
         while (population.size() < context.evolutionary.population_size &&
             timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
             generateIndividual(hg, context, target_graph, population);
             timer.stop_timer("evolutionary");
-            //LOG << population;
         }
+        context.partition.verbose_output = true;
     }
 
     template<typename TypeTraits>
@@ -158,75 +149,151 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
+    EvoMutateStrategy EvoPartitioner<TypeTraits>::decideNextMutation(const Context& context) {
+        if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
+            return EvoMutateStrategy::vcycle;
+        }
+        return EvoMutateStrategy::new_initial_partitioning_vcycle;
+    }
+
+
+    template<typename TypeTraits>
+    vec<PartitionID> EvoPartitioner<TypeTraits>::combinePartitions(const Context& context, Population& population, std::vector<size_t> ids) {
+        vec<PartitionID> combined(population.individualAt(0).partition().size());
+
+        std::unordered_map<std::string, int> tuple_to_block;
+        int current_community = 0;
+
+        for (int vertex = 0; vertex < combined.size(); vertex++) {
+            std::string partition_tuple;
+            for (auto id : ids) {
+                partition_tuple += std::to_string(population.individualAt(id).partition()[vertex]) + ",";
+            }
+
+            if (tuple_to_block.find(partition_tuple) == tuple_to_block.end()) {
+                tuple_to_block[partition_tuple] = current_community++;
+            }
+
+            combined[vertex] = tuple_to_block[partition_tuple];
+        }
+
+        return combined;
+    }
+
+    template<typename TypeTraits>
     void EvoPartitioner<TypeTraits>::performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
+        LOG << "Combining: ";
         //const auto& parents = population.tournamentSelect();
         //std::vector<PartitionID> part1 = parents.first.get().partition();
         //std::vector<PartitionID> part2 = parents.second.get().partition()
         const size_t position1 = population.randomIndividual();
         const size_t position2 = population.randomIndividualExcept(position1);
-        std::vector<PartitionID> part1 = population.individualAt(position1).partition();
+        /*std::vector<PartitionID> part1 = population.individualAt(position1).partition();
         std::vector<PartitionID> part2 = population.individualAt(position2).partition();
         vec<PartitionID> comms(hypergraph.initialNumNodes());
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
         for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            /*if (part1[hn] == part2[hn]) {
-                partitioned_hypergraph.setOnlyNodePart(hn, part1[hn]);
-            } else {
-                partitioned_hypergraph.setOnlyNodePart(hn, context.partition.k + hn);
-            }*/
-            //partitioned_hypergraph.setOnlyNodePart(hn, part1[hn] + context.partition.k * part2[hn]);
             comms[hn] = part1[hn] + context.partition.k * part2[hn];
+        }*/
+        std::vector<size_t> parents = {
+            position1,
+            position2
+        };
+        std::unordered_map<PartitionID, int> comm_to_block;
+        vec<PartitionID> comms = combinePartitions(context, population, parents);
+        vec<PartitionID> part(hypergraph.initialNumNodes());
+        
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+        size_t better = (population.individualAt(position1).fitness() <= population.individualAt(position2).fitness()) ? position1 : position2;
+        for ( const HypernodeID& hn : hypergraph.nodes() ) { 
+            //partitioned_hypergraph.setOnlyNodePart(hn, comms[hn]);
+            partitioned_hypergraph.setOnlyNodePart(hn, population.individualAt(better).partition()[hn]);
+            if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
+                comm_to_block[comms[hn]] = population.individualAt(better).partition()[hn];
+            }
         }
+        partitioned_hypergraph.initializePartition();
         hypergraph.setCommunityIDs(std::move(comms));
-        //partitioned_hypergraph.initializePartition();
+        /*vec<PartitionID> comms = combinePartitions(context, population, parents);
+        vec<PartitionID> part(hypergraph.initialNumNodes());
+        
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+        size_t better = (population.individualAt(position1).fitness() <= population.individualAt(position2).fitness()) ? position1 : position2;
+        for ( const HypernodeID& hn : hypergraph.nodes() ) { 
+            //partitioned_hypergraph.setOnlyNodePart(hn, comms[hn]);
+            partitioned_hypergraph.setOnlyNodePart(hn, population.individualAt(better).partition()[hn]);
+            part[hn] = population.individualAt(better).partition()[hn];
+        }
+        partitioned_hypergraph.initializePartition();
+        //hypergraph.setCommunityIDs(std::move(comms));
+        hypergraph.setCommunityIDs(std::move(part));*/
         if (context.partition.mode == Mode::direct) {
-            //Multilevel<TypeTraits>::partitionVCycle(hypergraph, partitioned_hypergraph, context, target_graph);
-            partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
+            Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, context, comm_to_block, target_graph);
+            //partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
         } else {
             throw InvalidParameterException("Invalid partitioning mode!");
         }
 
         Individual individual(partitioned_hypergraph, context);    
+        LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
         population.insert(std::move(individual), context);
     }
 
-    // REMEMBER: When switching barck to calling fpartitionVCycleorce inserts, add the position i.e:
-    // _population.forceInsertSaveBest(mutate::vCycleWithNewInitialPartitioning(hg, _population,_population.individualAt(mutation_position), context),  mutation_position);
     template<typename TypeTraits>
     void EvoPartitioner<TypeTraits>::performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
         const size_t mutation_position = population.randomIndividual();
         std::vector<PartitionID> cur = population.individualAt(mutation_position).partition();
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-        vec<PartitionID> comms(hypergraph.initialNumNodes());
-        for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            //partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
-            comms[hn] = cur[hn];
+        EvoMutateStrategy mutation = decideNextMutation(context);
+        if (mutation == EvoMutateStrategy::vcycle) {
+            LOG << "Mutating old: ";
+            vec<PartitionID> comms(hypergraph.initialNumNodes());
+            std::unordered_map<PartitionID, int> comm_to_block;
+            for ( const HypernodeID& hn : hypergraph.nodes() ) {
+                partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
+                comms[hn] = cur[hn];
+            }
+            for (PartitionID i = 0; i < context.partition.k; i++) {
+                comm_to_block[i] = i;
+            }
+            partitioned_hypergraph.initializePartition();
+            hypergraph.setCommunityIDs(std::move(comms));
+            if (context.partition.mode == Mode::direct) {
+                Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, context, comm_to_block, target_graph);
+            } else {
+                throw InvalidParameterException("Invalid partitioning mode!");
+            }
+        } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
+            LOG << "Mutating new: ";
+            vec<PartitionID> comms(hypergraph.initialNumNodes());
+            for ( const HypernodeID& hn : hypergraph.nodes() ) {
+                comms[hn] = cur[hn];
+            }
+            hypergraph.setCommunityIDs(std::move(comms));
+            if (context.partition.mode == Mode::direct) {
+                partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
+            } else {
+                throw InvalidParameterException("Invalid partitioning mode!");
+            }
         }
-        hypergraph.setCommunityIDs(std::move(comms));
-        //partitioned_hypergraph.initializePartition();
-        if (context.partition.mode == Mode::direct) {
-            //Multilevel<TypeTraits>::partitionVCycle(hypergraph, partitioned_hypergraph, context, target_graph);
-            partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
-        } else {
-            throw InvalidParameterException("Invalid partitioning mode!");
-        }
-
-        Individual individual(partitioned_hypergraph, context);    
+        Individual individual(partitioned_hypergraph, context);     
+        LOG << "Mutated Individual with fitness: " << population.individualAt(mutation_position).fitness() << " to " << individual.fitness();
         population.insert(std::move(individual), context);
     }
 
     template<typename TypeTraits>
     void EvoPartitioner<TypeTraits>::performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+        context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         int mutations = 0;
         int combinations = 0;
         while (timer.get("evolutionary") <= timelimit) {
-            //LOG << timer.get("evolutionary") << " of " << timelimit << "\n";
             ++context.evolutionary.iteration;
 
             timer.start_timer("evolutionary", "Evolutionary");
 
+
+            tbb::parallel_for(0, 1, [&](const int i) {
             EvoDecision decision = decideNextMove(context);
             switch (decision) {
                 case EvoDecision::mutation:
@@ -241,9 +308,11 @@ namespace mt_kahypar {
                     LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
                     std::exit(EXIT_FAILURE);
             }
+            });
             timer.stop_timer("evolutionary");
         }
         hg.reset();
+        context.partition.verbose_output = true;
         LOG << "Performed " << context.evolutionary.iteration << " Evolutionary Iterations" << "\n";
         LOG << "    " << mutations << " Mutations" << "\n";
         LOG << "    " << combinations << " Combinations" << "\n";
