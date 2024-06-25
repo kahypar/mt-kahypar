@@ -1569,6 +1569,9 @@ namespace mt_kahypar{
       }
       Gain quality = 0;
       Gain local_attributed_gain = 0;
+      if(_context->partition.use_constraint_before_rebalancing){
+        constraint_refinement(best_metrics, local_attributed_gain);
+      }
       if(!metrics::isBalanced(*phg, *_context)){
         vec<Move> tmp_moves;
         rebalancing(&tmp_moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
@@ -1579,7 +1582,7 @@ namespace mt_kahypar{
         }
         return true;
       }(), "fail");
-      if(_context->partition.use_constraint){
+      if(_context->partition.use_constraint_after_rebalancing){
         constraint_refinement(best_metrics, local_attributed_gain);
       }
       if(_context->partition.use_unconstraint){
@@ -1670,23 +1673,46 @@ namespace mt_kahypar{
     }
 
     void constraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
-      std::cout << "constrained:\n";     
+      std::cout << "constrained:\n"; 
+      auto ibvert = [&](){
+        double ib = 0.0;
+        for(PartitionID p = 0; p < phg->k(); p++){
+          for(int d = 0; d < dimension; d++){
+            ib = std::max(ib, (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) 
+              * _context->partition.max_part_weights_inv[p][d]);
+          }
+        }
+        return ib;
+      };    
       for(int i = 0; i < 10; i++){
         Gain before_quality = local_attributed_gain;
+        double before_ib = ibvert();
         round++;
         simple_lp(NULL, best_metrics, 0.0, local_attributed_gain, std::numeric_limits<int>::max());
-        if(before_quality == local_attributed_gain) break;
+        double after_ib = ibvert();
+        if(after_ib >= before_ib && before_quality == local_attributed_gain) break;
       } 
     }
 
     void unconstraint_refinement(Metrics& best_metrics, Gain& local_attributed_gain){
       std::cout << "unconstrained:\n";
+      auto ibvert = [&](){
+        double ib = 0.0;
+        for(PartitionID p = 0; p < phg->k(); p++){
+          for(int d = 0; d < dimension; d++){
+            ib = std::max(ib, (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) 
+              * _context->partition.max_part_weights_inv[p][d]);
+          }
+        }
+        return ib;
+      };
       double allowed_ib = _context->partition.allowed_imbalance_refine;
       for(int r = 0; r < 10; r++){
         vec<Move> moves;
         round++;
         HypernodeID before_moves = moves.size();
         Gain before_gain = local_attributed_gain;
+        double before_ib = ibvert();
         bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         if(local_attributed_gain == before_gain){
           ASSERT([&]{
@@ -1708,8 +1734,10 @@ namespace mt_kahypar{
           simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
         }        
         bool improvement = local_attributed_gain - before_gain < 0 && metrics::isBalanced(*phg, *_context);
+        double after_ib = ibvert();
         std::cout << "rebalancing: " << local_attributed_gain - before_rebalancing_gain << "," << local_attributed_gain - before_gain << "\n";
-        if(local_attributed_gain - before_gain > 0 || _context->partition.assure_balance && !metrics::isBalanced(*phg, *_context)){
+        if(!_context->partition.assure_balance && local_attributed_gain - before_gain > 0 || 
+          _context->partition.assure_balance && after_ib >= before_ib && (local_attributed_gain - before_gain > 0 || after_ib > before_ib)){
           std::cout << "failure\n";
           for(HypernodeID i = 1; i <= moves.size() - before_moves; i++){
             HypernodeID idx = moves.size() - i;

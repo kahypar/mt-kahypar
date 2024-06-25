@@ -177,11 +177,14 @@ namespace mt_kahypar {
              ("decrease-exponent",
              po::value<double>(&context.partition.decrease_exponent)->value_name("<double>")->default_value(1.0),
              "in deadlock case, adapt rebalancers max weights")
+             ("use-constraint-before-rebalancing",
+             po::value<bool>(&context.partition.use_constraint_before_rebalancing)->value_name("<bool>")->default_value(true),
+             "in deadlock case, adapt rebalancers max weights")
+             ("use-constraint-after-rebalancing",
+             po::value<bool>(&context.partition.use_constraint_after_rebalancing)->value_name("<bool>")->default_value(true),
+             "in deadlock case, adapt rebalancers max weights")
              ("use-unconstraint",
              po::value<bool>(&context.partition.use_unconstraint)->value_name("<bool>")->default_value(true),
-             "in deadlock case, adapt rebalancers max weights")
-             ("use-constraint",
-             po::value<bool>(&context.partition.use_constraint)->value_name("<bool>")->default_value(true),
              "in deadlock case, adapt rebalancers max weights")
              ("use-constraint-in-unconstraint",
              po::value<bool>(&context.partition.constraint_in_unconstraint)->value_name("<bool>")->default_value(true),

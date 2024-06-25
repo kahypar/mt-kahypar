@@ -49,8 +49,9 @@ struct PartitioningParameters {
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   std::array<double, mt_kahypar::dimension> epsilon;
 
+  bool use_constraint_before_rebalancing;
+  bool use_constraint_after_rebalancing;
   bool use_unconstraint;
-  bool use_constraint;
   bool constraint_in_unconstraint;
 
   bool vertex_locking = false;
