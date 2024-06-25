@@ -840,7 +840,8 @@ class DoNothingMemoryPool {
 #ifdef MT_KAHYPAR_LIBRARY_MODE
 using MemoryPool = DoNothingMemoryPool;
 #else
-using MemoryPool = MemoryPoolT;
+//using MemoryPool = MemoryPoolT;
+using MemoryPool = DoNothingMemoryPool;
 #endif
 
 }  // namespace parallel

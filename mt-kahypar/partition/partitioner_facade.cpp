@@ -67,6 +67,7 @@ namespace internal {
     context.evolutionary.gamma=0.5;
     context.evolutionary.unlimited_coarsening_contraction=true;
     context.evolutionary.mutation_chance=0.5;
+    context.evolutionary.mutate_strategy=EvoMutateStrategy::vcycle;
     context.evolutionary.random_vcycles=true;
 
     if (context.partition_evolutionary && context.partition.time_limit > 0) {

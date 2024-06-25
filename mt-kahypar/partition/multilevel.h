@@ -57,6 +57,11 @@ class Multilevel {
                               PartitionedHypergraph& partitioned_hg,
                               const Context& context,
                               const TargetGraph* target_graph = nullptr);
+  static void evolutionPartitionVCycle(Hypergraph& hypergraph,
+                              PartitionedHypergraph& partitioned_hg,
+                              const Context& context,
+                              std::unordered_map<PartitionID, int> comm_to_block,
+                              const TargetGraph* target_graph = nullptr);
 };
 
 }  // namespace mt_kahypar
