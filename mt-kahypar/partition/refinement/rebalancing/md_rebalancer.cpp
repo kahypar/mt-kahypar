@@ -2527,7 +2527,7 @@ namespace mt_kahypar{
         goal *= 2.0;
         if(goal > dimension * phg->k()) return {0.0,false};
       }
-      std::cout << "marker2\n";
+      std::cout << 1/0;
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
       double lower = std::max(goal / 2.0, starting_goal);
