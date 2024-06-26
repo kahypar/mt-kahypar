@@ -2497,6 +2497,7 @@ namespace mt_kahypar{
         }
         return max_p;
       };
+      std::cout << "marker1\n";
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         while(S_weight < goal){
@@ -2526,6 +2527,7 @@ namespace mt_kahypar{
         goal *= 2.0;
         if(goal > dimension * phg->k()) return {0.0,false};
       }
+      std::cout << "marker2\n";
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
       double lower = std::max(goal / 2.0, starting_goal);
@@ -2578,6 +2580,7 @@ namespace mt_kahypar{
         }(), "bwugi");
         current = (upper + lower) / 2.0;
       }
+      std::cout << "marker3\n";
       int counter = 0;
       for(HypernodeID hn : S){
         /*for(int d = 0; d < dimension; d++){
