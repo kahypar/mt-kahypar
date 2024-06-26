@@ -137,6 +137,9 @@ namespace mt_kahypar {
              "L threshold")
              ("random-order",
              po::value<bool>(&context.partition.refine_random_order)->value_name("<bool>")->default_value(0),
+             "node traversal in random order")
+             ("approximate-worsened-move",
+             po::value<bool>(&context.partition.rebalancer_approximate_worsened_move)->value_name("<bool>")->default_value(false),
              "node traversal in random order")        
              ("refine-metis-gain",
              po::value<bool>(&context.partition.refine_metis_gain)->value_name("<bool>")->default_value(false),

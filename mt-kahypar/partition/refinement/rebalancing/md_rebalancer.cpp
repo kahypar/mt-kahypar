@@ -60,6 +60,8 @@ namespace mt_kahypar{
     
     virtual void changeKey(HypernodeID hn, PriorityType prio) = 0;
 
+    virtual void setKey(HypernodeID hn, PriorityType prio) = 0;
+
     virtual void move(PartitionID from, PartitionID to) = 0;
 
     virtual std::pair<HypernodeID,PriorityType> getMax() = 0;
@@ -81,6 +83,10 @@ namespace mt_kahypar{
     virtual uint64_t num_swaps() = 0;
 
     virtual void clear() = 0;
+
+    virtual size_t top_pq_size() = 0;
+
+    virtual std::vector<HypernodeID> get_first_three() = 0;
 
     virtual std::vector<std::vector<HypernodeID>> *nodes_by_part() = 0;
   };
@@ -603,6 +609,23 @@ namespace mt_kahypar{
       queue.clear();
     }
 
+    std::vector<HypernodeID> get_first_three(){
+      ASSERT(queue.pq.size() > 3);
+      std::vector<HypernodeID> res;
+      for(int i = 1; i < 3; i++){
+        res.push_back(queue.pq[i]);
+      }
+      return res;
+    }
+
+    size_t top_pq_size(){
+      return queue.pq.size();
+    }
+
+    void setKey(HypernodeID hn, PriorityType prio){
+      queue.items[hn] = prio;
+    }
+
     std::vector<std::vector<HypernodeID>> *nodes_by_part(){
       return NULL;
     }
@@ -766,6 +789,22 @@ namespace mt_kahypar{
       for(PQID idx = 0; idx < queue.size(); idx++){
         queue[idx].clear();
       }
+    }
+
+    std::vector<HypernodeID> get_first_three(){
+      std::vector<HypernodeID> res;
+      for(int i = 1; i < 3; i++){
+        res.push_back(index_to_id[top_queues.getMax().first][queue[top_queues.getMax().first].pq[i]]);
+      }
+      return res;
+    }
+
+    size_t top_pq_size(){
+      return queue[top_queues.getMax().first].pq.size();
+    }
+
+    void setKey(HypernodeID hn, PriorityType prio){
+      queue[phg->partID(hn)].items[id_to_index[hn]] = prio;
     }
 
     std::vector<std::vector<HypernodeID>> *nodes_by_part(){
@@ -957,6 +996,28 @@ namespace mt_kahypar{
 
     std::vector<std::vector<HypernodeID>> *nodes_by_part(){
       return &index_to_id;
+    }
+
+     std::vector<HypernodeID> get_first_three(){
+      ASSERT(queue[top_queues.getMax().first].pq.size() > 3);
+      std::vector<HypernodeID> res;
+      for(int i = 0; i < 3; i++){
+        res.push_back(index_to_id[top_queues.getMax().first][queue[top_queues.getMax().first].pq[i]]);
+      }
+      return res;
+    }
+
+    size_t top_pq_size(){
+      return queue[top_queues.getMax().first].pq.size();
+    }
+
+    void setKey(HypernodeID hn, PriorityType prio){
+      PQID idx = get_pq_id(hn);
+      double queue_max = queue[idx].isEmpty() ? std::numeric_limits<double>::max() : queue[idx].getMax().second;
+      queue[idx].items[id_to_index[hn]] = prio;
+      if(queue[idx].getMax().second != queue_max){
+        top_queues.changeKey({idx, queue[idx].getMax().second});
+      }
     }
   };
 
@@ -2121,16 +2182,26 @@ namespace mt_kahypar{
           other_counter++;
         }
         else if(max_node.second < max_move.second.gain_and_balance){
-          if(_context->partition.rebalancer_approximate_worsened_move){
-
-          }
-          else{
-            if(is_positive_move(max_move.second)){
-              queue->changeKey(max_node.first, max_move.second.gain_and_balance);
+          if(_context->partition.rebalancer_approximate_worsened_move && queue->top_pq_size() > 3){
+            std::vector<HypernodeID> second_third = queue->get_first_three();
+            bool not_better = true;
+            for(HypernodeID hn : second_third){
+              std::pair<PartitionID, Move_Internal> this_max = get_max_move(hn);
+              if(this_max.first != -1 && this_max.second.gain_and_balance < max_move.second.gain_and_balance){
+                not_better = false;
+                break;
+              }
+            }
+            if(not_better){
+              queue->setKey(max_node.first, max_move.second.gain_and_balance);
             }
             else{
-              queue->deleteMax();
+              queue->changeKey(max_node.first, max_move.second.gain_and_balance);
+              other_counter++;
             }
+          }
+          else{
+            queue->changeKey(max_node.first, max_move.second.gain_and_balance);
             if(!queue->firstInPQ(max_move.first)) other_counter++;
           }
         }
