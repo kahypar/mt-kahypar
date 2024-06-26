@@ -1650,7 +1650,8 @@ namespace mt_kahypar{
         unconstraint_refinement(best_metrics, local_attributed_gain);
       }
       if(!metrics::isBalanced(*phg, *_context)){
-        rebalancing(NULL, best_metrics, local_attributed_gain, true);
+        vec<HypernodeID> mv;
+        rebalancing(&mv, best_metrics, local_attributed_gain, true);
       }    
       best_metrics.quality += local_attributed_gain;
       return true;
