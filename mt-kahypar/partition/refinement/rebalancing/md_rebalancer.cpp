@@ -2500,15 +2500,18 @@ namespace mt_kahypar{
       std::cout << "marker1\n";
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
+        std::cout << "beforeextract\n";
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
           if(!extract(max_p)) return {0.0,false};
         }
+        std::cout << "afterextract\n";
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
           break;
         }
         else{
+          std::cout << "afterbp\n";
           lowest_possible_idx = S.size() - 1;
         }
         ASSERT([&]{
