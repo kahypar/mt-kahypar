@@ -1775,7 +1775,7 @@ namespace mt_kahypar{
         Gain before_gain = local_attributed_gain;
         double before_ib = ibvert();
         bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
-        if(local_attributed_gain == before_gain){
+        /*if(local_attributed_gain == before_gain){
           ASSERT([&]{
             for(HypernodeID hn : phg->nodes()){
               if(moved_in_round[hn] >= last_successfull_round) continue;
@@ -1786,7 +1786,7 @@ namespace mt_kahypar{
             return true;
           }(), "fail");
           break;
-        }      
+        }*/      
         Gain before_rebalancing_gain = local_attributed_gain;
         if(!metrics::isBalanced(*phg, *_context)){
           rebalancing(&moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
