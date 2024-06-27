@@ -151,6 +151,7 @@ namespace {
       std::string nextline;
       std::getline(myfile, nextline);
       if(nextline.find(" ") == -1){
+        std::cout << "partfile\n";
         is_partfile = true;
       }
       if(is_partfile && nextline != ""){
@@ -159,6 +160,7 @@ namespace {
         partitioned_hg.setOnlyNodePart(h, stoi(nextline));
       }
       else if(nextline.rfind("IP") != -1){
+        std::cout << "IP\n";
         /*ASSERT(stoi(nextline) < partitioned_hg.k());*/
         std::stringstream ss(nextline);  
         std::string word;

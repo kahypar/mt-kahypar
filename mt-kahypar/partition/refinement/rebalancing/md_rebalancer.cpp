@@ -1814,6 +1814,7 @@ namespace mt_kahypar{
         else{
           last_successfull_round = round;
         }
+        if(moves.size() == before_moves) break;
       }
     }
 
