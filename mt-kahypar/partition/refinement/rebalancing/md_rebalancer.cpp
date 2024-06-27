@@ -2446,7 +2446,7 @@ namespace mt_kahypar{
           }
           std::cout << " | ";
         }
-        std::cout << " ||| ";
+        std::cout << "\n";
       };
 
       double S_weight = 0.0;
@@ -2482,9 +2482,8 @@ namespace mt_kahypar{
           }
         }
         if(max_p == -1){          
-          while(true){
-            print_parts();
-          }
+          print_parts();
+          while(true){}
         }
         return max_p;
       };
@@ -2506,6 +2505,7 @@ namespace mt_kahypar{
       while(true){
         //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
         std::cout << "beforeextract\n";
+        std::cout << goal << "\n";
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
