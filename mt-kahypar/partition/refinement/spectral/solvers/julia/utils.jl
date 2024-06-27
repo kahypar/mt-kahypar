@@ -1,4 +1,3 @@
-include("config.jl")
 using DelimitedFiles
 
 function inform(message::String)

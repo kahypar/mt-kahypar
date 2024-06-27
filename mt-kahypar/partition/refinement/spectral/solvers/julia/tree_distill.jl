@@ -1,5 +1,4 @@
 include("utils.jl")
-include("config.jl")
 include("tree_partition/tree_partition.jl")
 include("tree_partition/triton_part_refine.jl")
 include("overlay.jl")

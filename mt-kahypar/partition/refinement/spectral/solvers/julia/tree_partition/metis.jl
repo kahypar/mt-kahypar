@@ -1,5 +1,3 @@
-include("../config.jl")
-
 # using Metis
 using SparseArrays
 using LightGraphs, Graphs

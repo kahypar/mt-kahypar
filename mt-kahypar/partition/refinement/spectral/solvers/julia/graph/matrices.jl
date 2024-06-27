@@ -1,5 +1,4 @@
 include("../utils.jl")
-include("../config.jl")
 
 function hgr_laplacian(hg::__hypergraph__, x::AbstractArray)
     n = hg.num_vertices

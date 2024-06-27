@@ -4,8 +4,6 @@ include("graph/matrices.jl")
 include("cmg/CombinatorialMultigrid.jl")
 include("utils.jl")
 
-include("config.jl")
-
 function LinearAlgebra.ldiv!(c::AbstractVecOrMat{T}, 
         P::CombinatorialMultigrid.lPreconditioner, 
         b::AbstractVecOrMat{T}) where {T}
