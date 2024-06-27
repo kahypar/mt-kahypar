@@ -2483,6 +2483,7 @@ namespace mt_kahypar{
         }
         if(max_p == -1){          
           print_parts();
+          std::cout << max_pen << "\n";
           for(int p = 0; p < phg->k(); p++){
             std::cout << penalty(virtual_weight[p]) << " " << penalty1(virtual_weight[p]) << "\n";
           }
