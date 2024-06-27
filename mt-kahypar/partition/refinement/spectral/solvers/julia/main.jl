@@ -12,7 +12,7 @@ include("graph/isolate_islands.jl")
 include("lobpcg.jl")
 include("tree_distill.jl")
 
-function main(input, method)
+function main(input, method, rescue=true)
     inform("julia launched")
     n = convert(Int, input[1][1])
     inform_dbg(n, false, () -> "transmitted (hyper)graph data: " * string(convert(AbstractArray{Int64}, input[1])))
@@ -44,12 +44,16 @@ function main(input, method)
         inform("failed due to " * sprint(showerror, e))
         @print_backtrace
         
-        return ones(Float64, n)
+        if rescue
+            return ones(Float64, n)
+        else
+            exit(1)
+        end
     end
 end
 
-function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
-    return main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> solve_lobpcg(g, h, e, 1, a))
+function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray, rescue=true)
+    return main((hgr_data, hint, deflation_evecs, rescue), (g, h, e, a) -> solve_lobpcg(g, h, e, 1, a))
 end
 
 function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
@@ -71,6 +75,8 @@ function main_kspecpart(hgr_data::AbstractArray, hint::AbstractArray, deflation_
         return global_best[2]
     end)
 end
+
+main_lobpcg_unsafe(g, h, d) = main_lobpcg(g, h, d, false)
 
 main_nothing = (d, h, e) -> ones(Float64, d[1])
 
