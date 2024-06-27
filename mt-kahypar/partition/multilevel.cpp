@@ -148,6 +148,7 @@ namespace {
     HypernodeID h = 0;
     int counter = 0;
     while(myfile){
+      std::cout << "test1\n";
       std::string nextline;
       std::getline(myfile, nextline);
       if(nextline.find(" ") == -1){
