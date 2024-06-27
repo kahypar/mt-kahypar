@@ -2498,7 +2498,7 @@ namespace mt_kahypar{
         return max_p;
       };
       while(true){
-        print_parts();
+        //print_parts();
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
@@ -2560,7 +2560,6 @@ namespace mt_kahypar{
             c++;
           }
         } 
-        /*std::cout << "sizes " << c << " " << succ_idx << "\n";*/
         ASSERT(c == succ_idx);
         ASSERT([&]{
           std::vector<HypernodeWeight> test;
