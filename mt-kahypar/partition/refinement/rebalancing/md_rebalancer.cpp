@@ -2481,23 +2481,6 @@ namespace mt_kahypar{
             max_p = p;
           }
         }
-        /*if(max_p == -1){          
-          print_parts();
-          std::cout << max_pen << "\n";
-          for(int p = 0; p < phg->k(); p++){
-            std::cout << penalty(virtual_weight[p]) << " " << penalty1(virtual_weight[p]) << "\n";
-          }
-          for(PartitionID p = 0; p < phg->k(); p++){
-            double pen = penalty(virtual_weight[p]);
-            std::cout << pen << " " << max_pen << "\n";
-            if(pen > max_pen){
-              std:: cout << "succ " << p << " " << pen << "\n"; 
-              max_pen = pen;
-              max_p = p;
-            }
-          }
-          while(true){}
-        }*/
         return max_p;
       };
 
@@ -2514,22 +2497,17 @@ namespace mt_kahypar{
         }
         return max_p;
       };
-      std::cout << "marker1\n";
       while(true){
-        //std::cout << "goal\n\n" << goal << " " << S_weight << "\n";
-        std::cout << "beforeextract\n";
-        std::cout << goal << "\n";
+        print_parts();
         while(S_weight < goal){
           //std::cout << "sweight: " << S_weight << " " << goal << "\n\n\n";
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
           if(!extract(max_p)) return {0.0,false};
         }
-        std::cout << "afterextract\n";
         if(binpacker.binpack(S.size(), virtual_weight, penalty)){
           break;
         }
         else{
-          std::cout << "afterbp\n";
           lowest_possible_idx = S.size() - 1;
         }
         ASSERT([&]{
@@ -2548,7 +2526,6 @@ namespace mt_kahypar{
         goal *= 2.0;
         if(goal > dimension * phg->k()) return {0.0,false};
       }
-      std::cout << 1/0;
       HypernodeID last_idx = S.size() - 1;
       HypernodeID succ_idx = S.size();
       double lower = std::max(goal / 2.0, starting_goal);
@@ -2601,7 +2578,6 @@ namespace mt_kahypar{
         }(), "bwugi");
         current = (upper + lower) / 2.0;
       }
-      std::cout << "marker3\n";
       int counter = 0;
       for(HypernodeID hn : S){
         /*for(int d = 0; d < dimension; d++){
