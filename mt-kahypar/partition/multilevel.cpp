@@ -138,21 +138,16 @@ namespace {
       std::cout << partitioned_hg.partID(hn) << "\n";
     }*/
     PartitionedHypergraph& partitioned_hg = uncoarseningData.coarsestPartitionedHypergraph();
-    
-
     std::ifstream myfile; 
-    std::cout << context.partition.contraction_input_file << "\n";
     myfile.open(context.partition.contraction_input_file);
     HypernodeID hn = 0;
     bool is_partfile = false;
     HypernodeID h = 0;
     int counter = 0;
     while(myfile){
-      std::cout << "test1\n";
       std::string nextline;
       std::getline(myfile, nextline);
       if(nextline.find(" ") == -1){
-        std::cout << 1/0;
         is_partfile = true;
       }
       if(is_partfile && nextline != ""){
@@ -161,19 +156,12 @@ namespace {
         partitioned_hg.setOnlyNodePart(h, stoi(nextline));
       }
       else if(nextline.rfind("IP") != -1){
-        std::cout << "IP\n";
-        /*ASSERT(stoi(nextline) < partitioned_hg.k());*/
         std::stringstream ss(nextline);  
         std::string word;
         ss >> word;
         for(HypernodeID hn = 0; hn < partitioned_hg.initialNumNodes(); hn++){
           ss >> word;
-          try{
           partitioned_hg.setOnlyNodePart(hn, stoi(word));
-          }
-          catch(std::exception& e){
-            std::cout << "word: " << word << '\n';
-          }
         }
         break;
       }

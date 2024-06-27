@@ -73,6 +73,7 @@ struct PartitioningParameters {
   bool sorted_nodes_update_optimization;
 
   double l1_start_factor = 0.9999;
+  double l1_exponent;
 
   bool assure_balance;
 

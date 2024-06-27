@@ -1668,17 +1668,19 @@ namespace mt_kahypar{
       if(!greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, _context->partition.l1_start_factor) && assure_balance){
         if(_context->partition.use_l1_factor_decrease){
           double factor = _context->partition.l1_start_factor;
-          while(!metrics::isBalanced(*phg, *_context) && factor >= 0.97){
+          int rounds = 0;
+          while(!metrics::isBalanced(*phg, *_context) && rounds < 5){
+            rounds++;
             std::cout << "factor: " << factor << "\n";
             double imbalance = 0.0;
             for(int d = 0; d < dimension; d++){
               double tmp_ib = 0;
               for(PartitionID p = 0; p < phg->k(); p++){
-                tmp_ib = std::max(tmp_ib, (phg->partWeight(p).weights[d] - _context->partition.max_part_weights[p].weights[d]) * _context->partition.max_part_weights_inv[p][d]);
+                tmp_ib = std::max(tmp_ib, (phg->partWeight(p).weights[d] - factor * _context->partition.max_part_weights[p].weights[d]) * _context->partition.max_part_weights_inv[p][d]);
               }
               imbalance = std::max(imbalance, tmp_ib);
             }
-            factor = 1.0 / std::pow((1.0 + imbalance), 1.2) * factor;
+            factor = 1.0 / std::pow((1.0 + imbalance), _context->partition.l1_exponent);
             for(size_t idx = 1; idx <= rebalance_moves->size() - num_moves_before; idx++){
               Move move = (*rebalance_moves)[rebalance_moves->size() - idx];
               ASSERT(move.from != -1);

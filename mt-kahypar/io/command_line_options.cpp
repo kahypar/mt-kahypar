@@ -171,6 +171,9 @@ namespace mt_kahypar {
              ("l1-factor",
              po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(1.0),
              "l1 factor")
+             ("l1-exponent",
+             po::value<double>(&context.partition.l1_exponent)->value_name("<double>")->default_value(1.0),
+             "l1 exponent")
              ("fallback-extract-equally",
              po::value<bool>(&context.partition.fallback_extract_equally)->value_name("<bool>")->default_value(false),
              "use l1 as tiebreak")
