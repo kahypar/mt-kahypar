@@ -2481,7 +2481,10 @@ namespace mt_kahypar{
             max_p = p;
           }
         }
-        if(max_p == -1) std::cout << 1/0 << "\n";
+        if(max_p == -1){
+          print_parts();
+          while(true){}
+        }
         return max_p;
       };
 
