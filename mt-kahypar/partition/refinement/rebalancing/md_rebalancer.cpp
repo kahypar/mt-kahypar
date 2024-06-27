@@ -2487,6 +2487,15 @@ namespace mt_kahypar{
           for(int p = 0; p < phg->k(); p++){
             std::cout << penalty(virtual_weight[p]) << " " << penalty1(virtual_weight[p]) << "\n";
           }
+          for(PartitionID p = 0; p < phg->k(); p++){
+            double pen = penalty(virtual_weight[p]);
+            std::cout << pen << " " << max_pen << "\n";
+            if(pen > max_pen){
+              std:: cout << "succ " << max_pen << " " << pen << "\n"; 
+              max_pen = pen;
+              max_p = p;
+            }
+          }
           while(true){}
         }
         return max_p;
