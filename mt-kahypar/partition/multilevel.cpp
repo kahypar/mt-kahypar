@@ -152,7 +152,7 @@ namespace {
       std::string nextline;
       std::getline(myfile, nextline);
       if(nextline.find(" ") == -1){
-        std::cout << "partfile\n";
+        std::cout << 1/0;
         is_partfile = true;
       }
       if(is_partfile && nextline != ""){
