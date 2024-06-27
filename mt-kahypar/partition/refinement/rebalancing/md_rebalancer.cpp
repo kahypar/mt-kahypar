@@ -2481,9 +2481,10 @@ namespace mt_kahypar{
             max_p = p;
           }
         }
-        if(max_p == -1){
-          print_parts();
-          while(true){}
+        if(max_p == -1){          
+          while(true){
+            print_parts();
+          }
         }
         return max_p;
       };
