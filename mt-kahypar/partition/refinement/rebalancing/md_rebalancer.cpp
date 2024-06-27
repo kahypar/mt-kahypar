@@ -2472,7 +2472,7 @@ namespace mt_kahypar{
       HypernodeID lowest_possible_idx = starting_size - 1;
 
       auto select_max_pen_p = [&](){
-        double max_pen = std::numeric_limits<double>::min();
+        double max_pen = std::numeric_limits<double>::lowest();
         double max_p = -1;
         for(PartitionID p = 0; p < phg->k(); p++){
           double pen = penalty(virtual_weight[p]);
@@ -2481,7 +2481,7 @@ namespace mt_kahypar{
             max_p = p;
           }
         }
-        if(max_p == -1){          
+        /*if(max_p == -1){          
           print_parts();
           std::cout << max_pen << "\n";
           for(int p = 0; p < phg->k(); p++){
@@ -2491,13 +2491,13 @@ namespace mt_kahypar{
             double pen = penalty(virtual_weight[p]);
             std::cout << pen << " " << max_pen << "\n";
             if(pen > max_pen){
-              std:: cout << "succ " << max_pen << " " << pen << "\n"; 
+              std:: cout << "succ " << p << " " << pen << "\n"; 
               max_pen = pen;
               max_p = p;
             }
           }
           while(true){}
-        }
+        }*/
         return max_p;
       };
 
