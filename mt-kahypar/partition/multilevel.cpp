@@ -168,11 +168,12 @@ namespace {
         ss >> word;
         for(HypernodeID hn = 0; hn < partitioned_hg.initialNumNodes(); hn++){
           ss >> word;
-          if(!isdigit(word)){
-            std::cout << "error: " << word << "\n";
-            break;
-          } 
+          try{
           partitioned_hg.setOnlyNodePart(hn, stoi(word));
+          }
+          catch(std::exception& e){
+            std::cout << "word: " << word << '\n';
+          }
         }
         break;
       }
