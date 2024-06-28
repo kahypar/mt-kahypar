@@ -1822,6 +1822,7 @@ namespace mt_kahypar{
 
     bool simple_lp(vec<Move>* moves_linear,Metrics& best_metrics, 
       double allowed_imbalance, Gain& local_attributed_gain, int last_succ_round){
+        std::cout << "startlp\n";
       auto start = std::chrono::high_resolution_clock::now(); 
       std::vector<HypernodeWeight> max_part_weights(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
