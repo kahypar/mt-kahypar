@@ -1777,7 +1777,7 @@ namespace mt_kahypar{
         HypernodeID before_moves = moves.size();
         Gain before_gain = local_attributed_gain;
         double before_ib = ibvert();
-        bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
+        bool new_node_moved = simple_lp(&moves, best_metrics, allowed_ib, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : round);
         /*if(local_attributed_gain == before_gain){
           ASSERT([&]{
             for(HypernodeID hn : phg->nodes()){
@@ -1795,7 +1795,7 @@ namespace mt_kahypar{
           rebalancing(&moves, best_metrics, local_attributed_gain, _context->partition.assure_balance);
         }
         if(_context->partition.constraint_in_unconstraint){
-          simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : std::numeric_limits<int>::max());
+          simple_lp(&moves, best_metrics, 0.0, local_attributed_gain, _context->partition.vertex_locking ? last_successfull_round : round);
         }        
         bool improvement = local_attributed_gain - before_gain < 0 && metrics::isBalanced(*phg, *_context);
         double after_ib = ibvert();
@@ -1822,7 +1822,6 @@ namespace mt_kahypar{
 
     bool simple_lp(vec<Move>* moves_linear,Metrics& best_metrics, 
       double allowed_imbalance, Gain& local_attributed_gain, int last_succ_round){
-        std::cout << "startlp\n";
       auto start = std::chrono::high_resolution_clock::now(); 
       std::vector<HypernodeWeight> max_part_weights(phg->k());
       for(PartitionID p = 0; p < phg->k(); p++){
