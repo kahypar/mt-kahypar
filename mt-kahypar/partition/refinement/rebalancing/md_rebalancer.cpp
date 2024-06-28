@@ -2352,7 +2352,7 @@ namespace mt_kahypar{
           minw = std::min(minw, tmp);
           maxw = std::max(maxw,tmp);
         }
-        return (1.0 - minw) / (1.0 - maxw);
+        return (1.0 - minw) / (1.0001 - maxw);
       };
 
       auto penalty3 = [&](HypernodeWeight weight){
@@ -2364,7 +2364,7 @@ namespace mt_kahypar{
           avg += tmp;
         }
         avg /= dimension;
-        return (1.0 - avg) / (1.0 - maxw);
+        return (1.0 - avg) / (1.0001 - maxw);
       };
 
       auto penalty4 = [&](HypernodeWeight weight){
@@ -2375,7 +2375,7 @@ namespace mt_kahypar{
           minw = std::min(minw, tmp);
           maxw = std::max(maxw,tmp);
         }
-        return (maxw - minw) / (1.0 - maxw);
+        return (maxw - minw) / (1.0001 - maxw);
       };
 
       auto penalty5 = [&](HypernodeWeight weight){
@@ -2389,7 +2389,7 @@ namespace mt_kahypar{
           avg += tmp;
         }
         avg /= dimension;
-        return (maxw - minw) / (1.0 - avg);
+        return (maxw - minw) / (1.0001 - avg);
       };
 
       auto penalty6 = [&](HypernodeWeight weight){
@@ -2403,8 +2403,19 @@ namespace mt_kahypar{
           avg += tmp;
         }
         avg /= dimension;
-        return (maxw - minw) / (1.0 - avg);
+        return (maxw - minw) / (1.0001 - avg);
       };
+
+      auto penalty7 = [&](HypernodeWeight weight){
+        double minw = std::numeric_limits<double>::max();
+        double maxw = std::numeric_limits<double>::min();
+        for(int d = 0; d < dimension; d++){
+          double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
+          minw = std::min(minw, tmp);
+          maxw = std::max(maxw,tmp);
+        }
+        return 2 * maxw - minw;
+      }
 
       auto penalty = [&](HypernodeWeight weight){
         switch(_context->partition.penalty_metric_idx){
@@ -2414,6 +2425,8 @@ namespace mt_kahypar{
           case 3: return penalty3(weight);
           case 4: return penalty4(weight);
           case 5: return penalty5(weight);
+          case 6: return penalty6(weight);
+          case 7: return penalty7(weight);
         }
       };
 
