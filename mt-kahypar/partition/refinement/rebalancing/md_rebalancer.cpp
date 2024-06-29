@@ -2415,7 +2415,7 @@ namespace mt_kahypar{
           maxw = std::max(maxw,tmp);
         }
         return 2 * maxw - minw;
-      }
+      };
 
       auto penalty = [&](HypernodeWeight weight){
         switch(_context->partition.penalty_metric_idx){
