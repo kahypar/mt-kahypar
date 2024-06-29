@@ -235,7 +235,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     for(int i = 0; i < tmp.size(); i++){
       if(tmp[i] != chg.nodeWeight(i)){
-        std::cout << "difference:" << tmp[i].weights[0] << " " << tmp[i].weights[1] << " " << chg.nodeWeight(i).weights[0] << " " << chg.nodeWeight(i).weights[1] << "\n";
+        std::cout << "difference:" << i << " " << tmp[i].weights[0] << " " << tmp[i].weights[1] << " " << chg.nodeWeight(i).weights[0] << " " << chg.nodeWeight(i).weights[1] << "\n";
         while(true){}}
     }
     _timer.stop_timer("contraction");
