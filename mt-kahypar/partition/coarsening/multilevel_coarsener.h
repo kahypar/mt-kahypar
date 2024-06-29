@@ -150,11 +150,13 @@ class MultilevelCoarsener : public ICoarsener,
     // Random shuffle vertices of current hypergraph
     _current_vertices.resize(current_hg.initialNumNodes());
     parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
+    std::vector<HypernodeID> ctmp(current_hg.initialNumNodes());
     std::stringstream ss(input);  
     std::string word;
     for(HypernodeID hn = 0; hn < current_hg.initialNumNodes(); hn++){
       ss >> word;
       cluster_ids[hn] = stoi(word);
+      ctmp[hn] = stoi(word);
     }
     /*tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
       ASSERT(hn < _current_vertices.size());
@@ -223,6 +225,7 @@ class MultilevelCoarsener : public ICoarsener,
     Hypergraph& chg = Base::currentHypergraph();
     std::vector<HypernodeWeight> tmp(chg.initialNumNodes(), 0);
     for(int i = 0; i < cluster_ids.size(); i++){
+      if(cluster_ids[i] != ctmp[i]) std::cout << 1/0 << "\n";
       tmp[cluster_ids[i]] += current_hg.nodeWeight(i);
     }
     for(int i = 0; i < tmp.size(); i++){
