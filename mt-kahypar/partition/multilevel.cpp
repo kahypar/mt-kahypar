@@ -138,6 +138,7 @@ namespace {
       std::cout << partitioned_hg.partID(hn) << "\n";
     }*/
     PartitionedHypergraph& partitioned_hg = uncoarseningData.coarsestPartitionedHypergraph();
+    for(HypernodeID hn : partitioned_hg.nodes()) std::cout << partitioned_hg.nodeWeight(hn)[0] << " " << partitioned_hg.nodeWeight(hn)[1] << "\n";
     std::ifstream myfile; 
     myfile.open(context.partition.contraction_input_file);
     HypernodeID hn = 0;
