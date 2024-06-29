@@ -226,7 +226,7 @@ class MultilevelCoarsener : public ICoarsener,
     //if(chg.initialNumNodes() == current_hg.initialNumNodes()) std::cout << 1/0 << "\n";
     std::vector<HypernodeWeight> tmp(chg.initialNumNodes(), 0);
     for(HypernodeID hn : current_hg.nodes()){
-      if(current_hg.nodeWeight[hn].weights[1] == 0) std::cout << 1/0;
+      if(current_hg.nodeWeight(hn).weights[1] == 0) std::cout << 1/0;
     }
     for(int i = 0; i < cluster_ids.size(); i++){
       //if(cluster_ids[i] != ctmp[i]) std::cout << 1/0 << "\n";
