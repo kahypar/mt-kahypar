@@ -89,11 +89,11 @@ namespace mt_kahypar::ds {
 
     // Remap community ids
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      if ( nodeIsEnabled(node) ) {
+      /*if ( nodeIsEnabled(node) ) {
         communities[node] = mapping_prefix_sum[communities[node]];
       } else {
         communities[node] = kInvalidHypernode;
-      }
+      }*/
 
       // Reset tmp contraction buffer
       if ( node < coarsened_num_nodes ) {
