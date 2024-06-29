@@ -1974,7 +1974,7 @@ namespace mt_kahypar{
       auto start = std::chrono::high_resolution_clock::now(); 
       auto before_gain = local_attributed_gain;                                                      
       std::vector<HypernodeWeight> max_part_weights_modified(phg->k());
-      std::vector<bool> moved(phg->initialNumNodes(), false);
+      std::vector<int> moved(phg->initialNumNodes(), 0);
       for(PartitionID p = 0; p < phg->k(); p++){
         max_part_weights_modified[p] = l1_factor * _context->partition.max_part_weights[p];
       }                                                       
@@ -2103,7 +2103,7 @@ namespace mt_kahypar{
               if(phg->partWeight(p).weights[i] < _context->partition.max_part_weights[p].weights[i] && phg->partWeight(p).weights[i] < highest_part_weights[p].weights[i]){
                 int prior_diff = _context->partition.max_part_weights[p].weights[i] - highest_part_weights[p].weights[i];
                 while(min_affected_node >= 0 && nodes_sorted[i][min_affected_node].first > prior_diff || prior_diff < 0){
-                  if(!moved[nodes_sorted[i][min_affected_node].second]){
+                  if(moved[nodes_sorted[i][min_affected_node].second] < 10){
                     changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
                   }                  
                   if(min_affected_node == 0) break;
@@ -2113,7 +2113,7 @@ namespace mt_kahypar{
               else if(phg->partWeight(p).weights[i] > _context->partition.max_part_weights[p].weights[i] && phg->partWeight(p).weights[i] > lowest_part_weights[p].weights[i]){
                 int prior_diff = lowest_part_weights[p].weights[i] -  _context->partition.max_part_weights[p].weights[i];
                 while(min_affected_node >= 0 && nodes_sorted[i][min_affected_node].first > prior_diff || prior_diff < 0){
-                  if(!moved[nodes_sorted[i][min_affected_node].second]){
+                  if(moved[nodes_sorted[i][min_affected_node].second] < 10){
                     changed_nodes->push_back(nodes_sorted[i][min_affected_node].second);
                   }
                   if(min_affected_node == 0) break;
@@ -2131,21 +2131,21 @@ namespace mt_kahypar{
           for(PartitionID p = 0; p < phg->k(); p++){
             if(!(phg->partWeight(p) <= _context->partition.max_part_weights[p])){
               for(HypernodeID hn : (*queue->nodes_by_part())[p]){
-                if(!moved[hn]){
+                if(moved[hn] < 10){
                   changed_nodes->push_back(hn);
                 }
               }
             }
           }
           for(HypernodeID hn : *positive_nodes.updateBoundary()){
-            if(!moved[hn]){
+            if(moved[hn] < 10){
               changed_nodes->push_back(hn);
             }
           }
         }
         else{
           for(HypernodeID hn : phg->nodes()){
-            if(!moved[hn]){
+            if(moved[hn] < 10){
               changed_nodes->push_back(hn);
             }
           }
@@ -2156,7 +2156,7 @@ namespace mt_kahypar{
       auto update_nodes = [&](std::vector<HypernodeID> *changed_nodes){
         for(size_t i = 0; i < changed_nodes->size(); i++){
           ASSERT((*changed_nodes)[i] < phg->initialNumNodes());
-          if(moved[(*changed_nodes)[i]]) continue;
+          if(moved[(*changed_nodes)[i]] >= 10) continue;
           if(L == NULL || is_in_L[(*changed_nodes)[i]]){
             if(_context->partition.boundary_update_optimization){
               checkIfPositiveNode((*changed_nodes)[i]);
@@ -2234,7 +2234,7 @@ namespace mt_kahypar{
             lowest_part_weights[move.from].weights[d] = std::min(lowest_part_weights[move.from].weights[d], phg->partWeight(move.from).weights[d]);
             highest_part_weights[move.to].weights[d] = std::max(highest_part_weights[move.to].weights[d], phg->partWeight(move.to).weights[d]);
           }
-          moved[move.node] = true;
+          moved[move.node]++;
           if(moves_linear != NULL){
             move.gain = local_attributed_gain;
             moves_linear->push_back(move);
@@ -2244,14 +2244,14 @@ namespace mt_kahypar{
           std::vector<HypernodeID> changed_nodes;
           for(HyperedgeID& he : edges_with_gain_change){
             for(HypernodeID hn : phg->pins(he)){
-              if(moved[hn]) continue;
+              if(moved[hn] >= 10) continue;
               changed_nodes.push_back(hn);
             }
           }
           if constexpr (PartitionedHypergraph::is_graph) {
             for (const auto e : phg->incidentEdges(move.node)) {
               HypernodeID v = phg->edgeTarget(e);
-              if(moved[v]) continue;
+              if(moved[v] >= 10) continue;
               changed_nodes.push_back(v);            
             }
           }
@@ -2395,20 +2395,6 @@ namespace mt_kahypar{
       auto penalty6 = [&](HypernodeWeight weight){
         double minw = std::numeric_limits<double>::max();
         double maxw = std::numeric_limits<double>::min();
-        double avg = 0.0;
-        for(int d = 0; d < dimension; d++){
-          double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
-          minw = std::min(minw, tmp);
-          maxw = std::max(maxw,tmp);
-          avg += tmp;
-        }
-        avg /= dimension;
-        return (maxw - minw) / (1.0001 - avg);
-      };
-
-      auto penalty7 = [&](HypernodeWeight weight){
-        double minw = std::numeric_limits<double>::max();
-        double maxw = std::numeric_limits<double>::min();
         for(int d = 0; d < dimension; d++){
           double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
           minw = std::min(minw, tmp);
@@ -2426,7 +2412,6 @@ namespace mt_kahypar{
           case 4: return penalty4(weight);
           case 5: return penalty5(weight);
           case 6: return penalty6(weight);
-          case 7: return penalty7(weight);
         }
       };
 
