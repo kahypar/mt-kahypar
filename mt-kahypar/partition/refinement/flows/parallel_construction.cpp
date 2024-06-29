@@ -181,7 +181,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
   const PartitionID block_1,
   vec<HypernodeID>& whfc_to_node,
   const bool deterministic) {
-  if (deterministic) {
+  if (deterministic && _context.partition.instance_type == InstanceType::hypergraph) {
     return constructDefaultDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
@@ -586,7 +586,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
   const PartitionID block_1,
   vec<HypernodeID>& whfc_to_node,
   const bool deterministic) {
-  if (deterministic) {
+  if (deterministic && _context.partition.instance_type == InstanceType::hypergraph) {
     constructOptimizedForLargeHEsDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
