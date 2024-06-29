@@ -47,6 +47,7 @@ namespace mt_kahypar::ds {
    * \param communities Community structure that should be contracted
    */
   StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
+    std::cout << "contraction\n";
     ASSERT(communities.size() == _num_nodes);
 
     if ( !_tmp_contraction_buffer ) {
