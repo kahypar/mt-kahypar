@@ -223,10 +223,10 @@ class MultilevelCoarsener : public ICoarsener,
     // Perform parallel contraction
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), true /* deterministic */, round_start);
     Hypergraph& chg = Base::currentHypergraph();
-    if(chg.initialNumNodes() == current_hg.initialNumNodes()) std::cout << 1/0 << "\n";
+    //if(chg.initialNumNodes() == current_hg.initialNumNodes()) std::cout << 1/0 << "\n";
     std::vector<HypernodeWeight> tmp(chg.initialNumNodes(), 0);
     for(int i = 0; i < cluster_ids.size(); i++){
-      //if(cluster_ids[i] != ctmp[i]) std::cout << 1/0 << "\n";
+      if(cluster_ids[i] != ctmp[i]) std::cout << 1/0 << "\n";
       tmp[cluster_ids[i]] += current_hg.nodeWeight(i);
     }
     for(int i = 0; i < tmp.size(); i++){
