@@ -176,6 +176,14 @@ std::array<double, mt_kahypar::dimension> imbalance(const PartitionedHypergraph&
     max_balance[i] -= 1.0;
   }
 
+  for(int d = 0; d < mt_kahypar::dimension; d++){
+    bool ib = false;
+    for(PartitionID p = 0; p < context.partition.k; p++){
+      if(!(hypergraph.partWeight(p) <= context.partition.max_part_weights[p])) ib = true;
+    }
+    if(!ib) max_balance[d] = std::min(max_balance[i], 0.03);
+  }
+
   return max_balance;
 }
 
