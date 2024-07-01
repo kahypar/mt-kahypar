@@ -77,6 +77,8 @@ struct PartitioningParameters {
 
   bool assure_balance;
 
+  int penalty_metric_idx_binpacking = 1;
+
   bool use_l1_factor_decrease = false;
   double decrease_exponent = 1.0;
 
