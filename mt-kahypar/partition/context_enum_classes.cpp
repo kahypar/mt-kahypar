@@ -547,4 +547,17 @@ namespace mt_kahypar {
     throw InvalidParameterException("Illegal option: " + policy);
     return SteinerTreeFlowValuePolicy::UNDEFINED;
   }
+
+
+  EvoReplaceStrategy EvoReplaceStrategyFromString(const std::string& type) {
+    if (type == "worst") {
+      return EvoReplaceStrategy::worst;
+    } else if (type == "diverse") {
+      return EvoReplaceStrategy::diverse;
+    } else if (type == "strong_divers") {
+      return EvoReplaceStrategy::strong_diverse;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return EvoReplaceStrategy::worst;
+  }
 }

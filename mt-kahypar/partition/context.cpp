@@ -261,9 +261,7 @@ namespace mt_kahypar {
     str << "Evolutionary Parameters:              " << std::endl;
     str << "  Population Size:                    " << params.population_size << std::endl;
     str << "  Mutation Chance                     " << params.mutation_chance << std::endl;
-    str << "  Edge Frequency Chance               " << params.edge_frequency_chance << std::endl;
     str << "  Replace Strategy                    " << params.replace_strategy << std::endl;
-    str << "  Combine Strategy                    " << params.combine_strategy << std::endl;
     str << "  Mutation Strategy                   " << params.mutate_strategy << std::endl;
     str << "  Diversification Interval            " << params.diversify_interval << std::endl;
     return str;
@@ -964,12 +962,12 @@ namespace mt_kahypar {
       str << context.mapping
           << "-------------------------------------------------------------------------------\n";
     }
-    str << context.shared_memory
-        << "-------------------------------------------------------------------------------";
     if (context.partition_evolutionary) {
       str << context.evolutionary
-          << "-------------------------------------------------------------------------------";
+          << "-------------------------------------------------------------------------------\n";
     }
+    str << context.shared_memory
+        << "-------------------------------------------------------------------------------"; 
     return str;
   }
 }

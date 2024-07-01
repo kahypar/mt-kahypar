@@ -181,8 +181,8 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    void EvoPartitioner<TypeTraits>::performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
-        LOG << "Combining: ";
+    std::string EvoPartitioner<TypeTraits>::performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
+        //LOG << "Combining: ";
         //const auto& parents = population.tournamentSelect();
         //std::vector<PartitionID> part1 = parents.first.get().partition();
         //std::vector<PartitionID> part2 = parents.second.get().partition()
@@ -234,18 +234,24 @@ namespace mt_kahypar {
         }
 
         Individual individual(partitioned_hypergraph, context);    
-        LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
+        //LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
+        std::string ret = "";
+        if (individual.fitness() < population.bestFitness()) {
+            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            ret = "" + std::to_string(time.count()) + ", Combine, " + std::to_string(individual.fitness()) + "\n";
+        }
         population.insert(std::move(individual), context);
+        return ret;
     }
 
     template<typename TypeTraits>
-    void EvoPartitioner<TypeTraits>::performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
+    std::string EvoPartitioner<TypeTraits>::performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
         const size_t mutation_position = population.randomIndividual();
         std::vector<PartitionID> cur = population.individualAt(mutation_position).partition();
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
         EvoMutateStrategy mutation = decideNextMutation(context);
         if (mutation == EvoMutateStrategy::vcycle) {
-            LOG << "Mutating old: ";
+            //LOG << "Mutating old: ";
             vec<PartitionID> comms(hypergraph.initialNumNodes());
             std::unordered_map<PartitionID, int> comm_to_block;
             for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -263,7 +269,7 @@ namespace mt_kahypar {
                 throw InvalidParameterException("Invalid partitioning mode!");
             }
         } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
-            LOG << "Mutating new: ";
+            //LOG << "Mutating new: ";
             vec<PartitionID> comms(hypergraph.initialNumNodes());
             for ( const HypernodeID& hn : hypergraph.nodes() ) {
                 comms[hn] = cur[hn];
@@ -276,8 +282,18 @@ namespace mt_kahypar {
             }
         }
         Individual individual(partitioned_hypergraph, context);     
-        LOG << "Mutated Individual with fitness: " << population.individualAt(mutation_position).fitness() << " to " << individual.fitness();
+        //LOG << "Mutated Individual with fitness: " << population.individualAt(mutation_position).fitness() << " to " << individual.fitness();
+        std::string ret = "";
+        if (individual.fitness() < population.bestFitness()) {
+            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            if (mutation == EvoMutateStrategy::vcycle) {
+                ret = "" + std::to_string(time.count()) + ", MutateOld, " + std::to_string(individual.fitness()) + "\n";
+            } else {
+                ret = "" + std::to_string(time.count()) + ", MutateNew, " + std::to_string(individual.fitness()) + "\n";
+            }
+        }
         population.insert(std::move(individual), context);
+        return ret;
     }
 
     template<typename TypeTraits>
@@ -287,6 +303,7 @@ namespace mt_kahypar {
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         int mutations = 0;
         int combinations = 0;
+        std::string history = "";
         while (timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
 
@@ -297,11 +314,11 @@ namespace mt_kahypar {
             EvoDecision decision = decideNextMove(context);
             switch (decision) {
                 case EvoDecision::mutation:
-                    performMutation(hg, context, target_graph, population);
+                    history += performMutation(hg, context, target_graph, population);
                     mutations++;
                     break;
                 case EvoDecision::combine:
-                    performCombine(hg, context, target_graph, population);
+                    history += performCombine(hg, context, target_graph, population);
                     combinations++;
                     break;
                 default:
@@ -316,6 +333,12 @@ namespace mt_kahypar {
         LOG << "Performed " << context.evolutionary.iteration << " Evolutionary Iterations" << "\n";
         LOG << "    " << mutations << " Mutations" << "\n";
         LOG << "    " << combinations << " Combinations" << "\n";
+
+        if (context.evolutionary.history_file != "") {
+            std::ofstream out_stream(context.evolutionary.history_file.c_str());
+            out_stream << history;
+            out_stream.close();
+        }
     }
 
 }  // namespace mt_kahypar

@@ -55,9 +55,8 @@ namespace internal {
     // Partition Hypergraph
 
     context.partition_evolutionary = true;
-    context.partition.time_limit = 5;
 
-    context.evolutionary.population_size=10;
+    /*context.evolutionary.population_size=10;
     context.evolutionary.dynamic_population_size=false;
     context.evolutionary.dynamic_population_amount_of_time=0.15;
     context.evolutionary.diversify_interval=1;
@@ -68,7 +67,7 @@ namespace internal {
     context.evolutionary.unlimited_coarsening_contraction=true;
     context.evolutionary.mutation_chance=0.5;
     context.evolutionary.mutate_strategy=EvoMutateStrategy::vcycle;
-    context.evolutionary.random_vcycles=true;
+    context.evolutionary.random_vcycles=true;*/
 
     if (context.partition_evolutionary && context.partition.time_limit > 0) {
       partitioned_hg =
