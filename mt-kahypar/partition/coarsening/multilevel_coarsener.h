@@ -220,32 +220,9 @@ class MultilevelCoarsener : public ICoarsener,
     _progress_bar += (num_hns_before_pass - current_num_nodes);
     */
     _timer.start_timer("contraction", "Contraction");
-    // Perform parallel contraction
-    std::cout << "c0: \n"; /*current_hg.nodeWeight(0).weights[0] << " " << current_hg.nodeWeight(0).weights[1] << "\n";*/
-    for(int i = 0; i < cluster_ids.size(); i++){
-      std::cout << cluster_ids[i] << " ";
-    }
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), true /* deterministic */, round_start);
     Hypergraph& chg = Base::currentHypergraph();
-    //if(chg.initialNumNodes() == current_hg.initialNumNodes()) std::cout << 1/0 << "\n";
-    std::vector<HypernodeWeight> tmp(chg.initialNumNodes(), 0);
-    std::cout << "sizes: " << current_hg.initialNumNodes() << " " << chg.initialNumNodes() << "\n";
-    for(HypernodeID hn : current_hg.nodes()){
-      //if(current_hg.nodeWeight(hn).weights[1] == 0) std::cout << 1/0;
-    }
-    std::cout << "c0: \n"; /*current_hg.nodeWeight(0).weights[0] << " " << current_hg.nodeWeight(0).weights[1] << "\n";*/
-    /*for(int i = 0; i < cluster_ids.size(); i++){
-      std::cout << cluster_ids[i] << " ";
-      if(cluster_ids[i] != ctmp[i]) std::cout << 1/0 << "\n";
-      tmp[cluster_ids[i]] += current_hg.nodeWeight(i);
-    }
-    for(int i = 0; i < tmp.size(); i++){
-      if(tmp[i] != chg.nodeWeight(i)){
-        std::cout << "difference:" << i << " " << tmp[i].weights[0] << " " << tmp[i].weights[1] << " " << chg.nodeWeight(i).weights[0] << " " << chg.nodeWeight(i).weights[1] << "\n";
-        while(true){}}
-    }*/
     _timer.stop_timer("contraction");
-
     ++_pass_nr;
     return true;
   }
