@@ -707,6 +707,41 @@ namespace mt_kahypar {
     return mapping_options;
   }
 
+  po::options_description createEvolutionaryOptionsDescription(Context& context, const int num_columns) {
+    po::options_description options("Evolutionary Options", num_columns);
+    options.add_options()
+            ("partition-evolutionary",
+             po::value<bool>(&context.partition_evolutionary)->value_name("<bool>"),
+             "Use memetic algorithm for partitioning")
+            ("evo-population-size",
+             po::value<size_t>(&context.evolutionary.population_size)->value_name("<size_t>")->default_value(10),
+             "Size of the population for the evolution\n")
+            ("evo-dynamic-population-size",
+            po::value<bool>(&context.evolutionary.dynamic_population_size)->value_name("<bool>")->default_value(false),
+            "Use dynamic population siez for the evolution")
+            ("evo-dynamic-population-time",
+             po::value<double>(&context.evolutionary.dynamic_population_amount_of_time)->value_name("<double>"),
+             "Time to generate the population, when dynamic population is enabled")
+            ("evo-replacement-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.evolutionary.replace_strategy = EvoReplaceStrategyFromString(strategy);
+                     }),
+             "Replacement strategy")
+            ("evo-diversify-interval",
+             po::value<int>(&context.evolutionary.diversify_interval)->value_name("<int>")->default_value(-1),
+             "The Frequency in which diversfication should be performed\n"
+             "(default: -1)(-1 disables)")
+             ("evo-mutate-chance",
+              po::value<float>(&context.evolutionary.mutation_chance)->value_name("<float>")->default_value(0.5),
+              "The Chance of a mutation being selected as operation\n"
+              "default: 0.5)")
+             ("evo-history-file",
+              po::value<std::string>(&context.evolutionary.history_file)->value_name("<string>"),
+              "Output file for evolution history");
+    return options;
+  }
+
   po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                                const int num_columns) {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
@@ -782,6 +817,8 @@ namespace mt_kahypar {
             createFlowRefinementOptionsDescription(context, num_columns, false);
     po::options_description mapping_options =
             createMappingOptionsDescription(context, num_columns);
+    po::options_description evolutionary_options =
+            createEvolutionaryOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -796,6 +833,7 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
+            .add(evolutionary_options)
             .add(shared_memory_options);
 
     po::variables_map cmd_vm;

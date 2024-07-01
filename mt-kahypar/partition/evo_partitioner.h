@@ -35,8 +35,8 @@ class EvoPartitioner {
     static EvoDecision decideNextMove(const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, std::vector<size_t> ids);
-    static void performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
-    static void performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static std::string performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static std::string performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
 };
 
 }  // namespace mt_kahypar

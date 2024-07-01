@@ -273,23 +273,13 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 struct EvolutionaryParameters {
   size_t population_size;
   float mutation_chance;
-  float edge_frequency_chance;
   EvoReplaceStrategy replace_strategy;
-  mutable EvoCombineStrategy combine_strategy = EvoCombineStrategy::UNDEFINED;
   mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
   int diversify_interval;  // -1 disables diversification
-  double gamma;
-  size_t edge_frequency_amount;
   bool dynamic_population_size;
   double dynamic_population_amount_of_time;
-  bool random_combine_strategy;
   mutable int iteration;
-  mutable Action action;
-  const std::vector<PartitionID>* parent1 = nullptr;
-  const std::vector<PartitionID>* parent2 = nullptr;
-  mutable std::vector<size_t> edge_frequency;
-  bool unlimited_coarsening_contraction;
-  bool random_vcycles;
+  std::string history_file;
 };
 
 std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params);
