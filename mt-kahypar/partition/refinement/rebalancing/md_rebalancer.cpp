@@ -2414,6 +2414,17 @@ namespace mt_kahypar{
           case 6: return penalty6(weight);
         }
       };
+      auto penalty_binpack = [&](HypernodeWeight weight){
+        switch(_context->partition.penalty_metric_idx_binpacking){
+          case 0: return penalty0(weight);
+          case 1: return penalty1(weight);
+          case 2: return penalty2(weight);
+          case 3: return penalty3(weight);
+          case 4: return penalty4(weight);
+          case 5: return penalty5(weight);
+          case 6: return penalty6(weight);
+        }
+      };
 
       std::vector<HypernodeID> S;
       std::vector<bool> is_in_S(phg->initialNumNodes(), false);
@@ -2505,7 +2516,7 @@ namespace mt_kahypar{
           PartitionID max_p = _context->partition.fallback_extract_equally ? select_heaviest_p() : select_max_pen_p();
           if(!extract(max_p)) return {0.0,false};
         }
-        if(binpacker.binpack(S.size(), virtual_weight, penalty)){
+        if(binpacker.binpack(S.size(), virtual_weight, penalty_binpack)){
           break;
         }
         else{
@@ -2546,7 +2557,7 @@ namespace mt_kahypar{
           S_weight += get_normalized_weight(phg->nodeWeight(S[last_idx]));          
         }
         ASSERT(last_idx + 1 >= starting_size);
-        if(binpacker.binpack(last_idx + 1, virtual_weight, penalty)){
+        if(binpacker.binpack(last_idx + 1, virtual_weight, penalty_binpack)){
           succ_idx = last_idx + 1;
           upper = current;
           highest_possible_idx = last_idx;

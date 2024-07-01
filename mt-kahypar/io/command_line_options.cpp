@@ -171,6 +171,9 @@ namespace mt_kahypar {
              ("penalty-metric-idx",
              po::value<int>(&context.partition.penalty_metric_idx)->value_name("<bool>")->default_value(0),
              "max imbalance of refinement in md_rebalancer")
+             ("penalty-metric-idx-binpack",
+             po::value<int>(&context.partition.penalty_metric_idx_binpacking)->value_name("<bool>")->default_value(0),
+             "max imbalance of refinement in md_rebalancer")
              ("l1-factor",
              po::value<double>(&context.partition.l1_start_factor)->value_name("<double>")->default_value(1.0),
              "l1 factor")

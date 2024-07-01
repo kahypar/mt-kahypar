@@ -85,6 +85,7 @@ struct PartitioningParameters {
   double fallback_large_node_threshold;
   bool fallback_extract_equally = false;
   int penalty_metric_idx;
+  int penalty_metric_idx_binpacking = 1;
 
   bool constrained_refinement_after_fallback = false;
 
