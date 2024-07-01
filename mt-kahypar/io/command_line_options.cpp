@@ -156,6 +156,9 @@ namespace mt_kahypar {
              ("assure-balance",
              po::value<bool>(&context.partition.assure_balance)->value_name("<bool>")->default_value(true),
              "max imbalance of refinement in md_rebalancer")
+             ("use-fallback",
+             po::value<bool>(&context.partition.use_fallback)->value_name("<bool>")->default_value(true),
+             "max imbalance of refinement in md_rebalancer")
              ("constraint-in-unconstraint",
              po::value<bool>(&context.partition.constraint_in_unconstraint)->value_name("<bool>")->default_value(true),
              "max imbalance of refinement in md_rebalancer")

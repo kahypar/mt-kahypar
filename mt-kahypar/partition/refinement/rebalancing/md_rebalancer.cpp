@@ -1694,7 +1694,7 @@ namespace mt_kahypar{
             greedyRefiner(rebalance_moves, best_metrics, local_attributed_gain, factor);
           }
         }
-        else{
+        else if(_context->partition.use_fallback){
           HypernodeID size = rebalance_moves->size();
           vec<bool> L(phg->initialNumNodes(), false);
           auto start = std::chrono::high_resolution_clock::now(); 

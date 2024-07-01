@@ -80,6 +80,7 @@ struct PartitioningParameters {
   bool use_l1_factor_decrease = false;
   double decrease_exponent = 1.0;
 
+  bool use_fallback = true;
   double L_threshold = 0.0;
   double fallback_large_node_threshold;
   bool fallback_extract_equally = false;
