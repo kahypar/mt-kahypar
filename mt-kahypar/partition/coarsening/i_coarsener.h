@@ -27,7 +27,6 @@
 #pragma once
 
 #include <string>
-#include <fstream>
 
 #include "include/libmtkahypartypes.h"
 
@@ -45,30 +44,19 @@ class ICoarsener {
   ICoarsener & operator= (const ICoarsener &) = delete;
   ICoarsener & operator= (ICoarsener &&) = delete;
 
-  void coarsen(std::string ipf) {
+  void coarsen() {
     initialize();
     bool should_continue = true;
     int pass_nr = 0;
-    std::ifstream myfile; 
-    myfile.open(ipf);
-    HypernodeID hn = 0;
-    while(myfile){
-      std::string nextline;
-      std::getline(myfile, nextline);
-      if(nextline.rfind("IP") == 0 || nextline.rfind(" ") == -1) break;
-      coarseningPassImpl(nextline);        
-    }
-    myfile.close();
-       
     // Coarsening algorithms proceed in passes where each pass computes a clustering
     // of the nodes and subsequently contracts it. Each pass induces one level of the
     // hierarchy. The coarsening algorithms proceeds until the number of nodes equals
     // a predefined contraction limit (!shouldNotTerminate) or the number of nodes could
     // not be significantly reduced within one coarsening pass (should_continue).
-    /*while ( shouldNotTerminate() && should_continue ) {
+    while ( shouldNotTerminate() && should_continue ) {
       /*timer.start_timer("coarsening pass " + pass_nr, "CoarseningPass" + pass_nr);*/
-      /*should_continue = coarseningPass();
-    }*/
+      should_continue = coarseningPass();
+    }
     terminate();
   }
 
@@ -77,11 +65,11 @@ class ICoarsener {
   }
 
   bool shouldNotTerminate() const {
-    return false/*shouldNotTerminateImpl()*/;
+    return shouldNotTerminateImpl();
   }
 
   bool coarseningPass() {
-    return coarseningPassImpl("");
+    return coarseningPassImpl();
   }
 
   void terminate() {
@@ -109,7 +97,7 @@ class ICoarsener {
  private:
   virtual void initializeImpl() = 0;
   virtual bool shouldNotTerminateImpl() const = 0;
-  virtual bool coarseningPassImpl(std::string input) = 0;
+  virtual bool coarseningPassImpl() = 0;
   virtual void terminateImpl() = 0;
   virtual HypernodeID currentNumberOfNodesImpl() const = 0;
   virtual mt_kahypar_hypergraph_t coarsestHypergraphImpl() = 0;

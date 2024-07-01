@@ -33,7 +33,7 @@
 namespace mt_kahypar {
 
 template<typename TypeTraits>
-bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl(std::string input) {
+bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   const auto pass_start_time = std::chrono::high_resolution_clock::now();
   timer.start_timer("coarsening_pass", "Clustering");

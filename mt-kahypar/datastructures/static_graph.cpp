@@ -47,7 +47,6 @@ namespace mt_kahypar::ds {
    * \param communities Community structure that should be contracted
    */
   StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
-    std::cout << "contraction\n";
     ASSERT(communities.size() == _num_nodes);
 
     if ( !_tmp_contraction_buffer ) {
@@ -90,11 +89,11 @@ namespace mt_kahypar::ds {
 
     // Remap community ids
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      /*if ( nodeIsEnabled(node) ) {
+      if ( nodeIsEnabled(node) ) {
         communities[node] = mapping_prefix_sum[communities[node]];
       } else {
         communities[node] = kInvalidHypernode;
-      }*/
+      }
 
       // Reset tmp contraction buffer
       if ( node < coarsened_num_nodes ) {
@@ -117,7 +116,7 @@ namespace mt_kahypar::ds {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
       ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
       // Weight vector is atomic => thread-safe
-      node_weights[coarse_node].add_fetch(nodeWeight(node), std::memory_order_relaxed);
+      node_weights[coarse_node] += nodeWeight(node);
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });

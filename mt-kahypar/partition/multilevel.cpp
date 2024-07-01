@@ -82,6 +82,7 @@ namespace {
     const bool is_vcycle) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    PartitionedHypergraph partitioned_hg;
 
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(context);
@@ -96,7 +97,7 @@ namespace {
         context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
         context, uncoarsening::to_pointer(uncoarseningData));
       
-      coarsener->coarsen(context.partition.contraction_input_file);
+      coarsener->coarsen();
 
       if (context.partition.verbose_output) {
         mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
@@ -106,39 +107,16 @@ namespace {
       }
     }
     timer.stop_timer("coarsening");
-    std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    /*std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      /*uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, target_graph);*/
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
     }
-    /*PartitionedHypergraph partitioned_hg;
-    int initial_num = hypergraph.initialNumEdges();
-    partitioned_hg = PartitionedHypergraph(context.partition.k, hypergraph);
-
-
-    std::ifstream myfile; 
-    myfile.open(context.partition.partition_input_file);
-    HypernodeID hn = 0;
-    while(myfile){
-      std::string nextline;
-      std::getline(myfile, nextline);
-      if(nextline != ""){
-        ASSERT(stoi(nextline) < partitioned_hg.k());
-        partitioned_hg.setOnlyNodePart(hn, stoi(nextline));
-      }
-      hn++;        
-    }
-    myfile.close();
-    partitioned_hg.initializePartition();*/
-
-    /*for(HypernodeID hn : partitioned_hg.nodes()){
-      std::cout << partitioned_hg.partID(hn) << "\n";
-    }*/
     PartitionedHypergraph& partitioned_hg = uncoarseningData.coarsestPartitionedHypergraph();
-    std::ifstream myfile; 
+    /*std::ifstream myfile; 
     myfile.open(context.partition.contraction_input_file);
     HypernodeID hn = 0;
     bool is_partfile = false;
@@ -176,11 +154,11 @@ namespace {
     PartitionedHypergraph back = uncoarsener->uncoarsen();
     /*partitioned_hg = uncoarsener->doLastRefine(&partitioned_hg);*/
 
-    io::printPartitioningResults(back, context, "Local Search Results:");
-    return back;
+    /*io::printPartitioningResults(back, context, "Local Search Results:");
+    return back;*/
     
 
-    /*// ################## INITIAL PARTITIONING ##################
+    // ################## INITIAL PARTITIONING ##################
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
@@ -267,17 +245,17 @@ namespace {
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, target_graph);
+      /*uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);*/
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
     }
     partitioned_hg = uncoarsener->uncoarsen();
-    partitioned_hg = uncoarsener->doLastRefine();
+    /*partitioned_hg = uncoarsener->doLastRefine();*/
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     timer.stop_timer("refinement");
-    return partitioned_hg;*/
+    return partitioned_hg;
   }
 }
 
