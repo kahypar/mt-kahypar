@@ -254,7 +254,7 @@ namespace mt_kahypar{
       index_to_id.resize(dimension * phg->k());
       for(HypernodeID hn : phg->nodes()){
         if((*L)[hn]) continue;
-        if(totalweight(phg->nodeWeight(hn)) > std::max(_context->partition.fallback_large_node_threshold, dimension * max_ib)) continue;
+        if(totalweight(phg->nodeWeight(hn)) > std::max(_context->partition.fallback_large_node_threshold * dimension, dimension * max_ib)) continue;
         id_to_index[hn] = index_to_id[phg->partID(hn)].size();
         index_to_id[phg->partID(hn)].push_back(hn);
       }
