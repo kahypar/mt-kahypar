@@ -2403,6 +2403,15 @@ namespace mt_kahypar{
         return 2 * maxw - minw;
       };
 
+      auto penalty7 = [&](HypernodeWeight weight){
+        double maxw = std::numeric_limits<double>::min();
+        for(int d = 0; d < dimension; d++){
+          double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
+          maxw = std::max(maxw,tmp);
+        }
+        return maxw;
+      };
+
       auto penalty = [&](HypernodeWeight weight){
         switch(_context->partition.penalty_metric_idx){
           case 0: return penalty0(weight);
@@ -2412,6 +2421,7 @@ namespace mt_kahypar{
           case 4: return penalty4(weight);
           case 5: return penalty5(weight);
           case 6: return penalty6(weight);
+          case 7: return penalty7(weight);
         }
       };
 
@@ -2424,6 +2434,7 @@ namespace mt_kahypar{
           case 4: return penalty4(weight);
           case 5: return penalty5(weight);
           case 6: return penalty6(weight);
+          case 7: return penalty7(weight);
         }
       };
 
