@@ -2403,7 +2403,7 @@ namespace mt_kahypar{
         return 2 * maxw - minw;
       };
 
-      auto penalty7 = [&](){
+      auto penalty7 = [&](HypernodeWeight weight){
         double maxw = std::numeric_limits<double>::min();
         for(int d = 0; d < dimension; d++){
           double tmp = weight.weights[d] * _context->partition.max_part_weights_inv[0][d];
