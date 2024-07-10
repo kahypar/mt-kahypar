@@ -63,7 +63,7 @@ The Multi-Threaded Karlsruhe Graph and Hypergraph Partitioning Framework require
    on which we rely on which causes on our side a segmentation fault in really rare cases. If you want to ignore these
    warning, you can add `-DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF` to the cmake build command.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
- - The [Scalable Library for Eigenvalue Problem Computations][slepc]
+ - For spectral refinement, the dependencies listed in spectral.md
 
 ### Linux
 
