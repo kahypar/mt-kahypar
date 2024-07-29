@@ -26,10 +26,10 @@ namespace mt_kahypar {
         // ################## PREPROCESSING ##################
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         timer.start_timer("preprocessing", "Preprocessing");
-        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        /*DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
         preprocess(hypergraph, context, target_graph);
-        sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+        sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);*/
         timer.stop_timer("preprocessing");
 
         Population population;
@@ -62,9 +62,9 @@ namespace mt_kahypar {
 
         // ################## POSTPROCESSING ##################
         timer.start_timer("postprocessing", "Postprocessing");
-        large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+        /*large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
-        forceFixedVertexAssignment(partitioned_hypergraph, context);
+        forceFixedVertexAssignment(partitioned_hypergraph, context);*/
         timer.stop_timer("postprocessing");
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
@@ -123,7 +123,12 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, Population& population) {
+    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, Population& population) { 
+        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
+        preprocess(hypergraph, context, target_graph);
+        sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+        
         EvoPartitioner<TypeTraits>::PartitionedHypergraph partitioned_hypergraph;
         if (context.partition.mode == Mode::direct) {
             partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
@@ -135,6 +140,10 @@ namespace mt_kahypar {
         } else {
             throw InvalidParameterException("Invalid partitioning mode!");
         }
+
+        large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+        degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
+        forceFixedVertexAssignment(partitioned_hypergraph, context);
 
         Individual individual(partitioned_hypergraph, context);
         return population.addStartingIndividual(individual, context);
@@ -233,7 +242,7 @@ namespace mt_kahypar {
             throw InvalidParameterException("Invalid partitioning mode!");
         }
 
-        Individual individual(partitioned_hypergraph, context);    
+        Individual individual(partitioned_hypergraph, context);
         //LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
         std::string ret = "";
         if (individual.fitness() < population.bestFitness()) {
@@ -303,7 +312,8 @@ namespace mt_kahypar {
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         int mutations = 0;
         int combinations = 0;
-        std::string history = "";
+        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        std::string history = "" + std::to_string(time.count()) + ", Initial, " + std::to_string(population.bestFitness()) + "\n";
         while (timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
 
@@ -311,26 +321,28 @@ namespace mt_kahypar {
 
 
             tbb::parallel_for(0, 1, [&](const int i) {
-            EvoDecision decision = decideNextMove(context);
-            switch (decision) {
-                case EvoDecision::mutation:
-                    history += performMutation(hg, context, target_graph, population);
-                    mutations++;
-                    break;
-                case EvoDecision::combine:
-                    history += performCombine(hg, context, target_graph, population);
-                    combinations++;
-                    break;
-                default:
-                    LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
-                    std::exit(EXIT_FAILURE);
-            }
+                EvoDecision decision = decideNextMove(context);
+                switch (decision) {
+                    case EvoDecision::mutation:
+                        history += performMutation(hg, context, target_graph, population);
+                        mutations++;
+                        break;
+                    case EvoDecision::combine:
+                        history += performCombine(hg, context, target_graph, population);
+                        combinations++;
+                        break;
+                    default:
+                        LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
+                        std::exit(EXIT_FAILURE);
+                }
             });
             timer.stop_timer("evolutionary");
         }
         hg.reset();
         context.partition.verbose_output = true;
         LOG << "Performed " << context.evolutionary.iteration << " Evolutionary Iterations" << "\n";
+        LOG << "    " << (context.evolutionary.iteration - mutations - combinations)
+            << " Initial Population members" << "\n";
         LOG << "    " << mutations << " Mutations" << "\n";
         LOG << "    " << combinations << " Combinations" << "\n";
 
