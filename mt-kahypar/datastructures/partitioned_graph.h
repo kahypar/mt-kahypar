@@ -592,6 +592,14 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
+                            PartitionID from,
+                            PartitionID to) {
+    return changeNodePartImpl<true, false>(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, NOOP_FUNC, NOOP_NOTIFY_FUNC);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       const DeltaFunction& delta_func) {
