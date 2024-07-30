@@ -179,7 +179,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
     }
   });
   timer.stop_timer("reb_calculate_moves");
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t part) {
+  tbb::parallel_for(0, _current_k, [&](const PartitionID part) {
     const bool measureTime = part == _most_imbalanced_part;
     if (tmp_potential_moves[part].size() > 0) {
       if (measureTime) {

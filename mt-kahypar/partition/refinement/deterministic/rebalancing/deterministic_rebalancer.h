@@ -187,7 +187,7 @@ private:
     void weakRebalancingRound(PartitionedHypergraph& phg);
 
     bool checkPreviouslyOverweightParts(const PartitionedHypergraph& phg) const {
-        for (size_t i = 0; i < _moves.size(); ++i) {
+        for (PartitionID i = 0; i < _current_k; ++i) {
             const auto partWeight = phg.partWeight(i);
             unused(partWeight);
             if (_moves[i].size() > 0) {
