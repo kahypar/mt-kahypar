@@ -63,9 +63,10 @@ enum class PresetType : int8_t {
   UNDEFINED
 };
 
-enum class ContextType : bool {
+enum class ContextType : uint8_t {
   main,
-  initial_partitioning
+  initial_partitioning,
+  evolutionary
 };
 
 enum class Mode : uint8_t {

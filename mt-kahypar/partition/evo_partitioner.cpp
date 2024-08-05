@@ -1,5 +1,6 @@
 #include "evo_partitioner.h"
 #include "partitioner.cpp"
+#include <mutex>
 
 namespace mt_kahypar {
 
@@ -95,6 +96,10 @@ namespace mt_kahypar {
         //context.evolutionary.dynamic_population_size = true;
         //context.evolutionary.population_size = 50;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+        auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        auto time_elapsed = now - start;
+        auto duration = std::chrono::seconds(timelimit);
         // INITIAL POPULATION
         if (context.evolutionary.dynamic_population_size) {
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -112,13 +117,17 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
-        while (population.size() < context.evolutionary.population_size &&
-            timer.get("evolutionary") <= timelimit) {
+        while (population.size() < context.evolutionary.population_size && 
+            time_elapsed <= duration) {
+            //timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
             generateIndividual(hg, context, target_graph, population);
             timer.stop_timer("evolutionary");
+            now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            time_elapsed = now - start;
         }
+        context.evolutionary.time_elapsed = time_elapsed;
         context.partition.verbose_output = true;
     }
 
@@ -249,6 +258,7 @@ namespace mt_kahypar {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             ret = "" + std::to_string(time.count()) + ", Combine, " + std::to_string(individual.fitness()) + "\n";
         }
+        std::lock_guard<std::mutex> lock = population.getLock();
         population.insert(std::move(individual), context);
         return ret;
     }
@@ -301,8 +311,27 @@ namespace mt_kahypar {
                 ret = "" + std::to_string(time.count()) + ", MutateNew, " + std::to_string(individual.fitness()) + "\n";
             }
         }
+        std::lock_guard<std::mutex> lock = population.getLock();
         population.insert(std::move(individual), context);
         return ret;
+    }
+
+    inline void disableTimerAndStatsEvo(const Context& context) {
+        if ( context.type == ContextType::main && context.partition.mode == Mode::direct ) {
+            utils::Utilities& utils = utils::Utilities::instance();
+            parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
+            utils.getTimer(context.utility_id).disable();
+            utils.getStats(context.utility_id).disable();
+        }
+    }
+
+    inline void enableTimerAndStatsEvo(const Context& context) {
+        if ( context.type == ContextType::main && context.partition.mode == Mode::direct ) {
+            utils::Utilities& utils = utils::Utilities::instance();
+            parallel::MemoryPool::instance().activate_unused_memory_allocations();
+            utils.getTimer(context.utility_id).enable();
+            utils.getStats(context.utility_id).enable();
+        }
     }
 
     template<typename TypeTraits>
@@ -312,33 +341,85 @@ namespace mt_kahypar {
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         int mutations = 0;
         int combinations = 0;
-        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-        std::string history = "" + std::to_string(time.count()) + ", Initial, " + std::to_string(population.bestFitness()) + "\n";
-        while (timer.get("evolutionary") <= timelimit) {
+        auto time_start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        std::string history = "" + std::to_string(time_start.count()) + ", Initial, " + std::to_string(population.bestFitness()) + "\n";
+        std::mutex _history_mutex;
+        /*while (timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
 
             timer.start_timer("evolutionary", "Evolutionary");
 
-
-            tbb::parallel_for(0, 1, [&](const int i) {
+            tbb::parallel_for(0, 4, [&](const int i) {
+                Context evo_context(context);
+                evo_context.type = ContextType::main;
+                evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
                 EvoDecision decision = decideNextMove(context);
+                EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy();
                 switch (decision) {
-                    case EvoDecision::mutation:
-                        history += performMutation(hg, context, target_graph, population);
-                        mutations++;
-                        break;
-                    case EvoDecision::combine:
-                        history += performCombine(hg, context, target_graph, population);
-                        combinations++;
-                        break;
+                    case EvoDecision::mutation: 
+                        {
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            history += performMutation(hg_copy, evo_context, target_graph, population);
+                            mutations++;
+                            break;
+                        }
+                    case EvoDecision::combine: 
+                        {
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            history += performCombine(hg_copy, evo_context, target_graph, population);
+                            combinations++;
+                            break;
+                        }
                     default:
                         LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
                         std::exit(EXIT_FAILURE);
                 }
             });
             timer.stop_timer("evolutionary");
-        }
-        hg.reset();
+        }*/
+
+        auto duration = std::chrono::seconds(timelimit) - context.evolutionary.time_elapsed;
+        std::atomic<bool> stop_flag(false);
+        timer.start_timer("evolutionary", "Evolutionary");
+        tbb::parallel_for(0, int(context.shared_memory.num_threads), [&](int) {
+            while(!stop_flag) {
+                auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                if (now - time_start >= duration) {
+                    stop_flag = true;
+                    break;
+                }
+                Context evo_context(context);
+                evo_context.type = ContextType::main;
+                evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+                EvoDecision decision = decideNextMove(context);
+                EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy();
+                switch (decision) {
+                    case EvoDecision::mutation: 
+                        {
+                            std::string h = performMutation(hg_copy, evo_context, target_graph, population);
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            history += h;
+                            mutations++;
+                            ++context.evolutionary.iteration;
+                            break;
+                        }
+                    case EvoDecision::combine: 
+                        {
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            std::string h = performCombine(hg_copy, evo_context, target_graph, population);
+                            combinations++;
+                            history += h;
+                            ++context.evolutionary.iteration;
+                            break;
+                        }
+                    default:
+                        LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
+                        std::exit(EXIT_FAILURE);
+                }
+            }
+        });
+        timer.stop_timer("evolutionary");
+
         context.partition.verbose_output = true;
         LOG << "Performed " << context.evolutionary.iteration << " Evolutionary Iterations" << "\n";
         LOG << "    " << (context.evolutionary.iteration - mutations - combinations)

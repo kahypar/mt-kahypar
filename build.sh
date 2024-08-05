@@ -20,7 +20,8 @@ if [ ! -f build/Makefile ]; then
   mkdir -p build
 fi
 
-#cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug $CMAKE_COMMANDS && cd ${ROOT}
+#cd build_debug && cmake .. -DCMAKE_BUILD_TYPE=Debug $CMAKE_COMMANDS && cd ${ROOT}
+#cmake  --build build_debug --parallel "$(get_num_cores)" --target MtKaHyPar
 cd build && cmake .. -DCMAKE_BUILD_TYPE=Release $CMAKE_COMMANDS && cd ${ROOT}
 cmake  --build build --parallel "$(get_num_cores)" --target MtKaHyPar
 

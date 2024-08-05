@@ -279,6 +279,7 @@ struct EvolutionaryParameters {
   bool dynamic_population_size;
   double dynamic_population_amount_of_time;
   mutable int iteration;
+  mutable std::chrono::milliseconds time_elapsed;
   std::string history_file;
 };
 

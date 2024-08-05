@@ -37,6 +37,7 @@ class Population {
 
  public:
   explicit Population() :
+    _population_mutex(),
     _individuals() { }
 
   inline size_t insert(Individual&& individual, const Context& context) {
@@ -225,6 +226,10 @@ class Population {
     return output_diff.size();
   }
 
+  std::lock_guard<std::mutex> getLock() {
+    return std::lock_guard<std::mutex>(_population_mutex);
+  }
+
  private:
   inline size_t replaceDiverse(Individual&& individual, const bool strong_set) {
     size_t max_similarity = std::numeric_limits<size_t>::max();
@@ -248,6 +253,7 @@ class Population {
     return max_similarity_id;
   }
 
+  std::mutex _population_mutex;
   std::vector<Individual> _individuals;
 };
 std::ostream& operator<< (std::ostream& os, const Population& population);
