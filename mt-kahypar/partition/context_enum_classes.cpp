@@ -92,8 +92,10 @@ namespace mt_kahypar {
   std::ostream& operator<< (std::ostream& os, const ContextType& type) {
     if (type == ContextType::main) {
       return os << "main";
-    } else {
+    } else if (type == ContextType::initial_partitioning) {
       return os << "ip";
+    } else {
+      return os << "evo";
     }
     return os << static_cast<uint8_t>(type);
   }

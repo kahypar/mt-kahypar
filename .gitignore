@@ -12,6 +12,7 @@ clang-debug/*
 *.cfg~
 build/*
 build2/*
+build_debug/*
 build_numa/*
 build_nlevel/*
 build_interleaved/*
