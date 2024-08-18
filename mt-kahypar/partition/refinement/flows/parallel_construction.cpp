@@ -587,7 +587,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
   vec<HypernodeID>& whfc_to_node,
   const bool deterministic) {
   if (deterministic && _context.partition.instance_type == InstanceType::hypergraph) {
-    constructOptimizedForLargeHEsDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
+    return constructOptimizedForLargeHEsDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
@@ -890,10 +890,10 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
 
       size_t start_idx = 0;
       last_he = pins_of_bucket[start_idx].e;
-      vec<whfc::Node>& tmp_pins = tmp_hyperedges[last_he].pins;
       HypernodeID pin_count_in_block_0 = 0;
       HypernodeID pin_count_in_block_1 = 0;
       auto add_hyperedge = [&](const size_t end_idx) {
+        vec<whfc::Node>& tmp_pins = tmp_hyperedges[last_he].pins;
         ASSERT(start_idx < end_idx);
         tmp_pins.clear();
         const HyperedgeID he = sub_hg.hes[last_he];
@@ -932,7 +932,6 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
               tmp_pins.push_back(pins_of_bucket[i].pin);
               hash += kahypar::math::hash(pins_of_bucket[i].pin);
             }
-
             if (tmp_pins.size() > 1) {
               hyperedge_hash_map.insert(hash,
                 ContractedHyperedgeInformation{ last_he, hash, tmp_pins.size(), true });
@@ -1033,8 +1032,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
       if (valid_hyperedges[i]) {
         const size_t pin_start = pin_idx;
         const size_t pin_end = pin_start + tmp_hyperedges[i].pins.size();
-        for (size_t j = 0; j < tmp_hyperedges[i].pins.size(); ++j) {
-          _flow_hg.addPin(tmp_hyperedges[i].pins[j], idx, pin_idx++);
+        for (const auto p : tmp_hyperedges[i].pins) {
+          _flow_hg.addPin(p, idx, pin_idx++);
         }
         TmpHyperedge tmp_e{ 0, idx, e++ };
         if (_context.refinement.flows.determine_distance_from_cut &&

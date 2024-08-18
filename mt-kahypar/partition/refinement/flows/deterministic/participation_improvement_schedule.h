@@ -91,13 +91,13 @@ public:
         std::sort(_partitions_sorted_by_participations.begin(), _partitions_sorted_by_participations.end(), [&](const PartitionID i, const PartitionID j) {
             return _participations[i] > _participations[j] || (_participations[i] == _participations[j] && i < j);
         });
-        tbb::parallel_for(PartitionID(0), _k, [&](const size_t i) {
+        tbb::parallel_for(PartitionID(0), _k, [&](const PartitionID i) {
             auto& active_pairs = _active_block_pairs[i];
             std::sort(active_pairs.begin(), active_pairs.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
-                const HyperedgeWeight lImprove = qg.getImprovement(i, lhs);
-                const HyperedgeWeight rImprove = qg.getImprovement(i, rhs);
-                const HyperedgeWeight lCut = qg.getCutWeight(i, lhs);
-                const HyperedgeWeight rCut = qg.getCutWeight(i, rhs);
+                const HyperedgeWeight lImprove = qg.getImprovement(std::min(i, lhs), std::max(i, lhs));
+                const HyperedgeWeight rImprove = qg.getImprovement(std::min(i, rhs), std::max(i, rhs));
+                const HyperedgeWeight lCut = qg.getCutWeight(std::min(i, rhs), std::max(i, rhs));
+                const HyperedgeWeight rCut = qg.getCutWeight(std::min(i, rhs), std::max(i, rhs));
 
                 return std::tie(lImprove, lCut, lhs) > std::tie(rImprove, rCut, rhs);
             });
