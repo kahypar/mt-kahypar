@@ -32,13 +32,13 @@
 
 #include <julia.h>
 // JULIA_DEFINE_FAST_TLS
-// #include <jluna.hpp>
+// #include <jluna.hpp> doesnt work with cpp17 :(
 
 
 namespace mt_kahypar {
 namespace spectral {
 
-// using namespace jluna;
+// using namespace jluna;    :/
 
 bool JuliaGEVPSolver::julia_initialized = false;
 
@@ -100,6 +100,8 @@ void JuliaGEVPSolver::solve() {
 
   DBG << "deflation space prepared";
 
+  // initialize array objects and their types
+  
   jl_value_t *node_array_type = jl_apply_array_type((jl_value_t *) jl_uint64_type, 1); /* TODO check sizeof HypernodeID */
   jl_value_t *double_array_type = jl_apply_array_type((jl_value_t *) jl_float64_type, 1); 
   

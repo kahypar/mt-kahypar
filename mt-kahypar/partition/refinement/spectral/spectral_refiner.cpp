@@ -23,8 +23,10 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/spectral/spectral_refiner.h"
+
+/* TODO thats not how cpp includes work */
 // #include "mt-kahypar/partition/refinement/spectral/solvers/gevp.h"
-// #include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp" /* TODO only makeshift */
+// #include "mt-kahypar/partition/refinement/spectral/solvers/slepc_gevp.cpp"
 #include "mt-kahypar/partition/refinement/spectral/solvers/julia_gevp.cpp"
 
 
@@ -146,7 +148,8 @@ namespace mt_kahypar {
         /* TODO */
       }
 
-
+      /* the following is heavily adapted to julia not just solving the gevp but also generating a solution */
+      // read solution from embedding, recalculate if not valid
       vec<PartitionID> newSolution;
       phg.resetPartition();
       Skalar eps = 1.0e-9;
@@ -222,6 +225,7 @@ namespace mt_kahypar {
 
     target.ctx[0] = (void *) &hypergraph;
 
+    // matrix vector multiplication
     target.effects[0] = [](void *ctx, Vector& operand, Vector& target_vector) {
       size_t n = operand.dimension();
       Hypergraph *hg = (Hypergraph *) ctx;
@@ -257,7 +261,8 @@ namespace mt_kahypar {
         target_vector.set(i, target_vector[i] + operand[i] * factor[i] - subtrahend[i]);
       }
     };
-
+    
+    // matrix diagonal
     target.calc_diagonal_ops[0] = [] (void *ctx, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) ctx;
       for (auto nptr = hg->nodes().begin(), i = 0UL; i < target_vector.dimension(); *(++nptr) & ++i) {
@@ -267,6 +272,7 @@ namespace mt_kahypar {
       }
     };
 
+    // export hypergraph
     target.ctx_exporter[0] = [] (void *ctx, vec<size_t> &result) {
       Hypergraph *hg = (Hypergraph *) ctx;
 
@@ -324,6 +330,7 @@ namespace mt_kahypar {
   void SpectralRefiner<GraphAndGainTypes>::buildWeightBalanceGraphLaplacian(Hypergraph& hypergraph, spectral::Operator& target) {
     target.ctx[0] = (void *) &hypergraph;
 
+    // matrix vector multiplication
     target.effects[0] = [](void *ctx, Vector& operand, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) ctx;
       size_t dimension = operand.dimension();
@@ -339,6 +346,7 @@ namespace mt_kahypar {
       }
     };
 
+    // matrix diagonal
     target.calc_diagonal_ops[0] = [] (void *ctx, Vector& target_vector) {
       Hypergraph *hg = (Hypergraph *) ctx;
 
@@ -353,6 +361,8 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generate2WayVertexEmbedding(Hypergraph &hypergraph, spectral::Operator& weightBalance, spectral::Operator& graphLaplacian, vec<PartitionID>& hintSolution, Gain &hint_quality, vec<spectral::Vector>& target) {
+    /* this method is heavily adapted to julia not just solving the gevp but also generating a solution */
+    
     // hint graph
     Operator balanceOperator(numNodes);
     generateHintGraphLaplacian(hintSolution, balanceOperator);
@@ -364,6 +374,7 @@ namespace mt_kahypar {
     // DBG << "---- balance";
     // balanceOperator.printMatrix([&](std::string s){DBG<<s;});
     
+    /* TODO use GEVPSolver interface! */
     spectral::JuliaGEVPSolver solver;
     // spectral::SLEPcGEVPSolver solver;
     vec<spectral::Vector> known_evecs;
@@ -402,6 +413,8 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateSolution(PartitionedHypergraph &phg, vec<spectral::Vector> &embedding, vec<PartitionID> &target) { /* TODO aliase */
+    /* fielder distilling */
+    
     // definitions
     spectral::Skalar split_index = 0;
     spectral::Vector &fiedler = embedding.back();
@@ -475,6 +488,8 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::generateHintGraphLaplacian(vec<PartitionID> &hintSolution, spectral::Operator& target) {
     target.ctx[0] = (void *) &(hintSolution);
+
+    // matrix vector multiplication
     target.effects[0] = [](void *ctx, Vector& operand, Vector& target_vector) {
       vec<PartitionID> *hint = (vec<PartitionID> *) ctx;
       
@@ -503,6 +518,7 @@ namespace mt_kahypar {
       }
     };
 
+    // matrix diagonal
     target.calc_diagonal_ops[0] = [] (void *ctx, Vector& target_vector) {
       vec<PartitionID> *hint = (vec<PartitionID> *) ctx;
       
@@ -524,6 +540,7 @@ namespace mt_kahypar {
       }
     };
 
+    // export hint partition
     target.ctx_exporter[0] = [] (void *ctx, vec<size_t> &target_vector) {
       vec<PartitionID> *hint = (vec<PartitionID> *) ctx;
 
@@ -533,7 +550,7 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void SpectralRefiner<GraphAndGainTypes>::readConfigFile() {
-    /* TODO due to procastination, this is currently interpreted as beta */
+    /* TODO due to procastination, the config file param is currently interpreted as beta */
     if (_context.refinement.spectral.config_path.length() > 0) {
       params.numCandidates = (size_t) std::stoi(_context.refinement.spectral.config_path, nullptr);
     }
