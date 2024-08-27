@@ -1,7 +1,6 @@
 # adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
 
 include("../utils.jl")
-include("../config.jl")
 
 function hgr_laplacian(hg::__hypergraph__, x::AbstractArray)
     n = hg.num_vertices

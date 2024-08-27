@@ -1,7 +1,6 @@
 # adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
 
 include("utils.jl")
-include("config.jl")
 include("tree_partition/tree_partition.jl")
 include("tree_partition/triton_part_refine.jl")
 include("overlay.jl")

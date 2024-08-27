@@ -139,7 +139,7 @@ namespace mt_kahypar {
 
     DBG << "solution vec prepared";
 
-    for (int i = 0; i < 1/* params.numCandidates */; i++) {
+    for (int i = 0; i < params.numCandidates; i++) {
       DBG << "generating embedding...";
       vec<spectral::Vector> embedding; /* TODO type alias */
       if (k == 2) {
