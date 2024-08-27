@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function lcaQuery(u::Int, v::Int, eulerLevel::Vector{Int}, eulerTour::Vector{Int}, eulerIndex::Vector{Int}, rmqSparseTable::Array{Int, 2})
     u_idx = eulerIndex[u]
 	v_idx = eulerIndex[v]

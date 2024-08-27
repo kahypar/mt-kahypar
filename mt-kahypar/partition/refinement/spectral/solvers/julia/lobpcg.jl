@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 include("graph/hypergraph.jl")
 include("graph/graphification.jl")
 include("graph/matrices.jl")
@@ -36,7 +38,7 @@ end
 function solve_lobpcg(hgr::__hypergraph__,
         hint_partition::AbstractArray{Int},
         deflation_space::AbstractArray{Float64, 2},
-        nev::Int,
+        num_evecs::Int,
         adjacency_matrix::AbstractArray{Float64, 2})
     n = hgr.num_vertices
     m = hgr.num_hyperedges
@@ -74,7 +76,7 @@ function solve_lobpcg(hgr::__hypergraph__,
         results = lobpcg(amap, 
             bmap, 
             false, 
-            nev, 
+            num_evecs, 
             tol = 1e-40,
             maxiter = config_lobpcgMaxIters, 
             P = preconditioner,

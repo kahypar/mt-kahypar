@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function isolate_islands(hgraph::__hypergraph__)
     cluster_id = 0
     num_vertices = hgraph.num_vertices

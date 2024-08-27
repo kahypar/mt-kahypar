@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function genNodeLevel(eulerTour::Vector{Int}, n::Int)
 	level = -1
 	levelVec = zeros(Int, n)

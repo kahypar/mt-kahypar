@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 include("optimal_attempt_partitioner.jl")
 
 function contract_vtx_weights(vwts::Vector{Int}, clusters::Vector{Int})

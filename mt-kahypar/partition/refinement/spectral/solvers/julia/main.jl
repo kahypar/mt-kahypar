@@ -12,6 +12,8 @@ include("graph/isolate_islands.jl")
 include("lobpcg.jl")
 include("tree_distill.jl")
 
+
+# generic main method, not to be called directly
 function main(input, method)
     inform("julia launched")
     n = convert(Int, input[1][1])
@@ -33,6 +35,8 @@ function main(input, method)
 
         global global_best = nothing
         golden_evaluator_glob(hgr_processed, config_k, hint_processed)
+
+        # apply chosen algo variant
         result_processed = method(hgr_processed, hint_processed, deflation_space_processed, adj_matrix)
 
         result = zeros(Float64, n)
@@ -48,14 +52,17 @@ function main(input, method)
     end
 end
 
+# only solve gevp with lobpcg and return fiedler vector
 function main_lobpcg(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
     return main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> solve_lobpcg(g, h, e, 1, a))
 end
 
+# solve gevp and then perform tree distilling
 function main_lobpcg_tree_distill(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
     return main((hgr_data, hint, deflation_evecs), (g, h, e, a) -> tree_distill(solve_lobpcg(g, h, e, config_numEvecs, a), g, a, h)[1])
 end
 
+# apply whole algorithm adapted from kspecpart
 function main_kspecpart(hgr_data::AbstractArray, hint::AbstractArray, deflation_evecs::AbstractArray)
     return main((hgr_data, hint, deflation_evecs), function (g, h, e, a)
         candidates = []
@@ -74,6 +81,7 @@ end
 
 main_nothing = (d, h, e) -> ones(Float64, d[1])
 
+# retrieve main variant from config file
 main_auto = getfield(Main, Symbol(config_main))
 
 global_best = nothing

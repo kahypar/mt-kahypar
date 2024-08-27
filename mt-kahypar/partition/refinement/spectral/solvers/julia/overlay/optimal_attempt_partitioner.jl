@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function write_hypergraph_ol(hgraph::__hypergraph__, fname::String)
     n = hgraph.num_vertices
     e = hgraph.num_hyperedges
@@ -198,7 +200,7 @@ end
 function ilp_part(; kwargs...)
     try
         log_file = "$config_tmpDir/ilp_part_log_$(time())"
-        ilp_string = "$EXTEND_PATH_COMMAND timeout 15m ilp_part $(kwargs[:hgr_file_name]) $config_k $(kwargs[:ub_factor]) >> $log_file 2>&1"
+        ilp_string = "$EXTEND_PATH_COMMAND timeout 1m ilp_part $(kwargs[:hgr_file_name]) $config_k $(kwargs[:ub_factor]) >> $log_file 2>&1"
         log_cmd = "echo \"$ilp_string\" > $log_file"
         run(`sh -c $log_cmd`, wait=true)
         ilp_command = `sh -c $ilp_string`

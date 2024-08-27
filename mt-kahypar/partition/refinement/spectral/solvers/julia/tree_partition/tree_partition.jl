@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 using Combinatorics
 using Laplacians 
 using SimpleGraphs
@@ -452,6 +454,8 @@ function generate_next_level(partition::Vector{Int},
                             clusters)
 end
 
+
+# main function ------------------------------------------------------------------------------------
 function tree_partition(adj::SparseMatrixCSC,
                         X::Array{Float64},
                         hgraph::__hypergraph__,

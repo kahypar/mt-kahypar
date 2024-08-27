@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function triton_part_refine(hypergraph_file::String, partition::AbstractArray{Int}, num_parts::Int, ub_factor::Int, seed::Int, identifier::String)
     partition_file = "$(config_tmpDir)/triton_part_input_$identifier.part.2" 
     write_partition(partition, partition_file)

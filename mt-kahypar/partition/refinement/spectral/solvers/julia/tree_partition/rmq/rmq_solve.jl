@@ -1,3 +1,5 @@
+# adapted from [K-SpecPart](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/tree/main/K_SpecPart) under [BSD license](https://github.com/TILOS-AI-Institute/HypergraphPartitioning/blob/main/LICENSE)
+
 function rmq_solve(eulerLevel::Vector{Int}, T=Array{Int, 2})
 	n_ = length(eulerLevel)
     l_ = convert(Int, ceil(log2(n_)))+1	
