@@ -354,15 +354,7 @@ namespace mt_kahypar {
             ("c-sim-acceptance-limit-bound",
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
                      "<double>")->default_value(1.0),
-             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
-            ("c-sim-max-considered-neighbors",
-             po::value<HypernodeID>(&context.coarsening.rating.max_considered_neighbors)->value_name(
-                     "<int>")->default_value(0),
-             "Maximum number of neighbors considered to compute similarity acceptance limit (0 = unlimited).")
-            ("c-use-sim-penalty",
-             po::value<bool>(&context.coarsening.rating.use_similarity_penalty)->value_name(
-                     "<bool>")->default_value(false),
-             "Whether a similarity penalty is used for LP coarsening.");
+             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).");
     return options;
   }
 

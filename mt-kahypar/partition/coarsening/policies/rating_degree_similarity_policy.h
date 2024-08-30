@@ -57,12 +57,6 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double similarityPenalty(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
-    return 1.0;
-  }
-
-  template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   double weightRatioForNode(const Hypergraph& hypergraph, const HypernodeID u) const {
     return 1.0;
   }
@@ -185,6 +179,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
         GroupedIncidenceData incidence_data;
         const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
         // TODO: this needs to be implemented differently for hypergraphs
+        // TODO: don't consider all neighbors for nodes with very high degree?
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
           float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
@@ -241,19 +236,6 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     } else {
       return ratio_u >= _acceptance_limit[v] || hypergraph.nodeWeight(u) == 0;
     }
-  }
-
-  template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double similarityPenalty(const Hypergraph& hypergraph,
-                                                              const Context& context,
-                                                              const HypernodeID u,
-                                                              const HypernodeID v) const {
-    if (context.coarsening.rating.use_similarity_penalty) {
-      double ratio_u = weightRatioForNode(hypergraph, u);
-      double ratio_v = weightRatioForNode(hypergraph, v);
-      return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
-    }
-    return 1.0;
   }
 
   template<typename Hypergraph>
