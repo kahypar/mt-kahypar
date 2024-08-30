@@ -331,10 +331,6 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.twin_reduced_required_similarity)->value_name(
                      "<double>")->default_value(0.4),
              "Required neighborhood similarity for two-hop coarsening if no other contractions are possible.")
-            ("c-twin-min-relative-connectivity",
-             po::value<double>(&context.coarsening.twin_min_relative_connectivity)->value_name(
-                     "<double>")->default_value(0.1),
-             "Required relative connectivity to a cluster to include this neighbor in the twin matching neighborhood.")
             ("c-degree-one-node-cluster-size",
              po::value<HypernodeID>(&context.coarsening.degree_one_node_cluster_size)->value_name(
                      "<int>")->default_value(4),
