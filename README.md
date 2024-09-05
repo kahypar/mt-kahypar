@@ -504,15 +504,19 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
       doi       = {10.1007/978-3-031-12597-3\_19},
     }
 
-    // Unconstrained Refinement (Under Review)
-    @article{MT-KAHYPAR-UNCONSTRAINED,
-      title       = {Parallel Unconstrained Local Search for Partitioning Irregular Graphs},
-      author      = {Nikolai Maas and
-                     Lars Gottesb{\"{u}}ren and
-                     Daniel Seemaier},
-      institution = {Karlsruhe Institute of Technology},
-      year        = {2023},
-      url         = {https://arxiv.org/abs/2308.15494}
+    // Unconstrained Refinement
+    @inproceedings{MT-KAHYPAR-UNCONSTRAINED,
+      author       = {Nikolai Maas and
+                      Lars Gottesb{\"{u}}ren and
+                      Daniel Seemaier},
+      editor       = {Rezaul Chowdhury and
+                      Solon P. Pissis},
+      title        = {Parallel Unconstrained Local Search for Partitioning Irregular Graphs},
+      booktitle    = {Symposium on Algorithm Engineering and Experiments (ALENEX 2024)},
+      pages        = {32--45},
+      publisher    = {{SIAM}},
+      year         = {2024},
+      doi          = {10.1137/1.9781611977929.3},
     }
 
     // Dissertation of Lars Gottesbüren
@@ -537,15 +541,18 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 
     // Mt-KaHyPar Journal Paper (Under Review)
     @article{MT-KAHYPAR-JOURNAL,
-      title       = {Scalable High-Quality Hypergraph Partitioning},
-      author      = {Lars Gottesb{\"u}ren and
-                     Tobias Heuer and
-                     Nikolai Maas and
-                     Peter Sanders and
-                     Sebastian Schlag},
-      institution = {Karlsruhe Institute of Technology},
-      year        = {2023},
-      url         = {https://arxiv.org/abs/2303.17679}
+      author       = {Lars Gottesb{\"{u}}ren and
+                      Tobias Heuer and
+                      Nikolai Maas and
+                      Peter Sanders and
+                      Sebastian Schlag},
+      title        = {Scalable High-Quality Hypergraph Partitioning},
+      journal      = {{ACM} Transactions on Algorithms},
+      volume       = {20},
+      number       = {1},
+      pages        = {9:1--9:54},
+      year         = {2024},
+      doi          = {10.1145/3626527},
     }
 
 Contributing
