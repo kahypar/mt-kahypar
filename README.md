@@ -539,7 +539,7 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
         school       = {Karlsruhe Institute of Technology}
     }
 
-    // Mt-KaHyPar Journal Paper (Under Review)
+    // Mt-KaHyPar Journal Paper
     @article{MT-KAHYPAR-JOURNAL,
       author       = {Lars Gottesb{\"{u}}ren and
                       Tobias Heuer and
