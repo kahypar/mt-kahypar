@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
@@ -47,7 +48,7 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   explicit AlwaysAcceptPolicy(const HypernodeID) { }
 
   template<typename Hypergraph>
-  void initialize(const Hypergraph&, const Context&) { }
+  void initialize(const Hypergraph&, const Context&, utils::Timer&) { }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -147,7 +148,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   PreserveRebalancingNodesPolicy & operator= (PreserveRebalancingNodesPolicy &&) = delete;
 
   template<typename Hypergraph>
-  void initialize(const Hypergraph& hypergraph, const Context& context) {
+  void initialize(const Hypergraph& hypergraph, const Context& context, utils::Timer& timer) {
     ASSERT(_incident_weight.size() >= hypergraph.initialNumNodes()
            && _acceptance_limit.size() >= hypergraph.initialNumNodes());
 
@@ -161,6 +162,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       }
     };
 
+    timer.start_timer("compute_incident_weight", "Compute Incident Weight");
     // compute incident weights
     hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       // TODO(maas): save the total incident weight in the hypergraph data structure?
@@ -170,6 +172,9 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       }
       _incident_weight[hn] = incident_weight_sum;
     });
+    timer.stop_timer("compute_incident_weight");
+
+    timer.start_timer("compute_similarity_metric", "Compute Similarity Metric");
     // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
     // This could be acceptable, though
     const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
@@ -254,6 +259,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
           << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
     });
+    timer.stop_timer("compute_similarity_metric");
   }
 
   // this function decides if contracting v onto u is allowed
