@@ -134,7 +134,8 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   static constexpr bool debug = false;
 
  public:
-  PreserveRebalancingNodesPolicy(): PreserveRebalancingNodesPolicy(0) {}
+  explicit PreserveRebalancingNodesPolicy():
+   _incident_weight(), _acceptance_limit() {}
 
   explicit PreserveRebalancingNodesPolicy(const HypernodeID num_nodes):
     _incident_weight(num_nodes, 0), _acceptance_limit(num_nodes, 0) {}
@@ -173,19 +174,25 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
 
       // Step 1: Collect contributed edge weights and node weights of neighbors in into sorted aggregates
       // (effectively a semi-sorting)
+      // TODO: should this rather be relative to the maximum cluster weight?
       const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
                                                           * hypergraph.totalWeight());
       hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
         GroupedIncidenceData incidence_data;
         const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
         // TODO: this needs to be implemented differently for hypergraphs
-        // TODO: don't consider all neighbors for nodes with very high degree?
+        size_t num_accesses = 0;
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
           float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
           HypernodeWeight weight = hypergraph.nodeWeight(v);
           if (weight == 0 || edge_contribution / weight < ratio_of_u) {
             incidence_data.insert(edge_contribution, weight);
+          }
+          // TODO: should we scale the threshold down in comparison to the rater?
+          ++num_accesses;
+          if (num_accesses + 1 > context.coarsening.vertex_degree_sampling_threshold) {
+            break;
           }
         }
 
@@ -245,7 +252,9 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   }
 
  private:
-  parallel::scalable_vector<float> _incident_weight;   // TODO: use ints for graphs??
+  // ! incident weight (scaled with hyperedge size) for all nodes
+  parallel::scalable_vector<float> _incident_weight;
+  // ! pre-computed metric which is used to determine whether a contraction is accepted
   parallel::scalable_vector<float> _acceptance_limit;
 };
 
