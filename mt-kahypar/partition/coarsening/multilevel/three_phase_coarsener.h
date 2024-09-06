@@ -144,9 +144,9 @@ class ThreePhaseCoarsener : public ICoarsener,
     cc.may_ignore_communities = shouldIgnoreCommunities(hierarchy_contraction_limit);
     cc.initializeCoarseningPass(current_hg, _context);
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
-    _similarity_policy.initialize(current_hg, _context);
+    _similarity_policy.initialize(current_hg, _context, _timer);
     _timer.stop_timer("init_similarity");
-    _always_accept_policy.initialize(current_hg, _context);
+    _always_accept_policy.initialize(current_hg, _context, _timer);
 
     bool did_two_hop = false;
     bool did_second_lp = false;
