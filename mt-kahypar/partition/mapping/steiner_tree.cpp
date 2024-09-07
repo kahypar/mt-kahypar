@@ -24,6 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <cstdint>
+
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/partition/mapping/steiner_tree.h"
 #include "mt-kahypar/partition/mapping/all_pair_shortest_path.h"
