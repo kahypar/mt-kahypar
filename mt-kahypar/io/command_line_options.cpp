@@ -336,7 +336,7 @@ namespace mt_kahypar {
                      "<int>")->default_value(4),
              "Two-hop coarsening: maximum number of degree one nodes in one cluster.")
             ("c-sim-incident-weight-scaling",
-             po::value<int32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
+             po::value<uint32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
                      "<int>")->default_value(0),
              "Scales how incident weight is computed when determining similarity thresholds.")
             ("c-sim-preserve-nodes-scaling-factor",
@@ -350,7 +350,11 @@ namespace mt_kahypar {
             ("c-sim-acceptance-limit-bound",
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
                      "<double>")->default_value(1.0),
-             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).");
+             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
+            ("c-two-hop-degree-threshold",
+             po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
+                     "<size_t>")->default_value(100),
+             "If set, then vertices with more adjacent pins than the provided threshold are ignored during two-hop coarsening.");
     return options;
   }
 

@@ -81,7 +81,7 @@ namespace {
     }
 
     void insert(float edge_contribution, HypernodeWeight weight) {
-      ASSERT(weight > 0);
+      ASSERT(weight >= 0);
       if (edge_contribution <= 0) {
         _data[0].edge_weight_contribution += edge_contribution;
         _data[0].node_weight += weight;
@@ -132,14 +132,15 @@ namespace {
 
 
 class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
+  using IncidenceMap = ds::SparseMap<HypernodeID, float>;  // this is prototypical and will almost certainly be removed
   static constexpr bool debug = false;
 
  public:
   explicit PreserveRebalancingNodesPolicy():
-   _incident_weight(), _acceptance_limit() {}
+   _incident_weight(), _acceptance_limit(), _local_incidence_map(0) {}
 
   explicit PreserveRebalancingNodesPolicy(const HypernodeID num_nodes):
-    _incident_weight(num_nodes, 0), _acceptance_limit(num_nodes, 0) {}
+    _incident_weight(num_nodes, 0), _acceptance_limit(num_nodes, 0), _local_incidence_map(num_nodes) {}
 
   PreserveRebalancingNodesPolicy(const PreserveRebalancingNodesPolicy&) = delete;
   PreserveRebalancingNodesPolicy(PreserveRebalancingNodesPolicy&&) = delete;
@@ -151,12 +152,13 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     ASSERT(_incident_weight.size() >= hypergraph.initialNumNodes()
            && _acceptance_limit.size() >= hypergraph.initialNumNodes());
 
-    auto scaled_edge_weight = [&](const HyperedgeID he) {
+    auto edge_weight_scaling = [&](const HyperedgeID he) {
       if constexpr (Hypergraph::is_graph) {
-        return hypergraph.edgeWeight(he);
+        return 1.0;
+      } else if (hypergraph.edgeSize(he) <= context.coarsening.rating.incident_weight_scaling_constant) {
+        return 1.0;
       } else {
-        return static_cast<double>(hypergraph.edgeWeight(he)) /
-          (hypergraph.edgeSize(he) + context.coarsening.rating.incident_weight_scaling_constant);
+        return context.coarsening.rating.incident_weight_scaling_constant / static_cast<double>(hypergraph.edgeSize(he));
       }
     };
 
@@ -166,30 +168,29 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
       // TODO(maas): save the total incident weight in the hypergraph data structure?
       double incident_weight_sum = 0;
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-        incident_weight_sum += scaled_edge_weight(he);
+        incident_weight_sum += edge_weight_scaling(he) * hypergraph.edgeWeight(he);
       }
       _incident_weight[hn] = incident_weight_sum;
     });
     timer.stop_timer("compute_incident_weight");
 
     timer.start_timer("compute_similarity_metric", "Compute Similarity Metric");
-    if constexpr (Hypergraph::is_graph) {
-      // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
-      // This could be acceptable, though
+    // TODO: We are ignoring edges between neighbors here - the result is thus only approximate.
+    // This could be acceptable, though
+    const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
+                                                        * hypergraph.totalWeight());
+    hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      GroupedIncidenceData incidence_data;
+      const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
 
       // Step 1: Collect contributed edge weights and node weights of neighbors in into sorted aggregates
       // (effectively a semi-sorting)
       // TODO: should this rather be relative to the maximum cluster weight?
-      const HypernodeWeight max_summed_weight = std::ceil(context.coarsening.rating.preserve_nodes_relative_weight_limit
-                                                          * hypergraph.totalWeight());
-      hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
-        GroupedIncidenceData incidence_data;
-        const double ratio_of_u = _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1);
-        // TODO: this needs to be implemented differently for hypergraphs
+      if constexpr (Hypergraph::is_graph) {
         size_t num_accesses = 0;
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID v = hypergraph.edgeTarget(he);
-          float edge_contribution = _incident_weight[v] - 2 * scaled_edge_weight(he);
+          float edge_contribution = _incident_weight[v] - 2 * hypergraph.edgeWeight(he);
           HypernodeWeight weight = hypergraph.nodeWeight(v);
           if (weight == 0 || edge_contribution / weight < ratio_of_u) {
             incidence_data.insert(edge_contribution, weight);
@@ -200,39 +201,64 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
             break;
           }
         }
-
-        // Step 2: Iterate through aggregated neighbor values in sorted order and determine minimum
-        const auto& list = incidence_data.inner();
-        double summed_contribution = _incident_weight[hn];
-        HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
-        double min_value = summed_contribution / summed_weight;
-        for (size_t i = 0; i < list.size() && summed_weight <= max_summed_weight; ++i) {
-          const NeighborData& neighbor = list[i];
-          if (summed_weight + neighbor.node_weight > max_summed_weight) {
-            double fraction_of_last = static_cast<double>(max_summed_weight - summed_weight) / neighbor.node_weight;
-            summed_contribution += fraction_of_last * neighbor.edge_weight_contribution;
-            summed_weight = max_summed_weight;
-          } else {
-            summed_contribution += neighbor.edge_weight_contribution;
-            summed_weight += neighbor.node_weight;
-          }
-          if (summed_contribution / summed_weight <= min_value) {
-            min_value = summed_contribution / summed_weight;
-          } else {
-            break;
+      } else {
+        // this is probably quite slow and will be replaced with a bloom-filter based approach
+        size_t num_accesses = 0;
+        IncidenceMap& incidence_map = _local_incidence_map.local();
+        incidence_map.clear();
+        for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+          HypernodeID edge_size = hypergraph.edgeSize(he);
+          if (edge_size < context.partition.ignore_hyperedge_size_threshold) {
+            if (num_accesses + edge_size > context.coarsening.vertex_degree_sampling_threshold) {
+              break;
+            }
+            for (const HypernodeID& pin: hypergraph.pins(he)) {
+              if (pin != hn) {
+                incidence_map[pin] += edge_weight_scaling(he) * static_cast<double>(hypergraph.edgeWeight(he)) / (edge_size - 1);
+                ++num_accesses;
+              }
+            }
           }
         }
 
-        // Step 3: Compute acceptance limit of v from minimum
-        _acceptance_limit[hn] = std::min(
-          context.coarsening.rating.preserve_nodes_scaling_factor * min_value,
-          context.coarsening.rating.acceptance_limit_bound * _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1));
-        DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
-            << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
-      });
-    } else {
-      ERR("not supported");
-    }
+        for (const auto& [neighbor, connectivity]: incidence_map) {
+          float edge_contribution = _incident_weight[neighbor] - 2 * connectivity;
+          HypernodeWeight weight = hypergraph.nodeWeight(neighbor);
+          if (weight == 0 || edge_contribution / weight < ratio_of_u) {
+            incidence_data.insert(edge_contribution, weight);
+          }
+        }
+      }
+
+      // Step 2: Iterate through aggregated neighbor values in sorted order and determine minimum
+      const auto& list = incidence_data.inner();
+      double summed_contribution = _incident_weight[hn];
+      HypernodeWeight summed_weight = std::max(hypergraph.nodeWeight(hn), 1);
+      double min_value = summed_contribution / summed_weight;
+      for (size_t i = 0; i < list.size() && summed_weight <= max_summed_weight; ++i) {
+        const NeighborData& neighbor = list[i];
+        if (summed_weight + neighbor.node_weight > max_summed_weight) {
+          double fraction_of_last = static_cast<double>(max_summed_weight - summed_weight) / neighbor.node_weight;
+          summed_contribution += fraction_of_last * neighbor.edge_weight_contribution;
+          summed_weight = max_summed_weight;
+        } else {
+          summed_contribution += neighbor.edge_weight_contribution;
+          summed_weight += neighbor.node_weight;
+        }
+        if (summed_contribution / summed_weight <= min_value) {
+          min_value = summed_contribution / summed_weight;
+        } else {
+          break;
+        }
+      }
+
+      // Step 3: Compute acceptance limit of v from minimum
+      _acceptance_limit[hn] = std::min(
+        context.coarsening.rating.preserve_nodes_scaling_factor * min_value,
+        context.coarsening.rating.acceptance_limit_bound * _incident_weight[hn] / std::max(hypergraph.nodeWeight(hn), 1));
+      DBG << V(hn) << V(_acceptance_limit[hn]) << V(_incident_weight[hn])
+          << V(hypergraph.nodeWeight(hn)) << V(hypergraph.nodeDegree(hn));
+    });
     timer.stop_timer("compute_similarity_metric");
   }
 
@@ -258,10 +284,13 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   }
 
  private:
+  const Context* _context;  // TODO: currently must be a pointer so we can default-initialize..
   // ! incident weight (scaled with hyperedge size) for all nodes
   parallel::scalable_vector<float> _incident_weight;
   // ! pre-computed metric which is used to determine whether a contraction is accepted
   parallel::scalable_vector<float> _acceptance_limit;
+  // ! Tracks connectivity to all neighbors in case of hypergraphs
+  tbb::enumerable_thread_specific<IncidenceMap> _local_incidence_map;
 };
 
 

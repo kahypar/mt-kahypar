@@ -45,10 +45,6 @@ namespace mt_kahypar {
 class TwoHopClustering {
   using IncidenceMap = ds::SparseMap<HypernodeID, float>;
 
-  // degree threshold where it is extremely unlikely that two-hop coarsening is applicable
-  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = 500;
-  static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
   struct MatchingEntry {
     HypernodeID key;
     HypernodeID hn;
@@ -81,18 +77,24 @@ class TwoHopClustering {
                          int pass_nr = 0) {
     _degree_one_map.reserve_for_estimated_number_of_insertions(cc.currentNumNodes() / 3);
 
-    auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn) {
+    auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn, bool& too_many_accesses) {
       // TODO: can we do this more efficiently for graphs?
+      size_t num_accesses = 0;
       HyperedgeWeight incident_weight_sum = 0;
       for (const HyperedgeID& he : hg.incidentEdges(hn)) {
-        incident_weight_sum += hg.edgeWeight(he);
+        if (num_accesses + hg.edgeSize(he) > _context.coarsening.two_hop_degree_threshold) {
+          too_many_accesses = true;
+          break;
+        }
         for (const HypernodeID& pin: hg.pins(he)) {
           if (pin != hn) {
             HypernodeID target_cluster = cc.clusterID(pin);
             ASSERT(target_cluster != cc.clusterID(hn));  // holds since we only consider unmatched nodes
             incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / (hg.edgeSize(he) - 1);
+            ++num_accesses;
           }
         }
+        incident_weight_sum += hg.edgeWeight(he);
       }
       return incident_weight_sum;
     };
@@ -103,27 +105,33 @@ class TwoHopClustering {
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
-      if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn) && hg.nodeDegree(hn) <= HIGH_DEGREE_THRESHOLD) {
+      if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn)
+          && hg.nodeWeight(hn) <= _context.coarsening.max_allowed_node_weight / 2
+          && hg.nodeDegree(hn) <= _context.coarsening.two_hop_degree_threshold) {
         IncidenceMap& incidence_map = _local_incidence_map.local();
-        const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn);
+        incidence_map.clear();
 
-        const float required_connectivity = required_similarity * incident_weight_sum;
-        float max_connectivity = 0;
-        HypernodeID best_target = kInvalidHypernode;
-        for (const auto& [target_cluster, connectivity]: incidence_map) {
-          if (connectivity >= required_connectivity && connectivity > max_connectivity) {
-            max_connectivity = connectivity;
-            best_target = target_cluster;
-            if (required_similarity >= 0.5) {
-              // in this case, this already must be the maximum
-              break;
+        bool too_many_accesses = false;
+        const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn, too_many_accesses);
+
+        if (!too_many_accesses) {
+          const float required_connectivity = required_similarity * incident_weight_sum;
+          float max_connectivity = 0;
+          HypernodeID best_target = kInvalidHypernode;
+          for (const auto& [target_cluster, connectivity]: incidence_map) {
+            if (connectivity >= required_connectivity && connectivity > max_connectivity) {
+              max_connectivity = connectivity;
+              best_target = target_cluster;
+              if (required_similarity >= 0.5) {
+                // in this case, this already must be the maximum
+                break;
+              }
             }
           }
+          if (best_target != kInvalidHypernode) {
+            _degree_one_map.insert(best_target, MatchingEntry{best_target, hn});
+          }
         }
-        if (best_target != kInvalidHypernode) {
-          _degree_one_map.insert(best_target, MatchingEntry{best_target, hn});
-        }
-        incidence_map.clear();
       }
     });
 

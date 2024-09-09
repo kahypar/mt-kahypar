@@ -109,7 +109,7 @@ struct RatingParameters {
   DegreeSimilarityPolicy degree_similarity_policy = DegreeSimilarityPolicy::UNDEFINED;
 
   // Similarity policy
-  int32_t incident_weight_scaling_constant = 0;
+  uint32_t incident_weight_scaling_constant = 1;
   double preserve_nodes_scaling_factor = 0.25;
   double preserve_nodes_relative_weight_limit = 0.001;
   double acceptance_limit_bound = 1.0;
@@ -134,6 +134,7 @@ struct CoarseningParameters {
   double twin_required_similarity = 0.75;
   double twin_reduced_required_similarity = 0.4;
   HypernodeID degree_one_node_cluster_size = 4;
+  size_t two_hop_degree_threshold = 100;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
