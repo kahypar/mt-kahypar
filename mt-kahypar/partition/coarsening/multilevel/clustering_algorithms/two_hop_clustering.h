@@ -43,7 +43,7 @@
 namespace mt_kahypar {
 
 class TwoHopClustering {
-  using IncidenceMap = ds::SparseMap<HypernodeID, float>;
+  using CacheEfficienIncidenceMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
 
   struct MatchingEntry {
     HypernodeID key;
@@ -55,7 +55,7 @@ class TwoHopClustering {
     _context(context),
     _degree_one_map(),
     _local_incidence_map([=] {
-      return IncidenceMap(num_nodes);
+      return CacheEfficienIncidenceMap(3UL * std::min(UL(num_nodes), _context.coarsening.two_hop_degree_threshold), 0.0);
     }) {
       if (_context.coarsening.degree_one_node_cluster_size < 2) {
         ERR("Value for c-degree-one-node-cluster-size too small, must be at least 2");
@@ -77,7 +77,7 @@ class TwoHopClustering {
                          int pass_nr = 0) {
     _degree_one_map.reserve_for_estimated_number_of_insertions(cc.currentNumNodes() / 3);
 
-    auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn, bool& too_many_accesses) {
+    auto fill_incidence_map_for_node = [&](auto& incidence_map, const HypernodeID hn, bool& too_many_accesses) {
       // TODO: can we do this more efficiently for graphs?
       size_t num_accesses = 0;
       HyperedgeWeight incident_weight_sum = 0;
@@ -108,7 +108,7 @@ class TwoHopClustering {
       if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn)
           && hg.nodeWeight(hn) <= _context.coarsening.max_allowed_node_weight / 2
           && hg.nodeDegree(hn) <= _context.coarsening.two_hop_degree_threshold) {
-        IncidenceMap& incidence_map = _local_incidence_map.local();
+        CacheEfficienIncidenceMap& incidence_map = _local_incidence_map.local();
         incidence_map.clear();
 
         bool too_many_accesses = false;
@@ -191,7 +191,7 @@ class TwoHopClustering {
  private:
   const Context& _context;
   ds::ConcurrentBucketMap<MatchingEntry> _degree_one_map;
-  tbb::enumerable_thread_specific<IncidenceMap> _local_incidence_map;
+  tbb::enumerable_thread_specific<CacheEfficienIncidenceMap> _local_incidence_map;
 };
 
 }  // namespace mt_kahypar
