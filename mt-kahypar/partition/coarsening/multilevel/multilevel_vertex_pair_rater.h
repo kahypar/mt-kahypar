@@ -176,26 +176,9 @@ class MultilevelVertexPairRater {
       fillRatingMap<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids);
     }
 
+    int cpu_id = THREAD_ID;
     const HypernodeWeight weight_u = cluster_weight[u];
     const PartitionID community_u_id = hypergraph.communityID(u);
-    bool ignore_communities = false;
-    if (may_ignore_communities) {
-      ignore_communities = true;
-      // ignore communities if no contraction within the community is possible
-      for (const auto& entry: tmp_ratings) {
-        const HypernodeID tmp_target = entry.key;
-        const HypernodeWeight target_weight = cluster_weight[entry.key];
-          if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight
-               && similarity_policy.acceptContraction(hypergraph, _context, u, tmp_target)
-               && community_u_id == hypergraph.communityID(tmp_target) ) {
-            // TODO: fixed vertices?!
-            ignore_communities = false;
-            break;
-          }
-      }
-    }
-
-    int cpu_id = THREAD_ID;
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
@@ -219,7 +202,7 @@ class MultilevelVertexPairRater {
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
         if ( accept_fixed_vertex_contraction &&
-             (ignore_communities || community_u_id == hypergraph.communityID(tmp_target)) &&
+             (may_ignore_communities || community_u_id == hypergraph.communityID(tmp_target)) &&
              AcceptancePolicy::acceptRating( tmp_rating, max_rating,
                target_id, tmp_target_id, cpu_id, _already_matched) ) {
           max_rating = tmp_rating;

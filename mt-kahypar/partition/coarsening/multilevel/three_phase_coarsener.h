@@ -91,6 +91,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     _clustering_data(_hg.initialNumNodes(), context),
     _num_nodes_tracker(),
     _initial_num_nodes(_hg.initialNumNodes()),
+    _num_communities(kInvalidPartition),
     _current_vertices(),
     _pass_nr(0),
     _progress_bar(_hg.initialNumNodes(), 0, false),
@@ -153,6 +154,10 @@ class ThreePhaseCoarsener : public ICoarsener,
     bool did_second_lp = false;
     bool did_second_two_hop = false;
 
+    if (shouldIgnoreCommunities(hierarchy_contraction_limit)) {
+      cc.may_ignore_communities = true;
+    }
+
     // TODO: degree zero nodes?!
     // Phase 1: LP coarsening, but forbid contraction of low degree nodes onto high degree nodes
     coarseningRound("first_lp_round", "First LP round",
@@ -171,10 +176,15 @@ class ThreePhaseCoarsener : public ICoarsener,
     }
 
     // Phase 3: LP and two-hop coarsening with all contractions allowed (as well as contracting size 1 communities)
-    cc.may_ignore_communities = true;  // TODO: test/disable this
     cc.contract_aggressively = true;
     cc.hierarchy_contraction_limit = target_contraction_size;
     if (current_num_nodes > target_contraction_size) {
+      // lazy initialization of community count, since it requires scanning all nodes
+      initializeCommunityCount(current_hg);
+      if (shouldIgnoreCommunities(target_contraction_size)) {
+        cc.may_ignore_communities = true;
+      }
+
       DBG << "Start Second LP round: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
       coarseningRound("second_lp_round", "Second LP round",
                       current_hg, _lp_clustering, _always_accept_policy, cc);
@@ -281,6 +291,31 @@ class ThreePhaseCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
+  void initializeCommunityCount(const Hypergraph& hypergraph) {
+    if (_num_communities == kInvalidPartition) {
+      _num_communities =
+          tbb::parallel_reduce(
+                  tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
+                  0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+            PartitionID my_range_num_communities = init;
+            for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+              if ( hypergraph.nodeIsEnabled(hn) ) {
+                my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+              }
+            }
+            return my_range_num_communities;
+          },
+          [](const PartitionID lhs, const PartitionID rhs) {
+            return std::max(lhs, rhs);
+          });
+      _num_communities = std::max(_num_communities, 1);
+    }
+  }
+
+  bool shouldIgnoreCommunities(HypernodeID hierarchy_contraction_limit) {
+    return _num_communities != kInvalidPartition && UL(_num_communities) > hierarchy_contraction_limit;
+  }
+
   LPClustering _lp_clustering;
   TwoHopClustering _two_hop_clustering;
   SimilarityPolicy _similarity_policy;
@@ -289,6 +324,7 @@ class ThreePhaseCoarsener : public ICoarsener,
   ConcurrentClusteringData _clustering_data;
   NumNodesTracker _num_nodes_tracker;
   HypernodeID _initial_num_nodes;
+  PartitionID _num_communities;
   parallel::scalable_vector<HypernodeID> _current_vertices;
   int _pass_nr;
   utils::ProgressBar _progress_bar;
