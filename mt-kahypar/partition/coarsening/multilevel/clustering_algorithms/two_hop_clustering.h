@@ -100,8 +100,7 @@ class TwoHopClustering {
     };
 
     // insert degree one nodes and candidates for twins into buckets
-    const double required_similarity = cc.contract_aggressively ?
-        _context.coarsening.twin_reduced_required_similarity : _context.coarsening.twin_required_similarity;
+    const double required_similarity = cc.contract_aggressively ? 0.0 : _context.coarsening.two_hop_required_similarity;
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
@@ -147,10 +146,9 @@ class TwoHopClustering {
     };
     auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
       bool accept_community = cc.may_ignore_communities || (hg.communityID(u) == hg.communityID(v));
-      bool weight_allowed = cc.clusterWeight(u) +  hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight;
       bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);
-      // TODO fixed vertices
-      return accept_community && weight_allowed && accept_similarity;
+      // Note: cluster weight and fixed vertices are checked by `matchVertices`
+      return accept_community && accept_similarity;
     };
 
     tbb::enumerable_thread_specific<HypernodeID> matched_d1_nodes(0);

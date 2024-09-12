@@ -131,8 +131,7 @@ struct CoarseningParameters {
   size_t num_sub_rounds_deterministic = 16;
 
   // Two-Hop Coarsening
-  double twin_required_similarity = 0.75;
-  double twin_reduced_required_similarity = 0.4;
+  double two_hop_required_similarity = 0.5;
   HypernodeID degree_one_node_cluster_size = 4;
   size_t two_hop_degree_threshold = 100;
 

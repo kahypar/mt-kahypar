@@ -324,13 +324,9 @@ namespace mt_kahypar {
                      "<size_t>")->default_value(16),
              "Number of sub-rounds used for deterministic coarsening.")
             ("c-two-hop-required-similarity",
-             po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
+             po::value<double>(&context.coarsening.two_hop_required_similarity)->value_name(
                      "<double>")->default_value(0.75),
              "Required neighborhood similarity for two-hop coarsening.")
-            ("c-two-hop-reduced-similarity",
-             po::value<double>(&context.coarsening.twin_reduced_required_similarity)->value_name(
-                     "<double>")->default_value(0.4),
-             "Required neighborhood similarity for two-hop coarsening if no other contractions are possible.")
             ("c-degree-one-node-cluster-size",
              po::value<HypernodeID>(&context.coarsening.degree_one_node_cluster_size)->value_name(
                      "<int>")->default_value(4),
