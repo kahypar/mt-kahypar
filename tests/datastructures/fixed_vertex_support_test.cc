@@ -27,7 +27,7 @@
 
 
 #include "gmock/gmock.h"
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"

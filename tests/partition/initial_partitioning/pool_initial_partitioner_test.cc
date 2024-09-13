@@ -28,7 +28,7 @@
 
 #include <atomic>
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"

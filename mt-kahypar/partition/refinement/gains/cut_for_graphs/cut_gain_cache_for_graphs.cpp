@@ -26,9 +26,9 @@
 
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/concurrent_vector.h"
+#include <tbb/parallel_for.h>
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/concurrent_vector.h>
 
 #include "mt-kahypar/definitions.h"
 

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/tbb_allocator.h"
+#include <tbb/tbb_allocator.h>
 
 namespace mt_kahypar {
 namespace parallel {

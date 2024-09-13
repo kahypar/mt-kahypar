@@ -28,9 +28,9 @@
 
 #include <string>
 
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_scan.h"
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_scan.h>
 
 #include "include/libmtkahypartypes.h"
 

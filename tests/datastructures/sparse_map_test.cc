@@ -29,8 +29,8 @@
 #include <mt-kahypar/macros.h>
 
 #include "gmock/gmock.h"
-#include "tbb/task_group.h"
-#include "tbb/parallel_invoke.h"
+#include <tbb/task_group.h>
+#include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/concurrent_flat_map.h"

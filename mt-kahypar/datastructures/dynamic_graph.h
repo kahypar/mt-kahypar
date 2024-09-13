@@ -31,7 +31,7 @@
 #include <mutex>
 #include <queue>
 
-#include "tbb/parallel_for.h"
+#include <tbb/parallel_for.h>
 
 #include "include/libmtkahypartypes.h"
 

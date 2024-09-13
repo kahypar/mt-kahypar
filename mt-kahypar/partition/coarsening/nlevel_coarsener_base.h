@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"

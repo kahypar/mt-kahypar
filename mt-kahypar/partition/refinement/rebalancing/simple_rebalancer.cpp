@@ -31,8 +31,8 @@
 #include <boost/dynamic_bitset.hpp>
 
 #include <tbb/parallel_for_each.h>
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/parallel_for.h"
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"

@@ -29,7 +29,7 @@
 
 #include <memory>
 
-#include "tbb/scalable_allocator.h"
+#include <tbb/scalable_allocator.h>
 
 namespace mt_kahypar {
 namespace parallel {

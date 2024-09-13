@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/task.h"
+#include <tbb/task.h>
 
 #include "include/libmtkahypartypes.h"
 

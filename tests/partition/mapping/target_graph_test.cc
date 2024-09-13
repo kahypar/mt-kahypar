@@ -26,7 +26,7 @@
 
 #include "gmock/gmock.h"
 
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"

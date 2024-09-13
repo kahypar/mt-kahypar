@@ -28,7 +28,7 @@
 #include <mt-kahypar/macros.h>
 
 #include "gmock/gmock.h"
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/delta_connectivity_set.h"

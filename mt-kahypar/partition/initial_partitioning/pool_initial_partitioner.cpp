@@ -26,7 +26,7 @@
 
 #include "pool_initial_partitioner.h"
 
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/factories.h"

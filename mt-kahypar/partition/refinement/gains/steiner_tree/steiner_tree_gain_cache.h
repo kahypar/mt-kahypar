@@ -30,7 +30,7 @@
 
 #include "kahypar-resources/meta/policy_registry.h"
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"

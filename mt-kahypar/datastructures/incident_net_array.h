@@ -29,9 +29,9 @@
 
 #include <cstddef>
 
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_scan.h"
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_scan.h>
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 

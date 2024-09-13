@@ -30,8 +30,8 @@
 
 #include "kahypar-resources/meta/policy_registry.h"
 
-#include "tbb/parallel_invoke.h"
-#include "tbb/concurrent_vector.h"
+#include <tbb/parallel_invoke.h>
+#include <tbb/concurrent_vector.h>
 
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"

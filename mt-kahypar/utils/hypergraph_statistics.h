@@ -27,7 +27,7 @@
 
 #include <vector>
 
-#include "tbb/parallel_reduce.h"
+#include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 namespace utils {

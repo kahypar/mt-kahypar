@@ -29,10 +29,10 @@
 #include <boost/range/irange.hpp>
 #include "gmock/gmock.h"
 
-#include "tbb/blocked_range.h"
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/task_arena.h"
-#include "tbb/task_group.h"
+#include <tbb/blocked_range.h>
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/task_arena.h>
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"

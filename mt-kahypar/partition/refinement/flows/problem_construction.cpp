@@ -29,7 +29,7 @@
 
 #include <unordered_map>
 
-#include "tbb/parallel_for.h"
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"

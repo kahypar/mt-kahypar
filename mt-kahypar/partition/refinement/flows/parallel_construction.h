@@ -27,7 +27,7 @@
 #pragma once
 
 #include <tbb/concurrent_vector.h>
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "algorithm/hyperflowcutter.h"
 #include "algorithm/parallel_push_relabel.h"

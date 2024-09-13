@@ -29,11 +29,11 @@
 
 #include <vector>
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/memory_pool.h"

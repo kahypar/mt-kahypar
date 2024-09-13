@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
-#include "tbb/parallel_scan.h"
+#include <tbb/parallel_scan.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"

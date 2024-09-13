@@ -29,7 +29,7 @@
 
 #include <cstddef>
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 

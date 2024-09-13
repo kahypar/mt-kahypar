@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/task.h"
+#include <tbb/task.h>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"

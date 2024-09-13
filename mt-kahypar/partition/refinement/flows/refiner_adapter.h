@@ -25,8 +25,8 @@
  ******************************************************************************/
 #pragma once
 
-#include "tbb/concurrent_vector.h"
-#include "tbb/concurrent_queue.h"
+#include <tbb/concurrent_vector.h>
+#include <tbb/concurrent_queue.h>
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"

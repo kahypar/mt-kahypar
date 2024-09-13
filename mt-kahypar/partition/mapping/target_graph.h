@@ -30,7 +30,7 @@
 #include <numeric>
 #include <iostream>
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #ifdef __linux__
 #pragma GCC diagnostic push
@@ -40,7 +40,7 @@
 #include "data-structures/table_config.hpp"
 #pragma GCC diagnostic pop
 #elif defined(_WIN32) or defined(__APPLE__)
-#include "tbb/concurrent_unordered_map.h"
+#include <tbb/concurrent_unordered_map.h>
 #endif
 
 #include "mt-kahypar/macros.h"

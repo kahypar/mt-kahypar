@@ -27,8 +27,8 @@
 #include <atomic>
 #include "gmock/gmock.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/parallel_for.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
