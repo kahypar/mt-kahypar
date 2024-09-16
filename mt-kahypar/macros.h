@@ -95,9 +95,6 @@
 #define HEAVY_REFINEMENT_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
 #endif
 
-#define HEAVY_ASSERT_(TYPE, N) HEAVY_##TYPE##_ASSERT_##N
-#define HEAVY_ASSERT_EVAL(TYPE, N) HEAVY_ASSERT_(TYPE, N)
-
 // Heavy assertions are assertions which increase the complexity of the scope
 // which they are executed in by an polynomial factor. In debug mode you are
 // often only interested in certain phase of the multilevel paradigm. However,
