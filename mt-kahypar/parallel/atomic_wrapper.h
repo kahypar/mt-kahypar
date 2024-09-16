@@ -33,6 +33,8 @@
 #include <atomic>
 #include <type_traits>
 
+#include "mt_kahypar/macros.h"
+
 template<typename T>
 class CAtomic : public std::__atomic_base<T> {
 public:
