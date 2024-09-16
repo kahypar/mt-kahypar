@@ -63,11 +63,6 @@
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#define HEAVY_ASSERT0(cond)                                                    \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond); }()
-#define HEAVY_ASSERT1(cond, msg)                                               \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond, msg); }()
-
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
 #define HEAVY_PREPROCESSING_ASSERT_1(cond) ASSERT(cond)
 #define HEAVY_PREPROCESSING_ASSERT_2(cond, msg) ASSERT(cond, msg)
