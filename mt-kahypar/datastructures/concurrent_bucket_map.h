@@ -81,7 +81,7 @@ class ConcurrentBucketMap {
     _num_buckets(other._num_buckets),
     _mod_mask(_num_buckets - 1),
     _spin_locks(_num_buckets),
-    _buckets(std::move(other._buffer)) { }
+    _buckets(std::move(other._buckets)) { }
 
   template<typename F>
   void doParallelForAllBuckets(const F& f) {
