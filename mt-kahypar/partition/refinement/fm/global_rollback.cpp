@@ -434,9 +434,6 @@ namespace mt_kahypar {
       }
     });
 
-
-    size_t num_unbalanced_slots = 0;
-
     size_t overloaded = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (phg.partWeight(i) > maxPartWeights[i]) {
@@ -463,10 +460,6 @@ namespace mt_kahypar {
       }
       if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
         overloaded++;
-      }
-
-      if (overloaded > 0) {
-        num_unbalanced_slots++;
       }
 
       if (overloaded == 0 && gain_sum > best_gain) {
