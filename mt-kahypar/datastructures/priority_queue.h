@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include <mt-kahypar/parallel/stl/scalable_vector.h>
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
