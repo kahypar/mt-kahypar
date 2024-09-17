@@ -74,7 +74,6 @@ class DeltaPartitionedGraph {
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _dummy_connectivity_set() {
-      const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
     }
 
