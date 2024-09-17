@@ -33,6 +33,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 

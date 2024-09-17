@@ -34,6 +34,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/pin_count_snapshot.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
