@@ -37,6 +37,7 @@
 #include "mt-kahypar/datastructures/pin_count_snapshot.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/range.h"
 
 
 namespace mt_kahypar {
