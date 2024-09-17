@@ -333,7 +333,7 @@ namespace mt_kahypar {
              "Two-hop coarsening: maximum number of degree one nodes in one cluster.")
             ("c-sim-incident-weight-scaling",
              po::value<uint32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
-                     "<int>")->default_value(0),
+                     "<int>")->default_value(1),
              "Scales how incident weight is computed when determining similarity thresholds.")
             ("c-sim-preserve-nodes-scaling-factor",
              po::value<double>(&context.coarsening.rating.preserve_nodes_scaling_factor)->value_name(
