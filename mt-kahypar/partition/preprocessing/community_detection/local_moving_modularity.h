@@ -39,9 +39,6 @@
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 
-
-#include "gtest/gtest_prod.h"
-
 namespace mt_kahypar::metrics {
   template<typename Hypergraph>
   double modularity(const Graph<Hypergraph>& graph, const ds::Clustering& communities);
@@ -80,7 +77,7 @@ class ParallelLocalMovingModularity {
   size_t parallelNonDeterministicRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
   size_t synchronousParallelRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
   size_t sequentialRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
-
+public:
   struct ClearList {
     vec<double> weights;
     vec<PartitionID> used;
@@ -98,6 +95,8 @@ class ParallelLocalMovingModularity {
   LargeIncidentClusterWeights construct_large_incident_cluster_weight_map() {
     return LargeIncidentClusterWeights(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold), 0);
   }
+
+public:
 
   // ! Only for testing
   void initializeClusterVolumes(const Graph<Hypergraph>& graph, ds::Clustering& communities);
@@ -154,6 +153,7 @@ class ParallelLocalMovingModularity {
     return bestCluster;
   }
 
+private: 
 
   inline double modularityGain(const ArcWeight weight_to,
                                const ArcWeight volume_to,
@@ -197,18 +197,5 @@ class ParallelLocalMovingModularity {
     }
   };
   ds::BufferedVector<ClusterMove> volume_updates_to, volume_updates_from;
-
-
-
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove2);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove3);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove4);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove5);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove6);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove7);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove8);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
 };
 }
