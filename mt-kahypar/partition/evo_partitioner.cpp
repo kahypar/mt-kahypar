@@ -34,9 +34,15 @@ namespace mt_kahypar {
         timer.stop_timer("preprocessing");
 
         Population population;
-        generateInitialPopulation(hypergraph, context, target_graph, population);
+        std::string history = generateInitialPopulation(hypergraph, context, target_graph, population);
 
-        performEvolution(hypergraph, context, target_graph, population);
+        history += performEvolution(hypergraph, context, target_graph, population);
+
+        if (context.evolutionary.history_file != "") {
+            std::ofstream out_stream(context.evolutionary.history_file.c_str());
+            out_stream << history;
+            out_stream.close();
+        }
 
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
         
@@ -90,21 +96,22 @@ namespace mt_kahypar {
 
 
     template<typename TypeTraits>
-    void EvoPartitioner<TypeTraits>::generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+    std::string EvoPartitioner<TypeTraits>::generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
         context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
-        //context.evolutionary.dynamic_population_size = true;
-        //context.evolutionary.population_size = 50;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
         auto time_elapsed = now - start;
         auto duration = std::chrono::seconds(timelimit);
+        std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
         // INITIAL POPULATION
         if (context.evolutionary.dynamic_population_size) {
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             timer.start_timer("evolutionary", "Evolutionary");
-            generateIndividual(hg, context, target_graph, population);
+            auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
+            now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            history += "" + std::to_string(now.count()) + ", Initial, " + std::to_string(fitness) + "\n";
             timer.stop_timer("evolutionary");
 
             ++context.evolutionary.iteration;
@@ -117,18 +124,25 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
+        int best;
+        int iteration = 0;
         while (population.size() < context.evolutionary.population_size && 
             time_elapsed <= duration) {
-            //timer.get("evolutionary") <= timelimit) {
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
-            generateIndividual(hg, context, target_graph, population);
+            auto cur = generateIndividual(hg, context, target_graph, population).fitness();
             timer.stop_timer("evolutionary");
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            if (iteration == 0 || (cur < best)) {
+                best = cur;
+                history += "" + std::to_string(now.count()) + ", Repetition, " + std::to_string(cur) + "\n";
+            }
+            iteration++;
             time_elapsed = now - start;
         }
         context.evolutionary.time_elapsed = time_elapsed;
         context.partition.verbose_output = true;
+        return history;
     }
 
     template<typename TypeTraits>
@@ -200,53 +214,31 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     std::string EvoPartitioner<TypeTraits>::performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
-        //LOG << "Combining: ";
-        //const auto& parents = population.tournamentSelect();
-        //std::vector<PartitionID> part1 = parents.first.get().partition();
-        //std::vector<PartitionID> part2 = parents.second.get().partition()
-        const size_t position1 = population.randomIndividual();
-        const size_t position2 = population.randomIndividualExcept(position1);
-        /*std::vector<PartitionID> part1 = population.individualAt(position1).partition();
-        std::vector<PartitionID> part2 = population.individualAt(position2).partition();
-        vec<PartitionID> comms(hypergraph.initialNumNodes());
-        for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            comms[hn] = part1[hn] + context.partition.k * part2[hn];
-        }*/
-        std::vector<size_t> parents = {
-            position1,
-            position2
-        };
+        std::vector<size_t> parents;
+        size_t best = population.randomIndividual();
+        parents.push_back(best);
+        for (int x = 1; x < context.evolutionary.kway_combine; x ++) {
+            size_t new_parent = population.randomIndividual();
+            parents.push_back(new_parent);
+            if (population.individualAt(new_parent).fitness() <= population.individualAt(best).fitness()) {
+                best = new_parent;
+            }
+        }
         std::unordered_map<PartitionID, int> comm_to_block;
         vec<PartitionID> comms = combinePartitions(context, population, parents);
         vec<PartitionID> part(hypergraph.initialNumNodes());
         
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-        size_t better = (population.individualAt(position1).fitness() <= population.individualAt(position2).fitness()) ? position1 : position2;
         for ( const HypernodeID& hn : hypergraph.nodes() ) { 
-            //partitioned_hypergraph.setOnlyNodePart(hn, comms[hn]);
-            partitioned_hypergraph.setOnlyNodePart(hn, population.individualAt(better).partition()[hn]);
+            partitioned_hypergraph.setOnlyNodePart(hn, population.individualAt(best).partition()[hn]);
             if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
-                comm_to_block[comms[hn]] = population.individualAt(better).partition()[hn];
+                comm_to_block[comms[hn]] = population.individualAt(best).partition()[hn];
             }
         }
         partitioned_hypergraph.initializePartition();
         hypergraph.setCommunityIDs(std::move(comms));
-        /*vec<PartitionID> comms = combinePartitions(context, population, parents);
-        vec<PartitionID> part(hypergraph.initialNumNodes());
-        
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-        size_t better = (population.individualAt(position1).fitness() <= population.individualAt(position2).fitness()) ? position1 : position2;
-        for ( const HypernodeID& hn : hypergraph.nodes() ) { 
-            //partitioned_hypergraph.setOnlyNodePart(hn, comms[hn]);
-            partitioned_hypergraph.setOnlyNodePart(hn, population.individualAt(better).partition()[hn]);
-            part[hn] = population.individualAt(better).partition()[hn];
-        }
-        partitioned_hypergraph.initializePartition();
-        //hypergraph.setCommunityIDs(std::move(comms));
-        hypergraph.setCommunityIDs(std::move(part));*/
         if (context.partition.mode == Mode::direct) {
             Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, context, comm_to_block, target_graph);
-            //partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
         } else {
             throw InvalidParameterException("Invalid partitioning mode!");
         }
@@ -300,7 +292,7 @@ namespace mt_kahypar {
                 throw InvalidParameterException("Invalid partitioning mode!");
             }
         }
-        Individual individual(partitioned_hypergraph, context);     
+        Individual individual(partitioned_hypergraph, context);
         //LOG << "Mutated Individual with fitness: " << population.individualAt(mutation_position).fitness() << " to " << individual.fitness();
         std::string ret = "";
         if (individual.fitness() < population.bestFitness()) {
@@ -335,49 +327,15 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    void EvoPartitioner<TypeTraits>::performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+    std::string EvoPartitioner<TypeTraits>::performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
         context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         int mutations = 0;
         int combinations = 0;
         auto time_start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-        std::string history = "" + std::to_string(time_start.count()) + ", Initial, " + std::to_string(population.bestFitness()) + "\n";
+        std::string history = "";
         std::mutex _history_mutex;
-        /*while (timer.get("evolutionary") <= timelimit) {
-            ++context.evolutionary.iteration;
-
-            timer.start_timer("evolutionary", "Evolutionary");
-
-            tbb::parallel_for(0, 4, [&](const int i) {
-                Context evo_context(context);
-                evo_context.type = ContextType::main;
-                evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-                EvoDecision decision = decideNextMove(context);
-                EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy();
-                switch (decision) {
-                    case EvoDecision::mutation: 
-                        {
-                            std::lock_guard<std::mutex> lock(_history_mutex);
-                            history += performMutation(hg_copy, evo_context, target_graph, population);
-                            mutations++;
-                            break;
-                        }
-                    case EvoDecision::combine: 
-                        {
-                            std::lock_guard<std::mutex> lock(_history_mutex);
-                            history += performCombine(hg_copy, evo_context, target_graph, population);
-                            combinations++;
-                            break;
-                        }
-                    default:
-                        LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
-                        std::exit(EXIT_FAILURE);
-                }
-            });
-            timer.stop_timer("evolutionary");
-        }*/
-
         auto duration = std::chrono::seconds(timelimit) - context.evolutionary.time_elapsed;
         std::atomic<bool> stop_flag(false);
         timer.start_timer("evolutionary", "Evolutionary");
@@ -427,11 +385,7 @@ namespace mt_kahypar {
         LOG << "    " << mutations << " Mutations" << "\n";
         LOG << "    " << combinations << " Combinations" << "\n";
 
-        if (context.evolutionary.history_file != "") {
-            std::ofstream out_stream(context.evolutionary.history_file.c_str());
-            out_stream << history;
-            out_stream.close();
-        }
+        return history;
     }
 
 }  // namespace mt_kahypar
