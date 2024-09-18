@@ -281,6 +281,7 @@ struct EvolutionaryParameters {
   mutable int iteration;
   mutable std::chrono::milliseconds time_elapsed;
   std::string history_file;
+  int kway_combine;
 };
 
 std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params);
