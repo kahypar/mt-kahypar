@@ -323,9 +323,17 @@ class TargetGraph {
   }
 
 
+  const ds::StaticGraph& graph() const {
+    return _dummy_graph;
+  }
+
   void printStats() const {  }
 
   void printStats(std::stringstream&) const {  }
+
+ private:
+
+  ds::StaticGraph _dummy_graph;
 };
 #endif
 
