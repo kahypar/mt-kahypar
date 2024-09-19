@@ -33,10 +33,19 @@ namespace mt_kahypar {
         sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);*/
         timer.stop_timer("preprocessing");
 
-        Population population;
-        std::string history = generateInitialPopulation(hypergraph, context, target_graph, population);
+        Population best_population;
+        std::string history;
+        for (size_t i = 0; i < context.evolutionary.repetitions; ++i) {
+            Population population;
+            context.evolutionary.iteration = 0;
+            history += generateInitialPopulation(hypergraph, context, target_graph, population);
 
-        history += performEvolution(hypergraph, context, target_graph, population);
+            history += performEvolution(hypergraph, context, target_graph, population);
+            history += "\nRUN COMPLETED\n";
+            if (best_population.size() == 0 || best_population.bestFitness() > population.bestFitness()) {
+                best_population = std::move(population);
+            }
+        }
 
         if (context.evolutionary.history_file != "") {
             std::ofstream out_stream(context.evolutionary.history_file.c_str());
@@ -46,7 +55,7 @@ namespace mt_kahypar {
 
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
         
-        std::vector<PartitionID> best = population.individualAt(population.best()).partition();
+        std::vector<PartitionID> best = best_population.individualAt(best_population.best()).partition();
         partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
             partitioned_hypergraph.setOnlyNodePart(hn, best[hn]);
         });
@@ -196,7 +205,7 @@ namespace mt_kahypar {
         std::unordered_map<std::string, int> tuple_to_block;
         int current_community = 0;
 
-        for (int vertex = 0; vertex < combined.size(); vertex++) {
+        for (size_t vertex = 0; vertex < combined.size(); vertex++) {
             std::string partition_tuple;
             for (auto id : ids) {
                 partition_tuple += std::to_string(population.individualAt(id).partition()[vertex]) + ",";
@@ -379,11 +388,14 @@ namespace mt_kahypar {
         timer.stop_timer("evolutionary");
 
         context.partition.verbose_output = true;
-        LOG << "Performed " << context.evolutionary.iteration << " Evolutionary Iterations" << "\n";
+        LOG << "\nPerformed " << context.evolutionary.iteration << " Evolutionary Iterations";
         LOG << "    " << (context.evolutionary.iteration - mutations - combinations)
-            << " Initial Population members" << "\n";
-        LOG << "    " << mutations << " Mutations" << "\n";
-        LOG << "    " << combinations << " Combinations" << "\n";
+            << " Initial Population members";
+        LOG << "    " << mutations << " Mutations";
+        LOG << "    " << combinations << " Combinations";
+        LOG << "Best:   " << population.individualAt(population.best()).fitness();
+        LOG << "Half:   " << population.listOfBest(population.size() / 2).back().get().fitness();
+        LOG << "Worst:  " << population.individualAt(population.worst()).fitness() << "\n";
 
         return history;
     }

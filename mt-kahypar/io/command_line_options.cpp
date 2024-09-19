@@ -713,6 +713,9 @@ namespace mt_kahypar {
             ("partition-evolutionary",
              po::value<bool>(&context.partition_evolutionary)->value_name("<bool>"),
              "Use memetic algorithm for partitioning")
+            ("evo-repetitions",
+             po::value<size_t>(&context.evolutionary.repetitions)->value_name("<size_t>")->default_value(1),
+             "Number of outer loop repetitions")
             ("evo-population-size",
              po::value<size_t>(&context.evolutionary.population_size)->value_name("<size_t>")->default_value(10),
              "Size of the population for the evolution\n")

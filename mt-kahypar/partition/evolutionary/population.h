@@ -40,6 +40,15 @@ class Population {
     _population_mutex(),
     _individuals() { }
 
+  Population(Population&& other) :
+    _population_mutex(),
+    _individuals(std::move(other._individuals)) { }
+
+  Population& operator=(Population&& other) {
+    this->_individuals =std::move(other._individuals);
+    return *this;
+  }
+
   inline size_t insert(Individual&& individual, const Context& context) {
     DBG << context.evolutionary.replace_strategy;
     switch (context.evolutionary.replace_strategy) {

@@ -54,7 +54,7 @@ namespace internal {
     PartitionedHypergraph partitioned_hg;
     // Partition Hypergraph
 
-    context.partition_evolutionary = true;
+    // context.partition_evolutionary = true;
 
     /*context.evolutionary.population_size=10;
     context.evolutionary.dynamic_population_size=false;

@@ -218,11 +218,6 @@ namespace mt_kahypar::io {
     for (HypernodeID u : hypergraph.nodes()) {
       test.insert(hypergraph.partID(u));
     }
-    std::cout << "test ";
-    for (HypernodeID v : test) {
-      std::cout <<  v << ", ";
-    }
-    std::cout << "\n";
 
 
     PartitionID min_block = kInvalidPartition;

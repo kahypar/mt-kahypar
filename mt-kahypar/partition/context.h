@@ -271,6 +271,7 @@ struct SharedMemoryParameters {
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 struct EvolutionaryParameters {
+  size_t repetitions;
   size_t population_size;
   float mutation_chance;
   EvoReplaceStrategy replace_strategy;
