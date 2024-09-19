@@ -34,6 +34,7 @@
 #include <tbb/concurrent_vector.h>
 
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
