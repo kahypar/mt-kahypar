@@ -245,6 +245,16 @@ class Population {
     return output_diff.size();
   }
 
+  template<typename Hypergraph>
+  inline std::vector<uint32_t> getEdgeFrequencies(const Hypergraph& hypergraph, bool strong) {
+    std::vector<uint32_t> result;
+    result.resize(hypergraph.initialNumEdges(), 0);
+    for (const Individual& individual: _individuals) {
+      individual.addEdgeFrequencies(hypergraph, result, strong);
+    }
+    return result;
+  }
+
   std::lock_guard<std::mutex> getLock() {
     return std::lock_guard<std::mutex>(_population_mutex);
   }

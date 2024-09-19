@@ -745,6 +745,9 @@ namespace mt_kahypar {
              ("evo-history-file",
               po::value<std::string>(&context.evolutionary.history_file)->value_name("<string>"),
               "Output file for evolution history")
+             ("evo-frequency-file",
+              po::value<std::string>(&context.evolutionary.frequency_file)->value_name("<string>"),
+              "Output file for edge frequencies")
              ("evo-kway",
              po::value<int>(&context.evolutionary.kway_combine)->value_name("<int>")->default_value(2),
              "How many individsuals to combine for the combine step\n");

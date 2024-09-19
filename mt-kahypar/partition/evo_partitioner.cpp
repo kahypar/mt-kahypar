@@ -48,8 +48,29 @@ namespace mt_kahypar {
             best_population.merge(population, context.evolutionary.output_size);
         }
 
+        if (context.evolutionary.frequency_file != "") {
+            if constexpr (Hypergraph::is_graph) {
+                std::vector<uint32_t> frequencies = best_population.getEdgeFrequencies(hypergraph, false);
+                std::ofstream out_stream(context.evolutionary.frequency_file.c_str());
+                out_stream << "id_high_degree,id_low_degree,frequency  # max=" << context.evolutionary.output_size << std::endl;
+                for (HyperedgeID edge: hypergraph.edges()) {
+                    HypernodeID u = hypergraph.edgeSource(edge);
+                    HypernodeID v = hypergraph.edgeTarget(edge);
+                    HyperedgeID deg_u = hypergraph.nodeDegree(u);
+                    HyperedgeID deg_v = hypergraph.nodeDegree(v);
+                    if (deg_u > deg_v || (deg_u == deg_v && u >= v)) {
+                        out_stream << u << "," << v << "," << frequencies[edge] << std::endl;
+                    }
+                }
+                out_stream.close();
+            } else {
+                WARNING("Outputting edge frequencies for hypergraphs is not implemented!");
+            }
+        }
+
         LOG << "\nFinal Best:   " << best_population.individualAt(best_population.best()).fitness();
-        LOG << "Final Worst:  " << best_population.individualAt(best_population.worst()).fitness() << "\n";
+        LOG << "Final Worst:  " << best_population.individualAt(best_population.worst()).fitness();
+        LOG << "Final Size:   " << best_population.size() << "\n";
 
         if (context.evolutionary.history_file != "") {
             std::ofstream out_stream(context.evolutionary.history_file.c_str());
@@ -120,7 +141,6 @@ namespace mt_kahypar {
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
         // INITIAL POPULATION
         if (context.evolutionary.dynamic_population_size) {
-            HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             timer.start_timer("evolutionary", "Evolutionary");
             auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
@@ -398,7 +418,7 @@ namespace mt_kahypar {
         LOG << "    " << mutations << " Mutations";
         LOG << "    " << combinations << " Combinations";
         LOG << "Best:   " << population.individualAt(population.best()).fitness();
-        LOG << "Half:   " << population.listOfBest(population.size() / 2).back().get().fitness();
+        LOG << "Half:   " << population.listOfBest((population.size() + 1) / 2).back().get().fitness();
         LOG << "Worst:  " << population.individualAt(population.worst()).fitness() << "\n";
 
         return history;

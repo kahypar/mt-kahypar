@@ -283,6 +283,7 @@ struct EvolutionaryParameters {
   mutable int iteration;
   mutable std::chrono::milliseconds time_elapsed;
   std::string history_file;
+  std::string frequency_file;
   int kway_combine;
 };
 

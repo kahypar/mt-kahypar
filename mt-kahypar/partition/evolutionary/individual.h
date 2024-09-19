@@ -125,6 +125,20 @@ class Individual {
     LOG << "\n--------------------------------------------------";
   }
 
+  template<typename Hypergraph>
+  inline void addEdgeFrequencies(const Hypergraph& hypergraph, std::vector<uint32_t>& frequencies, bool /*strong*/) const {
+    ALWAYS_ASSERT(hypergraph.initialNumEdges() == frequencies.size());
+    hypergraph.doParallelForAllEdges([&](HyperedgeID he) {
+      if constexpr (Hypergraph::is_graph) {
+        if (_partition[hypergraph.edgeSource(he)] != _partition[hypergraph.edgeTarget(he)]) {
+          frequencies[he]++;
+        }
+      } else {
+        ERR("invalid");
+      }
+    });
+  }
+
  private:
   std::vector<PartitionID> _partition;
   std::vector<HyperedgeID> _cut_edges;
