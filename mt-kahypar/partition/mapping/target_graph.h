@@ -299,6 +299,30 @@ class TargetGraph {
     return 0;
   }
 
+
+  HyperedgeWeight distance(const ds::Bitset& connectivity_set) const {
+    return 0;
+  }
+
+  HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceWithBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceWithoutBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset& connectivity_set,
+                                                const PartitionID removed_block,
+                                                const PartitionID added_block) const {
+    return 0;
+  }
+
+
   void printStats() const {  }
 
   void printStats(std::stringstream&) const {  }
