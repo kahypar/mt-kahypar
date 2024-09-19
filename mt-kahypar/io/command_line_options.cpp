@@ -866,6 +866,7 @@ namespace mt_kahypar {
               .add(refinement_options)
               .add(flow_options)
               .add(mapping_options)
+              .add(evolutionary_options)
               .add(shared_memory_options);
 
       po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
