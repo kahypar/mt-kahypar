@@ -42,10 +42,14 @@ namespace mt_kahypar {
 
             history += performEvolution(hypergraph, context, target_graph, population);
             history += "\nRUN COMPLETED\n";
-            if (best_population.size() == 0 || best_population.bestFitness() > population.bestFitness()) {
-                best_population = std::move(population);
-            }
+            // if (best_population.size() == 0 || best_population.bestFitness() > population.bestFitness()) {
+            //     best_population = std::move(population);
+            // }
+            best_population.merge(population, context.evolutionary.output_size);
         }
+
+        LOG << "\nFinal Best:   " << best_population.individualAt(best_population.best()).fitness();
+        LOG << "Final Worst:  " << best_population.individualAt(best_population.worst()).fitness() << "\n";
 
         if (context.evolutionary.history_file != "") {
             std::ofstream out_stream(context.evolutionary.history_file.c_str());

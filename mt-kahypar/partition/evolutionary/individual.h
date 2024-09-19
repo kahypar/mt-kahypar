@@ -78,11 +78,11 @@ class Individual {
     DBG << "New individual" << V(_fitness);
   }
 
-  Individual(const Individual&) = delete;
-  Individual& operator= (const Individual&) = delete;
+  // Individual(const Individual&) = delete;
+  // Individual& operator= (const Individual&) = delete;
 
-  Individual(Individual&&) = default;
-  Individual& operator= (Individual&&) = default;
+  // Individual(Individual&&) = default;
+  // Individual& operator= (Individual&&) = default;
 
   inline HyperedgeWeight fitness() const {
     ASSERT(_fitness != std::numeric_limits<HyperedgeWeight>::max());

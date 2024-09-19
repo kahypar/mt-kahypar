@@ -719,6 +719,9 @@ namespace mt_kahypar {
             ("evo-population-size",
              po::value<size_t>(&context.evolutionary.population_size)->value_name("<size_t>")->default_value(10),
              "Size of the population for the evolution\n")
+            ("evo-output-size",
+             po::value<size_t>(&context.evolutionary.output_size)->value_name("<size_t>")->default_value(10),
+             "Number of returned partitions\n")
             ("evo-dynamic-population-size",
             po::value<bool>(&context.evolutionary.dynamic_population_size)->value_name("<bool>")->default_value(false),
             "Use dynamic population siez for the evolution")

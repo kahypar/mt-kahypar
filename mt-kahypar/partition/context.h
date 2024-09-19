@@ -273,6 +273,7 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 struct EvolutionaryParameters {
   size_t repetitions;
   size_t population_size;
+  size_t output_size;
   float mutation_chance;
   EvoReplaceStrategy replace_strategy;
   mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;

@@ -195,6 +195,16 @@ class Population {
     return best_individuals;
   }
 
+  inline void merge(const Population& other, size_t new_size) {
+    std::vector<Individual> individuals_new;
+    Individuals left = listOfBest(size());
+    Individuals right = other.listOfBest(other.size());
+    std::merge(left.begin(), left.end(), right.begin(), right.end(), std::back_inserter(individuals_new),
+      [](auto lhs, auto rhs) { return lhs.get().fitness() < rhs.get().fitness(); });
+    individuals_new.resize(new_size);
+    _individuals = std::move(individuals_new);
+  }
+
   inline void print() const {
     std::cout << std::endl << "Population Fitness: ";
     for (size_t i = 0; i < _individuals.size(); ++i) {
