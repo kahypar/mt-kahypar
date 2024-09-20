@@ -393,18 +393,30 @@ TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
 TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcurrently) {
   this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
+  std::array<HyperedgeWeight, 2> deltas { 0 , 0 };
+  std::vector<std::vector<HyperedgeWeight>> move_deltas(2 , std::vector<HyperedgeWeight>());
   CAtomic<HyperedgeWeight> delta(0);
-  auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
-      delta.fetch_add(CutAttributedGains::gain(sync_update));
-  };
+  // auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
+  //    delta.fetch_add(CutAttributedGains::gain(sync_update));
+  // };
 
   executeConcurrent([&] {
+    auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
+      HyperedgeWeight d = CutAttributedGains::gain(sync_update);
+      deltas[0] += d;
+      move_deltas[0].push_back(d);
+    };
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 1, 2, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 0, 2, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 3, 1, 2, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 2, 0, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 2, 1, 5, []{}, delta_fun));
   }, [&] {
+    auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
+      HyperedgeWeight d = CutAttributedGains::gain(sync_update);
+      deltas[1] += d;
+      move_deltas[1].push_back(d);
+    };
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 5, 2, 0, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 0, 2, 5, []{}, delta_fun));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 6, 2, 0, 5, []{}, delta_fun));
@@ -412,6 +424,14 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, 5, []{}, delta_fun));
   });
 
+  LOG << V(deltas[0]) << V(deltas[1]);
+  for (int i = 0; i < 2; ++i) {
+    LOG << V(i);
+    for (const auto& move_delta : move_deltas[i]) {
+      LOG << V(move_delta);
+    }
+  }
+  delta.store(deltas[0] + deltas[1]);
   ASSERT_EQ(-2, delta.load());
   this->verifyGains(0, {0, 0, 0});
   this->verifyGains(1, {0, 0, -1});
