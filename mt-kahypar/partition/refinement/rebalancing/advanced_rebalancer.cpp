@@ -322,7 +322,8 @@ namespace impl {
 
       const int seed = phg.initialNumNodes() + task_id;
 
-      impl::NextMoveFinder next_move_finder(seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state);
+      impl::NextMoveFinder<PartitionedHypergraph, GainCache> next_move_finder(
+        seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state);
 
       while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
         const Move& m = next_move_finder.next_move;
