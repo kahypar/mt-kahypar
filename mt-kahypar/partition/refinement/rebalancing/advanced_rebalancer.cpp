@@ -28,12 +28,11 @@
 
 #include <array>
 #include <optional>
+#include <random>
 
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/partition/context.h"
-
-#include "pcg_random.hpp"
 
 namespace mt_kahypar {
 
@@ -119,7 +118,7 @@ namespace impl {
       return result;
     }
 
-    pcg32 rng;
+    std::mt19937 rng;
     std::uniform_int_distribution<size_t> dist;
   };
 
