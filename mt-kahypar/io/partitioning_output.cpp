@@ -763,7 +763,7 @@ namespace mt_kahypar::io {
     std::sort(internal_pins.begin(), internal_pins.end());
     std::sort(internal_degree.begin(), internal_degree.end());
 
-    auto square = [&](size_t x) { return x * x; };
+    auto square = [&](double x) { return x * x; };
 
     auto avg_and_std_dev = [&](const std::vector<size_t>& v) {
       const double avg = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
