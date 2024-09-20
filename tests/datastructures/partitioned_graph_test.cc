@@ -395,11 +395,7 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
 
   std::array<HyperedgeWeight, 2> deltas { 0 , 0 };
   std::vector<std::vector<HyperedgeWeight>> move_deltas(2 , std::vector<HyperedgeWeight>());
-  CAtomic<HyperedgeWeight> delta(0);
-  // auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
-  //    delta.fetch_add(CutAttributedGains::gain(sync_update));
-  // };
-
+  
   executeConcurrent([&] {
     auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
       HyperedgeWeight d = CutAttributedGains::gain(sync_update);
@@ -424,15 +420,8 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, 5, []{}, delta_fun));
   });
 
-  LOG << V(deltas[0]) << V(deltas[1]);
-  for (int i = 0; i < 2; ++i) {
-    LOG << V(i);
-    for (const auto& move_delta : move_deltas[i]) {
-      LOG << V(move_delta);
-    }
-  }
-  delta.store(deltas[0] + deltas[1]);
-  ASSERT_EQ(-2, delta.load());
+  HyperedgeWeight delta = deltas[0] + deltas[1];
+  ASSERT_EQ(-2, delta);
   this->verifyGains(0, {0, 0, 0});
   this->verifyGains(1, {0, 0, -1});
   this->verifyGains(2, {-1, 0, 0});
