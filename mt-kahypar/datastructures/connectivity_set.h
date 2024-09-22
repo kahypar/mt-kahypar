@@ -87,7 +87,9 @@ public:
     _shallow_copy_bitset() {
       if ( num_hyperedges > 0 ) {
         _bits.resize("Refinement", "connectivity_set",
-          static_cast<size_t>(num_hyperedges) * _num_blocks_per_hyperedge, true, assign_parallel);
+          static_cast<size_t>(num_hyperedges) * _num_blocks_per_hyperedge
+          + 1 // The nextBlockID() implementation performs a (masked out) load past the end
+          , true, assign_parallel);
       }
     }
 
