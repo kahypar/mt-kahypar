@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/bit_ops.h"
 
 namespace mt_kahypar {
 namespace ds {

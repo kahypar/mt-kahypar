@@ -29,9 +29,9 @@
 
 #include <vector>
 
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/scalable_allocator.h"
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/scalable_allocator.h>
 
 #include "mt-kahypar/macros.h"
 

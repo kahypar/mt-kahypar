@@ -28,7 +28,7 @@
 
 #include <mutex>
 
-#include "tbb/concurrent_vector.h"
+#include <tbb/concurrent_vector.h>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/stats.h"

@@ -35,6 +35,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 

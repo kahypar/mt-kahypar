@@ -27,11 +27,11 @@
 
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/parallel_scan.h"
-#include "tbb/parallel_for.h"
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/parallel_scan.h>
+#include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
 

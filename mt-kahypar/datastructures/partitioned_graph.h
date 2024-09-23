@@ -32,7 +32,7 @@
 #include <type_traits>
 #include <mutex>
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "kahypar-resources/meta/mandatory.h"
 

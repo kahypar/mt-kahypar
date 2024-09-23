@@ -29,11 +29,11 @@
 
 #include <vector>
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/memory_pool.h"
@@ -763,7 +763,7 @@ namespace mt_kahypar::io {
     std::sort(internal_pins.begin(), internal_pins.end());
     std::sort(internal_degree.begin(), internal_degree.end());
 
-    auto square = [&](size_t x) { return x * x; };
+    auto square = [&](double x) { return x * x; };
 
     auto avg_and_std_dev = [&](const std::vector<size_t>& v) {
       const double avg = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());

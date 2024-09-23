@@ -29,7 +29,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 
-#include "tbb/concurrent_queue.h"
+#include <tbb/concurrent_queue.h>
 
 #include "mt-kahypar/definitions.h"
 

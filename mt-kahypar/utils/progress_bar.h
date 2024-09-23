@@ -50,7 +50,7 @@ class ProgressBar {
 
  public:
   explicit ProgressBar(const size_t expected_count,
-                       const HyperedgeWeight objective,
+                       const int64_t objective,
                        const bool enable = true) :
     _display_mutex(),
     _count(0),
@@ -105,11 +105,11 @@ class ProgressBar {
     return _count;
   }
 
-  void setObjective(const HyperedgeWeight objective) {
+  void setObjective(const int64_t objective) {
     _objective = objective;
   }
 
-  void addToObjective(const HyperedgeWeight delta) {
+  void addToObjective(const int64_t delta) {
     __atomic_fetch_add(&_objective, delta, __ATOMIC_RELAXED);
   }
 
@@ -191,7 +191,7 @@ class ProgressBar {
   std::atomic<size_t> _next_tic_count;
   size_t _expected_count;
   HighResClockTimepoint _start;
-  HyperedgeWeight _objective;
+  int64_t _objective;
   size_t _progress_bar_size;
   bool _enable;
 };

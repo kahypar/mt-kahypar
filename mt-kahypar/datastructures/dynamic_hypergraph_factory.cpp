@@ -27,9 +27,9 @@
 
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_scan.h"
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_scan.h>
 
 #include "kahypar-resources/utils/math.h"
 

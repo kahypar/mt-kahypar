@@ -26,10 +26,10 @@
 
 #pragma once
 
-#include "tbb/task.h"
+#include <tbb/task.h>
 
 #include "include/libmtkahypartypes.h"
-
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 

@@ -27,8 +27,8 @@
 
 #include "partitioner.h"
 
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"

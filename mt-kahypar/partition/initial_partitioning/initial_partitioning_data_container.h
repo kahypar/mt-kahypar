@@ -29,7 +29,7 @@
 #include <sstream>
 #include <mutex>
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
 

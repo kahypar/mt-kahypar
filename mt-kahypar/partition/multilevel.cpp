@@ -29,7 +29,7 @@
 
 #include <memory>
 
-#include "tbb/task.h"
+#include <tbb/task.h>
 
 #include "include/libmtkahypartypes.h"
 

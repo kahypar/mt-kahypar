@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 
-#include "tbb/parallel_for.h"
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"

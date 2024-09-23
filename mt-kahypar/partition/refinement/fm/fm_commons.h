@@ -28,10 +28,10 @@
 
 #include <limits>
 
-#include <mt-kahypar/datastructures/concurrent_bucket_map.h>
-#include <mt-kahypar/datastructures/priority_queue.h>
-#include <mt-kahypar/partition/context.h>
-#include <mt-kahypar/parallel/work_stack.h>
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/parallel/work_stack.h"
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 

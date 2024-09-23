@@ -46,7 +46,7 @@
 #endif
 
 
-#include "tbb/parallel_for.h"
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"

@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include <algorithm>
 #include <vector>

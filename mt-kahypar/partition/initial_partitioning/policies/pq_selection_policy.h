@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/task.h"
+#include <tbb/task.h>
 
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
 

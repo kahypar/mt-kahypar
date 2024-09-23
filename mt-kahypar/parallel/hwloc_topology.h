@@ -27,7 +27,11 @@
 
 #pragma once
 
+#include <vector>
+
 #include <hwloc.h>
+
+#include "kahypar-resources/macros.h"
 
 namespace mt_kahypar {
 namespace parallel {

@@ -40,8 +40,8 @@
 #include <sysinfoapi.h>
 #endif
 
-#include "tbb/parallel_for.h"
-#include "tbb/scalable_allocator.h"
+#include <tbb/parallel_for.h>
+#include <tbb/scalable_allocator.h>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"

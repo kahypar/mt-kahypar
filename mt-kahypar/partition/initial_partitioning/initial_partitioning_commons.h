@@ -33,7 +33,7 @@
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 

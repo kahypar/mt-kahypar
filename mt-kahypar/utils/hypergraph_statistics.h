@@ -25,9 +25,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <cstdint>
 #include <vector>
 
-#include "tbb/parallel_reduce.h"
+#include <tbb/parallel_reduce.h>
+#include <tbb/blocked_range.h>
+
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace utils {

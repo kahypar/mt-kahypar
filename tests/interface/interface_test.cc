@@ -29,7 +29,7 @@
 
 #include <thread>
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "libmtkahypar.h"
 #include "mt-kahypar/macros.h"

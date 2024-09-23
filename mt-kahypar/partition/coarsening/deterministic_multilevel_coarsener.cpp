@@ -29,6 +29,7 @@
 #include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/utils/hash.h"
 
 namespace mt_kahypar {
 
@@ -148,7 +149,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
     best_target = u;
   } else {
     hashing::SimpleIntHash<uint32_t> sih;
-    hashing::HashRNG hash_prng(sih, u);
+    hashing::HashRNG<hashing::SimpleIntHash<uint32_t>> hash_prng(sih, u);
     size_t pos = std::uniform_int_distribution<uint32_t>(0, best_targets.size() - 1)(hash_prng);
     assert(pos < best_targets.size());
     best_target = best_targets[pos];

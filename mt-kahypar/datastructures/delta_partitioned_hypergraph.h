@@ -83,7 +83,6 @@ class DeltaPartitionedHypergraph {
     _part_ids_delta(),
     _pins_in_part_delta(),
     _connectivity_set_delta(context.partition.k) {
-      const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
     }

@@ -31,7 +31,7 @@
 #include <limits>
 #include <vector>
 
-#include "tbb/parallel_for.h"
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"

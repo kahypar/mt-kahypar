@@ -32,8 +32,8 @@
 #include <thread>
 #include <vector>
 
-#include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
+#include <tbb/task_group.h>
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"

@@ -27,7 +27,7 @@
 #include <atomic>
 
 #include "gmock/gmock.h"
-#include "tbb/task_group.h"
+#include <tbb/task_group.h>
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/hardware_topology.h"

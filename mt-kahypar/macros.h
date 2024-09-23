@@ -30,7 +30,7 @@
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
     !defined(KAHYPAR_ENABLE_THREAD_PINNING) || defined(__APPLE__)
-#include "tbb/task_arena.h"
+#include <tbb/task_arena.h>
 // If we use the C or Python interface or thread pinning is disabled, the cpu ID
 // to which the current thread is assigned to is not unique. We therefore use
 // the slot index of the current task arena as unique thread ID. Note that the
@@ -63,11 +63,6 @@
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#define HEAVY_ASSERT0(cond)                                                    \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond); }()
-#define HEAVY_ASSERT1(cond, msg)                                               \
-  !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond, msg); }()
-
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
 #define HEAVY_PREPROCESSING_ASSERT_1(cond) ASSERT(cond)
 #define HEAVY_PREPROCESSING_ASSERT_2(cond, msg) ASSERT(cond, msg)
@@ -99,9 +94,6 @@
 #define HEAVY_REFINEMENT_ASSERT_1(cond) HEAVY_ASSERT0(cond)
 #define HEAVY_REFINEMENT_ASSERT_2(cond, msg) HEAVY_ASSERT1(cond, msg)
 #endif
-
-#define HEAVY_ASSERT_(TYPE, N) HEAVY_##TYPE##_ASSERT_##N
-#define HEAVY_ASSERT_EVAL(TYPE, N) HEAVY_ASSERT_(TYPE, N)
 
 // Heavy assertions are assertions which increase the complexity of the scope
 // which they are executed in by an polynomial factor. In debug mode you are

@@ -29,7 +29,7 @@
 
 #include <queue>
 
-#include "tbb/parallel_sort.h"
+#include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"

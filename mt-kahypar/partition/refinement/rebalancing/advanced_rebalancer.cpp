@@ -28,12 +28,11 @@
 
 #include <array>
 #include <optional>
+#include <random>
 
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/partition/context.h"
-
-#include "pcg_random.hpp"
 
 namespace mt_kahypar {
 
@@ -119,7 +118,7 @@ namespace impl {
       return result;
     }
 
-    pcg32 rng;
+    std::mt19937 rng;
     std::uniform_int_distribution<size_t> dist;
   };
 
@@ -323,7 +322,8 @@ namespace impl {
 
       const int seed = phg.initialNumNodes() + task_id;
 
-      impl::NextMoveFinder next_move_finder(seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state);
+      impl::NextMoveFinder<PartitionedHypergraph, GainCache> next_move_finder(
+        seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state);
 
       while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
         const Move& m = next_move_finder.next_move;

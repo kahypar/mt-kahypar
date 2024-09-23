@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include "tbb/concurrent_queue.h"
-#include "tbb/concurrent_vector.h"
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/concurrent_queue.h>
+#include <tbb/concurrent_vector.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"

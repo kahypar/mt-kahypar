@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include <mt-kahypar/parallel/stl/scalable_vector.h>
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
@@ -67,7 +67,9 @@ public:
     positions[heap.back().id] = 0;
     heap[0] = heap.back();
     heap.pop_back();
-    siftDown(0);
+    if (!empty()) {
+      siftDown(0);
+    }
   }
 
   void insert(const IdT e, const KeyT k) {
@@ -87,6 +89,9 @@ public:
     positions[heap.back().id] = pos;
     positions[e] = invalid_position;
     heap.pop_back();
+    if (pos == size()) {
+      return;
+    }
     if (comp(removedKey, lastKey)) {
       siftUp(pos);
     } else {

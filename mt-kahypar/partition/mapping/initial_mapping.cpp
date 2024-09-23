@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"

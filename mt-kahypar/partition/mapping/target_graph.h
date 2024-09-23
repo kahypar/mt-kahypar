@@ -30,7 +30,7 @@
 #include <numeric>
 #include <iostream>
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #ifdef __linux__
 #pragma GCC diagnostic push
@@ -40,7 +40,7 @@
 #include "data-structures/table_config.hpp"
 #pragma GCC diagnostic pop
 #elif defined(_WIN32) or defined(__APPLE__)
-#include "tbb/concurrent_unordered_map.h"
+#include <tbb/concurrent_unordered_map.h>
 #endif
 
 #include "mt-kahypar/macros.h"
@@ -299,9 +299,39 @@ class TargetGraph {
     return 0;
   }
 
+
+  HyperedgeWeight distance(const ds::Bitset&) const {
+    return 0;
+  }
+
+  HyperedgeWeight distance(const PartitionID, const PartitionID) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceWithBlock(ds::Bitset&, const PartitionID) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceWithoutBlock(ds::Bitset&, const PartitionID) const {
+    return 0;
+  }
+
+  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset&, const PartitionID, const PartitionID) const {
+    return 0;
+  }
+
+
+  const ds::StaticGraph& graph() const {
+    return _dummy_graph;
+  }
+
   void printStats() const {  }
 
   void printStats(std::stringstream&) const {  }
+
+ private:
+
+  ds::StaticGraph _dummy_graph;
 };
 #endif
 

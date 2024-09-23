@@ -29,10 +29,10 @@
 
 #include <string>
 
-#include "tbb/concurrent_queue.h"
-#include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_reduce.h"
+#include <tbb/concurrent_queue.h>
+#include <tbb/task_group.h>
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
 
 #include "kahypar-resources/meta/mandatory.h"
 

@@ -31,8 +31,8 @@
 #include <thread>
 #include <type_traits>
 
-#include "tbb/task_arena.h"
-#include "tbb/task_group.h"
+#include <tbb/task_arena.h>
+#include <tbb/task_group.h>
 
 #include "kahypar-resources/meta/mandatory.h"
 

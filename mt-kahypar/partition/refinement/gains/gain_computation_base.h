@@ -30,11 +30,12 @@
 
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 namespace mt_kahypar {
 

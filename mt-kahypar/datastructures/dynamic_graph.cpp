@@ -28,11 +28,11 @@
 
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_scan.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/concurrent_queue.h"
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_scan.h>
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/concurrent_queue.h>
 
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"

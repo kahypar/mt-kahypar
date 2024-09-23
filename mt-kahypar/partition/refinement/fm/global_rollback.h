@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "tbb/parallel_invoke.h"
+#include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 

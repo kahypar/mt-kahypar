@@ -31,6 +31,7 @@
 #include <random>
 #include <type_traits>
 
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar::hashing {
 

@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace mt_kahypar::utils {
 
 inline int popcount_64(const uint64_t x) {
