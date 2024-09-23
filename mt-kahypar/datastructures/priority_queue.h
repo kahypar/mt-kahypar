@@ -89,7 +89,7 @@ public:
     positions[heap.back().id] = pos;
     positions[e] = invalid_position;
     heap.pop_back();
-    if (empty()) {
+    if (pos == size()) {
       return;
     }
     if (comp(removedKey, lastKey)) {
