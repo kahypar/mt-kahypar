@@ -220,7 +220,7 @@ void SequentialTwoWayFmRefiner<TypeTraits>::deltaGainUpdate(const HyperedgeID he
     if (_phg.edgeSize(he) == 2) {
       for (const HypernodeID& pin : _phg.pins(he)) {
         if ( _vertex_state[pin] == VertexState::ACTIVE ) {
-          const char factor = (_phg.partID(pin) == from ? 2 : -2);
+          const int factor = (_phg.partID(pin) == from ? 2 : -2);
           updatePin(pin, factor * he_weight);
         }
       }
