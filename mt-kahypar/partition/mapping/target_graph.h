@@ -300,23 +300,23 @@ class TargetGraph {
   }
 
 
-  HyperedgeWeight distance(const ds::Bitset& ) const {
+  HyperedgeWeight distance(const ds::Bitset&) const {
     return 0;
   }
 
-  HyperedgeWeight distance(const PartitionID , const PartitionID ) const {
+  HyperedgeWeight distance(const PartitionID, const PartitionID) const {
     return 0;
   }
 
-  HyperedgeWeight distanceWithBlock(ds::Bitset& , const PartitionID ) const {
+  HyperedgeWeight distanceWithBlock(ds::Bitset&, const PartitionID) const {
     return 0;
   }
 
-  HyperedgeWeight distanceWithoutBlock(ds::Bitset& , const PartitionID ) const {
+  HyperedgeWeight distanceWithoutBlock(ds::Bitset&, const PartitionID) const {
     return 0;
   }
 
-  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset& , const PartitionID , const PartitionID ) const {
+  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset&, const PartitionID, const PartitionID) const {
     return 0;
   }
 

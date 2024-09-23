@@ -195,7 +195,8 @@ namespace mt_kahypar {
   void MultilevelUncoarsener<TypeTraits>::refineImpl() {
     PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
     double time_limit = std::numeric_limits<double>::max();
-    if (_current_level >= 0 && _current_level != _num_levels) {   // there is a refinement run on the coarsest graph before projection, there is no value stored for this run.
+    if (_current_level >= 0 && _current_level != _num_levels) {
+      // there is a refinement run on the coarsest graph before projection. There is no value stored for this run, so we must avoid looking it up.
       time_limit = Base::refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
     }
 
