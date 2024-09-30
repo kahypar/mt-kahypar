@@ -364,8 +364,8 @@ class MultilevelCoarsener : public ICoarsener,
                                                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
     ASSERT(u < hypergraph.initialNumNodes());
     ASSERT(v < hypergraph.initialNumNodes());
-    uint8_t unmatched = STATE(MatchingState::UNMATCHED);
-    uint8_t match_in_progress = STATE(MatchingState::MATCHING_IN_PROGRESS);
+    const uint8_t matched = STATE(MatchingState::MATCHED);
+    const uint8_t match_in_progress = STATE(MatchingState::MATCHING_IN_PROGRESS);
 
     // Indicates that u wants to join the cluster of v.
     // Will be important later for conflict resolution.
@@ -374,32 +374,34 @@ class MultilevelCoarsener : public ICoarsener,
     HypernodeWeight weight_v = _cluster_weight[v];
     if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
 
-      if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
+      uint8_t expect_unmatched_u = STATE(MatchingState::UNMATCHED);
+      if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress) ) {
         _matching_partner[u] = v;
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
         // can change the cluster id of a vertex.
 
+        uint8_t expect_unmatched_v = STATE(MatchingState::UNMATCHED);
         uint8_t matching_state_v = _matching_state[v].load();
-        if ( matching_state_v == STATE(MatchingState::MATCHED) ) {
+        if ( matching_state_v == matched ) {
           // Vertex v is already matched and will not change it cluster id any more.
           // In that case, it is safe to set the cluster id of u to the cluster id of v.
           const HypernodeID rep = cluster_ids[v];
-          ASSERT(_matching_state[rep] == STATE(MatchingState::MATCHED));
+          ASSERT(_matching_state[rep] == matched);
           success = joinCluster<has_fixed_vertices>(hypergraph,
             u, rep, cluster_ids, contracted_nodes, fixed_vertices);
-        } else if ( _matching_state[v].compare_exchange_strong(unmatched, match_in_progress) ) {
+        } else if ( _matching_state[v].compare_exchange_strong(expect_unmatched_v, match_in_progress) ) {
           // Current thread has the "ownership" for u and v and can change the cluster id
           // of both vertices thread-safe.
           success = joinCluster<has_fixed_vertices>(hypergraph,
             u, v, cluster_ids, contracted_nodes, fixed_vertices);
-          _matching_state[v] = STATE(MatchingState::MATCHED);
+          _matching_state[v].store(matched);
         } else {
           // State of v must be either MATCHING_IN_PROGRESS or an other thread changed the state
           // in the meantime to MATCHED. We have to wait until the state of v changed to
           // MATCHED or resolve the conflict if u is matched within a cyclic matching dependency
 
           // Conflict Resolution
-          while ( _matching_state[v] == STATE(MatchingState::MATCHING_IN_PROGRESS) ) {
+          while ( _matching_state[v] == match_in_progress ) {
 
             // Check if current vertex is in a cyclic matching dependency
             HypernodeID cur_u = u;
@@ -415,15 +417,15 @@ class MultilevelCoarsener : public ICoarsener,
             if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
               success = joinCluster<has_fixed_vertices>(hypergraph,
                 u, v, cluster_ids, contracted_nodes, fixed_vertices);
-              _matching_state[v] = STATE(MatchingState::MATCHED);
+              _matching_state[v].store(matched);
             }
           }
 
           // If u is still in state MATCHING_IN_PROGRESS its matching partner v
           // must be matched in the meantime with an other vertex. Therefore,
           // we try to match u with the representative v's cluster.
-          if ( _matching_state[u] == STATE(MatchingState::MATCHING_IN_PROGRESS) ) {
-            ASSERT( _matching_state[v] == STATE(MatchingState::MATCHED) );
+          if ( _matching_state[u] == match_in_progress ) {
+            ASSERT( _matching_state[v] == matched );
             const HypernodeID rep = cluster_ids[v];
             success = joinCluster<has_fixed_vertices>(hypergraph,
               u, rep, cluster_ids, contracted_nodes, fixed_vertices);
@@ -432,7 +434,7 @@ class MultilevelCoarsener : public ICoarsener,
         _rater.markAsMatched(u);
         _rater.markAsMatched(v);
         _matching_partner[u] = u;
-        _matching_state[u] = STATE(MatchingState::MATCHED);
+        _matching_state[u].store(matched);
       }
     }
     return success;
