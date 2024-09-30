@@ -462,8 +462,6 @@ class MultilevelCoarsener : public ICoarsener,
       ++contracted_nodes;
       success = true;
     }
-    _matching_partner[u] = u;
-    _matching_state[u] = STATE(MatchingState::MATCHED);
     return success;
   }
 
