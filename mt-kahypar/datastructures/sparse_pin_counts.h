@@ -97,6 +97,8 @@ class SparsePinCounts {
       _k(k),
       _pin_count_list(data),
       _ext_pin_count_list(nullptr) {
+      // this assert needs to be active in release mode to silence a null pointer related compiler warning
+      ALWAYS_ASSERT(data != nullptr);
       next_valid_entry();
     }
 
@@ -108,6 +110,7 @@ class SparsePinCounts {
       _k(k),
       _pin_count_list(nullptr),
       _ext_pin_count_list(data) {
+      ASSERT(data != nullptr);
       next_valid_entry();
     }
 
