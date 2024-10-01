@@ -163,7 +163,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multi
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
 
-TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
+TYPED_TEST_SUITE(AInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
   this->runInitialPartitioning();
