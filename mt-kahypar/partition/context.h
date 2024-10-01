@@ -110,9 +110,9 @@ struct RatingParameters {
 
   // Similarity policy
   uint32_t incident_weight_scaling_constant = 1;
-  double preserve_nodes_scaling_factor = 0.25;
+  double preserve_nodes_scaling_factor = 0.5;
   double preserve_nodes_relative_weight_limit = 0.001;
-  double acceptance_limit_bound = 1.0;
+  double acceptance_limit_bound = 0.25;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
@@ -131,7 +131,7 @@ struct CoarseningParameters {
   size_t num_sub_rounds_deterministic = 16;
 
   // Two-Hop Coarsening
-  double two_hop_required_similarity = 0.5;
+  double two_hop_required_similarity = 0.25;
   HypernodeID degree_one_node_cluster_size = 4;
   size_t two_hop_degree_threshold = 100;
 

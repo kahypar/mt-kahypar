@@ -325,7 +325,7 @@ namespace mt_kahypar {
              "Number of sub-rounds used for deterministic coarsening.")
             ("c-two-hop-required-similarity",
              po::value<double>(&context.coarsening.two_hop_required_similarity)->value_name(
-                     "<double>")->default_value(0.75),
+                     "<double>")->default_value(0.25),
              "Required neighborhood similarity for two-hop coarsening.")
             ("c-degree-one-node-cluster-size",
              po::value<HypernodeID>(&context.coarsening.degree_one_node_cluster_size)->value_name(
@@ -337,7 +337,7 @@ namespace mt_kahypar {
              "Scales how incident weight is computed when determining similarity thresholds.")
             ("c-sim-preserve-nodes-scaling-factor",
              po::value<double>(&context.coarsening.rating.preserve_nodes_scaling_factor)->value_name(
-                     "<double>")->default_value(0.25),
+                     "<double>")->default_value(0.5),
              "Scales the similarity threshold for rejecting contractions (lower = more accepting).")
             ("c-sim-preserve-nodes-relative-weight-limit",
              po::value<double>(&context.coarsening.rating.preserve_nodes_relative_weight_limit)->value_name(
@@ -345,7 +345,7 @@ namespace mt_kahypar {
              "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster.")
             ("c-sim-acceptance-limit-bound",
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
-                     "<double>")->default_value(1.0),
+                     "<double>")->default_value(0.25),
              "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
             ("c-two-hop-degree-threshold",
              po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
