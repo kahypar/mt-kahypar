@@ -84,10 +84,11 @@ class FlowRefinerMock final : public IFlowRefiner {
  public:
   explicit FlowRefinerMock(const HyperedgeID,
                            const Context& context) :
-    _context(context),
     _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
-    _refine_func(FlowRefinerMockControl::instance().refine_func) { }
+    _refine_func(FlowRefinerMockControl::instance().refine_func) {
+      unused(context);
+    }
 
   FlowRefinerMock(const FlowRefinerMock&) = delete;
   FlowRefinerMock(FlowRefinerMock&&) = delete;
@@ -108,15 +109,14 @@ class FlowRefinerMock final : public IFlowRefiner {
     return _refine_func(phg, sub_hg, _num_threads);
   }
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const {
+  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
     return _max_num_blocks;
   }
 
-  void setNumThreadsForSearchImpl(const size_t num_threads) {
+  void setNumThreadsForSearchImpl(const size_t num_threads) override {
     _num_threads = num_threads;
   }
 
-  const Context& _context;
   const PartitionID _max_num_blocks;
   size_t _num_threads;
   RefineFunc _refine_func;
