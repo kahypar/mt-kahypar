@@ -447,7 +447,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          ENABLE_LARGE_K(ENABLE_SOED(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>))
                          ENABLE_LARGE_K(ENABLE_STEINER_TREE(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SteinerTreeGainTypes>))> TestConfigs;
 
-TYPED_TEST_CASE(AGainCache, TestConfigs);
+TYPED_TEST_SUITE(AGainCache, TestConfigs);
 
 TYPED_TEST(AGainCache, HasCorrectInitialGains) {
   this->initializePartition();

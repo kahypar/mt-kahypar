@@ -115,11 +115,11 @@ class AnInputReader : public Test {
 
 template<typename Hypergraph>
 using AHypergraphReader = AnInputReader<Hypergraph>;
-TYPED_TEST_CASE(AHypergraphReader, tests::HypergraphTestTypes);
+TYPED_TEST_SUITE(AHypergraphReader, tests::HypergraphTestTypes);
 
 template<typename Graph>
 using AGraphReader = AnInputReader<Graph>;
-TYPED_TEST_CASE(AGraphReader, tests::GraphAndHypergraphTestTypes);
+TYPED_TEST_SUITE(AGraphReader, tests::GraphAndHypergraphTestTypes);
 
 TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
   this->readHypergraph("../tests/instances/unweighted_hypergraph.hgr", FileFormat::hMetis);

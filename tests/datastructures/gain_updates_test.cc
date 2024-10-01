@@ -60,7 +60,7 @@ class AGainUpdate : public Test {
   Km1GainCache gain_cache;
 };
 
-TYPED_TEST_CASE(AGainUpdate, tests::HypergraphTestTypeTraits);
+TYPED_TEST_SUITE(AGainUpdate, tests::HypergraphTestTypeTraits);
 
 TYPED_TEST(AGainUpdate, Example1) {
   this->phg.setNodePart(0, 0);

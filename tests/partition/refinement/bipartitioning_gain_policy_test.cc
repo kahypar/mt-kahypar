@@ -96,7 +96,7 @@ typedef ::testing::Types<ObjectiveF<Objective::cut>,
                          ObjectiveF<Objective::km1>
                          ENABLE_SOED(COMMA ObjectiveF<Objective::soed>)> TestConfigs;
 
-TYPED_TEST_CASE(ABipartitioningPolicy, TestConfigs);
+TYPED_TEST_SUITE(ABipartitioningPolicy, TestConfigs);
 
 TYPED_TEST(ABipartitioningPolicy, ModelsObjectiveFunctionCorrectlyWhenPerformingRecursiveBipartitioning) {
   const HyperedgeWeight non_cut_edge_multiplier =

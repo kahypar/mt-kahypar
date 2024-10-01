@@ -141,7 +141,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, 1>,
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 2>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 5>) > TestConfigs;
 
-TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
+TYPED_TEST_SUITE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   this->bipartition();

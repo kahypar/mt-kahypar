@@ -71,7 +71,7 @@ struct AFMStrategy : public Test {
 };
 
 using FMStrategyTestTypes = ::testing::Types<LocalGainCacheStrategy, LocalUnconstrainedStrategy>;
-TYPED_TEST_CASE(AFMStrategy, FMStrategyTestTypes);
+TYPED_TEST_SUITE(AFMStrategy, FMStrategyTestTypes);
 
 TYPED_TEST(AFMStrategy, FindNextMove) {
   PartitionID k = 8;
