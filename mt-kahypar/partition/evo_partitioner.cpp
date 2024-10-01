@@ -53,7 +53,7 @@ namespace mt_kahypar {
                 std::vector<uint32_t> frequencies = best_population.getEdgeFrequencies(hypergraph, false);
                 std::ofstream out_stream(context.evolutionary.frequency_file.c_str());
                 out_stream << "# max=" << context.evolutionary.output_size << std::endl;
-                out_stream << "id_high_degree,id_low_degree,frequency" << context.evolutionary.output_size << std::endl;
+                out_stream << "id_high_degree,id_low_degree,frequency" << std::endl;
                 for (HyperedgeID edge: hypergraph.edges()) {
                     HypernodeID u = hypergraph.edgeSource(edge);
                     HypernodeID v = hypergraph.edgeTarget(edge);
