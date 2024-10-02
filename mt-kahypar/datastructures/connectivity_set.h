@@ -178,11 +178,11 @@ public:
 
 private:
 	void toggle(const HyperedgeID he, const PartitionID p) {
-	  assert(p < _k);
-	  assert(he < _num_hyperedges);
+	  ASSERT(p < _k);
+	  ASSERT(he < _num_hyperedges);
     const size_t div = p / BITS_PER_BLOCK, rem = p % BITS_PER_BLOCK;
     const size_t idx = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
-    assert(idx < _bits.size());
+    ASSERT(idx < _bits.size());
     __atomic_xor_fetch(&_bits[idx], UnsafeBlock(1) << rem, __ATOMIC_RELAXED);
 	}
 
