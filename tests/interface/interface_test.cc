@@ -40,8 +40,6 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-  static constexpr bool debug = false;
-
   TEST(MtKaHyPar, ReadHypergraphFile) {
     mt_kahypar_hypergraph_t hypergraph =
       mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", DEFAULT, HMETIS);
