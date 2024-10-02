@@ -148,8 +148,6 @@ class AInitialPartitionerTest : public Test {
 template <typename Config>
 size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance().num_cpus();
 
-static constexpr double EPS = 0.05;
-
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
