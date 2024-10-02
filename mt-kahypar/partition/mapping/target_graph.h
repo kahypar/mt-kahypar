@@ -33,12 +33,23 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #ifdef __linux__
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 #include "allocator/alignedallocator.hpp"
 #include "data-structures/hash_table_mods.hpp"
 #include "data-structures/table_config.hpp"
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #elif defined(_WIN32) or defined(__APPLE__)
 #include <tbb/concurrent_unordered_map.h>
 #endif
