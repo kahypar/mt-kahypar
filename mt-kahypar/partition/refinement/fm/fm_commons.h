@@ -155,15 +155,12 @@ class UnconstrainedFMData {
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wmismatched-tags"
   template<typename GraphAndGainTypes>
   struct InitializationHelper {
     static void initialize(UnconstrainedFMData& data, const Context& context,
                            const typename GraphAndGainTypes::PartitionedHypergraph& phg,
                            const typename GraphAndGainTypes::GainCache& gain_cache);
   };
-  #pragma GCC diagnostic pop
 
   static constexpr BucketID NUM_BUCKETS = 16;
   static constexpr double BUCKET_FACTOR = 1.5;
@@ -211,7 +208,7 @@ class UnconstrainedFMData {
 
  private:
   template<typename GraphAndGainTypes>
-  friend class InitializationHelper;
+  friend struct InitializationHelper;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
