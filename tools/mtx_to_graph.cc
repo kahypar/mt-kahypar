@@ -69,7 +69,8 @@ int main(int argc, const char* argv[]) {
   std::vector<std::vector<uint32_t>> adj_list(num_nodes);
 
   auto t1 = std::chrono::high_resolution_clock::now();
-  int row, col;
+  uint32_t row = 0;
+  uint32_t col = 0;
   for (uint64_t e = 0; e < nnz; ++e) {
     do {
       std::getline(in, line);
