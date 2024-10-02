@@ -156,7 +156,8 @@ class UnconstrainedFMData {
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
   template<typename GraphAndGainTypes>
-  struct InitializationHelper {
+  class InitializationHelper {
+   public:
     static void initialize(UnconstrainedFMData& data, const Context& context,
                            const typename GraphAndGainTypes::PartitionedHypergraph& phg,
                            const typename GraphAndGainTypes::GainCache& gain_cache);
@@ -208,7 +209,7 @@ class UnconstrainedFMData {
 
  private:
   template<typename GraphAndGainTypes>
-  friend struct InitializationHelper;
+  friend class InitializationHelper;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
