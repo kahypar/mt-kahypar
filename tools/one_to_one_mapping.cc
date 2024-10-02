@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
   context.mapping.large_he_threshold = 0.0;
 
   utils::Randomize::instance().setSeed(context.partition.seed);
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  TBBInitializer::instance().initialize(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(

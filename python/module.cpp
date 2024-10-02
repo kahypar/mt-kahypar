@@ -67,12 +67,16 @@ namespace {
     }
 
     // Initialize TBB task arenas on numa nodes
-    mt_kahypar::TBBInitializer::instance(P);
+    mt_kahypar::TBBInitializer::instance().initialize(P);
     // We set the membind policy to interleaved allocations in order to
     // distribute allocations evenly across NUMA nodes
     hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
     mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
+  }
+
+  bool terminate_thread_pool() {
+    mt_kahypar::TBBInitializer::instance().terminate();
   }
 
   template<typename PartitionedHypergraph>
@@ -227,11 +231,14 @@ PYBIND11_MODULE(mtkahypar, m) {
     .value("KM1", Objective::km1)
     .value("SOED", Objective::soed);
 
-  // ####################### Initialize Thread Pool #######################
+  // ####################### Initialize/Terminate Thread Pool #######################
 
   m.def("initializeThreadPool", &initialize_thread_pool,
     "Initializes the thread pool with the given number of threads",
     py::arg("number of threads"));
+
+  m.def("terminateThreadPool", &terminate_thread_pool,
+    "Terminates the thread pool.");
 
   // ####################### Initialize Random Number Generator #######################
 

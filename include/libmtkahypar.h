@@ -100,10 +100,21 @@ MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_co
                                                                    const mt_kahypar_hypernode_weight_t* block_weights);
 
 
-// ####################### Thread Pool Initialization #######################
+// ####################### Thread Pool Initialization/Termination #######################
 
+/**
+ * Initializes the TBB thread pool with the given number of threads, and activates the
+ * interleaved memory allocation policy if set.
+ */
 MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
                                                       const bool interleaved_allocations);
+
+/**
+ * Terminates the TBB thread pool.
+ *
+ * \return `true` if the thread pool was successfully terminated, `false` otherwise.
+ */
+MT_KAHYPAR_API bool mt_kahypar_terminate_thread_pool();
 
 // ####################### Load/Construct Hypergraph #######################
 
