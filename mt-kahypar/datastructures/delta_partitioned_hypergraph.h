@@ -340,6 +340,7 @@ class DeltaPartitionedHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updateConnectivitySet(const HyperedgeID e,
                              const SynchronizedEdgeUpdate& sync_update) {
+    unused(e);
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       _connectivity_set_delta.remove(sync_update.he, sync_update.from);
     }
