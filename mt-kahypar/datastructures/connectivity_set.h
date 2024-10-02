@@ -69,8 +69,8 @@ public:
   using Iterator = typename StaticBitset::const_iterator;
 
   ConnectivitySets() :
-    _k(0),
-    _num_hyperedges(0),
+    ENABLE_ASSERTIONS(_k(0) COMMA)
+    ENABLE_ASSERTIONS(_num_hyperedges(0) COMMA)
     _num_blocks_per_hyperedge(0),
     _bits(),
     _deep_copy_bitset(),
@@ -79,8 +79,8 @@ public:
   ConnectivitySets(const HyperedgeID num_hyperedges,
                    const PartitionID k,
                    const bool assign_parallel = true) :
-    _k(k),
-    _num_hyperedges(num_hyperedges),
+    ENABLE_ASSERTIONS(_k(k) COMMA)
+    ENABLE_ASSERTIONS(_num_hyperedges(num_hyperedges) COMMA)
     _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
     _bits(),
     _deep_copy_bitset(),
@@ -186,8 +186,8 @@ private:
     __atomic_xor_fetch(&_bits[idx], UnsafeBlock(1) << rem, __ATOMIC_RELAXED);
 	}
 
-	PartitionID _k;
-	HyperedgeID _num_hyperedges;
+	ENABLE_ASSERTIONS(PartitionID _k;)
+	ENABLE_ASSERTIONS(HyperedgeID _num_hyperedges;)
 	PartitionID _num_blocks_per_hyperedge;
 	Array<UnsafeBlock> _bits;
 
