@@ -40,8 +40,6 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-  static constexpr bool debug = false;
-
   TEST(MtKaHyPar, ReadHypergraphFile) {
     mt_kahypar_hypergraph_t hypergraph =
       mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", DEFAULT, HMETIS);
@@ -941,7 +939,7 @@ namespace mt_kahypar {
   TEST_F(APartitioner, PartitionsManyHypergraphsInParallel) {
     std::atomic<size_t> cnt(0);
     size_t max_runs = 100;
-    tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const int id) {
+    tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const int /*id*/) {
       while ( cnt.load(std::memory_order_relaxed) < max_runs ) {
         ++cnt;
         PartitionAnotherHypergraph("test_instances/test_instance.hgr", HMETIS, DEFAULT, 4, 0.03, KM1, false);

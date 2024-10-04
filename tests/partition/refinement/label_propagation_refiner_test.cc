@@ -184,7 +184,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, false, Object
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA true COMMA Objective::km1>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA true COMMA Objective::km1>) > TestConfigs;
 
-TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
+TYPED_TEST_SUITE(ALabelPropagationRefiner, TestConfigs);
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);

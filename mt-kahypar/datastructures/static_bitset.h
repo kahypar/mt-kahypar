@@ -59,7 +59,7 @@ class StaticBitset {
     OneBitIterator(const size_t num_blocks,
                    const Block* bitset,
                    const PartitionID start_block) :
-      _num_blocks(num_blocks),
+      ENABLE_ASSERTIONS(_num_blocks(num_blocks) COMMA)
       _bitset(bitset),
       _max_block_id(num_blocks * BITS_PER_BLOCK),
       _current_block_id(start_block) {
@@ -113,7 +113,7 @@ class StaticBitset {
       return __atomic_load_n(_bitset + ( _current_block_id >> DIV_SHIFT ), __ATOMIC_RELAXED);
     }
 
-    const size_t _num_blocks;
+    ENABLE_ASSERTIONS(const size_t _num_blocks;)
     const Block* _bitset;
     const PartitionID _max_block_id;
     PartitionID _current_block_id;

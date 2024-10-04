@@ -517,6 +517,7 @@ TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
             }
           }
         }
+        unused(rating);
       });
     }
   }, [&] {
@@ -690,6 +691,7 @@ TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
             }
           }
         }
+        unused(rating);
       });
     }
   }, [&] {

@@ -118,7 +118,7 @@ typedef ::testing::Types<Config<SequentialConstruction<GraphAndGainTypes<TypeTra
                          Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, true>,
                          Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, false> > TestConfigs;
 
-TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
+TYPED_TEST_SUITE(AFlowHypergraphConstructor, TestConfigs);
 
 void constructSubhypergraph(const PartitionedHypergraph& phg,
                             Subhypergraph& sub_hg) {

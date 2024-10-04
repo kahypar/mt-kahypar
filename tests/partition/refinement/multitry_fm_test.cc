@@ -158,7 +158,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::unconstrained_fm>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::unconstrained_fm>) > TestConfigs;
 
-TYPED_TEST_CASE(MultiTryFMTest, TestConfigs);
+TYPED_TEST_SUITE(MultiTryFMTest, TestConfigs);
 
 TYPED_TEST(MultiTryFMTest, UpdatesImbalanceCorrectly) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);

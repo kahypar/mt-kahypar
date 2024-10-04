@@ -130,7 +130,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cu
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)> TestConfigs;
 
-TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
+TYPED_TEST_SUITE(AConcurrentHypergraph, TestConfigs);
 
 template<typename HyperGraph>
 void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,

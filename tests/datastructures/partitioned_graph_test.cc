@@ -154,7 +154,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
     f2();
   });
 }
-TYPED_TEST_CASE(APartitionedGraph, tests::GraphTestTypeTraits);
+TYPED_TEST_SUITE(APartitionedGraph, tests::GraphTestTypeTraits);
 
 TYPED_TEST(APartitionedGraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));

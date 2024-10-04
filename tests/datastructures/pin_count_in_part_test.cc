@@ -86,7 +86,7 @@ using PinCountTestTypes =
   ::testing::Types<PinCountInPart>;
 #endif
 
-TYPED_TEST_CASE(APinCountDataStructure, PinCountTestTypes);
+TYPED_TEST_SUITE(APinCountDataStructure, PinCountTestTypes);
 
 TYPED_TEST(APinCountDataStructure, IsZeroInitialized_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
