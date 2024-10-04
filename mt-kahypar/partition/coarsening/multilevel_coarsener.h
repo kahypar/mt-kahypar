@@ -77,6 +77,7 @@ class MultilevelCoarsener : public ICoarsener,
   #define STATE(X) static_cast<uint8_t>(X)
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicID = parallel::IntegralAtomicWrapper<HypernodeID>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -154,8 +155,8 @@ class MultilevelCoarsener : public ICoarsener,
       ASSERT(hn < _current_vertices.size());
       // Reset clustering
       _current_vertices[hn] = hn;
-      _matching_state[hn] = STATE(MatchingState::UNMATCHED);
-      _matching_partner[hn] = hn;
+      _matching_state[hn].store(STATE(MatchingState::UNMATCHED), std::memory_order_relaxed);
+      _matching_partner[hn].store(hn, std::memory_order_relaxed);
       cluster_ids[hn] = hn;
       if ( current_hg.nodeIsEnabled(hn) ) {
         _cluster_weight[hn] = current_hg.nodeWeight(hn);
@@ -371,17 +372,21 @@ class MultilevelCoarsener : public ICoarsener,
     // Will be important later for conflict resolution.
     bool success = false;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
-    HypernodeWeight weight_v = _cluster_weight[v];
+    HypernodeWeight weight_v = _cluster_weight[v].load(std::memory_order_relaxed);
     if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
 
+      // We can use memory_order_relaxed when setting the state to MATCHING_IN_PROGRESS since this does not involve any writes to
+      // other locations, except for _matching_partner[u] (the latter is only relevant in conflict resolution and the resolution
+      // doesn't need stronger semantic, either). Setting the state to MATCHED however involves updating the cluster ID, for which
+      // we need acquire/release semantics
       uint8_t expect_unmatched_u = STATE(MatchingState::UNMATCHED);
-      if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress) ) {
-        _matching_partner[u] = v;
+      if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress, std::memory_order_relaxed) ) {
+        _matching_partner[u].store(v, std::memory_order_relaxed);
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
         // can change the cluster id of a vertex.
 
         uint8_t expect_unmatched_v = STATE(MatchingState::UNMATCHED);
-        uint8_t matching_state_v = _matching_state[v].load();
+        uint8_t matching_state_v = _matching_state[v].load(std::memory_order_acquire);
         if ( matching_state_v == matched ) {
           // Vertex v is already matched and will not change it cluster id any more.
           // In that case, it is safe to set the cluster id of u to the cluster id of v.
@@ -389,42 +394,48 @@ class MultilevelCoarsener : public ICoarsener,
           ASSERT(_matching_state[rep] == matched);
           success = joinCluster<has_fixed_vertices>(hypergraph,
             u, rep, cluster_ids, contracted_nodes, fixed_vertices);
-        } else if ( _matching_state[v].compare_exchange_strong(expect_unmatched_v, match_in_progress) ) {
+        } else if ( matching_state_v == expect_unmatched_v &&
+                    _matching_state[v].compare_exchange_strong(expect_unmatched_v, match_in_progress, std::memory_order_relaxed) ) {
           // Current thread has the "ownership" for u and v and can change the cluster id
           // of both vertices thread-safe.
           success = joinCluster<has_fixed_vertices>(hypergraph,
             u, v, cluster_ids, contracted_nodes, fixed_vertices);
-          _matching_state[v].store(matched);
+          _matching_state[v].store(matched, std::memory_order_release);
         } else {
           // State of v must be either MATCHING_IN_PROGRESS or an other thread changed the state
           // in the meantime to MATCHED. We have to wait until the state of v changed to
           // MATCHED or resolve the conflict if u is matched within a cyclic matching dependency
 
           // Conflict Resolution
-          while ( _matching_state[v] == match_in_progress ) {
-
+          do {
             // Check if current vertex is in a cyclic matching dependency
             HypernodeID cur_u = u;
             HypernodeID smallest_node_id_in_cycle = cur_u;
-            while ( _matching_partner[cur_u] != u && _matching_partner[cur_u] != cur_u ) {
-              cur_u = _matching_partner[cur_u];
-              smallest_node_id_in_cycle = std::min(smallest_node_id_in_cycle, cur_u);
+            while (true) {
+              HypernodeID next_u = _matching_partner[cur_u].load(std::memory_order_relaxed);
+              if (next_u != u && next_u != cur_u) {
+                cur_u = next_u;
+                smallest_node_id_in_cycle = std::min(smallest_node_id_in_cycle, cur_u);
+              } else {
+                break;
+              }
             }
 
             // Resolve cyclic matching dependency
             // Vertex with smallest id starts to resolve conflict
-            const bool is_in_cyclic_dependency = _matching_partner[cur_u] == u;
+            const bool is_in_cyclic_dependency = _matching_partner[cur_u].load(std::memory_order_relaxed) == u;
             if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
               success = joinCluster<has_fixed_vertices>(hypergraph,
                 u, v, cluster_ids, contracted_nodes, fixed_vertices);
-              _matching_state[v].store(matched);
+              _matching_state[v].store(matched, std::memory_order_release);
             }
-          }
+          } while ( _matching_state[v].load(std::memory_order_acquire) == match_in_progress );
+          // note: the loop provides acquire semantics for the block below
 
           // If u is still in state MATCHING_IN_PROGRESS its matching partner v
           // must be matched in the meantime with an other vertex. Therefore,
           // we try to match u with the representative v's cluster.
-          if ( _matching_state[u] == match_in_progress ) {
+          if ( _matching_state[u].load(std::memory_order_relaxed) == match_in_progress ) {
             ASSERT( _matching_state[v] == matched );
             const HypernodeID rep = cluster_ids[v];
             success = joinCluster<has_fixed_vertices>(hypergraph,
@@ -433,8 +444,8 @@ class MultilevelCoarsener : public ICoarsener,
         }
         _rater.markAsMatched(u);
         _rater.markAsMatched(v);
-        _matching_partner[u] = u;
-        _matching_state[u].store(matched);
+        _matching_partner[u].store(u, std::memory_order_relaxed);
+        _matching_state[u].store(matched, std::memory_order_release);
       }
     }
     return success;
@@ -450,7 +461,7 @@ class MultilevelCoarsener : public ICoarsener,
     ASSERT(rep == cluster_ids[rep]);
     bool success = false;
     const HypernodeWeight weight_of_u = hypergraph.nodeWeight(u);
-    const HypernodeWeight weight_of_rep = _cluster_weight[rep];
+    const HypernodeWeight weight_of_rep = _cluster_weight[rep].load(std::memory_order_relaxed);
     bool cluster_join_operation_allowed =
       weight_of_u + weight_of_rep <= _context.coarsening.max_allowed_node_weight;
     if constexpr ( has_fixed_vertices ) {
@@ -460,7 +471,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     if ( cluster_join_operation_allowed ) {
       cluster_ids[u] = rep;
-      _cluster_weight[rep] += weight_of_u;
+      _cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed);
       ++contracted_nodes;
       success = true;
     }
@@ -498,7 +509,7 @@ class MultilevelCoarsener : public ICoarsener,
   parallel::scalable_vector<HypernodeID> _current_vertices;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;
   parallel::scalable_vector<AtomicWeight> _cluster_weight;
-  parallel::scalable_vector<HypernodeID> _matching_partner;
+  parallel::scalable_vector<AtomicID> _matching_partner;
   int _pass_nr;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
