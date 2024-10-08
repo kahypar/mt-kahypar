@@ -1,6 +1,7 @@
 #include "evo_partitioner.h"
 #include "partitioner.cpp"
 #include <mutex>
+#include <limits>
 
 namespace mt_kahypar {
 
@@ -158,7 +159,7 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
-        int best;
+        HyperedgeWeight best = std::numeric_limits<HyperedgeWeight>::max();
         int iteration = 0;
         while (population.size() < context.evolutionary.population_size && 
             time_elapsed <= duration) {
