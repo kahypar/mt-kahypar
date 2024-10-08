@@ -110,7 +110,7 @@ MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
                                                       const bool interleaved_allocations);
 
 /**
- * Terminates the TBB thread pool.
+ * Terminates the TBB thread pool (only supported at oneTBB version >= 2021.6).
  *
  * \return `true` if the thread pool was successfully terminated, `false` otherwise.
  */

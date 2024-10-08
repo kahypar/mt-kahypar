@@ -141,10 +141,12 @@ class TBBInitializer {
       _global_observer->observe(false);
     }
 
+    #ifdef MT_KAHYPAR_SUPPORTS_THREAD_POOL_TERMINATION
     // Waits until the last worker threads have finished, and
     // then terminates the task scheduler.
     oneapi::tbb::task_scheduler_handle handle(oneapi::tbb::attach{});
     return oneapi::tbb::finalize(handle, std::nothrow_t{});
+    #endif
   }
 
  private:

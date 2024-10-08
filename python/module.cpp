@@ -76,7 +76,7 @@ namespace {
   }
 
   bool terminate_thread_pool() {
-    mt_kahypar::TBBInitializer::instance().terminate();
+    return mt_kahypar::TBBInitializer::instance().terminate();
   }
 
   template<typename PartitionedHypergraph>
@@ -238,7 +238,7 @@ PYBIND11_MODULE(mtkahypar, m) {
     py::arg("number of threads"));
 
   m.def("terminateThreadPool", &terminate_thread_pool,
-    "Terminates the thread pool.");
+    "Terminates the thread pool (only supported for oneTBB version >= 2021.6).");
 
   // ####################### Initialize Random Number Generator #######################
 
