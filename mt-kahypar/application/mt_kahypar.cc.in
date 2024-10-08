@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  TBBInitializer::instance().initialize(context.shared_memory.num_threads);
 
   // We set the membind policy to interleaved allocations in order to
   // distribute allocations evenly across NUMA nodes

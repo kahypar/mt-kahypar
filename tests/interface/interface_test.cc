@@ -27,9 +27,12 @@
 
 #include "gmock/gmock.h"
 
+#include <chrono>
+#include <new>
 #include <thread>
 
 #include <tbb/parallel_invoke.h>
+#include <tbb/parallel_for.h>
 
 #include "libmtkahypar.h"
 #include "mt-kahypar/macros.h"
@@ -510,6 +513,7 @@ namespace mt_kahypar {
       mt_kahypar_free_hypergraph(hypergraph);
       mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
       mt_kahypar_free_target_graph(target_graph);
+      mt_kahypar_terminate_thread_pool();
     }
 
     mt_kahypar_context_t* context;

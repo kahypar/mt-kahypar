@@ -203,7 +203,7 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
   }
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::instance(P);
+  TBBInitializer::instance().initialize(P);
 
   if ( interleaved_allocations ) {
     // We set the membind policy to interleaved allocations in order to
@@ -212,6 +212,10 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
     parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
   }
+}
+
+bool mt_kahypar_terminate_thread_pool() {
+  return TBBInitializer::instance().terminate();
 }
 
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,

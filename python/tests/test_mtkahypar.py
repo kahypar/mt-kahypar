@@ -39,6 +39,9 @@ class MainTest(unittest.TestCase):
   def setUp(self):
     mtkahypar.initializeThreadPool(multiprocessing.cpu_count())
 
+  def tearDown(self):
+    mtkahypar.terminateThreadPool()
+
   def test_set_partitioning_parameters_in_context(self):
     context = mtkahypar.Context()
     context.setPartitioningParameters(2, 0.03, mtkahypar.Objective.KM1)

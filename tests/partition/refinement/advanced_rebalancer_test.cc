@@ -65,7 +65,7 @@ class RebalancerTest : public Test {
           context(),
           gain_cache(),
           rebalancer(nullptr) {
-    TBBInitializer::instance(std::thread::hardware_concurrency());
+    TBBInitializer::instance().initialize(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.05;
     context.partition.k = Config::K;

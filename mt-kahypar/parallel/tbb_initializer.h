@@ -30,6 +30,8 @@
 #include <hwloc.h>
 #include <mutex>
 #include <memory>
+#include <new>
+#include <optional>
 #include <shared_mutex>
 #include <functional>
 
@@ -62,8 +64,8 @@ class TBBInitializer {
   TBBInitializer(TBBInitializer&&) = delete;
   TBBInitializer & operator= (TBBInitializer &&) = delete;
 
-  static TBBInitializer& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
-    static TBBInitializer instance(num_threads);
+  static TBBInitializer& instance() {
+    static TBBInitializer instance;
     return instance;
   }
 
@@ -90,19 +92,12 @@ class TBBInitializer {
     return cpuset;
   }
 
-  void terminate() {
-    if ( _global_observer ) {
-      _global_observer->observe(false);
-    }
-  }
+  void initialize(std::size_t num_threads) {
+    // Initialize new `global_control` object with the desired number of threads.
+    _num_threads = num_threads;
+    _gc.reset();
+    _gc.emplace(tbb::global_control::max_allowed_parallelism, num_threads);
 
- private:
-  explicit TBBInitializer(const int num_threads) :
-    _num_threads(num_threads),
-    _gc(tbb::global_control::max_allowed_parallelism, num_threads),
-    _global_observer(nullptr),
-    _cpus(),
-    _numa_node_to_cpu_id() {
     HwTopology& topology = HwTopology::instance();
     int num_numa_nodes = topology.num_numa_nodes();
     DBG << "Initialize TBB with" << num_threads << "threads";
@@ -128,20 +123,38 @@ class TBBInitializer {
     }
     _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
 
+    _numa_node_to_cpu_id.clear();
     _numa_node_to_cpu_id.resize(num_numa_nodes);
     for ( const int cpu_id : _cpus ) {
       int node = topology.numa_node_of_cpu(cpu_id);
       ASSERT(node < static_cast<int>(_numa_node_to_cpu_id.size()));
       _numa_node_to_cpu_id[node].push_back(cpu_id);
     }
+
     while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
       _numa_node_to_cpu_id.pop_back();
     }
   }
 
-  int _num_threads;
-  tbb::global_control _gc;
-  std::unique_ptr<ThreadPinningObserver> _global_observer;
+  bool terminate() {
+    if ( _global_observer ) {
+      _global_observer->observe(false);
+    }
+
+    #ifdef MT_KAHYPAR_SUPPORTS_THREAD_POOL_TERMINATION
+    // Waits until the last worker threads have finished, and
+    // then terminates the task scheduler.
+    oneapi::tbb::task_scheduler_handle handle(oneapi::tbb::attach{});
+    return oneapi::tbb::finalize(handle, std::nothrow_t{});
+    #endif
+  }
+
+ private:
+  explicit TBBInitializer() = default;
+
+  int _num_threads = 0;
+  std::optional<tbb::global_control> _gc;
+  std::unique_ptr<ThreadPinningObserver> _global_observer = nullptr;
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
