@@ -201,7 +201,7 @@ class Population {
     Individuals right = other.listOfBest(other.size());
     std::merge(left.begin(), left.end(), right.begin(), right.end(), std::back_inserter(individuals_new),
       [](auto lhs, auto rhs) { return lhs.get().fitness() < rhs.get().fitness(); });
-    individuals_new.resize(new_size);
+    individuals_new.resize(std::min(new_size, individuals_new.size()));
     _individuals = std::move(individuals_new);
   }
 
