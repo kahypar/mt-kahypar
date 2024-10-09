@@ -15,9 +15,9 @@ from pathlib import Path
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument("graph", type=str)
-  parser.add_argument("--threads", type=int, default=8)
+  parser.add_argument("--threads", type=int, required=True)
   parser.add_argument("--epsilon", type=float, default=0.03)
-  parser.add_argument("--timelimit", type=int)  # for one k
+  parser.add_argument("--timelimit", type=int, required=True)  # for one k
   parser.add_argument("--maxk", type=int, default=32)
 
   return parser.parse_args()
@@ -45,7 +45,7 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
          "--verbose=false",
          "--time-limit=" + str(int(timelimit / repetitions)),
          "--evo-repetitions=" + str(repetitions),
-         "--evo-frequency-file=" + os.path.dirname(graph) + freq_file,
+         "--evo-frequency-file=" + os.path.dirname(graph) + "/" + freq_file,
         ]
   print(shlex.join(cmd))
   if detect_instance_type:
