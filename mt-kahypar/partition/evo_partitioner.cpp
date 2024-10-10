@@ -218,6 +218,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     EvoMutateStrategy EvoPartitioner<TypeTraits>::decideNextMutation(const Context& context) {
+        unused(context);
         if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
             return EvoMutateStrategy::vcycle;
         }
@@ -227,6 +228,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     vec<PartitionID> EvoPartitioner<TypeTraits>::combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids) {
+        unused(context);
         vec<PartitionID> combined(population.individualAt(0).partition().size());
 
         std::unordered_map<std::string, int> tuple_to_block;
