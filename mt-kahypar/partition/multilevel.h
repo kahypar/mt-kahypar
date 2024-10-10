@@ -60,7 +60,7 @@ class Multilevel {
   static void evolutionPartitionVCycle(Hypergraph& hypergraph,
                               PartitionedHypergraph& partitioned_hg,
                               const Context& context,
-                              std::unordered_map<PartitionID, int> comm_to_block,
+                              const std::unordered_map<PartitionID, int>& comm_to_block,
                               const TargetGraph* target_graph = nullptr);
 };
 
