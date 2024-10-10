@@ -39,7 +39,6 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
          "-k" + str(k),
          "-e" + str(epsilon),
          "--seed=0",
-         "-okm1",
          "-mdirect",
          "--s-num-threads=" + str(threads),
          "--verbose=false",
@@ -47,11 +46,14 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
          "--evo-repetitions=" + str(repetitions),
          "--evo-frequency-file=" + os.path.dirname(graph) + "/" + freq_file,
         ]
-  print(shlex.join(cmd))
   if detect_instance_type:
     if graph.endswith(".metis") or graph.endswith(".graph"):
       cmd.append("--instance-type=graph")
       cmd.append("--input-file-format=metis")
+      cmd.append("-ocut")
+    else:
+      cmd.append("-okm1")
+  print(shlex.join(cmd))
 
   mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 
