@@ -126,7 +126,7 @@ class TBBInitializer {
     while (static_cast<int>(_cpus.size()) > _num_threads) {
       _cpus.pop_back();
     }
-    _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
+    // _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
 
     _numa_node_to_cpu_id.resize(num_numa_nodes);
     for ( const int cpu_id : _cpus ) {
