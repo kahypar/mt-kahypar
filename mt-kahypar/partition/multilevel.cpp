@@ -216,7 +216,7 @@ namespace {
     const Context& context,
     const TargetGraph* target_graph,
     const bool is_vcycle,
-    std::unordered_map<PartitionID, int> comm_to_block) {
+    const std::unordered_map<PartitionID, int>& comm_to_block) {
     //disableTimerAndStats(context);
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -252,7 +252,7 @@ namespace {
       // of the input hypergraph as community IDs
       const Hypergraph& hypergraph = phg.hypergraph();
       phg.doParallelForAllNodes([&](const HypernodeID hn) {
-        const PartitionID part_id = comm_to_block[hypergraph.communityID(hn)];
+        const PartitionID part_id = comm_to_block.at(hypergraph.communityID(hn));
         ASSERT(part_id != kInvalidPartition && part_id < context.partition.k);
         ASSERT(phg.partID(hn) == kInvalidPartition);
         phg.setOnlyNodePart(hn, part_id);
@@ -377,7 +377,7 @@ template<typename TypeTraits>
 void Multilevel<TypeTraits>::evolutionPartitionVCycle(Hypergraph& hypergraph,
                                              PartitionedHypergraph& partitioned_hg,
                                              const Context& context,
-                                             std::unordered_map<PartitionID, int> comm_to_block,
+                                             const std::unordered_map<PartitionID, int>& comm_to_block,
                                              const TargetGraph* target_graph) {
 
   //disableTimerAndStats(context);

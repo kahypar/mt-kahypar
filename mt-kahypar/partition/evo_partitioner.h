@@ -15,18 +15,18 @@ class EvoPartitioner {
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
     public:
-    static PartitionedHypergraph partition(Hypergraph& hypergraph,
+    static PartitionedHypergraph partition(const Hypergraph& hypergraph,
                                            Context& context,
                                            TargetGraph* target_graph = nullptr);
-    static std::string generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg,
+    static std::string generateInitialPopulation(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
-    static const Individual & generateIndividual(EvoPartitioner<TypeTraits>::Hypergraph& hg,
+    static const Individual & generateIndividual(const Hypergraph& hg,
                                             Context& context,
                                             TargetGraph* target_graph,
                                             Population& population);
-    static std::string performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg,
+    static std::string performEvolution(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
@@ -34,9 +34,9 @@ class EvoPartitioner {
     private:
     static EvoDecision decideNextMove(const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
-    static vec<PartitionID> combinePartitions(const Context& context, Population& population, std::vector<size_t> ids);
-    static std::string performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
-    static std::string performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
+    static std::string performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static std::string performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
 };
 
 }  // namespace mt_kahypar
