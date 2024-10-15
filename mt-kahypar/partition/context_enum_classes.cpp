@@ -556,7 +556,7 @@ namespace mt_kahypar {
       return EvoReplaceStrategy::worst;
     } else if (type == "diverse") {
       return EvoReplaceStrategy::diverse;
-    } else if (type == "strong_divers") {
+    } else if (type == "strong_diverse") {
       return EvoReplaceStrategy::strong_diverse;
     }
     throw InvalidParameterException("Illegal option: " + type);
