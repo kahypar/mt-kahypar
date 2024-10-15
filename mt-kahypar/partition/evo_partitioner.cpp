@@ -6,7 +6,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     typename EvoPartitioner<TypeTraits>::PartitionedHypergraph EvoPartitioner<TypeTraits>::partition(
-        Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+        const Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
         configurePreprocessing(hypergraph, context);
         setupContext(hypergraph, context, target_graph);
 
@@ -44,7 +44,7 @@ namespace mt_kahypar {
             out_stream.close();
         }
 
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, const_cast<Hypergraph&>(hypergraph));
         
         std::vector<PartitionID> best = population.individualAt(population.best()).partition();
         partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -96,7 +96,7 @@ namespace mt_kahypar {
 
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+    std::string EvoPartitioner<TypeTraits>::generateInitialPopulation(const Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) {
         context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -124,7 +124,7 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
-        int best;
+        int best = std::numeric_limits<HyperedgeWeight>::max();
         int iteration = 0;
         while (population.size() < context.evolutionary.population_size && 
             time_elapsed <= duration) {
@@ -146,7 +146,8 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, Population& population) { 
+    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
+        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
         DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
         preprocess(hypergraph, context, target_graph);
@@ -190,7 +191,7 @@ namespace mt_kahypar {
 
 
     template<typename TypeTraits>
-    vec<PartitionID> EvoPartitioner<TypeTraits>::combinePartitions(const Context& context, Population& population, std::vector<size_t> ids) {
+    vec<PartitionID> EvoPartitioner<TypeTraits>::combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids) {
         vec<PartitionID> combined(population.individualAt(0).partition().size());
 
         std::unordered_map<std::string, int> tuple_to_block;
@@ -213,7 +214,7 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performCombine(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
+    std::string EvoPartitioner<TypeTraits>::performCombine(const Hypergraph& input_hg, const Context& context, TargetGraph* target_graph, Population& population) {
         std::vector<size_t> parents;
         size_t best = population.randomIndividual();
         parents.push_back(best);
@@ -226,7 +227,9 @@ namespace mt_kahypar {
         }
         std::unordered_map<PartitionID, int> comm_to_block;
         vec<PartitionID> comms = combinePartitions(context, population, parents);
-        vec<PartitionID> part(hypergraph.initialNumNodes());
+        vec<PartitionID> part(input_hg.initialNumNodes());
+
+        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
         
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
         for ( const HypernodeID& hn : hypergraph.nodes() ) { 
@@ -256,7 +259,8 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performMutation(EvoPartitioner<TypeTraits>::Hypergraph& hypergraph, const Context& context, TargetGraph* target_graph, Population& population) {
+    std::string EvoPartitioner<TypeTraits>::performMutation(const Hypergraph& input_hg, const Context& context, TargetGraph* target_graph, Population& population) {
+        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
         const size_t mutation_position = population.randomIndividual();
         std::vector<PartitionID> cur = population.individualAt(mutation_position).partition();
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
@@ -327,7 +331,7 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) { 
+    std::string EvoPartitioner<TypeTraits>::performEvolution(const Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) {
         context.partition.verbose_output = false;
         int timelimit = context.partition.time_limit;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -363,9 +367,9 @@ namespace mt_kahypar {
                         }
                     case EvoDecision::combine: 
                         {
-                            std::lock_guard<std::mutex> lock(_history_mutex);
                             std::string h = performCombine(hg_copy, evo_context, target_graph, population);
                             combinations++;
+                            std::lock_guard<std::mutex> lock(_history_mutex);
                             history += h;
                             ++context.evolutionary.iteration;
                             break;
