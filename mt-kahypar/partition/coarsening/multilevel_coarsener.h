@@ -363,6 +363,19 @@ class MultilevelCoarsener : public ICoarsener,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids,
                                                         HypernodeID& contracted_nodes,
                                                         ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
+    // MEMORY ORDERING AND SYNCHRONIZATION
+    // During the clustering, there are concurrent memory accesses to the following 4 locations:
+    // _matching_state, cluster_ids, _matching_partner and _cluster_weight.
+    // We use _matching_state to synchronize accesses to cluster_ids with acquire/release semantics, while
+    // _matching_partner and _cluster_weight don't require synchronization. In more detail (see also PR #193):
+    //   1. We read cluster_ids[v] to determine the representative for joinCluster if v is already matched.
+    //      This is synchronized by using release ordering when writing the MATCHED state to _matching_state
+    //      and always checking _matching_state[v] with acquire ordering before accessing cluster_ids[v]
+    //   2. _matching_partner is used for conflict resolution. Since the conflict resolution loops until
+    //      a stable state is detected, no explicit synchronization is necessary and relaxed ordering suffices
+    //   3. Updating _cluster_weight might cause a race condition in joinCluster. However, this just causes the
+    //      cluster to exceed the allowed weight. This is acceptable since it rarely happens in practice
+
     ASSERT(u < hypergraph.initialNumNodes());
     ASSERT(v < hypergraph.initialNumNodes());
     const uint8_t matched = STATE(MatchingState::MATCHED);
@@ -374,11 +387,6 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     HypernodeWeight weight_v = _cluster_weight[v].load(std::memory_order_relaxed);
     if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
-
-      // We can use memory_order_relaxed when setting the state to MATCHING_IN_PROGRESS since this does not involve any writes to
-      // other locations, except for _matching_partner[u] (the latter is only relevant in conflict resolution and the resolution
-      // doesn't need stronger semantic, either). Setting the state to MATCHED however involves updating the cluster ID, for which
-      // we need acquire/release semantics
       uint8_t expect_unmatched_u = STATE(MatchingState::UNMATCHED);
       if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress, std::memory_order_relaxed) ) {
         _matching_partner[u].store(v, std::memory_order_relaxed);
