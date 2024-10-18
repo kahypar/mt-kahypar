@@ -35,6 +35,7 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
   repetitions = 5
   path = Path(graph)
   freq_file = f"{path.stem}.freqk{k}.csv"
+  freq_file = os.path.dirname(graph) + "/" + freq_file
   if Path(freq_file).is_file():
     print(f"Skipping: {freq_file}")
     return
@@ -52,7 +53,7 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
           "--verbose=false",
           "--time-limit=" + str(int(timelimit / repetitions)),
           "--evo-repetitions=" + str(repetitions),
-          "--evo-frequency-file=" + os.path.dirname(graph) + "/" + freq_file,
+          "--evo-frequency-file=" + freq_file,
           ]
     if detect_instance_type:
       if graph.endswith(".metis") or graph.endswith(".graph"):
@@ -76,7 +77,7 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
         print(err, file=sys.stderr)
     else:
       print(f"Success at attempt {i}")
-      break
+      return
   print(f"Error: {freq_file}")
 
 
@@ -90,6 +91,6 @@ CONFIG = "/home/nikolai/Documents/Hypergraphs/evo-mt-kahypar/config/evo_quality_
 args = get_args()
 for k in range(2, args.maxk + 1):
    # TODO: dependent on size of graph?
-   timefactor = 1 + (k - 2) * 0.1
+   timefactor = 1 + (k - 2) * 0.2
    timelimit = int(timefactor * args.timelimit)
    run_mtk_evo(args.graph, timelimit, k, args.epsilon, args.threads, MT_KAHYPAR, CONFIG)
