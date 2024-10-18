@@ -28,47 +28,56 @@ def first_line(file):
         return f.readline().rstrip()
 
 
-def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detect_instance_type=True):
-  repetitions = 5
-  path = Path(graph)
-  freq_file = f"{path.stem}.freqk{k}.csv"
-  # Run MT-KaHyPar
-  cmd = [mt_kahypar,
-         "-h" + graph,
-         "-p" + config,
-         "-k" + str(k),
-         "-e" + str(epsilon),
-         "--seed=0",
-         "-mdirect",
-         "--s-num-threads=" + str(threads),
-         "--verbose=false",
-         "--time-limit=" + str(int(timelimit / repetitions)),
-         "--evo-repetitions=" + str(repetitions),
-         "--evo-frequency-file=" + os.path.dirname(graph) + "/" + freq_file,
-        ]
-  if detect_instance_type:
-    if graph.endswith(".metis") or graph.endswith(".graph"):
-      cmd.append("--instance-type=graph")
-      cmd.append("--input-file-format=metis")
-      cmd.append("-ocut")
-    else:
-      cmd.append("-okm1")
-  print(shlex.join(cmd))
-
-  mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
-
+def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detect_instance_type=True, attempts=3):
   def kill_proc():
     os.killpg(os.getpgid(mt_kahypar_proc.pid), signal.SIGTERM)
 
-  t = Timer(timelimit + 20, kill_proc)
-  t.start()
-  out, err = mt_kahypar_proc.communicate()
-  t.cancel()
+  repetitions = 5
+  path = Path(graph)
+  freq_file = f"{path.stem}.freqk{k}.csv"
+  if Path(freq_file).is_file():
+    print(f"Skipping: {freq_file}")
+    return
 
-  if mt_kahypar_proc.returncode != 0:
+  for i in range(0, attempts):
+    # Run MT-KaHyPar
+    cmd = [mt_kahypar,
+          "-h" + graph,
+          "-p" + config,
+          "-k" + str(k),
+          "-e" + str(epsilon),
+          "--seed=0",
+          "-mdirect",
+          "--s-num-threads=" + str(threads),
+          "--verbose=false",
+          "--time-limit=" + str(int(timelimit / repetitions)),
+          "--evo-repetitions=" + str(repetitions),
+          "--evo-frequency-file=" + os.path.dirname(graph) + "/" + freq_file,
+          ]
+    if detect_instance_type:
+      if graph.endswith(".metis") or graph.endswith(".graph"):
+        cmd.append("--instance-type=graph")
+        cmd.append("--input-file-format=metis")
+        cmd.append("-ocut")
+      else:
+        cmd.append("-okm1")
+    print(shlex.join(cmd))
+
+    mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
+
+    t = Timer(timelimit + 20, kill_proc)
+    t.start()
+    out, err = mt_kahypar_proc.communicate()
+    t.cancel()
+
     print(out)
-    print(err, file=sys.stderr)
-
+    if mt_kahypar_proc.returncode != 0:
+      if err != None:
+        print(err, file=sys.stderr)
+    else:
+      print(f"Success at attempt {i}")
+      break
+  print(f"Error: {freq_file}")
 
 
 ###################
