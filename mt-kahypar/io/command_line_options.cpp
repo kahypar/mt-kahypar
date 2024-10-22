@@ -245,6 +245,16 @@ namespace mt_kahypar {
       "Fixed vertex file: allows to pre-assign vertices to a block."
     )->check(CLI::ExistingFile);
     app.add_option(
+      "--frequencies",
+      context.partition.frequencies_filename,
+      "Frequencies filename"
+    )->check(CLI::ExistingFile);
+    app.add_flag(
+      "--frequencies-default-file",
+      context.partition.frequencies_default_file,
+      "Use default frequencies file (<graph_file>.freq.csv)"
+    );
+    app.add_option(
       "--part-weights",
       context.partition.max_part_weights,
       "Use the specified individual part weights instead of epsilon."

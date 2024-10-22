@@ -28,6 +28,7 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -43,9 +44,11 @@ class RecursiveBipartitioning {
  public:
   // ! Partitions a hypergraph using multilevel recursive bipartitioning.
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                         vec<EdgeMetadata>&& edge_md,
                                          const Context& context,
                                          const TargetGraph* target_graph = nullptr);
   static void partition(PartitionedHypergraph& hypergraph,
+                        vec<EdgeMetadata>&& edge_md,
                         const Context& context,
                         const TargetGraph* target_graph = nullptr);
 

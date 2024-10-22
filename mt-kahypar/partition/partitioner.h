@@ -28,6 +28,7 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -42,6 +43,7 @@ class Partitioner {
 
  public:
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                         vec<EdgeMetadata>&& edge_md,
                                          Context& context,
                                          TargetGraph* target_graph = nullptr);
 

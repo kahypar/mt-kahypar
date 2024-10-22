@@ -28,6 +28,7 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -43,11 +44,13 @@ class Multilevel {
  public:
   // ! Partitions a hypergraph using the multilevel paradigm.
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                         vec<EdgeMetadata>&& edge_md,
                                          const Context& context,
                                          const TargetGraph* target_graph = nullptr);
 
   // ! Partitions a hypergraph using the multilevel paradigm.
   static void partition(PartitionedHypergraph& partitioned_hg,
+                        vec<EdgeMetadata>&& edge_md,
                         const Context& context,
                         const TargetGraph* target_graph = nullptr);
 

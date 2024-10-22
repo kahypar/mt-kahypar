@@ -272,7 +272,8 @@ namespace rb {
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
       DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-      PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
+      // TODO: use edge metadata??
+      PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, {}, b_context);
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> elapsed_seconds(end - start);
       DBG << "Bipartitioning Result -"
@@ -379,15 +380,17 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
 template<typename TypeTraits>
 typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
 RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
+                                               vec<EdgeMetadata>&& edge_md,
                                                const Context& context,
                                                const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-  partition(partitioned_hypergraph, context, target_graph);
+  partition(partitioned_hypergraph, std::move(edge_md), context, target_graph);
   return partitioned_hypergraph;
 }
 
 template<typename TypeTraits>
 void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
+                                                    vec<EdgeMetadata>&& edge_md,
                                                     const Context& context,
                                                     const TargetGraph* target_graph) {
   unused(target_graph);
