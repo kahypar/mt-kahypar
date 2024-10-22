@@ -271,7 +271,9 @@ namespace rb {
       setupFixedVerticesForBipartitioning(hg, k);
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
       DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
-      PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
+
+      // TODO: use edge metadata??
+      PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, {}, b_context);
       DBG << "Bipartitioning Result -"
           << "Objective =" << metrics::quality(bipartitioned_hg, b_context)
           << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
@@ -377,15 +379,17 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
 template<typename TypeTraits>
 typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
 RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
+                                               vec<EdgeMetadata>&& edge_md,
                                                const Context& context,
                                                const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-  partition(partitioned_hypergraph, context, target_graph);
+  partition(partitioned_hypergraph, std::move(edge_md), context, target_graph);
   return partitioned_hypergraph;
 }
 
 template<typename TypeTraits>
 void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
+                                                    vec<EdgeMetadata>&& edge_md,
                                                     const Context& context,
                                                     const TargetGraph* target_graph) {
   unused(target_graph);

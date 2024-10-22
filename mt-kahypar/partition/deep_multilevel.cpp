@@ -473,8 +473,9 @@ DeepPartitioningResult<TypeTraits> bipartition_block(typename TypeTraits::Hyperg
     // Bipartition block
     Context b_context = setupBipartitioningContext(
       context, info, start_k, end_k, bipartition.hypergraph.totalWeight(), PartitionedHypergraph::is_graph);
+    ERR("not supported");
     bipartition.partitioned_hg = Multilevel<TypeTraits>::partition(
-      bipartition.hypergraph, b_context);
+      bipartition.hypergraph, {}, b_context);
   } else {
     bipartition.partitioned_hg = PartitionedHypergraph(2, bipartition.hypergraph, parallel_tag_t());
   }
@@ -673,7 +674,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   };
 
   const bool nlevel = context.isNLevelPartitioning();
-  UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
+  ERR("not supported");
+  UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, {}, context);
   uncoarseningData.setPartitionedHypergraph(std::move(partitioned_hg));
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -744,7 +746,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     Context b_context = setupBipartitioningContext(
       context, info, target_blocks.first, target_blocks.second,
       hypergraph.totalWeight(), Hypergraph::is_graph);
-    Multilevel<TypeTraits>::partition(coarsest_phg, b_context);
+    ERR("not supported");
+    Multilevel<TypeTraits>::partition(coarsest_phg, {}, b_context);
     current_k = 2;
 
     DBG << BOLD << "Peform Initial Bipartitioning" << END

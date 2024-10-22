@@ -229,6 +229,8 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
   addFixedVertices(hypergraph, fixed_vertices.data(), k);
 }
 
+#include "tbb/parallel_for.h"
+
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:
@@ -245,6 +247,59 @@ void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
     case NULLPTR_HYPERGRAPH:
     default: break;
   }
+}
+
+template<typename Hypergraph>
+vec<EdgeMetadata> getEdgeMetadata(const Hypergraph& hypergraph,
+                                  const ds::DynamicSparseMap<uint64_t, float>& frequencies) {
+  vec<EdgeMetadata> metadata;
+  size_t unique_edges = Hypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges();
+  if ( frequencies.size() != unique_edges ) {
+    LOG << V(frequencies.size()) << "  " << V(unique_edges);
+    throw InvalidInputException(
+      "Number of frequency file entries is different than the number of edges!");
+  }
+  metadata.resize(hypergraph.initialNumEdges());
+  hypergraph.doParallelForAllEdges([&](HyperedgeID he) {
+    HypernodeID source = hypergraph.edgeSource(he);
+    HypernodeID target = hypergraph.edgeTarget(he);
+    uint64_t key1 = (static_cast<uint64_t>(source) << 32) | target;
+    uint64_t key2 = (static_cast<uint64_t>(target) << 32) | source;
+    const float* val1 = frequencies.get_if_contained(key1);
+    const float* val2 = frequencies.get_if_contained(key2);
+    if (val1 == nullptr && val2 == nullptr) {
+      LOG << V(source) << "  " << V(target);
+      throw InvalidInputException("No entry for edge found!");
+    }
+    ALWAYS_ASSERT(val1 == nullptr || val2 == nullptr);
+    metadata[he] = val1 ? *val1 : *val2;
+  });
+  return metadata;
+}
+
+vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
+                                          const std::string& filename) {
+  ds::DynamicSparseMap<uint64_t, float> frequencies;
+  io::readFrequencyFile(filename, frequencies);
+  switch ( hypergraph.type ) {
+    // case STATIC_HYPERGRAPH:
+    //   return getEdgeMetadata(utils::cast<ds::StaticHypergraph>(hypergraph), frequencies);
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case STATIC_GRAPH:
+      return getEdgeMetadata(utils::cast<ds::StaticGraph>(hypergraph), frequencies);
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_GRAPH:
+      return getEdgeMetadata(utils::cast<ds::DynamicGraph>(hypergraph), frequencies);
+    #endif
+    #endif
+    // #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    // case DYNAMIC_HYPERGRAPH:
+    //   return getEdgeMetadata(utils::cast<ds::DynamicHypergraph>(hypergraph), frequencies);
+    // #endif
+    case NULLPTR_HYPERGRAPH:
+    default: ERR("Invalid hypergraph type.");
+  }
+  return {};
 }
 
 namespace {
