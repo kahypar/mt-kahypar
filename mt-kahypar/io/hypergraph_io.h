@@ -56,6 +56,8 @@ namespace io {
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
 
+  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<uint64_t, float>& frequencies);
+
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 

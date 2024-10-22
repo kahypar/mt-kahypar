@@ -122,6 +122,12 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // Read Frequencies
+  vec<EdgeMetadata> edge_metadata;
+  if ( context.partition.frequencies_filename != "" ) {
+    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, context.partition.frequencies_filename);
+  }
+
   if ( context.partition.fixed_vertex_filename != "" ) {
     timer.start_timer("read_fixed_vertices", "Read Fixed Vertex File");
     io::addFixedVerticesFromFile(hypergraph,
@@ -136,7 +142,7 @@ int main(int argc, char* argv[]) {
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
-    PartitionerFacade::partition(hypergraph, context, target_graph.get());
+    PartitionerFacade::partition(hypergraph, std::move(edge_metadata), context, target_graph.get());
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats

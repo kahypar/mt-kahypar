@@ -320,7 +320,7 @@ namespace mt_kahypar {
 
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
-    Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+    Hypergraph& hypergraph, vec<EdgeMetadata>&& edge_md, Context& context, TargetGraph* target_graph) {
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 
@@ -350,9 +350,9 @@ namespace mt_kahypar {
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
     if (context.partition.mode == Mode::direct) {
-      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
+      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, std::move(edge_md), context, target_graph);
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
-      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, target_graph);
+      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, std::move(edge_md), context, target_graph);
     } else if (context.partition.mode == Mode::deep_multilevel) {
       ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);

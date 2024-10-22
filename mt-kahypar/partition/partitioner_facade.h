@@ -30,6 +30,7 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -40,6 +41,7 @@ class PartitionerFacade {
  public:
   // ! Partition the hypergraph into a predefined number of blocks
   static mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hypergraph,
+                                                       vec<EdgeMetadata>&& edge_md,
                                                        Context& context,
                                                        TargetGraph* target_graph = nullptr);
 

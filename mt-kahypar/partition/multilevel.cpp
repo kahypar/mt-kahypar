@@ -75,6 +75,7 @@ namespace {
   template<typename TypeTraits>
   typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
     typename TypeTraits::Hypergraph& hypergraph,
+    vec<EdgeMetadata>&& edge_md,
     const Context& context,
     const TargetGraph* target_graph,
     const bool is_vcycle) {
@@ -86,7 +87,7 @@ namespace {
     mt_kahypar::io::printCoarseningBanner(context);
 
     const bool nlevel = context.isNLevelPartitioning();
-    UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
+    UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, std::move(edge_md), context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
@@ -109,6 +110,7 @@ namespace {
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
+    vec<EdgeMetadata> coarse_edge_md = uncoarseningData.coarsestEdgeMetadata();  // intentional copy
 
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
@@ -127,7 +129,7 @@ namespace {
         ip_context.partition.verbose_output = false;
         Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
-        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
+        RecursiveBipartitioning<TypeTraits>::partition(phg, std::move(coarse_edge_md), ip_context, target_graph);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
         ASSERT(ip_context.partition.objective != Objective::steiner_tree);
         ip_context.partition.verbose_output = false;
@@ -206,10 +208,12 @@ namespace {
 }
 
 template<typename TypeTraits>
-typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(
-  Hypergraph& hypergraph, const Context& context, const TargetGraph* target_graph) {
+typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(Hypergraph& hypergraph,
+                                                                                         vec<EdgeMetadata>&& edge_md,
+                                                                                         const Context& context,
+                                                                                         const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hg =
-    multilevel_partitioning<TypeTraits>(hypergraph, context, target_graph, false);
+    multilevel_partitioning<TypeTraits>(hypergraph, std::move(edge_md), context, target_graph, false);
 
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
@@ -221,10 +225,11 @@ typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::p
 
 template<typename TypeTraits>
 void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg,
+                                       vec<EdgeMetadata>&& edge_md,
                                        const Context& context,
                                        const TargetGraph* target_graph) {
   PartitionedHypergraph tmp_phg = partition(
-    partitioned_hg.hypergraph(), context, target_graph);
+    partitioned_hg.hypergraph(), std::move(edge_md), context, target_graph);
   tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
   });
@@ -261,7 +266,7 @@ void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
     // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
     partitioned_hg = multilevel_partitioning<TypeTraits>(
-      hypergraph, context, target_graph, true /* V-cycle flag */ );
+      hypergraph, {}, context, target_graph, true /* V-cycle flag */ );
   }
 }
 

@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
@@ -59,6 +60,9 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
                               const PartitionID k);
 
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
+
+vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
+                                          const std::string& filename);
 
 }  // namespace io
 }  // namespace mt_kahypar

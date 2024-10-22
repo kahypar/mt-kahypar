@@ -32,7 +32,34 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/definitions.h"
 
+
+// yes this is hacky
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+#include "growt/allocator/alignedallocator.hpp"
+#include "growt/data-structures/hash_table_mods.hpp"
+#include "growt/data-structures/table_config.hpp"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
+using hasher_type    = utils_tm::hash_tm::murmur2_hash;
+using allocator_type = growt::AlignedAllocator<>;
+using ConcurrentHashTable = typename growt::table_config<
+  size_t, size_t, hasher_type, allocator_type, hmod::sync>::table_type;
+
 namespace mt_kahypar {
+
+using EdgeMetadata = float;
 
 template<typename TypeTraits>
 class Level {
@@ -53,6 +80,10 @@ public:
 
   const Hypergraph& contractedHypergraph() const {
     return _contracted_hypergraph;
+  }
+
+  const parallel::scalable_vector<EdgeMetadata>& edgeMetadata() const {
+    return _edge_metadata;
   }
 
   // ! Maps a global vertex id of the representative hypergraph
@@ -80,6 +111,8 @@ private:
   // ! Defines the communities that are contracted
   // ! in the coarse hypergraph
   parallel::scalable_vector<HypernodeID> _communities;
+  // ! Metadata for guided coarsening (frequencies / ML results)
+  parallel::scalable_vector<EdgeMetadata> _edge_metadata;
   // ! Time to create the coarsened hypergraph
   // ! (includes coarsening + contraction time)
   double _coarsening_time;
@@ -94,9 +127,10 @@ class UncoarseningData {
   using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
 
 public:
-  explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
+  explicit UncoarseningData(bool n_level, Hypergraph& hg, parallel::scalable_vector<EdgeMetadata>&& edge_md, const Context& context) :
     nlevel(n_level),
     _hg(hg),
+    _edge_metadata(std::move(edge_md)),
     _context(context) {
       if (n_level) {
         compactified_hg = std::make_unique<Hypergraph>();
@@ -184,6 +218,14 @@ public:
     }
   }
 
+  const vec<EdgeMetadata>& coarsestEdgeMetadata() {
+    if (!hierarchy.empty()) {
+      return hierarchy.back().edgeMetadata();
+    } else {
+      return _edge_metadata;
+    }
+  }
+
   // Multilevel Data
   vec<Level<TypeTraits>> hierarchy;
 
@@ -212,6 +254,7 @@ public:
 
 private:
   Hypergraph& _hg;
+  vec<EdgeMetadata> _edge_metadata;
   const Context& _context;
 };
 
