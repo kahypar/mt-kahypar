@@ -55,7 +55,8 @@
 using hasher_type    = utils_tm::hash_tm::murmur2_hash;
 using allocator_type = growt::AlignedAllocator<>;
 using ConcurrentHashTable = typename growt::table_config<
-  size_t, size_t, hasher_type, allocator_type, hmod::sync>::table_type;
+  uint64_t, float, hasher_type, allocator_type, hmod::sync>::table_type;
+using HashTableHandle = typename ConcurrentHashTable::handle_type;
 
 namespace mt_kahypar {
 
@@ -69,9 +70,11 @@ class Level {
 public:
   explicit Level(Hypergraph&& contracted_hypergraph,
                  parallel::scalable_vector<HypernodeID>&& communities,
+                 parallel::scalable_vector<EdgeMetadata>&& edge_md,
                  double coarsening_time) :
     _contracted_hypergraph(std::move(contracted_hypergraph)),
     _communities(std::move(communities)),
+    _edge_metadata(std::move(edge_md)),
     _coarsening_time(coarsening_time) { }
 
   Hypergraph& contractedHypergraph() {
@@ -207,7 +210,8 @@ public:
     Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-    hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
+    vec<EdgeMetadata> contracted_md = accumulateMetadata(current_hg, contracted_hg, communities);
+    hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), std::move(contracted_md), elapsed_time);
   }
 
   PartitionedHypergraph& coarsestPartitionedHypergraph() {
@@ -218,7 +222,7 @@ public:
     }
   }
 
-  const vec<EdgeMetadata>& coarsestEdgeMetadata() {
+  const vec<EdgeMetadata>& coarsestEdgeMetadata() const {
     if (!hierarchy.empty()) {
       return hierarchy.back().edgeMetadata();
     } else {
@@ -253,6 +257,46 @@ public:
   bool nlevel;
 
 private:
+  vec<EdgeMetadata> accumulateMetadata(const Hypergraph& current_hg, const Hypergraph& contracted_hg, const vec<HyperedgeID>& mapping) const {
+    const vec<EdgeMetadata>& old_md = coarsestEdgeMetadata();
+    vec<EdgeMetadata> new_md;
+    if constexpr (Hypergraph::is_graph) {
+      ConcurrentHashTable accumulator(2 * contracted_hg.initialNumEdges());
+      tbb::parallel_invoke([&] {
+        new_md.resize(contracted_hg.initialNumEdges());
+      }, [&] {
+        // accumulate the metadata
+        current_hg.doParallelForAllEdges([&](HyperedgeID edge) {
+          uint32_t source = mapping[current_hg.edgeSource(edge)];
+          uint32_t target = mapping[current_hg.edgeTarget(edge)];
+          if (source < target) {
+            HashTableHandle handle = accumulator.get_handle();
+            EdgeMetadata val = old_md[edge];
+            uint64_t key = (static_cast<uint64_t>(source) << 32 | target);
+            handle.insert_or_update(key, val, [=](float& old) { old += val; });
+          }
+        });
+      });
+
+      // write the new metadata into the vector
+      contracted_hg.doParallelForAllEdges([&](HyperedgeID edge) {
+        uint32_t source = contracted_hg.edgeSource(edge);
+        uint32_t target = contracted_hg.edgeTarget(edge);
+        if (source > target) {
+          std::swap(source, target);
+        }
+        ALWAYS_ASSERT(source < target);
+        uint64_t key = (static_cast<uint64_t>(source) << 32 | target);
+        HashTableHandle handle = accumulator.get_handle();
+        auto it = handle.find(key);
+        ALWAYS_ASSERT(it != handle.end());
+        auto result = *it;
+        new_md[edge] = result.second;
+      });
+    }
+    return new_md;
+  }
+
   Hypergraph& _hg;
   vec<EdgeMetadata> _edge_metadata;
   const Context& _context;

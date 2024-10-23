@@ -28,6 +28,9 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
+
+#include "utils/hash/murmur2_hash.hpp"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -56,7 +59,14 @@ namespace io {
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
 
-  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<uint64_t, float>& frequencies);
+  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies);
+
+  inline __uint128_t hashedEdgeKey(const utils_tm::hash_tm::murmur2_hash& hasher, HypernodeID u, HypernodeID v) {
+    // this is a bit ugly, but we need it to avoid collisions (since we don't have a good hashmap with a non-trivial hash function)
+    uint32_t u_val = u, v_val = v;
+    uint64_t key_left = (static_cast<uint64_t>(u_val) << 32) | static_cast<uint64_t>(v_val);
+    return (static_cast<__uint128_t>(key_left) << 64) | static_cast<__uint128_t>(hasher(key_left));
+  }
 
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
