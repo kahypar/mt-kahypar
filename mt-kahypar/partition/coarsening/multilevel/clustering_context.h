@@ -49,6 +49,7 @@ struct ClusteringContext {
 
   explicit ClusteringContext(const Context& context,
                              HypernodeID hierarchy_contraction_limit,
+                             const vec<EdgeMetadata>& edge_md,
                              vec<HypernodeID>& cluster_ids,
                              MultilevelVertexPairRater& rater,
                              ConcurrentClusteringData& clustering_data,
@@ -59,6 +60,7 @@ struct ClusteringContext {
     num_hns_before_pass(0),
     previous_num_nodes(0),
     fixed_vertices(),
+    edge_md(edge_md),
     cluster_ids(cluster_ids),
     rater(rater),
     clustering_data(clustering_data),
@@ -110,7 +112,7 @@ struct ClusteringContext {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy) {
     return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                 current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
+                 current_hg, u, cluster_ids, clustering_data.clusterWeight(), edge_md, fixed_vertices,
                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
   }
 
@@ -149,6 +151,7 @@ struct ClusteringContext {
   HypernodeID previous_num_nodes;
   ds::FixedVertexSupport<Hypergraph> fixed_vertices;
 
+  const vec<EdgeMetadata>& edge_md;
   vec<HypernodeID>& cluster_ids;
   MultilevelVertexPairRater& rater;
   ConcurrentClusteringData& clustering_data;

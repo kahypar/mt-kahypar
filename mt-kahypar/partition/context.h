@@ -114,6 +114,9 @@ struct RatingParameters {
   double preserve_nodes_scaling_factor = 0.5;
   double preserve_nodes_relative_weight_limit = 0.001;
   double acceptance_limit_bound = 0.25;
+
+  // Guided coarsening
+  double guiding_treshold = 1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);

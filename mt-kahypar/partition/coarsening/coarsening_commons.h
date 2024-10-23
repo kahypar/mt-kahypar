@@ -259,6 +259,8 @@ public:
 private:
   vec<EdgeMetadata> accumulateMetadata(const Hypergraph& current_hg, const Hypergraph& contracted_hg, const vec<HyperedgeID>& mapping) const {
     const vec<EdgeMetadata>& old_md = coarsestEdgeMetadata();
+    if (old_md.empty()) return {};
+
     vec<EdgeMetadata> new_md;
     if constexpr (Hypergraph::is_graph) {
       ConcurrentHashTable accumulator(2 * contracted_hg.initialNumEdges());
@@ -293,6 +295,11 @@ private:
         auto result = *it;
         new_md[edge] = result.second;
       });
+      // LOG << "Num nodes: " << contracted_hg.initialNumNodes();
+      // for (size_t i = 0; i < std::min(UL(100), new_md.size()); ++i) {
+      //   std::cout << std::setprecision(3) << new_md[i] << " ";
+      // }
+      // LOG << "";
     }
     return new_md;
   }

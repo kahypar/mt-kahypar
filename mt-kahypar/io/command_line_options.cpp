@@ -353,6 +353,10 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
                      "<double>")->default_value(0.25),
              "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
+            ("c-guiding-threshold",
+             po::value<double>(&context.coarsening.rating.guiding_treshold)->value_name(
+                     "<double>")->default_value(1.0),
+             "Treshold for guided coarsening (e.g. by ML).")
             ("c-two-hop-degree-threshold",
              po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
                      "<size_t>")->default_value(100),

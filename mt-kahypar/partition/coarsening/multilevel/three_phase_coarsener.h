@@ -142,8 +142,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     HypernodeID current_num_nodes = num_hns_before_pass;
 
     // initialization of various things
-    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
-                                     _rater, _clustering_data, _num_nodes_tracker);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
+                                     cluster_ids, _rater, _clustering_data, _num_nodes_tracker);
     cc.initializeCoarseningPass(current_hg, _context);
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context, _timer);

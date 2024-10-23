@@ -138,6 +138,7 @@ enum class AcceptancePolicy : uint8_t {
 
 enum class DegreeSimilarityPolicy : uint8_t {
   preserve_rebalancing_nodes,
+  guided,
   UNDEFINED
 };
 
