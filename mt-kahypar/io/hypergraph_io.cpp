@@ -46,7 +46,6 @@
 #include <unistd.h>
 #endif
 
-
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
@@ -682,29 +681,37 @@ namespace mt_kahypar::io {
     }
   }
 
-  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<uint64_t, float>& frequencies) {
+  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies) {
     ALWAYS_ASSERT(!filename.empty(), "No filename for frequency file specified");
     std::ifstream file(filename);
     if (file) {
       std::string line;
-      // get comment with max frequency
+      // get comment with max frequency and csv header
+      uint32_t max = 0;
       bool success = static_cast<bool>(std::getline(file, line));
-      ALWAYS_ASSERT(success && line.size() > 6 && line[0] == '#' && line[5] == '=');
-      uint32_t max;
-      std::istringstream s_maximum(line.substr(6));
-      s_maximum >> max;
-
-      // get csv header
+      ALWAYS_ASSERT(success && line.size() > 0);
+      if (line[0] == '#') {
+        ALWAYS_ASSERT(line.size() > 6 && line[5] == '=');
+        std::istringstream s_maximum(line.substr(6));
+        s_maximum >> max;
+      }
       success = static_cast<bool>(std::getline(file, line));
-      ALWAYS_ASSERT(success);
+      ALWAYS_ASSERT(success && line.size() > 0);
+      if (line[0] == '#') {
+        ALWAYS_ASSERT(line.size() > 6 && line[5] == '=');
+        std::istringstream s_maximum(line.substr(6));
+        s_maximum >> max;
+      }
+      ALWAYS_ASSERT(max > 0);
 
       // get entries
+      utils_tm::hash_tm::murmur2_hash hasher;
       while (std::getline(file, line)) {
           std::istringstream iss(line);
-          uint32_t u, v, f;
+          HypernodeID u, v, f;
           char c, d;
           if (!(iss >> u >> c >> v >> d >> f ) || c != ',' || d != ',') { ERR("Invalid line: " << line); }
-          uint64_t key = (static_cast<uint64_t>(u)) << 32 | v;
+          __uint128_t key = hashedEdgeKey(hasher, u, v);
           ALWAYS_ASSERT(!frequencies.contains(key) && f <= max);
           frequencies[key] = static_cast<double>(f) / static_cast<double>(max);
       }

@@ -251,7 +251,7 @@ void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
 
 template<typename Hypergraph>
 vec<EdgeMetadata> getEdgeMetadata(const Hypergraph& hypergraph,
-                                  const ds::DynamicSparseMap<uint64_t, float>& frequencies) {
+                                  const ds::DynamicSparseMap<__uint128_t, float>& frequencies) {
   vec<EdgeMetadata> metadata;
   size_t unique_edges = Hypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges();
   if ( frequencies.size() != unique_edges ) {
@@ -260,11 +260,12 @@ vec<EdgeMetadata> getEdgeMetadata(const Hypergraph& hypergraph,
       "Number of frequency file entries is different than the number of edges!");
   }
   metadata.resize(hypergraph.initialNumEdges());
+  utils_tm::hash_tm::murmur2_hash hasher;
   hypergraph.doParallelForAllEdges([&](HyperedgeID he) {
     HypernodeID source = hypergraph.edgeSource(he);
     HypernodeID target = hypergraph.edgeTarget(he);
-    uint64_t key1 = (static_cast<uint64_t>(source) << 32) | target;
-    uint64_t key2 = (static_cast<uint64_t>(target) << 32) | source;
+    __uint128_t key1 = io::hashedEdgeKey(hasher, source, target);
+    __uint128_t key2 = io::hashedEdgeKey(hasher, target, source);
     const float* val1 = frequencies.get_if_contained(key1);
     const float* val2 = frequencies.get_if_contained(key2);
     if (val1 == nullptr && val2 == nullptr) {
@@ -279,7 +280,7 @@ vec<EdgeMetadata> getEdgeMetadata(const Hypergraph& hypergraph,
 
 vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
                                           const std::string& filename) {
-  ds::DynamicSparseMap<uint64_t, float> frequencies;
+  ds::DynamicSparseMap<__uint128_t, float> frequencies;
   io::readFrequencyFile(filename, frequencies);
   switch ( hypergraph.type ) {
     // case STATIC_HYPERGRAPH:
