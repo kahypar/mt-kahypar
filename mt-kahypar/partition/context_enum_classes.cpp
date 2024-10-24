@@ -425,7 +425,7 @@ namespace mt_kahypar {
     if (ds == "preserve_rebalancing_nodes") {
       return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
     } else if (ds == "guided") {
-      return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
+      return DegreeSimilarityPolicy::guided;
     }
     throw InvalidParameterException("No valid degree similarity policy for rating.");
   }
