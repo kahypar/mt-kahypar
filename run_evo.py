@@ -32,15 +32,16 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
   def kill_proc():
     os.killpg(os.getpgid(mt_kahypar_proc.pid), signal.SIGTERM)
 
-  repetitions = 5
+  repetitions = 3
   path = Path(graph)
   freq_file = f"{path.stem}.freqk{k}.csv"
   freq_file = os.path.dirname(graph) + "/" + freq_file
-  if Path(freq_file).is_file():
-    print(f"Skipping: {freq_file}")
-    return
 
   for i in range(0, attempts):
+    if Path(freq_file).is_file():
+      print(f"Skipping: {freq_file} {i}")
+      return
+
     # Run MT-KaHyPar
     cmd = [mt_kahypar,
           "-h" + graph,
