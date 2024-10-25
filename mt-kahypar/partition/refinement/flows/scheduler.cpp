@@ -349,12 +349,12 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
         << ", Search ID =" << search_id << ")" << END;
   }
 
-  _apply_moves_lock.unlock();
-
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
     addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
     _stats.total_improvement += improvement;
   }
+
+  _apply_moves_lock.unlock();
 
   return improvement;
 }
