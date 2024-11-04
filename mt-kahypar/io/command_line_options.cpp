@@ -366,6 +366,13 @@ namespace mt_kahypar {
                                guidedEdgeScalingFromString(ge_scaling);
                      })->default_value("none"),
              "Whether guided coarsening should also scale edge weights for non-forbidden edges.")
+            ("c-guided-edge-accumulation",
+             po::value<std::string>()->notifier(
+                     [&](const std::string& ge_acc) {
+                       context.coarsening.rating.ge_accumulation =
+                               guidedEdgeAccumulationFromString(ge_acc);
+                     })->default_value("linear"),
+             "Accumulation operator for edge metadata in guided coarsening.")
             ("c-guiding-threshold",
              po::value<double>(&context.coarsening.rating.guiding_treshold)->value_name(
                      "<double>")->default_value(1.0),

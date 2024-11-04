@@ -202,6 +202,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(ge_scaling);
   }
 
+  std::ostream & operator<< (std::ostream& os, const GuidedEdgeAccumulation& ge_acc) {
+    switch (ge_acc) {
+      case GuidedEdgeAccumulation::linear: return os << "linear";
+      case GuidedEdgeAccumulation::quadratic: return os << "quadratic";
+      case GuidedEdgeAccumulation::max: return os << "max";
+      case GuidedEdgeAccumulation::UNDEFINED: return os << "UNDEFINED";
+        // omit default GuidedEdgeAccumulation to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(ge_acc);
+  }
+
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
@@ -442,7 +453,18 @@ namespace mt_kahypar {
     } else if (ds == "quadratic") {
       return GuidedEdgeScaling::quadratic;
     }
-    throw InvalidParameterException("No valid degree similarity policy for rating.");
+    throw InvalidParameterException("No valid guided edge scaling policy.");
+  }
+
+  GuidedEdgeAccumulation guidedEdgeAccumulationFromString(const std::string& ds) {
+    if (ds == "linear") {
+      return GuidedEdgeAccumulation::linear;
+    } else if (ds == "quadratic") {
+      return GuidedEdgeAccumulation::quadratic;
+    } else if (ds == "max") {
+      return GuidedEdgeAccumulation::max;
+    }
+    throw InvalidParameterException("No valid guided edge accumulation policy.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
