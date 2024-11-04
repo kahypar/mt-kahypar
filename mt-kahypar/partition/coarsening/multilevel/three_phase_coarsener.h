@@ -164,8 +164,22 @@ class ThreePhaseCoarsener : public ICoarsener,
                     current_hg, _lp_clustering, _similarity_policy, cc);
     _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
+    if (!_uncoarseningData.coarsestEdgeMetadata().empty() &&
+        _context.coarsening.rating.guiding_treshold_max > _context.coarsening.rating.guiding_treshold) {
+      const size_t num_rounds = _context.coarsening.rating.num_guided_subrounds;
+      for (size_t round = 1; round < num_rounds && current_num_nodes > target_contraction_size; ++round) {
+        double interpolate = static_cast<double>(round) / static_cast<double>(num_rounds - 1);
+        double curr_threshold = (1 - interpolate) * _context.coarsening.rating.guiding_treshold + interpolate * _context.coarsening.rating.guiding_treshold_max;
+        DBG << "  - Guided subround: " << V(curr_threshold);
+        cc.guiding_treshold = curr_threshold;
+        cc.hierarchy_contraction_limit = target_contraction_size;
+        coarseningRound("first_lp_round", "First LP round",
+                        current_hg, _lp_clustering, _similarity_policy, cc);
+      }
+    }
 
     // Phase 2: Two-hop coarsening for low degree nodes
+    cc.hierarchy_contraction_limit = hierarchy_contraction_limit;
     if (current_num_nodes > hierarchy_contraction_limit) {
       DBG << "Start Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(hierarchy_contraction_limit);
       coarseningRound("first_two_hop_round", "First two-hop round",

@@ -117,6 +117,8 @@ struct RatingParameters {
 
   // Guided coarsening
   double guiding_treshold = 1.0;
+  double guiding_treshold_max = 1.0;
+  size_t num_guided_subrounds = 1;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);

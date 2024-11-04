@@ -57,6 +57,7 @@ struct ClusteringContext {
     hierarchy_contraction_limit(hierarchy_contraction_limit),
     max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     original_num_threads(context.shared_memory.original_num_threads),
+    guiding_treshold(context.coarsening.rating.guiding_treshold),
     num_hns_before_pass(0),
     previous_num_nodes(0),
     fixed_vertices(),
@@ -113,7 +114,7 @@ struct ClusteringContext {
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy) {
     return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), edge_md, fixed_vertices,
-                 similarity_policy, max_allowed_node_weight, may_ignore_communities);
+                 similarity_policy, max_allowed_node_weight, guiding_treshold, may_ignore_communities);
   }
 
   template<bool has_fixed_vertices>
@@ -143,6 +144,7 @@ struct ClusteringContext {
   HypernodeID hierarchy_contraction_limit;
   HypernodeWeight max_allowed_node_weight;
   size_t original_num_threads;
+  double guiding_treshold;
   bool may_ignore_communities = false;
   bool contract_aggressively = false;
 

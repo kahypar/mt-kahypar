@@ -60,6 +60,7 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
+                                                                const double,
                                                                 const HypernodeID,
                                                                 const HypernodeID,
                                                                 const HyperedgeWeight,
@@ -291,6 +292,7 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
+                                                                const double,
                                                                 const HypernodeID,
                                                                 const HypernodeID,
                                                                 const HyperedgeWeight,
@@ -340,12 +342,13 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
-                                                                const Context& context,
+                                                                const Context& /*context*/,
+                                                                const double guiding_threshold,
                                                                 const HypernodeID,
                                                                 const HypernodeID,
                                                                 const HyperedgeWeight summed_weight,
                                                                 const EdgeMetadata summed_md) const {
-    return summed_md / static_cast<double>(summed_weight) <= context.coarsening.rating.guiding_treshold;
+    return summed_md / static_cast<double>(summed_weight) <= guiding_threshold;
   }
 
   template<typename Hypergraph>
