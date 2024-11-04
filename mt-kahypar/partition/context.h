@@ -116,9 +116,11 @@ struct RatingParameters {
   double acceptance_limit_bound = 0.25;
 
   // Guided coarsening
+  GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::UNDEFINED;
   double guiding_treshold = 1.0;
   double guiding_treshold_max = 1.0;
   size_t num_guided_subrounds = 1;
+  bool consider_edges_deleted = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);

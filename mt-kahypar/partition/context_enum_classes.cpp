@@ -201,6 +201,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(ds_policy);
   }
 
+  std::ostream & operator<< (std::ostream& os, const GuidedEdgeScaling& ge_scaling) {
+    switch (ge_scaling) {
+      case GuidedEdgeScaling::none: return os << "none";
+      case GuidedEdgeScaling::linear: return os << "linear";
+      case GuidedEdgeScaling::quadratic: return os << "quadratic";
+      case GuidedEdgeScaling::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(ge_scaling);
+  }
+
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
@@ -426,6 +437,17 @@ namespace mt_kahypar {
       return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
     } else if (ds == "guided") {
       return DegreeSimilarityPolicy::guided;
+    }
+    throw InvalidParameterException("No valid degree similarity policy for rating.");
+  }
+
+  GuidedEdgeScaling guidedEdgeScalingFromString(const std::string& ds) {
+    if (ds == "none") {
+      return GuidedEdgeScaling::none;
+    } else if (ds == "linear") {
+      return GuidedEdgeScaling::linear;
+    } else if (ds == "quadratic") {
+      return GuidedEdgeScaling::quadratic;
     }
     throw InvalidParameterException("No valid degree similarity policy for rating.");
   }
