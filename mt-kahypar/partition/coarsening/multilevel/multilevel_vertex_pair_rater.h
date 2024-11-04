@@ -113,14 +113,14 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
-           bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
+           bool has_fixed_vertices, typename Hypergraph, typename SimilarityPolicy>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const parallel::scalable_vector<EdgeMetadata>& edge_md,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                        const DegreeSimilarityPolicy& similarity_policy,
+                        const SimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
                         const double guiding_threshold,
                         const bool may_ignore_communities) {
@@ -161,7 +161,7 @@ class MultilevelVertexPairRater {
 
  private:
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
-           bool has_fixed_vertices, typename Hypergraph, typename RatingMap, typename DegreeSimilarityPolicy>
+           bool has_fixed_vertices, typename Hypergraph, typename RatingMap, typename SimilarityPolicy>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -169,7 +169,7 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const parallel::scalable_vector<EdgeMetadata>& edge_md,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                        const DegreeSimilarityPolicy& similarity_policy,
+                        const SimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
                         const double guiding_threshold,
                         const bool may_ignore_communities,
@@ -182,15 +182,15 @@ class MultilevelVertexPairRater {
     auto accept_all = [](RatingType, EdgeMetadata){ return true; };
     if ( use_vertex_degree_sampling ) {
       if (forbid_edges) {
-       fillRatingMapWithSampling<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids, edge_md, accept_by_policy);
+       fillRatingMapWithSampling<ScorePolicy>(hypergraph, similarity_policy, u, tmp_ratings, cluster_ids, edge_md, accept_by_policy);
       } else {
-       fillRatingMapWithSampling<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids, edge_md, accept_all);
+       fillRatingMapWithSampling<ScorePolicy>(hypergraph, similarity_policy, u, tmp_ratings, cluster_ids, edge_md, accept_all);
       }
     } else {
       if (forbid_edges) {
-        fillRatingMap<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids, edge_md, accept_by_policy);
+        fillRatingMap<ScorePolicy>(hypergraph, similarity_policy, u, tmp_ratings, cluster_ids, edge_md, accept_by_policy);
       } else {
-        fillRatingMap<ScorePolicy>(hypergraph, u, tmp_ratings, cluster_ids, edge_md, accept_all);
+        fillRatingMap<ScorePolicy>(hypergraph, similarity_policy, u, tmp_ratings, cluster_ids, edge_md, accept_all);
       }
     }
 
@@ -247,8 +247,9 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
-  template<typename ScorePolicy, typename Hypergraph, typename RatingMap, typename AcceptEdgeFn>
+  template<typename ScorePolicy, typename SimilarityPolicy, typename Hypergraph, typename RatingMap, typename AcceptEdgeFn>
   void fillRatingMap(const Hypergraph& hypergraph,
+                     const SimilarityPolicy& similarity_policy,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
                      const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -265,7 +266,7 @@ class MultilevelVertexPairRater {
           if (!accept_edge(score, md)) {
             continue;
           }
-          tmp_ratings[representative].second += md;
+          similarity_policy.accumulate(_context, tmp_ratings[representative].second, md, score);
         }
       }
     } else {
@@ -288,7 +289,7 @@ class MultilevelVertexPairRater {
             if ( !bloom_filter[bloom_filter_rep] ) {
               tmp_ratings[representative].first += score;
               if (!edge_md.empty()) {
-                tmp_ratings[representative].second += edge_md.at(he);
+                similarity_policy.accumulate(_context, tmp_ratings[representative].second, edge_md.at(he), score);
               }
               bloom_filter.set(bloom_filter_rep, true);
             }
@@ -299,8 +300,9 @@ class MultilevelVertexPairRater {
     }
   }
 
-  template<typename ScorePolicy, typename Hypergraph, typename RatingMap, typename AcceptEdgeFn>
+  template<typename ScorePolicy, typename SimilarityPolicy, typename Hypergraph, typename RatingMap, typename AcceptEdgeFn>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
+                                 const SimilarityPolicy& similarity_policy,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
                                  const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -322,7 +324,7 @@ class MultilevelVertexPairRater {
           if (!accept_edge(score, md)) {
             continue;
           }
-          tmp_ratings[representative].second += md;
+          similarity_policy.accumulate(_context, tmp_ratings[representative].second, md, score);
         }
         tmp_ratings[representative].first += score;
         ++num_tmp_rating_map_accesses;
@@ -351,7 +353,7 @@ class MultilevelVertexPairRater {
             if ( !bloom_filter[bloom_filter_rep] ) {
               tmp_ratings[representative].first += score;
               if (!edge_md.empty()) {
-                tmp_ratings[representative].second += edge_md.at(he);
+                similarity_policy.accumulate(_context, tmp_ratings[representative].second, edge_md.at(he), score);
               }
               bloom_filter.set(bloom_filter_rep, true);
               ++num_tmp_rating_map_accesses;

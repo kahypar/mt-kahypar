@@ -117,6 +117,7 @@ struct RatingParameters {
 
   // Guided coarsening
   GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::UNDEFINED;
+  GuidedEdgeAccumulation ge_accumulation = GuidedEdgeAccumulation::UNDEFINED;
   double guiding_treshold = 1.0;
   double guiding_treshold_max = 1.0;
   size_t num_guided_subrounds = 1;

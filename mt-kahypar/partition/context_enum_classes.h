@@ -149,6 +149,13 @@ enum class GuidedEdgeScaling : uint8_t {
   UNDEFINED
 };
 
+enum class GuidedEdgeAccumulation : uint8_t {
+  linear,
+  quadratic,
+  max,
+  UNDEFINED
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_fm = 0,
   greedy_global_fm = 1,
@@ -235,6 +242,8 @@ std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_po
 
 std::ostream & operator<< (std::ostream& os, const GuidedEdgeScaling& ge_scaling);
 
+std::ostream & operator<< (std::ostream& os, const GuidedEdgeAccumulation& ge_acc);
+
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
@@ -274,6 +283,8 @@ AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
 DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds);
 
 GuidedEdgeScaling guidedEdgeScalingFromString(const std::string& ds);
+
+GuidedEdgeAccumulation guidedEdgeAccumulationFromString(const std::string& ds);
 
 RatingFunction ratingFunctionFromString(const std::string& function);
 

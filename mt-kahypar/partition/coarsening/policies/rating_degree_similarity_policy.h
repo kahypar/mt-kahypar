@@ -57,6 +57,8 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
     return true;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
@@ -296,6 +298,8 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     }
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
@@ -354,13 +358,30 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
     return true;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context& context, EdgeMetadata& sum, const EdgeMetadata value, const HyperedgeWeight edge_weight) const {
+    switch (context.coarsening.rating.ge_accumulation) {
+      case GuidedEdgeAccumulation::linear:
+        sum += value;
+        break;
+      case GuidedEdgeAccumulation::quadratic:
+        sum += value / static_cast<double>(edge_weight) * value;
+        break;
+      case GuidedEdgeAccumulation::max:
+        sum = std::max(sum, value / static_cast<float>(edge_weight));
+        break;
+      case GuidedEdgeAccumulation::UNDEFINED:
+        // ...
+        break;
+    }
+  }
+
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
-                                                                const Context&,
+                                                                const Context& context,
                                                                 const double guiding_threshold,
-                                                                const HyperedgeWeight summed_weight,
+                                                                const HyperedgeWeight summed_rating,
                                                                 const EdgeMetadata summed_md) const {
-    return summed_md / static_cast<double>(summed_weight) <= guiding_threshold;
+    return computeRelativeValue(context, summed_rating, summed_md) <= guiding_threshold;
   }
 
   template<typename Hypergraph>
@@ -369,7 +390,7 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
                                                                   const double guiding_threshold,
                                                                   const HyperedgeWeight summed_rating,
                                                                   const EdgeMetadata summed_md) const {
-    double scale = std::max(guiding_threshold - summed_md / static_cast<double>(summed_rating), 0.0) / guiding_threshold;
+    double scale = std::max(guiding_threshold - computeRelativeValue(context, summed_rating, summed_md), 0.0) / guiding_threshold;
     switch (context.coarsening.rating.ge_scaling) {
       case GuidedEdgeScaling::none:
         return summed_rating;
@@ -382,6 +403,23 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
         break;
     }
     return summed_rating;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double computeRelativeValue(const Context& context,
+                                                                 const HyperedgeWeight summed_rating,
+                                                                 const EdgeMetadata summed_md) const {
+    switch (context.coarsening.rating.ge_accumulation) {
+      case GuidedEdgeAccumulation::linear:
+        return summed_md / static_cast<double>(summed_rating);
+      case GuidedEdgeAccumulation::quadratic:
+        return std::sqrt(summed_md / static_cast<double>(summed_rating));
+      case GuidedEdgeAccumulation::max:
+        return summed_md;
+      case GuidedEdgeAccumulation::UNDEFINED:
+        // ...
+        break;
+    }
+    return 1.0;
   }
 
   template<typename Hypergraph>
