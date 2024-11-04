@@ -61,11 +61,18 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
                                                                 const double,
-                                                                const HypernodeID,
-                                                                const HypernodeID,
                                                                 const HyperedgeWeight,
                                                                 const EdgeMetadata) const {
     return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context&,
+                                                                  const double,
+                                                                  const HyperedgeWeight rating,
+                                                                  const EdgeMetadata) const {
+    return rating;
   }
 
   template<typename Hypergraph>
@@ -293,11 +300,18 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
                                                                 const double,
-                                                                const HypernodeID,
-                                                                const HypernodeID,
                                                                 const HyperedgeWeight,
                                                                 const EdgeMetadata) const {
     return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context&,
+                                                                  const double,
+                                                                  const HyperedgeWeight rating,
+                                                                  const EdgeMetadata) const {
+    return rating;
   }
 
   template<typename Hypergraph>
@@ -342,13 +356,32 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
-                                                                const Context& /*context*/,
+                                                                const Context&,
                                                                 const double guiding_threshold,
-                                                                const HypernodeID,
-                                                                const HypernodeID,
                                                                 const HyperedgeWeight summed_weight,
                                                                 const EdgeMetadata summed_md) const {
     return summed_md / static_cast<double>(summed_weight) <= guiding_threshold;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context& context,
+                                                                  const double guiding_threshold,
+                                                                  const HyperedgeWeight summed_rating,
+                                                                  const EdgeMetadata summed_md) const {
+    double scale = std::max(guiding_threshold - summed_md / static_cast<double>(summed_rating), 0.0) / guiding_threshold;
+    switch (context.coarsening.rating.ge_scaling) {
+      case GuidedEdgeScaling::none:
+        return summed_rating;
+      case GuidedEdgeScaling::linear:
+        return std::round(10 * scale * summed_rating);
+      case GuidedEdgeScaling::quadratic:
+        return std::round(10 * scale * scale * summed_rating);
+      case GuidedEdgeScaling::UNDEFINED:
+        // ...
+        break;
+    }
+    return summed_rating;
   }
 
   template<typename Hypergraph>

@@ -359,6 +359,13 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
                      "<double>")->default_value(0.25),
              "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
+            ("c-guided-edge-scaling",
+             po::value<std::string>()->notifier(
+                     [&](const std::string& ge_scaling) {
+                       context.coarsening.rating.ge_scaling =
+                               guidedEdgeScalingFromString(ge_scaling);
+                     })->default_value("none"),
+             "Whether guided coarsening should also scale edge weights for non-forbidden edges.")
             ("c-guiding-threshold",
              po::value<double>(&context.coarsening.rating.guiding_treshold)->value_name(
                      "<double>")->default_value(1.0),
@@ -371,6 +378,10 @@ namespace mt_kahypar {
              po::value<size_t>(&context.coarsening.rating.num_guided_subrounds)->value_name(
                      "<double>")->default_value(1),
              "Number of LP subrounds for guided coarsening.")
+            ("c-guiding-delete-edges",
+             po::value<bool>(&context.coarsening.rating.consider_edges_deleted)->value_name(
+                     "<double>")->default_value(false),
+             "If true, edges over the threshold are considered deleted instead of blocking the whole contraction.")
             ("c-two-hop-degree-threshold",
              po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
                      "<size_t>")->default_value(100),
