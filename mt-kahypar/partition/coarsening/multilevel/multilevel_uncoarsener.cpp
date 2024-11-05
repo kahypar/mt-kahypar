@@ -108,6 +108,14 @@ namespace mt_kahypar {
       _progress.setObjective(_current_metrics.quality);
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
     }
+    if (_current_level <= 2 && _current_level != 0 && _context.type == ContextType::main) {
+      PartitionedHypergraph& phg = *_uncoarseningData.partitioned_hg;
+      utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
+      std::stringstream ss;
+      ss << "level_" << _current_level << "_";
+      stats.add_stat(ss.str() + "cut", metrics::quality(phg, Objective::cut));
+      stats.add_stat(ss.str() + "km1", metrics::quality(phg, Objective::km1));
+    }
 
     ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
       V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
