@@ -80,6 +80,9 @@ namespace mt_kahypar {
             ("frequencies",
              po::value<std::string>(&context.partition.frequencies_filename)->value_name("<string>"),
              "Frequencies filename")
+            ("frequencies-default-file",
+             po::value<bool>(&context.partition.frequencies_default_file)->value_name("<string>"),
+             "Use default frequencies file (<graph_file>.freq.csv)")
             ("write-partition-file",
              po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(false),
              "If true, then partition output file is generated")

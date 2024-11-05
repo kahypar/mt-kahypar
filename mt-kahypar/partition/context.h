@@ -79,6 +79,7 @@ struct PartitioningParameters {
   std::string graph_partition_filename { };
   std::string graph_community_filename { };
   std::string preset_file { };
+  bool frequencies_default_file = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params);
