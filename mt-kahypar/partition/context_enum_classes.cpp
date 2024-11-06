@@ -206,6 +206,7 @@ namespace mt_kahypar {
       case GuidedEdgeScaling::none: return os << "none";
       case GuidedEdgeScaling::linear: return os << "linear";
       case GuidedEdgeScaling::quadratic: return os << "quadratic";
+      case GuidedEdgeScaling::cubic: return os << "cubic";
       case GuidedEdgeScaling::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -459,6 +460,8 @@ namespace mt_kahypar {
       return GuidedEdgeScaling::linear;
     } else if (ds == "quadratic") {
       return GuidedEdgeScaling::quadratic;
+    } else if (ds == "cubic") {
+      return GuidedEdgeScaling::cubic;
     }
     throw InvalidParameterException("No valid guided edge scaling policy.");
   }
