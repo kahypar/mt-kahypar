@@ -398,6 +398,8 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
         return std::round(10 * scale * summed_rating);
       case GuidedEdgeScaling::quadratic:
         return std::round(10 * scale * scale * summed_rating);
+      case GuidedEdgeScaling::cubic:
+        return std::round(10 * scale * scale * scale * summed_rating);
       case GuidedEdgeScaling::UNDEFINED:
         // ...
         break;
