@@ -29,7 +29,9 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
@@ -70,7 +72,8 @@ class ABipartitioningPolicy : public Test {
     context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
-    context.load_default_preset();
+    auto option_list = loadPreset(PresetType::default_preset);
+    presetToContext(context, option_list);
     context.sanityCheck(nullptr);
     context.setupPartWeights(hypergraph.totalWeight());
   }
