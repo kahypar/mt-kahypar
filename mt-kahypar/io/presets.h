@@ -3,8 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2024 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +26,23 @@
 
 #pragma once
 
-#include <string>
+#include <vector>
 
 #include <boost/program_options.hpp>
 
-#include "mt-kahypar/partition/context.h"
+namespace po = boost::program_options;
+using option = po::basic_option<char>;
 
 namespace mt_kahypar {
 
-using option = boost::program_options::basic_option<char>;
+std::vector<option> load_default_preset();
 
-void processCommandLineInput(Context& context, int argc, char *argv[], const std::vector<option>* preset_option_list);
-void parseIniToContext(Context& context, const std::string& ini_filename);
-void presetToContext(Context& context, const std::vector<option>& option_list);
+std::vector<option> load_quality_preset();
+
+std::vector<option> load_highest_quality_preset();
+
+std::vector<option> load_deterministic_preset();
+
+std::vector<option> load_large_k_preset();
 
 } // namespace mt_kahypar

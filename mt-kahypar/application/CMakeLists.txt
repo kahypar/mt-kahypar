@@ -1,5 +1,4 @@
-configure_file(mt_kahypar.cc.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
-add_executable(MtKaHyPar ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
+add_executable(MtKaHyPar mt_kahypar.cc)
 target_link_libraries(MtKaHyPar ${Boost_LIBRARIES})
 target_link_libraries(MtKaHyPar TBB::tbb TBB::tbbmalloc_proxy)
 target_link_libraries(MtKaHyPar pthread)

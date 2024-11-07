@@ -27,7 +27,6 @@
 
 #include "command_line_options.h"
 
-#include <boost/program_options.hpp>
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h>
@@ -736,10 +735,41 @@ namespace mt_kahypar {
   }
 
 
+  po::options_description getIniOptionsDescription(Context& context) {
+    const int num_columns = 80;
+    po::options_description general_options =
+            createGeneralOptionsDescription(context, num_columns);
+    po::options_description preprocessing_options =
+            createPreprocessingOptionsDescription(context, num_columns);
+    po::options_description coarsening_options =
+            createCoarseningOptionsDescription(context, num_columns);
+    po::options_description initial_paritioning_options =
+            createInitialPartitioningOptionsDescription(context, num_columns);
+    po::options_description refinement_options =
+            createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description flow_options =
+            createFlowRefinementOptionsDescription(context, num_columns, false);
+    po::options_description mapping_options =
+            createMappingOptionsDescription(context, num_columns);
+    po::options_description shared_memory_options =
+            createSharedMemoryOptionsDescription(context, num_columns);
 
-  void processCommandLineInput(Context& context, int argc, char *argv[]) {
+    po::options_description ini_line_options;
+    ini_line_options.add(general_options)
+            .add(preprocessing_options)
+            .add(coarsening_options)
+            .add(initial_paritioning_options)
+            .add(refinement_options)
+            .add(flow_options)
+            .add(mapping_options)
+            .add(shared_memory_options);
+
+    return ini_line_options;
+  }
+
+
+  void processCommandLineInput(Context& context, int argc, char *argv[], const std::vector<option>* preset_option_list) {
     const int num_columns = platform::getTerminalWidth();
-
 
     po::options_description required_options("Required Options", num_columns);
     required_options.add_options()
@@ -810,24 +840,31 @@ namespace mt_kahypar {
 
     po::notify(cmd_vm);
 
+    po::options_description ini_line_options;
+    ini_line_options.add(general_options)
+            .add(preprocessing_options)
+            .add(coarsening_options)
+            .add(initial_paritioning_options)
+            .add(refinement_options)
+            .add(flow_options)
+            .add(mapping_options)
+            .add(shared_memory_options);
     if ( context.partition.preset_file != "" ) {
+      // load from preset file
       std::ifstream file(context.partition.preset_file.c_str());
       if (!file) {
         throw InvalidInputException(
           "Could not load context file at: " + context.partition.preset_file);
       }
 
-      po::options_description ini_line_options;
-      ini_line_options.add(general_options)
-              .add(preprocessing_options)
-              .add(coarsening_options)
-              .add(initial_paritioning_options)
-              .add(refinement_options)
-              .add(flow_options)
-              .add(mapping_options)
-              .add(shared_memory_options);
-
       po::store(po::parse_config_file(file, ini_line_options, false), cmd_vm);
+      po::notify(cmd_vm);
+    } else if ( preset_option_list != nullptr ) {
+      // load from specified preset type
+      po::basic_parsed_options<char> options(&ini_line_options);
+      options.options = *preset_option_list;
+
+      po::store(options, cmd_vm);
       po::notify(cmd_vm);
     }
 
@@ -867,37 +904,25 @@ namespace mt_kahypar {
       throw InvalidInputException(
         "Could not load context file at: " + ini_filename);
     }
-    const int num_columns = 80;
-
-    po::options_description general_options =
-            createGeneralOptionsDescription(context, num_columns);
-    po::options_description preprocessing_options =
-            createPreprocessingOptionsDescription(context, num_columns);
-    po::options_description coarsening_options =
-            createCoarseningOptionsDescription(context, num_columns);
-    po::options_description initial_paritioning_options =
-            createInitialPartitioningOptionsDescription(context, num_columns);
-    po::options_description refinement_options =
-            createRefinementOptionsDescription(context, num_columns, false);
-    po::options_description flow_options =
-            createFlowRefinementOptionsDescription(context, num_columns, false);
-    po::options_description mapping_options =
-            createMappingOptionsDescription(context, num_columns);
-    po::options_description shared_memory_options =
-            createSharedMemoryOptionsDescription(context, num_columns);
-
     po::variables_map cmd_vm;
-    po::options_description ini_line_options;
-    ini_line_options.add(general_options)
-            .add(preprocessing_options)
-            .add(coarsening_options)
-            .add(initial_paritioning_options)
-            .add(refinement_options)
-            .add(flow_options)
-            .add(mapping_options)
-            .add(shared_memory_options);
+    po::options_description ini_line_options = getIniOptionsDescription(context);
 
     po::store(po::parse_config_file(file, ini_line_options, false), cmd_vm);
+    po::notify(cmd_vm);
+
+    if (context.partition.deterministic) {
+      context.preprocessing.stable_construction_of_incident_edges = true;
+    }
+  }
+
+
+  void presetToContext(Context& context, const std::vector<option>& option_list) {
+    po::variables_map cmd_vm;
+    po::options_description ini_line_options = getIniOptionsDescription(context);
+    po::basic_parsed_options<char> options(&ini_line_options);
+    options.options = option_list;
+
+    po::store(options, cmd_vm);
     po::notify(cmd_vm);
 
     if (context.partition.deterministic) {
