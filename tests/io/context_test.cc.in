@@ -34,6 +34,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/io/presets.h"
 
 using ::testing::Test;
 
@@ -43,7 +44,8 @@ namespace mt_kahypar {
 
 TEST(AContext, LoadsDefaultPresetCorrectly) {
   Context actual;
-  actual.load_default_preset();
+  auto option_list = loadPreset(PresetType::default_preset);
+  presetToContext(actual, option_list);
   Context expected;
   parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini");
 
@@ -207,7 +209,8 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
 
 TEST(AContext, LoadsQualityPresetCorrectly) {
   Context actual;
-  actual.load_quality_preset();
+  auto option_list = loadPreset(PresetType::quality);
+  presetToContext(actual, option_list);
   Context expected;
   parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini");
 
@@ -399,7 +402,8 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
 
 TEST(AContext, LoadsDeterministicPresetCorrectly) {
   Context actual;
-  actual.load_deterministic_preset();
+  auto option_list = loadPreset(PresetType::deterministic);
+  presetToContext(actual, option_list);
   Context expected;
   parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini");
 
@@ -542,7 +546,8 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
 
 TEST(AContext, LoadsHighestQualityPresetCorrectly) {
   Context actual;
-  actual.load_highest_quality_preset();
+  auto option_list = loadPreset(PresetType::highest_quality);
+  presetToContext(actual, option_list);
   Context expected;
   parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini");
 
@@ -761,7 +766,8 @@ TEST(AContext, LoadsHighestQualityPresetCorrectly) {
 
 TEST(AContext, LoadsLargeKPresetCorrectly) {
   Context actual;
-  actual.load_large_k_preset();
+  auto option_list = loadPreset(PresetType::large_k);
+  presetToContext(actual, option_list);
   Context expected;
   parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini");
 
