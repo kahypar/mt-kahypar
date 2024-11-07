@@ -508,4 +508,23 @@ std::vector<option> load_large_k_preset() {
   };
 }
 
+
+std::vector<option> loadPreset(PresetType preset) {
+  switch( preset ) {
+    case PresetType::deterministic:
+      return load_deterministic_preset();
+    case PresetType::large_k:
+      return load_large_k_preset();
+    case PresetType::default_preset:
+      return load_default_preset();
+    case PresetType::quality:
+      return load_quality_preset();
+    case PresetType::highest_quality:
+      return load_highest_quality_preset();
+    case PresetType::UNDEFINED:
+      ERR("invalid preset");
+  }
+  return {};
+}
+
 } // namespace mt_kahypar

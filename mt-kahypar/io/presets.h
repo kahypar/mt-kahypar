@@ -30,19 +30,13 @@
 
 #include <boost/program_options.hpp>
 
+#include "mt-kahypar/partition/context_enum_classes.h"
+
 namespace po = boost::program_options;
 using option = po::basic_option<char>;
 
 namespace mt_kahypar {
 
-std::vector<option> load_default_preset();
-
-std::vector<option> load_quality_preset();
-
-std::vector<option> load_highest_quality_preset();
-
-std::vector<option> load_deterministic_preset();
-
-std::vector<option> load_large_k_preset();
+std::vector<option> loadPreset(PresetType preset);
 
 } // namespace mt_kahypar

@@ -41,6 +41,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
@@ -104,22 +105,11 @@ void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_contex
 void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                             const mt_kahypar_preset_type_t preset) {
   Context& c = *reinterpret_cast<Context*>(context);
-  switch(preset) {
-    case DETERMINISTIC:
-      c.load_deterministic_preset();
-      break;
-    case LARGE_K:
-      c.load_large_k_preset();
-      break;
-    case DEFAULT:
-      c.load_default_preset();
-      break;
-    case QUALITY:
-      c.load_quality_preset();
-      break;
-    case HIGHEST_QUALITY:
-      c.load_highest_quality_preset();
-      break;
+  PresetType preset_type = to_preset_type(preset);
+
+  if ( preset_type != PresetType::UNDEFINED ) {
+    auto preset_option_list = loadPreset(preset_type);
+    presetToContext(c, preset_option_list);
   }
 }
 
