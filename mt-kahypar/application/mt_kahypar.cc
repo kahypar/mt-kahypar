@@ -44,24 +44,6 @@
 
 using namespace mt_kahypar;
 
-static std::vector<option> loadPreset(Context& context) {
-  switch( context.partition.preset_type ) {
-    case PresetType::deterministic:
-      return load_deterministic_preset();
-    case PresetType::large_k:
-      return load_large_k_preset();
-    case PresetType::default_preset:
-      return load_default_preset();
-    case PresetType::quality:
-      return load_quality_preset();
-    case PresetType::highest_quality:
-      return load_highest_quality_preset();
-    case PresetType::UNDEFINED:
-      ERR("invalid preset");
-  }
-  return {};
-}
-
 int main(int argc, char* argv[]) {
 
   Context context(false);
@@ -70,7 +52,7 @@ int main(int argc, char* argv[]) {
   if ( context.partition.preset_file == "" ) {
     if ( context.partition.preset_type != PresetType::UNDEFINED ) {
       // Only a preset type specified => load according preset
-      auto preset_option_list = loadPreset(context);
+      auto preset_option_list = loadPreset(context.partition.preset_type);
       processCommandLineInput(context, argc, argv, &preset_option_list);
     } else {
       throw InvalidInputException("No preset specified");
