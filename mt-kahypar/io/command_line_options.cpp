@@ -361,7 +361,7 @@ namespace mt_kahypar {
                      [&](const std::string& ge_scaling) {
                        context.coarsening.rating.ge_scaling =
                                guidedEdgeScalingFromString(ge_scaling);
-                     })->default_value("none"),
+                     })->default_value("quadratic"),
              "Whether guided coarsening should also scale edge weights for non-forbidden edges.")
             ("c-guided-edge-accumulation",
              po::value<std::string>()->notifier(
@@ -372,15 +372,15 @@ namespace mt_kahypar {
              "Accumulation operator for edge metadata in guided coarsening.")
             ("c-guiding-threshold",
              po::value<double>(&context.coarsening.rating.guiding_treshold)->value_name(
-                     "<double>")->default_value(1.0),
+                     "<double>")->default_value(0.2),
              "Treshold for guided coarsening (e.g. by ML).")
             ("c-guiding-threshold-max",
              po::value<double>(&context.coarsening.rating.guiding_treshold_max)->value_name(
-                     "<double>")->default_value(1.0),
+                     "<double>")->default_value(0.8),
              "Max. treshold for guided coarsening when using multiple LP subrounds.")
             ("c-guided-subrounds",
              po::value<size_t>(&context.coarsening.rating.num_guided_subrounds)->value_name(
-                     "<double>")->default_value(1),
+                     "<double>")->default_value(5),
              "Number of LP subrounds for guided coarsening.")
             ("c-guiding-delete-edges",
              po::value<bool>(&context.coarsening.rating.consider_edges_deleted)->value_name(
