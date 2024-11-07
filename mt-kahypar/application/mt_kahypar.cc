@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/conversion.h"
@@ -43,30 +44,34 @@
 
 using namespace mt_kahypar;
 
-#define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
-
-static std::string getPresetFile(const Context& context) {
-  switch ( context.partition.preset_type ) {
-    case PresetType::deterministic: return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
-    case PresetType::large_k: return std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini";
-    case PresetType::default_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
-    case PresetType::quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
-    case PresetType::highest_quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini";
-    case PresetType::UNDEFINED: return "";
+static std::vector<option> loadPreset(Context& context) {
+  switch( context.partition.preset_type ) {
+    case PresetType::deterministic:
+      return load_deterministic_preset();
+    case PresetType::large_k:
+      return load_large_k_preset();
+    case PresetType::default_preset:
+      return load_default_preset();
+    case PresetType::quality:
+      return load_quality_preset();
+    case PresetType::highest_quality:
+      return load_highest_quality_preset();
+    case PresetType::UNDEFINED:
+      ERR("invalid preset");
   }
-  return "";
+  return {};
 }
 
 int main(int argc, char* argv[]) {
 
   Context context(false);
-  processCommandLineInput(context, argc, argv);
+  processCommandLineInput(context, argc, argv, nullptr);
 
   if ( context.partition.preset_file == "" ) {
     if ( context.partition.preset_type != PresetType::UNDEFINED ) {
-      // Only a preset type specified => load context from corresponding ini file
-      context.partition.preset_file = getPresetFile(context);
-      processCommandLineInput(context, argc, argv);
+      // Only a preset type specified => load according preset
+      auto preset_option_list = loadPreset(context);
+      processCommandLineInput(context, argc, argv, &preset_option_list);
     } else {
       throw InvalidInputException("No preset specified");
     }
