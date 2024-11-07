@@ -708,12 +708,13 @@ namespace mt_kahypar::io {
       utils_tm::hash_tm::murmur2_hash hasher;
       while (std::getline(file, line)) {
           std::istringstream iss(line);
-          HypernodeID u, v, f;
+          HypernodeID u, v;
+          double f;
           char c, d;
           if (!(iss >> u >> c >> v >> d >> f ) || c != ',' || d != ',') { ERR("Invalid line: " << line); }
           __uint128_t key = hashedEdgeKey(hasher, u, v);
           ALWAYS_ASSERT(!frequencies.contains(key) && f <= max);
-          frequencies[key] = static_cast<double>(f) / static_cast<double>(max);
+          frequencies[key] = f / static_cast<double>(max);
       }
       file.close();
     } else {
