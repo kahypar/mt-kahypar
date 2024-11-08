@@ -41,4 +41,7 @@ void processCommandLineInput(Context& context, int argc, char *argv[], const std
 void parseIniToContext(Context& context, const std::string& ini_filename);
 void presetToContext(Context& context, const std::vector<option>& option_list);
 
+// for testing
+boost::program_options::options_description getIniOptionsDescription(Context& context);
+
 } // namespace mt_kahypar
