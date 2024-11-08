@@ -45,6 +45,7 @@
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -245,22 +246,11 @@ PYBIND11_MODULE(mtkahypar, m) {
   py::class_<Context>(m, "Context", py::module_local())
     .def(py::init<>())
     .def("loadPreset", [](Context& context, const PresetType preset) {
-        switch ( preset ) {
-          case PresetType::deterministic:
-            context.load_deterministic_preset();
-            break;
-          case PresetType::large_k:
-            context.load_large_k_preset();
-            break;
-          case PresetType::default_preset:
-            context.load_default_preset();
-            break;
-          case PresetType::quality:
-            context.load_quality_preset();
-            break;
-          default:
-            LOG << "Preset type" << preset << "not supported!";
-            break;
+        if ( preset != PresetType::UNDEFINED ) {
+          auto preset_option_list = loadPreset(preset);
+          presetToContext(context, preset_option_list);
+        } else {
+          LOG << "Preset type" << preset << "not supported!";
         }
       }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
       py::arg("preset type"))
