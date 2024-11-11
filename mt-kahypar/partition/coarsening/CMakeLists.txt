@@ -5,7 +5,5 @@ set(MultilevelCoarseningSources
 set(NLevelCoarseningSources
         nlevel_uncoarsener.cpp)
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${MultilevelCoarseningSources})
-    target_sources(${modtarget} PRIVATE ${NLevelCoarseningSources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelCoarseningSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${NLevelCoarseningSources})

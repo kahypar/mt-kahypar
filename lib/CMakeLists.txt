@@ -2,22 +2,7 @@ include(GNUInstallDirs)
 
 add_library(mtkahypar SHARED libmtkahypar.cpp)
 
-target_link_libraries(mtkahypar TBB::tbb TBB::tbbmalloc_proxy)
-
-if(KAHYPAR_DOWNLOAD_BOOST)
-    target_link_libraries(mtkahypar mini_boost)
-elseif(NOT MT_KAHYPAR_DISABLE_BOOST)
-    target_link_libraries(mtkahypar Boost::program_options)
-endif()
-
-target_compile_definitions(mtkahypar PUBLIC MT_KAHYPAR_LIBRARY_MODE)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_SOED_METRIC)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
-
-set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahypar PARENT_SCOPE)
+target_link_libraries(mtkahypar PRIVATE MtKaHyPar-LibraryBuildSources)
 
 set_target_properties(mtkahypar PROPERTIES
     PUBLIC_HEADER "../include/libmtkahypar.h;../include/libmtkahypartypes.h")

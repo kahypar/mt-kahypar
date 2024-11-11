@@ -10,9 +10,7 @@ if(NOT MT_KAHYPAR_DISABLE_BOOST)
     list(APPEND IOSources command_line_options.cpp)
 endif()
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${IOSources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${IOSources})
 
 set(ToolsIOSources
         hypergraph_io.cpp

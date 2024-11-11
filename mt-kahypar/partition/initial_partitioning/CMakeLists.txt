@@ -5,6 +5,4 @@ set(InitialPartitioningSources
         label_propagation_initial_partitioner.cpp
         )
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${InitialPartitioningSources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${InitialPartitioningSources})

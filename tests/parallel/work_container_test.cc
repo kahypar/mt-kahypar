@@ -26,8 +26,11 @@
 
 #include "gmock/gmock.h"
 
-#include <mt-kahypar/parallel/work_stack.h>
 #include <thread>
+
+#include <tbb/enumerable_thread_specific.h>
+
+#include "mt-kahypar/parallel/work_stack.h"
 
 using ::testing::Test;
 

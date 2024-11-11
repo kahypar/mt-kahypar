@@ -17,9 +17,7 @@ set(PartitionSources
         recursive_bipartitioning.cpp
         )
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${PartitionSources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${PartitionSources})
 
 set(PartitionToolsSources
         context.cpp

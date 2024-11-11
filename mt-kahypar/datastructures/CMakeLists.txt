@@ -26,13 +26,11 @@ set(NLevelGraphDatastructureSources
       dynamic_adjacency_array.cpp
       fixed_vertex_support.cpp)
 
+target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelDatastructureSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelGraphDatastructureSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${NLevelDatastructureSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${NLevelGraphDatastructureSources})
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-  target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources})
-  target_sources(${modtarget} PRIVATE ${NLevelGraphDatastructureSources})
-  target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources})
-  target_sources(${modtarget} PRIVATE ${NLevelDatastructureSources})
-endforeach()
 
 set(ToolsDatastructureSources
       static_hypergraph_factory.cpp
