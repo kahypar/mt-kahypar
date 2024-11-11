@@ -368,6 +368,10 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, size_t(4), size_t(256));
 
     if ( partition.objective == Objective::steiner_tree ) {
+      if ( partition.preset_type == PresetType::large_k ) {
+        // steiner trees scale really badly with k (cubic with no parallelization), so we don't want to support this
+        ERR("Large k partitioning is not supported for steiner tree metric.");
+      }
       if ( !target_graph ) {
         partition.objective = Objective::km1;
         INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
