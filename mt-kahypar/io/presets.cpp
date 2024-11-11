@@ -426,6 +426,15 @@ std::vector<option> load_deterministic_preset() {
     create_option("r-sync-lp-active-nodeset", "true"),
     // main -> refinement -> fm
     create_option("r-fm-type", "do_nothing"),
+    // main -> refinement -> flows
+    create_option("r-flow-algo", "do_nothing"),
+    // main -> mapping
+    create_option("one-to-one-mapping-strategy", "greedy_mapping"),
+    create_option("mapping-use-local-search", "true"),
+    create_option("use-two-phase-approach", "false"),
+    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-largest-he-fraction", "0.0"),
+    create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 

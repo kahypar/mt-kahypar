@@ -868,6 +868,10 @@ namespace mt_kahypar {
     Map(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 0.03, false);
   }
 
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithDeterministicPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, false);
+  }
+
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultPreset) {
     Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
   }
@@ -878,6 +882,10 @@ namespace mt_kahypar {
 
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithHighestQualityPreset) {
     Map(GRAPH_FILE, METIS, HIGHEST_QUALITY, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDeterministicPreset) {
+    Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
   }
 
   TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCycles) {

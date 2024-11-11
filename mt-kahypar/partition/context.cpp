@@ -387,6 +387,10 @@ namespace mt_kahypar {
                       partition.mode, Mode::direct);
         }
       }
+      if (mapping.max_steiner_tree_size < 2) {
+        mapping.max_steiner_tree_size = 2;
+        INFO("For steiner tree metric, max-steiner-tree-size needs to be at least 2. Setting value to 2.");
+      }
     }
 
 
