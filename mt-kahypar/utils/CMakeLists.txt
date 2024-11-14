@@ -3,7 +3,4 @@ set(UtilSources
     )
 
 target_sources(MtKaHyPar-Sources INTERFACE ${UtilSources})
-
-foreach(modtarget IN LISTS TOOLS_TARGETS)
-    target_sources(${modtarget} PRIVATE ${UtilSources})
-endforeach()
+target_sources(MtKaHyPar-ToolsSources INTERFACE ${UtilSources})

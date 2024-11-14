@@ -26,6 +26,4 @@ set(PartitionToolsSources
         metrics.cpp
         )
 
-foreach(modtarget IN LISTS TOOLS_TARGETS)
-    target_sources(${modtarget} PRIVATE ${PartitionToolsSources})
-endforeach()
+target_sources(MtKaHyPar-ToolsSources INTERFACE ${PartitionToolsSources})

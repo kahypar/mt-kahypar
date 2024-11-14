@@ -39,6 +39,8 @@ target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DI
 
 add_library(MtKaHyPar-Sources INTERFACE)
 
+add_library(MtKaHyPar-ToolsSources INTERFACE)
+
 # meta target for CLI/test build
 add_library(MtKaHyPar-BuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-BuildSources PRIVATE MtKaHyPar-Sources)

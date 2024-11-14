@@ -47,6 +47,4 @@ set(ToolsDatastructureSources
       dynamic_adjacency_array.cpp
       fixed_vertex_support.cpp)
 
-foreach(modtarget IN LISTS TOOLS_TARGETS)
-  target_sources(${modtarget} PRIVATE ${ToolsDatastructureSources})
-endforeach()
+target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsDatastructureSources})
