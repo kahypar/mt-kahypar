@@ -50,6 +50,8 @@ target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-
 add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+# building shared libraries requires position independent code
+set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
                            KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
                            KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
@@ -238,7 +240,7 @@ if(NOT MT_KAHYPAR_DISABLE_BOOST)
     file(GLOB MTKAHYPAR_MINI_BOOST_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/libs/program_options/src/*.cpp)
 
     add_library(MtKaHyPar-Boost STATIC ${MTKAHYPAR_MINI_BOOST_SOURCES})
-    set_target_properties(MtKaHyPar-Boost PROPERTIES LINKER_LANGUAGE CXX)
+    set_target_properties(MtKaHyPar-Boost PROPERTIES LINKER_LANGUAGE CXX POSITION_INDEPENDENT_CODE ON)
     target_include_directories(MtKaHyPar-Boost PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/boost/)
     target_link_libraries(MtKaHyPar-Boost PRIVATE MtKaHyPar-BuildFlags)
     set(Boost_LIBRARIES MtKaHyPar-Boost)
