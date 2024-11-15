@@ -4,7 +4,7 @@
 
 # meta target for single executable tools
 add_library(MtKaHyPar-ToolsMin INTERFACE)
-target_link_libraries(MtKaHyPar-ToolsMin INTERFACE MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+target_link_libraries(MtKaHyPar-ToolsMin INTERFACE MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 add_executable(SnapToHgr snap_graph_to_hgr.cc)
 target_link_libraries(SnapToHgr MtKaHyPar-ToolsMin)
@@ -16,7 +16,7 @@ add_executable(BenchShuffle bench_deterministic_shuffling.cpp)
 target_link_libraries(BenchShuffle MtKaHyPar-ToolsMin)
 
 add_executable(MtxToGraph mtx_to_graph.cc)
-target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags)
 
 
 #################################################################
@@ -26,7 +26,7 @@ target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
 # meta target for tools with more dependencies
 add_library(MtKaHyPar-BuildTools OBJECT "")
 target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources ${HWLOCK_LIBRARY})
-target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 add_executable(GraphToHgr graph_to_hgr.cc)
 target_link_libraries(GraphToHgr MtKaHyPar-BuildTools)

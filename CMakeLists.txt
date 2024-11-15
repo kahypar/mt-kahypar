@@ -35,8 +35,6 @@ endif()
 add_library(MtKaHyPar-BuildFlags INTERFACE)
 set_target_properties(MtKaHyPar-BuildFlags PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
-add_library(MtKaHyPar-WarningFlags INTERFACE)
-
 # meta targets for includes and source files
 add_library(MtKaHyPar-Include INTERFACE)
 target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -48,12 +46,12 @@ add_library(MtKaHyPar-ToolsSources INTERFACE)
 # meta target for CLI/test build
 add_library(MtKaHyPar-BuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-BuildSources PRIVATE MtKaHyPar-Sources)
-target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 # meta target for library build, which must be built with all features enabled
 add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
-target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
+target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 # building shared libraries requires position independent code
 set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
@@ -214,10 +212,6 @@ endif()
 
 include(FetchContent)
 
-target_include_directories(MtKaHyPar-Include INTERFACE ${PROJECT_SOURCE_DIR})
-
-find_package(Threads REQUIRED)
-message(STATUS "Found Threads: ${CMAKE_THREAD_LIBS_INIT}")  # TODO: do we need this?
 
 if (KAHYPAR_ENABLE_TESTING)
   FetchContent_Declare(
@@ -263,6 +257,7 @@ if(NOT MT_KAHYPAR_DISABLE_BOOST)
   target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
 endif()
 
+
 if(KAHYPAR_DOWNLOAD_TBB)
   # Download TBB library
   FetchContent_Declare(
@@ -285,6 +280,7 @@ else()
 endif()
 target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
 
+
 # Find HWLOC Library
 FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
   HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
@@ -293,11 +289,11 @@ FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
 )
 
 IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
-  MESSAGE(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
+  message(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
   target_include_directories(MtKaHyPar-Include INTERFACE ${HWLOCK_INCLUDE_DIR})
   target_link_libraries(MtKaHyPar-Sources INTERFACE ${HWLOCK_LIBRARY})
 ELSE ()
-  MESSAGE(FATAL_ERROR "
+  message(FATAL_ERROR "
     HwLoc library not found. Install HwLoc on your system.")
 ENDIF ()
 
@@ -372,19 +368,19 @@ if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set (X86 TRUE)
+    set(KAHYPAR_X86 TRUE)
 else()
-    set (X86 FALSE)
+    set(KAHYPAR_X86 FALSE)
 endif()
 
-# Add compile flags
-target_compile_options(MtKaHyPar-WarningFlags INTERFACE
+# Add compile flags that enable warnings
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE
   -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
   -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
 
 # lld is way faster than ld. If you have it, use it!
 find_program(LLD_BIN lld)
-if (LLD_BIN AND X86)
+if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
 else()
@@ -403,16 +399,16 @@ endif()
 
 if (KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   include(CheckCXXCompilerFlag)
+  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
   include(CheckSSE4_2)
 
-  if(X86)
+  if(KAHYPAR_X86)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
   endif()
-  if( BUILTIN_POPCNT )
+  if(BUILTIN_POPCNT)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
   endif()
-  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
-  if(KAHYPAR_HAS_CRC32 AND X86)
+  if(KAHYPAR_HAS_CRC32 AND KAHYPAR_X86)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
 endif()
@@ -427,14 +423,16 @@ if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
   target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
 endif()
 
-add_custom_target(AnalyzeModifiedSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analyze-source.pl" "-w")
-add_custom_target(AnalyzeAllSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analyze-source.pl" "-aw")
 
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
+
+#################################################################
+## Include the source code and targets via subdirectories      ##
+#################################################################
 
 if(NOT MT_KAHYPAR_DISABLE_BOOST)
   add_subdirectory(mt-kahypar/application)
