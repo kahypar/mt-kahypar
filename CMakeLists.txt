@@ -231,10 +231,42 @@ endif()
 
 
 #################################################################
-## Setup of source files and dependencies                      ##
+## Setup of dependencies                                       ##
 #################################################################
 
 include(FetchContent)
+
+# Include header-only dependencies
+FetchContent_Declare(
+  kahypar-shared-resources
+  GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
+  GIT_TAG        origin/main
+  SOURCE_DIR     external_tools/kahypar-shared-resources
+)
+FetchContent_Declare(
+  WHFC
+  GIT_REPOSITORY https://github.com/larsgottesbueren/WHFC.git
+  GIT_TAG        origin/master
+  SOURCE_DIR     external_tools/WHFC
+)
+FetchContent_Declare(
+  growt
+  GIT_REPOSITORY https://github.com/TooBiased/growt.git
+  GIT_TAG        origin/master
+  SOURCE_DIR     external_tools/growt
+)
+FetchContent_MakeAvailable(kahypar-shared-resources WHFC)
+
+# we don't want to include growt as subdirectory, thus we manually call FetchContent_Populate
+FetchContent_GetProperties(growt)
+if(NOT growt_POPULATED)
+  FetchContent_Populate(growt)
+endif()
+
+target_include_directories(MtKaHyPar-Include INTERFACE
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/growt
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/WHFC)
 
 
 if (KAHYPAR_ENABLE_TESTING)
@@ -251,10 +283,6 @@ if (KAHYPAR_ENABLE_TESTING)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
 endif()
 
-# Include Submodules
-target_include_directories(MtKaHyPar-Include INTERFACE external_tools/kahypar-shared-resources)
-target_include_directories(MtKaHyPar-Include INTERFACE external_tools/growt)
-target_include_directories(MtKaHyPar-Include INTERFACE external_tools/WHFC)
 
 if(NOT MT_KAHYPAR_DISABLE_BOOST)
   if(KAHYPAR_DOWNLOAD_BOOST)
