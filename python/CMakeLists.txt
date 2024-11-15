@@ -1,7 +1,7 @@
 FetchContent_Declare(
     pybind11 SYSTEM EXCLUDE_FROM_ALL
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
-    GIT_TAG        v2.13.6
+    GIT_TAG        ${KAHYPAR_PYBIND11_VERSION}
 )
 FetchContent_MakeAvailable(pybind11)
 pybind11_add_module(mtkahypar_python module.cpp)

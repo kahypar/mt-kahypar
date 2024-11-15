@@ -235,6 +235,9 @@ endif()
 #################################################################
 
 include(FetchContent)
+set(KAHYPAR_TBB_VERSION        v2022.0.0)
+set(KAHYPAR_GOOGLETEST_VERSION v1.15.2)
+set(KAHYPAR_PYBIND11_VERSION   v2.13.6)
 
 # Include header-only dependencies
 FetchContent_Declare(
@@ -273,7 +276,7 @@ if (KAHYPAR_ENABLE_TESTING)
   FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.15.2
+    GIT_TAG        ${KAHYPAR_GOOGLETEST_VERSION}
   )
   FetchContent_MakeAvailable(googletest)
   include(gmock)
@@ -315,7 +318,7 @@ if(KAHYPAR_DOWNLOAD_TBB)
   FetchContent_Declare(
     TBB EXCLUDE_FROM_ALL SYSTEM
     GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
-    GIT_TAG        v2022.0.0
+    GIT_TAG        ${KAHYPAR_TBB_VERSION}
     GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
   )
   FetchContent_MakeAvailable(TBB)
