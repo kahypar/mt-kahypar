@@ -22,6 +22,10 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC not supported at the moment")
 endif()
 
+if (POLICY CMP0135)  # policy for download timestamps
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
 
 #################################################################
 ## Meta targets                                               ##
@@ -66,9 +70,6 @@ option(KAHYPAR_DOWNLOAD_BOOST
 
 option(KAHYPAR_DOWNLOAD_TBB
   "Download TBB automatically." OFF)
-
-option(KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION
-  "Enforces the minimum required TBB version." ON)
 
 option(KAHYPAR_USE_GCOV
   "Compile and run tests with gcov for coverage analysis." OFF)
@@ -235,76 +236,50 @@ target_include_directories(MtKaHyPar-Include INTERFACE external_tools/WHFC)
 
 if(NOT MT_KAHYPAR_DISABLE_BOOST)
   if(KAHYPAR_DOWNLOAD_BOOST)
-    # Download Boost
-    execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
-    file(GLOB MTKAHYPAR_MINI_BOOST_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/libs/program_options/src/*.cpp)
-
-    add_library(MtKaHyPar-Boost STATIC ${MTKAHYPAR_MINI_BOOST_SOURCES})
-    set_target_properties(MtKaHyPar-Boost PROPERTIES LINKER_LANGUAGE CXX POSITION_INDEPENDENT_CODE ON)
-    target_include_directories(MtKaHyPar-Boost PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/boost/)
-    target_link_libraries(MtKaHyPar-Boost PRIVATE MtKaHyPar-BuildFlags)
-    set(Boost_LIBRARIES MtKaHyPar-Boost)
+    # Download Boost program options
+    set(BOOST_INCLUDE_LIBRARIES program_options)
+    set(BOOST_ENABLE_CMAKE ON)
+    set(FETCHCONTENT_QUIET FALSE)
+    FetchContent_Declare(
+      Boost EXCLUDE_FROM_ALL SYSTEM
+      URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.gz
+    )
+    set(FETCHCONTENT_QUIET TRUE)
+    FetchContent_MakeAvailable(Boost)
   else()
-    # Find Boost Program Options Library
+    # Find Boost program options system library
     find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
-    if(Boost_FOUND)
-      message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}")
-      message(STATUS "Boost Library Dirs: ${Boost_LIBRARY_DIRS}")
-      message(STATUS "Boost Libraries: ${Boost_LIBRARIES}")
-      if(WIN32)
-        # TODO
-        add_definitions(-DBOOST_ALL_NO_LIB)
-        add_definitions(-DBOOST_PROGRAM_OPTIONS_DYN_LINK=1)
-      endif()
-    else()
-      MESSAGE(FATAL_ERROR "
+    if(NOT Boost_FOUND)
+      message(FATAL_ERROR "
         Boost not found. Install Boost on your system or
         add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
     endif()
+    message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
   endif()
-  target_link_libraries(MtKaHyPar-Sources INTERFACE ${Boost_LIBRARIES})
+  target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
 endif()
 
-# Download TBB
 if(KAHYPAR_DOWNLOAD_TBB)
-  if ( UNIX AND NOT WIN32 )
-    execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)
-    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
-  elseif ( MSVC )
-    execute_process(COMMAND cmake -G ${CMAKE_GENERATOR} -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_windows.cmake)
-    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
-  else()
-    MESSAGE(WARNING "
-      We did not find a TBB version for your platform online.
-      The build uses the TBB version installed on your system.")
+  # Download TBB library
+  FetchContent_Declare(
+    TBB EXCLUDE_FROM_ALL SYSTEM
+    GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
+    GIT_TAG        v2022.0.0
+    GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
+  )
+  FetchContent_MakeAvailable(TBB)
+else()
+  # Find system TBB library
+  find_package(TBB 2021.5 COMPONENTS tbb tbbmalloc)
+  if(NOT TBB_FOUND)
+    message(FATAL_ERROR "
+      TBB library not found or current TBB version is too old. Install TBB on your system
+      or add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command.")
   endif()
+  get_target_property(KAHYPAR_TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  message(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR}, TBB Include: ${KAHYPAR_TBB_INCLUDE_DIRS}")
 endif()
-
-# Find TBB Library
-find_package(TBB REQUIRED)
-if (TBB_FOUND)
-  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12050) OR (NOT KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
-    target_include_directories(MtKaHyPar-Include INTERFACE ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
-    target_link_libraries(MtKaHyPar-Sources INTERFACE ${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
-    MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
-    MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-    MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
-  ELSE ()
-    MESSAGE(FATAL_ERROR "
-      Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum
-      required version is 12050 (OneTBB 2021.5). You can download a suitable version by adding
-      -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command (may require to clear the cmake cache).
-      Note that Mt-KaHyPar also compiles with older versions of TBB. However, we found some unexpected
-      behavior of a TBB function that causes on our side segmentation faults in really rare cases.
-      If you want to ignore these warnings, you can add -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF to the
-      cmake build command which will build Mt-KaHyPar with your current TBB version.")
-  ENDIF()
-ELSE ()
-  MESSAGE(FATAL_ERROR "
-    TBB library not found. Install TBB on your system or
-    add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command
-    (only available for Linux and MSVC).")
-ENDIF()
+target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
 
 # Find HWLOC Library
 FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
@@ -321,7 +296,6 @@ ELSE ()
   MESSAGE(FATAL_ERROR "
     HwLoc library not found. Install HwLoc on your system.")
 ENDIF ()
-
 
 
 #################################################################

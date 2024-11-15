@@ -5,7 +5,6 @@
 # meta target for single executable tools
 add_library(MtKaHyPar-ToolsMin INTERFACE)
 target_link_libraries(MtKaHyPar-ToolsMin INTERFACE MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
-target_link_libraries(MtKaHyPar-ToolsMin INTERFACE ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
 
 add_executable(SnapToHgr snap_graph_to_hgr.cc)
 target_link_libraries(SnapToHgr MtKaHyPar-ToolsMin)
@@ -26,7 +25,7 @@ target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
 
 # meta target for tools with more dependencies
 add_library(MtKaHyPar-BuildTools OBJECT "")
-target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES} ${HWLOCK_LIBRARY})
+target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources ${HWLOCK_LIBRARY})
 target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags MtKaHyPar-WarningFlags)
 
 add_executable(GraphToHgr graph_to_hgr.cc)
