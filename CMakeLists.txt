@@ -3,12 +3,10 @@ cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 project(MtKaHyPar
+        VERSION 1.4
         DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
         LANGUAGES CXX C)
-set(PROJECT_VENDOR "Tobias Heuer")
-set(PROJECT_CONTACT "tobias.heuer@kit.edu")
 set(PROJECT_URL "https://github.com/kahypar/mt-kahypar")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
 #################################################################
@@ -62,6 +60,7 @@ target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRA
 if(BUILD_SHARED_LIBS)
   set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
+
 
 #################################################################
 ## Options                                                     ##
@@ -143,6 +142,27 @@ option(MT_KAHYPAR_DISABLE_BOOST
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC AND NOT KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   message(FATAL_ERROR "Steiner tree metric requires graph features. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On to your cmake command")
 endif()
+
+
+#################################################################
+## Print header with most important infos                      ##
+#################################################################
+
+set(KAHYPAR_BUILD_DESCRIPTION "${CMAKE_BUILD_TYPE} Build")
+if (KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+  set(KAHYPAR_BUILD_DESCRIPTION "${KAHYPAR_BUILD_DESCRIPTION} + march=native")
+endif()
+if (KAHYPAR_ENABLE_TESTING)
+  set(KAHYPAR_TESTING_ENABLED "Enabled")
+else()
+  set(KAHYPAR_TESTING_ENABLED "Disabled")
+endif()
+if(BUILD_SHARED_LIBS)
+  set(KAHYPAR_LIB_TYPE "Shared")
+else()
+  set(KAHYPAR_LIB_TYPE "Static")
+endif()
+message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LIB_TYPE} Library ======")
 
 
 #################################################################
@@ -316,7 +336,7 @@ find_package(Git)
 include(GetGitRevisionDescription)
 get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
 if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
-  message(STATUS "Detected git refspec ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
+  message(STATUS "Git: ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
   configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
 endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
@@ -336,8 +356,6 @@ find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
-else()
-  message(STATUS "Default linker")
 endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
@@ -377,12 +395,6 @@ if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
 endif()
 
 
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
-message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-
-
 #################################################################
 ## Include the source code and targets via subdirectories      ##
 #################################################################
@@ -390,7 +402,6 @@ message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO
 if(NOT MT_KAHYPAR_DISABLE_BOOST)
   add_subdirectory(mt-kahypar/application)
 endif()
-
 if(KAHYPAR_PYTHON)
   if (NOT BUILD_SHARED_LIBS)
     message(SEND_ERROR "Python interface must be built as shared library.
@@ -398,11 +409,9 @@ if(KAHYPAR_PYTHON)
   endif()
   add_subdirectory(python)
 endif()
-
 if (KAHYPAR_ENABLE_TESTING)
   add_subdirectory(tests)
 endif()
-
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(mt-kahypar)
