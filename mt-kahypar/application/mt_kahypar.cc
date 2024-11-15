@@ -34,6 +34,7 @@
 #include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
+#include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/cast.h"
@@ -124,8 +125,9 @@ int main(int argc, char* argv[]) {
     timer.stop_timer("read_fixed_vertices");
   }
 
-  // Initialize Memory Pool
+  // Initialize Memory Pool and Algorithm/Policy Registries
   register_memory_pool(hypergraph, context);
+  register_algorithms_and_policies();
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

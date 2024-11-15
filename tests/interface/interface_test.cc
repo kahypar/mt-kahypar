@@ -498,7 +498,7 @@ namespace mt_kahypar {
     }
 
     void SetUp()  {
-      mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+      mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
       context = mt_kahypar_context_new();
       target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE);
     }

@@ -218,7 +218,7 @@ Here is a short example of how you can partition a hypergraph using our library 
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool
-  mt_kahypar_initialize_thread_pool(
+  mt_kahypar_initialize(
     std::thread::hardware_concurrency() /* use all available cores */,
     true /* activate interleaved NUMA allocation policy */ );
 

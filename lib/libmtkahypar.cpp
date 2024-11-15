@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -182,8 +183,7 @@ void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* contex
   }
 }
 
-void mt_kahypar_initialize_thread_pool(const size_t num_threads,
-                                       const bool interleaved_allocations) {
+void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations) {
   size_t P = num_threads;
   size_t num_available_cpus = HardwareTopology::instance().num_cpus();
   if ( num_available_cpus < num_threads ) {
@@ -203,6 +203,8 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
     parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
   }
+
+  register_algorithms_and_policies();
 }
 
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,

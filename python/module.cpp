@@ -43,6 +43,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/presets.h"
@@ -57,7 +58,7 @@ namespace py = pybind11;
 using namespace mt_kahypar;
 
 namespace {
-  void initialize_thread_pool(const size_t num_threads) {
+  void initialize(const size_t num_threads) {
     size_t P = num_threads;
     size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
     if ( num_available_cpus < num_threads ) {
@@ -230,8 +231,8 @@ PYBIND11_MODULE(mtkahypar, m) {
 
   // ####################### Initialize Thread Pool #######################
 
-  m.def("initializeThreadPool", &initialize_thread_pool,
-    "Initializes the thread pool with the given number of threads",
+  m.def("initialize", &initialize,
+    "General initialization. Initializes the thread pool with the given number of threads",
     py::arg("number of threads"));
 
   // ####################### Initialize Random Number Generator #######################
