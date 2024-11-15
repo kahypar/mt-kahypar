@@ -65,6 +65,9 @@ target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRA
 ## Options                                                     ##
 #################################################################
 
+option(KAHYPAR_ENABLE_TESTING
+  "Enables tests, which requires dowloading googletest." OFF)
+
 option(KAHYPAR_DOWNLOAD_BOOST
   "Download boost automatically and compile required libraries." OFF)
 
@@ -216,18 +219,19 @@ target_include_directories(MtKaHyPar-Include INTERFACE ${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)
 message(STATUS "Found Threads: ${CMAKE_THREAD_LIBS_INIT}")  # TODO: do we need this?
 
-# TODO: guard behind option (?)
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG        v1.15.2
-)
-FetchContent_MakeAvailable(googletest)
-include(gmock)
-enable_testing()
+if (KAHYPAR_ENABLE_TESTING)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        v1.15.2
+  )
+  FetchContent_MakeAvailable(googletest)
+  include(gmock)
+  enable_testing()
 
-add_library(MtKaHyPar-Test INTERFACE)
-target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
+  add_library(MtKaHyPar-Test INTERFACE)
+  target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
+endif()
 
 # Include Submodules
 target_include_directories(MtKaHyPar-Include INTERFACE external_tools/kahypar-shared-resources)
@@ -440,7 +444,10 @@ if(KAHYPAR_PYTHON)
   add_subdirectory(python)
 endif()
 
+if (KAHYPAR_ENABLE_TESTING)
+  add_subdirectory(tests)
+endif()
+
 add_subdirectory(tools)
 add_subdirectory(lib)
-add_subdirectory(tests)
 add_subdirectory(mt-kahypar)
