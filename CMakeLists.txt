@@ -11,7 +11,10 @@ set(PROJECT_URL "https://github.com/kahypar/mt-kahypar")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
-# Sanity checks
+#################################################################
+## Sanity checks and policies                                  ##
+#################################################################
+
 if(NOT CMAKE_BUILD_TYPE)
   message(FATAL_ERROR "CMAKE_BUILD_TYPE must be set. Options are: Debug, Release, RelWithDebInfo")
 endif()
@@ -52,12 +55,13 @@ target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-
 add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
-# building shared libraries requires position independent code
-set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
                            KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
                            KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
-
+# building shared libraries requires position independent code
+if(BUILD_SHARED_LIBS)
+  set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 #################################################################
 ## Options                                                     ##
@@ -439,6 +443,10 @@ if(NOT MT_KAHYPAR_DISABLE_BOOST)
 endif()
 
 if(KAHYPAR_PYTHON)
+  if (NOT BUILD_SHARED_LIBS)
+    message(SEND_ERROR "Python interface must be built as shared library.
+                        Add -DBUILD_SHARED_LIBS=On to your cmake command.")
+  endif()
   add_subdirectory(python)
 endif()
 

@@ -1,13 +1,14 @@
 include(GNUInstallDirs)
 
-add_library(mtkahypar SHARED libmtkahypar.cpp)
-
+if(BUILD_SHARED_LIBS)
+  add_library(mtkahypar SHARED libmtkahypar.cpp)
+else()
+  add_library(mtkahypar STATIC libmtkahypar.cpp)
+endif()
 target_link_libraries(mtkahypar PRIVATE MtKaHyPar-LibraryBuildSources)
-
+target_include_directories(mtkahypar INTERFACE "../include")
 set_target_properties(mtkahypar PROPERTIES
     PUBLIC_HEADER "../include/libmtkahypar.h;../include/libmtkahypartypes.h")
-
-target_include_directories(mtkahypar SYSTEM PUBLIC ../include)
 
 configure_file(libmtkahypar.pc.in libmtkahypar.pc @ONLY)
 
