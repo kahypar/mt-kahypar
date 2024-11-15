@@ -70,12 +70,12 @@ jobs:
           mkdir debug
           cd debug
           cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
-          make -j2 mt_kahypar_tests;
+          make -j2 mtkahypar_tests;
 
       - name: Run Mt-KaHyPar Tests
         run: |
           cd debug
-          ./tests/mt_kahypar_tests;
+          ./tests/mtkahypar_tests;
 
       - name: Report Code Coverage
         run: |
@@ -144,7 +144,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
-          make -j2 interface_test
+          make -j2 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
     name: Python Interface Tests
@@ -217,13 +217,13 @@ jobs:
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
-          make -j2 mt_kahypar_tests
+          make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         shell: msys2 {0}
         run: |
           cd build
-          ./tests/mt_kahypar_tests
+          ./tests/mtkahypar_tests
 
   mt_kahypar_macos_build:
     name: MacOS Build
@@ -248,9 +248,9 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
-          make -j2 mt_kahypar_tests
+          make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         run: |
           cd build
-          ./tests/mt_kahypar_tests
+          ./tests/mtkahypar_tests

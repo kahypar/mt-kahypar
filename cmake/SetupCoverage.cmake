@@ -28,7 +28,7 @@ add_custom_target(lcov-reset
 # custom lcov target to run tests
 add_custom_target(lcov-runtests
   # TODO: better handle interface_test and include unit tests
-  COMMAND make interface_test
+  COMMAND make mtkahypar_interface_test
   DEPENDS lcov-reset MtKaHyPar-LibraryBuildSources MtKaHyPar-Test mtkahypar
   COMMENT "Running all unit tests")
 

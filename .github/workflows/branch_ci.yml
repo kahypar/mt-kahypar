@@ -64,12 +64,12 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_SOED_METRIC=OFF -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=OFF -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
-          make -j2 mt_kahypar_tests;
+          make -j2 mtkahypar_tests;
 
       - name: Run Mt-KaHyPar Tests
         run: |
           cd build
-          ./tests/mt_kahypar_tests
+          ./tests/mtkahypar_tests
 
   mt_kahypar_c_interface_tests:
     name: C Interface Tests
@@ -95,7 +95,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
-          make -j2 interface_test
+          make -j2 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
     name: Python Interface Tests

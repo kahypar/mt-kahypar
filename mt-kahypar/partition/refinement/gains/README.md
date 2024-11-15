@@ -18,7 +18,7 @@ At this point, you can run Mt-KaHyPar with your new objective function by adding
 
 ## Initial Partitioning
 
-We perform recursive bipartitioning to compute an initial k-way partition. The scheme recursively bipartitions the hypergraph until we reach the desired number of blocks. Each bipartitioning call optimizes the cut metric (weight of all cut nets). However, other objective functions can be optimized implicitly by implementing the two functions defined in ```partition/refinement/gains/bipartitioning_policy.h```. The main invariant of our recursive bipartitioning algorithm is that the cut of all bipartitions sum up to the objective value of the initial k-way partition. There are unit tests that asserts this invariant in ```tests/partition/refinement/bipartitioning_gain_policy_test.cc``` (build test suite via ```make mt_kahypar_tests``` and then run ```./tests/mt_kahypar_tests --gtest_filter=*ABipartitioningPolicy*```).
+We perform recursive bipartitioning to compute an initial k-way partition. The scheme recursively bipartitions the hypergraph until we reach the desired number of blocks. Each bipartitioning call optimizes the cut metric (weight of all cut nets). However, other objective functions can be optimized implicitly by implementing the two functions defined in ```partition/refinement/gains/bipartitioning_policy.h```. The main invariant of our recursive bipartitioning algorithm is that the cut of all bipartitions sum up to the objective value of the initial k-way partition. There are unit tests that asserts this invariant in ```tests/partition/refinement/bipartitioning_gain_policy_test.cc``` (build test suite via ```make mtkahypar_tests``` and then run ```./tests/mtkahypar_tests --gtest_filter=*ABipartitioningPolicy*```).
 
 ### Cut Net Splitting and Removal
 
@@ -115,7 +115,7 @@ void uncontractUpdateAfterReplacement(
 ```
 The first function is called if ```u``` and ```v``` are both contained in hyperedge ```he``` after the uncontraction. The second function is called if ```v``` replaces ```u``` in hyperedge ```he```. If it is not possible to update the gain cache after the uncontraction operation, you can throw an error/exception in both functions or optimize out the n-level code by adding ```-DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF``` to the cmake build command. However, if you do not implement these functions, it is not possible to use our ```highest_quality``` configuration.
 
-There is a unit test that verifies your gain cache implementation, which you can find in ```tests/partition/refinement/gain_cache_test.cc``` (build test suite via ```make mt_kahypar_tests``` and then run ```./tests/mt_kahypar_tests --gtest_filter=*AGainCache*```). To test your gain cache implementation, you can add your gain type struct to the ```TestConfigs```.
+There is a unit test that verifies your gain cache implementation, which you can find in ```tests/partition/refinement/gain_cache_test.cc``` (build test suite via ```make mtkahypar_tests``` and then run ```./tests/mtkahypar_tests --gtest_filter=*AGainCache*```). To test your gain cache implementation, you can add your gain type struct to the ```TestConfigs```.
 
 ### Thread-Local Gain Cache
 
