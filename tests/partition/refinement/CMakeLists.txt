@@ -1,5 +1,4 @@
 target_sources(mtkahypar_tests PRIVATE
-         bipartitioning_gain_policy_test.cc
          refinement_adapter_test.cc
          problem_construction_test.cc
          scheduler_test.cc
@@ -15,3 +14,9 @@ target_sources(mtkahypar_tests PRIVATE
          fm_strategy_test.cc
          flow_construction_test.cc
          )
+
+if(NOT MT_KAHYPAR_DISABLE_BOOST)
+    target_sources(mtkahypar_tests PRIVATE
+        bipartitioning_gain_policy_test.cc
+        )
+endif()
