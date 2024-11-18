@@ -217,22 +217,20 @@ set(KAHYPAR_PYBIND11_VERSION   v2.13.6)
 message(STATUS "Fetching dependencies...")
 
 # Include header-only dependencies
-FetchContent_Declare(
-  kahypar-shared-resources
+FetchContent_Populate(
+  kahypar-shared-resources QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
   GIT_TAG        origin/main
   SOURCE_DIR     external_tools/kahypar-shared-resources
 )
-FetchContent_Declare(
-  WHFC
+FetchContent_Populate(
+  WHFC QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/larsgottesbueren/WHFC.git
   GIT_TAG        origin/master
   SOURCE_DIR     external_tools/WHFC
 )
-FetchContent_MakeAvailable(kahypar-shared-resources WHFC)
-# we don't want to include growt as subproject, thus we call FetchContent_Populate to just get the files
 FetchContent_Populate(
-  growt QUIET
+  growt QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/TooBiased/growt.git
   GIT_TAG        origin/master
   SOURCE_DIR     external_tools/growt
