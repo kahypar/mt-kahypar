@@ -41,7 +41,7 @@ endif()
 
 # meta targets for flags
 add_library(MtKaHyPar-BuildFlags INTERFACE)
-set_target_properties(MtKaHyPar-BuildFlags PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_17)
 
 # meta targets for includes and source files
 add_library(MtKaHyPar-Include INTERFACE)
