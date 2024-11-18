@@ -34,7 +34,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON --preset=minimal-dev
+          cmake .. --preset=minimal-dev -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
@@ -59,8 +59,8 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON --preset=minimal-dev
-          make -j2 mtkahypar_tests;
+          cmake .. --preset=minimal-dev -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
+          make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         run: |
@@ -86,7 +86,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON --preset=dev
+          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
           make -j2 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
@@ -108,7 +108,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON --preset=python
+          cmake .. --preset=python -DKAHYPAR_CI_BUILD=ON
           make mtkahypar_python -j2
 
       - name: Run Mt-KaHyPar Python Interface Tests
