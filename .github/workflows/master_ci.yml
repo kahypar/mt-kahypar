@@ -180,10 +180,6 @@ jobs:
         run: |
           echo "${{ runner.temp }}/msys64/mingw64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Rename TBB library file
-        run: |
-          Ren ${{ runner.temp }}/msys64/mingw64/lib/libtbb12.dll.a ${{ runner.temp }}/msys64/mingw64/lib/libtbb.dll.a
-
       - name: Install Mt-KaHyPar Multilevel Tests
         shell: msys2 {0}
         run: |
