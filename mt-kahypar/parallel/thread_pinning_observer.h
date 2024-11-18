@@ -193,6 +193,8 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(THREAD_ID == cpu_id);
     DBG << "Thread with PID" << std::this_thread::get_id()
         << "successfully pinned to CPU" << cpu_id;
+    #else
+    unused(cpu_id);
     #endif
   }
 
