@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
 
-      - name: Install Mt-KaHyPar Test Suite
+      - name: Install Mt-KaHyPar
         env:
           CC: ${{ matrix.compiler.cc }}
           CXX: ${{ matrix.compiler.cpp }}
@@ -38,6 +38,36 @@ jobs:
           mkdir build
           cd build
           cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON
+          make -j2 MtKaHyPar
+
+  mt_kahypar_static_build:
+    name: Statically Linked Build
+    strategy:
+      matrix:
+        compiler: [ { os: ubuntu-24.04, cpp: g++-14, cc: gcc-14, install_cmd: g++-14 gcc-14 },
+                    { os: ubuntu-24.04, cpp: clang++, cc: clang, install_cmd: clang }  ]
+
+    runs-on: ${{ matrix.compiler.os }}
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+
+      - name: Install Mt-KaHyPar
+        env:
+          CC: ${{ matrix.compiler.cc }}
+          CXX: ${{ matrix.compiler.cpp }}
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. --preset=minimal -DKAHYPAR_CI_BUILD=ON -DBUILD_SHARED_LIBS=OFF -DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON
           make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
