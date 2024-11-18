@@ -76,77 +76,41 @@ endif()
 ## Options                                                     ##
 #################################################################
 
-option(KAHYPAR_ENABLE_TESTING
-  "Enables tests, which requires dowloading googletest." OFF)
+# general build options
+option(KAHYPAR_PYTHON "Include the Python interface in the build." OFF)
+option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googletest." OFF)
 
-option(KAHYPAR_DOWNLOAD_BOOST
-  "Download boost automatically and compile required libraries." OFF)
+# dependencies
+option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
+option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
+option(KAHYPAR_DISABLE_BOOST "Exclude components requiring Boost::program_options. Results in no binary target and the library interfaces not being able to load configuration files/presets." OFF)
 
-option(KAHYPAR_DOWNLOAD_TBB
-  "Download TBB automatically." OFF)
+# specific compile features/build properties
+option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
+option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
+option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
+option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`" OFF)
+option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
-option(KAHYPAR_USE_GCOV
-  "Compile and run tests with gcov for coverage analysis." OFF)
+# algorithm features
+option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_SOED_METRIC "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_STEINER_TREE_METRIC "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES "Enables some experimental features. Can be turned off for faster compilation." OFF)
 
-option(KAHYPAR_DISABLE_ASSERTIONS
-  "Disable KaHyPar's internal assertions." OFF)
+# assertions
+option(KAHYPAR_DISABLE_ASSERTIONS "Disable all internal assertions." OFF)
+option(KAHYPAR_USE_STANDARD_ASSERTIONS "Use standard C++ asserts instead of custom assertions." OFF)
+option(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS "Enable heavy assertions in preprocessing phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS "Enable heavy assertions in coarsening phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS "Enable heavy assertions in initial partitioning phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS "Enable heavy assertions in refinement phase." OFF)
 
-option(KAHYPAR_USE_STANDARD_ASSERTIONS
-  "Use standard C++ asserts instead of custom assertions." OFF)
-
-option(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
-  "Enable heavy assertions in preprocessing phase." OFF)
-
-option(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS
-  "Enable heavy assertions in coarsening phase." OFF)
-
-option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-  "Enable heavy assertions in initial partitioning phase." OFF)
-
-option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
-  "Enable heavy assertions in refinement phase." OFF)
-
-option(KAHYPAR_USE_64_BIT_IDS
-  "Enables 64-bit vertex and hyperedge IDs." OFF)
-
-option(KAHYPAR_CI_BUILD
-  "Indicate that this build is executed on GitHub Actions." OFF)
-
-option(KAHYPAR_ADD_ADDRESS_SANITIZER
-  "Adds address sanitizer to compile options." ON)
-
-option(KAHYPAR_ENABLE_THREAD_PINNING
-  "Enables thread pinning in Mt-KaHyPar." ON)
-
-option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS
-  "Depeding on detected compiler features, allows instructions that might not be perfectly portable: `-mcx16 -msse4.2 -mcrc32`" ON)
-
-option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
-  "Adds the compile flags `-mtune=native -march=native`" ON)
-
-option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  "Enables some experimental features. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-  "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-  "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_ENABLE_SOED_METRIC
-  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
-  "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
-
-option(KAHYPAR_PYTHON
-  "Build the Python interface. Can be turned off in case Python is not available." OFF)
-
-option(MT_KAHYPAR_DISABLE_BOOST
-  "Whether to exclude components requiring Boost::program_options. Will result in no binary target and the C and Python interface not being able to load configuration files." OFF)
+# developer build options
+option(KAHYPAR_CI_BUILD "Indicate that this build is executed on GitHub Actions." OFF)
+option(KAHYPAR_USE_GCOV "Compile and run tests with gcov for coverage analysis." OFF)
 
 
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC AND NOT KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
@@ -235,8 +199,8 @@ if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
-if(MT_KAHYPAR_DISABLE_BOOST)
-  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE MT_KAHYPAR_DISABLE_BOOST)
+if(KAHYPAR_DISABLE_BOOST)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_BOOST)
 endif()
 
 
@@ -294,7 +258,7 @@ if (KAHYPAR_ENABLE_TESTING)
 endif()
 
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
   if(KAHYPAR_DOWNLOAD_BOOST)
     # Download Boost program options
     set(BOOST_INCLUDE_LIBRARIES program_options)
@@ -421,7 +385,7 @@ if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
                                                         $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
 endif()
 
-if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
+if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
 endif()
@@ -431,7 +395,7 @@ endif()
 ## Include the source code and targets via subdirectories      ##
 #################################################################
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
   add_subdirectory(mt-kahypar/application)
 endif()
 if(KAHYPAR_PYTHON)

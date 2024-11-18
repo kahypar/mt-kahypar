@@ -4,6 +4,6 @@ target_sources(mtkahypar_tests PRIVATE
         pool_initial_partitioner_test.cc
         )
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
         target_sources(mtkahypar_tests PRIVATE initial_partitioner_test.cc)
 endif()

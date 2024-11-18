@@ -47,7 +47,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 
-#ifndef MT_KAHYPAR_DISABLE_BOOST
+#ifndef KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"
 #endif
 
@@ -90,7 +90,7 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
-#ifndef MT_KAHYPAR_DISABLE_BOOST
+#ifndef KAHYPAR_DISABLE_BOOST
 
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {

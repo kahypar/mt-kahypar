@@ -15,7 +15,7 @@ target_sources(mtkahypar_tests PRIVATE
          flow_construction_test.cc
          )
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     target_sources(mtkahypar_tests PRIVATE
         bipartitioning_gain_policy_test.cc
         )

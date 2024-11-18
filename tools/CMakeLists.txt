@@ -6,7 +6,7 @@
 add_library(MtKaHyPar-ToolsMin INTERFACE)
 target_link_libraries(MtKaHyPar-ToolsMin INTERFACE MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     add_executable(SnapToHgr snap_to_hgr.cc)
     target_link_libraries(SnapToHgr MtKaHyPar-ToolsMin)
 
@@ -30,7 +30,7 @@ add_library(MtKaHyPar-BuildTools OBJECT "")
 target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources)
 target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     add_executable(GraphToHgr graph_to_hgr.cc)
     target_link_libraries(GraphToHgr MtKaHyPar-BuildTools)
 

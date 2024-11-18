@@ -6,7 +6,7 @@ set(IOSources
         partitioning_output.cpp
         presets.cpp)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     list(APPEND IOSources command_line_options.cpp)
 endif()
 

@@ -1,4 +1,4 @@
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     file(COPY test_instances DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
     add_gmock_test(mtkahypar_interface_test interface_test.cc)
