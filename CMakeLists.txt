@@ -93,7 +93,7 @@ option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not 
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
-# algorithm features
+# algorithm features for CLI build (note: the library always contains all non-experimental features)
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
@@ -246,7 +246,7 @@ target_include_directories(MtKaHyPar-Include INTERFACE
 
 if (KAHYPAR_ENABLE_TESTING)
   FetchContent_Declare(
-    googletest
+    googletest EXCLUDE_FROM_ALL SYSTEM
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        ${KAHYPAR_GOOGLETEST_VERSION}
   )
@@ -422,3 +422,6 @@ endif()
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(mt-kahypar)
+
+# export target for C interface
+add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)

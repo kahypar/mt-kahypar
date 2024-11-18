@@ -3,7 +3,7 @@ set(HWLOC_TARGET_NAME HWLOC::hwloc)
 
 if(NOT TARGET ${HWLOC_TARGET_NAME})
     if(NOT BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a .lib)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
     endif()
 
     add_library(hwloc INTERFACE)
@@ -29,7 +29,12 @@ if(NOT TARGET ${HWLOC_TARGET_NAME})
 
     if(NOT BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
         # for static linking we also need udev as transitive dependency of hwloc
-        target_link_options(hwloc INTERFACE -ludev)
+        find_package(PkgConfig QUIET REQUIRED)
+        if (PKG_CONFIG_FOUND)
+            pkg_search_module(UDEV REQUIRED udev)
+            # this is an annoying workaround since propagating the static dependencies is not properly supported by cmake
+            target_link_libraries(hwloc INTERFACE -ludev)
+        endif()
     endif()
 
     # actual target for outside use
