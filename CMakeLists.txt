@@ -239,6 +239,8 @@ set(KAHYPAR_TBB_VERSION        v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION v1.15.2)
 set(KAHYPAR_PYBIND11_VERSION   v2.13.6)
 
+message(STATUS "Fetching dependencies...")
+
 # Include header-only dependencies
 FetchContent_Declare(
   kahypar-shared-resources
@@ -252,19 +254,14 @@ FetchContent_Declare(
   GIT_TAG        origin/master
   SOURCE_DIR     external_tools/WHFC
 )
-FetchContent_Declare(
-  growt
+FetchContent_MakeAvailable(kahypar-shared-resources WHFC)
+# we don't want to include growt as subproject, thus we call FetchContent_Populate to just get the files
+FetchContent_Populate(
+  growt QUIET
   GIT_REPOSITORY https://github.com/TooBiased/growt.git
   GIT_TAG        origin/master
   SOURCE_DIR     external_tools/growt
 )
-FetchContent_MakeAvailable(kahypar-shared-resources WHFC)
-
-# we don't want to include growt as subdirectory, thus we manually call FetchContent_Populate
-FetchContent_GetProperties(growt)
-if(NOT growt_POPULATED)
-  FetchContent_Populate(growt)
-endif()
 
 target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
