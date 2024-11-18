@@ -23,10 +23,17 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   message(FATAL_ERROR "MSVC not supported at the moment")
 endif()
 
-if (POLICY CMP0135)  # policy for download timestamps
+if (POLICY CMP0135)  # download timestamps
   cmake_policy(SET CMP0135 NEW)
 endif()
+if (POLICY CMP0144)  # uppercase find_package variables
+  cmake_policy(SET CMP0144 NEW)
+endif()
 
+if (NOT DEFINED BUILD_SHARED_LIBS)
+  # since TBB does not support static linking, we build with dynamic linking by default
+  set(BUILD_SHARED_LIBS ON)
+endif()
 
 #################################################################
 ## Meta targets                                               ##
@@ -398,8 +405,10 @@ endif()
 
 if (KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
   include(CheckSSE4_2)
+  set(CMAKE_REQUIRED_QUIET TRUE)
+  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
+  unset(CMAKE_REQUIRED_QUIET)
 
   if(KAHYPAR_X86)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
