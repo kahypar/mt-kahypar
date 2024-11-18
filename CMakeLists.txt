@@ -54,7 +54,7 @@ option(KAHYPAR_ADD_ADDRESS_SANITIZER
   "Adds address sanitizer to compile options." ON)
 
 option(KAHYPAR_ENABLE_THREAD_PINNING
-  "Enables thread pinning in Mt-KaHyPar." ON)
+  "Enables thread pinning in Mt-KaHyPar." OFF)
 
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
   "Adds the compile flags `-mtune=native -march=native`" ON)
@@ -63,19 +63,19 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   "Enables some experimental features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-  "Enables graph partitioning features. Can be turned off for faster compilation." ON)
+  "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-  "Enables highest quality preset features. Can be turned off for faster compilation." ON)
+  "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  "Enables large k partitioning features. Can be turned off for faster compilation." ON)
+  "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_SOED_METRIC
-  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." ON)
+  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
-  "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
+  "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_PYTHON
   "Build the Python interface. Can be turned off in case Python is not available." ON)

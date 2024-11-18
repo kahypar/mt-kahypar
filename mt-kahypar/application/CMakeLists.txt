@@ -1,4 +1,4 @@
-add_executable(MtKaHyPar mt_kahypar.cc)
+add_executable(MtKaHyPar mt_kahypar_dynamic.cc)
 target_link_libraries(MtKaHyPar ${Boost_LIBRARIES})
 target_link_libraries(MtKaHyPar TBB::tbb TBB::tbbmalloc_proxy)
 target_link_libraries(MtKaHyPar pthread)

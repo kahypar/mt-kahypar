@@ -268,6 +268,14 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+struct DynamicParameters {
+    size_t initial_partitioning_size = 0;
+    bool use_final_weight = false;
+    std::string result_folder = "";
+};
+
+std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);
+
 class Context {
  public:
   PartitioningParameters partition { };
@@ -277,6 +285,7 @@ class Context {
   RefinementParameters refinement { };
   MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
+  DynamicParameters dynamic { };
   ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";

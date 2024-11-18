@@ -734,6 +734,25 @@ namespace mt_kahypar {
     return shared_memory_options;
   }
 
+  po::options_description createDynamicOptionsDescription(Context& context,
+                                                          const int num_columns) {
+    po::options_description dynamic_options("Dynamic Options", num_columns);
+    dynamic_options.add_options()
+            ("d-initial-partitioning-size",
+                    po::value<size_t>(&context.dynamic.initial_partitioning_size)->value_name("<size_t>"),
+
+            "Number of Nodes to be partitioned before dynamically adding Nodes");
+    dynamic_options.add_options()
+            ("d-use-final-weight",
+                    po::value<bool>(&context.dynamic.use_final_weight)->value_name("<bool>"),
+    "If true, then the final sum of the weights of the nodes is used for imbalance calculation instead of using only the currently activated");
+    dynamic_options.add_options()
+            ("d-result-folder",
+                    po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
+    "Folder to store the data generated during the dynamic partitioning");
+
+    return dynamic_options;
+  }
 
   po::options_description getIniOptionsDescription(Context& context) {
     const int num_columns = 80;
@@ -753,6 +772,8 @@ namespace mt_kahypar {
             createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
+    po::options_description dynamic_options =
+            createDynamicOptionsDescription(context, num_columns);
 
     po::options_description ini_line_options;
     ini_line_options.add(general_options)
@@ -762,7 +783,8 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
-            .add(shared_memory_options);
+            .add(shared_memory_options)
+            .add(dynamic_options);
 
     return ini_line_options;
   }
@@ -814,6 +836,8 @@ namespace mt_kahypar {
             createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
+    po::options_description dynamic_options =
+            createDynamicOptionsDescription(context, num_columns);
 
     po::options_description cmd_line_options;
     cmd_line_options
@@ -826,7 +850,8 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
-            .add(shared_memory_options);
+            .add(shared_memory_options)
+            .add(dynamic_options);
 
     po::variables_map cmd_vm;
     po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
@@ -848,7 +873,8 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
-            .add(shared_memory_options);
+            .add(shared_memory_options)
+            .add(dynamic_options);
     if ( context.partition.preset_file != "" ) {
       // load from preset file
       std::ifstream file(context.partition.preset_file.c_str());

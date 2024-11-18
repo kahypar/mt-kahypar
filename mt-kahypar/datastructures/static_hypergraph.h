@@ -788,6 +788,48 @@ class StaticHypergraph {
   }
 
   /*!
+* Removes a hypernode from the hypergraph. This includes the removal of hn from all
+* of its incident nets and to disable the hypernode.
+*
+* NOTE, this function is not thread-safe and should only be called in a single-threaded
+* setting.
+*/
+  void disableHypernodeWithEdges(const HypernodeID hn) {
+    ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
+    for ( const HyperedgeID& he : incidentEdges(hn) ) {
+      removeIncidentHypernodeFromEdge(hn, he);
+    }
+    ++_num_removed_hypernodes;
+    disableHypernode(hn);
+  }
+
+  /*!
+  * Restores a hypernode previously removed from the hypergraph.
+  */
+  void enableHypernodeWithEdges(const HypernodeID& hn) {
+    ASSERT(!nodeIsEnabled(hn), "Hypernode" << hn << "is enabled");
+    enableHypernode(hn);
+    for ( const HyperedgeID& he : incidentEdges(hn) ) {
+      restoreIncidentHypernodeToEdge(hn, he);
+    }
+    --_num_removed_hypernodes;
+  }
+
+  /*!
+   * Decrements the total weight of the hypergraph by the weight of the hypernode.
+   */
+  void decrementTotalWeight(const HypernodeID hn) {
+    _total_weight -= nodeWeight(hn);
+  }
+
+  /*!
+   * Increments the total weight of the hypergraph by the weight of the hypernode.
+   */
+  void incrementTotalWeight(const HypernodeID hn) {
+    _total_weight += nodeWeight(hn);
+  }
+
+  /*!
   * Removes a hyperedge from the hypergraph. This includes the removal of he from all
   * of its pins and to disable the hyperedge. Noze, in contrast to removeEdge, this function
   * removes hyperedge from all its pins in parallel.
@@ -963,6 +1005,47 @@ class StaticHypergraph {
     ASSERT(incident_nets_pos < incident_nets_end);
     swap(_incident_nets[incident_nets_start], _incident_nets[incident_nets_pos]);
     hn.setSize(hn.size() + 1);
+  }
+
+
+  // ! Removes hypernode u from the incident pins of hyperedge e
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidentHypernodeFromEdge(const HypernodeID u,
+                                                                          const HyperedgeID e) {
+    using std::swap;
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+
+    Hyperedge& he = hyperedge(e);
+    size_t incidence_array_pos = he.firstEntry();
+    for ( ; incidence_array_pos < he.firstInvalidEntry(); ++incidence_array_pos ) {
+      if ( _incidence_array[incidence_array_pos] == u ) {
+        break;
+      }
+    }
+    ASSERT(incidence_array_pos < he.firstInvalidEntry());
+    swap(_incidence_array[incidence_array_pos], _incidence_array[he.firstInvalidEntry() - 1]);
+    he.setSize(he.size() - 1);
+  }
+
+  // ! restores hypernode u to the incident pins of hyperedge e
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreIncidentHypernodeToEdge(const HypernodeID u,
+                                                                        const HyperedgeID e) {
+    using std::swap;
+    Hyperedge& he = hyperedge(e);
+    ASSERT(!he.isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(std::count(_incidence_array.cbegin() + he.firstEntry(),
+                      _incidence_array.cbegin() + he.firstInvalidEntry(), u) == 0,
+           "HE" << e << "is already connected to HN" << u);
+    const size_t incidence_array_start = he.firstInvalidEntry();
+    const size_t incidence_array_end = hyperedge(e + 1).firstEntry();
+    size_t incidence_array_pos = incidence_array_start;
+    for ( ; incidence_array_pos < incidence_array_end; ++incidence_array_pos ) {
+      if ( _incidence_array[incidence_array_pos] == u ) {
+        break;
+      }
+    }
+    ASSERT(incidence_array_pos < incidence_array_end);
+    swap(_incidence_array[incidence_array_start], _incidence_array[incidence_array_pos]);
+    he.setSize(he.size() + 1);
   }
 
   // ! Allocate the temporary contraction buffer

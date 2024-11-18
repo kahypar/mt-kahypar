@@ -569,6 +569,16 @@ class PartitionedHypergraph {
     }
   }
 
+  void removeNodePart(const HypernodeID u) {
+    const PartitionID block = partID(u);
+    ASSERT(block != kInvalidPartition);
+    _part_weights[block].fetch_sub(nodeWeight(u), std::memory_order_relaxed);
+    for (HyperedgeID he : incidentEdges(u)) {
+      decrementPinCountOfBlock(he, block);
+    }
+    _part_ids[u] = kInvalidPartition;
+  }
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   template<typename SuccessFunc>

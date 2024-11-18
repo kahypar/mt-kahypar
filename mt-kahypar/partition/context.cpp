@@ -255,6 +255,13 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const DynamicParameters& params) {
+    str << "Dynamic Parameters:                   " << std::endl;
+    str << "Initial Partitioning Size:            " << params.initial_partitioning_size << std::endl;
+    //TODO: Add the other parameters
+    return str;
+  }
+
   bool Context::isNLevelPartitioning() const {
     return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
       partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
@@ -505,7 +512,10 @@ namespace mt_kahypar {
           << "-------------------------------------------------------------------------------\n";
     }
     str << context.shared_memory
-        << "-------------------------------------------------------------------------------";
+        << "-------------------------------------------------------------------------------\n";
+    str << context.dynamic
+        << "*******************************************************************************";
+
     return str;
   }
 }
