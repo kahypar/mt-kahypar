@@ -27,7 +27,7 @@ target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags)
 
 # meta target for tools with more dependencies
 add_library(MtKaHyPar-BuildTools OBJECT "")
-target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources ${HWLOCK_LIBRARY})
+target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources)
 target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 if(NOT MT_KAHYPAR_DISABLE_BOOST)

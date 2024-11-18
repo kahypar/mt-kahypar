@@ -341,20 +341,12 @@ target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
 
 
 # Find HWLOC Library
-FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
-  HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
-FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
-  HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
-)
-
-IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
-  message(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
-  target_include_directories(MtKaHyPar-Include INTERFACE ${HWLOCK_INCLUDE_DIR})
-  target_link_libraries(MtKaHyPar-Sources INTERFACE ${HWLOCK_LIBRARY})
-ELSE ()
-  message(FATAL_ERROR "
-    HwLoc library not found. Install HwLoc on your system.")
-ENDIF ()
+include(DetectHwloc)
+if(NOT TARGET HWLOC::hwloc)
+  message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
+endif()
+target_link_libraries(MtKaHyPar-Sources INTERFACE HWLOC::hwloc)
+target_link_libraries(MtKaHyPar-ToolsSources INTERFACE HWLOC::hwloc)
 
 
 #################################################################
