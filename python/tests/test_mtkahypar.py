@@ -37,7 +37,7 @@ logging = False
 class MainTest(unittest.TestCase):
 
   def setUp(self):
-    mtkahypar.initializeThreadPool(multiprocessing.cpu_count())
+    mtkahypar.initialize(multiprocessing.cpu_count())
 
   def test_set_partitioning_parameters_in_context(self):
     context = mtkahypar.Context()

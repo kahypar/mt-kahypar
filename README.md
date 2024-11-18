@@ -327,7 +327,7 @@ import multiprocessing
 import mtkahypar
 
 # Initialize thread pool
-mtkahypar.initializeThreadPool(multiprocessing.cpu_count()) # use all available cores
+mtkahypar.initialize(multiprocessing.cpu_count()) # use all available cores
 
 # Setup partitioning context
 context = mtkahypar.Context()

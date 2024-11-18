@@ -75,6 +75,8 @@ namespace {
     hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
     mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
+
+    register_algorithms_and_policies();
   }
 
   template<typename PartitionedHypergraph>
