@@ -78,6 +78,8 @@ endif()
 # general build options
 option(KAHYPAR_PYTHON "Include the Python interface in the build." OFF)
 option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googletest." OFF)
+option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." ON)
+option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
 
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
@@ -87,7 +89,7 @@ option(KAHYPAR_DISABLE_BOOST "Exclude components requiring Boost::program_option
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
 option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
-option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
+option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" ON)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
@@ -131,11 +133,11 @@ else()
   set(KAHYPAR_TESTING_ENABLED "Disabled")
 endif()
 if(BUILD_SHARED_LIBS)
-  set(KAHYPAR_LIB_TYPE "Shared")
+  set(KAHYPAR_LINKING_TYPE "Dynamic")
 else()
-  set(KAHYPAR_LIB_TYPE "Static")
+  set(KAHYPAR_LINKING_TYPE "Static")
 endif()
-message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LIB_TYPE} Library ======")
+message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LINKING_TYPE} Linking ======")
 
 
 #################################################################
@@ -257,17 +259,18 @@ if (KAHYPAR_ENABLE_TESTING)
 endif()
 
 
+if(NOT BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
+  set(Boost_USE_STATIC_LIBS ON)
+endif()
 if(NOT KAHYPAR_DISABLE_BOOST)
   if(KAHYPAR_DOWNLOAD_BOOST)
     # Download Boost program options
     set(BOOST_INCLUDE_LIBRARIES program_options)
     set(BOOST_ENABLE_CMAKE ON)
-    set(FETCHCONTENT_QUIET FALSE)
     FetchContent_Declare(
       Boost EXCLUDE_FROM_ALL SYSTEM
       URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.gz
     )
-    set(FETCHCONTENT_QUIET TRUE)
     FetchContent_MakeAvailable(Boost)
   else()
     # Find Boost program options system library
@@ -278,6 +281,10 @@ if(NOT KAHYPAR_DISABLE_BOOST)
         add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
     endif()
     message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
+    if(WIN32)
+      # TODO: do we need this?
+      add_definitions(-DBOOST_ALL_NO_LIB -DBOOST_PROGRAM_OPTIONS_DYN_LINK=1)
+    endif()
   endif()
   target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
 endif()
@@ -291,7 +298,12 @@ if(KAHYPAR_DOWNLOAD_TBB)
     GIT_TAG        ${KAHYPAR_TBB_VERSION}
     GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
   )
-  FetchContent_MakeAvailable(TBB)
+  block()
+    if(NOT KAHYPAR_STATIC_LINK_TBB)
+      set(BUILD_SHARED_LIBS ON)
+    endif()
+    FetchContent_MakeAvailable(TBB)
+  endblock()
 else()
   # Find system TBB library
   find_package(TBB 2021.5 COMPONENTS tbb tbbmalloc)
@@ -364,9 +376,10 @@ endif()
 if (KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   include(CheckCXXCompilerFlag)
   include(CheckSSE4_2)
-  set(CMAKE_REQUIRED_QUIET TRUE)
-  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
-  unset(CMAKE_REQUIRED_QUIET)
+  block()
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
+  endblock()
 
   if(KAHYPAR_X86)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
