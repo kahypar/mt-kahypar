@@ -57,7 +57,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev libudev-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
 
       - name: Install Mt-KaHyPar
         env:
