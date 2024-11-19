@@ -86,24 +86,23 @@ jobs:
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
-          rm -rf debug
-          mkdir debug
-          cd debug
+          rm -rf build
+          mkdir build
+          cd build
           cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_USE_GCOV=ON
           make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         run: |
-          cd debug
+          cd build
           ./tests/mtkahypar_tests
 
       - name: Report Code Coverage
         run: |
-          cd debug
-          lcov --directory . --capture --output-file coverage.info;
-          lcov --remove coverage.info '/usr/*' --output-file coverage.info;
-          lcov --list coverage.info;
-          gcovr -r ../ -x > report.xml;
+          cd build
+          lcov --directory . --capture --output-file coverage.info --exclude '/usr/**/*' --exclude 'external_tools/**/*' --exclude 'tests/**/*' --exclude '**/googletest-src/**/*'
+          lcov --list coverage.info
+          gcovr -r ../ -x > report.xml
           cd ..
           bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
 
