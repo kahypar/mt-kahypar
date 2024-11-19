@@ -329,11 +329,6 @@ target_link_libraries(MtKaHyPar-ToolsSources INTERFACE HWLOC::hwloc)
 ## Compile options and specialized builds                      ##
 #################################################################
 
-if(KAHYPAR_USE_GCOV)
-  # Add targets for code coverage analysis
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupCoverage.cmake)
-endif(KAHYPAR_USE_GCOV)
-
 # Get current commit hash
 find_package(Git)
 include(GetGitRevisionDescription)
@@ -353,6 +348,12 @@ endif()
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
   -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
   -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
+
+if(KAHYPAR_USE_GCOV)
+  # add coverage anaylsis compile and link flags
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
+endif(KAHYPAR_USE_GCOV)
 
 # lld is way faster than ld. If you have it, use it!
 find_program(LLD_BIN lld)
