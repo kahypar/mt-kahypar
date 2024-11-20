@@ -69,26 +69,32 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
                      hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
 
   switch ( type ) {
-    case STATIC_GRAPH:
-      return constructHypergraph<ds::StaticGraph>(
-        num_hypernodes, num_hyperedges, hyperedges,
-        hyperedges_weight.data(), hypernodes_weight.data(),
-        num_removed_single_pin_hyperedges, stable_construction);
-    case DYNAMIC_GRAPH:
-      return constructHypergraph<ds::DynamicGraph>(
-        num_hypernodes, num_hyperedges, hyperedges,
-        hyperedges_weight.data(), hypernodes_weight.data(),
-        num_removed_single_pin_hyperedges, stable_construction);
     case STATIC_HYPERGRAPH:
       return constructHypergraph<ds::StaticHypergraph>(
         num_hypernodes, num_hyperedges, hyperedges,
         hyperedges_weight.data(), hypernodes_weight.data(),
         num_removed_single_pin_hyperedges, stable_construction);
+    case STATIC_GRAPH:
+      ENABLE_GRAPHS(
+        return constructHypergraph<ds::StaticGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
     case DYNAMIC_HYPERGRAPH:
-      return constructHypergraph<ds::DynamicHypergraph>(
-        num_hypernodes, num_hyperedges, hyperedges,
-        hyperedges_weight.data(), hypernodes_weight.data(),
-        num_removed_single_pin_hyperedges, stable_construction);
+      ENABLE_HIGHEST_QUALITY(
+        return constructHypergraph<ds::DynamicHypergraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
+    case DYNAMIC_GRAPH:
+      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
+        return constructHypergraph<ds::DynamicGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
     case NULLPTR_HYPERGRAPH:
       return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
   }
@@ -107,27 +113,30 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
 
   switch ( type ) {
-    case STATIC_GRAPH:
-      return constructHypergraph<ds::StaticGraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    case DYNAMIC_GRAPH:
-      return constructHypergraph<ds::DynamicGraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
     case STATIC_HYPERGRAPH:
       return constructHypergraph<ds::StaticHypergraph>(
         num_vertices, num_edges, edges,
         edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    case DYNAMIC_HYPERGRAPH:
+    ENABLE_GRAPHS(case STATIC_GRAPH:
+      return constructHypergraph<ds::StaticGraph>(
+        num_vertices, num_edges, edges,
+        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
+    )
+    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH:
       return constructHypergraph<ds::DynamicHypergraph>(
         num_vertices, num_edges, edges,
         edges_weight.data(), nodes_weight.data(), 0, stable_construction);
+    )
+    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH:
+      return constructHypergraph<ds::DynamicGraph>(
+        num_vertices, num_edges, edges,
+        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
+    )
     case NULLPTR_HYPERGRAPH:
       return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+    default:
+      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
   }
-
-  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
 } // namespace
@@ -169,15 +178,9 @@ namespace {
 HypernodeID numberOfNodes(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumNodes();
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumNodes();
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumNodes();
-    #endif
-    #endif
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumNodes();
-    #endif
+    ENABLE_GRAPHS(case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumNodes();)
+    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumNodes();)
+    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumNodes();)
     case NULLPTR_HYPERGRAPH: return 0;
     default: return 0;
   }
@@ -217,18 +220,15 @@ void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:
       addFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph), fixed_vertices, k); break;
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case STATIC_GRAPH:
+    ENABLE_GRAPHS(case STATIC_GRAPH:
       addFixedVertices(utils::cast<ds::StaticGraph>(hypergraph), fixed_vertices, k); break;
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_GRAPH:
-      addFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph), fixed_vertices, k); break;
-    #endif
-    #endif
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_HYPERGRAPH:
+    )
+    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH:
       addFixedVertices(utils::cast<ds::DynamicHypergraph>(hypergraph), fixed_vertices, k); break;
-    #endif
+    )
+    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH:
+      addFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph), fixed_vertices, k); break;
+    )
     case NULLPTR_HYPERGRAPH:
     default: break;
   }
@@ -250,18 +250,15 @@ void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:
       removeFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph)); break;
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case STATIC_GRAPH:
+    ENABLE_GRAPHS(case STATIC_GRAPH:
       removeFixedVertices(utils::cast<ds::StaticGraph>(hypergraph)); break;
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_GRAPH:
-      removeFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph)); break;
-    #endif
-    #endif
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-    case DYNAMIC_HYPERGRAPH:
+    )
+    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH:
       removeFixedVertices(utils::cast<ds::DynamicHypergraph>(hypergraph)); break;
-    #endif
+    )
+    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH:
+      removeFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph)); break;
+    )
     case NULLPTR_HYPERGRAPH:
     default: break;
   }
