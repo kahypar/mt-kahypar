@@ -10,8 +10,8 @@ namespace mt_kahypar::dyn {
       std::vector<HypernodeID> disabling_order(hypergraph_s.initialNumNodes());
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
-      // Shuffle the order of the nodes using seed
-      utils::Randomize::instance().shuffleVector(disabling_order);
+      // Shuffle the order of the nodes using seed using std::random
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
 
       size_t start_id = context.dynamic.initial_partitioning_size;
 
@@ -45,8 +45,7 @@ namespace mt_kahypar::dyn {
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
       // Shuffle the order of the edges using seed
-      //TODO: This "Function" seems to change the behavior of the program with unintended side effects
-      utils::Randomize::instance().shuffleVector(disabling_order);
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
 
       //TODO: Add edge parameter
       size_t start_id = hypergraph_s.initialNumEdges();
@@ -75,7 +74,7 @@ namespace mt_kahypar::dyn {
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
       // Shuffle the order of the pins using seed
-      utils::Randomize::instance().shuffleVector(disabling_order);
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
 
       //TODO: Add pin parameter
       size_t start_id = hypergraph_s.initialNumPins();
