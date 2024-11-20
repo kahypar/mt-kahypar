@@ -54,7 +54,7 @@ namespace mt_kahypar::dyn {
 
       // Disable all the edges using seed
       for ( const HyperedgeID& he : disabling_order ) {
-        hypergraph_s.removeEdgeWithoutRemovingPins(he);
+        hypergraph_s.removeEdge(he);
         added_edges.push_back(he);
       }
 
@@ -90,14 +90,14 @@ namespace mt_kahypar::dyn {
           if ( !hypergraph_s.nodeIsEnabled(hn) ) {
             continue;
           }
-          hypergraph_s.removeIncidentPinFromEdge(hn, he);
+          hypergraph_s.removePin(hn, he);
           added_pins.push_back({hn, he});
         }
       }
 
       // re-enable all pins until start_id
       for ( auto [hn, he]: added_pins ) {
-        hypergraph_s.restoreIncidentPinToEdge(hn, he);
+        hypergraph_s.restorePin(hn, he);
         ASSERT(std::find(hypergraph_s.pins(he).begin(), hypergraph_s.pins(he).end(), hn) != hypergraph_s.pins(he).end());
       }
 
