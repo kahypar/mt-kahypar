@@ -9,11 +9,13 @@ namespace mt_kahypar::dyn {
 
       auto [changes, hypergraph] = generateChanges(context);
 
-      // first_fitting_partition_strategy(hypergraph, context, disabled_nodes);
-      // repartition_strategy(hypergraph, context, disabled_nodes);
-      // highest_connectivity_partition_strategy(hypergraph, context, disabled_nodes, start_id);
-      //repartition_all(hypergraph, context, changes, 0.01);
-      repartition_x_connectivity_partition_strategy(hypergraph, context, changes);
+      if (context.dynamic.strategy == "connectivity") {
+        repartition_x_connectivity_partition_strategy(hypergraph, context, changes);
+      } else if (context.dynamic.strategy == "repartition") {
+        repartition_strategy(hypergraph, context, changes, 0.01);
+      } else {
+        throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
+      }
 
       utils::delete_hypergraph(hypergraph);
     }

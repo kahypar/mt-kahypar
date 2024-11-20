@@ -23,7 +23,7 @@ namespace mt_kahypar::dyn {
       return partitioned_hypergraph;
     }
 
-    void repartition_all(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes, double step_size) {
+    void repartition_strategy(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes, double step_size) {
       auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
       size_t re_enabled_nodes = context.dynamic.initial_partitioning_size;
 
@@ -57,7 +57,7 @@ namespace mt_kahypar::dyn {
       }
     }
 
-    void repartition_strategy(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes) {
+    void repartition_old(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes) {
       for ( const Change& change : changes ) {
         const HypernodeID& hn = change.added_nodes[0];
         auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);

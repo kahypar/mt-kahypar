@@ -272,6 +272,7 @@ struct DynamicParameters {
     size_t initial_partitioning_size = 0;
     bool use_final_weight = false;
     std::string result_folder = "";
+    std::string strategy = "";
 };
 
 std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);

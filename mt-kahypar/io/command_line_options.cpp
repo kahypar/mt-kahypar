@@ -750,7 +750,10 @@ namespace mt_kahypar {
             ("d-result-folder",
                     po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
     "Folder to store the data generated during the dynamic partitioning");
-
+    dynamic_options.add_options()
+            ("d-strategy",
+                    po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
+    "Strategy for dynamic partitioning:\n");
     return dynamic_options;
   }
 
