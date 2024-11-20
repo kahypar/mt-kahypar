@@ -3,7 +3,7 @@
 #include <iostream>
 #include <thread>
 
-#include <libmtkahypar.h>
+#include <mtkahypar.h>
 
 // Install library interface via 'sudo make install.mtkahypar' in build folder
 // Compile with: g++ -std=c++14 -DNDEBUG -O3 map_hypergraph_onto_target_graph.cc -o example -lmtkahypar

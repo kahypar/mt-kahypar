@@ -203,7 +203,7 @@ make install.mtkahypar # use sudo (Linux & MacOS) or run shell as an administrat
 Note: When installing locally, the build will exit with an error due to missing permissions.
 However, the library is still built successfully and is available in the build folder.
 
-The library interface can be found in `include/libmtkahypar.h` with a detailed documentation. We also provide several examples in the folder `lib/examples` that show how to use the library.
+The library interface can be found in `include/mtkahypar.h` with a detailed documentation. We also provide several examples in the folder `lib/examples` that show how to use the library.
 
 Here is a short example of how you can partition a hypergraph using our library interface:
 
@@ -213,7 +213,7 @@ Here is a short example of how you can partition a hypergraph using our library 
 #include <iostream>
 #include <thread>
 
-#include <libmtkahypar.h>
+#include <mtkahypar.h>
 
 int main(int argc, char* argv[]) {
 

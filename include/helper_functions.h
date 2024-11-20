@@ -29,7 +29,7 @@
 #include <string>
 #include <sstream>
 
-#include "libmtkahypartypes.h"
+#include "mtkahypartypes.h"
 
 #include "mt-kahypar/partition/context.h"
 

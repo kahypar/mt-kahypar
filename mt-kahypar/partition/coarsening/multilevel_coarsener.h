@@ -36,7 +36,7 @@
 
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"

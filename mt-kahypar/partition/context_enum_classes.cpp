@@ -27,7 +27,7 @@
 
 #include "context_enum_classes.h"
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/exception.h"
 

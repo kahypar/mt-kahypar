@@ -8,14 +8,14 @@ include(GNUInstallDirs)
 set_target_properties(mtkahypar PROPERTIES
     VERSION ${MT_KAHYPAR_VERSION} SOVERSION ${MT_KAHYPAR_SO_VERSION})
 set_target_properties(mtkahypar PROPERTIES
-    PUBLIC_HEADER "${MTKAHYPAR_INCLUDE_DIR}/libmtkahypar.h;${MTKAHYPAR_INCLUDE_DIR}/libmtkahypartypes.h")
+    PUBLIC_HEADER "${MTKAHYPAR_INCLUDE_DIR}/mtkahypar.h;${MTKAHYPAR_INCLUDE_DIR}/mtkahypartypes.h")
 
 # TODO: rename to mtkahypar!
-configure_file(cmake/libmtkahypar.pc.in libmtkahypar.pc @ONLY)
+configure_file(cmake/mtkahypar.pc.in mtkahypar.pc @ONLY)
 configure_file(cmake/MtKaHyParConfig.cmake.in MtKaHyParConfig.cmake @ONLY)
 configure_file(cmake/MtKaHyParConfigVersion.cmake.in MtKaHyParConfigVersion.cmake @ONLY)
 
-install(FILES ${CMAKE_BINARY_DIR}/libmtkahypar.pc
+install(FILES ${CMAKE_BINARY_DIR}/mtkahypar.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 install(FILES ${CMAKE_BINARY_DIR}/MtKaHyParConfig.cmake

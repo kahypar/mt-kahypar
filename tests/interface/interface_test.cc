@@ -31,7 +31,7 @@
 
 #include <tbb/parallel_invoke.h>
 
-#include "libmtkahypar.h"
+#include "mtkahypar.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"

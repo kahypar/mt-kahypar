@@ -29,7 +29,7 @@
 
 #include <stddef.h>
 
-#include "libmtkahypartypes.h"
+#include "mtkahypartypes.h"
 
 #ifdef __cplusplus
 extern "C" {

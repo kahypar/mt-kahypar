@@ -25,8 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "include/libmtkahypar.h"
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypar.h"
+#include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
 
 #include "tbb/parallel_for.h"

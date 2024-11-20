@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"

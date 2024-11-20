@@ -151,9 +151,9 @@ To test your implementation, you can enable logging in our flow-based refinement
 
 ### C Interface
 
-- ```include/libmtkahypartypes.h```: Add a enum type to ```mt_kahypar_objective_t``` representing your new objective function
-- ```lib/libmtkahypar.cpp```: Create a mapping between the enum types ```mt_kahypar_objective_t``` and ```Objective``` in ```mt_kahypar_set_context_parameter(...)``` and ```mt_kahypar_set_partitioning_parameters(...)```
-- ```include/libmtkahypar.h```: Add a function that takes a ```mt_kahypar_partitioned_hypergraph_t``` and computes your objective function (similar to ```mt_kahypar_cut(...)``` and ```mt_kahypar_km1```).
+- ```include/mtkahypartypes.h```: Add a enum type to ```mt_kahypar_objective_t``` representing your new objective function
+- ```lib/mtkahypar.cpp```: Create a mapping between the enum types ```mt_kahypar_objective_t``` and ```Objective``` in ```mt_kahypar_set_context_parameter(...)``` and ```mt_kahypar_set_partitioning_parameters(...)```
+- ```include/mtkahypar.h```: Add a function that takes a ```mt_kahypar_partitioned_hypergraph_t``` and computes your objective function (similar to ```mt_kahypar_cut(...)``` and ```mt_kahypar_km1```).
 
 ### Python Interface
 

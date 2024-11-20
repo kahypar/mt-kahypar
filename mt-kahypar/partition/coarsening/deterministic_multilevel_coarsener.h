@@ -29,7 +29,7 @@
 #include "multilevel_coarsener_base.h"
 #include "i_coarsener.h"
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"

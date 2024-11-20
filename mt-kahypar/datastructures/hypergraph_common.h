@@ -30,7 +30,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
