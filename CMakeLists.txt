@@ -12,7 +12,8 @@ set(PROJECT_URL "https://github.com/kahypar/mt-kahypar")
 ## Sanity checks and policies                                  ##
 #################################################################
 
-if(NOT CMAKE_BUILD_TYPE)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
   message(FATAL_ERROR "CMAKE_BUILD_TYPE must be set. Options are: Debug, Release, RelWithDebInfo")
 endif()
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
@@ -123,21 +124,28 @@ endif()
 ## Print header with most important infos                      ##
 #################################################################
 
-set(KAHYPAR_BUILD_DESCRIPTION "${CMAKE_BUILD_TYPE} Build")
-if (KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
-  set(KAHYPAR_BUILD_DESCRIPTION "${KAHYPAR_BUILD_DESCRIPTION} + march=native")
+if(CMAKE_BUILD_TYPE)
+  # normalize so that exactly the first letter is uppercase
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
+  string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
+  string(SUBSTRING "${BUILD_TYPE_UPPER}" 0 1 FIRST_LETTER)
+  string(SUBSTRING "${BUILD_TYPE_LOWER}" 1 -1 REMAINDER)
+  set(KAHYPAR_BUILD_DESCRIPTION "${FIRST_LETTER}${REMAINDER} Build")
+  if (KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS AND NOT BUILD_TYPE_UPPER MATCHES "DEBUG")
+    set(KAHYPAR_BUILD_DESCRIPTION "${KAHYPAR_BUILD_DESCRIPTION} + march=native")
+  endif()
+  if(KAHYPAR_ENABLE_TESTING)
+    set(KAHYPAR_TESTING_ENABLED "Enabled")
+  else()
+    set(KAHYPAR_TESTING_ENABLED "Disabled")
+  endif()
+  if(BUILD_SHARED_LIBS)
+    set(KAHYPAR_LINKING_TYPE "Dynamic")
+  else()
+    set(KAHYPAR_LINKING_TYPE "Static")
+  endif()
+  message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LINKING_TYPE} Linking ======")
 endif()
-if (KAHYPAR_ENABLE_TESTING)
-  set(KAHYPAR_TESTING_ENABLED "Enabled")
-else()
-  set(KAHYPAR_TESTING_ENABLED "Disabled")
-endif()
-if(BUILD_SHARED_LIBS)
-  set(KAHYPAR_LINKING_TYPE "Dynamic")
-else()
-  set(KAHYPAR_LINKING_TYPE "Static")
-endif()
-message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LINKING_TYPE} Linking ======")
 
 
 #################################################################
