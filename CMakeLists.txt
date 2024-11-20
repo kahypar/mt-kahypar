@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
+# define the project version
+set(MT_KAHYPAR_VERSION "1.4")
+string(SUBSTRING "${MT_KAHYPAR_VERSION}" 0 1 MT_KAHYPAR_SO_VERSION)
+set(MTKAHYPAR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 project(MtKaHyPar
-        VERSION 1.4
+        VERSION ${MT_KAHYPAR_VERSION}
         DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
         LANGUAGES CXX C)
 set(PROJECT_URL "https://github.com/kahypar/mt-kahypar")
@@ -432,3 +437,8 @@ add_subdirectory(mt-kahypar)
 
 # export target for C interface
 add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
+
+# installation
+if(NOT WIN32 AND BUILD_SHARED_LIBS AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  include(SetupInstallation)
+endif()
