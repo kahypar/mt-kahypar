@@ -2,6 +2,10 @@
 
 #include <mt-kahypar/partition/metrics.h>
 #include <mt-kahypar/dynamic/dynamic_datastructures.h>
+#include <mt-kahypar/partition/registries/register_memory_pool.h>
+#include <mt-kahypar/partition/partitioner_facade.h>
+#include <mt-kahypar/utils/cast.h>
+#include <mt-kahypar/utils/delete.h>
 
 namespace mt_kahypar::dyn {
 
@@ -21,12 +25,12 @@ namespace mt_kahypar::dyn {
 
     void repartition_all(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes, double step_size) {
       auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
-      size_t re_enabled_nodes = 0;
+      size_t re_enabled_nodes = context.dynamic.initial_partitioning_size;
 
       std::ofstream output_file(context.dynamic.result_folder + "rep_all_" + std::to_string(context.partition.k) + "k_" + std::to_string(step_size) + "s" + (context.dynamic.use_final_weight ? "_final_weight" : ""));
 
       //enable nodes in steps
-      for ( size_t j = 0; j < changes.size(); j += static_cast<size_t>(step_size * hypergraph_s.initialNumNodes()) ) {
+      for ( size_t j = re_enabled_nodes; j < changes.size(); j += static_cast<size_t>(step_size * hypergraph_s.initialNumNodes()) ) {
         //enable step_size amount of nodes
         while ( re_enabled_nodes <= j && re_enabled_nodes < changes.size() ) {
           HypernodeID hn = changes[re_enabled_nodes].added_nodes[0];
@@ -153,7 +157,7 @@ namespace mt_kahypar::dyn {
       }
     }
 
-    void repartition_x_connectivity_partition_strategy(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes, size_t start_id = 0) {
+    void repartition_x_connectivity_partition_strategy(mt_kahypar_hypergraph_t hypergraph, Context& context, const std::vector<Change>& changes) {
       auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
       mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = partition_hypergraph_km1(hypergraph, context);
 
@@ -174,6 +178,8 @@ namespace mt_kahypar::dyn {
         }
       }
 
+      size_t start_id = context.dynamic.initial_partitioning_size;
+
       std::ofstream output_file(context.dynamic.result_folder + "connectivity_x_rep_" + std::to_string(start_id) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : ""));
       if ( !output_file.is_open() ) {
         throw std::runtime_error("Could not open output file");
@@ -182,6 +188,9 @@ namespace mt_kahypar::dyn {
       int repartition_count = 0;
 
       for ( size_t i = start_id; i < changes.size(); ++i ) {
+        if (changes[i].added_nodes.empty()) {
+          continue;
+        }
         const HypernodeID& hn = changes[i].added_nodes[0];
         hypergraph_s.enableHypernodeWithEdges(hn);
         if (!context.dynamic.use_final_weight) {

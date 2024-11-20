@@ -12,8 +12,8 @@ namespace mt_kahypar::dyn {
       // first_fitting_partition_strategy(hypergraph, context, disabled_nodes);
       // repartition_strategy(hypergraph, context, disabled_nodes);
       // highest_connectivity_partition_strategy(hypergraph, context, disabled_nodes, start_id);
-      repartition_all(hypergraph, context, changes, 0.01);
-      // repartition_x_connectivity_partition_strategy(hypergraph, context, disabled_nodes, start_id);
+      //repartition_all(hypergraph, context, changes, 0.01);
+      repartition_x_connectivity_partition_strategy(hypergraph, context, changes);
 
       utils::delete_hypergraph(hypergraph);
     }

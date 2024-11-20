@@ -769,6 +769,43 @@ class StaticHypergraph {
     return { };
   }
 
+  // ####################### Remove / Restore Pins #######################
+
+  /*!
+   * Removes a pin from the hyperedge.
+   */
+  void removeIncidentPinFromEdge(const HyperedgeID hn, const HypernodeID he) {
+    using std::swap;
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
+    const size_t pos = hyperedge(he).firstEntry();
+    const size_t end = hyperedge(he).firstInvalidEntry();
+    for ( size_t i = pos; i < end; ++i ) {
+      if ( _incidence_array[i] == hn ) {
+        swap(_incidence_array[i], _incidence_array[end - 1]);
+        hyperedge(he).setSize(hyperedge(he).size() - 1);
+        return;
+      }
+    }
+  }
+
+  /*!
+   * Restores a pin previously removed from the hyperedge.
+   */
+  void restoreIncidentPinToEdge(const HyperedgeID hn, const HypernodeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
+    const size_t pos = hyperedge(he).firstEntry();
+    const size_t end = hyperedge(he).firstInvalidEntry();
+    for ( size_t i = pos; i < end; ++i ) {
+      if ( _incidence_array[i] == hn ) {
+        return;
+      }
+    }
+    _incidence_array[end] = hn;
+    hyperedge(he).setSize(hyperedge(he).size() + 1);
+  }
+
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
@@ -785,6 +822,35 @@ class StaticHypergraph {
     }
     ++_num_removed_hyperedges;
     disableHyperedge(he);
+  }
+
+  /*!
+   * Removes a hyperedge from the hypergraph without removing the pins.
+   *
+   * NOTE, this function is not thread-safe and should only be called in a single-threaded
+   * setting.
+   */
+  void removeEdgeWithoutRemovingPins(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    ++_num_removed_hyperedges;
+    disableHyperedge(he);
+  }
+
+  /*!
+   * Restores a hyperedge previously removed from the hypergraph.
+   * This includes the restoration of he to all of its pins.
+   *
+   * NOTE, this function is not thread-safe and should only be called in a single-threaded
+   * setting.
+   */
+  void restoreEdge(const HyperedgeID he) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "is enabled");
+    enableHyperedge(he);
+    //TODO only needed if edge was removed
+//    for ( const HypernodeID& pin : pins(he) ) {
+//      insertIncidentEdgeToHypernode(he, pin);
+//    }
+    --_num_removed_hyperedges;
   }
 
   /*!

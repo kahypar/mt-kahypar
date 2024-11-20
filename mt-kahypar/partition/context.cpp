@@ -363,7 +363,8 @@ namespace mt_kahypar {
                     CoarseningAlgorithm::multilevel_coarsener);
     }
 
-    ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
+    //TODO: Is this Assert necessary for dynamic partitioning (when individual part weights are not used)?
+    //ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
     if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
       ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
                           << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
