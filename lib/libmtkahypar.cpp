@@ -257,12 +257,12 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
             StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
-              edge_vector, hyperedge_weights, vertex_weights))), STATIC_HYPERGRAPH };
+              edge_vector, hyperedge_weights, vertex_weights, preset == DETERMINISTIC))), STATIC_HYPERGRAPH };
       case HIGHEST_QUALITY:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
             DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
-              edge_vector, hyperedge_weights, vertex_weights))), DYNAMIC_HYPERGRAPH };
+              edge_vector, hyperedge_weights, vertex_weights, false))), DYNAMIC_HYPERGRAPH };
     }
   } catch ( std::exception& ex ) {
     LOG << ex.what();
@@ -291,12 +291,12 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
             StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-              edge_vector, edge_weights, vertex_weights))), STATIC_GRAPH };
+              edge_vector, edge_weights, vertex_weights, preset == DETERMINISTIC))), STATIC_GRAPH };
       case HIGHEST_QUALITY:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
             DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-              edge_vector, edge_weights, vertex_weights))), DYNAMIC_GRAPH };
+              edge_vector, edge_weights, vertex_weights, false))), DYNAMIC_GRAPH };
     }
   } catch ( std::exception& ex ) {
     LOG << ex.what();
@@ -317,7 +317,7 @@ mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hyper
   TargetGraph* target_graph = nullptr;
   try {
     ds::StaticGraph graph = StaticGraphFactory::construct_from_graph_edges(
-      num_vertices, num_edges, edge_vector, edge_weights, nullptr);
+      num_vertices, num_edges, edge_vector, edge_weights, nullptr, true);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
     LOG << ex.what();
