@@ -86,6 +86,7 @@ option(KAHYPAR_PYTHON "Include the Python interface in the build." OFF)
 option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googletest." OFF)
 option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." OFF)
 option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
+option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mtkahypar`." OFF)
 
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
@@ -429,7 +430,31 @@ add_subdirectory(mt-kahypar)
 # export target for C interface
 add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
 
-# installation
+
+#################################################################
+## Installation                                                ##
+#################################################################
+
+set(CMAKE_INSTALL_PREFIX "/usr/")
+
 if(NOT WIN32 AND BUILD_SHARED_LIBS AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  # library installation target
   include(SetupInstallation)
 endif()
+
+if(KAHYPAR_INSTALL_CLI AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  # CLI installation target
+  include(GNUInstallDirs)
+  set_target_properties(MtKaHyPar-CLI PROPERTIES OUTPUT_NAME mtkahypar)
+  install(TARGETS MtKaHyPar-CLI
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RENAME mtkahypar
+    COMPONENT MtKaHyPar_CLI)
+  add_custom_target(install-mtkahypar-cli
+    ${CMAKE_COMMAND}
+    -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_CLI
+    -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
+    DEPENDS MtKaHyPar-CLI)
+endif()
+

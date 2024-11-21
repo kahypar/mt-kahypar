@@ -1,7 +1,4 @@
-# Script that creates the installation targets
-
-# this must be set before including GNUInstallDirs
-set(CMAKE_INSTALL_PREFIX "/usr/")
+# Script that creates the installation targets for a shared library
 
 include(GNUInstallDirs)
 
@@ -16,21 +13,26 @@ configure_file(cmake/MtKaHyParConfig.cmake.in MtKaHyParConfig.cmake @ONLY)
 configure_file(cmake/MtKaHyParConfigVersion.cmake.in MtKaHyParConfigVersion.cmake @ONLY)
 
 install(FILES ${CMAKE_BINARY_DIR}/mtkahypar.pc
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+  COMPONENT MtKaHyPar_Lib)
 
 install(FILES ${CMAKE_BINARY_DIR}/MtKaHyParConfig.cmake
               ${CMAKE_BINARY_DIR}/MtKaHyParConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MtKaHyPar)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MtKaHyPar
+  COMPONENT MtKaHyPar_Lib)
 
 install(TARGETS mtkahypar
   EXPORT MtKaHyPar
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  COMPONENT MtKaHyPar_Lib
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  COMPONENT MtKaHyPar_Lib)
 
 install(EXPORT MtKaHyPar
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MtKaHyPar
   FILE MtKaHyPar.cmake
-  NAMESPACE MtKaHyPar::)
+  NAMESPACE MtKaHyPar::
+  COMPONENT MtKaHyPar_Lib)
 
 configure_file(cmake/cmake_uninstall.cmake.in cmake_uninstall.cmake IMMEDIATE @ONLY)
 add_custom_target(uninstall-mtkahypar "${CMAKE_COMMAND}" -P cmake_uninstall.cmake)
@@ -38,5 +40,6 @@ add_custom_target(uninstall-mtkahypar "${CMAKE_COMMAND}" -P cmake_uninstall.cmak
 add_custom_target(install-mtkahypar
   ${CMAKE_COMMAND}
   -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
+  -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_Lib
   -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
   DEPENDS mtkahypar)
