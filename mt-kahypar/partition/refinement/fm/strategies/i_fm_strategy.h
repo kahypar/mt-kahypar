@@ -55,7 +55,7 @@ localized_k_way_fm_t localized_fm_cast(tbb::enumerable_thread_specific<LocalFM>&
 template<typename LocalFM>
 tbb::enumerable_thread_specific<LocalFM>& cast(localized_k_way_fm_t fm) {
   if ( LocalFM::PartitionedHypergraph::TYPE != fm.type ) {
-    ERR("Cannot cast local FM [" << typeToString(fm.type) << "to"
+    ERR("Cannot cast local FM [" << typeToString(fm.type) << " to "
         << typeToString(LocalFM::PartitionedHypergraph::TYPE) << "]");
   }
   return *reinterpret_cast<tbb::enumerable_thread_specific<LocalFM>*>(fm.local_fm);

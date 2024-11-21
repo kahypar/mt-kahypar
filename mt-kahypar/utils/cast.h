@@ -63,21 +63,21 @@ std::string typeToString(const mt_kahypar_partition_type_t type) {
 template<typename Hypergraph>
 std::string error_msg(mt_kahypar_hypergraph_t hypergraph) {
   std::stringstream ss;
-  ss << "Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE);
+  ss << "Cannot cast " << typeToString(hypergraph.type) << " to " << typeToString(Hypergraph::TYPE);
   return ss.str();
 }
 
 template<typename PartitionedHypergraph>
 std::string error_msg(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   std::stringstream ss;
-  ss << "Cannot cast" << typeToString(partitioned_hg.type) << "to" << typeToString(PartitionedHypergraph::TYPE);
+  ss << "Cannot cast " << typeToString(partitioned_hg.type) << " to " << typeToString(PartitionedHypergraph::TYPE);
   return ss.str();
 }
 
 template<typename PartitionedHypergraph>
 std::string error_msg(mt_kahypar_partitioned_hypergraph_const_t partitioned_hg) {
   std::stringstream ss;
-  ss << "Cannot cast" << typeToString(partitioned_hg.type) << "to" << typeToString(PartitionedHypergraph::TYPE);
+  ss << "Cannot cast " << typeToString(partitioned_hg.type) << " to " << typeToString(PartitionedHypergraph::TYPE);
   return ss.str();
 }
 

@@ -200,7 +200,7 @@ class GainCachePtr {
   static GainCache& cast(gain_cache_t gain_cache) {
     if ( gain_cache.type != GainCache::TYPE ) {
       std::stringstream ss;
-      ss << "Cannot cast" << gain_cache.type << "to" << GainCache::TYPE;
+      ss << "Cannot cast " << gain_cache.type << " to " << GainCache::TYPE;
       throw InvalidInputException(ss.str());
     }
     return *reinterpret_cast<GainCache*>(gain_cache.gain_cache);
