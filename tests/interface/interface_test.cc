@@ -872,6 +872,18 @@ namespace mt_kahypar {
     Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, false);
   }
 
+  TEST_F(APartitioner, ChecksIfDeterministicMappingProducesSameResultsForHypergraphs) {
+    // note: this test doesn't seem to be very successful at actually catching non-determinism
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, true);
+    const double objective_1 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, true);
+    const double objective_2 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, true);
+    const double objective_3 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultPreset) {
     Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
   }
@@ -886,6 +898,18 @@ namespace mt_kahypar {
 
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDeterministicPreset) {
     Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
+  }
+
+  TEST_F(APartitioner, ChecksIfDeterministicMappingProducesSameResultsForGraphs) {
+    // note: this test doesn't seem to be very successful at actually catching non-determinism
+    Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
+    const double objective_1 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
+    const double objective_2 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
+    const double objective_3 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
   }
 
   TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCycles) {

@@ -60,7 +60,7 @@ bool operator>(const PQElement& lhs, const PQElement& rhs) {
 using PQ = std::priority_queue<PQElement>;
 
 
-HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) {
+HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph, bool deterministic) {
   vec<HypernodeID> min_nodes;
   HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
   for ( const HypernodeID& hn : graph.nodes() ) {
@@ -77,7 +77,7 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) 
     }
   }
   ASSERT(min_nodes.size() > 0);
-  return min_nodes.size() == 1 ? min_nodes[0] :
+  return (deterministic || min_nodes.size() == 1) ? min_nodes[0] :
     min_nodes[utils::Randomize::instance().getRandomInt(
       0, static_cast<int>(min_nodes.size() - 1), THREAD_ID)];
 }
@@ -85,7 +85,7 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) 
 template<typename CommunicationHypergraph>
 void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
                             const TargetGraph& target_graph,
-                            const Context&,
+                            const Context& context,
                             const HypernodeID seed_node) {
   // For each node u, the ratings store weight of all incident hyperedges
   // that connect u to partial assignment
@@ -153,7 +153,8 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     unassigned_processors.set(block);
   }
   // Assign seed node to process with minimum weighted degree
-  assign(seed_node, get_node_with_minimum_weighted_degree(target_graph.graph()));
+  const bool deterministic = context.partition.deterministic;
+  assign(seed_node, get_node_with_minimum_weighted_degree(target_graph.graph(), deterministic));
 
   HyperedgeWeight actual_objective = 0;
   vec<PartitionID> tie_breaking;
@@ -199,7 +200,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 
     // Assign node to processor that results in the least increase of the objective function
     ASSERT(tie_breaking.size() > 0);
-    const PartitionID best_process = tie_breaking.size() == 1 ? tie_breaking[0] :
+    const PartitionID best_process = (deterministic || tie_breaking.size() == 1) ? tie_breaking[0] :
       tie_breaking[utils::Randomize::instance().getRandomInt(
         0, static_cast<int>(tie_breaking.size() - 1), THREAD_ID)];
     actual_objective += best_rating;
@@ -222,13 +223,14 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 
 template<typename CommunicationHypergraph>
 void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHypergraph& communication_hg,
-                                                               const TargetGraph& target_graph,
-                                                               const Context& context) {
+                                                              const TargetGraph& target_graph,
+                                                              const Context& context) {
   ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
   HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::steiner_tree);
+  HypernodeID best_hn_id = kInvalidHypernode;
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
   timer.start_timer("initial_mapping", "Initial Mapping");
@@ -246,8 +248,10 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
     // Check if new mapping is better than the currently best mapping
     const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
     best_lock.lock();
-    if ( objective < best_objective ) {
+    if ( objective < best_objective ||
+         (objective == best_objective && context.partition.deterministic && hn > best_hn_id)) {
       best_objective = objective;
+      best_hn_id = hn;
       for ( const HypernodeID& u : tmp_communication_phg.nodes() ) {
         best_mapping[u] = tmp_communication_phg.partID(u);
       }
