@@ -74,10 +74,10 @@ class TargetGraph {
   using hasher_type    = utils_tm::hash_tm::murmur2_hash;
   using allocator_type = growt::AlignedAllocator<>;
   using ConcurrentHashTable = typename growt::table_config<
-    size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
+    uint64_t, uint64_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
   using HashTableHandle = typename ConcurrentHashTable::handle_type;
   #elif defined(_WIN32) or defined(__APPLE__)
-  using ConcurrentHashTable = tbb::concurrent_unordered_map<size_t, size_t>;
+  using ConcurrentHashTable = tbb::concurrent_unordered_map<uint64_t, uint64_t>;
   #endif
 
   struct MSTData {
@@ -239,6 +239,15 @@ class TargetGraph {
     }
     return last_block != kInvalidPartition ? index +
       (multiplier == UL(_k) ? last_block * _k : 0) : 0;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE uint64_t computeHash(const ds::StaticBitset& connectivity_set) const {
+    uint64_t index = 0;
+    for ( const PartitionID block : connectivity_set ) {
+      ASSERT(block != kInvalidPartition && block < _k && block < 64);
+      index |= (static_cast<uint64_t>(1) << block);
+    }
+    return index;
   }
 
   // ! This function computes an MST on the metric completion of the target graph

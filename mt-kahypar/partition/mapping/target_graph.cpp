@@ -53,16 +53,17 @@ void TargetGraph::precomputeDistances(const size_t max_connectivity) {
 
 HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) const {
   const PartitionID connectivity = connectivity_set.popcount();
-  const size_t idx = index(connectivity_set);
   if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
+    const size_t idx = index(connectivity_set);
     ASSERT(idx < _distances.size());
     if constexpr ( TRACK_STATS ) ++_stats.precomputed;
     return _distances[idx];
   } else {
+    const uint64_t hash_key = computeHash(connectivity_set);
     // We have not precomputed the optimal steiner tree for the connectivity set.
     #ifdef __linux__
     HashTableHandle& handle = _handles.local();
-    auto res = handle.find(idx);
+    auto res = handle.find(hash_key);
     if ( likely( res != handle.end() ) ) {
       if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
       return (*res).second;
@@ -71,11 +72,11 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
       // Entry is not cached => Compute 2-approximation of optimal steiner tree
       const HyperedgeWeight mst_weight =
         computeWeightOfMSTOnMetricCompletion(connectivity_set);
-      handle.insert(idx, mst_weight);
+      handle.insert(hash_key, mst_weight);
       return mst_weight;
     }
     #elif defined(_WIN32) or defined(__APPLE__)
-    auto res = _cache.find(idx);
+    auto res = _cache.find(hash_key);
     if ( likely ( res != _cache.end() ) ) {
       if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
       return res->second;
@@ -84,7 +85,7 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
       // Entry is not cached => Compute 2-approximation of optimal steiner tree
       const HyperedgeWeight mst_weight =
         computeWeightOfMSTOnMetricCompletion(connectivity_set);
-      _cache.insert(std::make_pair(idx, mst_weight));
+      _cache.insert(std::make_pair(hash_key, mst_weight));
       return mst_weight;
     }
     #endif

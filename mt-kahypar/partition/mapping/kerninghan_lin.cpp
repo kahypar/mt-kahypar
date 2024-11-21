@@ -132,7 +132,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
                                                      const TargetGraph& target_graph) {
   ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
 
-  HyperedgeWeight current_objective = metrics::quality(communication_hg, Objective::steiner_tree);
+  HyperedgeWeight current_objective = metrics::quality(communication_hg, Objective::steiner_tree, false);
   vec<bool> marked_hes(communication_hg.initialNumEdges(), false);
   bool found_improvement = true;
   size_t fruitless_rounds = 0;
