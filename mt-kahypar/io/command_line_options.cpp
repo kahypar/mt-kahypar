@@ -754,6 +754,10 @@ namespace mt_kahypar {
             ("d-strategy",
                     po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
     "Strategy for dynamic partitioning:\n");
+    dynamic_options.add_options()
+            ("d-step-size-pct",
+                    po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
+    "Percentage of the changes to be processed in each step");
     return dynamic_options;
   }
 

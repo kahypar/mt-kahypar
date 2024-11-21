@@ -1,6 +1,7 @@
 #pragma once
 
-#include "mt-kahypar/dynamic/strategies/dynamic_strategy.h"
+#include "mt-kahypar/dynamic/strategies/repartition.h"
+#include "mt-kahypar/dynamic/strategies/connectivity.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
 namespace mt_kahypar::dyn {
@@ -9,13 +10,25 @@ namespace mt_kahypar::dyn {
 
       auto [changes, hypergraph] = generateChanges(context);
 
+      ds::StaticHypergraph& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
+
+      DynamicStrategy* strategy;
+
       if (context.dynamic.strategy == "connectivity") {
-        repartition_x_connectivity_partition_strategy(hypergraph, context, changes);
+        strategy = new Connectivity();
       } else if (context.dynamic.strategy == "repartition") {
-        repartition_strategy(hypergraph, context, changes, 0.01);
+        strategy = new Repartition();
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
+
+      for (const auto& change : changes) {
+        strategy->partition(hypergraph_s, context, change);
+        log_live_km1(context, &strategy->history);
+      }
+
+      strategy->printFinalStats(hypergraph_s, context);
+      log_km1(context, &strategy->history);
 
       utils::delete_hypergraph(hypergraph);
     }

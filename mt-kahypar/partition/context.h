@@ -273,6 +273,7 @@ struct DynamicParameters {
     bool use_final_weight = false;
     std::string result_folder = "";
     std::string strategy = "";
+    double step_size_pct = 0.01;
 };
 
 std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);

@@ -36,6 +36,9 @@ namespace mt_kahypar::dyn {
         }
       }
 
+      //remove all re-enabled nodes from added_nodes
+      added_nodes.erase(added_nodes.begin(), added_nodes.begin() + start_id);
+
       return added_nodes;
     }
 
@@ -65,6 +68,9 @@ namespace mt_kahypar::dyn {
         hypergraph_s.restoreEdge(he);
       }
 
+      //remove all re-enabled edges from added_edges
+      added_edges.erase(added_edges.begin(), added_edges.begin() + start_id);
+
       return added_edges;
     }
 
@@ -78,6 +84,7 @@ namespace mt_kahypar::dyn {
 
       //TODO: Add pin parameter
       size_t start_id = hypergraph_s.initialNumPins();
+      (void) start_id; // suppress warning (unused variable
 
       std::vector<PinChange> added_pins;
 
@@ -100,6 +107,9 @@ namespace mt_kahypar::dyn {
         hypergraph_s.restorePin(hn, he);
         ASSERT(std::find(hypergraph_s.pins(he).begin(), hypergraph_s.pins(he).end(), hn) != hypergraph_s.pins(he).end());
       }
+
+      //remove all re-enabled pins from added_pins
+      added_pins.clear();
 
       return added_pins;
     }
@@ -138,5 +148,27 @@ namespace mt_kahypar::dyn {
       return {changes, hypergraph};
     }
 
+    void log_km1(Context& context, const std::vector<DynamicStrategy::PartitionResult>* history) {
+      //TODO change initial_partitioning_size to useful value
+      std::string filename = context.dynamic.result_folder + context.dynamic.strategy + "_" + std::to_string(context.dynamic.initial_partitioning_size) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : "");
+      std::ofstream file(filename);
+      if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+      }
+      for (size_t i = 0; i < history->size(); ++i) {
+        if (!history->at(i).valid) {
+          continue;
+        }
+        file << i << ", " << history->at(i).km1 << ", " << history->at(i).imbalance << std::endl;
+      }
+      file.close();
+    }
 
+    void log_live_km1(Context& context, const std::vector<DynamicStrategy::PartitionResult>* history) {
+      (void) context;
+      ASSERT(!history->empty());
+      if (history->back().valid) {
+        std::cout << history->size() << ", " << history->back().km1 << ", " << history->back().imbalance << std::endl;
+      }
+    }
 }
