@@ -25,7 +25,7 @@ num_hypergedges num_hypernodes [weight_type]
 ```
 
 Any line that starts with ‘%’ is a comment line and is skipped.
-The first line is a header containing two or three numbers describing the total number of hyperedges, the total number of hypernodes and the types weights used by the graph
+The first line is a header containing two or three numbers describing the total number of hyperedges, the total number of hypernodes and the types of weights used by the hypergraph
 (00/omitted = unweighted, 10 = node weights, 01 = edge weights, 11 = node and edge weights).
 
 Afterwards, there is one line for each hyperedge which contains a list of the pins (hypernode IDs) of the hyperedge.
@@ -37,7 +37,7 @@ Otherwise, there is one line for each hypernode containing a single entry, which
 ## Metis Format for Input Graphs
 
 Mt-KaHyPar can also read input *graphs* in Metis format via `--input-file-format=metis`.
-Furthermore, target graphs for the Steiner tree metric need to be provided in the Metis format:
+Also, target graphs for the Steiner tree metric need to be provided in the Metis format:
 [Unweighted Example](tests/instances/unweighted_graph.graph), [Weighted Example](tests/instances/graph_with_node_and_edge_weights.graph), [Metis manual](https://karypis.github.io/glaros/files/sw/metis/manual.pdf)
 
 **Important note:** Mt-KaHyPar only works on undirected graphs. Therefore, for each edge `u -> v` in the input file there *must be* a corresponding entry for `v -> u` with the same edge weight.
@@ -53,7 +53,7 @@ num_nodes num_edges [weight_type]
 ```
 
 Any line that starts with ‘%’ is a comment line and is skipped.
-The first line is a header containing two or three numbers describing the total number of nodes, the total number of edges and the types weights used by the hypergraph
+The first line is a header containing two or three numbers describing the total number of nodes, the total number of edges and the types of weights used by the graph
 (00/omitted = unweighted, 10 = node weights, 01 = edge weights, 11 = node and edge weights).
 
 Afterwards, there is one line for each node which contains the edges as an adjacency list, i.e., a list of the neighbor nodes (node IDs).
@@ -88,3 +88,12 @@ The format looks as follows:
 
 The file contains one line for each (hyper)node.
 Each line contains a single number which is the block ID if the node should be fixed, or -1 if the node can be assigned to any block.
+
+## Conversion Tools for Other Formats
+
+While we do not support other graph or hypergraph file formats as direct input, we provide some conversion tools. Each can be built via `make <tool-name>`.
+ - `MtxToGraph`
+ - `SnapToHgr`
+ - `SnapToMetis`
+
+Furthermore, there are conversion tools from hMetis/Metis format to other formats, which are especially useful for comparison benchmarks to other partitioning algorithms.
