@@ -32,8 +32,8 @@ if (POLICY CMP0167)  # new FindBoost behavior
   cmake_policy(SET CMP0167 NEW)
 endif()
 
-if (NOT DEFINED BUILD_SHARED_LIBS)
-  # since TBB does not support static linking, we build with dynamic linking by default
+if (NOT DEFINED BUILD_SHARED_LIBS AND NOT WIN32)
+  # since TBB does not support static linking, we build with dynamic linking by default (except on Windows)
   set(BUILD_SHARED_LIBS ON)
 endif()
 
