@@ -14,21 +14,17 @@ jobs:
     strategy:
       matrix:
         compiler: [ { os: ubuntu-20.04, cpp: g++-9, cc: gcc-9, install_cmd: g++-9 gcc-9 },
-                    { os: ubuntu-20.04, cpp: g++-10, cc: gcc-10, install_cmd: g++-10 gcc-10 },
                     { os: ubuntu-22.04, cpp: g++-11, cc: gcc-11, install_cmd: g++-11 gcc-11 },
-                    { os: ubuntu-22.04, cpp: g++-12, cc: gcc-12, install_cmd: g++-12 gcc-12 },
-                    { os: ubuntu-22.04, cpp: clang++, cc: clang, install_cmd: clang }  ]
+                    { os: ubuntu-24.04, cpp: g++-14, cc: gcc-14, install_cmd: g++-14 gcc-14 },
+                    { os: ubuntu-24.04, cpp: clang++, cc: clang, install_cmd: clang }  ]
 
     runs-on: ${{ matrix.compiler.os }}
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -39,25 +35,21 @@ jobs:
           CC: ${{ matrix.compiler.cc }}
           CXX: ${{ matrix.compiler.cpp }}
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
     name: Test Suite
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -65,17 +57,16 @@ jobs:
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
-          git submodule update --init --recursive
           rm -rf debug
           mkdir debug
           cd debug
-          cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
-          make -j2 mtkahypar_tests;
+          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_USE_GCOV=ON
+          make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         run: |
           cd debug
-          ./tests/mtkahypar_tests;
+          ./tests/mtkahypar_tests
 
       - name: Report Code Coverage
         run: |
@@ -89,16 +80,13 @@ jobs:
 
   mt_kahypar_integration_tests:
     name: Integration Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -106,11 +94,10 @@ jobs:
 
       - name: Install Mt-KaHyPar Integration Tests
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          cmake .. --preset=python -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyPar
           make -j2 VerifyPartition
           make -j2 GridGraphGenerator
@@ -122,16 +109,13 @@ jobs:
 
   mt_kahypar_c_interface_tests:
     name: C Interface Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -139,25 +123,21 @@ jobs:
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
           make -j2 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
     name: Python Interface Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -165,11 +145,10 @@ jobs:
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          cmake .. --preset=python -DKAHYPAR_CI_BUILD=ON
           make mtkahypar_python -j2
 
       - name: Run Mt-KaHyPar Python Interface Tests
@@ -187,8 +166,6 @@ jobs:
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -211,12 +188,11 @@ jobs:
       - name: Install Mt-KaHyPar Multilevel Tests
         shell: msys2 {0}
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
-          /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
+          /mingw64/bin/cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
           make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
@@ -234,8 +210,6 @@ jobs:
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
-        with:
-         fetch-depth: 1
 
       - name: Install Dependencies
         run: |
@@ -243,11 +217,10 @@ jobs:
 
       - name: Install Mt-KaHyPar Multilevel Tests
         run: |
-          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
           make -j2 mtkahypar_tests
 
       - name: Run Mt-KaHyPar Tests
