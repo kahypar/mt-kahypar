@@ -519,6 +519,20 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
       doi          = {10.1137/1.9781611977929.3},
     }
 
+    // Steiner Tree Objective
+    @inproceedings{MT-KAHYPAR-STEINER-TREES,
+      author       = {Tobias Heuer},
+      editor       = {Rezaul Chowdhury and
+                      Solon P. Pissis},
+      title        = {A Direct \emph{k-}Way Hypergraph Partitioning Algorithm for Optimizing
+                      the Steiner Tree Metric},
+      booktitle    = {Symposium on Algorithm Engineering and Experiments (ALENEX 2024)},
+      pages        = {15--31},
+      publisher    = {{SIAM}},
+      year         = {2024},
+      doi          = {10.1137/1.9781611977929.2}
+    }
+
     // Dissertation of Lars Gottesbüren
     @phdthesis{MT-KAHYPAR-DIS-GOTTESBUEREN,
       author         = {Lars Gottesb\"{u}ren},
