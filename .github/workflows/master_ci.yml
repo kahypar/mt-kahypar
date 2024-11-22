@@ -80,7 +80,7 @@ jobs:
 
   mt_kahypar_test_suite:
     name: Test Suite
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04  # note: stay on 22.04 since lcov behaves weird on 24.04
     env:
       CI_ACTIVE : 1
 
@@ -108,7 +108,8 @@ jobs:
       - name: Report Code Coverage
         run: |
           cd build
-          lcov --directory . --capture --output-file coverage.info --exclude '/usr/**/*' --exclude 'external_tools/**/*' --exclude 'tests/**/*' --exclude '**/googletest-src/**/*'
+          lcov --directory . --capture --output-file coverage.info --exclude 'external_tools/**/*' --exclude 'tests/**/*' --exclude '**/googletest-src/**/*'
+          lcov --remove coverage.info '/usr/**/*' 'external_tools/**/*' 'tests/**/*' --output-file coverage.info
           lcov --list coverage.info
           gcovr -r ../ -x > report.xml
           cd ..
