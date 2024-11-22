@@ -78,7 +78,7 @@ endif()
 # general build options
 option(KAHYPAR_PYTHON "Include the Python interface in the build." OFF)
 option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googletest." OFF)
-option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." ON)
+option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." OFF)
 option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
 
 # dependencies

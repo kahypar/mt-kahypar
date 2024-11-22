@@ -31,9 +31,13 @@ if(NOT TARGET ${HWLOC_TARGET_NAME})
         # for static linking we also need udev as transitive dependency of hwloc
         find_package(PkgConfig QUIET REQUIRED)
         if (PKG_CONFIG_FOUND)
-            pkg_search_module(UDEV REQUIRED udev)
-            # this is an annoying workaround since propagating the static dependencies is not properly supported by cmake
-            target_link_libraries(hwloc INTERFACE -ludev)
+            pkg_search_module(UDEV udev)
+            if (TARGET PkgConfig::UDEV)
+                # this is an annoying workaround since propagating the static dependencies is not properly supported by cmake
+                target_link_libraries(hwloc INTERFACE -ludev)
+            else()
+                message(FATAL_ERROR "libudev is required for statically linking hwloc. Install libudev or use -DKAHYPAR_STATIC_LINK_DEPENDENCIES=Off")
+            endif()
         endif()
     endif()
 
