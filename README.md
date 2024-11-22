@@ -48,20 +48,17 @@ Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides ma
 Requirements
 -----------
 
-The Multi-Threaded Karlsruhe Graph and Hypergraph Partitioning Framework requires:
+Mt-KaHyPar requires:
 
-  - A 64-bit Linux, MacOS, or Windows operating system.
-  - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows (tested with version 12.1).
- - The [cmake][cmake] build system (>= 3.16).
+ - A 64-bit Linux, MacOS, or Windows operating system.
+ - A modern, C++17-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows.
+ - The [cmake][cmake] build system (>= 3.21).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
    If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
    to the cmake command to download, extract, and build the necessary dependencies automatically.
  - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.5.0).
    If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag (only available on Linux)
-   to the cmake command to download oneTBB 2021.7.0 and extract the necessary dependencies automatically.
-   Mt-KaHyPar also compiles with older version of TBB. However, we observed unexpected behaviour of a TBB function
-   on which we rely on which causes on our side a segmentation fault in really rare cases. If you want to ignore these
-   warnings, you can add `-DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF` to the cmake build command.
+   to the cmake command to download oneTBB and extract the necessary dependencies automatically.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
 
 ### Linux
@@ -88,28 +85,29 @@ The following instructions set up the environment used to build Mt-KaHyPar on Wi
 
   4. The following command will then install all required dependencies:
 
-    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-tbb
+    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-boost mingw-w64-x86_64-tbb
 
-  5. Rename `libtbb12.dll.a` to `libtbb.dll.a` which is located in `C:\msys64\mingw64\lib` (or `/mingw64/lib` within the
-     `MSYS2 MinGW x64` terminal)
 
-Please **note** that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. At this stage, Windows support is experimental. We are happy to accept contributions to improve Windows support.
+Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
 
 Building Mt-KaHyPar
 -----------
 
-To build Mt-KaHyPar, you can run the `build.sh` script (creates a `build` folder) or use the following commands:
+To build Mt-KaHyPar, use the following commands:
 
 1. Clone the repository including submodules:
 
-   ```git clone --depth=2 --recursive https://github.com/kahypar/mt-kahypar.git```
+   ```git clone https://github.com/kahypar/mt-kahypar.git```
 
 2. Create a build directory: `mkdir build && cd build`
-3. *Only on Windows machines*: `export CMAKE_GENERATOR="MSYS Makefiles"`
-3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE` (on Windows machines add `-DKAHYPAR_DOWNLOAD_BOOST=On`)
+3. *Only on Windows machines: `export CMAKE_GENERATOR="MSYS Makefiles"`*
+3. Run cmake: `cmake .. --preset=<default/python/dev>`
 4. Run make: `make MtKaHyPar -j`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
+
+As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
+If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
 
 Running Mt-KaHyPar
 -----------
@@ -124,11 +122,11 @@ Mt-KaHyPar provides several partitioning configurations with different time-qual
 
     --preset-type=<large_k/deterministic/default/quality/highest_quality>
 
-- `large_k`: configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks, `config/large_k_preset.ini`)
-- `deterministic`: configuration for deterministic partitioning (`config/deterministic_preset.ini`, corresponds to Mt-KaHyPar-SDet in our publications)
-- `default`: computes good partitions very fast (`config/default_preset.ini`, corresponds to Mt-KaHyPar-D in our publications)
-- `quality`: computes high-quality partitions (`config/quality_preset.ini`, corresponds to Mt-KaHyPar-D-F in our publications)
-- `highest_quality`: highest-quality configuration (`config/quality_flow_preset.ini`, corresponds to Mt-KaHyPar-Q-F in our publications)
+- `large_k`: configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks)
+- `deterministic`: configuration for deterministic partitioning
+- `default`: computes good partitions very fast
+- `quality`: computes high-quality partitions (uses flow-based refinement)
+- `highest_quality`: highest-quality configuration (uses n-level coarsening and flow-based refinement)
 
 The presets can be ranked from lowest to the highest-quality as follows: `large_k`, `deterministic`,
 `default`, `quality`, and `highest_quality`.
@@ -191,17 +189,57 @@ There are several useful options that can provide you with additional insights d
 
 If you want to change other configuration parameters manually, please run `--help` for a detailed description of the different program options.
 
-The C Library Interface
+Using Mt-KaHyPar as a library
 -----------
 
-We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
+We provide a simple C interface to use Mt-KaHyPar as a library, as well as a Python interface.
+On Linux or MacOS, the C library can be built and installed via
 
 ```sh
-make install.mtkahypar # use sudo (Linux & MacOS) or run shell as an administrator (Windows) to install system-wide
+make install-mtkahypar  # use sudo (Linux & MacOS) or run shell as an administrator (Windows) to install system-wide
 ```
 
 Note: When installing locally, the build will exit with an error due to missing permissions.
 However, the library is still built successfully and is available in the build folder.
+
+To remove the library from your system use the provided uninstall target:
+
+```sh
+make uninstall-mtkahypar
+```
+
+### Integration via Cmake
+
+If possible, the best way to integrate the C library is directly via cmake using the `MtKaHyPar::mtkahypar` target.
+
+If the library is installed on the system, it can be used via `find_package`:
+
+```cmake
+find_package(MtKaHyPar)
+if(MtKaHyPar_FOUND)
+  add_executable(example example.cc)
+  target_link_libraries(example MtKaHyPar::mtkahypar)
+endif()
+```
+
+Alternatively, you can use Mt-KaHyPar directly via `FetchContent`:
+
+```cmake
+FetchContent_Declare(
+  MtKaHyPar EXCLUDE_FROM_ALL
+  GIT_REPOSITORY https://github.com/kahypar/mt-kahypar
+  GIT_TAG        v1.5
+)
+FetchContent_MakeAvailable(MtKaHyPar)
+
+add_executable(example example.cc)
+target_link_libraries(example MtKaHyPar::mtkahypar)
+```
+
+When including Mt-KaHyPar directly, it is also possible to control static versus dynamic linking with the `BUILD_SHARED_LIBS` and `KAHYPAR_STATIC_LINK_DEPENDENCIES` cmake options
+(note that static linking support is still experimental and not available for the installed library).
+
+### The C Library Interface
 
 The library interface can be found in `include/mtkahypar.h` with a detailed documentation. We also provide several examples in the folder `lib/examples` that show how to use the library.
 
@@ -270,29 +308,17 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-To compile the program using `g++` run:
+We recommend [integrating the library via cmake](#integration-via-cmake) into your project, to manage compiling and linking automatically.
+
+However, it is also possible to directly compile the program using `g++`:
 
 ```sh
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypar
 ```
 
-To execute the binary, you need to ensure that the installation directory
-(probably `/usr/local/lib` (Linux) and `C:\Program Files (x86)\MtKaHyPar\bin` (Windows) for system-wide installation)
-is included in the dynamic library path.
-The path can be updated on Linux with:
-
-```sh
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH;/usr/local/lib"
-export LD_LIBRARY_PATH
-```
-
-On Windows, add `C:\Program Files (x86)\KaHyPar\bin` to `PATH` in the environment variables settings.
-
-To remove the library from your system use the provided uninstall target:
-
-```sh
-make uninstall-mtkahypar
-```
+To execute the produced binary, you need to ensure that the installation directory
+(probably `/usr/local/lib` on Linux and `C:\Program Files (x86)\MtKaHyPar\bin` on Windows)
+is included in the dynamic library path (`LD_LIBRARY_PATH` on Linux, `PATH` on Windows).
 
 **Note** that we internally use different data structures to represent a (hyper)graph based on the corresponding configuration (`mt_kahypar_preset_type_t`). The `mt_kahypar_hypergraph_t` structure stores a pointer to this data structure and also a type description. Therefore, you can not partition a (hyper)graph with all available configurations once it is loaded or constructed. However, you can check the compatibility of a hypergraph with a configuration with the following code:
 
@@ -306,8 +332,7 @@ if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
 }
 ```
 
-The Python Library Interface
------------
+### The Python Library Interface
 
 You can install the Python library interface via
 
@@ -426,7 +451,11 @@ We have implemented a common interface for all gain computation techniques that 
 Improving Compile Times
 -----------
 
-Mt-KaHyPar implements several graph and hypergraph data structures, and supports different objective functions. Each combination of (hyper)graph data structure and objective function is passed to our partitioning algorithms as template parameters. This increases the compile time of Mt-KaHyPar. We therefore provide cmake command line options to disable some of the features of Mt-KaHyPar for faster compilation. The following list summarizes the available parameters:
+Mt-KaHyPar implements several graph and hypergraph data structures, and supports different objective functions. In the hot parts of the algorithm, each combination of (hyper)graph data structure and objective function is compiled separately, which notably increases the compile time. We therefore provide the cmake preset `minimal` to disable some of the features of Mt-KaHyPar for faster compilation.
+
+With this, only the `deterministic`, `default`, and `quality` configurations are available in combination with the cut-net or connectivity metric. Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
+
+For more fine-grained control, you can directly use the corresponding cmake flags:
 ```cmake
 -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On/Off # enables/disables graph partitioning features
 -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=On/Off # enables/disables our highest-quality configuration
@@ -434,7 +463,6 @@ Mt-KaHyPar implements several graph and hypergraph data structures, and supports
 -DKAHYPAR_ENABLE_SOED_METRIC=On/Off # enables/disables sum-of-external-degrees metric
 -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=On/Off # enables/disables Steiner tree metric
 ```
-If you turn off all features, only the `deterministic`, `default`, and `quality` configurations are available for optimizing the cut-net or connectivity metric. Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
 
 Bug Reports
 -----------
