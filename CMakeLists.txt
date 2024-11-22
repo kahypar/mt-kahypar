@@ -342,15 +342,6 @@ target_link_libraries(MtKaHyPar-ToolsSources INTERFACE HWLOC::hwloc)
 ## Compile options and specialized builds                      ##
 #################################################################
 
-# Get current commit hash
-find_package(Git)
-include(GetGitRevisionDescription)
-get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
-if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
-  message(STATUS "Git: ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
-  configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
-endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
-
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
     set(KAHYPAR_X86 TRUE)
 else()
