@@ -22,10 +22,17 @@ namespace mt_kahypar::dyn {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
 
-      for (const auto& change : changes) {
+      std::cout << "Processing " << changes.size() << " changes" << std::endl;
+
+      for (size_t i = 0; i < changes.size(); ++i) {
+        Change& change = changes[i];
         strategy->partition(hypergraph_s, context, change);
-        log_live_km1(context, &strategy->history);
+        if (*(&strategy->history.back().valid)) {
+          print_progress_bar(i, changes.size(), &strategy->history);
+        }
       }
+
+      std::cout << std::endl;
 
       strategy->printFinalStats(hypergraph_s, context);
       log_km1(context, &strategy->history);

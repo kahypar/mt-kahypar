@@ -382,6 +382,7 @@ namespace mt_kahypar::io {
         } else {
           goto_next_line(mapped_file, current_pos, current_end);
         }
+      std::cout.flush();
       }
     });
     return res;

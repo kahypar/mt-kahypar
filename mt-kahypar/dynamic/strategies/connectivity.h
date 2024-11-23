@@ -73,6 +73,8 @@ namespace mt_kahypar::dyn {
         }
 
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {
+          (void) hypergraph;
+          (void) context;
           std::cout << "Final Stats for Connectivity Strategy" << std::endl;
           std::cout << "Repartition Count: " << repartition_count << std::endl;
         }

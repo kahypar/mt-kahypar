@@ -7,6 +7,7 @@ namespace mt_kahypar::dyn {
     class Repartition : public DynamicStrategy {
     private:
       size_t skipped_changes = 0;
+      size_t initial_num_enabled_nodes = 0;
     public:
 
       void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change) override {
@@ -14,7 +15,15 @@ namespace mt_kahypar::dyn {
         process_change(hypergraph, context, change);
         PartitionResult partition_result = *new PartitionResult();
 
-        auto step_size = static_cast<size_t>(context.dynamic.step_size_pct * hypergraph.initialNumNodes());
+        if (initial_num_enabled_nodes == 0) {
+          for (HypernodeID hn = 0; hn < hypergraph.initialNumNodes(); hn++) {
+            if (hypergraph.nodeIsEnabled(hn)) {
+              initial_num_enabled_nodes++;
+            }
+          }
+        }
+
+        auto step_size = static_cast<size_t>(context.dynamic.step_size_pct * (hypergraph.initialNumNodes() - initial_num_enabled_nodes));
 
         if (skipped_changes < step_size) {
           partition_result.valid = false;
@@ -39,6 +48,8 @@ namespace mt_kahypar::dyn {
       }
 
       void printFinalStats(ds::StaticHypergraph& hypergraph, Context& context) override {
+        (void) hypergraph;
+        (void) context;
       };
 
     };

@@ -771,11 +771,32 @@ class StaticHypergraph {
 
   // ####################### Remove / Restore Pins #######################
 
+  /*
+   * Get a copy of the incident nets of a hypernode.
+   */
+  std::vector<HyperedgeID> incidentEdgesCopy(const HypernodeID hn) const {
+    std::vector<HyperedgeID> incident_edges;
+    for ( const HyperedgeID he : incidentEdges(hn) ) {
+      incident_edges.push_back(he);
+    }
+    return incident_edges;
+  }
+
+  /*
+   * Get a copy of the pins of a hyperedge.
+   */
+  std::vector<HypernodeID> pinsCopy(const HyperedgeID he) const {
+    std::vector<HypernodeID> pins;
+    for ( const HypernodeID hn : this->pins(he) ) {
+      pins.push_back(hn);
+    }
+    return pins;
+  }
+
   /*!
    * Removes a pin.
    */
-  void removePin(const HyperedgeID hn, const HypernodeID he) {
-    using std::swap;
+  void removePin(const HypernodeID hn, const HyperedgeID he) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
     removeIncidentEdgeFromHypernode(he, hn);
@@ -785,7 +806,7 @@ class StaticHypergraph {
   /*!
    * Restores a pin previously removed
    */
-  void restorePin(const HyperedgeID hn, const HypernodeID he) {
+  void restorePin(const HypernodeID hn, const HyperedgeID he) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
     insertIncidentEdgeToHypernode(he, hn);
@@ -837,6 +858,10 @@ class StaticHypergraph {
     ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
     for ( const HyperedgeID& he : incidentEdges(hn) ) {
       removeIncidentHypernodeFromEdge(hn, he);
+      if ( edgeSize(he) == 0 ) {
+        disableHyperedge(he);
+        ++_num_removed_hyperedges;
+      }
     }
     ++_num_removed_hypernodes;
     disableHypernode(hn);
@@ -849,6 +874,10 @@ class StaticHypergraph {
     ASSERT(!nodeIsEnabled(hn), "Hypernode" << hn << "is enabled");
     enableHypernode(hn);
     for ( const HyperedgeID& he : incidentEdges(hn) ) {
+      if (!edgeIsEnabled(he)) {
+        enableHyperedge(he);
+        --_num_removed_hyperedges;
+      }
       restoreIncidentHypernodeToEdge(hn, he);
     }
     --_num_removed_hypernodes;
@@ -1011,6 +1040,9 @@ class StaticHypergraph {
                                                                           const HypernodeID u) {
     using std::swap;
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ASSERT(std::count(_incident_nets.cbegin() + hypernode(u).firstEntry(),
+                      _incident_nets.cbegin() + hypernode(u).firstInvalidEntry(), e) > 0,
+           "HN" << u << "is not connected to HE" << e);
 
     Hypernode& hn = hypernode(u);
     size_t incident_nets_pos = hn.firstEntry();
