@@ -18,8 +18,7 @@ namespace mt_kahypar::dyn {
         std::unique_ptr<IRebalancer> _rebalancer;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
-          partitioned_hypergraph = partition_hypergraph_km1(hypergraph_s, context);
-          partitioned_hypergraph_s = std::move(utils::cast<ds::PartitionedHypergraph<typename ds::StaticHypergraph>>(partitioned_hypergraph));
+          partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
           repartition_count++;
         }
 

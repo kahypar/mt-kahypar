@@ -245,4 +245,15 @@ namespace mt_kahypar::dyn {
       }
       file.close();
     }
+
+    void log_km1_live(size_t i, Context& context, DynamicStrategy::PartitionResult result) {
+      //TODO change initial_partitioning_size to useful value
+      std::string filename = context.dynamic.result_folder + context.dynamic.strategy + "_" + std::to_string(context.dynamic.initial_partitioning_size) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : "");
+      std::ofstream file(filename, std::ios_base::app);
+      if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+      }
+      file << i << ", " << result.km1 << ", " << result.imbalance << std::endl;
+      file.close();
+    }
 }

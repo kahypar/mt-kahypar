@@ -33,12 +33,13 @@ namespace mt_kahypar::dyn {
         if (*(&strategy->history.back().valid)) {
           print_progress_bar(i, changes.size(), &strategy->history);
         }
+        log_km1_live(i, context, strategy->history.back());
       }
 
       std::cout << std::endl;
 
       strategy->printFinalStats(hypergraph_s, context);
-      log_km1(context, &strategy->history);
+      //log_km1(context, &strategy->history);
 
       utils::delete_hypergraph(hypergraph);
     }

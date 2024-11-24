@@ -35,12 +35,7 @@ namespace mt_kahypar::dyn {
         partition_result.valid = true;
         skipped_changes = 0;
 
-        mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = partition_hypergraph_km1(hypergraph, context);
-        auto partitioned_hypergraph_s =
-                std::move(utils::cast<ds::PartitionedHypergraph<typename ds::StaticHypergraph>>(partitioned_hypergraph));
-
-        //TODO: Is this necessary every time?
-        utils::delete_partitioned_hypergraph(partitioned_hypergraph);
+        auto partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph, context);
 
         partition_result.km1 = mt_kahypar::metrics::quality(partitioned_hypergraph_s, Objective::km1);
         partition_result.imbalance = mt_kahypar::metrics::imbalance(partitioned_hypergraph_s, context);

@@ -858,10 +858,6 @@ class StaticHypergraph {
     ASSERT(nodeIsEnabled(hn), "Hypernode" << hn << "is disabled");
     for ( const HyperedgeID& he : incidentEdges(hn) ) {
       removeIncidentHypernodeFromEdge(hn, he);
-      if ( edgeSize(he) == 0 ) {
-        disableHyperedge(he);
-        ++_num_removed_hyperedges;
-      }
     }
     ++_num_removed_hypernodes;
     disableHypernode(hn);
@@ -874,10 +870,6 @@ class StaticHypergraph {
     ASSERT(!nodeIsEnabled(hn), "Hypernode" << hn << "is enabled");
     enableHypernode(hn);
     for ( const HyperedgeID& he : incidentEdges(hn) ) {
-      if (!edgeIsEnabled(he)) {
-        enableHyperedge(he);
-        --_num_removed_hyperedges;
-      }
       restoreIncidentHypernodeToEdge(hn, he);
     }
     --_num_removed_hypernodes;

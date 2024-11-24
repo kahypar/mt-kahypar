@@ -11,8 +11,19 @@ namespace mt_kahypar::dyn {
         int repartition_count = 0;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
-          mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = partition_hypergraph_km1(hypergraph_s, context);
-          partitioned_hypergraph_s = std::move(utils::cast<ds::PartitionedHypergraph<typename ds::StaticHypergraph>>(partitioned_hypergraph));
+          //ASSERT thet num_removed_nodes is correct
+          ASSERT([&]() {
+              size_t num_removed_nodes = 0;
+              for (size_t hn = 0; hn < hypergraph_s.initialNumNodes(); hn++) {
+                if (!hypergraph_s.nodeIsEnabled(hn)) {
+                  num_removed_nodes++;
+                }
+
+              }
+              std::cout << "num_removed_nodes: " << num_removed_nodes << " " << hypergraph_s.numRemovedHypernodes() << std::endl;
+              return num_removed_nodes == hypergraph_s.numRemovedHypernodes();
+          } (), "Number of removed nodes is not correct.");
+          partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
           repartition_count++;
         }
     public:
