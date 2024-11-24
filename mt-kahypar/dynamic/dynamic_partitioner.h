@@ -2,6 +2,7 @@
 
 #include "mt-kahypar/dynamic/strategies/repartition.h"
 #include "mt-kahypar/dynamic/strategies/connectivity.h"
+#include "mt-kahypar/dynamic/strategies/lokalFM.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
 namespace mt_kahypar::dyn {
@@ -18,6 +19,8 @@ namespace mt_kahypar::dyn {
         strategy = new Connectivity();
       } else if (context.dynamic.strategy == "repartition") {
         strategy = new Repartition();
+      } else if (context.dynamic.strategy == "lokalFM") {
+        strategy = new LokalFM();
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
