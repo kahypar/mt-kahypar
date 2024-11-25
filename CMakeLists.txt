@@ -155,7 +155,7 @@ endif()
 
 
 #################################################################
-## Platform-specific includes, which interact with options     ##
+## Platform compatibility checks, which interact with options  ##
 #################################################################
 
 if(UNIX)
@@ -166,10 +166,10 @@ if(UNIX)
   if(NOT KAHYPAR_HEADERS_AVAILABLE)
     message(FATAL_ERROR "The following system headers are required, but some are not available: ${KAHYPAR_REQUIRED_HEADERS}")
   endif()
-  set(KAHYPAR_THREAD_PINNING_HEADERS "sched.h")
-  check_include_files("${KAHYPAR_THREAD_PINNING_HEADERS}" KAHYPAR_THREAD_PINNING_IS_POSSIBLE LANGUAGE CXX)
-  if(KAHYPAR_ENABLE_THREAD_PINNING AND NOT KAHYPAR_THREAD_PINNING_IS_POSSIBLE)
-    message(WARNING "Thread pinning disabled since header is not available: ${KAHYPAR_THREAD_PINNING_HEADERS}")
+
+  include(CheckThreadPinning)
+  if(KAHYPAR_ENABLE_THREAD_PINNING AND NOT THREAD_PINNING_WORKS)
+    message(WARNING "Thread pinning disabled since required system APIs are not available.")
     set(KAHYPAR_ENABLE_THREAD_PINNING FALSE)
   endif()
 elseif(NOT WIN32)
