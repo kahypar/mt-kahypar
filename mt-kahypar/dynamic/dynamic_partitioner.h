@@ -13,6 +13,8 @@ namespace mt_kahypar::dyn {
 
       ds::StaticHypergraph& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
 
+      if (context.dynamic.max_changes == -1) context.dynamic.max_changes = changes.size();
+
       DynamicStrategy* strategy;
 
       if (context.dynamic.strategy == "connectivity") {
@@ -27,7 +29,7 @@ namespace mt_kahypar::dyn {
 
       std::cout << "Processing " << changes.size() << " changes" << std::endl;
 
-      for (size_t i = 0; i < changes.size(); ++i) {
+      for (size_t i = 0; i < context.dynamic.max_changes; ++i) {
         Change& change = changes[i];
         strategy->partition(hypergraph_s, context, change);
         if (*(&strategy->history.back().valid)) {

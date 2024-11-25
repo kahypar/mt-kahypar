@@ -758,6 +758,10 @@ namespace mt_kahypar {
             ("d-step-size-pct",
                     po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
     "Percentage of the changes to be processed in each step");
+    dynamic_options.add_options()
+            ("d-max-changes",
+                    po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
+    "Maximum number of changes to be processed (defaults to all changes)");
     return dynamic_options;
   }
 

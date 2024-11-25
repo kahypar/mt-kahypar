@@ -270,6 +270,7 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 
 struct DynamicParameters {
     size_t initial_partitioning_size = 0;
+    size_t max_changes = -1;
     bool use_final_weight = false;
     std::string result_folder = "";
     std::string strategy = "";

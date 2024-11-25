@@ -23,7 +23,7 @@ namespace mt_kahypar::dyn {
           }
         }
 
-        auto step_size = static_cast<size_t>(context.dynamic.step_size_pct * (hypergraph.initialNumNodes() - initial_num_enabled_nodes));
+        auto step_size = static_cast<size_t>(context.dynamic.step_size_pct * context.dynamic.max_changes);
 
         if (skipped_changes < step_size) {
           partition_result.valid = false;
