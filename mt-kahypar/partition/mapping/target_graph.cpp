@@ -66,7 +66,7 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
   } else {
     const uint64_t hash_key = computeHash(connectivity_set);
     // We have not precomputed the optimal steiner tree for the connectivity set.
-    #ifdef __linux__
+    #ifdef KAHYPAR_USE_GROWT
     HashTableHandle& handle = _handles.local();
     auto res = handle.find(hash_key);
     if ( likely( res != handle.end() ) ) {

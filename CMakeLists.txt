@@ -392,11 +392,16 @@ if (KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   if(KAHYPAR_X86)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
   endif()
+  if(KAHYPAR_HAS_CRC32 AND KAHYPAR_X86)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
+  endif()
   if(BUILTIN_POPCNT)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
   endif()
-  if(KAHYPAR_HAS_CRC32 AND KAHYPAR_X86)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
+  if(BUILTIN_POPCNT AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # growt requires SSE instructions
+    # TODO: it is not clear whether/why Linux is required for growt
+    target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
   endif()
 endif()
 
