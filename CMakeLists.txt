@@ -444,7 +444,10 @@ add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
 ## Installation                                                ##
 #################################################################
 
-set(CMAKE_INSTALL_PREFIX "/usr/")
+if(UNIX AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # set default installation prefix if not user-defined
+  set(CMAKE_INSTALL_PREFIX "/usr/" CACHE STRING "" FORCE)
+endif()
 
 if(NOT WIN32 AND BUILD_SHARED_LIBS AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   # library installation target
