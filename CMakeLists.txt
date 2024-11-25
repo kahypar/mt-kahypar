@@ -155,7 +155,30 @@ endif()
 
 
 #################################################################
-## Some options translate into compile flags                   ##
+## Platform-specific includes, which interact with options     ##
+#################################################################
+
+if(UNIX)
+  include(CheckIncludeFiles)
+  set(CMAKE_REQUIRED_QUIET TRUE)
+  set(KAHYPAR_REQUIRED_HEADERS "unistd.h" "sys/mman.h" "sys/ioctl.h")
+  check_include_files("${KAHYPAR_REQUIRED_HEADERS}" KAHYPAR_HEADERS_AVAILABLE LANGUAGE CXX)
+  if(NOT KAHYPAR_HEADERS_AVAILABLE)
+    message(FATAL_ERROR "The following system headers are required, but some are not available: ${KAHYPAR_REQUIRED_HEADERS}")
+  endif()
+  set(KAHYPAR_THREAD_PINNING_HEADERS "sched.h")
+  check_include_files("${KAHYPAR_THREAD_PINNING_HEADERS}" KAHYPAR_THREAD_PINNING_IS_POSSIBLE LANGUAGE CXX)
+  if(KAHYPAR_ENABLE_THREAD_PINNING AND NOT KAHYPAR_THREAD_PINNING_IS_POSSIBLE)
+    message(WARNING "Thread pinning disabled since header is not available: ${KAHYPAR_THREAD_PINNING_HEADERS}")
+    set(KAHYPAR_ENABLE_THREAD_PINNING FALSE)
+  endif()
+elseif(NOT WIN32)
+  message(FATAL_ERROR "Only unix-based operating systems and windows are supported.")
+endif()
+
+
+#################################################################
+## Options that translate into compile flags                   ##
 #################################################################
 
 if(KAHYPAR_DISABLE_ASSERTIONS)

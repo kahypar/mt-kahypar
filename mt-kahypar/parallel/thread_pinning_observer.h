@@ -32,10 +32,10 @@
 #include <mutex>
 #include <sstream>
 
-#ifdef __linux__
-#include <sched.h>
-#elif _WIN32
+#ifdef _WIN32
 #include <winbase.h>
+#elif KAHYPAR_ENABLE_THREAD_PINNING
+#include <sched.h>
 #endif
 
 #undef __TBB_ARENA_OBSERVER
@@ -81,7 +81,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(_numa_node, _cpus[0]));
     }
 
-    #if defined(KAHYPAR_ENABLE_THREAD_PINNING) and not defined(__APPLE__)
+    #if defined(KAHYPAR_ENABLE_THREAD_PINNING)
     #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
     #endif
@@ -172,16 +172,16 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
  private:
 
   void pin_thread_to_cpu(const int cpu_id) {
-    #ifndef __APPLE__
-    #if __linux__
+    #if KAHYPAR_ENABLE_THREAD_PINNING
+    #if _WIN32
+    auto mask = (static_cast<DWORD_PTR>(1) << cpu_id);
+    const int err = SetThreadAffinityMask(GetCurrentThread(), mask) == 0;
+    #else
     const size_t size = CPU_ALLOC_SIZE(_num_cpus);
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(cpu_id, &mask);
     const int err = sched_setaffinity(0, size, &mask);
-    #elif _WIN32
-    auto mask = (static_cast<DWORD_PTR>(1) << cpu_id);
-    const int err = SetThreadAffinityMask(GetCurrentThread(), mask) == 0;
     #endif
 
     if (err) {

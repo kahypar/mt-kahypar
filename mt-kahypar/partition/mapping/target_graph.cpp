@@ -80,7 +80,7 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
       handle.insert(hash_key, mst_weight);
       return mst_weight;
     }
-    #elif defined(_WIN32) or defined(__APPLE__)
+    #else
     auto res = _cache.find(hash_key);
     if ( likely ( res != _cache.end() ) ) {
       if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
