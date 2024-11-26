@@ -43,6 +43,7 @@ namespace mt_kahypar::dyn {
           continue;
         }
         std::vector<HyperedgeID> edges = hypergraph_s.incidentEdgesCopy(hn);
+        std::vector<HypernodeID> remove_prio_nodes;
         std::vector<PinChange> removed_pins;
         std::vector<HyperedgeID> removed_edges;
         for ( const HyperedgeID& he : edges ) {
@@ -56,6 +57,17 @@ namespace mt_kahypar::dyn {
             hypergraph_s.removeEdge(he);
             removed_pins.push_back({hn2, he});
             removed_edges.push_back(he);
+            //remove node if it is degree 0
+            if ( hypergraph_s.incidentEdges(hn2).empty() ) {
+              if (!hypergraph_s.nodeIsEnabled(hn2)) {
+                continue;
+              }
+              hypergraph_s.disableHypernodeWithEdges(hn2);
+              if (!context.dynamic.use_final_weight) {
+                hypergraph_s.decrementTotalWeight(hn2);
+              }
+              remove_prio_nodes.push_back(hn2);
+            }
           }
         }
         hypergraph_s.disableHypernodeWithEdges(hn);
@@ -63,6 +75,9 @@ namespace mt_kahypar::dyn {
           hypergraph_s.decrementTotalWeight(hn);
         }
         added_nodes_changes.push_back({{hn}, removed_edges, removed_pins, {}, {}, {}});
+        for ( const HypernodeID& hn2 : remove_prio_nodes ) {
+          added_nodes_changes.push_back({{hn2}, {}, {}, {}, {}, {}});
+        }
       }
 
       // reverse the order of added_nodes_changes
@@ -247,6 +262,9 @@ namespace mt_kahypar::dyn {
     }
 
     void log_km1_live(size_t i, Context& context, DynamicStrategy::PartitionResult result) {
+      if (!result.valid) {
+        return;
+      }
       //TODO change initial_partitioning_size to useful value
       std::string filename = context.dynamic.result_folder + context.dynamic.strategy + "_" + std::to_string(context.dynamic.initial_partitioning_size) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : "");
       std::ofstream file(filename, std::ios_base::app);

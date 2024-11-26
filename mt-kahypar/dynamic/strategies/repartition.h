@@ -37,6 +37,19 @@ namespace mt_kahypar::dyn {
 
         auto partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph, context);
 
+
+        if (!context.dynamic.use_final_weight) {
+          // TODO check if this is necessary
+          ASSERT(context.partition.use_individual_part_weights == false);
+          context.partition.perfect_balance_part_weights.clear();
+          context.partition.perfect_balance_part_weights = std::vector<HypernodeWeight>(context.partition.k, ceil(
+                  hypergraph.totalWeight()
+                  / static_cast<double>(context.partition.k)));
+          context.partition.max_part_weights.clear();
+          context.partition.max_part_weights = std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
+                                                                                                 * context.partition.perfect_balance_part_weights[0]);
+        }
+
         partition_result.km1 = mt_kahypar::metrics::quality(partitioned_hypergraph_s, Objective::km1);
         partition_result.imbalance = mt_kahypar::metrics::imbalance(partitioned_hypergraph_s, context);
         history.push_back(partition_result);

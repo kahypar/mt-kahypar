@@ -25,6 +25,18 @@ namespace mt_kahypar::dyn {
           } (), "Number of removed nodes is not correct.");
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
           repartition_count++;
+
+          if (!context.dynamic.use_final_weight) {
+            // TODO check if this is necessary
+            ASSERT(context.partition.use_individual_part_weights == false);
+            context.partition.perfect_balance_part_weights.clear();
+            context.partition.perfect_balance_part_weights = std::vector<HypernodeWeight>(context.partition.k, ceil(
+                    hypergraph_s.totalWeight()
+                    / static_cast<double>(context.partition.k)));
+            context.partition.max_part_weights.clear();
+            context.partition.max_part_weights = std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
+                                                                                                   * context.partition.perfect_balance_part_weights[0]);
+          }
         }
     public:
 
