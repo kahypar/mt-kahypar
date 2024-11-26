@@ -240,7 +240,8 @@ namespace mt_kahypar {
       }
     }
 
-    if (num_overloaded_blocks > 0) {
+    // only try again if the input was balanced, otherwise we probably can't achieve balance
+    if (num_overloaded_blocks > 0 && num_overloaded_before_round == 0) {
       DBG << "still overloaded" << num_overloaded_blocks << V(num_moves) << V(num_reverted_moves)
           << V(num_overloaded_before_round) << V(num_overloaded_before_first_pass) << "trigger second run";
 
