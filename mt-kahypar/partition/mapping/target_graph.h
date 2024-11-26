@@ -64,6 +64,7 @@ namespace mt_kahypar {
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 class TargetGraph {
 
+  static constexpr HyperedgeWeight kInvalidDistance = std::numeric_limits<HyperedgeWeight>::max() / 3;
   static constexpr size_t INITIAL_HASH_TABLE_CAPACITY = 100000;
   static constexpr size_t MEMORY_LIMIT = 100000000;
 
@@ -255,6 +256,8 @@ class TargetGraph {
   // ! complete graph where each edge {u,v} has a weight equals the shortest path
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
   HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const;
+
+  bool inputGraphIsConnected() const;
 
   #ifdef __linux__
   HashTableHandle getHandle() const {

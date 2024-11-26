@@ -38,13 +38,17 @@ namespace mt_kahypar {
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 void TargetGraph::precomputeDistances(const size_t max_connectivity) {
   ALWAYS_ASSERT(max_connectivity >= 2);
+  if (!inputGraphIsConnected()) {
+    throw InvalidInputException("Target graph must be connected, but it is not.");
+  }
+
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
     throw SystemException(
       "Too much memory requested for precomputing steiner trees "
       "of connectivity sets in the target graph.");
   }
-  _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
+  _distances.assign(num_entries, kInvalidDistance);
   SteinerTree::compute(_graph, max_connectivity, _distances);
 
   _max_precomputed_connectitivty = max_connectivity;
@@ -57,6 +61,7 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
     const size_t idx = index(connectivity_set);
     ASSERT(idx < _distances.size());
     if constexpr ( TRACK_STATS ) ++_stats.precomputed;
+    ASSERT(_distances[idx] < kInvalidDistance);
     return _distances[idx];
   } else {
     const uint64_t hash_key = computeHash(connectivity_set);
@@ -151,6 +156,29 @@ HyperedgeWeight TargetGraph::computeWeightOfMSTOnMetricCompletion(const ds::Stat
   remaining_nodes.reset();
   ASSERT(pq.empty());
   return res;
+}
+
+bool TargetGraph::inputGraphIsConnected() const {
+  // stack-based DFS
+  std::vector<uint8_t> visited;
+  std::vector<HypernodeID> stack;
+  visited.resize(_graph.initialNumNodes(), 0);
+  stack.push_back(0);
+  visited[0] = 1;
+  HypernodeID num_visited = 1;
+  while (!stack.empty() && num_visited < _graph.initialNumNodes()) {
+    HypernodeID hn = stack.back();
+    stack.pop_back();
+    for (HyperedgeID edge: _graph.incidentEdges(hn)) {
+      HypernodeID neighbor = _graph.edgeTarget(edge);
+      if (visited[neighbor] == 0) {
+        stack.push_back(neighbor);
+        visited[neighbor] = 1;
+        num_visited++;
+      }
+    }
+  }
+  return num_visited == _graph.initialNumNodes();
 }
 #endif
 
