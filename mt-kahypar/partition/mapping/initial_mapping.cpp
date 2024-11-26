@@ -176,9 +176,13 @@ void map_to_target_graph(PartitionedHypergraph& communication_hg,
   timer.start_timer("contract_partition", "Contract Partition");
   vec<HypernodeID> mapping(communication_hg.initialNumNodes(), kInvalidHypernode);
   communication_hg.setTargetGraph(&target_graph);
-  communication_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-    mapping[hn] = communication_hg.partID(hn);
-  });
+  if (static_cast<HypernodeID>(context.partition.k) <= communication_hg.initialNumNodes()) {
+    communication_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+      mapping[hn] = communication_hg.partID(hn);
+    });
+  } else {
+    std::iota(mapping.begin(), mapping.end(), 0);
+  }
   // Here, we collapse each block of the communication hypergraph partition into
   // a single node. The contracted hypergraph has exactly k nodes. In the
   // contracted hypergraph node i corresponds to block i of the input
