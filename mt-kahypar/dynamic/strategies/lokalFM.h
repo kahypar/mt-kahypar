@@ -22,6 +22,7 @@ namespace mt_kahypar::dyn {
           repartition_count++;
         }
 
+        //use local_fm to refine partitioned_hypergraph_s
         void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
           GainCachePtr::deleteGainCache(_gain_cache);
@@ -42,6 +43,8 @@ namespace mt_kahypar::dyn {
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
+
+          //compute for each block the number of nodes it is connected to
           std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
           for ( PartitionID p = 0; p < context.partition.k; ++p ) {
             block_connectivities[p] = std::make_tuple(0, p);
@@ -54,6 +57,8 @@ namespace mt_kahypar::dyn {
 
           // sort block_connectivities in descending order
           std::sort(block_connectivities.begin(), block_connectivities.end(), std::greater<std::tuple<int,int>>());
+
+          //Add node to block with highest connectivity if it doesn't violate max_part_weights (imbalance)
           for (const auto& block_connectivity : block_connectivities) {
             if (partitioned_hypergraph_s->partWeight(std::get<1>(block_connectivity)) + hypergraph.nodeWeight(hn) < context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
               partitioned_hypergraph_s->setNodePart(hn, std::get<1>(block_connectivity));
