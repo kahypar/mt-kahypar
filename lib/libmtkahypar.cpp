@@ -246,6 +246,8 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
     for ( size_t i = 0; i < num_pins; ++i ) {
       edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
     }
+    // sort pins so that behavior is equivalent to reading the hypergraph from a file
+    std::sort(edge_vector[he].begin(), edge_vector[he].end());
   });
 
   try {
