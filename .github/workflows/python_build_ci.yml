@@ -1,0 +1,37 @@
+name: Mt-KaHyPar Python Package
+
+on:
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+  mt_kahypar_compiler_version_test:
+    name: Python Package
+    strategy:
+      matrix:
+        compiler: [ { os: ubuntu-24.04 } ]
+                    #  { os: macos-latest, cpp: clang++, cc: clang, install_cmd: clang }  ]
+
+    runs-on: ${{ matrix.compiler.os }}
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install cibuildwheel>=2.22.0 scikit-build-core>=0.10
+
+      - name: Build Python Wheels
+        run: |
+          python3 -m cibuildwheel --output-dir wheels
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.compiler.os }}-${{ strategy.job-index }}
+          path: ./wheels/*.whl
+
+    # TODO: tests

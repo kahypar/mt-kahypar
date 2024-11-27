@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core>=0.3.3", "pybind11"]
+requires = ["scikit-build-core"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -13,7 +13,7 @@ authors = [
   { name = "Lars Gottesbüren", email = "gottesbueren@google.com" },
   { name = "Nikolai Maas", email = "nikolai.maas@kit.edu" },
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 
 [tool.scikit-build]
 wheel.license-files = ["LICENSE"]
