@@ -1,0 +1,36 @@
+[build-system]
+requires = ["scikit-build-core>=0.3.3", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mtkahypar"
+version = "1.5"
+description="Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
+readme = "README.md"
+license.file = "LICENSE"
+authors = [
+  { name = "Tobias Heuer", email = "tobias.heuer@gmx.net" },
+  { name = "Lars Gottesbüren", email = "gottesbueren@google.com" },
+  { name = "Nikolai Maas", email = "nikolai.maas@kit.edu" },
+]
+requires-python = ">=3.6"
+
+[tool.scikit-build]
+wheel.license-files = ["LICENSE"]
+minimum-version = "0.10"
+logging.level = "INFO"
+strict-config = true
+wheel.install-dir = "mtkahypar"
+
+build.targets = ["mtkahypar_python"]
+cmake.build-type = "Release"
+cmake.args = [
+    "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+    "-DKAHYPAR_PYTHON=ON",
+    "-DKAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS=OFF",
+    "-DKAHYPAR_ENABLE_THREAD_PINNING=OFF",
+    "-DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON",
+    "-DKAHYPAR_DOWNLOAD_BOOST=ON",
+    "-DKAHYPAR_DOWNLOAD_TBB=ON",
+]
+install.components = ["MtKaHyPar_Python"]

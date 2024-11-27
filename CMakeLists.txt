@@ -508,3 +508,17 @@ if(KAHYPAR_INSTALL_CLI AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_D
     DEPENDS MtKaHyPar-CLI)
 endif()
 
+if(KAHYPAR_PYTHON AND DEFINED SKBUILD_PROJECT_NAME)
+  # build python wheel
+  if(NOT KAHYPAR_DOWNLOAD_TBB)
+    message(FATAL_ERROR "TBB must be built from source for python wheel.")
+  endif()
+
+  set_target_properties(mtkahypar_python PROPERTIES INSTALL_RPATH "\${ORIGIN}")
+  install(TARGETS mtkahypar_python
+    DESTINATION .
+    COMPONENT MtKaHyPar_Python)
+  install(TARGETS tbb tbbmalloc
+    DESTINATION .
+    COMPONENT MtKaHyPar_Python)
+endif()
