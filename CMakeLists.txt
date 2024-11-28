@@ -307,8 +307,8 @@ if(NOT KAHYPAR_DISABLE_BOOST)
       set(BUILD_SHARED_LIBS OFF)
     endif()
     if(KAHYPAR_DOWNLOAD_BOOST)
-      # Download Boost program options
-      set(BOOST_INCLUDE_LIBRARIES program_options)
+      # Download Boost
+      set(BOOST_INCLUDE_LIBRARIES program_options range dynamic_bitset)
       set(BOOST_ENABLE_CMAKE ON)
       FetchContent_Declare(
         Boost EXCLUDE_FROM_ALL SYSTEM
@@ -316,7 +316,7 @@ if(NOT KAHYPAR_DISABLE_BOOST)
       )
       FetchContent_MakeAvailable(Boost)
     else()
-      # Find Boost program options system library
+      # Find system Boost
       find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
       if(NOT Boost_FOUND)
         message(FATAL_ERROR "
@@ -326,6 +326,14 @@ if(NOT KAHYPAR_DISABLE_BOOST)
       message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
     endif()
   endblock()
+
+  # the downloaded (newer) boost requires to add these targets explicitly
+  if(TARGET Boost::range)
+    target_link_libraries(MtKaHyPar-Include INTERFACE Boost::range)
+  endif()
+  if(TARGET Boost::dynamic_bitset)
+    target_link_libraries(MtKaHyPar-Include INTERFACE Boost::dynamic_bitset)
+  endif()
   target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
 endif()
 
