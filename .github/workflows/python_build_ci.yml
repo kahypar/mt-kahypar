@@ -64,6 +64,8 @@ jobs:
         env:
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD: cp3*-macos*
+          # TBB doesn't compile on older MacOS than 10.13
+          MACOSX_DEPLOYMENT_TARGET: 10.13
         run: |
           # run cmake to create pyproject.toml from pyproject.toml.in
           cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR
