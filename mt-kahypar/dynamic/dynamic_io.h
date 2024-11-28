@@ -30,8 +30,8 @@ namespace mt_kahypar::dyn {
       std::vector<HypernodeID> disabling_order(hypergraph_s.initialNumNodes());
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
-      // Shuffle the order of the nodes using seed using std::random
-      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
+      // Shuffle the order of the nodes using seed using std::mt19937
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::mt19937(context.partition.seed));
 
       size_t start_id = context.dynamic.initial_partitioning_size;
 
@@ -115,7 +115,7 @@ namespace mt_kahypar::dyn {
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
       // Shuffle the order of the edges using seed
-      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::mt19937(context.partition.seed));
 
       std::vector<Change> added_edges_changes;
 
@@ -161,7 +161,7 @@ namespace mt_kahypar::dyn {
       std::iota(disabling_order.begin(), disabling_order.end(), 0);
 
       // Shuffle the order of the pins using seed
-      std::shuffle(disabling_order.begin(), disabling_order.end(), std::default_random_engine(context.partition.seed));
+      std::shuffle(disabling_order.begin(), disabling_order.end(), std::mt19937(context.partition.seed));
 
       std::vector<Change> added_pins_changes;
       std::vector<PinChange> removed_pins;
