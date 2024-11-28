@@ -6,14 +6,48 @@ on:
       - master
 
 jobs:
-  mt_kahypar_compiler_version_test:
-    name: Python Package
-    strategy:
-      matrix:
-        os: [ ubuntu-24.04 ]
-                    #  { os: macos-latest, cpp: clang++, cc: clang, install_cmd: clang }  ]
+  package_linux:
+    name: Python Package Linux
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
+    env:
+      CI_ACTIVE : 1
+      TBB_INSTALL_DIR: /tmp/tbb_build
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+          python3 -m pip install cibuildwheel>=2.22.0 scikit-build-core>=0.10
+
+      - name: Build Python Wheels
+        env:
+          CIBW_ARCHS_LINUX: x86_64 i686 aarch64
+          CIBW_BUILD: cp3*-manylinux*
+        run: |
+          # run cmake to create pyproject.toml from pyproject.toml.in
+          cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR
+          rm -rf configure_python
+          python3 -m cibuildwheel --output-dir wheels
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-ubuntu-24.04
+          path: ./wheels/*.whl
+
+
+  package_macos:
+    name: Python Package MacOS
+
+    runs-on: macos-latest
     env:
       CI_ACTIVE : 1
       TBB_INSTALL_DIR: /tmp/tbb_build
@@ -24,10 +58,13 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+          brew install tbb boost hwloc
           python3 -m pip install cibuildwheel>=2.22.0 scikit-build-core>=0.10
 
       - name: Build Python Wheels
+        env:
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_BUILD: cp3*-macos*
         run: |
           # run cmake to create pyproject.toml from pyproject.toml.in
           cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR
@@ -36,7 +73,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: cibw-wheels-macos
           path: ./wheels/*.whl
-
-    # TODO: tests
