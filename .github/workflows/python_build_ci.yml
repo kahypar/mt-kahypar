@@ -10,10 +10,10 @@ jobs:
     name: Python Package
     strategy:
       matrix:
-        compiler: [ { os: ubuntu-24.04 } ]
+        os: [ ubuntu-24.04 ]
                     #  { os: macos-latest, cpp: clang++, cc: clang, install_cmd: clang }  ]
 
-    runs-on: ${{ matrix.compiler.os }}
+    runs-on: ${{ matrix.os }}
     env:
       CI_ACTIVE : 1
       TBB_INSTALL_DIR: /tmp/tbb_build
@@ -29,13 +29,14 @@ jobs:
 
       - name: Build Python Wheels
         run: |
+          # run cmake to create pyproject.toml from pyproject.toml.in
           cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR
           rm -rf configure_python
           python3 -m cibuildwheel --output-dir wheels
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.compiler.os }}-${{ strategy.job-index }}
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheels/*.whl
 
     # TODO: tests
