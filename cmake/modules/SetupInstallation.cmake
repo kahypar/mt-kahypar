@@ -7,7 +7,6 @@ set_target_properties(mtkahypar PROPERTIES
 set_target_properties(mtkahypar PROPERTIES
     PUBLIC_HEADER "${MTKAHYPAR_INCLUDE_DIR}/mtkahypar.h;${MTKAHYPAR_INCLUDE_DIR}/mtkahypartypes.h")
 
-# TODO: rename to mtkahypar!
 configure_file(cmake/mtkahypar.pc.in mtkahypar.pc @ONLY)
 configure_file(cmake/MtKaHyParConfig.cmake.in MtKaHyParConfig.cmake @ONLY)
 configure_file(cmake/MtKaHyParConfigVersion.cmake.in MtKaHyParConfigVersion.cmake @ONLY)

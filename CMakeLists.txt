@@ -373,8 +373,7 @@ include(DetectHwloc)
 if(NOT TARGET HWLOC::hwloc)
   message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
 endif()
-target_link_libraries(MtKaHyPar-Sources INTERFACE HWLOC::hwloc)
-target_link_libraries(MtKaHyPar-ToolsSources INTERFACE HWLOC::hwloc)
+target_link_libraries(MtKaHyPar-Include INTERFACE HWLOC::hwloc)
 
 
 #################################################################
