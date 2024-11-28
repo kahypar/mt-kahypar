@@ -39,7 +39,6 @@ install.components = ["MtKaHyPar_Python"]
 # cibuildwheel orchestrates the build for different platforms
 [tool.cibuildwheel]
 build = "cp312-manylinux_x86_64"
-enable = []
 
 [tool.cibuildwheel.linux]
 before-build = "yum -y install hwloc-devel"
