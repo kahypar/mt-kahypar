@@ -762,6 +762,10 @@ namespace mt_kahypar {
             ("d-max-changes",
                     po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
     "Maximum number of changes to be processed (defaults to all changes)");
+    dynamic_options.add_options()
+            ("d-reduce-deg-0",
+                    po::value<bool>(&context.dynamic.reduce_deg_0)->value_name("<bool>"),
+    "If true, then the disabling of nodes tries to reduce the number of degree 0 nodes");
     return dynamic_options;
   }
 

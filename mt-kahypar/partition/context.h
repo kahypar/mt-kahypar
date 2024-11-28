@@ -275,6 +275,7 @@ struct DynamicParameters {
     std::string result_folder = "";
     std::string strategy = "";
     double step_size_pct = 0.01;
+    bool reduce_deg_0 = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);

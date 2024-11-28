@@ -57,16 +57,18 @@ namespace mt_kahypar::dyn {
             hypergraph_s.removeEdge(he);
             removed_pins.push_back({hn2, he});
             removed_edges.push_back(he);
-            //remove node if it is degree 0
-            if ( hypergraph_s.incidentEdges(hn2).empty() ) {
-              if (!hypergraph_s.nodeIsEnabled(hn2)) {
-                continue;
+            if (context.dynamic.reduce_deg_0) {
+              //remove node if it is degree 0
+              if (hypergraph_s.incidentEdges(hn2).empty()) {
+                if (!hypergraph_s.nodeIsEnabled(hn2)) {
+                  continue;
+                }
+                hypergraph_s.disableHypernodeWithEdges(hn2);
+                if (!context.dynamic.use_final_weight) {
+                  hypergraph_s.decrementTotalWeight(hn2);
+                }
+                remove_prio_nodes.push_back(hn2);
               }
-              hypergraph_s.disableHypernodeWithEdges(hn2);
-              if (!context.dynamic.use_final_weight) {
-                hypergraph_s.decrementTotalWeight(hn2);
-              }
-              remove_prio_nodes.push_back(hn2);
             }
           }
         }
