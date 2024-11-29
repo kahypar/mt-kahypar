@@ -30,7 +30,7 @@ jobs:
 
       - name: Build Python Wheels
         env:
-          CIBW_ARCHS_LINUX: x86_64 i686 aarch64
+          CIBW_ARCHS_LINUX: x86_64 aarch64
           CIBW_BUILD: cp3*-manylinux*
         run: |
           # run cmake to create pyproject.toml from pyproject.toml.in
