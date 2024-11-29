@@ -34,6 +34,10 @@
 #include <vector>
 #include <iostream>
 
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include <hwloc.h>
+#endif
+
 #include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
 
@@ -60,21 +64,26 @@ using namespace mt_kahypar;
 namespace {
   void initialize(const size_t num_threads) {
     size_t P = num_threads;
-    size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
-    if ( num_available_cpus < num_threads ) {
-      WARNING("There are currently only" << num_available_cpus << "cpus available."
-        << "Setting number of threads from" << num_threads
-        << "to" << num_available_cpus);
-      P = num_available_cpus;
-    }
+    #ifndef KAHYPAR_DISABLE_HWLOC
+      size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
+      if ( num_available_cpus < num_threads ) {
+        WARNING("There are currently only" << num_available_cpus << "cpus available."
+          << "Setting number of threads from" << num_threads
+          << "to" << num_available_cpus);
+        P = num_available_cpus;
+      }
+    #endif
 
     // Initialize TBB task arenas on numa nodes
     mt_kahypar::TBBInitializer::instance(P);
-    // We set the membind policy to interleaved allocations in order to
-    // distribute allocations evenly across NUMA nodes
-    hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
-    mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-    hwloc_bitmap_free(cpuset);
+
+    #ifndef KAHYPAR_DISABLE_HWLOC
+      // We set the membind policy to interleaved allocations in order to
+      // distribute allocations evenly across NUMA nodes
+      hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
+      mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+      hwloc_bitmap_free(cpuset);
+    #endif
 
     register_algorithms_and_policies();
   }

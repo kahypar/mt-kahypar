@@ -92,6 +92,7 @@ option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mt
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
 option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
 option(KAHYPAR_DISABLE_BOOST "Exclude components requiring Boost::program_options. Results in no binary target and the library interfaces not being able to load configuration files/presets." OFF)
+option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact performance on NUMA platforms." OFF)
 
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
@@ -155,8 +156,13 @@ endif()
 
 
 #################################################################
-## Platform compatibility checks, which interact with options  ##
+## Compatibility checks which interact with options            ##
 #################################################################
+
+if(KAHYPAR_ENABLE_THREAD_PINNING AND KAHYPAR_DISABLE_HWLOC)
+  message(WARNING "Thread pinning disabled since hwloc library is disabled.")
+  set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
+endif()
 
 if(UNIX)
   include(CheckIncludeFiles)
@@ -239,6 +245,10 @@ endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
 if(KAHYPAR_DISABLE_BOOST)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_BOOST)
+endif()
+
+if(KAHYPAR_DISABLE_HWLOC)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_HWLOC)
 endif()
 
 
@@ -369,11 +379,13 @@ target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
 
 
 # Find HWLOC Library
-include(DetectHwloc)
-if(NOT TARGET HWLOC::hwloc)
-  message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
+if(NOT KAHYPAR_DISABLE_HWLOC)
+  include(DetectHwloc)
+  if(NOT TARGET HWLOC::hwloc)
+    message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
+  endif()
+  target_link_libraries(MtKaHyPar-Include INTERFACE HWLOC::hwloc)
 endif()
-target_link_libraries(MtKaHyPar-Include INTERFACE HWLOC::hwloc)
 
 
 #################################################################

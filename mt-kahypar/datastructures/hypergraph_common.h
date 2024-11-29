@@ -33,15 +33,22 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/datastructures/array.h"
 
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include "mt-kahypar/parallel/hardware_topology.h"
+#endif
+
 namespace mt_kahypar {
 
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
+#ifndef KAHYPAR_DISABLE_HWLOC
+  using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+  using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
+#else
+  using TBBInitializer = mt_kahypar::parallel::SimpleTBBInitializer;
+#endif
 
 #define UI64(X) static_cast<uint64_t>(X)
 

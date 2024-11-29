@@ -27,7 +27,10 @@
 
 #pragma once
 
-#include <hwloc.h>
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include <hwloc.h>
+#endif
+
 #include <mutex>
 #include <memory>
 #include <shared_mutex>
@@ -42,6 +45,8 @@
 
 namespace mt_kahypar {
 namespace parallel {
+
+#ifndef KAHYPAR_DISABLE_HWLOC
 /**
  * Creates number of NUMA nodes TBB task arenas. Each task arena is pinned
  * to a unique NUMA node. Each task arena can then be used to execute tasks
@@ -56,6 +61,8 @@ class TBBInitializer {
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
 
  public:
+  static constexpr bool provides_numa_information = true;
+
   TBBInitializer(const TBBInitializer&) = delete;
   TBBInitializer & operator= (const TBBInitializer &) = delete;
 
@@ -145,5 +152,45 @@ class TBBInitializer {
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
+
+#else
+
+class SimpleTBBInitializer {
+
+ public:
+  static constexpr bool provides_numa_information = false;
+
+  SimpleTBBInitializer(const SimpleTBBInitializer&) = delete;
+  SimpleTBBInitializer & operator= (const SimpleTBBInitializer &) = delete;
+
+  SimpleTBBInitializer(SimpleTBBInitializer&&) = delete;
+  SimpleTBBInitializer & operator= (SimpleTBBInitializer &&) = delete;
+
+  static SimpleTBBInitializer& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
+    static SimpleTBBInitializer instance(num_threads);
+    return instance;
+  }
+
+  int num_used_numa_nodes() const {
+    return 1;
+  }
+
+  int total_number_of_threads() const {
+    return _num_threads;
+  }
+
+  void terminate() { }
+
+ private:
+  explicit SimpleTBBInitializer(const int num_threads) :
+    _num_threads(num_threads),
+    _gc(tbb::global_control::max_allowed_parallelism, num_threads) { }
+
+  int _num_threads;
+  tbb::global_control _gc;
+};
+#endif
+
+
 }  // namespace parallel
 }  // namespace mt_kahypar

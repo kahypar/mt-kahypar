@@ -79,22 +79,26 @@ int main(int argc, char* argv[]) {
       context.shared_memory.shuffle_block_size);
   }
 
-  size_t num_available_cpus = HardwareTopology::instance().num_cpus();
-  if ( num_available_cpus < context.shared_memory.num_threads ) {
-    WARNING("There are currently only" << num_available_cpus << "cpus available."
-      << "Setting number of threads from" << context.shared_memory.num_threads
-      << "to" << num_available_cpus);
-    context.shared_memory.num_threads = num_available_cpus;
-  }
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+    if ( num_available_cpus < context.shared_memory.num_threads ) {
+      WARNING("There are currently only" << num_available_cpus << "cpus available."
+        << "Setting number of threads from" << context.shared_memory.num_threads
+        << "to" << num_available_cpus);
+      context.shared_memory.num_threads = num_available_cpus;
+    }
+  #endif
 
   // Initialize TBB task arenas on numa nodes
   TBBInitializer::instance(context.shared_memory.num_threads);
 
-  // We set the membind policy to interleaved allocations in order to
-  // distribute allocations evenly across NUMA nodes
-  hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
-  parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-  hwloc_bitmap_free(cpuset);
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    // We set the membind policy to interleaved allocations in order to
+    // distribute allocations evenly across NUMA nodes
+    hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
+    parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+    hwloc_bitmap_free(cpuset);
+  #endif
 
   // Read Hypergraph
   utils::Timer& timer =
