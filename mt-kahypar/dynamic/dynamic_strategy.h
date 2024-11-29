@@ -72,16 +72,16 @@ namespace mt_kahypar::dyn {
           // copy the hypergraph to make sure we don't modify the original
           ds::StaticHypergraph hypergraph_copy = hypergraph.copy();
 
-          // Initialize Memory Pool
-          //TODO: do we have to repeat this for every partitioning?
-          register_memory_pool(hypergraph_copy, context);
+//          // Initialize Memory Pool
+//          //TODO: do we have to repeat this for every partitioning?
+//          register_memory_pool(hypergraph_copy, context);
 
           mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
                   PartitionerFacade::partition(utils::hypergraph_cast(hypergraph_copy), context);
 
-          // TODO: Do we need to free memory chunks every time?
-          parallel::MemoryPool::instance().free_memory_chunks();
-          TBBInitializer::instance().terminate();
+//          // TODO: Do we need to free memory chunks every time?
+//          parallel::MemoryPool::instance().free_memory_chunks();
+//          TBBInitializer::instance().terminate();
 
 
           auto partitioned_hypergraph_s = std::move(utils::cast<ds::PartitionedHypergraph<typename ds::StaticHypergraph>>(partitioned_hypergraph));
