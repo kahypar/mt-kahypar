@@ -104,7 +104,7 @@ bool ParallelLocalMovingModularity<Hypergraph>::localMoving(Graph<Hypergraph>& g
   } else {
     auto& nodes = permutation.permutation;
     nodes.resize(graph.numNodes());
-    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+    tbb::parallel_for(ID(0), static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       nodes[u] = u;
       communities[u] = u;
       _cluster_volumes[u].store(graph.nodeVolume(u), std::memory_order_relaxed);
@@ -346,7 +346,7 @@ template<class Hypergraph>
 void ParallelLocalMovingModularity<Hypergraph>::initializeClusterVolumes(const Graph<Hypergraph>& graph, ds::Clustering& communities) {
   _reciprocal_total_volume = 1.0 / graph.totalVolume();
   _vol_multiplier_div_by_node_vol =  _reciprocal_total_volume;
-  tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+  tbb::parallel_for(ID(0), static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
     const PartitionID community_id = communities[u];
     _cluster_volumes[community_id] += graph.nodeVolume(u);
   });

@@ -411,7 +411,7 @@ namespace mt_kahypar {
         last_recalc_round.assign(phg.initialNumEdges(), CAtomic<uint32_t>(0));
       }
     } else{
-      tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
+      tbb::parallel_for(ID(0), phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     }
   }
 

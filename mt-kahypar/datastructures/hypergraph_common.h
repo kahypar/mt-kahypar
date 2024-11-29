@@ -58,18 +58,20 @@ using RatingType = double;
 #define ID(X) static_cast<uint64_t>(X)
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
+// louvain graph
+using NodeID = uint64_t;
 #else
 #define ID(X) static_cast<uint32_t>(X)
 using HypernodeID = uint32_t;
 using HyperedgeID = uint32_t;
+// louvain graph
+using NodeID = uint32_t;
 #endif
 using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
-// Graph Types
-using NodeID = uint32_t;
 using ArcWeight = double;
 
 struct Arc {

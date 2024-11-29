@@ -78,6 +78,31 @@ jobs:
             exit 1
           fi
 
+  mt_kahypar_64bit_test:
+    name: Ubuntu 64 bit Build
+    runs-on: ubuntu-24.04
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev gcc-14 g++-14
+
+      - name: Install Mt-KaHyPar
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_USE_64_BIT_IDS=ON
+          make -j2 MtKaHyPar
+
   mt_kahypar_test_suite:
     name: Test Suite
     runs-on: ubuntu-22.04  # note: stay on 22.04 since lcov behaves weird on 24.04

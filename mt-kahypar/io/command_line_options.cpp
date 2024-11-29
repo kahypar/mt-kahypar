@@ -131,7 +131,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.partition.perform_parallel_recursion_in_deep_multilevel)->value_name("<bool>")->default_value(true),
              "If true, then we perform parallel recursion within the deep multilevel scheme.")
             ("smallest-maxnet-threshold",
-            po::value<uint32_t>(&context.partition.smallest_large_he_size_threshold)->value_name("<uint32_t>"),
+            po::value<HypernodeID>(&context.partition.smallest_large_he_size_threshold)->value_name("<int>"),
             "No hyperedge whose size is smaller than this threshold is removed in the large hyperedge removal step (see maxnet-removal-factor)")
             ("maxnet-removal-factor",
              po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name(
@@ -572,8 +572,8 @@ namespace mt_kahypar {
                       &context.refinement.flows.alpha))->value_name("<double>"),
              "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
             ((initial_partitioning ? "i-r-flow-max-num-pins" : "r-flow-max-num-pins"),
-             po::value<uint32_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_num_pins :
-                      &context.refinement.flows.max_num_pins))->value_name("<uint32_t>"),
+             po::value<HypernodeID>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_num_pins :
+                      &context.refinement.flows.max_num_pins))->value_name("<int>"),
              "Maximum number of pins a flow problem is allowed to contain")
             ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.find_most_balanced_cut :
