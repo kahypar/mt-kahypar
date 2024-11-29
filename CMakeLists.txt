@@ -151,7 +151,7 @@ if(CMAKE_BUILD_TYPE)
   else()
     set(KAHYPAR_LINKING_TYPE "Static")
   endif()
-  message(STATUS "====== ${KAHYPAR_BUILD_DESCRIPTION} | Tests ${KAHYPAR_TESTING_ENABLED} | ${KAHYPAR_LINKING_TYPE} Linking ======")
+  message(STATUS "Mt-KaHyPar: ${KAHYPAR_BUILD_DESCRIPTION}, Tests ${KAHYPAR_TESTING_ENABLED}, ${KAHYPAR_LINKING_TYPE} Linking")
 endif()
 
 
