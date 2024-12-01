@@ -753,7 +753,6 @@ namespace mt_kahypar {
             ("d-use-final-weight",
                     po::value<bool>(&context.dynamic.use_final_weight)->value_name("<bool>"),
     "If true, then the final sum of the weights of the nodes is used for imbalance calculation instead of using only the currently activated");
-    "Strategy for dynamic partitioning:\n");
     dynamic_options.add_options()
             ("d-step-size-pct",
                     po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
