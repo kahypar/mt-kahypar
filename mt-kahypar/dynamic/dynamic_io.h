@@ -295,10 +295,11 @@ namespace mt_kahypar::dyn {
       file.close();
     }
 
-    void initOutputFile(Context& context, DynamicStrategy* strategy) {
+    void initOutputFile(Context& context) {
       if (context.dynamic.server) {
         return;
       }
+      generateFileName(context);
       std::string filename = context.dynamic.output_path;
       std::ofstream file(filename);
       if (!file.is_open()) {

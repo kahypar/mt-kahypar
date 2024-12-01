@@ -30,7 +30,7 @@ namespace mt_kahypar::dyn {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
 
-      initOutputFile(context, strategy);
+      initOutputFile(context);
 
       try {
 
