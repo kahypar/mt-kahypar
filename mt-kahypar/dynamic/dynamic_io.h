@@ -213,6 +213,10 @@ namespace mt_kahypar::dyn {
 
     std::tuple<std::vector<Change>, mt_kahypar_hypergraph_t> generateChanges(Context& context) {
 
+      context.partition.instance_type = InstanceType::hypergraph;
+      context.partition.objective = Objective::km1;
+      context.partition.gain_policy = GainPolicy::km1;
+
       // Read Hypergraph
       mt_kahypar_hypergraph_t hypergraph = io::readInputFile(
               context.partition.graph_filename, context.partition.preset_type,

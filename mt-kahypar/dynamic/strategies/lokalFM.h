@@ -11,7 +11,6 @@ namespace mt_kahypar::dyn {
 
     private:
         std::optional<ds::PartitionedHypergraph<ds::StaticHypergraph>> partitioned_hypergraph_s;
-        mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph;
         int repartition_count = 0;
         gain_cache_t _gain_cache;
         std::unique_ptr<IRefiner> _fm;
@@ -19,27 +18,33 @@ namespace mt_kahypar::dyn {
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
+          _gain_cache = GainCachePtr::constructGainCache(context);
+          _rebalancer = RebalancerFactory::getInstance().createObject(
+                  context.refinement.rebalancer, hypergraph_s.initialNumNodes(), context, _gain_cache);
+
+          _fm = FMFactory::getInstance().createObject(
+                  context.refinement.fm.algorithm,
+                  hypergraph_s.initialNumNodes(), hypergraph_s.initialNumEdges(), context, _gain_cache, *_rebalancer);
           repartition_count++;
         }
 
         //use local_fm to refine partitioned_hypergraph_s
         void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
-          GainCachePtr::deleteGainCache(_gain_cache);
+          //GainCachePtr::deleteGainCache(_gain_cache);
+          //TODO maybe
+          GainCachePtr::resetGainCache(_gain_cache);
 
-          _gain_cache = GainCachePtr::constructGainCache(context);
-          _rebalancer = RebalancerFactory::getInstance().createObject(
-                  context.refinement.rebalancer, hypergraph.initialNumNodes(), context, _gain_cache);
+//          _gain_cache = GainCachePtr::constructGainCache(context);
 
-          _fm = FMFactory::getInstance().createObject(
-                  context.refinement.fm.algorithm,
-                  hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, _gain_cache, *_rebalancer);
+          mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
           _fm->initialize(partitioned_hypergraph);
 
-          Metrics best_Metrics = {0, 0};
+          Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
+                                  mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
-          _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, context.refinement.fm.time_limit_factor);
+          _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, std::numeric_limits<double>::max());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
