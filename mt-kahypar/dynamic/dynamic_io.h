@@ -1,10 +1,26 @@
 #pragma once
 
 #include <mt-kahypar/io/hypergraph_factory.h>
+#include <filesystem>
 #include "mt-kahypar/dynamic/dynamic_datastructures.h"
 #include "mt-kahypar/dynamic/dynamic_strategy.h"
 
 namespace mt_kahypar::dyn {
+
+    void generateFileName(Context& context) {
+      context.dynamic.output_path = context.dynamic.result_folder;
+      // add folder for graph name
+      context.dynamic.output_path += context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of("/\\") + 1);
+      context.dynamic.output_path += "/";
+      // create folder
+      std::filesystem::create_directory(context.dynamic.output_path);
+      // add file name
+      context.dynamic.output_path += context.dynamic.getOutputFileName();
+      // add
+      context.dynamic.output_path += ".csv";
+      // reset file
+      std::ofstream file(context.dynamic.output_path);
+    }
 
     void print_progress_bar(size_t i, size_t total, const std::vector<DynamicStrategy::PartitionResult>* history) {
       // clear the line
@@ -252,8 +268,7 @@ namespace mt_kahypar::dyn {
     }
 
     void log_km1(Context& context, const std::vector<DynamicStrategy::PartitionResult>* history) {
-      //TODO change initial_partitioning_size to useful value
-      std::string filename = context.dynamic.result_folder + context.dynamic.strategy + "_" + std::to_string(context.dynamic.initial_partitioning_size) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : "");
+      std::string filename = context.dynamic.output_path;
       std::ofstream file(filename);
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
@@ -271,13 +286,43 @@ namespace mt_kahypar::dyn {
       if (!result.valid) {
         return;
       }
-      //TODO change initial_partitioning_size to useful value
-      std::string filename = context.dynamic.result_folder + context.dynamic.strategy + "_" + std::to_string(context.dynamic.initial_partitioning_size) + "_" + std::to_string(context.partition.k) + "k" + (context.dynamic.use_final_weight ? "_final_weight" : "");
+      std::string filename = context.dynamic.output_path;
       std::ofstream file(filename, std::ios_base::app);
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
       file << i << ", " << result.km1 << ", " << result.imbalance << std::endl;
+      file.close();
+    }
+
+    void initOutputFile(Context& context, DynamicStrategy* strategy) {
+      if (context.dynamic.server) {
+        return;
+      }
+      std::string filename = context.dynamic.output_path;
+      std::ofstream file(filename);
+      if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+      }
+      file << "iteration, km1, imbalance" << std::endl;
+      file.close();
+    }
+
+    void generateErrorFile(Context& context, DynamicStrategy* strategy, std::exception& e) {
+      std::string filename = context.dynamic.output_path;
+      std::ofstream file(filename);
+      if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+      }
+      file << "Error: " << e.what() << std::endl;
+
+      //print the history length
+      file << "History length: " << strategy->history.size() << std::endl;
+
+      // print the last result
+      if (!strategy->history.empty()) {
+        file << "Last result: " << strategy->history.back().km1 << ", " << strategy->history.back().imbalance << std::endl;
+      }
       file.close();
     }
 }

@@ -738,34 +738,42 @@ namespace mt_kahypar {
                                                           const int num_columns) {
     po::options_description dynamic_options("Dynamic Options", num_columns);
     dynamic_options.add_options()
+            ("d-strategy",
+             po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
+              "Strategy for dynamic partitioning");
+    dynamic_options.add_options()
             ("d-initial-partitioning-size",
                     po::value<size_t>(&context.dynamic.initial_partitioning_size)->value_name("<size_t>"),
-
             "Number of Nodes to be partitioned before dynamically adding Nodes");
+    dynamic_options.add_options()
+            ("d-max-changes",
+             po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
+             "Maximum number of changes to be processed (defaults to all changes)");
     dynamic_options.add_options()
             ("d-use-final-weight",
                     po::value<bool>(&context.dynamic.use_final_weight)->value_name("<bool>"),
     "If true, then the final sum of the weights of the nodes is used for imbalance calculation instead of using only the currently activated");
-    dynamic_options.add_options()
-            ("d-result-folder",
-                    po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
-    "Folder to store the data generated during the dynamic partitioning");
-    dynamic_options.add_options()
-            ("d-strategy",
-                    po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
     "Strategy for dynamic partitioning:\n");
     dynamic_options.add_options()
             ("d-step-size-pct",
                     po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
     "Percentage of the changes to be processed in each step");
     dynamic_options.add_options()
-            ("d-max-changes",
-                    po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
-    "Maximum number of changes to be processed (defaults to all changes)");
-    dynamic_options.add_options()
             ("d-reduce-deg-0",
                     po::value<bool>(&context.dynamic.reduce_deg_0)->value_name("<bool>"),
     "If true, then the disabling of nodes tries to reduce the number of degree 0 nodes");
+    dynamic_options.add_options()
+            ("d-result-folder",
+             po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
+             "Folder to store the data generated during the dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-custom-output-file",
+                    po::value<std::string>(&context.dynamic.custom_output_file)->value_name("<string>"),
+    "Custom file name ending to be used for dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-server",
+             po::value<bool>(&context.dynamic.server)->value_name("<bool>"),
+             "If true, then the partitioner is started in server mode");
     return dynamic_options;
   }
 

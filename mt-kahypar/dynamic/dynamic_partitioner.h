@@ -30,23 +30,33 @@ namespace mt_kahypar::dyn {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
 
-      std::cout << "Processing " << context.dynamic.max_changes << " changes" << std::endl;
+      initOutputFile(context, strategy);
 
-      for (size_t i = 0; i < context.dynamic.max_changes; ++i) {
-        Change& change = changes[i];
-        strategy->partition(hypergraph_s, context, change);
-        if (*(&strategy->history.back().valid)) {
-          print_progress_bar(i, context.dynamic.max_changes, &strategy->history);
+      try {
+
+        std::cout << "Processing " << context.dynamic.max_changes << " changes" << std::endl;
+
+        for (size_t i = 0; i < context.dynamic.max_changes; ++i) {
+          Change& change = changes[i];
+          strategy->partition(hypergraph_s, context, change);
+          if (!context.dynamic.server && *(&strategy->history.back().valid)) {
+            print_progress_bar(i, context.dynamic.max_changes, &strategy->history);
+          }
+          log_km1_live(i, context, strategy->history.back());
         }
-        log_km1_live(i, context, strategy->history.back());
-      }
 
-      std::cout << std::endl;
+        std::cout << std::endl;
 
-      strategy->printFinalStats(hypergraph_s, context);
-      //log_km1(context, &strategy->history);
+        strategy->printFinalStats(hypergraph_s, context);
+        //log_km1(context, &strategy->history);
 
-      utils::delete_hypergraph(hypergraph);
+        utils::delete_hypergraph(hypergraph);
+
+        } catch (std::exception& e) {
+          std::cerr << "Error: " << e.what() << std::endl;
+          generateErrorFile(context, strategy, e);
+          exit(1);
+        }
     }
 }
 

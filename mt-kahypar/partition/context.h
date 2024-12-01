@@ -269,13 +269,31 @@ struct SharedMemoryParameters {
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 struct DynamicParameters {
+    std::string strategy = "";
     size_t initial_partitioning_size = 0;
     size_t max_changes = -1;
     bool use_final_weight = false;
-    std::string result_folder = "";
-    std::string strategy = "";
     double step_size_pct = 0.01;
     bool reduce_deg_0 = false;
+    std::string custom_output_file = "";
+    // not included in the output file ending
+    std::string result_folder = "";
+    bool server = false;
+    // not a parameter
+    std::string output_path = "";
+
+    // generate file endings
+    [[nodiscard]] std::string getOutputFileName() const {
+        std::string file_name = strategy + "_";
+        file_name += std::to_string(initial_partitioning_size) + "_";
+        file_name += std::to_string(max_changes) + "_";
+        file_name += std::to_string(use_final_weight) + "_";
+        // round to 2 decimal places
+        file_name += std::to_string((int)(step_size_pct * 100)) + "_";
+        file_name += std::to_string(reduce_deg_0) + "_";
+        file_name += custom_output_file;
+        return file_name;
+    }
 };
 
 std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);
