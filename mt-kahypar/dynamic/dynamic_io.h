@@ -20,6 +20,7 @@ namespace mt_kahypar::dyn {
       context.dynamic.output_path += ".csv";
       // reset file
       std::ofstream file(context.dynamic.output_path);
+      std::cout << "Output file: " << context.dynamic.output_path << std::endl;
     }
 
     void print_progress_bar(size_t i, size_t total, const std::vector<DynamicStrategy::PartitionResult>* history) {
