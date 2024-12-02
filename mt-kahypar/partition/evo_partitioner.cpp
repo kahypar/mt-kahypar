@@ -140,7 +140,7 @@ namespace mt_kahypar {
             auto time_elapsed = now - start;
             history += "" + std::to_string(now.count()) + ", Initial, " + std::to_string(fitness) + "\n";
             timer.stop_timer("evolutionary");
-            int factor = (context.refinement.flows.algorithm == FlowAlgorithm::do_nothing || !context.evolutionary.randomized_flows) ? 20 : 6;
+            int factor = (context.refinement.flows.algorithm == FlowAlgorithm::do_nothing) ? 32 : (context.evolutionary.randomized_flows ? 6 : 20);
             context.partition.time_limit = (factor * std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count()) / 1000;
             timelimit = context.partition.time_limit;
             duration = std::chrono::seconds(timelimit);
