@@ -290,7 +290,7 @@ struct DynamicParameters {
         file_name += std::to_string(use_final_weight) + "_";
         // round to 2 decimal places
         file_name += std::to_string((int)(step_size_pct * 100)) + "_";
-        file_name += std::to_string(reduce_deg_0) + "_";
+        file_name += std::to_string(reduce_deg_0);
         file_name += custom_output_file;
         return file_name;
     }

@@ -15,6 +15,7 @@ namespace mt_kahypar::dyn {
       // create folder
       std::filesystem::create_directory(context.dynamic.output_path);
       // add file name
+      context.dynamic.output_path += std::to_string(context.partition.k) + "k_";
       context.dynamic.output_path += context.dynamic.getOutputFileName();
       // add
       context.dynamic.output_path += ".csv";
@@ -306,7 +307,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "iteration, km1, imbalance" << std::endl;
+      file << "change, km1, imbalance" << std::endl;
       file.close();
     }
 
