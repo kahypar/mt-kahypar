@@ -23,9 +23,10 @@ class EvoPartitioner {
                                     TargetGraph* target_graph,
                                     Population& population);
     static const Individual & generateIndividual(const Hypergraph& hg,
-                                            Context& context,
+                                            const Context& context,
                                             TargetGraph* target_graph,
-                                            Population& population);
+                                            Population& population,
+                                            bool randomized_flows = false);
     static std::string performEvolution(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,

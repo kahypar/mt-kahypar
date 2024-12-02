@@ -27,12 +27,6 @@ namespace mt_kahypar {
 
         // ################## PREPROCESSING ##################
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-        timer.start_timer("preprocessing", "Preprocessing");
-        /*DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
-        LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-        preprocess(hypergraph, context, target_graph);
-        sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);*/
-        timer.stop_timer("preprocessing");
 
         Population best_population;
         std::string history;
@@ -43,9 +37,6 @@ namespace mt_kahypar {
 
             history += performEvolution(hypergraph, context, target_graph, population);
             history += "\nRUN COMPLETED\n";
-            // if (best_population.size() == 0 || best_population.bestFitness() > population.bestFitness()) {
-            //     best_population = std::move(population);
-            // }
             best_population.merge(population, context.evolutionary.output_size);
         }
 
@@ -141,15 +132,26 @@ namespace mt_kahypar {
         auto time_elapsed = now - start;
         auto duration = std::chrono::seconds(timelimit);
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
-        // INITIAL POPULATION
-        if (context.evolutionary.dynamic_population_size) {
+
+        if (context.evolutionary.dynamic_time_limit) {
+            timer.start_timer("evolutionary", "Evolutionary");
+            auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
+            now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            auto time_elapsed = now - start;
+            history += "" + std::to_string(now.count()) + ", Initial, " + std::to_string(fitness) + "\n";
+            timer.stop_timer("evolutionary");
+            context.partition.time_limit = ((context.evolutionary.randomized_flows ? 6 : 20) * std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count()) / 1000;
+            timelimit = context.partition.time_limit;
+            duration = std::chrono::seconds(timelimit);
+
+            LOG << V(timelimit);
+        } else if (context.evolutionary.dynamic_population_size) {
             timer.start_timer("evolutionary", "Evolutionary");
             auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             history += "" + std::to_string(now.count()) + ", Initial, " + std::to_string(fitness) + "\n";
             timer.stop_timer("evolutionary");
 
-            ++context.evolutionary.iteration;
             int dynamic_population_size = std::round(context.evolutionary.dynamic_population_amount_of_time
                                                     * context.partition.time_limit
                                                     / timer.get("evolutionary"));
@@ -159,30 +161,42 @@ namespace mt_kahypar {
             LOG << context.evolutionary.population_size;
             LOG << population;
         }
-        HyperedgeWeight best = std::numeric_limits<HyperedgeWeight>::max();
-        int iteration = 0;
-        while (population.size() < context.evolutionary.population_size && 
-            time_elapsed <= duration) {
-            ++context.evolutionary.iteration;
-            timer.start_timer("evolutionary", "Evolutionary");
-            auto cur = generateIndividual(hg, context, target_graph, population).fitness();
-            timer.stop_timer("evolutionary");
-            now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            if (iteration == 0 || (cur < best)) {
-                best = cur;
-                history += "" + std::to_string(now.count()) + ", Repetition, " + std::to_string(cur) + "\n";
+        size_t initial_size = population.size();
+        std::atomic<int> iteration = 0;
+        const int parallelism = 4;
+        timer.start_timer("evolutionary", "Evolutionary");
+        tbb::parallel_for(0, std::min<int>(parallelism, context.shared_memory.num_threads), [&](const int) {
+            auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            auto time_elapsed = now - start;
+            auto duration = std::chrono::seconds(timelimit);
+            size_t new_size = initial_size + iteration.fetch_add(1);
+            Context evo_context(context);
+            evo_context.type = ContextType::main;
+            evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+            while (new_size < context.evolutionary.population_size && 
+                time_elapsed <= duration) {
+                generateIndividual(hg, evo_context, target_graph, population, evo_context.evolutionary.randomized_flows).fitness();
+                now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                time_elapsed = now - start;
+                new_size = initial_size + iteration.fetch_add(1);
             }
-            iteration++;
-            time_elapsed = now - start;
-        }
+        });
+        context.evolutionary.iteration += population.size();
+        timer.stop_timer("evolutionary");
         context.evolutionary.time_elapsed = time_elapsed;
         context.partition.verbose_output = true;
         return history;
     }
 
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
+    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, const Context& input_context, TargetGraph* target_graph,
+                                                                      Population& population, bool randomized_flows) {
+        Context context = input_context;
         Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+        if (randomized_flows && utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID) < 0.8) {
+            context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+        }
+
         DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
         preprocess(hypergraph, context, target_graph);
@@ -205,6 +219,7 @@ namespace mt_kahypar {
         forceFixedVertexAssignment(partitioned_hypergraph, context);
 
         Individual individual(partitioned_hypergraph, context);
+        std::lock_guard<std::mutex> lock = population.getLock();
         return population.addStartingIndividual(individual, context);
     } 
 
@@ -379,41 +394,47 @@ namespace mt_kahypar {
         auto duration = std::chrono::seconds(timelimit) - context.evolutionary.time_elapsed;
         std::atomic<bool> stop_flag(false);
         timer.start_timer("evolutionary", "Evolutionary");
-        while(!stop_flag) {
-            auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            if (now - time_start >= duration) {
-                stop_flag = true;
-                break;
+        const int parallelism = 4;
+        tbb::parallel_for(0, std::min<int>(parallelism, context.shared_memory.num_threads), [&](const int) {
+            while(!stop_flag) {
+                auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                if (now - time_start >= duration) {
+                    stop_flag = true;
+                    break;
+                }
+                Context evo_context(context);
+                evo_context.type = ContextType::main;
+                evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+                EvoDecision decision = decideNextMove(context);
+                EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy(parallel_tag_t{});
+                if (context.evolutionary.randomized_flows && utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID) < 0.65) {
+                    evo_context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+                }
+                switch (decision) {
+                    case EvoDecision::mutation: 
+                        {
+                            std::string h = performMutation(hg_copy, evo_context, target_graph, population);
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            history += h;
+                            mutations++;
+                            ++context.evolutionary.iteration;
+                            break;
+                        }
+                    case EvoDecision::combine: 
+                        {
+                            std::string h = performCombine(hg_copy, evo_context, target_graph, population);
+                            combinations++;
+                            std::lock_guard<std::mutex> lock(_history_mutex);
+                            history += h;
+                            ++context.evolutionary.iteration;
+                            break;
+                        }
+                    default:
+                        LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
+                        std::exit(EXIT_FAILURE);
+                }
             }
-            Context evo_context(context);
-            evo_context.type = ContextType::main;
-            evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-            EvoDecision decision = decideNextMove(context);
-            EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy();
-            switch (decision) {
-                case EvoDecision::mutation: 
-                    {
-                        std::string h = performMutation(hg_copy, evo_context, target_graph, population);
-                        std::lock_guard<std::mutex> lock(_history_mutex);
-                        history += h;
-                        mutations++;
-                        ++context.evolutionary.iteration;
-                        break;
-                    }
-                case EvoDecision::combine: 
-                    {
-                        std::string h = performCombine(hg_copy, evo_context, target_graph, population);
-                        combinations++;
-                        std::lock_guard<std::mutex> lock(_history_mutex);
-                        history += h;
-                        ++context.evolutionary.iteration;
-                        break;
-                    }
-                default:
-                    LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
-                    std::exit(EXIT_FAILURE);
-            }
-        }
+        });
         timer.stop_timer("evolutionary");
 
         context.partition.verbose_output = true;

@@ -285,6 +285,8 @@ struct EvolutionaryParameters {
   std::string history_file;
   std::string frequency_file;
   int kway_combine;
+  bool dynamic_time_limit;
+  bool randomized_flows;
 };
 
 std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params);

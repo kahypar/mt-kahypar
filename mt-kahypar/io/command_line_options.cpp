@@ -750,7 +750,13 @@ namespace mt_kahypar {
               "Output file for edge frequencies")
              ("evo-kway",
              po::value<int>(&context.evolutionary.kway_combine)->value_name("<int>")->default_value(2),
-             "How many individsuals to combine for the combine step\n");
+             "How many individsuals to combine for the combine step\n")
+            ("evo-dynamic-time-limit",
+            po::value<bool>(&context.evolutionary.dynamic_time_limit)->value_name("<bool>")->default_value(false),
+            "Use dynamic time limit for the evolution")
+            ("evo-randomized-flows",
+            po::value<bool>(&context.evolutionary.randomized_flows)->value_name("<bool>")->default_value(false),
+            "Determine randomly whether to use flows for current run");
     return options;
   }
 
