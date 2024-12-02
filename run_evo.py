@@ -52,6 +52,8 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
           "-mdirect",
           "--s-num-threads=" + str(threads),
           "--verbose=false",
+          "--evo-dynamic-time-limit=1",
+          "--evo-randomized-flows=1",
           "--time-limit=" + str(int(timelimit / repetitions)),
           "--evo-repetitions=" + str(repetitions),
           "--evo-frequency-file=" + freq_file,
@@ -89,9 +91,10 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
 MT_KAHYPAR = "/home/nikolai/Documents/Hypergraphs/evo-mt-kahypar/build/mt-kahypar/application/MtKaHyPar"
 CONFIG = "/home/nikolai/Documents/Hypergraphs/evo-mt-kahypar/config/evo_quality_preset.ini"
 
+ks = [4, 8, 12, 16, 20, 24, 28, 32, 48, 64, 96, 128]
+
 args = get_args()
-for k in range(2, args.maxk + 1):
-   # TODO: dependent on size of graph?
+for k in ks:
    timefactor = 1 + (k - 2) * 0.2
    timelimit = int(timefactor * args.timelimit)
    run_mtk_evo(args.graph, timelimit, k, args.epsilon, args.threads, MT_KAHYPAR, CONFIG)
