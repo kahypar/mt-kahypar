@@ -67,7 +67,7 @@ def run_mtk_evo(graph, timelimit, k, epsilon, threads, mt_kahypar, config, detec
 
     mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 
-    t = Timer(timelimit + 20, kill_proc)
+    t = Timer(timelimit + 1000, kill_proc)
     t.start()
     out, err = mt_kahypar_proc.communicate()
     t.cancel()
