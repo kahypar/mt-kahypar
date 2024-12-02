@@ -298,9 +298,6 @@ namespace mt_kahypar::dyn {
     }
 
     void initOutputFile(Context& context) {
-      if (context.dynamic.server) {
-        return;
-      }
       generateFileName(context);
       std::string filename = context.dynamic.output_path;
       std::ofstream file(filename);
