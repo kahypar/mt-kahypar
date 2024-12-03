@@ -15,7 +15,7 @@ namespace mt_kahypar::dyn {
       ds::StaticHypergraph& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
 
       // If the number of changes is not specified or is greater than the number of changes in the file, we process all the changes
-      size_t changes_size = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
+      size_t max_changes = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
 
       DynamicStrategy* strategy;
 
@@ -35,13 +35,13 @@ namespace mt_kahypar::dyn {
 
       try {
 
-        std::cout << "Processing " << context.dynamic.max_changes << " changes" << std::endl;
+        std::cout << "Processing " << max_changes << " changes" << std::endl;
 
-        for (size_t i = 0; i < changes_size; ++i) {
+        for (size_t i = 0; i < max_changes; ++i) {
           Change& change = changes[i];
-          strategy->partition(hypergraph_s, context, change);
+          strategy->partition(hypergraph_s, context, change, max_changes);
           if (!context.dynamic.server && *(&strategy->history.back().valid)) {
-            print_progress_bar(i, context.dynamic.max_changes, &strategy->history);
+            print_progress_bar(i, max_changes, &strategy->history);
           }
           log_km1_live(i, context, strategy->history.back());
         }

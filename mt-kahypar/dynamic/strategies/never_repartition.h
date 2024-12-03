@@ -73,7 +73,7 @@ namespace mt_kahypar::dyn {
         }
     public:
 
-        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change) override {
+        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
           //on first call, initialize partitioned_hypergraph_s
           if (!partitioned_hypergraph_s) {

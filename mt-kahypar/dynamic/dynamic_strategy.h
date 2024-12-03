@@ -119,7 +119,7 @@ namespace mt_kahypar::dyn {
          * The strategy should partition the hypergraph according to the change.
          * The strategy should update the history vector with the result of the partitioning.
          */
-        virtual void partition(ds::StaticHypergraph &hypergraph, Context &context, Change change) = 0;
+        virtual void partition(ds::StaticHypergraph &hypergraph, Context &context, Change change, size_t changes_size) = 0;
 
         /*
          * A Strategy can print final statistics after the last partitioning step.

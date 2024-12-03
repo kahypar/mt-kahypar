@@ -17,6 +17,7 @@ namespace mt_kahypar::dyn {
         std::unique_ptr<IRebalancer> _rebalancer;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
+          std::cout << "Repartitioning" << std::endl;
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
           _gain_cache = GainCachePtr::constructGainCache(context);
           _rebalancer = RebalancerFactory::getInstance().createObject(
@@ -74,7 +75,7 @@ namespace mt_kahypar::dyn {
 
     public:
 
-        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change) override {
+        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
           //on first call, initialize partitioned_hypergraph_s
           if (!partitioned_hypergraph_s) {

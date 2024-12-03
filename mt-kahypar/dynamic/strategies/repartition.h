@@ -8,9 +8,10 @@ namespace mt_kahypar::dyn {
     private:
       size_t skipped_changes = 0;
       size_t initial_num_enabled_nodes = 0;
+      size_t step_size = 0;
     public:
 
-      void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change) override {
+      void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
         process_change(hypergraph, context, change);
         PartitionResult partition_result = *new PartitionResult();
@@ -23,7 +24,10 @@ namespace mt_kahypar::dyn {
           }
         }
 
-        auto step_size = static_cast<size_t>(context.dynamic.step_size_pct * context.dynamic.max_changes);
+        if (step_size == 0) {
+          size_t max_changes = context.dynamic.max_changes == 0 ? changes_size : std::min((size_t) context.dynamic.max_changes, changes_size);
+          step_size = static_cast<size_t>(context.dynamic.step_size_pct * max_changes);
+        }
 
         if (skipped_changes < step_size) {
           partition_result.valid = false;
