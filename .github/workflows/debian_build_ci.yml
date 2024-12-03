@@ -21,7 +21,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install libtbb-dev libhwloc-dev gcc-9 g++-9
+          apt show libtbb-dev
 
       - name: Build Mt-KaHyPar Debian Package
         env:
