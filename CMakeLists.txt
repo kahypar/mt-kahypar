@@ -87,6 +87,7 @@ option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googlete
 option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." OFF)
 option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
 option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mtkahypar`." OFF)
+option(KAHYPAR_BUILD_PACKAGE "Provide a target to build a debian package." OFF)
 
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
@@ -508,6 +509,11 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   if(NOT WIN32 AND BUILD_SHARED_LIBS)
     # library installation target
     include(SetupInstallation)
+  endif()
+
+  if(KAHYPAR_BUILD_PACKAGE)
+    # packaging via CPack
+    include(SetupCPack)
   endif()
 
   if(KAHYPAR_SETUP_PYTHON AND DEFINED KAHYPAR_TBB_DIR)
