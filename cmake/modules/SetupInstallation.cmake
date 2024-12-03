@@ -33,12 +33,16 @@ install(EXPORT MtKaHyPar
   NAMESPACE MtKaHyPar::
   COMPONENT MtKaHyPar_Lib)
 
-configure_file(cmake/cmake_uninstall.cmake.in cmake_uninstall.cmake IMMEDIATE @ONLY)
-add_custom_target(uninstall-mtkahypar "${CMAKE_COMMAND}" -P cmake_uninstall.cmake)
-
+# custom targets for installing/uninstalling the library
 add_custom_target(install-mtkahypar
   ${CMAKE_COMMAND}
   -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
   -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_Lib
   -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
   DEPENDS mtkahypar)
+
+configure_file(cmake/cmake_uninstall.cmake.in cmake_uninstall.cmake IMMEDIATE @ONLY)
+add_custom_target(uninstall-mtkahypar
+  "${CMAKE_COMMAND}"
+  -DMANIFEST_NAME=install_manifest_MtKaHyPar_Lib.txt
+  -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake)
