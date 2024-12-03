@@ -15,7 +15,7 @@ namespace mt_kahypar::dyn {
       ds::StaticHypergraph& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
 
       // If the number of changes is not specified or is greater than the number of changes in the file, we process all the changes
-      size_t changes_size = context.dynamic.max_changes == -1 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
+      size_t changes_size = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
 
       DynamicStrategy* strategy;
 
