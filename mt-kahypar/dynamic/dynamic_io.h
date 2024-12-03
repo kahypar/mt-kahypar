@@ -310,7 +310,7 @@ namespace mt_kahypar::dyn {
 
     void generateErrorFile(Context& context, DynamicStrategy* strategy, std::exception& e) {
       std::string filename = context.dynamic.output_path;
-      std::ofstream file(filename);
+      std::ofstream file(filename + ".error");
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
