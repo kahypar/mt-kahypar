@@ -1,9 +1,8 @@
 name: Mt-KaHyPar Python Package
 
 on:
-  push:
-    branches-ignore:
-      - master
+  release:
+    types: [published]
 
 jobs:
   package_linux:
