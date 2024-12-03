@@ -1,0 +1,43 @@
+name: Mt-KaHyPar Debian Package
+
+on:
+  push
+
+jobs:
+  package_linux:
+    name: Debian Package
+
+    runs-on: ubuntu-20.04  # use old ubuntu for better backwards compatibility with system libraries
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v3
+      #   with:
+      #     platforms: all
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libhwloc-dev gcc-9 g++-9
+
+      - name: Build Mt-KaHyPar Debian Package
+        env:
+          CC: gcc-9
+          CXX: g++-9
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DOWNLOAD_BOOST=ON -DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON \
+          -DKAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS=OFF -DKAHYPAR_ENABLE_THREAD_PINNING=OFF -DKAHYPAR_BUILD_PACKAGE=ON
+          make -j4
+          make package-mtkahypar-deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: ./build/packages/*.deb
+
