@@ -70,7 +70,7 @@ jobs:
           run: |
             # install basic dependencies
             apt-get -y update
-            apt-get -y install libhwloc-dev gcc-9 g++-9 build-essential ca-certificates gpg wget
+            apt-get -y install libhwloc-dev gcc-9 g++-9 git build-essential ca-certificates gpg wget
             apt-get -y purge --auto-remove cmake
 
             # add repositories to get newer cmake and TBB versions
