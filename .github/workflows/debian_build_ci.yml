@@ -4,40 +4,40 @@ on:
   push
 
 jobs:
-  package_x86:
-    name: Debian Package x86
+  # package_x86:
+  #   name: Debian Package x86
 
-    runs-on: ubuntu-20.04  # use old ubuntu for better backwards compatibility with system libraries
-    env:
-      CI_ACTIVE : 1
+  #   runs-on: ubuntu-20.04  # use old ubuntu for better backwards compatibility with system libraries
+  #   env:
+  #     CI_ACTIVE : 1
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get -y update
-          sudo apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
+  #     - name: Install Dependencies
+  #       run: |
+  #         echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | sudo tee -a /etc/apt/sources.list
+  #         sudo apt-get -y update
+  #         sudo apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
 
-      - name: Build Mt-KaHyPar Debian Package
-        env:
-          CC: gcc-9
-          CXX: g++-9
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake .. --preset=default -DCMAKE_POSITION_INDEPENDENT_CODE=On -DKAHYPAR_CI_BUILD=ON \
-          -DKAHYPAR_DOWNLOAD_BOOST=ON -DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON \
-          -DKAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS=OFF -DKAHYPAR_ENABLE_THREAD_PINNING=OFF -DKAHYPAR_BUILD_PACKAGE=ON
-          make -j4
-          make package-mtkahypar-deb
+  #     - name: Build Mt-KaHyPar Debian Package
+  #       env:
+  #         CC: gcc-9
+  #         CXX: g++-9
+  #       run: |
+  #         rm -rf build
+  #         mkdir build
+  #         cd build
+  #         cmake .. --preset=default -DCMAKE_POSITION_INDEPENDENT_CODE=On -DKAHYPAR_CI_BUILD=ON \
+  #         -DKAHYPAR_DOWNLOAD_BOOST=ON -DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON \
+  #         -DKAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS=OFF -DKAHYPAR_ENABLE_THREAD_PINNING=OFF -DKAHYPAR_BUILD_PACKAGE=ON
+  #         make -j4
+  #         make package-mtkahypar-deb
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: debian-package
-          path: ./build/packages/*.deb
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: debian-package
+  #         path: ./build/packages/*.deb
 
 
   package_arm64:
@@ -68,10 +68,17 @@ jobs:
             --volume "${PWD}/artifacts:/artifacts"
 
           run: |
-            # install dependencies
-            echo "deb https://ports.ubuntu.com/ubuntu-ports jammy main universe" | tee -a /etc/apt/sources.list
+            # install basic dependencies
             apt-get -y update
-            apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9 cmake build-essential
+            apt-get -y install libhwloc-dev gcc-9 g++-9 git build-essential ca-certificates gpg wget
+            apt-get -y purge --auto-remove cmake
+
+            # add repositories to get newer cmake and TBB versions
+            wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" | tee /etc/apt/sources.list.d/kitware.list
+            echo "deb http://ports.ubuntu.com/ubuntu-ports/ jammy main universe" | tee -a /etc/apt/sources.list
+            apt-get -y update
+            apt-get -y install libtbb-dev cmake
 
             # actual installation
             mkdir build && cd build
