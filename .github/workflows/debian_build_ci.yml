@@ -17,8 +17,8 @@ jobs:
       - name: Install Dependencies
         run: |
           echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | sudo tee -a /etc/apt/sources.list
-          apt-get -y update
-          apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
+          sudo apt-get -y update
+          sudo apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
 
       - name: Build Mt-KaHyPar Debian Package
         env:
@@ -68,9 +68,12 @@ jobs:
             --volume "${PWD}/artifacts:/artifacts"
 
           run: |
+            # install dependencies
+            echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | tee -a /etc/apt/sources.list
             apt-get -y update
-            apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
+            apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9 cmake build-essential
 
+            # actual installation
             mkdir build && cd build
             cmake .. --preset=default -DCMAKE_POSITION_INDEPENDENT_CODE=On -DKAHYPAR_CI_BUILD=ON \
             -DKAHYPAR_DOWNLOAD_BOOST=ON -DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON \
@@ -78,7 +81,7 @@ jobs:
             make -j4
             make package-mtkahypar-deb
 
-            # Copy built binary file to artifacts directory
+            # copy result to artifacts directory
             cp packages/*.deb /artifacts/
 
       - uses: actions/upload-artifact@v4
