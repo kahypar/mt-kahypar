@@ -7,9 +7,11 @@
 
 namespace mt_kahypar::dyn {
 
-    class LokalFM : public DynamicStrategy {
+    class LocalFMFactor : public DynamicStrategy {
 
     private:
+        size_t skipped_changes = 0;
+        size_t step_size = 1;
         std::optional<ds::PartitionedHypergraph<ds::StaticHypergraph>> partitioned_hypergraph_s;
         int repartition_count = 0;
         gain_cache_t _gain_cache;
@@ -104,7 +106,14 @@ namespace mt_kahypar::dyn {
 
           add_node_to_partitioned_hypergraph(hypergraph, context, hn);
 
-          local_fm(hypergraph, context, hn);
+          //skip changes until step_size is reached
+          if (skipped_changes >= step_size) {
+            skipped_changes = 0;
+            step_size *= 2;
+            local_fm(hypergraph, context, hn);
+          } else {
+            skipped_changes++;
+          }
 
           //check if imbalance is still within bounds else repartition
           if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon ) {
