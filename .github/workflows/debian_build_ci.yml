@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: debian-package
+          name: debian-package-x86
           path: ./build/packages/*.deb
 
 
@@ -94,5 +94,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: debian-package
+          name: debian-package-arm
           path: ./artifacts/*.deb
