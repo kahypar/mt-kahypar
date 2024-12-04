@@ -69,7 +69,7 @@ jobs:
 
           run: |
             # install dependencies
-            echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | tee -a /etc/apt/sources.list
+            echo "deb https://ports.ubuntu.com/ubuntu-ports jammy main universe" | tee -a /etc/apt/sources.list
             apt-get -y update
             apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9 cmake build-essential
 
