@@ -96,3 +96,27 @@ jobs:
         with:
           name: debian-package-arm
           path: ./artifacts/*.deb
+
+
+  upload_to_release:
+    name: Upload Packages to GitHub Release
+
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - name: Collect Debian Packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: debian-*
+          path: packages
+          merge-multiple: true
+
+      - name: Upload Packages
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./packages/*.deb
+          append_body: true
+          fail_on_unmatched_files: true
