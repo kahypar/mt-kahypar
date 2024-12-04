@@ -54,7 +54,7 @@ jobs:
       - name: Build Mt-KaHyPar Debian Package via QEMU
         uses: uraimo/run-on-arch-action@v2
         with:
-          arch: arm64
+          arch: aarch64
           distro: ubuntu20.04  # use old ubuntu for better backwards compatibility with system libraries
 
           # Not required, but speeds up builds
