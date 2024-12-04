@@ -2,9 +2,9 @@
 
 The following is an overview of the input and output file formats which are used by Mt-KaHyPar.
 
-**Important note:** For historical reasons, the hMetis and Metis input formats use 1-based indexing.
-However, Mt-KaHyPar converts the indices to 0-based indexing when reading the files.
-Any results obtained from the binary or one of the library interfaces will also use 0-based indexing (i.e., shifted by -1 in comparison to the input file).
+**Important note:** For historical reasons, the hMetis and Metis input formats use indices starting at 1.
+However, Mt-KaHyPar converts the indices when reading the files, so that they start at 0.
+Any results obtained from the binary or one of the library interfaces will also use indices starting at 0 (i.e., shifted by -1 in comparison to the input file).
 
 ## hMetis Format for Input Hypergraphs
 
@@ -46,7 +46,7 @@ The general format looks as follows:
 
 ```
 % comment
-num_nodes num_edges [weight_type]
+num_nodes num_edges [weight_type] [num_constraints]
 [node_weight_1] neigbor_1 [edge_weight_1] neighbor_2 [edge_weight_2] ... neighbor_i [edge_weight_i]
 ...
 [node_weight_n] neigbor_1 [edge_weight_1] neighbor_2 [edge_weight_2] ... neighbor_j [edge_weight_j]
@@ -55,6 +55,9 @@ num_nodes num_edges [weight_type]
 Any line that starts with ‘%’ is a comment line and is skipped.
 The first line is a header containing two or three numbers describing the total number of nodes, the total number of edges and the types of weights used by the graph
 (00/omitted = unweighted, 10 = node weights, 01 = edge weights, 11 = node and edge weights).
+
+The Metis format also supports multi-dimensional weights/constraints, where the dimension is specified with a fourth header entry.
+However, multi-contraint partitioning is currently not supported by Mt-KaHyPar and thus the `num_constraints` entry is *not allowed* in input files.
 
 Afterwards, there is one line for each node which contains the edges as an adjacency list, i.e., a list of the neighbor nodes (node IDs).
 If node weights are used, there is an additional entry at the start of the line which is the weight of the node.
