@@ -17,9 +17,8 @@ jobs:
       - name: Install Dependencies
         run: |
           echo "deb http://cz.archive.ubuntu.com/ubuntu jammy main universe" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install libtbb-dev libhwloc-dev gcc-9 g++-9
-          apt show libtbb-dev
+          apt-get -y update
+          apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
 
       - name: Build Mt-KaHyPar Debian Package
         env:
@@ -69,8 +68,8 @@ jobs:
             --volume "${PWD}/artifacts:/artifacts"
 
           run: |
-            apt-get update
-            apt-get install libtbb-dev libhwloc-dev gcc-9 g++-9
+            apt-get -y update
+            apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9
 
             mkdir build && cd build
             cmake .. --preset=default -DCMAKE_POSITION_INDEPENDENT_CODE=On -DKAHYPAR_CI_BUILD=ON \
