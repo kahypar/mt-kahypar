@@ -68,10 +68,17 @@ jobs:
             --volume "${PWD}/artifacts:/artifacts"
 
           run: |
-            # install dependencies
+            # install basic dependencies
+            apt-get -y update
+            apt-get -y install libhwloc-dev gcc-9 g++-9 build-essential ca-certificates gpg wget
+            apt-get -y purge --auto-remove cmake
+
+            # add repositories to get newer cmake and TBB versions
+            wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" | tee /etc/apt/sources.list.d/kitware.list
             echo "deb http://ports.ubuntu.com/ubuntu-ports/ jammy main universe" | tee -a /etc/apt/sources.list
             apt-get -y update
-            apt-get -y install libtbb-dev libhwloc-dev gcc-9 g++-9 cmake build-essential
+            apt-get -y install libtbb-dev cmake
 
             # actual installation
             mkdir build && cd build
