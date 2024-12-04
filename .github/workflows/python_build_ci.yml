@@ -148,10 +148,14 @@ jobs:
 
 
   build_sdist:
-    name: Build source distribution
+    name: Build Source Distribution
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
       - name: Build sdist
         run: |
