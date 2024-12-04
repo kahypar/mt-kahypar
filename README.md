@@ -152,7 +152,7 @@ To partition a **graph** with Mt-KaHyPar, you can add the following command line
 
     -h <path-to-graph> --instance-type=graph --input-file-format=<metis/hmetis> -o cut
 
-Mt-KaHyPar then uses optimized data structures for graph partitioning, which speedups the partitioning time by a factor of two compared to our hypergraph partitioning code. Per default, we expect the input in [hMetis format](FileFormats.md#hmetis-format-for-input-hypergraphs), but you can read graph files in [Metis format](FileFormats.md#metis-format-for-input-graphs) via `--input-file-format=metis`.
+Mt-KaHyPar then uses optimized data structures for graph partitioning, which speeds up the partitioning time by a factor of two compared to our hypergraph partitioning code. Per default, we expect the input in [hMetis format](FileFormats.md#hmetis-format-for-input-hypergraphs), but you can read graph files in [Metis format](FileFormats.md#metis-format-for-input-graphs) via `--input-file-format=metis`.
 
 ### Mapping (Hyper)Graphs onto Graphs
 
