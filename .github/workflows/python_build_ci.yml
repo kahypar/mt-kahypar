@@ -154,7 +154,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build sdist
-        run: pipx run build --sdist
+        run: |
+          # run cmake to create pyproject.toml from pyproject.toml.in
+          cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR -DKAHYPAR_DISABLE_HWLOC=Off
+          rm -rf configure_python
+          pipx run build --sdist
 
       - uses: actions/upload-artifact@v4
         with:
