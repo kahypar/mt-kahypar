@@ -1079,7 +1079,7 @@ private:
           delta_func(sync_update);
         }
       }
-      _part_ids[u] = to;
+      __atomic_store_n(&_part_ids[u], to, __ATOMIC_RELAXED);
       DBG << "Done changing node part: " << V(u) << " >>>";
       return true;
     } else {
@@ -1120,7 +1120,7 @@ private:
                                     const NotificationFunc& notify_func) {
     const HyperedgeID unique_id = uniqueEdgeID(edge);
     const HypernodeID v = edgeTarget(edge);
-    PartitionID block_of_v = partID(v);
+    PartitionID block_of_v = __atomic_load_n(&_part_ids[v], __ATOMIC_RELAXED);
     EdgeMove& edge_move = _edge_sync[unique_id];
 
     // Note: It is important that `edge_move` tracks the block of both nodes.
