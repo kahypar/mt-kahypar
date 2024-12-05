@@ -112,8 +112,7 @@ namespace mt_kahypar {
     labelPropagation(hypergraph, best_metrics);
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
-      metrics::quality(hypergraph, _context,
+    ASSERT(best_metrics.quality == metrics::quality(hypergraph, _context,
         !_context.refinement.label_propagation.execute_sequential),
       V(best_metrics.quality) << V(metrics::quality(hypergraph, _context,
           !_context.refinement.label_propagation.execute_sequential)));
