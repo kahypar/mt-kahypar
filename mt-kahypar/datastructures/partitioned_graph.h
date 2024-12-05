@@ -141,12 +141,12 @@ private:
 
   struct EdgeMove {
     EdgeMove() :
-      u(kInvalidHypernode),
-      to(kInvalidPartition),
+      block_of_smaller(kInvalidPartition),
+      block_of_larger(kInvalidPartition),
       version(0) { }
 
-    HypernodeID u;
-    PartitionID to;
+    PartitionID block_of_smaller;
+    PartitionID block_of_larger;
     uint32_t version;
   };
 
@@ -1121,19 +1121,33 @@ private:
     const HypernodeID v = edgeTarget(edge);
     PartitionID block_of_v = partID(v);
     EdgeMove& edge_move = _edge_sync[unique_id];
-    _edge_locks[unique_id].lock();
-    if ( edge_move.u == v && edge_move.version == _edge_sync_version ) {
-      ASSERT(edge_move.to < _k && edge_move.to != kInvalidPartition);
-      block_of_v = edge_move.to;
+
+    // Note: It is important that `edge_move` tracks the block of both nodes.
+    // Previously, the struct only contained the block of the node that was moved most recently.
+    // However, this caused a race condition if a move is applied and then immediately reverted.
+    // If the other node is moved concurrently and the concurrent move acquired the lock first
+    // but did not update _part_ids yet, the reverting move would incorrectly use the old part id.
+    auto execute_sychnronization = [&](PartitionID& move_block_u, PartitionID& move_block_v) {
+      _edge_locks[unique_id].lock();
+      if ( move_block_v != kInvalidPartition && edge_move.version == _edge_sync_version ) {
+        ASSERT(move_block_v < _k);
+        block_of_v = move_block_v;
+      }
+      move_block_u = to;
+      edge_move.version = _edge_sync_version;
+      sync_update.block_of_other_node = block_of_v;
+      if constexpr ( notify ) {
+        notify_func(sync_update);
+      }
+      _edge_locks[unique_id].unlock();
+    };
+
+    if (u < v) {
+      execute_sychnronization(edge_move.block_of_smaller, edge_move.block_of_larger);
+    } else {
+      ASSERT(u > v);
+      execute_sychnronization(edge_move.block_of_larger, edge_move.block_of_smaller);
     }
-    edge_move.u = u;
-    edge_move.to = to;
-    edge_move.version = _edge_sync_version;
-    sync_update.block_of_other_node = block_of_v;
-    if constexpr ( notify ) {
-      notify_func(sync_update);
-    }
-    _edge_locks[unique_id].unlock();
     return block_of_v;
   }
 
