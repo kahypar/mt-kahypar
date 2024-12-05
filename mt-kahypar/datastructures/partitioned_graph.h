@@ -514,6 +514,7 @@ private:
         gain_cache.restoreIdenticalHyperedge(*this, he);
       }
     });
+    ++_edge_sync_version;
   }
 
   // ####################### Partition Information #######################
