@@ -29,14 +29,25 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
-#include "tests/parallel/topology_mock.h"
+
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include "mt-kahypar/parallel/hardware_topology.h"
+  #include "tests/parallel/topology_mock.h"
+#endif
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
+
+#ifndef KAHYPAR_DISABLE_HWLOC
+  using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
+  using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
+  using TBB = mt_kahypar::parallel::TBBInitializer<HwTopology, false>;
+#else
+  using TBB = mt_kahypar::parallel::SimpleTBBInitializer;
+#endif
 
 static auto identity = [](const HypernodeID& id) { return id; };
 

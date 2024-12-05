@@ -25,6 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include "register_policies.h"
+
 #include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/registrar.h"
 
@@ -40,70 +42,73 @@
     id, new policy_class())
 
 namespace mt_kahypar {
-// //////////////////////////////////////////////////////////////////////////////
-//                            Hypergraph Type Traits
-// //////////////////////////////////////////////////////////////////////////////
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
-                StaticGraphTypeTraits);
-#endif
-REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
-                StaticHypergraphTypeTraits);
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
-                LargeKHypergraphTypeTraits);
-#endif
-#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
-                DynamicGraphTypeTraits);
-#endif
-REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
-                DynamicHypergraphTypeTraits);
-#endif
 
-// //////////////////////////////////////////////////////////////////////////////
-//                       Coarsening / Rating Policies
-// //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
-                HeavyEdgeScore);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
-                SamenessScore);
-#endif
+void register_policies() {
+  // //////////////////////////////////////////////////////////////////////////////
+  //                            Hypergraph Type Traits
+  // //////////////////////////////////////////////////////////////////////////////
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
+                  StaticGraphTypeTraits);
+  #endif
+  REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
+                  StaticHypergraphTypeTraits);
+  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+  REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
+                  LargeKHypergraphTypeTraits);
+  #endif
+  #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
+                  DynamicGraphTypeTraits);
+  #endif
+  REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
+                  DynamicHypergraphTypeTraits);
+  #endif
 
-REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
-                NoWeightPenalty);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
-                MultiplicativePenalty);
-REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
-                AdditivePenalty);
-#endif
+  // //////////////////////////////////////////////////////////////////////////////
+  //                       Coarsening / Rating Policies
+  // //////////////////////////////////////////////////////////////////////////////
+  REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
+                  HeavyEdgeScore);
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
+                  SamenessScore);
+  #endif
 
-REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
-                BestRatingPreferringUnmatched);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
-                BestRatingWithTieBreaking);
-#endif
+  REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
+                  NoWeightPenalty);
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
+                  MultiplicativePenalty);
+  REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
+                  AdditivePenalty);
+  #endif
 
-// //////////////////////////////////////////////////////////////////////////////
-//                            Gain Type Policies
-// //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
-REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
-#ifdef KAHYPAR_ENABLE_SOED_METRIC
-REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
-#endif
-#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
-REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
-#endif
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
-#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
-REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, SteinerTreeForGraphsTypes);
-#endif
-#endif
+  REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
+                  BestRatingPreferringUnmatched);
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
+                  BestRatingWithTieBreaking);
+  #endif
+
+  // //////////////////////////////////////////////////////////////////////////////
+  //                            Gain Type Policies
+  // //////////////////////////////////////////////////////////////////////////////
+  REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
+  REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
+  #ifdef KAHYPAR_ENABLE_SOED_METRIC
+  REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
+  #endif
+  #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+  REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
+  #endif
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
+  #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+  REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, SteinerTreeForGraphsTypes);
+  #endif
+  #endif
+}
 
 }  // namespace mt_kahypar

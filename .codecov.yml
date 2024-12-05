@@ -13,7 +13,7 @@ ignore:
   - "tools/*"
   - "python/**/*"
   - "mt-kahypar/definitions.h"
-  - "mt-kahypar/application/kahypar.cc"
+  - "mt-kahypar/application/mt_kahypar.cc"
   - "mt-kahypar/io/command_line_options.h"
   - "mt-kahypar/io/command_line_options.cpp"
   - "mt-kahypar/io/partitioning_output.h"

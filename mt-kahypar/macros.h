@@ -29,7 +29,7 @@
 #include <type_traits>
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
-    !defined(KAHYPAR_ENABLE_THREAD_PINNING) || defined(__APPLE__)
+    !defined(KAHYPAR_ENABLE_THREAD_PINNING)
 #include <tbb/task_arena.h>
 // If we use the C or Python interface or thread pinning is disabled, the cpu ID
 // to which the current thread is assigned to is not unique. We therefore use
@@ -37,12 +37,12 @@
 // ID can be negative if the task scheduler is not initialized.
 #define THREAD_ID std::max(0, tbb::this_task_arena::current_thread_index())
 #else
-#ifdef __linux__
-#include <sched.h>
-#define THREAD_ID sched_getcpu()
-#elif _WIN32
+#ifdef _WIN32
 #include <processthreadsapi.h>
 #define THREAD_ID GetCurrentProcessorNumber()
+#else
+#include <sched.h>
+#define THREAD_ID sched_getcpu()
 #endif
 #endif
 

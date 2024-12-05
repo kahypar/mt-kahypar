@@ -29,7 +29,7 @@
 
 #include <stddef.h>
 
-#include "libmtkahypartypes.h"
+#include "mtkahypartypes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,8 +102,7 @@ MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_co
 
 // ####################### Thread Pool Initialization #######################
 
-MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
-                                                      const bool interleaved_allocations);
+MT_KAHYPAR_API void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations);
 
 // ####################### Load/Construct Hypergraph #######################
 

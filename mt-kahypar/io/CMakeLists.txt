@@ -6,19 +6,15 @@ set(IOSources
         partitioning_output.cpp
         presets.cpp)
 
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
+if(NOT KAHYPAR_DISABLE_BOOST)
     list(APPEND IOSources command_line_options.cpp)
 endif()
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${IOSources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${IOSources})
 
 set(ToolsIOSources
         hypergraph_io.cpp
         hypergraph_factory.cpp
         partitioning_output.cpp)
 
-foreach(modtarget IN LISTS TOOLS_TARGETS)
-    target_sources(${modtarget} PRIVATE ${ToolsIOSources})
-endforeach()
+target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsIOSources})

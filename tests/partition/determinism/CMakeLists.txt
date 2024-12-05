@@ -1,3 +1,3 @@
-target_sources(mt_kahypar_tests PRIVATE
+target_sources(mtkahypar_tests PRIVATE
         determinism_test.cc
         )

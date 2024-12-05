@@ -33,7 +33,7 @@
 
 #include <tbb/parallel_for.h>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "kahypar-resources/meta/mandatory.h"
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"

@@ -32,7 +32,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#ifdef __linux__
+#ifdef KAHYPAR_USE_GROWT
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -50,7 +50,7 @@
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-#elif defined(_WIN32) or defined(__APPLE__)
+#else
 #include <tbb/concurrent_unordered_map.h>
 #endif
 
@@ -71,13 +71,13 @@ class TargetGraph {
   using PQElement = std::pair<HyperedgeWeight, PartitionID>;
   using PQ = std::priority_queue<PQElement, vec<PQElement>, std::greater<PQElement>>;
 
-  #ifdef __linux__
+  #ifdef KAHYPAR_USE_GROWT
   using hasher_type    = utils_tm::hash_tm::murmur2_hash;
   using allocator_type = growt::AlignedAllocator<>;
   using ConcurrentHashTable = typename growt::table_config<
     uint64_t, uint64_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
   using HashTableHandle = typename ConcurrentHashTable::handle_type;
-  #elif defined(_WIN32) or defined(__APPLE__)
+  #else
   using ConcurrentHashTable = tbb::concurrent_unordered_map<uint64_t, uint64_t>;
   #endif
 
@@ -114,7 +114,7 @@ class TargetGraph {
     _distances(),
     _local_mst_data(graph.initialNumNodes()),
     _cache(INITIAL_HASH_TABLE_CAPACITY),
-     #ifdef __linux__
+     #ifdef KAHYPAR_USE_GROWT
     _handles([&]() { return getHandle(); }),
      #endif
     _stats() { }
@@ -259,7 +259,7 @@ class TargetGraph {
 
   bool inputGraphIsConnected() const;
 
-  #ifdef __linux__
+  #ifdef KAHYPAR_USE_GROWT
   HashTableHandle getHandle() const {
     return _cache.get_handle();
   }
@@ -286,7 +286,7 @@ class TargetGraph {
   // ! Cache stores the weight of MST computations
   mutable ConcurrentHashTable _cache;
 
-  #ifdef __linux__
+  #ifdef KAHYPAR_USE_GROWT
   // ! Handle to access concurrent hash table
   mutable tbb::enumerable_thread_specific<HashTableHandle> _handles;
   #endif

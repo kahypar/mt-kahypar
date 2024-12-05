@@ -36,13 +36,13 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#if defined(__linux__) or defined(__APPLE__)
-#include <sys/mman.h>
-#include <unistd.h>
-#elif _WIN32
+#if _WIN32
 #include <windows.h>
 #include <process.h>
 #include <memoryapi.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 
@@ -55,17 +55,7 @@
 
 namespace mt_kahypar::io {
 
-  #if defined(__linux__) or defined(__APPLE__)
-  struct FileHandle {
-    int fd;
-    char* mapped_file;
-    size_t length;
-
-    void closeHandle() {
-      close(fd);
-    }
-  };
-  #elif _WIN32
+  #if _WIN32
   struct FileHandle {
     HANDLE hFile;
     HANDLE hMem;
@@ -75,6 +65,16 @@ namespace mt_kahypar::io {
     void closeHandle() {
       CloseHandle(hFile);
       CloseHandle(hMem);
+    }
+  };
+  #else
+  struct FileHandle {
+    int fd;
+    char* mapped_file;
+    size_t length;
+
+    void closeHandle() {
+      close(fd);
     }
   };
   #endif
@@ -130,7 +130,7 @@ namespace mt_kahypar::io {
       if ( handle.mapped_file == NULL ) {
         throw SystemException("Failed to map file to main memory:" + filename);
       }
-    #elif defined(__linux__) or defined(__APPLE__)
+    #else
       handle.fd = open(filename.c_str(), O_RDONLY);
       if ( handle.fd < -1 ) {
         throw InvalidInputException("Could not open: " + filename);
@@ -148,7 +148,7 @@ namespace mt_kahypar::io {
   void munmap_file(FileHandle& handle) {
     #ifdef _WIN32
     UnmapViewOfFile(handle.mapped_file);
-    #elif defined(__linux__) or defined(__APPLE__)
+    #else
     munmap(handle.mapped_file, handle.length);
     #endif
     handle.closeHandle();

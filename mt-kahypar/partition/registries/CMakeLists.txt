@@ -6,6 +6,4 @@ set(RegistrySources
         register_initial_partitioning_algorithms.cpp
         )
 
-foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${RegistrySources})
-endforeach()
+target_sources(MtKaHyPar-Sources INTERFACE ${RegistrySources})

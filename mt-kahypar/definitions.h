@@ -29,7 +29,7 @@
 #include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/typelist.h"
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
 #include "mt-kahypar/datastructures/dynamic_graph.h"

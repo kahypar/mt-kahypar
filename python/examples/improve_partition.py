@@ -8,7 +8,7 @@ import mtkahypar
 mydir = os.path.dirname(os.path.realpath(__file__))
 
 # Initialize thread pool
-mtkahypar.initializeThreadPool(multiprocessing.cpu_count()) # use all available cores
+mtkahypar.initialize(multiprocessing.cpu_count()) # use all available cores
 
 # Setup partitioning context
 context = mtkahypar.Context()

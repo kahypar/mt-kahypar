@@ -3,14 +3,14 @@
 #include <iostream>
 #include <thread>
 
-#include <libmtkahypar.h>
+#include <mtkahypar.h>
 
 // Install library interface via 'sudo make install.mtkahypar' in build folder
 // Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_graph.cc -o example -lmtkahypar
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool
-  mt_kahypar_initialize_thread_pool(
+  mt_kahypar_initialize(
     std::thread::hardware_concurrency() /* use all available cores */,
     true /* activate interleaved NUMA allocation policy */ );
 
