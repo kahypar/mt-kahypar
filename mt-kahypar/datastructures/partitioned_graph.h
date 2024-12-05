@@ -1132,6 +1132,8 @@ private:
       if ( move_block_v != kInvalidPartition && edge_move.version == _edge_sync_version ) {
         ASSERT(move_block_v < _k);
         block_of_v = move_block_v;
+      } else if ( edge_move.version != _edge_sync_version ) {
+        move_block_v = kInvalidPartition;
       }
       move_block_u = to;
       edge_move.version = _edge_sync_version;
