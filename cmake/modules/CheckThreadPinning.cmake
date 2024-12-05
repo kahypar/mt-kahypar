@@ -3,7 +3,7 @@
 set(THREAD_PINNING_WORKS FALSE)
 if(UNIX)
 	# Check if sched_getcpu/sched_setaffinity are available
-	check_include_files("schedx.h" HEADER_AVAILABLE LANGUAGE CXX)
+	check_include_files("sched.h" HEADER_AVAILABLE LANGUAGE CXX)
 	if(${HEADER_AVAILABLE})
 		# we need to actually check the available symbols
 		include(CheckSourceCompiles)
