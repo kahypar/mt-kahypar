@@ -58,13 +58,13 @@ class SteinerTreeRollback {
 
   // Updates the auxilliary data for a node move m with index m_id.
   static void updateMove(const MoveID, const Move&, vec<RecalculationData>&) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "Parallel rollback is not supported for steiner tree metric");
   }
 
   // Updates the number of non-moved in a block.
   static void updateNonMovedPinInBlock(const PartitionID, vec<RecalculationData>&) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "Parallel rollback is not supported for steiner tree metric");
   }
 
@@ -74,7 +74,7 @@ class SteinerTreeRollback {
                                  const MoveID,
                                  const Move&,
                                  vec<RecalculationData>&) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "Parallel rollback is not supported for steiner tree metric");
     return 0;
   }
@@ -85,7 +85,7 @@ class SteinerTreeRollback {
                                  const MoveID,
                                  const Move&,
                                  vec<RecalculationData>&) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "Parallel rollback is not supported for steiner tree metric");
     return 0;
   }
