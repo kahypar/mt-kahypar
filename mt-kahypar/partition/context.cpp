@@ -372,10 +372,10 @@ namespace mt_kahypar {
     if ( partition.objective == Objective::steiner_tree ) {
       if ( partition.preset_type == PresetType::large_k ) {
         // steiner trees scale really badly with k (cubic with no parallelization), so we don't want to support this
-        ERR("Large k partitioning is not supported for steiner tree metric.");
+        throw NonSupportedOperationException("Large k partitioning is not supported for steiner tree metric.");
       } else if ( partition.k > 64 && partition.instance_type == InstanceType::hypergraph ) {
         // larger k currently don't work correctly due to collisions in the hash table
-        ERR("Steiner tree metric on hypergraphs is currently only supported for k <= 64.");
+        throw NonSupportedOperationException("Steiner tree metric on hypergraphs is currently only supported for k <= 64.");
       }
       if ( !target_graph ) {
         partition.objective = Objective::km1;

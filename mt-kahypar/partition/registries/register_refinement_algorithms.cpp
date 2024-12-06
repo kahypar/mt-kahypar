@@ -206,10 +206,7 @@ kahypar::meta::PolicyBase& getGraphAndGainTypesPolicy(mt_kahypar_partition_type_
     case N_LEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(DynamicHypergraphTypeTraits, gain_policy);
     case N_LEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(DynamicGraphTypeTraits, gain_policy);
     case LARGE_K_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(LargeKHypergraphTypeTraits, gain_policy);
-    default: {
-      LOG << "Invalid partition type";
-      std::exit(-1);
-    }
+    default: throw InvalidParameterException("Invalid partition type");
   }
 }
 
