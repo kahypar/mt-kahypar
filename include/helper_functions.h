@@ -32,10 +32,40 @@
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/registries/registry.h"
 
 using namespace mt_kahypar;
 
 namespace lib {
+void initialize(const size_t num_threads, const bool interleaved_allocations) {
+  size_t P = num_threads;
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+    if ( num_available_cpus < num_threads ) {
+      WARNING("There are currently only" << num_available_cpus << "cpus available."
+        << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
+      P = num_available_cpus;
+    }
+  #endif
+
+  // Initialize TBB task arenas on numa nodes
+  TBBInitializer::instance(P);
+
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    if ( interleaved_allocations ) {
+      // We set the membind policy to interleaved allocations in order to
+      // distribute allocations evenly across NUMA nodes
+      hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
+      parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+      hwloc_bitmap_free(cpuset);
+    }
+  #else
+    unused(interleaved_allocations);
+  #endif
+
+  register_algorithms_and_policies();
+}
+
 bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
                          mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
