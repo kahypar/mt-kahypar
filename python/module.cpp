@@ -239,20 +239,17 @@ PYBIND11_MODULE(mtkahypar, m) {
   // ####################### Context #######################
 
   py::class_<Context>(m, "Context", py::module_local())
-    .def(py::init<>())
-    .def("loadPreset", [](Context& context, const PresetType preset) {
-        if ( preset != PresetType::UNDEFINED ) {
-          auto preset_option_list = loadPreset(preset);
-          presetToContext(context, preset_option_list);
-        } else {
-          LOG << "Preset type" << preset << "not supported!";
-        }
-      }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
-      py::arg("preset type"))
-    .def("loadConfigurationFile", [](Context& context, const std::string& config_file) {
+    .def(py::init<>([](const PresetType preset) {
+        Context context;
+        auto preset_option_list = loadPreset(preset);
+        presetToContext(context, preset_option_list);
+        return context;
+      }))
+    .def(py::init<>([](const std::string& config_file) {
+        Context context;
         mt_kahypar::parseIniToContext(context, config_file);
-      }, "Read partitioning configuration from file",
-      py::arg("configuration file"))
+        return context;
+      }))
     .def("setPartitioningParameters",
       [](Context& context,
          const PartitionID k,
