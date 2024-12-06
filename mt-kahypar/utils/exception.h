@@ -75,14 +75,14 @@ class InvalidParameterException : public MtKaHyParException<InvalidParameterExce
     Base(what) { }
 };
 
-class NonSupportedOperationException : public MtKaHyParException<NonSupportedOperationException> {
+class UnsupportedOperationException : public MtKaHyParException<UnsupportedOperationException> {
 
-  using Base = MtKaHyParException<NonSupportedOperationException>;
+  using Base = MtKaHyParException<UnsupportedOperationException>;
 
  public:
-  static constexpr char TYPE[] = "Non Supported Operation";
+  static constexpr char TYPE[] = "Unsupported Operation";
 
-  NonSupportedOperationException(const std::string& what) :
+  UnsupportedOperationException(const std::string& what) :
     Base(what) { }
 };
 

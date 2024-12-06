@@ -132,7 +132,7 @@ namespace mt_kahypar {
     if ( hypergraph.hasFixedVertices() ) {
       if ( context.partition.mode == Mode::deep_multilevel ||
            context.initial_partitioning.mode == Mode::deep_multilevel ) {
-        throw NonSupportedOperationException(
+        throw UnsupportedOperationException(
           "Deep multilevel partitioning scheme does not support fixed vertices!");
       }
     }

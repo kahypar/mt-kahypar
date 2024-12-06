@@ -67,7 +67,7 @@ namespace {
 
   void throw_if_not_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, PresetType preset) {
     if (!lib::check_compatibility(partitioned_hg, lib::get_preset_c_type(preset))) {
-      throw NonSupportedOperationException(lib::incompatibility_description(partitioned_hg));
+      throw UnsupportedOperationException(lib::incompatibility_description(partitioned_hg));
     }
   }
 
@@ -113,12 +113,12 @@ namespace {
                           PartitionedHypergraph::TYPE == N_LEVEL_HYPERGRAPH_PARTITIONING;
     if ( !is_graph && context.partition.preset_type == PresetType::large_k &&
          PartitionedHypergraph::TYPE != LARGE_K_PARTITIONING ) {
-      throw NonSupportedOperationException(
+      throw UnsupportedOperationException(
         "For hypergraphs, large k partitioning is only possible with the function partitionIntoLargeK(...).");
     }
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     if ( !lib::check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type)) ) {
-      throw NonSupportedOperationException(lib::incompatibility_description(hg));
+      throw UnsupportedOperationException(lib::incompatibility_description(hg));
     }
     if ( !lib::check_if_all_relavant_parameters_are_set(context) ) {
       throw InvalidInputException("Some required context parameter is not set.");
@@ -159,7 +159,7 @@ namespace {
                    TargetGraph* target_graph) {
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
     if ( !lib::check_compatibility(phg, lib::get_preset_c_type(context.partition.preset_type)) ) {
-      throw NonSupportedOperationException(lib::incompatibility_description(phg));
+      throw UnsupportedOperationException(lib::incompatibility_description(phg));
     }
     if ( !lib::check_if_all_relavant_parameters_are_set(context) ) {
       throw InvalidInputException("Some required context parameter is not set.");
@@ -219,7 +219,7 @@ PYBIND11_MODULE(mtkahypar, m) {
 
   py::register_exception<InvalidInputException>(m, "InvalidInputError", PyExc_ValueError);
   py::register_exception<InvalidParameterException>(m, "InvalidParameterError", PyExc_ValueError);
-  py::register_exception<NonSupportedOperationException>(m, "NonSupportedOperationError");
+  py::register_exception<UnsupportedOperationException>(m, "UnsupportedOperationError");
   py::register_exception<SystemException>(m, "SystemError");
 
   // ####################### Initialize Thread Pool #######################
