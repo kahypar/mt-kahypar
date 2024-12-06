@@ -385,21 +385,21 @@ class PartitionedHypergraph {
 
     // ! Target of an edge
   HypernodeID edgeTarget(const HyperedgeID) const {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "edgeTarget(e) is only supported on graph data structure");
     return kInvalidHypernode;
   }
 
   // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID) const {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "edgeSource(e) is only supported on graph data structure");
     return kInvalidHypernode;
   }
 
   // ! Whether the edge is a single pin edge
   bool isSinglePin(const HyperedgeID) const {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "isSinglePin(e) is only supported on graph data structure");
     return false;
   }

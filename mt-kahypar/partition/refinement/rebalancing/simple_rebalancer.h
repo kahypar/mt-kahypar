@@ -102,7 +102,7 @@ public:
                                 vec<vec<Move>>&,
                                 Metrics&,
                                 const double) override final {
-    throw NonSupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
+    throw UnsupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
   }
 
   bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
@@ -110,7 +110,7 @@ public:
                                       vec<Move>&,
                                       Metrics&,
                                       const double) override final {
-    throw NonSupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
+    throw UnsupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
   }
 
   vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);

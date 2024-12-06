@@ -599,7 +599,7 @@ class DynamicGraph {
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "enableHyperedge() is not supported in dynamic graph");
   }
 
@@ -682,7 +682,7 @@ class DynamicGraph {
 
   DynamicGraph contract(parallel::scalable_vector<HypernodeID>&, bool deterministic = false) {
     unused(deterministic);
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "contract(c, id) is not supported in dynamic graph");
     return DynamicGraph();
   }
@@ -768,7 +768,7 @@ class DynamicGraph {
   * (Not supported.)
   */
   void removeEdge(const HyperedgeID) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "removeEdge is not supported in dynamic graph");
   }
 
@@ -776,7 +776,7 @@ class DynamicGraph {
   * (Not supported.)
   */
   void removeLargeEdge(const HyperedgeID) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "removeLargeEdge is not supported in dynamic graph");
   }
 
@@ -784,7 +784,7 @@ class DynamicGraph {
    * (Not supported.)
    */
   void restoreLargeEdge(const HyperedgeID&) {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "restoreLargeEdge is not supported in dynamic graph");
   }
 
@@ -821,7 +821,7 @@ class DynamicGraph {
   }
 
   void freeTmpContractionBuffer() {
-    throw NonSupportedOperationException(
+    throw UnsupportedOperationException(
       "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
