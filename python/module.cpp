@@ -263,6 +263,14 @@ PYBIND11_MODULE(mtkahypar, m) {
            context.partition.objective = objective;
          }, "Sets all required parameters for partitioning",
          py::arg("k"), py::arg("epsilon"), py::arg("objective function"))
+    .def("setMappingParameters",
+      [](Context& context,
+         const PartitionID k,
+         const double epsilon) {
+           context.partition.k = k;
+           context.partition.epsilon = epsilon;
+         }, "Sets all required parameters for mapping to a target graph",
+         py::arg("k"), py::arg("epsilon"))
     .def_property("k",
       [](const Context& context) {
         return context.partition.k;
