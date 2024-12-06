@@ -1,8 +1,9 @@
 name: Mt-KaHyPar Python Package
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - ["v[0-9]+.[0-9]+", "v[0-9]+.[0-9]+.[0-9]+"]
 
 jobs:
   package_linux_x86:
@@ -176,7 +177,6 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
-    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - name: Collect Python Packages
         uses: actions/download-artifact@v4

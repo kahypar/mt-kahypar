@@ -1,8 +1,9 @@
 name: Mt-KaHyPar Debian Package
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - ["v[0-9]+.[0-9]+", "v[0-9]+.[0-9]+.[0-9]+"]
 
 jobs:
   package_x86:
@@ -100,13 +101,9 @@ jobs:
 
   upload_to_release:
     name: Upload Packages to GitHub Release
-
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-    if: github.event_name == 'release' && github.event.action == 'published'
-    steps:
       - name: Collect Debian Packages
         uses: actions/download-artifact@v4
         with:
