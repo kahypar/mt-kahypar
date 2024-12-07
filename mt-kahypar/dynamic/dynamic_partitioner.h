@@ -11,11 +11,29 @@ namespace mt_kahypar::dyn {
 
     void partition(Context& context) {
 
-      auto [changes, hypergraph] = generateChanges(context);
+      context.partition.instance_type = InstanceType::hypergraph;
+      context.partition.objective = Objective::km1;
+      context.partition.gain_policy = GainPolicy::km1;
 
-      ds::StaticHypergraph& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
+      // Read Hypergraph
+      mt_kahypar_hypergraph_t hypergraph_t = io::readInputFile(
+              context.partition.graph_filename, context.partition.preset_type,
+              context.partition.instance_type, context.partition.file_format,
+              context.preprocessing.stable_construction_of_incident_edges);
+      auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph_t);
 
-      // If the number of changes is not specified or is greater than the number of changes in the file, we process all the changes
+      // Parse or generate changes
+      std::vector<Change> changes;
+      if (context.dynamic.changes_file.empty()) {
+        changes = generateChanges(hypergraph_s, context);
+      } else {
+        changes = parseChanges(context.dynamic.changes_file);
+        resetHypergraph(hypergraph_s, changes, context);
+      }
+
+      std::cout << "Number of changes: " << changes.size() << std::endl;
+
+      // If the max_changes is not specified or is greater than the number of changes in the file, we process all the changes
       size_t max_changes = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
 
       DynamicStrategy* strategy;
@@ -54,7 +72,7 @@ namespace mt_kahypar::dyn {
         strategy->printFinalStats(hypergraph_s, context);
         //log_km1(context, &strategy->history);
 
-        utils::delete_hypergraph(hypergraph);
+        utils::delete_hypergraph(hypergraph_t);
 
         } catch (std::exception& e) {
           std::cerr << "Error: " << e.what() << std::endl;

@@ -269,6 +269,7 @@ struct SharedMemoryParameters {
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 struct DynamicParameters {
+    std::string changes_file = "";
     std::string strategy = "";
     size_t initial_partitioning_size = 0;
     size_t max_changes = -1;

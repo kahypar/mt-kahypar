@@ -12,8 +12,11 @@ namespace mt_kahypar::dyn {
       // add folder for graph name
       context.dynamic.output_path += context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of("/\\") + 1);
       context.dynamic.output_path += "/";
+      // add folder for change file
+      context.dynamic.output_path += context.dynamic.changes_file.substr(context.dynamic.changes_file.find_last_of("/\\") + 1);
+      context.dynamic.output_path += "/";
       // create folder
-      std::filesystem::create_directory(context.dynamic.output_path);
+      std::filesystem::create_directories(context.dynamic.output_path);
       // add file name
       context.dynamic.output_path += std::to_string(context.partition.k) + "k_";
       context.dynamic.output_path += context.dynamic.getOutputFileName();
@@ -41,6 +44,127 @@ namespace mt_kahypar::dyn {
       output += " " + std::to_string(i) + "/" + std::to_string(total);
       std::cout << output;
       std::cout.flush();
+    }
+
+    std::vector<HypernodeID> parseIDs(const std::string& line) {
+      std::vector<HypernodeID> ids;
+      std::stringstream ss(line);
+      int id;
+      while (ss >> id) {
+        ids.push_back(id);
+      }
+      return ids;
+    }
+
+    std::vector<PinChange> parsePins(const std::string& line) {
+      std::vector<PinChange> pins;
+      std::stringstream ss(line);
+      std::string token;
+      while (ss >> token) {
+        size_t comma_pos = token.find(',');
+        if (comma_pos != std::string::npos) {
+          try {
+            HypernodeID node = std::stoi(token.substr(1, comma_pos - 1)); // Skip '('
+            HyperedgeID edge = std::stoi(token.substr(comma_pos + 1, token.size() - comma_pos - 2)); // Exclude ')'
+            pins.push_back({node, edge});
+          } catch (const std::invalid_argument&) {
+            std::cerr << "Invalid pin format in token: " << token << "\n";
+          }
+        }
+      }
+      return pins;
+    }
+
+    // parse the changes from a file
+    //
+    // Number of changes
+    // added_nodes_id1 added_nodes_id2 ...
+    // added_edges_id1 added_edges_id2 ...
+    // (added_pins1.hypernode,added_pins1.hyperedge) (added_pins2.hypernode,added_pins2.hyperedge), ...
+    // removed_nodes_id1 removed_nodes_id2, ...
+    // removed_edges_id1 removed_edges_id2, ...
+    // (removed_pins1.hypernode,removed_pins1.hyperedge) (removed_pins2.hypernode,removed_pins2.hyperedge), ...
+    std::vector<Change> parseChanges(const std::string& filename) {
+      std::vector<Change> changes;
+      std::ifstream file(filename);
+      if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+      }
+
+      size_t num_changes;
+      file >> num_changes;
+      file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Move to the next line
+
+      for (size_t i = 0; i < num_changes; ++i) {
+        Change change;
+        std::string line;
+
+        // Parse added nodes
+        std::getline(file, line);
+        change.added_nodes = parseIDs(line);
+
+        // Parse added edges
+        std::getline(file, line);
+        change.added_edges = parseIDs(line);
+
+        // Parse added pins
+        std::getline(file, line);
+        change.added_pins = parsePins(line);
+
+        // Parse removed nodes
+        std::getline(file, line);
+        change.removed_nodes = parseIDs(line);
+
+        // Parse removed edges
+        std::getline(file, line);
+        change.removed_edges = parseIDs(line);
+
+        // Parse removed pins
+        std::getline(file, line);
+        change.removed_pins = parsePins(line);
+
+        // Add the parsed change to the list
+        changes.push_back(change);
+      }
+
+      file.close();
+      return changes;
+    }
+
+
+    void resetHypergraph(ds::StaticHypergraph& hypergraph_s, std::vector<Change>& changes, Context& context) {
+      //iterate backwards through the changes and undo them
+      for (auto it = changes.rbegin(); it != changes.rend(); ++it) {
+        Change& change = *it;
+        if (!change.added_edges.empty()) {
+          std::cout << change << std::endl;
+          std::cout << hypergraph_s.initialNumEdges() << std::endl;
+        }
+        for (const PinChange& pin: change.added_pins) {
+          hypergraph_s.removePin(pin.node, pin.edge);
+        }
+        for (const HypernodeID& hn : change.added_nodes) {
+          hypergraph_s.disableHypernodeWithEdges(hn);
+          if (!context.dynamic.use_final_weight) {
+            hypergraph_s.decrementTotalWeight(hn);
+          }
+        }
+        for (const HyperedgeID& he : change.added_edges) {
+          hypergraph_s.removeEdge(he);
+        }
+        for (const PinChange& pin: change.removed_pins) {
+          hypergraph_s.restorePin(pin.node, pin.edge);
+        }
+        for (const HypernodeID& hn : change.removed_nodes) {
+          hypergraph_s.enableHypernodeWithEdges(hn);
+          if (!context.dynamic.use_final_weight) {
+            hypergraph_s.incrementTotalWeight(hn);
+          }
+        }
+        for (const HyperedgeID& he : change.removed_edges) {
+          hypergraph_s.restoreEdge(he);
+        }
+      }
     }
 
     std::vector<Change> generateHypernodeChanges(ds::StaticHypergraph& hypergraph_s, Context& context) {
@@ -229,19 +353,7 @@ namespace mt_kahypar::dyn {
     }
 
 
-    std::tuple<std::vector<Change>, mt_kahypar_hypergraph_t> generateChanges(Context& context) {
-
-      context.partition.instance_type = InstanceType::hypergraph;
-      context.partition.objective = Objective::km1;
-      context.partition.gain_policy = GainPolicy::km1;
-
-      // Read Hypergraph
-      mt_kahypar_hypergraph_t hypergraph = io::readInputFile(
-              context.partition.graph_filename, context.partition.preset_type,
-              context.partition.instance_type, context.partition.file_format,
-              context.preprocessing.stable_construction_of_incident_edges);
-
-      auto& hypergraph_s = utils::cast<ds::StaticHypergraph>(hypergraph);
+    std::vector<Change> generateChanges(ds::StaticHypergraph& hypergraph_s, Context& context) {
 
       std::cout << "Adding nodes" << std::endl;
       std::vector<Change> added_nodes = generateHypernodeChanges(hypergraph_s, context);
@@ -266,7 +378,7 @@ namespace mt_kahypar::dyn {
         changes.push_back(change);
       }
 
-      return {changes, hypergraph};
+      return changes;
     }
 
     void log_km1(Context& context, const std::vector<DynamicStrategy::PartitionResult>* history) {

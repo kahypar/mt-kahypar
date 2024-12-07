@@ -738,8 +738,12 @@ namespace mt_kahypar {
                                                           const int num_columns) {
     po::options_description dynamic_options("Dynamic Options", num_columns);
     dynamic_options.add_options()
+            ("d-changes-file",
+                      po::value(&context.dynamic.changes_file)->value_name("<string>"),
+                        "File containing the changes to be processed");
+    dynamic_options.add_options()
             ("d-strategy",
-             po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
+                    po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
               "Strategy for dynamic partitioning");
     dynamic_options.add_options()
             ("d-initial-partitioning-size",
@@ -747,7 +751,7 @@ namespace mt_kahypar {
             "Number of Nodes to be partitioned before dynamically adding Nodes");
     dynamic_options.add_options()
             ("d-max-changes",
-             po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
+                    po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
              "Maximum number of changes to be processed (defaults to all changes)");
     dynamic_options.add_options()
             ("d-use-final-weight",

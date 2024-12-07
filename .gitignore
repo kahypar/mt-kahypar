@@ -46,3 +46,4 @@ python/tests/*.so
 python/examples/*.so
 compile_commands.json
 results/
+parameter_tuning_medium/

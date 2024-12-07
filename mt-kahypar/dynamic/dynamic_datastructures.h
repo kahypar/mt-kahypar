@@ -6,6 +6,12 @@ namespace mt_kahypar::dyn {
     struct PinChange {
         HypernodeID node;
         HyperedgeID edge;
+
+        // Overload << operator for PinChange
+        friend std::ostream& operator<<(std::ostream& os, const PinChange& pin) {
+          os << "(" << pin.node << "," << pin.edge << ")";
+          return os;
+        }
     };
 
     // incoming change (nodes, edges, pins)
@@ -25,6 +31,37 @@ namespace mt_kahypar::dyn {
             removed_nodes.insert(removed_nodes.end(), other.removed_nodes.begin(), other.removed_nodes.end());
             removed_edges.insert(removed_edges.end(), other.removed_edges.begin(), other.removed_edges.end());
             removed_pins.insert(removed_pins.end(), other.removed_pins.begin(), other.removed_pins.end());
+        }
+
+        // Overload << operator for Change
+        friend std::ostream& operator<<(std::ostream& os, const Change& change) {
+          os << "Added Nodes: ";
+          for (const auto& node : change.added_nodes) {
+            os << node << " ";
+          }
+          os << "\nAdded Edges: ";
+          for (const auto& edge : change.added_edges) {
+            os << edge << " ";
+          }
+          os << "\nAdded Pins: ";
+          for (const auto& pin : change.added_pins) {
+            os << pin << " ";
+          }
+
+          os << "\nRemoved Nodes: ";
+          for (const auto& node : change.removed_nodes) {
+            os << node << " ";
+          }
+          os << "\nRemoved Edges: ";
+          for (const auto& edge : change.removed_edges) {
+            os << edge << " ";
+          }
+          os << "\nRemoved Pins: ";
+          for (const auto& pin : change.removed_pins) {
+            os << pin << " ";
+          }
+
+          return os;
         }
     };
 }
