@@ -1,9 +1,9 @@
 name: Mt-KaHyPar Fast CI
 
-on:
-  push:
-    branches-ignore:
-      - master
+#on:
+#  push:
+#    branches-ignore:
+#      - master
 
 jobs:
   mt_kahypar_compiler_version_test:

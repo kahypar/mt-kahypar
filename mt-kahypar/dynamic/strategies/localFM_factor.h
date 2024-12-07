@@ -17,6 +17,7 @@ namespace mt_kahypar::dyn {
         gain_cache_t _gain_cache;
         std::unique_ptr<IRefiner> _fm;
         std::unique_ptr<IRebalancer> _rebalancer;
+        parallel::scalable_vector<HypernodeID> nodes_to_partition;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
           std::cout << "Repartitioning" << std::endl;
@@ -32,7 +33,7 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_s
-        void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
+        void local_fm(ds::StaticHypergraph& hypergraph, Context& context) {
 
           //GainCachePtr::deleteGainCache(_gain_cache);
           //TODO maybe
@@ -47,10 +48,12 @@ namespace mt_kahypar::dyn {
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
-          _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, std::numeric_limits<double>::max());
+          _fm->refine(partitioned_hypergraph, nodes_to_partition, best_Metrics, std::numeric_limits<double>::max());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
+
+          nodes_to_partition.push_back(hn);
 
           //compute for each block the number of nodes it is connected to
           std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
@@ -81,6 +84,7 @@ namespace mt_kahypar::dyn {
 
           //on first call, initialize partitioned_hypergraph_s
           if (!partitioned_hypergraph_s) {
+            nodes_to_partition = parallel::scalable_vector<HypernodeID>(changes_size);
             repartition(hypergraph, context);
           }
 
@@ -110,7 +114,8 @@ namespace mt_kahypar::dyn {
           if (skipped_changes >= step_size) {
             skipped_changes = 0;
             step_size *= 2;
-            local_fm(hypergraph, context, hn);
+            local_fm(hypergraph, context);
+            nodes_to_partition = parallel::scalable_vector<HypernodeID>(changes_size);
           } else {
             skipped_changes++;
           }

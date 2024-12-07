@@ -32,6 +32,12 @@ namespace mt_kahypar::dyn {
         //use local_fm to refine partitioned_hypergraph_s
         void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
+          //TODO
+          //context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+
+          //TODO
+          //context.refinement.fm.multitry_rounds = 1;
+
           //GainCachePtr::deleteGainCache(_gain_cache);
           //TODO maybe
           GainCachePtr::resetGainCache(_gain_cache);
