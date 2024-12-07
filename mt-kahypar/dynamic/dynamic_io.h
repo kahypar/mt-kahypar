@@ -136,10 +136,6 @@ namespace mt_kahypar::dyn {
       //iterate backwards through the changes and undo them
       for (auto it = changes.rbegin(); it != changes.rend(); ++it) {
         Change& change = *it;
-        if (!change.added_edges.empty()) {
-          std::cout << change << std::endl;
-          std::cout << hypergraph_s.initialNumEdges() << std::endl;
-        }
         for (const PinChange& pin: change.added_pins) {
           hypergraph_s.removePin(pin.node, pin.edge);
         }

@@ -20,7 +20,9 @@ namespace mt_kahypar::dyn {
         parallel::scalable_vector<HypernodeID> nodes_to_partition;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
-          std::cout << "Repartitioning" << std::endl;
+          if (!context.dynamic.server) {
+            std::cout << "Repartitioning" << std::endl;
+          }
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
           _gain_cache = GainCachePtr::constructGainCache(context);
           _rebalancer = RebalancerFactory::getInstance().createObject(
