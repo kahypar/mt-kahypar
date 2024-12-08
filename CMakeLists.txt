@@ -78,7 +78,7 @@ option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
   "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_PYTHON
-  "Build the Python interface. Can be turned off in case Python is not available." OFF)
+  "Build the Python interface. Can be turned off in case Python is not available." ON)
 
 option(MT_KAHYPAR_DISABLE_BOOST
   "Whether to exclude components requiring Boost::program_options. Will result in no binary target and the C and Python interface not being able to load configuration files." OFF)
