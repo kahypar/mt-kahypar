@@ -152,7 +152,7 @@ To partition a **graph** with Mt-KaHyPar, you can add the following command line
 
     -h <path-to-graph> --instance-type=graph --input-file-format=<metis/hmetis> -o cut
 
-Mt-KaHyPar then uses optimized data structures for graph partitioning, which speeds up the partitioning time by a factor of two compared to our hypergraph partitioning code. Per default, we expect the input in [hMetis format](FileFormats.md#hmetis-format-for-input-hypergraphs), but you can read graph files in [Metis format](FileFormats.md#metis-format-for-input-graphs) via `--input-file-format=metis`.
+Mt-KaHyPar then uses optimized data structures for graph partitioning, which speeds up the partitioning time by a factor of two compared to our hypergraph partitioning code. Per default, we expect the input in [hMetis format](mt-kahypar/io/docs/FileFormats.md#hmetis-format-for-input-hypergraphs), but you can read graph files in [Metis format](mt-kahypar/io/docs/FileFormats.md#metis-format-for-input-graphs) via `--input-file-format=metis`.
 
 ### Mapping (Hyper)Graphs onto Graphs
 
@@ -160,11 +160,11 @@ To map a **(hyper)graph** onto a **target graph** with Mt-KaHyPar, you can add t
 
     -g <path-to-target-graph> -o steiner_tree
 
-The target graph is expected to be in [Metis format](FileFormats.md#metis-format-for-input-graphs). The nodes of the (hyper)graph are then mapped onto the nodes of the target graph, while optimizing the Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
+The target graph is expected to be in [Metis format](mt-kahypar/io/docs/FileFormats.md#metis-format-for-input-graphs). The nodes of the (hyper)graph are then mapped onto the nodes of the target graph, while optimizing the Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
 
 ### Fixed Vertices
 
-Fixed vertices are nodes that are preassigned to particular block and are not allowed to change their block during partitioning. Mt-KaHyPar reads fixed vertices from a file in the [hMetis fix file format](FileFormats.md#hmetis-fix-file-format), which can be provided via the following command line parameter:
+Fixed vertices are nodes that are preassigned to particular block and are not allowed to change their block during partitioning. Mt-KaHyPar reads fixed vertices from a file in the [hMetis fix file format](mt-kahypar/io/docs/FileFormats.md#hmetis-fix-file-format), which can be provided via the following command line parameter:
 
     -f <path-to-fixed-vertex-file>
 
