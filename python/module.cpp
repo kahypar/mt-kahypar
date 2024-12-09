@@ -61,7 +61,10 @@ namespace py = pybind11;
 using namespace mt_kahypar;
 
 namespace {
+  // TODO: nlevel etc. ?
+
   void initialize(const size_t num_threads) {
+    // TODO: check initialization
     lib::initialize(num_threads, true);
   }
 
@@ -309,6 +312,7 @@ PYBIND11_MODULE(mtkahypar, m) {
         }
       }, "Maximum allowed weight for each block of the output partition")
     .def("print_configuration", [](const Context& context) {
+        // TODO
         LOG << context;
       }, "Print partitioning configuration");
 
@@ -413,6 +417,7 @@ corresponding node or -1 if the node is not fixed.
     .def("do_for_all_nodes",
       [&](Graph& graph,
           const std::function<void(const HypernodeID&)>& f) {
+        // TODO: test this
         for ( const HypernodeID& hn : graph.nodes() ) {
           f(hn);
         }
