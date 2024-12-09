@@ -90,7 +90,7 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {
   try {
-    parseIniToContext(*reinterpret_cast<Context*>(kahypar_context), ini_file_name);
+    parseIniToContext(*reinterpret_cast<Context*>(kahypar_context), ini_file_name, true);
   } catch ( std::exception& ex ) {
     LOG << ex.what();
   }
@@ -103,7 +103,7 @@ void mt_kahypar_load_preset(mt_kahypar_context_t* context,
 
   if ( preset_type != PresetType::UNDEFINED ) {
     auto preset_option_list = loadPreset(preset_type);
-    presetToContext(c, preset_option_list);
+    presetToContext(c, preset_option_list, true);
   }
 }
 
