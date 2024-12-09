@@ -41,8 +41,9 @@ using ::testing::Test;
 namespace mt_kahypar {
 
   TEST(MtKaHyPar, ReadHypergraphFile) {
+    mt_kahypar_error_t error;
     mt_kahypar_hypergraph_t hypergraph =
-      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", DEFAULT, HMETIS);
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", DEFAULT, HMETIS, &error);
 
     ASSERT_EQ(12752, mt_kahypar_num_hypernodes(hypergraph));
     ASSERT_EQ(14111, mt_kahypar_num_hyperedges(hypergraph));
@@ -53,8 +54,9 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ReadGraphFile) {
+    mt_kahypar_error_t error;
     mt_kahypar_hypergraph_t graph =
-      mt_kahypar_read_hypergraph_from_file("test_instances/delaunay_n15.graph", DEFAULT, METIS);
+      mt_kahypar_read_hypergraph_from_file("test_instances/delaunay_n15.graph", DEFAULT, METIS, &error);
 
     ASSERT_EQ(32768,  mt_kahypar_num_hypernodes(graph));
     ASSERT_EQ(98274,  mt_kahypar_num_hyperedges(graph));
@@ -65,6 +67,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ConstructUnweightedStaticHypergraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 7;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
@@ -80,7 +83,7 @@ namespace mt_kahypar {
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
       DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(),
-      hyperedges.get(), nullptr, nullptr);
+      hyperedges.get(), nullptr, nullptr, &error);
     ASSERT_EQ(hypergraph.type, STATIC_HYPERGRAPH);
 
     ASSERT_EQ(7, mt_kahypar_num_hypernodes(hypergraph));
@@ -92,6 +95,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ConstructUnweightedDynamicHypergraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 7;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
@@ -107,7 +111,7 @@ namespace mt_kahypar {
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
       HIGHEST_QUALITY, num_vertices, num_hyperedges, hyperedge_indices.get(),
-      hyperedges.get(), nullptr, nullptr);
+      hyperedges.get(), nullptr, nullptr, &error);
     ASSERT_EQ(hypergraph.type, DYNAMIC_HYPERGRAPH);
 
     ASSERT_EQ(7, mt_kahypar_num_hypernodes(hypergraph));
@@ -119,6 +123,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ConstructUnweightedStaticGraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 5;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
@@ -132,7 +137,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr);
+      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr, &error);
     ASSERT_EQ(graph.type, STATIC_GRAPH);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
@@ -142,7 +147,8 @@ namespace mt_kahypar {
     mt_kahypar_free_hypergraph(graph);
   }
 
-    TEST(MtKaHyPar, ConstructUnweightedDynamicGraph) {
+  TEST(MtKaHyPar, ConstructUnweightedDynamicGraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 5;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
@@ -156,7 +162,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      HIGHEST_QUALITY, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr);
+      HIGHEST_QUALITY, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr, &error);
     ASSERT_EQ(graph.type, DYNAMIC_GRAPH);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
@@ -167,6 +173,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ConstructHypergraphWithNodeWeights) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 7;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
@@ -187,7 +194,7 @@ namespace mt_kahypar {
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
       DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(),
-      hyperedges.get(), nullptr, vertex_weights.get());
+      hyperedges.get(), nullptr, vertex_weights.get(), &error);
 
     ASSERT_EQ(7, mt_kahypar_num_hypernodes(hypergraph));
     ASSERT_EQ(4, mt_kahypar_num_hyperedges(hypergraph));
@@ -198,6 +205,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, ConstructGraphWithNodeWeights) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 5;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
@@ -216,7 +224,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get());
+      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get(), &error);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
     ASSERT_EQ(6, mt_kahypar_num_hyperedges(graph));
@@ -226,6 +234,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, CreatesPartitionedHypergraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 7;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
@@ -240,7 +249,7 @@ namespace mt_kahypar {
     hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
-      DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr);
+      DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr, &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -265,6 +274,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, CreatesPartitionedGraph) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 5;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
@@ -283,7 +293,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get());
+      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get(), &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -308,6 +318,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, WritesAndLoadsHypergraphPartitionFile) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 7;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
@@ -322,7 +333,7 @@ namespace mt_kahypar {
     hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
-      DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr);
+      DEFAULT, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr, &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> partition = std::make_unique<mt_kahypar_partition_id_t[]>(7);
     partition[0] = 0; partition[1] = 0; partition[2] = 0;
@@ -331,10 +342,10 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
       mt_kahypar_create_partitioned_hypergraph(hypergraph, DEFAULT, 2, partition.get());
 
-    mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition");
+    mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition", &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg_2 =
-      mt_kahypar_read_partition_from_file(hypergraph, DEFAULT, 2, "tmp.partition");
+      mt_kahypar_read_partition_from_file(hypergraph, DEFAULT, 2, "tmp.partition", &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -351,6 +362,7 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, WritesAndLoadsGraphPartitionFile) {
+    mt_kahypar_error_t error;
     const mt_kahypar_hypernode_id_t num_vertices = 5;
     const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
@@ -369,7 +381,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get());
+      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get(), &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -379,10 +391,10 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
       mt_kahypar_create_partitioned_hypergraph(graph, DEFAULT, 2, partition.get());
 
-    mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition");
+    mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph_2 =
-      mt_kahypar_read_partition_from_file(graph, DEFAULT, 2, "tmp.partition");
+      mt_kahypar_read_partition_from_file(graph, DEFAULT, 2, "tmp.partition", &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -410,6 +422,7 @@ namespace mt_kahypar {
       static constexpr char TARGET_GRAPH_FILE[] = "test_instances/target.graph";
 
       APartitioner() :
+        _error(),
         context(nullptr),
         hypergraph(mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH }),
         partitioned_hg(mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION }),
@@ -451,9 +464,9 @@ namespace mt_kahypar {
       mt_kahypar_context_t* c = mt_kahypar_context_new();
       mt_kahypar_load_preset(c, preset);
       mt_kahypar_set_partitioning_parameters(c, num_blocks, epsilon, objective);
-      mt_kahypar_set_context_parameter(c, VERBOSE, ( debug || verbose ) ? "1" : "0");
+      mt_kahypar_set_context_parameter(c, VERBOSE, ( debug || verbose ) ? "1" : "0", &_error);
 
-      mt_kahypar_hypergraph_t hg = mt_kahypar_read_hypergraph_from_file(filename, preset, format);
+      mt_kahypar_hypergraph_t hg = mt_kahypar_read_hypergraph_from_file(filename, preset, format, &_error);
       partition(hg, nullptr, c, num_blocks, epsilon, nullptr);
 
       mt_kahypar_free_context(c);
@@ -464,10 +477,10 @@ namespace mt_kahypar {
                           const size_t num_vcycles,
                           const bool verbose = false) {
       mt_kahypar_load_preset(context, preset);
-      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0");
+      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0", &_error);
 
       mt_kahypar_hyperedge_weight_t before = mt_kahypar_km1(partitioned_hg);
-      mt_kahypar_improve_partition(partitioned_hg, context, num_vcycles);
+      mt_kahypar_improve_partition(partitioned_hg, context, num_vcycles, &_error);
       mt_kahypar_hyperedge_weight_t after = mt_kahypar_km1(partitioned_hg);
       ASSERT_LE(after, before);
     }
@@ -476,10 +489,10 @@ namespace mt_kahypar {
                         const size_t num_vcycles,
                         const bool verbose = false) {
       mt_kahypar_load_preset(context, preset);
-      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0");
+      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0", &_error);
 
       mt_kahypar_hyperedge_weight_t before = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
-      mt_kahypar_improve_mapping(partitioned_hg, target_graph, context, num_vcycles);
+      mt_kahypar_improve_mapping(partitioned_hg, target_graph, context, num_vcycles, &_error);
       mt_kahypar_hyperedge_weight_t after = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
       ASSERT_LE(after, before);
     }
@@ -500,16 +513,19 @@ namespace mt_kahypar {
     void SetUp()  {
       mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
       context = mt_kahypar_context_new();
-      target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE);
+      target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE, &_error);
+      ASSERT_NE(target_graph, nullptr);
     }
 
     void TearDown() {
+      ASSERT_EQ(_error.status, mt_kahypar_status_t::SUCCESS);
       mt_kahypar_free_context(context);
       mt_kahypar_free_hypergraph(hypergraph);
       mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
       mt_kahypar_free_target_graph(target_graph);
     }
 
+    mt_kahypar_error_t _error;
     mt_kahypar_context_t* context;
     mt_kahypar_hypergraph_t hypergraph;
     mt_kahypar_partitioned_hypergraph_t partitioned_hg;
@@ -522,18 +538,16 @@ namespace mt_kahypar {
       if ( hypergraph.type != NULLPTR_HYPERGRAPH ) {
         mt_kahypar_free_hypergraph(hypergraph);
       }
-      hypergraph = mt_kahypar_read_hypergraph_from_file(filename, preset, format);
+      hypergraph = mt_kahypar_read_hypergraph_from_file(filename, preset, format, &_error);
     }
 
     void addFixedVertices(const mt_kahypar_partition_id_t num_blocks ) {
       if ( hypergraph.type == STATIC_HYPERGRAPH ||
             hypergraph.type == DYNAMIC_HYPERGRAPH ) {
-        mt_kahypar_add_fixed_vertices_from_file(hypergraph,
-          HYPERGRAPH_FIX_FILE, num_blocks);
+        mt_kahypar_add_fixed_vertices_from_file(hypergraph, HYPERGRAPH_FIX_FILE, num_blocks, &_error);
       } else if ( hypergraph.type == STATIC_GRAPH ||
                   hypergraph.type == DYNAMIC_GRAPH ) {
-        mt_kahypar_add_fixed_vertices_from_file(hypergraph,
-          GRAPH_FIX_FILE, num_blocks);
+        mt_kahypar_add_fixed_vertices_from_file(hypergraph, GRAPH_FIX_FILE, num_blocks, &_error);
       }
     }
 
@@ -544,7 +558,7 @@ namespace mt_kahypar {
                       const bool verbose = false) {
       mt_kahypar_load_preset(context, preset);
       mt_kahypar_set_partitioning_parameters(context, num_blocks, epsilon, objective);
-      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0");
+      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0", &_error);
     }
 
     void partition(mt_kahypar_hypergraph_t hg,
@@ -555,9 +569,9 @@ namespace mt_kahypar {
                    mt_kahypar_target_graph_t* target_graph) {
       mt_kahypar_partitioned_hypergraph_t p_hg { nullptr, NULLPTR_PARTITION };
       if ( target_graph ) {
-        p_hg = mt_kahypar_map(hg, target_graph, c);
+        p_hg = mt_kahypar_map(hg, target_graph, c, &_error);
       } else {
-        p_hg = mt_kahypar_partition(hg, c);
+        p_hg = mt_kahypar_partition(hg, c, &_error);
       }
 
       double imbalance = mt_kahypar_imbalance(p_hg, c);
@@ -838,13 +852,31 @@ namespace mt_kahypar {
   }
 
   TEST(MtKaHyPar, CanSetContextParameter) {
-    mt_kahypar_context_t* context = mt_kahypar_context_new();
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "4"));
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, EPSILON, "0.03"));
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, OBJECTIVE, "km1"));
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3"));
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1"));
+    mt_kahypar_error_t error;
+    auto check_error_status = [&]{
+      ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, error.status);
+      ASSERT_NE(nullptr, error.msg);
+      mt_kahypar_free_error_content(&error);
+      error = mt_kahypar_error_t{};
+    };
 
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "4", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, EPSILON, "0.03", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, OBJECTIVE, "km1", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error));
+
+    ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "x", &error));
+    check_error_status();
+    ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, EPSILON, "", &error));
+    check_error_status();
+    ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, OBJECTIVE, "wrong_objective", &error));
+    check_error_status();
+    ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "a0", &error));
+    check_error_status();
+    ASSERT_EQ(mt_kahypar_status_t::INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, VERBOSE, "2", &error));
+    check_error_status();
 
     Context& c = *reinterpret_cast<Context*>(context);
     ASSERT_EQ(4, c.partition.k);

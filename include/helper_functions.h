@@ -32,11 +32,19 @@
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/partition/partitioner_facade.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
+#include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
 
 namespace lib {
+
+// ####################### General Helper Functions #######################
+
 void initialize(const size_t num_threads, const bool interleaved_allocations) {
   size_t P = num_threads;
   #ifndef KAHYPAR_DISABLE_HWLOC
@@ -66,8 +74,7 @@ void initialize(const size_t num_threads, const bool interleaved_allocations) {
   register_algorithms_and_policies();
 }
 
-bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
-                         mt_kahypar_preset_type_t preset) {
+bool is_compatible(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
     case DEFAULT:
     case QUALITY:
@@ -80,8 +87,7 @@ bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
   return false;
 }
 
-bool check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                         mt_kahypar_preset_type_t preset) {
+bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
     case DEFAULT:
     case QUALITY:
@@ -98,27 +104,24 @@ bool check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
   return false;
 }
 
-
-bool check_if_all_relavant_parameters_are_set(Context& context) {
+void check_if_all_relevant_parameters_are_set(Context& context) {
   bool success = true;
-  if ( context.partition.preset_type == PresetType::UNDEFINED ) {
-    WARNING("Preset type not specified. Either use mt_kahypar_load_preset(...) or specify"
-      << "parameter 'preset-type' in your configuration file!");
-    success = false;
+  auto check_parameter = [&](bool is_uninitialized, const char* warning_msg) {
+    if (is_uninitialized) {
+      success = false;
+      if (context.partition.verbose_output) {
+        WARNING(warning_msg);
+      }
+    }
+  };
+
+  check_parameter(context.partition.preset_type == PresetType::UNDEFINED, "Preset type not specified.");
+  check_parameter(context.partition.k == std::numeric_limits<PartitionID>::max(), "Number of blocks not specified.");
+  check_parameter(context.partition.epsilon == std::numeric_limits<double>::max(), "Imbalance not specified.");
+  check_parameter(context.partition.objective == Objective::UNDEFINED, "Objective function not specified.");
+  if (!success) {
+    throw InvalidInputException("A required context parameter is not set. Required are: preset type, k, epsilon, objective");
   }
-  if ( context.partition.k == std::numeric_limits<PartitionID>::max() ) {
-    WARNING("Number of blocks not specified.");
-    success = false;
-  }
-  if ( context.partition.epsilon == std::numeric_limits<double>::max() ) {
-    WARNING("Imbalance not specified.");
-    success = false;
-  }
-  if ( context.partition.objective == Objective::UNDEFINED ) {
-    WARNING("Objective function not specified.");
-    success = false;
-  }
-  return success;
 }
 
 void prepare_context(Context& context) {
@@ -199,6 +202,13 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
   return ss.str();
 }
 
+void check_compatibility(mt_kahypar_hypergraph_t hypergraph,
+                         mt_kahypar_preset_type_t preset) {
+  if ( !is_compatible(hypergraph, preset) ) {
+    throw UnsupportedOperationException(incompatibility_description(hypergraph));
+  }
+}
+
 std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   std::stringstream ss;
   switch ( partitioned_hg.type ) {
@@ -227,6 +237,13 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
          << "Did you forgot to construct or load a hypergraph?"; break;
   }
   return ss.str();
+}
+
+void check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                         mt_kahypar_preset_type_t preset) {
+  if ( !is_compatible(partitioned_hg, preset) ) {
+    throw UnsupportedOperationException(incompatibility_description(partitioned_hg));
+  }
 }
 
 template<typename PartitionedHypergraph, typename Hypergraph>
@@ -259,6 +276,78 @@ void get_block_weights(const PartitionedHypergraph& partitioned_hg,
   for ( PartitionID i = 0; i < partitioned_hg.k(); ++i ) {
     block_weights[i] = partitioned_hg.partWeight(i);
   }
+}
+
+void set_individual_block_weights(Context& context,
+                                  const mt_kahypar_partition_id_t num_blocks,
+                                  const mt_kahypar_hypernode_weight_t* block_weights) {
+  context.partition.use_individual_part_weights = true;
+  context.partition.max_part_weights.assign(num_blocks, 0);
+  for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
+    context.partition.max_part_weights[i] = block_weights[i];
+  }
+}
+
+template<typename PartitionedHypergraph>
+double imbalance(const PartitionedHypergraph& partitioned_graph, const Context& context) {
+  Context c(context);
+  c.setupPartWeights(partitioned_graph.totalWeight());
+  return metrics::imbalance(partitioned_graph, c);
+}
+
+// ####################### Partitioning #######################
+
+mt_kahypar_partitioned_hypergraph_t partitionImpl(mt_kahypar_hypergraph_t hg, Context& context, TargetGraph* target_graph) {
+  check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type));
+  check_if_all_relevant_parameters_are_set(context);
+  context.partition.instance_type = lib::get_instance_type(hg);
+  context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
+  prepare_context(context);
+  context.partition.num_vcycles = 0;
+  return PartitionerFacade::partition(hg, context, target_graph);
+}
+
+mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hg, const Context& context) {
+  Context partition_context(context);
+  return partitionImpl(hg, partition_context, nullptr);
+}
+
+mt_kahypar_partitioned_hypergraph_t map(mt_kahypar_hypergraph_t hg, const ds::StaticGraph& graph, const Context& context) {
+  TargetGraph target_graph(graph.copy());
+  Context partition_context(context);
+  partition_context.partition.objective = Objective::steiner_tree;
+  return partitionImpl(hg, partition_context, &target_graph);
+}
+
+
+// ####################### V-Cycles #######################
+
+void improveImpl(mt_kahypar_partitioned_hypergraph_t phg,
+                  Context& context,
+                  const size_t num_vcycles,
+                  TargetGraph* target_graph) {
+  check_compatibility(phg, lib::get_preset_c_type(context.partition.preset_type));
+  check_if_all_relevant_parameters_are_set(context);
+  context.partition.instance_type = lib::get_instance_type(phg);
+  context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
+  prepare_context(context);
+  context.partition.num_vcycles = num_vcycles;
+  PartitionerFacade::improve(phg, context, target_graph);
+}
+
+void improve(mt_kahypar_partitioned_hypergraph_t phg, const Context& context, const size_t num_vcycles) {
+  Context partition_context(context);
+  improveImpl(phg, partition_context, num_vcycles, nullptr);
+}
+
+void improveMapping(mt_kahypar_partitioned_hypergraph_t phg,
+                    const ds::StaticGraph& graph,
+                    const Context& context,
+                    const size_t num_vcycles) {
+  TargetGraph target_graph(graph.copy());
+  Context partition_context(context);
+  partition_context.partition.objective = Objective::steiner_tree;
+  improveImpl(phg, partition_context, num_vcycles, &target_graph);
 }
 
 } // namespace lib
