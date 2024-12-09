@@ -46,10 +46,8 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
-
-#ifndef KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"
-#endif
+
 
 using namespace mt_kahypar;
 
@@ -90,8 +88,6 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
-#ifndef KAHYPAR_DISABLE_BOOST
-
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {
   try {
@@ -101,7 +97,6 @@ void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_contex
   }
 }
 
-// TODO: we have a problem here
 void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                             const mt_kahypar_preset_type_t preset) {
   Context& c = *reinterpret_cast<Context*>(context);
@@ -112,8 +107,6 @@ void mt_kahypar_load_preset(mt_kahypar_context_t* context,
     presetToContext(c, preset_option_list);
   }
 }
-
-#endif
 
 int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
                                      const mt_kahypar_context_parameter_type_t type,

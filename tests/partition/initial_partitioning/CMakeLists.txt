@@ -3,9 +3,8 @@ target_sources(mtkahypar_tests PRIVATE
         initial_partitioning_data_container_test.cc
         )
 
-if(NOT KAHYPAR_DISABLE_BOOST AND NOT KAHYPAR_DISABLE_HWLOC)
-        target_sources(mtkahypar_tests PRIVATE initial_partitioner_test.cc)
-endif()
 if(NOT KAHYPAR_DISABLE_HWLOC)
-        target_sources(mtkahypar_tests PRIVATE pool_initial_partitioner_test.cc)
+        target_sources(mtkahypar_tests PRIVATE
+                initial_partitioner_test.cc
+                pool_initial_partitioner_test.cc)
 endif()

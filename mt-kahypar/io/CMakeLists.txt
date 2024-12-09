@@ -4,11 +4,8 @@ set(IOSources
         hypergraph_factory.cpp
         sql_plottools_serializer.cpp
         partitioning_output.cpp
-        presets.cpp)
-
-if(NOT KAHYPAR_DISABLE_BOOST)
-    list(APPEND IOSources command_line_options.cpp)
-endif()
+        presets.cpp
+        command_line_options.cpp)
 
 target_sources(MtKaHyPar-Sources INTERFACE ${IOSources})
 
