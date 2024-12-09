@@ -242,12 +242,12 @@ PYBIND11_MODULE(mtkahypar, m) {
     .def(py::init<>([](const PresetType preset) {
         Context context;
         auto preset_option_list = loadPreset(preset);
-        presetToContext(context, preset_option_list);
+        mt_kahypar::presetToContext(context, preset_option_list, true);
         return context;
       }))
     .def(py::init<>([](const std::string& config_file) {
         Context context;
-        mt_kahypar::parseIniToContext(context, config_file);
+        mt_kahypar::parseIniToContext(context, config_file, true);
         return context;
       }))
     .def("set_partitioning_parameters",
