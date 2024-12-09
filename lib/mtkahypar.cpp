@@ -413,6 +413,8 @@ mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t h
   return 0;
 }
 
+// TODO: API for connectivity
+
 void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   utils::delete_partitioned_hypergraph(partitioned_hg);
 }
@@ -430,6 +432,7 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hyperg
   }
 }
 
+// TODO: test
 mt_kahypar_status_t mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
                                                              mt_kahypar_hypernode_id_t num_nodes,
                                                              mt_kahypar_partition_id_t* fixed_vertices,
@@ -457,6 +460,7 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergrap
   }
 }
 
+// TODO: test
 void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph) {
   io::removeFixedVertices(hypergraph);
 }
@@ -712,7 +716,7 @@ mt_kahypar_hyperedge_weight_t mt_kahypar_steiner_tree(const mt_kahypar_partition
                                                       mt_kahypar_target_graph_t* target_graph) {
   TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
   if ( !target->isInitialized() ) {
-    target->precomputeDistances(4);
+    target->precomputeDistances(4);   // TODO: WHAT
   }
 
   switch ( partitioned_hg.type ) {

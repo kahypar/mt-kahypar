@@ -5,3 +5,5 @@ else()
 endif()
 target_link_libraries(mtkahypar PRIVATE MtKaHyPar-LibraryBuildSources)
 target_include_directories(mtkahypar INTERFACE $<BUILD_INTERFACE:${MTKAHYPAR_INCLUDE_DIR}>)
+# # ???
+# set_target_properties(mtkahypar PROPERTIES CXX_VISIBILITY_PRESET hidden)

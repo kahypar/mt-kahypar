@@ -60,6 +60,7 @@ class Utilities {
   Utilities & operator= (Utilities &&) = delete;
 
   static Utilities& instance() {
+    // TODO: placement in header incompatible with hidden symbols (?)
     static Utilities instance;
     return instance;
   }

@@ -7,6 +7,7 @@ FetchContent_MakeAvailable(pybind11)
 pybind11_add_module(mtkahypar_python module.cpp)
 
 target_link_libraries(mtkahypar_python PRIVATE MtKaHyPar-LibraryBuildSources)
+# TODO
 set_target_properties(mtkahypar_python PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 
 # rename mtkahypar_python target output to mtkahypar

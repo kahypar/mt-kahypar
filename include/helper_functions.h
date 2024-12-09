@@ -50,6 +50,7 @@ void initialize(const size_t num_threads, const bool interleaved_allocations) {
   #ifndef KAHYPAR_DISABLE_HWLOC
     size_t num_available_cpus = HardwareTopology::instance().num_cpus();
     if ( num_available_cpus < num_threads ) {
+      // TODO: keep this??
       WARNING("There are currently only" << num_available_cpus << "cpus available."
         << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
       P = num_available_cpus;

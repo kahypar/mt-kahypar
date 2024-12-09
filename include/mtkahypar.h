@@ -33,6 +33,7 @@
 
 #ifdef __cplusplus
 extern "C" {
+// TODO: replace bool with _Bool?
 #endif
 
 

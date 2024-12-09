@@ -432,6 +432,7 @@ namespace mt_kahypar::io {
     num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
 
     if ( res.num_hes_with_duplicated_pins > 0 ) {
+      // TODO
       WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
         << res.num_hes_with_duplicated_pins << "hyperedges!");
     }

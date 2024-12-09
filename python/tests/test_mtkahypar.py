@@ -562,6 +562,7 @@ class MainTest(unittest.TestCase):
         for block in range(self.k):
           self.assertLessEqual(self.partitioned_graph.block_weight(block), self.maxAllowedBlockWeight)
       else:
+        # TODO: test imbalance
         for block in range(self.k):
           self.assertLessEqual(self.partitioned_graph.block_weight(block), self.individualBlockWeights[block])
 
