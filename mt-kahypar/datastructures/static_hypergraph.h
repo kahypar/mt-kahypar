@@ -30,7 +30,7 @@
 
 #include <tbb/parallel_for.h>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"

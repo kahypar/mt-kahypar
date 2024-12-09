@@ -30,18 +30,25 @@
 #include <cstdint>
 #include <limits>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/datastructures/array.h"
 
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include "mt-kahypar/parallel/hardware_topology.h"
+#endif
+
 namespace mt_kahypar {
 
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
+#ifndef KAHYPAR_DISABLE_HWLOC
+  using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+  using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
+#else
+  using TBBInitializer = mt_kahypar::parallel::SimpleTBBInitializer;
+#endif
 
 #define UI64(X) static_cast<uint64_t>(X)
 
@@ -51,18 +58,20 @@ using RatingType = double;
 #define ID(X) static_cast<uint64_t>(X)
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
+// louvain graph
+using NodeID = uint64_t;
 #else
 #define ID(X) static_cast<uint32_t>(X)
 using HypernodeID = uint32_t;
 using HyperedgeID = uint32_t;
+// louvain graph
+using NodeID = uint32_t;
 #endif
 using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
-// Graph Types
-using NodeID = uint32_t;
 using ArcWeight = double;
 
 struct Arc {

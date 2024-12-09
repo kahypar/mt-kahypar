@@ -371,7 +371,7 @@ namespace mt_kahypar {
 
     std::swap(move_tracker.moveOrder, tmp_move_order);
     move_tracker.runningMoveID.store(first_move_id + next_move_index);
-    tbb::parallel_for(ID(0), next_move_index, [&](const MoveID move_id) {
+    tbb::parallel_for(static_cast<MoveID>(0), next_move_index, [&](const MoveID move_id) {
       const Move& m = move_tracker.moveOrder[move_id];
       if (m.isValid()) {
         move_tracker.moveOfNode[m.node] = first_move_id + move_id;

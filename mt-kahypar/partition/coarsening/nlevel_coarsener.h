@@ -32,7 +32,7 @@
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_scan.h>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "kahypar-resources/meta/mandatory.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"

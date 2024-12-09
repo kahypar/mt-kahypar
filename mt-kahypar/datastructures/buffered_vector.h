@@ -28,6 +28,8 @@
 #pragma once
 
 #include <vector>
+#include <cassert>
+
 #include <tbb/scalable_allocator.h>
 #include <tbb/enumerable_thread_specific.h>
 

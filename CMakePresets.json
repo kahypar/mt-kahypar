@@ -1,0 +1,85 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "minimal",
+            "displayName": "Minimal config to reduce compile time",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS": "ON",
+                "KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS": "ON",
+                "KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES": "OFF",
+                "KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES": "OFF",
+                "KAHYPAR_ENABLE_SOED_METRIC": "OFF",
+                "KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES": "OFF",
+                "KAHYPAR_ENABLE_STEINER_TREE_METRIC": "OFF",
+                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF"
+            }
+        },
+        {
+            "name": "default",
+            "displayName": "Default config",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS": "ON",
+                "KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS": "ON",
+                "KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES": "ON",
+                "KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES": "ON",
+                "KAHYPAR_ENABLE_SOED_METRIC": "ON",
+                "KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES": "ON",
+                "KAHYPAR_ENABLE_STEINER_TREE_METRIC": "ON",
+                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF"
+            }
+        },
+        {
+            "name": "dev",
+            "displayName": "Developer config",
+            "inherits": ["default"],
+            "cacheVariables": {
+                "KAHYPAR_ENABLE_TESTING": "ON",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+            }
+        },
+        {
+            "name": "python",
+            "displayName": "Config for Python build",
+            "inherits": ["default"],
+            "cacheVariables": {
+                "KAHYPAR_PYTHON": "ON"
+            }
+        },
+        {
+            "name": "all",
+            "displayName": "All features enabled",
+            "inherits": ["python"],
+            "cacheVariables": {
+                "KAHYPAR_ENABLE_TESTING": "ON",
+                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "ON"
+            }
+        },
+        {
+            "name": "minimal-dev",
+            "inherits": ["minimal"],
+            "cacheVariables": {
+                "KAHYPAR_ENABLE_TESTING": "ON",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+            }
+        },
+        {
+            "name": "all-dev",
+            "inherits": ["all", "dev"],
+            "cacheVariables": {
+                "KAHYPAR_ENABLE_TESTING": "ON",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+            }
+        }
+    ]
+}

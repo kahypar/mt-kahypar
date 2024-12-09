@@ -31,7 +31,7 @@
 
 #include <tbb/parallel_invoke.h>
 
-#include "libmtkahypar.h"
+#include "mtkahypar.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -498,7 +498,7 @@ namespace mt_kahypar {
     }
 
     void SetUp()  {
-      mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+      mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
       context = mt_kahypar_context_new();
       target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE);
     }

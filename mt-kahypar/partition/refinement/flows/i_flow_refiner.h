@@ -27,7 +27,7 @@
 #pragma once
 
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"

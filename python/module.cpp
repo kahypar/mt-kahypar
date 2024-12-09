@@ -34,7 +34,11 @@
 #include <vector>
 #include <iostream>
 
-#include "include/libmtkahypartypes.h"
+#ifndef KAHYPAR_DISABLE_HWLOC
+  #include <hwloc.h>
+#endif
+
+#include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
 
 #include "mt-kahypar/definitions.h"
@@ -43,37 +47,43 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
-
-#ifndef MT_KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"
-#endif
+
 
 namespace py = pybind11;
 using namespace mt_kahypar;
 
 namespace {
-  void initialize_thread_pool(const size_t num_threads) {
+  void initialize(const size_t num_threads) {
     size_t P = num_threads;
-    size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
-    if ( num_available_cpus < num_threads ) {
-      WARNING("There are currently only" << num_available_cpus << "cpus available."
-        << "Setting number of threads from" << num_threads
-        << "to" << num_available_cpus);
-      P = num_available_cpus;
-    }
+    #ifndef KAHYPAR_DISABLE_HWLOC
+      size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
+      if ( num_available_cpus < num_threads ) {
+        WARNING("There are currently only" << num_available_cpus << "cpus available."
+          << "Setting number of threads from" << num_threads
+          << "to" << num_available_cpus);
+        P = num_available_cpus;
+      }
+    #endif
 
     // Initialize TBB task arenas on numa nodes
     mt_kahypar::TBBInitializer::instance(P);
-    // We set the membind policy to interleaved allocations in order to
-    // distribute allocations evenly across NUMA nodes
-    hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
-    mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-    hwloc_bitmap_free(cpuset);
+
+    #ifndef KAHYPAR_DISABLE_HWLOC
+      // We set the membind policy to interleaved allocations in order to
+      // distribute allocations evenly across NUMA nodes
+      hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
+      mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+      hwloc_bitmap_free(cpuset);
+    #endif
+
+    register_algorithms_and_policies();
   }
 
   template<typename PartitionedHypergraph>
@@ -230,8 +240,8 @@ PYBIND11_MODULE(mtkahypar, m) {
 
   // ####################### Initialize Thread Pool #######################
 
-  m.def("initializeThreadPool", &initialize_thread_pool,
-    "Initializes the thread pool with the given number of threads",
+  m.def("initialize", &initialize,
+    "General initialization. Initializes the thread pool with the given number of threads",
     py::arg("number of threads"));
 
   // ####################### Initialize Random Number Generator #######################
@@ -254,12 +264,10 @@ PYBIND11_MODULE(mtkahypar, m) {
         }
       }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
       py::arg("preset type"))
-#ifndef MT_KAHYPAR_DISABLE_BOOST
     .def("loadConfigurationFile", [](Context& context, const std::string& config_file) {
         mt_kahypar::parseIniToContext(context, config_file);
       }, "Read partitioning configuration from file",
       py::arg("configuration file"))
-#endif
     .def("setPartitioningParameters",
       [](Context& context,
          const PartitionID k,

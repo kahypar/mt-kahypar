@@ -1,431 +1,510 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.26)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
-project(MtKaHyPar CXX C)
-set(PROJECT_VENDOR "Tobias Heuer")
-set(PROJECT_CONTACT "tobias.heuer@kit.edu")
-set(PROJECT_URL "https://github.com/kittobi1992/mt-kahypar")
-set(PROJECT_DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning")
-set(PROJECT_VERSION "1.0.0")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# define the project version
+set(MT_KAHYPAR_VERSION "1.5")
+string(SUBSTRING "${MT_KAHYPAR_VERSION}" 0 1 MT_KAHYPAR_SO_VERSION)
+set(MTKAHYPAR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-# CMake Options
+project(MtKaHyPar
+        VERSION ${MT_KAHYPAR_VERSION}
+        DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
+        LANGUAGES CXX C)
+set(PROJECT_URL "https://github.com/kahypar/mt-kahypar")
 
-option(KAHYPAR_DOWNLOAD_BOOST
-  "Download boost automatically and compile required libraries." OFF)
 
-option(KAHYPAR_DOWNLOAD_TBB
-  "Download TBB automatically." OFF)
+#################################################################
+## Sanity checks and policies                                  ##
+#################################################################
 
-option(KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION
-  "Enforces the minimum required TBB version." ON)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
+  message(FATAL_ERROR "CMAKE_BUILD_TYPE must be set. Options are: Debug, Release, RelWithDebInfo")
+endif()
+if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+  message(FATAL_ERROR "Build directory must be different from source directory.")
+endif()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  message(FATAL_ERROR "MSVC not supported at the moment")
+endif()
 
-option(KAHYPAR_USE_GCOV
-  "Compile and run tests with gcov for coverage analysis." OFF)
+if (POLICY CMP0135)  # download timestamps
+  cmake_policy(SET CMP0135 NEW)
+endif()
+if (POLICY CMP0144)  # uppercase find_package variables
+  cmake_policy(SET CMP0144 NEW)
+endif()
+if (POLICY CMP0167)  # new FindBoost behavior
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
-option(KAHYPAR_DISABLE_ASSERTIONS
-  "Disable KaHyPar's internal assertions." OFF)
+if (NOT DEFINED BUILD_SHARED_LIBS AND NOT WIN32)
+  # since TBB does not support static linking, we build with dynamic linking by default (except on Windows)
+  set(BUILD_SHARED_LIBS ON)
+endif()
 
-option(KAHYPAR_USE_STANDARD_ASSERTIONS
-  "Use standard C++ asserts instead of custom assertions." OFF)
+#################################################################
+## Meta targets                                               ##
+#################################################################
 
-option(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
-  "Enable heavy assertions in preprocessing phase." OFF)
+# meta targets for flags
+add_library(MtKaHyPar-BuildFlags INTERFACE)
+target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_17)
 
-option(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS
-  "Enable heavy assertions in coarsening phase." OFF)
+# meta targets for includes and source files
+add_library(MtKaHyPar-Include INTERFACE)
+target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-  "Enable heavy assertions in initial partitioning phase." OFF)
+add_library(MtKaHyPar-Sources INTERFACE)
 
-option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
-  "Enable heavy assertions in refinement phase." OFF)
+add_library(MtKaHyPar-ToolsSources INTERFACE)
 
-option(KAHYPAR_USE_64_BIT_IDS
-  "Enables 64-bit vertex and hyperedge IDs." OFF)
+# meta target for CLI/test build
+add_library(MtKaHyPar-BuildSources OBJECT "")
+target_link_libraries(MtKaHyPar-BuildSources PRIVATE MtKaHyPar-Sources)
+target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
-option(KAHYPAR_TRAVIS_BUILD
-  "Indicate that this build is executed on Travis CI." OFF)
+# meta target for library build, which must be built with all features enabled
+add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
+target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
+target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
+target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
+                           KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+                           KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+# building shared libraries requires position independent code
+if(BUILD_SHARED_LIBS)
+  set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
-option(KAHYPAR_CI_BUILD
-  "Indicate that this build is executed on GitHub Actions." OFF)
 
-option(KAHYPAR_ADD_ADDRESS_SANITIZER
-  "Adds address sanitizer to compile options." ON)
+#################################################################
+## Options                                                     ##
+#################################################################
 
-option(KAHYPAR_ENABLE_THREAD_PINNING
-  "Enables thread pinning in Mt-KaHyPar." ON)
+# general build options
+option(KAHYPAR_PYTHON "Include the Python interface in the build." OFF)
+option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googletest." OFF)
+option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." OFF)
+option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
+option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mtkahypar`." OFF)
 
-option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
-  "Adds the compile flags `-mtune=native -march=native`" ON)
+# dependencies
+option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
+option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
+option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact performance on NUMA platforms." OFF)
 
-option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  "Enables some experimental features. Can be turned off for faster compilation." OFF)
+# specific compile features/build properties
+option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
+option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
+option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
+option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`" OFF)
+option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
-option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-  "Enables graph partitioning features. Can be turned off for faster compilation." ON)
+# algorithm features for CLI build (note: the library always contains all non-experimental features)
+option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_SOED_METRIC "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_STEINER_TREE_METRIC "Enables the Steiner tree metric. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES "Enables some experimental features. Can be turned off for faster compilation." OFF)
 
-option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-  "Enables highest quality preset features. Can be turned off for faster compilation." ON)
+# assertions
+option(KAHYPAR_DISABLE_ASSERTIONS "Disable all internal assertions." OFF)
+option(KAHYPAR_USE_STANDARD_ASSERTIONS "Use standard C++ asserts instead of custom assertions." OFF)
+option(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS "Enable heavy assertions in preprocessing phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS "Enable heavy assertions in coarsening phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS "Enable heavy assertions in initial partitioning phase." OFF)
+option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS "Enable heavy assertions in refinement phase." OFF)
 
-option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  "Enables large k partitioning features. Can be turned off for faster compilation." ON)
-
-option(KAHYPAR_ENABLE_SOED_METRIC
-  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." ON)
-
-option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
-  "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
-
-option(KAHYPAR_PYTHON
-  "Build the Python interface. Can be turned off in case Python is not available." ON)
-
-option(MT_KAHYPAR_DISABLE_BOOST
-  "Whether to exclude components requiring Boost::program_options. Will result in no binary target and the C and Python interface not being able to load configuration files." OFF)
+# developer build options
+option(KAHYPAR_CI_BUILD "Indicate that this build is executed on GitHub Actions." OFF)
+option(KAHYPAR_USE_GCOV "Compile and run tests with gcov for coverage analysis." OFF)
 
 
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC AND NOT KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   message(FATAL_ERROR "Steiner tree metric requires graph features. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On to your cmake command")
 endif()
 
+
+#################################################################
+## Print header with most important infos                      ##
+#################################################################
+
+if(CMAKE_BUILD_TYPE)
+  # normalize so that exactly the first letter is uppercase
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
+  string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
+  string(SUBSTRING "${BUILD_TYPE_UPPER}" 0 1 FIRST_LETTER)
+  string(SUBSTRING "${BUILD_TYPE_LOWER}" 1 -1 REMAINDER)
+  set(KAHYPAR_BUILD_DESCRIPTION "${FIRST_LETTER}${REMAINDER} Build")
+  if (KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS AND NOT BUILD_TYPE_UPPER MATCHES "DEBUG")
+    set(KAHYPAR_BUILD_DESCRIPTION "${KAHYPAR_BUILD_DESCRIPTION} + march=native")
+  endif()
+  if(KAHYPAR_ENABLE_TESTING)
+    set(KAHYPAR_TESTING_ENABLED "Enabled")
+  else()
+    set(KAHYPAR_TESTING_ENABLED "Disabled")
+  endif()
+  if(BUILD_SHARED_LIBS)
+    set(KAHYPAR_LINKING_TYPE "Dynamic")
+  else()
+    set(KAHYPAR_LINKING_TYPE "Static")
+  endif()
+  message(STATUS "Mt-KaHyPar: ${KAHYPAR_BUILD_DESCRIPTION}, Tests ${KAHYPAR_TESTING_ENABLED}, ${KAHYPAR_LINKING_TYPE} Linking")
+endif()
+
+
+#################################################################
+## Compatibility checks which interact with options            ##
+#################################################################
+
+if(KAHYPAR_ENABLE_THREAD_PINNING AND KAHYPAR_DISABLE_HWLOC)
+  message(WARNING "Thread pinning disabled since hwloc library is disabled.")
+  set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
+endif()
+
+if(UNIX)
+  include(CheckIncludeFiles)
+  set(CMAKE_REQUIRED_QUIET TRUE)
+  set(KAHYPAR_REQUIRED_HEADERS "unistd.h" "sys/mman.h" "sys/ioctl.h")
+  check_include_files("${KAHYPAR_REQUIRED_HEADERS}" KAHYPAR_HEADERS_AVAILABLE LANGUAGE CXX)
+  if(NOT KAHYPAR_HEADERS_AVAILABLE)
+    message(FATAL_ERROR "The following system headers are required, but some are not available: ${KAHYPAR_REQUIRED_HEADERS}")
+  endif()
+
+  include(CheckThreadPinning)
+  if(KAHYPAR_ENABLE_THREAD_PINNING AND NOT THREAD_PINNING_WORKS)
+    message(WARNING "Thread pinning disabled since required system APIs are not available.")
+    set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
+  endif()
+elseif(NOT WIN32)
+  message(FATAL_ERROR "Only unix-based operating systems and windows are supported.")
+endif()
+
+
+#################################################################
+## Options that translate into compile flags                   ##
+#################################################################
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
 
 if(KAHYPAR_USE_STANDARD_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_USE_STANDARD_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_STANDARD_ASSERTIONS)
 endif(KAHYPAR_USE_STANDARD_ASSERTIONS)
 
 if(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS)
 endif(KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS)
 
 if(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS)
 endif(KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS)
 
 if(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS)
 endif(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS)
 
 if(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
-  add_compile_definitions(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 endif(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 
 if(KAHYPAR_USE_64_BIT_IDS)
-  add_compile_definitions(KAHYPAR_USE_64_BIT_IDS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_64_BIT_IDS)
 endif(KAHYPAR_USE_64_BIT_IDS)
 
-if(KAHYPAR_TRAVIS_BUILD)
-  add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
-endif(KAHYPAR_TRAVIS_BUILD)
-
 if(KAHYPAR_ENABLE_THREAD_PINNING)
-  add_compile_definitions(KAHYPAR_ENABLE_THREAD_PINNING)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_THREAD_PINNING)
 endif(KAHYPAR_ENABLE_THREAD_PINNING)
 
 if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 
 if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
 if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 endif(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 
 if(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 
 if(KAHYPAR_ENABLE_SOED_METRIC)
-  add_compile_definitions(KAHYPAR_ENABLE_SOED_METRIC)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_SOED_METRIC)
 endif(KAHYPAR_ENABLE_SOED_METRIC)
 
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
-  add_compile_definitions(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
-if(MT_KAHYPAR_DISABLE_BOOST)
-  add_compile_definitions(MT_KAHYPAR_DISABLE_BOOST)
+if(KAHYPAR_DISABLE_HWLOC)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_HWLOC)
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR})
-find_package(Threads REQUIRED)
-message(STATUS "Found Threads: ${CMAKE_THREAD_LIBS_INIT}")
 
-# Include Submodules
-add_subdirectory(external_tools/googletest EXCLUDE_FROM_ALL)
-include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
-include_directories(external_tools/kahypar-shared-resources)
-include_directories(external_tools/growt)
-include_directories(external_tools/WHFC)
-include_directories(external_tools/pcg)
+#################################################################
+## Setup of dependencies                                       ##
+#################################################################
 
-if(KAHYPAR_DOWNLOAD_BOOST)
-  # Download Boost
-  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
-  include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/)
-  file(GLOB MINI_BOOST_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/libs/program_options/src/*.cpp)
+include(FetchContent)
+set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
+set(KAHYPAR_WHFC_TAG             5ae2e3664391ca0db7fab2c82973e98c48937a08)
+set(KAHYPAR_GROWT_TAG            0c1148ebcdfd4c04803be79706533ad09cc81d37)
+set(KAHYPAR_TBB_VERSION          v2022.0.0)
+set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
+set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
 
-  add_library(mini_boost STATIC ${MINI_BOOST_SOURCES})
-  set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX)
-  set(Boost_LIBRARIES mini_boost)
-  set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/boost/)
-  include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-else()
-  # Find Boost Program Options Library
-  find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
-  if(Boost_FOUND)
-    include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-    set(KAHYPAR_INCLUDE_DIRS ${Boost_INCLUDE_DIRS} ${KAHYPAR_INCLUDE_DIRS})
-    set(KAHYPAR_LINK_LIBRARIES ${Boost_LIBRARIES} ${KAHYPAR_LINK_LIBRARIES})
-    message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}")
-    message(STATUS "Boost Library Dirs: ${Boost_LIBRARY_DIRS}")
-    message(STATUS "Boost Libraries: ${Boost_LIBRARIES}")
-    if(WIN32)
-      add_definitions(-DBOOST_ALL_NO_LIB)
-      add_definitions(-DBOOST_PROGRAM_OPTIONS_DYN_LINK=1)
-    endif()
-  else()
-    MESSAGE(FATAL_ERROR "
-      Boost not found. Install Boost on your system or
-      add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
-  endif()
-endif()
+message(STATUS "Fetching dependencies...")
 
-# Download TBB
-if(KAHYPAR_DOWNLOAD_TBB)
-  if ( UNIX AND NOT WIN32 )
-    execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)
-    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
-  elseif ( MSVC )
-    execute_process(COMMAND cmake -G ${CMAKE_GENERATOR} -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_windows.cmake)
-    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
-  else()
-    MESSAGE(WARNING "
-      We did not find a TBB version for your platform online.
-      The build uses the TBB version installed on your system.")
-  endif()
-endif()
-
-# Find TBB Library
-find_package(TBB REQUIRED)
-if (TBB_FOUND)
-  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12050) OR (NOT KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
-    include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
-    link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
-    MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
-    MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-    MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
-  ELSE ()
-    MESSAGE(FATAL_ERROR "
-      Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum
-      required version is 12050 (OneTBB 2021.5). You can download a suitable version by adding
-      -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command (may require to clear the cmake cache).
-      Note that Mt-KaHyPar also compiles with older versions of TBB. However, we found some unexpected
-      behavior of a TBB function that causes on our side segmentation faults in really rare cases.
-      If you want to ignore these warnings, you can add -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF to the
-      cmake build command which will build Mt-KaHyPar with your current TBB version.")
-  ENDIF()
-ELSE ()
-  MESSAGE(FATAL_ERROR "
-    TBB library not found. Install TBB on your system or
-    add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command
-    (only available for Linux and MSVC).")
-ENDIF()
-
-# Find HWLOC Library
-FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
-  HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
-FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
-  HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
+# Include header-only dependencies
+FetchContent_Populate(
+  kahypar-shared-resources QUIET EXLUDE_FROM_ALL
+  GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
+  GIT_TAG        ${KAHYPAR_SHARED_RESOURCES_TAG}
+  SOURCE_DIR     external_tools/kahypar-shared-resources
+)
+FetchContent_Populate(
+  WHFC QUIET EXLUDE_FROM_ALL
+  GIT_REPOSITORY https://github.com/larsgottesbueren/WHFC.git
+  GIT_TAG        ${KAHYPAR_WHFC_TAG}
+  SOURCE_DIR     external_tools/WHFC
+)
+FetchContent_Populate(
+  growt QUIET EXLUDE_FROM_ALL
+  GIT_REPOSITORY https://github.com/TooBiased/growt.git
+  GIT_TAG        ${KAHYPAR_GROWT_TAG}
+  SOURCE_DIR     external_tools/growt
 )
 
-IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
-  MESSAGE(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
-  include_directories(${HWLOCK_INCLUDE_DIR})
-  link_libraries(${HWLOCK_LIBRARY})
-ELSE ()
-  MESSAGE(FATAL_ERROR "
-    HwLoc library not found. Install HwLoc on your system.")
-ENDIF ()
+target_include_directories(MtKaHyPar-Include INTERFACE
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/growt
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/WHFC)
 
-# Add targets for code coverage analysis
-if(KAHYPAR_USE_GCOV)
 
-  include(CodeCoverage)
-  setup_target_for_coverage(${PROJECT_NAME}_coverage tests coverage)
+if (KAHYPAR_ENABLE_TESTING)
+  FetchContent_Declare(
+    googletest EXCLUDE_FROM_ALL SYSTEM
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        ${KAHYPAR_GOOGLETEST_VERSION}
+  )
+  FetchContent_MakeAvailable(googletest)
+  include(gmock)
+  enable_testing()
 
-  # find programs
-  find_program(GENHTML genhtml)
-  find_program(LCOV lcov)
-
-  if(NOT LCOV OR NOT GENHTML)
-    message(SEND_ERROR "Coverage analysis requires lcov and genhtml.")
-  endif()
-
-  # add coverage anaylsis compile and link flags
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lgcov")
-
-  # add cached variable containing parameters for lcov/genhtml
-  set(LCOV_FLAGS "" CACHE STRING "parameters for lcov")
-  set(GENHTML_FLAGS --legend --no-branch-coverage
-    CACHE STRING "parameters for genhtml")
-  set(COVERAGE_LCOV_EXCLUDES "external_tools/*" )
-
-  # custom target to run before tests
-  add_custom_target(lcov-reset
-    COMMAND ${LCOV} -q --directory ${CMAKE_BINARY_DIR} --zerocounters
-    COMMENT "Resetting code coverage counters")
-
-  # custom lcov target to run tests
-  add_custom_target(lcov-runtests
-    COMMAND make
-    DEPENDS lcov-reset
-    COMMENT "Running all unit tests")
-
-  # get git version description
-  execute_process(COMMAND git describe --tags
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    OUTPUT_VARIABLE GITDESC
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  # command sequence to gather, clean and generate HTML coverage report
-  add_custom_target(lcov-html
-    COMMAND ${LCOV} -q --directory . --capture --output-file lcov.info
-    COMMAND ${LCOV} -q --remove lcov.info '/usr/*' '*/extlib/*' ${LCOV_FLAGS} --output-file lcov-clean.info
-    COMMAND ${GENHTML} -q -o coverage --title "KaHyPar ${GITDESC}" --prefix ${PROJECT_SOURCE_DIR} ${GENHTML_FLAGS} lcov-clean.info
-    DEPENDS lcov-runtests
-    COMMENT "Capturing code coverage counters and create HTML coverage report"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-
-  # top-level target to run tests and generate coverage report
-  add_custom_target(test-coverage
-    COMMENT "Generate HTML coverage report"
-    DEPENDS lcov-html)
-
-endif(KAHYPAR_USE_GCOV)
-
-# Set default build type if not set
-if(NOT CMAKE_BUILD_TYPE)
-  set( CMAKE_BUILD_TYPE Release CACHE STRING
-       "Choose the type of build, options are: Debug, Release, RelWithDebInfo"
-       FORCE )
+  add_library(MtKaHyPar-Test INTERFACE)
+  target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
 endif()
 
-# Get current commit hash
-find_package(Git)
-include(GetGitRevisionDescription)
-get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
-if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
-  message(STATUS "Detected git refspec ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
-  configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
-endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
+# check for linking problems
+if(BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
+  if(NOT KAHYPAR_DOWNLOAD_BOOST OR NOT CMAKE_POSITION_INDEPENDENT_CODE)
+    message(WARNING "Building a shared lib with static linking of transitive dependencies requires building Boost from source with -DCMAKE_POSITION_INDEPENDENT_CODE=On")
+  endif()
+endif()
+
+block()
+  if(KAHYPAR_STATIC_LINK_DEPENDENCIES)
+    set(Boost_USE_STATIC_LIBS ON)
+    set(BUILD_SHARED_LIBS OFF)
+  endif()
+  if(KAHYPAR_DOWNLOAD_BOOST)
+    # Download Boost
+    set(BOOST_INCLUDE_LIBRARIES program_options range dynamic_bitset)
+    set(BOOST_ENABLE_CMAKE ON)
+    FetchContent_Declare(
+      Boost EXCLUDE_FROM_ALL SYSTEM
+      URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.gz
+    )
+    FetchContent_MakeAvailable(Boost)
+  else()
+    # Find system Boost
+    find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
+    if(NOT Boost_FOUND)
+      message(FATAL_ERROR "
+        Boost not found. Install Boost on your system or
+        add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
+    endif()
+    message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
+  endif()
+endblock()
+
+# the downloaded (newer) boost requires to add these targets explicitly
+if(TARGET Boost::range)
+  target_link_libraries(MtKaHyPar-Include INTERFACE Boost::range)
+endif()
+if(TARGET Boost::dynamic_bitset)
+  target_link_libraries(MtKaHyPar-Include INTERFACE Boost::dynamic_bitset)
+endif()
+target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
+
+
+if(KAHYPAR_DOWNLOAD_TBB)
+  # Download TBB library
+  FetchContent_Declare(
+    TBB EXCLUDE_FROM_ALL SYSTEM
+    GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
+    GIT_TAG        ${KAHYPAR_TBB_VERSION}
+    GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
+  )
+  block()
+    if(KAHYPAR_STATIC_LINK_TBB)
+      set(BUILD_SHARED_LIBS OFF)
+    else()
+      set(BUILD_SHARED_LIBS ON)
+    endif()
+    FetchContent_MakeAvailable(TBB)
+  endblock()
+else()
+  # Find system TBB library
+  find_package(TBB 2021.5 COMPONENTS tbb tbbmalloc)
+  if(NOT TBB_FOUND)
+    message(FATAL_ERROR "
+      TBB library not found or current TBB version is too old. Install TBB on your system
+      or add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command.")
+  endif()
+  get_target_property(KAHYPAR_TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  message(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR}, TBB Include: ${KAHYPAR_TBB_INCLUDE_DIRS}")
+endif()
+target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
+
+
+# Find HWLOC Library
+if(NOT KAHYPAR_DISABLE_HWLOC)
+  include(DetectHwloc)
+  if(NOT TARGET HWLOC::hwloc)
+    message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
+  endif()
+  target_link_libraries(MtKaHyPar-Include INTERFACE HWLOC::hwloc)
+endif()
+
+
+#################################################################
+## Compile options and specialized builds                      ##
+#################################################################
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set (X86 TRUE)
-else ()
-    set (X86 FALSE)
-endif ()
+    set(KAHYPAR_X86 TRUE)
+else()
+    set(KAHYPAR_X86 FALSE)
+endif()
 
-if(NOT MSVC)
-  # Add compile flags
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra ")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused ")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfatal-errors")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wcast-qual")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wredundant-decls")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Winit-self")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPARANOID ")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+# Add compile flags that enable warnings
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+  -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
+  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
 
-  if(X86)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcx16")
-  endif()
+if(KAHYPAR_USE_GCOV)
+  # add coverage anaylsis compile and link flags
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
+endif(KAHYPAR_USE_GCOV)
 
-  # lld is way faster than ld. If you have it, use it!
-  find_program(LLD_BIN lld)
-  if (LLD_BIN AND X86)
-    message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
-  else()
-    message(STATUS "Default linker")
-  endif()
+# lld is way faster than ld. If you have it, use it!
+find_program(LLD_BIN lld)
+if (LLD_BIN AND KAHYPAR_X86)
+  message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+endif()
 
-  include(CheckSSE4_2)
-  if( BUILTIN_POPCNT )
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
-  endif()
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
+                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
+                                                      $<$<CONFIG:DEBUG>:-g3 -fno-omit-frame-pointer>)
+target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
 
+if(UNIX AND NOT WIN32)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
+endif()
+
+if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
-  if(KAHYPAR_HAS_CRC32 AND X86)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcrc32")
+  include(CheckSSE4_2)
+  block()
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
+  endblock()
+
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
+  if(KAHYPAR_HAS_CRC32)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
-
-
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-  set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g3 ")
-
-  if(UNIX AND NOT WIN32)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined")
+  if(BUILTIN_POPCNT)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
   endif()
-
-  if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mtune=native -march=native")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -mtune=native -march=native")
+  if(BUILTIN_POPCNT AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # growt requires SSE instructions
+    # TODO: it is not clear whether/why Linux is required for growt
+    target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
   endif()
-
-  if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
-  endif()
-
-  if(ENABLE_PROFILE MATCHES ON)
-    message(STATUS "Profiling activated")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLE_PROFILE")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g3 -DENABLE_PROFILE -fno-omit-frame-pointer")
-    set(PROFILE_FLAGS "-lprofiler")
-  endif()
-elseif(MSVC)
-  message(FATAL_ERROR "MSVC not supported at the moment")
 endif()
 
-add_custom_target(AnalyzeModifiedSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analyze-source.pl" "-w")
-add_custom_target(AnalyzeAllSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analyze-source.pl" "-aw")
-
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
-message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-
-include(gmock)
-enable_testing()
-
-add_subdirectory(tools)
-add_subdirectory(lib)
-add_subdirectory(tests)
-
-if(NOT MT_KAHYPAR_DISABLE_BOOST)
-  add_subdirectory(mt-kahypar/application)
+if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>
+                                                        $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
 endif()
+
+if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
+endif()
+
+
+#################################################################
+## Include the source code and targets via subdirectories      ##
+#################################################################
 
 if(KAHYPAR_PYTHON)
+  if (NOT BUILD_SHARED_LIBS)
+    message(SEND_ERROR "Python interface must be built as shared library. To do so, add -DBUILD_SHARED_LIBS=On to your cmake command.")
+  endif()
   add_subdirectory(python)
 endif()
+if (KAHYPAR_ENABLE_TESTING)
+  add_subdirectory(tests)
+endif()
 
-# This adds the source files. It's important that this happens after the compile targets have been added
+add_subdirectory(mt-kahypar/application)
+add_subdirectory(tools)
+add_subdirectory(lib)
 add_subdirectory(mt-kahypar)
+
+# export target for C interface
+add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
+
+
+#################################################################
+## Installation                                                ##
+#################################################################
+
+if(UNIX AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  # set default installation prefix if not user-defined
+  set(CMAKE_INSTALL_PREFIX "/usr/" CACHE STRING "" FORCE)
+endif()
+
+if(NOT WIN32 AND BUILD_SHARED_LIBS AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  # library installation target
+  include(SetupInstallation)
+endif()
+
+if(KAHYPAR_INSTALL_CLI AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  # CLI installation target
+  include(GNUInstallDirs)
+  set_target_properties(MtKaHyPar-CLI PROPERTIES OUTPUT_NAME mtkahypar)
+  install(TARGETS MtKaHyPar-CLI
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RENAME mtkahypar
+    COMPONENT MtKaHyPar_CLI)
+  add_custom_target(install-mtkahypar-cli
+    ${CMAKE_COMMAND}
+    -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_CLI
+    -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
+    DEPENDS MtKaHyPar-CLI)
+endif()
+

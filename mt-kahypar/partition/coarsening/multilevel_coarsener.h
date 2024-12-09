@@ -36,7 +36,7 @@
 
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
@@ -242,7 +242,7 @@ class MultilevelCoarsener : public ICoarsener,
     tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
     ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
     fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
-    tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
+    tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < _current_vertices.size());
       const HypernodeID hn = _current_vertices[id];
       if (current_hg.nodeIsEnabled(hn)) {

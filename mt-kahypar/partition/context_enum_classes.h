@@ -31,7 +31,7 @@
 #include <string>
 #include <cstdint>
 
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {

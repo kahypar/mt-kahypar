@@ -249,7 +249,9 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
-    str << "  Number of used NUMA nodes:          " << TBBInitializer::instance().num_used_numa_nodes() << std::endl;
+    if constexpr (TBBInitializer::provides_numa_information) {
+      str << "  Number of used NUMA nodes:          " << TBBInitializer::instance().num_used_numa_nodes() << std::endl;
+    }
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
     return str;

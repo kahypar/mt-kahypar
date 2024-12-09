@@ -1,2 +1,2 @@
-target_sources(mt_kahypar_tests PRIVATE
+target_sources(mtkahypar_tests PRIVATE
         coarsener_test.cc)

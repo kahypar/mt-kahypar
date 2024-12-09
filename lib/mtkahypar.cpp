@@ -25,8 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "include/libmtkahypar.h"
-#include "include/libmtkahypartypes.h"
+#include "include/mtkahypar.h"
+#include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
 
 #include "tbb/parallel_for.h"
@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -45,10 +46,8 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
-
-#ifndef MT_KAHYPAR_DISABLE_BOOST
 #include "mt-kahypar/io/command_line_options.h"
-#endif
+
 
 using namespace mt_kahypar;
 
@@ -89,8 +88,6 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
-#ifndef MT_KAHYPAR_DISABLE_BOOST
-
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {
   try {
@@ -99,8 +96,6 @@ void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_contex
     LOG << ex.what();
   }
 }
-
-#endif
 
 void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                             const mt_kahypar_preset_type_t preset) {
@@ -181,27 +176,34 @@ void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* contex
   }
 }
 
-void mt_kahypar_initialize_thread_pool(const size_t num_threads,
-                                       const bool interleaved_allocations) {
+void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations) {
   size_t P = num_threads;
-  size_t num_available_cpus = HardwareTopology::instance().num_cpus();
-  if ( num_available_cpus < num_threads ) {
-    WARNING("There are currently only" << num_available_cpus << "cpus available."
-      << "Setting number of threads from" << num_threads
-      << "to" << num_available_cpus);
-    P = num_available_cpus;
-  }
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+    if ( num_available_cpus < num_threads ) {
+      WARNING("There are currently only" << num_available_cpus << "cpus available."
+        << "Setting number of threads from" << num_threads
+        << "to" << num_available_cpus);
+      P = num_available_cpus;
+    }
+  #endif
 
   // Initialize TBB task arenas on numa nodes
   TBBInitializer::instance(P);
 
-  if ( interleaved_allocations ) {
-    // We set the membind policy to interleaved allocations in order to
-    // distribute allocations evenly across NUMA nodes
-    hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
-    parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-    hwloc_bitmap_free(cpuset);
-  }
+  #ifndef KAHYPAR_DISABLE_HWLOC
+    if ( interleaved_allocations ) {
+      // We set the membind policy to interleaved allocations in order to
+      // distribute allocations evenly across NUMA nodes
+      hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
+      parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+      hwloc_bitmap_free(cpuset);
+    }
+  #else
+    unused(interleaved_allocations);
+  #endif
+
+  register_algorithms_and_policies();
 }
 
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,
