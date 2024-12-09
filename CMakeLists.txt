@@ -252,9 +252,12 @@ endif()
 #################################################################
 
 include(FetchContent)
-set(KAHYPAR_TBB_VERSION        v2022.0.0)
-set(KAHYPAR_GOOGLETEST_VERSION v1.15.2)
-set(KAHYPAR_PYBIND11_VERSION   v2.13.6)
+set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
+set(KAHYPAR_WHFC_TAG             5ae2e3664391ca0db7fab2c82973e98c48937a08)
+set(KAHYPAR_GROWT_TAG            0c1148ebcdfd4c04803be79706533ad09cc81d37)
+set(KAHYPAR_TBB_VERSION          v2022.0.0)
+set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
+set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
 
 message(STATUS "Fetching dependencies...")
 
@@ -262,19 +265,19 @@ message(STATUS "Fetching dependencies...")
 FetchContent_Populate(
   kahypar-shared-resources QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
-  GIT_TAG        origin/main
+  GIT_TAG        ${KAHYPAR_SHARED_RESOURCES_TAG}
   SOURCE_DIR     external_tools/kahypar-shared-resources
 )
 FetchContent_Populate(
   WHFC QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/larsgottesbueren/WHFC.git
-  GIT_TAG        origin/master
+  GIT_TAG        ${KAHYPAR_WHFC_TAG}
   SOURCE_DIR     external_tools/WHFC
 )
 FetchContent_Populate(
   growt QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/TooBiased/growt.git
-  GIT_TAG        origin/master
+  GIT_TAG        ${KAHYPAR_GROWT_TAG}
   SOURCE_DIR     external_tools/growt
 )
 
