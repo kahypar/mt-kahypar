@@ -12,7 +12,7 @@ foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${MappingSources})
   else ()
     target_sources(mtkahypar PRIVATE ${MappingSources})
-    target_sources(mtkahypar_python PRIVATE ${MappingSources})
+    # target_sources(mtkahypar_python PRIVATE ${MappingSources})
   endif()
 endforeach()
 
