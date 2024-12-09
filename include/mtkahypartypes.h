@@ -1,5 +1,7 @@
-#ifndef TYPEDEFS_H
-#define TYPEDEFS_H
+#ifndef MTKAHYPAR_TYPEDEFS_H
+#define MTKAHYPAR_TYPEDEFS_H
+
+#include <stddef.h>
 
 typedef enum {
   STATIC_GRAPH,
@@ -17,6 +19,38 @@ typedef enum {
   LARGE_K_PARTITIONING,
   NULLPTR_PARTITION
 } mt_kahypar_partition_type_t;
+
+/**
+ * Either success or type of the error.
+ */
+typedef enum {
+  SUCCESS = 0,
+  // input files are not found or an input is syntactically or semantically invalid
+  INVALID_INPUT,
+  // an algorithm parameter has an invalid value
+  INVALID_PARAMETER,
+  // the attempted operation is incompatible with the config,
+  // e.g. the hypergraph type is incompatible with the preset type
+  UNSUPPORTED_OPERATION,
+  // errors originating from the OS, e.g. out of memory or failed mmap
+  SYSTEM_ERROR,
+  OTHER_ERROR
+} mt_kahypar_status_t;
+
+/**
+ * Indicates whether an error occured.
+ *
+ * If an error occurs, mt_kahypar_free_error_content needs to be called
+ * afterwards to free the space allocated for the error message.
+ */
+typedef struct {
+  // null-terminated error message
+  const char* msg;
+  // length of error message without null terminator
+  size_t msg_len;
+  // either success or the error type
+  mt_kahypar_status_t status;
+} mt_kahypar_error_t;
 
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
@@ -55,15 +89,15 @@ typedef int mt_kahypar_partition_id_t;
  * Configurable parameters of the partitioning context.
  */
 typedef enum {
-  // number of blocks of the partition
+  // number of blocks of the partition (integer)
   NUM_BLOCKS,
-  // imbalance factor
+  // imbalance factor (float)
   EPSILON,
-  // objective function (either 'cut' or 'km1')
+  // objective function (either 'cut', 'km1' or 'soed')
   OBJECTIVE,
-  // number of V-cycles
+  // number of V-cycles (integer)
   NUM_VCYCLES,
-  // disables or enables logging
+  // enables logging (bool: 1/0)
   VERBOSE
 } mt_kahypar_context_parameter_type_t;
 
@@ -112,4 +146,4 @@ typedef enum {
 #   endif
 #endif
 
-#endif // TYPEDEFS_H
+#endif // MTKAHYPAR_TYPEDEFS_H

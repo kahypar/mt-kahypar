@@ -65,24 +65,6 @@ namespace {
     lib::initialize(num_threads, true);
   }
 
-  void throw_if_not_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, PresetType preset) {
-    if (!lib::check_compatibility(partitioned_hg, lib::get_preset_c_type(preset))) {
-      throw UnsupportedOperationException(lib::incompatibility_description(partitioned_hg));
-    }
-  }
-
-  template<typename PartitionedHypergraph>
-  double imbalance(const PartitionedHypergraph& partitioned_graph) {
-    const mt_kahypar::HypernodeWeight perfectly_balanced_weight =
-      std::ceil(partitioned_graph.totalWeight() / static_cast<double>(partitioned_graph.k()));
-    double max_balance = partitioned_graph.partWeight(0) / static_cast<double>(perfectly_balanced_weight);
-    for ( mt_kahypar::PartitionID i = 1; i < partitioned_graph.k(); ++i ) {
-      max_balance = std::max(max_balance,
-        partitioned_graph.partWeight(i) / static_cast<double>(perfectly_balanced_weight));
-    }
-    return max_balance - 1.0;
-  }
-
   template<typename TypeTraits>
   typename TypeTraits::PartitionedHypergraph createPartitionedHypergraph(typename TypeTraits::Hypergraph& hg,
                                                                          const PartitionID num_blocks,
@@ -116,14 +98,11 @@ namespace {
       throw UnsupportedOperationException(
         "For hypergraphs, large k partitioning is only possible with the function partitionIntoLargeK(...).");
     }
-    mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
-    if ( !lib::check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type)) ) {
-      throw UnsupportedOperationException(lib::incompatibility_description(hg));
-    }
-    if ( !lib::check_if_all_relavant_parameters_are_set(context) ) {
-      throw InvalidInputException("Some required context parameter is not set.");
-    }
 
+    // note: we can't use lib::partition currently because we can't get a concrete PHG from it by value
+    mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
+    lib::check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type));
+    lib::check_if_all_relevant_parameters_are_set(context);
     context.partition.instance_type = lib::get_instance_type(hg);
     context.partition.partition_type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
@@ -143,7 +122,7 @@ namespace {
   typename TypeTraits::PartitionedHypergraph map(typename TypeTraits::Hypergraph& hypergraph,
                                                  const ds::StaticGraph& graph,
                                                  const Context& context) {
-    TargetGraph target_graph(graph.copy(parallel_tag_t { }));
+    TargetGraph target_graph(graph.copy());
     Context partition_context(context);
     partition_context.partition.objective = Objective::steiner_tree;
     return partitionImpl<TypeTraits>(hypergraph, partition_context, &target_graph);
@@ -153,32 +132,10 @@ namespace {
   // ####################### V-Cycles #######################
 
   template<typename TypeTraits>
-  void improveImpl(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
-                   Context& context,
-                   const size_t num_vcycles,
-                   TargetGraph* target_graph) {
-    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
-    if ( !lib::check_compatibility(phg, lib::get_preset_c_type(context.partition.preset_type)) ) {
-      throw UnsupportedOperationException(lib::incompatibility_description(phg));
-    }
-    if ( !lib::check_if_all_relavant_parameters_are_set(context) ) {
-      throw InvalidInputException("Some required context parameter is not set.");
-    }
-
-    context.partition.instance_type = lib::get_instance_type(phg);
-    context.partition.partition_type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
-    lib::prepare_context(context);
-    context.partition.num_vcycles = num_vcycles;
-    Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context, target_graph);
-  }
-
-  template<typename TypeTraits>
   void improve(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
                const Context& context,
                const size_t num_vcycles) {
-    Context partition_context(context);
-    improveImpl<TypeTraits>(partitioned_hg, partition_context, num_vcycles, nullptr);
+    lib::improve(utils::partitioned_hg_cast(partitioned_hg), context, num_vcycles);
   }
 
   template<typename TypeTraits>
@@ -186,10 +143,7 @@ namespace {
                       const ds::StaticGraph& graph,
                       const Context& context,
                       const size_t num_vcycles) {
-    TargetGraph target_graph(graph.copy(parallel_tag_t { }));
-    Context partition_context(context);
-    partition_context.partition.objective = Objective::steiner_tree;
-    improveImpl<TypeTraits>(partitioned_hg, partition_context, num_vcycles, &target_graph);
+    lib::improveMapping(utils::partitioned_hg_cast(partitioned_hg), graph, context, num_vcycles);
   }
 }
 
@@ -302,11 +256,7 @@ PYBIND11_MODULE(mtkahypar, m) {
       [](const Context& context) {
         return context.partition.max_part_weights;
       }, [](Context& context, std::vector<HypernodeWeight>& block_weights) {
-        context.partition.use_individual_part_weights = true;
-        context.partition.max_part_weights.assign(block_weights.size(), 0);
-        for ( size_t block = 0; block < block_weights.size(); ++block ) {
-          context.partition.max_part_weights[block] = block_weights[block];
-        }
+        lib::set_individual_block_weights(context, block_weights.size(), block_weights.data());
       }, "Maximum allowed weight for each block of the output partition")
     .def("print_configuration", [](const Context& context) {
         LOG << context;
@@ -664,8 +614,8 @@ Construct a partitioned graph.
         }
       }, "Executes lambda expression on blocks contained in the given edge",
       py::arg("edge"), py::arg("lambda"))
-    .def("imbalance", [](PartitionedGraph& partitioned_graph) {
-        return imbalance(partitioned_graph);
+    .def("imbalance", [](PartitionedGraph& partitioned_graph, const Context& context) {
+        return lib::imbalance(partitioned_graph, context);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedGraph& partitioned_graph) {
         return metrics::quality(partitioned_graph, Objective::cut);
