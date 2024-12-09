@@ -25,6 +25,9 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <cstring>
+#include <type_traits>
+
 #include "include/mtkahypar.h"
 #include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
@@ -45,6 +48,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/io/command_line_options.h"
 
 
@@ -73,6 +77,28 @@ namespace {
     return PresetType::UNDEFINED;
   }
 
+  mt_kahypar_error_t to_error(const std::exception& ex) {
+    mt_kahypar_error_t result;
+    if (dynamic_cast<const InvalidInputException*>(&ex) != nullptr) {
+      result.status = mt_kahypar_status_t::INVALID_INPUT;
+    } else if (dynamic_cast<const InvalidParameterException*>(&ex) != nullptr) {
+      result.status = mt_kahypar_status_t::INVALID_PARAMETER;
+    } else if (dynamic_cast<const UnsupportedOperationException*>(&ex) != nullptr) {
+      result.status = mt_kahypar_status_t::UNSUPPORTED_OPERATION;
+    } else if (dynamic_cast<const SystemException*>(&ex) != nullptr) {
+      result.status = mt_kahypar_status_t::SYSTEM_ERROR;
+    } else {
+      result.status = mt_kahypar_status_t::OTHER_ERROR;
+    }
+    size_t msg_len = std::strlen(ex.what());
+    char* msg = static_cast<char*>(malloc(msg_len + 1));
+    if (msg != nullptr) {
+      std::strcpy(msg, ex.what());
+      result.msg = msg;
+      result.msg_len = msg_len;
+    }
+    return result;
+  }
 }
 
 
@@ -87,12 +113,15 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
-void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
-                                            const char* ini_file_name) {
+mt_kahypar_status_t mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
+                                                           const char* ini_file_name,
+                                                           mt_kahypar_error_t* error) {
   try {
-    parseIniToContext(*reinterpret_cast<Context*>(kahypar_context), ini_file_name, true);
+    parseIniToContext(*reinterpret_cast<Context*>(context), ini_file_name, true);
+    return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
+    return error->status;
   }
 }
 
@@ -179,9 +208,14 @@ void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allo
   lib::initialize(num_threads, interleaved_allocations);
 }
 
+void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
+  free((void*)error->msg);
+}
+
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,
                                                              const mt_kahypar_preset_type_t preset,
-                                                             const mt_kahypar_file_format_type_t file_format) {
+                                                             const mt_kahypar_file_format_type_t file_format,
+                                                             mt_kahypar_error_t* error) {
   const PresetType config = to_preset_type(preset);
   const InstanceType instance = file_format == HMETIS ? InstanceType::hypergraph : InstanceType::graph;
   const FileFormat format = file_format == HMETIS ? FileFormat::hMetis : FileFormat::Metis;
@@ -189,18 +223,18 @@ mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_na
   try {
     return io::readInputFile(file_name, config, instance, format, stable_construction);
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
-mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name) {
+mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name, mt_kahypar_error_t* error) {
   TargetGraph* target_graph = nullptr;
   try {
     ds::StaticGraph graph = io::readInputFile<ds::StaticGraph>(file_name, FileFormat::Metis, true);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
   }
   return reinterpret_cast<mt_kahypar_target_graph_t*>(target_graph);
 }
@@ -212,8 +246,10 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
                                                      const size_t* hyperedge_indices,
                                                      const mt_kahypar_hyperedge_id_t* hyperedges,
                                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
-                                                     const mt_kahypar_hypernode_weight_t* vertex_weights) {
+                                                     const mt_kahypar_hypernode_weight_t* vertex_weights,
+                                                     mt_kahypar_error_t* error) {
   // Transform adjacence array into adjacence list
+  // TODO: input validation
   vec<vec<HypernodeID>> edge_vector(num_hyperedges);
   tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
     const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
@@ -240,7 +276,7 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
               edge_vector, hyperedge_weights, vertex_weights, false))), DYNAMIC_HYPERGRAPH };
     }
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
@@ -250,8 +286,10 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
                                                 const mt_kahypar_hyperedge_id_t num_edges,
                                                 const mt_kahypar_hypernode_id_t* edges,
                                                 const mt_kahypar_hyperedge_weight_t* edge_weights,
-                                                const mt_kahypar_hypernode_weight_t* vertex_weights) {
+                                                const mt_kahypar_hypernode_weight_t* vertex_weights,
+                                                mt_kahypar_error_t* error) {
   // Transform adjacence array into adjacence list
+  // TODO: input validation
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
   tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
@@ -274,7 +312,7 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
               edge_vector, edge_weights, vertex_weights, false))), DYNAMIC_GRAPH };
     }
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
@@ -282,8 +320,10 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
 mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hypernode_id_t num_vertices,
                                                           const mt_kahypar_hyperedge_id_t num_edges,
                                                           const mt_kahypar_hypernode_id_t* edges,
-                                                          const mt_kahypar_hyperedge_weight_t* edge_weights) {
+                                                          const mt_kahypar_hyperedge_weight_t* edge_weights,
+                                                          mt_kahypar_error_t* error) {
   // Transform adjacence array into adjacence list
+  // TODO: input validation/deduplicate
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
   tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
@@ -295,7 +335,7 @@ mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hyper
       num_vertices, num_edges, edge_vector, edge_weights, nullptr, true);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
   }
   return reinterpret_cast<mt_kahypar_target_graph_t*>(target_graph);
 }
@@ -361,33 +401,43 @@ void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t 
   utils::delete_partitioned_hypergraph(partitioned_hg);
 }
 
-void mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hypergraph,
-                                   mt_kahypar_partition_id_t* fixed_vertices,
-                                   mt_kahypar_partition_id_t num_blocks) {
+mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hypergraph,
+                                                  mt_kahypar_partition_id_t* fixed_vertices,
+                                                  mt_kahypar_partition_id_t num_blocks,
+                                                  mt_kahypar_error_t* error) {
   try {
     io::addFixedVertices(hypergraph, fixed_vertices, num_blocks);
+    return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
+    return error->status;
   }
 }
 
-void mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
-                                              mt_kahypar_partition_id_t* fixed_vertices) {
+mt_kahypar_status_t mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
+                                                             mt_kahypar_partition_id_t* fixed_vertices,
+                                                             mt_kahypar_error_t* error) {
   try {
+    // TODO: this is extremely unsafe
     io::readPartitionFile(file_name, fixed_vertices);
+    return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
+    return error->status;
   }
 }
 
 
-void mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergraph_t hypergraph,
-                                             const char* file_name,
-                                             mt_kahypar_partition_id_t num_blocks) {
+mt_kahypar_status_t mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergraph_t hypergraph,
+                                                            const char* file_name,
+                                                            mt_kahypar_partition_id_t num_blocks,
+                                                            mt_kahypar_error_t* error) {
   try {
     io::addFixedVerticesFromFile(hypergraph, file_name, num_blocks);
+    return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
-    LOG << ex.what();
+    *error = to_error(ex);
+    return error->status;
   }
 }
 
@@ -396,7 +446,7 @@ void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph) {
 }
 
 bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
-                                                   mt_kahypar_preset_type_t preset) {
+                                    mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(hypergraph, preset);
 }
 
@@ -476,9 +526,9 @@ void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitione
 }
 
 void mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                               mt_kahypar_target_graph_t* target_graph,
-                                               mt_kahypar_context_t* context,
-                                               const size_t num_vcycles) {
+                                mt_kahypar_target_graph_t* target_graph,
+                                mt_kahypar_context_t* context,
+                                const size_t num_vcycles) {
   Context& c = *reinterpret_cast<Context*>(context);
   if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
     if ( mt_kahypar_check_partition_compatibility(
@@ -543,26 +593,39 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t hypergraph,
                                                                         const mt_kahypar_preset_type_t preset,
                                                                         const mt_kahypar_partition_id_t num_blocks,
-                                                                        const char* partition_file) {
+                                                                        const char* partition_file,
+                                                                        mt_kahypar_error_t* error) {
   std::vector<PartitionID> partition;
-  io::readPartitionFile(partition_file, partition);
-  return mt_kahypar_create_partitioned_hypergraph(hypergraph, preset, num_blocks, partition.data());
+  try {
+    io::readPartitionFile(partition_file, partition);
+    return mt_kahypar_create_partitioned_hypergraph(hypergraph, preset, num_blocks, partition.data());
+  } catch ( std::exception& ex ) {
+    *error = to_error(ex);
+  }
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-void mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                        const char* partition_file) {
-  switch ( partitioned_hg.type ) {
-    case MULTILEVEL_GRAPH_PARTITIONING:
-      io::writePartitionFile(utils::cast<StaticPartitionedGraph>(partitioned_hg), partition_file); break;
-    case N_LEVEL_GRAPH_PARTITIONING:
-      io::writePartitionFile(utils::cast<DynamicPartitionedGraph>(partitioned_hg), partition_file); break;
-    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-      io::writePartitionFile(utils::cast<StaticPartitionedHypergraph>(partitioned_hg), partition_file); break;
-    case N_LEVEL_HYPERGRAPH_PARTITIONING:
-      io::writePartitionFile(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), partition_file); break;
-    case LARGE_K_PARTITIONING:
-      io::writePartitionFile(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), partition_file); break;
-    case NULLPTR_PARTITION: break;
+mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                       const char* partition_file,
+                                                       mt_kahypar_error_t* error) {
+  try {
+    switch ( partitioned_hg.type ) {
+      case MULTILEVEL_GRAPH_PARTITIONING:
+        io::writePartitionFile(utils::cast<StaticPartitionedGraph>(partitioned_hg), partition_file); break;
+      case N_LEVEL_GRAPH_PARTITIONING:
+        io::writePartitionFile(utils::cast<DynamicPartitionedGraph>(partitioned_hg), partition_file); break;
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+        io::writePartitionFile(utils::cast<StaticPartitionedHypergraph>(partitioned_hg), partition_file); break;
+      case N_LEVEL_HYPERGRAPH_PARTITIONING:
+        io::writePartitionFile(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), partition_file); break;
+      case LARGE_K_PARTITIONING:
+        io::writePartitionFile(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), partition_file); break;
+      case NULLPTR_PARTITION: break;
+    }
+    return mt_kahypar_status_t::SUCCESS;
+  } catch ( std::exception& ex ) {
+    *error = to_error(ex);
+    return error->status;
   }
 }
 
