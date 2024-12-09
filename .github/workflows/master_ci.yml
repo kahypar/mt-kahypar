@@ -42,12 +42,7 @@ jobs:
 
   mt_kahypar_static_build:
     name: Statically Linked Build
-    strategy:
-      matrix:
-        compiler: [ { os: ubuntu-24.04, cpp: g++-14, cc: gcc-14, install_cmd: g++-14 gcc-14 },
-                    { os: ubuntu-24.04, cpp: clang++, cc: clang, install_cmd: clang }  ]
-
-    runs-on: ${{ matrix.compiler.os }}
+    runs-on: ubuntu-24.04
     env:
       CI_ACTIVE : 1
 
@@ -57,12 +52,9 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev libudev-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev libudev-dev
 
       - name: Install Mt-KaHyPar
-        env:
-          CC: ${{ matrix.compiler.cc }}
-          CXX: ${{ matrix.compiler.cpp }}
         run: |
           rm -rf build
           mkdir build
@@ -77,31 +69,6 @@ jobs:
             echo "Error: boost is dynamically linked"
             exit 1
           fi
-
-  mt_kahypar_64bit_test:
-    name: Ubuntu 64 bit Build
-    runs-on: ubuntu-24.04
-    env:
-      CI_ACTIVE : 1
-
-    steps:
-      - name: Checkout HEAD
-        uses: actions/checkout@v4
-
-      - name: Install Dependencies
-        run: |
-          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev gcc-14 g++-14
-
-      - name: Install Mt-KaHyPar
-        env:
-          CC: gcc-14
-          CXX: g++-14
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_USE_64_BIT_IDS=ON
-          make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
     name: Test Suite
