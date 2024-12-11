@@ -401,7 +401,9 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << i << ", " << result.km1 << ", " << result.imbalance << ", " << time.count() << std::endl;
+      file << i << ", " << result.km1 << ", " << result.imbalance << ", " << time.count();
+      mt_kahypar::LocalFMRound* localFM_round = context.dynamic.localFM_round;
+      file << ", " << localFM_round->overall_improvement << ", " << localFM_round->touched_nodes << std::endl;
       file.close();
     }
 
@@ -412,7 +414,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "change, km1, imbalance, time" << std::endl;
+      file << "change, km1, imbalance, time, overall_improvement, touched_nodes" << std::endl;
       file.close();
     }
 

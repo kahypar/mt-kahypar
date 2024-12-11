@@ -40,12 +40,11 @@ namespace mt_kahypar::dyn {
         }
     public:
 
-        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
-
-          //on first call, initialize partitioned_hypergraph_s
-          if (!partitioned_hypergraph_s) {
+        void init(ds::StaticHypergraph& hypergraph, Context& context) override {
             repartition(hypergraph, context);
-          }
+        }
+
+        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
           process_change(hypergraph, context, change);
 
@@ -98,6 +97,7 @@ namespace mt_kahypar::dyn {
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {
           (void) hypergraph;
           (void) context;
+          std::cout << std::endl;
           std::cout << "Final Stats for Connectivity Strategy" << std::endl;
           std::cout << "Repartition Count: " << repartition_count << std::endl;
         }

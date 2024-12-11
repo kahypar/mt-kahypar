@@ -64,4 +64,5 @@ namespace mt_kahypar::dyn {
           return os;
         }
     };
+
 }

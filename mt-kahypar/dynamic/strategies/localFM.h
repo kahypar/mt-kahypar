@@ -21,32 +21,27 @@ namespace mt_kahypar::dyn {
             std::cout << "Repartitioning" << std::endl;
           }
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
+          repartition_count++;
+        }
+
+        void init_local_fm(ds::StaticHypergraph& hypergraph_s, Context& context) {
           _gain_cache = GainCachePtr::constructGainCache(context);
           _rebalancer = RebalancerFactory::getInstance().createObject(
                   context.refinement.rebalancer, hypergraph_s.initialNumNodes(), context, _gain_cache);
 
+
+          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+          context.refinement.fm.multitry_rounds = context.dynamic.multitry_localFM;
+
           _fm = FMFactory::getInstance().createObject(
                   context.refinement.fm.algorithm,
                   hypergraph_s.initialNumNodes(), hypergraph_s.initialNumEdges(), context, _gain_cache, *_rebalancer);
-          repartition_count++;
         }
 
         //use local_fm to refine partitioned_hypergraph_s
         void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
-          //TODO
-          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
-
-          //TODO
-          //repeat FM algorithm multiple times
-          context.refinement.fm.multitry_rounds = 1;
-
-          //GainCachePtr::deleteGainCache(_gain_cache);
-          //TODO maybe
           GainCachePtr::resetGainCache(_gain_cache);
-
-
-          //_gain_cache = GainCachePtr::constructGainCache(context);
 
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
@@ -56,8 +51,6 @@ namespace mt_kahypar::dyn {
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
           _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, std::numeric_limits<double>::max());
-
-          //TODO touched nodes count
 
         }
 
@@ -88,12 +81,12 @@ namespace mt_kahypar::dyn {
 
     public:
 
-        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
+        void init(ds::StaticHypergraph& hypergraph, Context& context) override {
+          repartition(hypergraph, context);
+          init_local_fm(hypergraph, context);
+        }
 
-          //on first call, initialize partitioned_hypergraph_s
-          if (!partitioned_hypergraph_s) {
-            repartition(hypergraph, context);
-          }
+        void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
           process_change(hypergraph, context, change);
 

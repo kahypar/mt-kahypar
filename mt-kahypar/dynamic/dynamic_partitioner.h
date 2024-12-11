@@ -54,22 +54,26 @@ namespace mt_kahypar::dyn {
 
       initOutputFile(context);
 
+      mt_kahypar::LocalFMRound localFM_round = mt_kahypar::LocalFMRound();
+      localFM_round.overall_improvement = 0;
+      localFM_round.touched_nodes = 0;
+      context.dynamic.localFM_round = &localFM_round;
+
       try {
 
         std::cout << "Processing " << max_changes << " changes" << std::endl;
 
-        HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+        strategy->init(hypergraph_s, context);
 
         for (size_t i = 0; i < max_changes; ++i) {
           Change& change = changes[i];
+          HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
           strategy->partition(hypergraph_s, context, change, max_changes);
+          log_km1_live(i, context, strategy->history.back(), std::chrono::high_resolution_clock::now() - start);
           if (!context.dynamic.server && *(&strategy->history.back().valid)) {
             print_progress_bar(i, max_changes, &strategy->history);
           }
-          log_km1_live(i, context, strategy->history.back(), std::chrono::high_resolution_clock::now() - start);
         }
-
-        std::cout << std::endl;
 
         strategy->printFinalStats(hypergraph_s, context);
         //log_km1(context, &strategy->history);

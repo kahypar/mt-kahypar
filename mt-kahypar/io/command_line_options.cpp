@@ -766,6 +766,10 @@ namespace mt_kahypar {
                     po::value<bool>(&context.dynamic.reduce_deg_0)->value_name("<bool>"),
     "If true, then the disabling of nodes tries to reduce the number of degree 0 nodes");
     dynamic_options.add_options()
+            ("d-multitry-localFM",
+                    po::value<size_t>(&context.dynamic.multitry_localFM)->value_name("<bool>"),
+    "Number of local FM runs to be performed in each step");
+    dynamic_options.add_options()
             ("d-result-folder",
              po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
              "Folder to store the data generated during the dynamic partitioning");

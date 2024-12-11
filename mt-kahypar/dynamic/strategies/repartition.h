@@ -11,6 +11,11 @@ namespace mt_kahypar::dyn {
       size_t step_size = 0;
     public:
 
+      void init(ds::StaticHypergraph& hypergraph, Context& context) override {
+        (void) hypergraph;
+        (void) context;
+      }
+
       void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
         process_change(hypergraph, context, change);

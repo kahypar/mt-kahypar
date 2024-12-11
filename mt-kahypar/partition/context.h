@@ -268,6 +268,12 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+
+struct LocalFMRound {
+    size_t overall_improvement;
+    size_t touched_nodes;
+};
+
 struct DynamicParameters {
     std::string changes_file = "";
     std::string strategy = "";
@@ -276,12 +282,15 @@ struct DynamicParameters {
     bool use_final_weight = false;
     double step_size_pct = 0.01;
     bool reduce_deg_0 = false;
+    size_t multitry_localFM = 1;
     std::string custom_output_file = "";
     // not included in the output file ending
     std::string result_folder = "";
     bool server = false;
     // not a parameter
     std::string output_path = "";
+    // logging values
+    LocalFMRound* localFM_round = nullptr;
 
     // generate file endings
     [[nodiscard]] std::string getOutputFileName() const {
@@ -291,7 +300,8 @@ struct DynamicParameters {
         file_name += std::to_string(use_final_weight) + "_";
         // round to 2 decimal places
         file_name += std::to_string((int)(step_size_pct * 100)) + "_";
-        file_name += std::to_string(reduce_deg_0);
+        file_name += std::to_string(reduce_deg_0) + "_";
+        file_name += std::to_string(multitry_localFM);
         file_name += custom_output_file;
         return file_name;
     }

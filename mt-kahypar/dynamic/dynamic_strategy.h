@@ -114,6 +114,8 @@ namespace mt_kahypar::dyn {
           context.setupPartWeights(hypergraph.totalWeight());
         }
 
+        virtual void init(ds::StaticHypergraph &hypergraph, Context &context) = 0;
+
         /*
          * partition() is called for each change in the dynamic hypergraph.
          * The strategy should partition the hypergraph according to the change.
