@@ -392,7 +392,7 @@ namespace mt_kahypar::dyn {
       file.close();
     }
 
-    void log_km1_live(size_t i, Context& context, DynamicStrategy::PartitionResult result) {
+    void log_km1_live(size_t i, Context& context, DynamicStrategy::PartitionResult result, std::chrono::duration<double> time) {
       if (!result.valid) {
         return;
       }
@@ -401,7 +401,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << i << ", " << result.km1 << ", " << result.imbalance << std::endl;
+      file << i << ", " << result.km1 << ", " << result.imbalance << ", " << time.count() << std::endl;
       file.close();
     }
 
@@ -412,7 +412,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "change, km1, imbalance" << std::endl;
+      file << "change, km1, imbalance, time" << std::endl;
       file.close();
     }
 

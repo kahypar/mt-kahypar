@@ -58,13 +58,15 @@ namespace mt_kahypar::dyn {
 
         std::cout << "Processing " << max_changes << " changes" << std::endl;
 
+        HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+
         for (size_t i = 0; i < max_changes; ++i) {
           Change& change = changes[i];
           strategy->partition(hypergraph_s, context, change, max_changes);
           if (!context.dynamic.server && *(&strategy->history.back().valid)) {
             print_progress_bar(i, max_changes, &strategy->history);
           }
-          log_km1_live(i, context, strategy->history.back());
+          log_km1_live(i, context, strategy->history.back(), std::chrono::high_resolution_clock::now() - start);
         }
 
         std::cout << std::endl;

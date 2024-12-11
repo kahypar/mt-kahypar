@@ -96,6 +96,7 @@ namespace mt_kahypar {
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
+    //TODO Debug
     std::vector<HypernodeWeight> max_part_weights = setupMaxPartWeights(context);
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -217,6 +218,8 @@ namespace mt_kahypar {
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.quality == metrics::quality(phg, context),
            V(metrics.quality) << V(metrics::quality(phg, context)));
+
+    //TODO Debug overall_improvement
 
     return overall_improvement > 0;
   }

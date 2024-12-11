@@ -35,16 +35,18 @@ namespace mt_kahypar::dyn {
         void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
           //TODO
-          //context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
           //TODO
-          //context.refinement.fm.multitry_rounds = 1;
+          //repeat FM algorithm multiple times
+          context.refinement.fm.multitry_rounds = 1;
 
           //GainCachePtr::deleteGainCache(_gain_cache);
           //TODO maybe
           GainCachePtr::resetGainCache(_gain_cache);
 
-//          _gain_cache = GainCachePtr::constructGainCache(context);
+
+          //_gain_cache = GainCachePtr::constructGainCache(context);
 
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
@@ -54,6 +56,9 @@ namespace mt_kahypar::dyn {
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
           _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, std::numeric_limits<double>::max());
+
+          //TODO touched nodes count
+
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
