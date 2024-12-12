@@ -488,6 +488,13 @@ namespace mt_kahypar {
       partition(hypergraph, &partitioned_hg, context, num_blocks, epsilon, nullptr);
     }
 
+    void PartitionNoSetup(const mt_kahypar_partition_id_t num_blocks,
+                          const double epsilon,
+                          const bool add_fixed_vertices = false) {
+      if ( add_fixed_vertices ) addFixedVertices(num_blocks);
+      partition(hypergraph, &partitioned_hg, context, num_blocks, epsilon, nullptr);
+    }
+
     void Map(const char* filename,
             const mt_kahypar_file_format_type_t format,
             const mt_kahypar_preset_type_t preset,
@@ -1045,6 +1052,13 @@ namespace mt_kahypar {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false, true /* add fixed vertices */);
     ImprovePartition(QUALITY, 1, false);
     verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphAfterFixedVerticesHaveBeenRemoved) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+    mt_kahypar_remove_fixed_vertices(hypergraph);
+    PartitionNoSetup(4, 0.03, false);
   }
 
   TEST_F(APartitioner, PartitionsManyHypergraphsInParallel) {
