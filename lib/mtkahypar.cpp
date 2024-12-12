@@ -431,11 +431,11 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hyperg
 }
 
 mt_kahypar_status_t mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
+                                                             mt_kahypar_hypernode_id_t num_nodes,
                                                              mt_kahypar_partition_id_t* fixed_vertices,
                                                              mt_kahypar_error_t* error) {
   try {
-    // TODO: this is extremely unsafe
-    io::readPartitionFile(file_name, fixed_vertices);
+    io::readPartitionFile(file_name, num_nodes, fixed_vertices);
     return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
@@ -572,7 +572,7 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahyp
                                                                         mt_kahypar_error_t* error) {
   std::vector<PartitionID> partition;
   try {
-    io::readPartitionFile(partition_file, partition);
+    io::readPartitionFile(partition_file, mt_kahypar_num_hypernodes(hypergraph), partition);
     return mt_kahypar_create_partitioned_hypergraph(hypergraph, preset, num_blocks, partition.data());
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
