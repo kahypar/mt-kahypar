@@ -69,7 +69,8 @@ class MainTest(unittest.TestCase):
     graph = mtkahypar.Graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
 
     self.assertEqual(graph.num_nodes(), 5)
-    self.assertEqual(graph.num_edges(), 6)
+    self.assertEqual(graph.num_edges(), 12)
+    self.assertEqual(graph.num_undirected_edges(), 6)
     self.assertEqual(graph.num_directed_edges(), 12)
     self.assertEqual(graph.total_weight(), 5)
 
@@ -117,43 +118,44 @@ class MainTest(unittest.TestCase):
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,2,3,4,5,6])
 
-    self.assertEqual(graph.source(0),  0) # (0,1)
-    self.assertEqual(graph.source(1),  0) # (0,2)
-    self.assertEqual(graph.source(2),  1) # (1,0)
-    self.assertEqual(graph.source(3),  1) # (1,2)
-    self.assertEqual(graph.source(4),  1) # (1,3)
-    self.assertEqual(graph.source(5),  2) # (2,0)
-    self.assertEqual(graph.source(6),  2) # (2,1)
-    self.assertEqual(graph.source(7),  2) # (2,3)
-    self.assertEqual(graph.source(8),  3) # (3,1)
-    self.assertEqual(graph.source(9),  3) # (3,2)
-    self.assertEqual(graph.source(10), 3) # (3,4)
-    self.assertEqual(graph.source(11), 4) # (4,3)
+    self.assertEqual(graph.edge_source(0),  0) # (0,1)
+    self.assertEqual(graph.edge_source(1),  0) # (0,2)
+    self.assertEqual(graph.edge_source(2),  1) # (1,0)
+    self.assertEqual(graph.edge_source(3),  1) # (1,2)
+    self.assertEqual(graph.edge_source(4),  1) # (1,3)
+    self.assertEqual(graph.edge_source(5),  2) # (2,0)
+    self.assertEqual(graph.edge_source(6),  2) # (2,1)
+    self.assertEqual(graph.edge_source(7),  2) # (2,3)
+    self.assertEqual(graph.edge_source(8),  3) # (3,1)
+    self.assertEqual(graph.edge_source(9),  3) # (3,2)
+    self.assertEqual(graph.edge_source(10), 3) # (3,4)
+    self.assertEqual(graph.edge_source(11), 4) # (4,3)
 
   def test_target_nodes_of_edges(self):
     graph = mtkahypar.Graph(
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,2,3,4,5,6])
 
-    self.assertEqual(graph.target(0),  1) # (0,1)
-    self.assertEqual(graph.target(1),  2) # (0,2)
-    self.assertEqual(graph.target(2),  0) # (1,0)
-    self.assertEqual(graph.target(3),  2) # (1,2)
-    self.assertEqual(graph.target(4),  3) # (1,3)
-    self.assertEqual(graph.target(5),  0) # (2,0)
-    self.assertEqual(graph.target(6),  1) # (2,1)
-    self.assertEqual(graph.target(7),  3) # (2,3)
-    self.assertEqual(graph.target(8),  1) # (3,1)
-    self.assertEqual(graph.target(9),  2) # (3,2)
-    self.assertEqual(graph.target(10), 4) # (3,4)
-    self.assertEqual(graph.target(11), 3) # (4,3)
+    self.assertEqual(graph.edge_target(0),  1) # (0,1)
+    self.assertEqual(graph.edge_target(1),  2) # (0,2)
+    self.assertEqual(graph.edge_target(2),  0) # (1,0)
+    self.assertEqual(graph.edge_target(3),  2) # (1,2)
+    self.assertEqual(graph.edge_target(4),  3) # (1,3)
+    self.assertEqual(graph.edge_target(5),  0) # (2,0)
+    self.assertEqual(graph.edge_target(6),  1) # (2,1)
+    self.assertEqual(graph.edge_target(7),  3) # (2,3)
+    self.assertEqual(graph.edge_target(8),  1) # (3,1)
+    self.assertEqual(graph.edge_target(9),  2) # (3,2)
+    self.assertEqual(graph.edge_target(10), 4) # (3,4)
+    self.assertEqual(graph.edge_target(11), 3) # (4,3)
 
   def test_load_graph_in_metis_file_format(self):
     graph = mtkahypar.Graph(
       mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
 
     self.assertEqual(graph.num_nodes(), 32768)
-    self.assertEqual(graph.num_edges(), 98274)
+    self.assertEqual(graph.num_edges(), 2 * 98274)
+    self.assertEqual(graph.num_undirected_edges(), 98274)
     self.assertEqual(graph.num_directed_edges(), 2 * 98274)
     self.assertEqual(graph.total_weight(), 32768)
 
