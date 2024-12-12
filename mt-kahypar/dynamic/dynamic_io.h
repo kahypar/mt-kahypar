@@ -405,6 +405,9 @@ namespace mt_kahypar::dyn {
       mt_kahypar::LocalFMRound* localFM_round = context.dynamic.localFM_round;
       file << ", " << localFM_round->overall_improvement << ", " << localFM_round->touched_nodes << std::endl;
       file.close();
+      // reset the localFM_round
+      localFM_round->overall_improvement = 0;
+      localFM_round->touched_nodes = 0;
     }
 
     void initOutputFile(Context& context) {
