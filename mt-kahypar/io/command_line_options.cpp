@@ -778,6 +778,10 @@ namespace mt_kahypar {
                     po::value<std::string>(&context.dynamic.custom_output_file)->value_name("<string>"),
     "Custom file name ending to be used for dynamic partitioning");
     dynamic_options.add_options()
+            ("d-logging-step-size-pct",
+             po::value<double>(&context.dynamic.logging_step_size_pct)->value_name("<double>"),
+             "Frequency of logging 0.001 -> 1000 entries");
+    dynamic_options.add_options()
             ("d-server",
              po::value<bool>(&context.dynamic.server)->value_name("<bool>"),
              "If true, then the partitioner is started in server mode");

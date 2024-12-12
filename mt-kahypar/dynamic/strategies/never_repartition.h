@@ -86,11 +86,12 @@ namespace mt_kahypar::dyn {
           for (const HypernodeID& hn : change.added_nodes) {
             partition_result.valid = add_node_to_partitioned_hypergraph(hypergraph, context, hn);
           }
+          history.push_back(partition_result);
+        }
 
+        void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
           partition_result.km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
           partition_result.imbalance = mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context);
-
-          history.push_back(partition_result);
         }
 
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {

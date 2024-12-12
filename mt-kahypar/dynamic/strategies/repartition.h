@@ -6,6 +6,8 @@ namespace mt_kahypar::dyn {
 
     class Repartition : public DynamicStrategy {
     private:
+        ds::PartitionedHypergraph<ds::StaticHypergraph> partitioned_hypergraph_s;
+
       size_t skipped_changes = 0;
       size_t initial_num_enabled_nodes = 0;
       size_t step_size = 0;
@@ -44,7 +46,7 @@ namespace mt_kahypar::dyn {
         partition_result.valid = true;
         skipped_changes = 0;
 
-        auto partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph, context);
+        partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph, context);
 
 
         if (!context.dynamic.use_final_weight) {
@@ -59,9 +61,12 @@ namespace mt_kahypar::dyn {
                                                                                                  * context.partition.perfect_balance_part_weights[0]);
         }
 
+        history.push_back(partition_result);
+      }
+
+      void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
         partition_result.km1 = mt_kahypar::metrics::quality(partitioned_hypergraph_s, Objective::km1);
         partition_result.imbalance = mt_kahypar::metrics::imbalance(partitioned_hypergraph_s, context);
-        history.push_back(partition_result);
       }
 
       void printFinalStats(ds::StaticHypergraph& hypergraph, Context& context) override {

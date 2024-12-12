@@ -116,11 +116,12 @@ namespace mt_kahypar::dyn {
           if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon ) {
             repartition(hypergraph, context);
           }
+          history.push_back(partition_result);
+        }
 
+        void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
           partition_result.km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
           partition_result.imbalance = mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context);
-
-          history.push_back(partition_result);
         }
 
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {

@@ -123,6 +123,7 @@ namespace mt_kahypar::dyn {
          */
         virtual void partition(ds::StaticHypergraph &hypergraph, Context &context, Change change, size_t changes_size) = 0;
 
+        virtual void compute_km1_and_imbalance(ds::StaticHypergraph &hypergraph, Context &context, Change change, PartitionResult &partition_result) = 0;
         /*
          * A Strategy can print final statistics after the last partitioning step.
          */

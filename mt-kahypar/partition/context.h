@@ -290,6 +290,7 @@ struct DynamicParameters {
     // not a parameter
     std::string output_path = "";
     // logging values
+    double logging_step_size_pct = 0.001;
     LocalFMRound* localFM_round = nullptr;
 
     // generate file endings
