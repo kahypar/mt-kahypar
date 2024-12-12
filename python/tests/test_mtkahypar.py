@@ -557,7 +557,7 @@ class MainTest(unittest.TestCase):
     def __verifyPartition(self):
       if not self.useIndividualBlockWeights:
         # Check if imbalance is smaller than allowed imbalance
-        self.assertLessEqual(self.partitioned_graph.imbalance(), self.epsilon)
+        self.assertLessEqual(self.partitioned_graph.imbalance(self.context), self.epsilon)
         # Check if block weights are smaller than maximum allowed block weight
         for block in range(self.k):
           self.assertLessEqual(self.partitioned_graph.block_weight(block), self.maxAllowedBlockWeight)
@@ -728,7 +728,7 @@ class MainTest(unittest.TestCase):
     def __verifyPartition(self):
       if not self.useIndividualBlockWeights:
         # Check if imbalance is smaller than allowed imbalance
-        self.assertLessEqual(self.partitioned_hg.imbalance(), self.epsilon)
+        self.assertLessEqual(self.partitioned_hg.imbalance(self.context), self.epsilon)
         # Check if block weights are smaller than maximum allowed block weight
         for block in range(self.k):
           self.assertLessEqual(self.partitioned_hg.block_weight(block), self.maxAllowedBlockWeight)
