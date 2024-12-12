@@ -235,8 +235,11 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hype
 
 /**
  * Reads fixed vertices from a file and stores them in the array to which 'fixed_vertices' points to.
+ * The array must be of size 'num_nodes'. If the number of entries in the file is different from 'num_nodes',
+ * an error is returned.
  */
 MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
+                                                                            mt_kahypar_hypernode_id_t num_nodes,
                                                                             mt_kahypar_partition_id_t* fixed_vertices,
                                                                             mt_kahypar_error_t* error);
 

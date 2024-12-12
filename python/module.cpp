@@ -573,7 +573,7 @@ Construct a partitioned graph.
                        const PartitionID num_blocks,
                        const std::string& partition_file) {
         std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, partition);
+        io::readPartitionFile(partition_file, graph.initialNumNodes(), partition);
         return createPartitionedHypergraph<StaticGraphTypeTraits>(graph, num_blocks, partition);
       }), R"pbdoc(
 Construct a partitioned graph.
@@ -661,7 +661,7 @@ Construct a partitioned hypergraph.
                        const PartitionID num_blocks,
                        const std::string& partition_file) {
         std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, partition);
+        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
         return createPartitionedHypergraph<StaticHypergraphTypeTraits>(hypergraph, num_blocks, partition);
       }), R"pbdoc(
 Construct a partitioned hypergraph.
@@ -760,7 +760,7 @@ Construct a partitioned hypergraph.
                        const PartitionID num_blocks,
                        const std::string& partition_file) {
         std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, partition);
+        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
         return createPartitionedHypergraph<LargeKHypergraphTypeTraits>(hypergraph, num_blocks, partition);
       }), R"pbdoc(
 Construct a partitioned hypergraph.

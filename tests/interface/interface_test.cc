@@ -410,6 +410,50 @@ namespace mt_kahypar {
     mt_kahypar_free_partitioned_hypergraph(partitioned_graph_2);
   }
 
+  TEST(MtKaHyPar, ReportErrorLoadingGraphPartitionFile) {
+    mt_kahypar_error_t error{};
+    const mt_kahypar_hypernode_id_t num_vertices = 5;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+
+    std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
+      std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
+    edges[0] = 0;  edges[1] = 1;
+    edges[2] = 0;  edges[3] = 2;
+    edges[4] = 1;  edges[5] = 2;
+    edges[6] = 1;  edges[7] = 3;
+    edges[8] = 2;  edges[9] = 3;
+    edges[10] = 3; edges[11] = 4;
+
+    mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
+      DEFAULT, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr, &error);
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
+      std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    partition[0] = 0; partition[1] = 0; partition[2] = 1;
+    partition[3] = 1; partition[4] = 1;
+
+    mt_kahypar_partitioned_hypergraph_t partitioned_graph =
+      mt_kahypar_create_partitioned_hypergraph(graph, DEFAULT, 2, partition.get());
+
+    mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
+
+    mt_kahypar_hypergraph_t graph_2 = mt_kahypar_create_graph(
+      DEFAULT, num_vertices - 1, num_hyperedges - 1, edges.get(), nullptr, nullptr, &error);
+    ASSERT_EQ(error.status, 0);
+
+    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, DEFAULT, 2, "invalid_file", &error).partitioned_hg, nullptr);
+    ASSERT_EQ(error.status, mt_kahypar_status_t::INVALID_INPUT);
+    mt_kahypar_free_error_content(&error);
+
+    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, DEFAULT, 2, "tmp.partition", &error).partitioned_hg, nullptr);
+    ASSERT_EQ(error.status, mt_kahypar_status_t::INVALID_INPUT);
+    mt_kahypar_free_error_content(&error);
+
+    mt_kahypar_free_hypergraph(graph);
+    mt_kahypar_free_hypergraph(graph_2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_graph);
+  }
+
   class APartitioner : public Test {
     private:
       static constexpr bool debug = false;
@@ -498,12 +542,15 @@ namespace mt_kahypar {
     }
 
     void verifyFixedVertexAssignment(const char* fixed_vertex_file) {
+      HypernodeID num_nodes = mt_kahypar_num_hypernodes(hypergraph);
       std::vector<PartitionID> fixed_vertices;
-      io::readPartitionFile(fixed_vertex_file, fixed_vertices);
-      vec<PartitionID> partition(mt_kahypar_num_hypernodes(hypergraph), kInvalidPartition);
+      fixed_vertices.resize(num_nodes);
+      mt_kahypar_read_fixed_vertices_from_file(fixed_vertex_file, num_nodes, fixed_vertices.data(), &_error);
+      io::readPartitionFile(fixed_vertex_file, num_nodes, fixed_vertices);
+      vec<PartitionID> partition(num_nodes, kInvalidPartition);
       mt_kahypar_get_partition(partitioned_hg, partition.data());
 
-      for ( HypernodeID hn = 0; hn < mt_kahypar_num_hypernodes(hypergraph); ++hn ) {
+      for ( HypernodeID hn = 0; hn < num_nodes; ++hn ) {
         if ( fixed_vertices[hn] != -1 ) {
           ASSERT_EQ(fixed_vertices[hn], partition[hn]);
         }
