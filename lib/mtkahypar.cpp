@@ -432,7 +432,6 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hyperg
   }
 }
 
-// TODO: test
 mt_kahypar_status_t mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
                                                              mt_kahypar_hypernode_id_t num_nodes,
                                                              mt_kahypar_partition_id_t* fixed_vertices,
@@ -460,7 +459,6 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergrap
   }
 }
 
-// TODO: test
 void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph) {
   io::removeFixedVertices(hypergraph);
 }
