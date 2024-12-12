@@ -705,8 +705,8 @@ Construct a partitioned hypergraph.
         }
       }, "Executes lambda expression on blocks contained in the given hyperedge",
       py::arg("hyperedge"), py::arg("lambda"))
-    .def("imbalance", [](PartitionedHypergraph& partitioned_hg) {
-        return imbalance(partitioned_hg);
+    .def("imbalance", [](PartitionedHypergraph& partitioned_hg, const Context& context) {
+        return lib::imbalance(partitioned_hg, context);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedHypergraph& partitioned_hg) {
         return metrics::quality(partitioned_hg, Objective::cut);
@@ -804,8 +804,8 @@ Construct a partitioned hypergraph.
         }
       }, "Executes lambda expression on blocks contained in the given hyperedge",
       py::arg("hyperedge"), py::arg("lambda"))
-    .def("imbalance", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return imbalance(partitioned_hg);
+    .def("imbalance", [](SparsePartitionedHypergraph& partitioned_hg, const Context& context) {
+        return lib::imbalance(partitioned_hg, context);
       }, "Computes the imbalance of the partition")
     .def("cut", [](SparsePartitionedHypergraph& partitioned_hg) {
         return metrics::quality(partitioned_hg, Objective::cut);
