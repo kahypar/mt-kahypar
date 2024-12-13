@@ -578,28 +578,28 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_
       case DEFAULT:
       case QUALITY:
         ASSERT(hypergraph.type == STATIC_GRAPH);
-        return lib::create_partitoned_hypergraph<StaticPartitionedGraph>(
+        return lib::create_partitioned_hypergraph<StaticPartitionedGraph>(
           utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
       case HIGHEST_QUALITY:
         ASSERT(hypergraph.type == DYNAMIC_GRAPH);
-        return lib::create_partitoned_hypergraph<DynamicPartitionedGraph>(
+        return lib::create_partitioned_hypergraph<DynamicPartitionedGraph>(
           utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
     }
   } else {
     switch ( preset ) {
       case LARGE_K:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitoned_hypergraph<SparsePartitionedHypergraph>(
+        return lib::create_partitioned_hypergraph<SparsePartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case DETERMINISTIC:
       case DEFAULT:
       case QUALITY:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitoned_hypergraph<StaticPartitionedHypergraph>(
+        return lib::create_partitioned_hypergraph<StaticPartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case HIGHEST_QUALITY:
         ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
-        return lib::create_partitoned_hypergraph<DynamicPartitionedHypergraph>(
+        return lib::create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
           utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);
     }
   }

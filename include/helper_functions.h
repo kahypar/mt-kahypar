@@ -265,9 +265,9 @@ void check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
 }
 
 template<typename PartitionedHypergraph, typename Hypergraph>
-mt_kahypar_partitioned_hypergraph_t create_partitoned_hypergraph(Hypergraph& hg,
-                                                                 const mt_kahypar_partition_id_t num_blocks,
-                                                                 const mt_kahypar_partition_id_t* partition) {
+mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(Hypergraph& hg,
+                                                                  const mt_kahypar_partition_id_t num_blocks,
+                                                                  const mt_kahypar_partition_id_t* partition) {
   PartitionedHypergraph partitioned_hg(num_blocks, hg, parallel_tag_t { });
   const mt_kahypar::HypernodeID num_nodes = hg.initialNumNodes();
   tbb::parallel_for(ID(0), num_nodes, [&](const mt_kahypar::HypernodeID& hn) {
