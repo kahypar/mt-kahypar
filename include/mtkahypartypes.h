@@ -114,17 +114,15 @@ typedef enum {
  * Preset types for partitioning context.
  */
 typedef enum {
-  // deterministic partitioning mode (corresponds to Mt-KaHyPar-SDet)
+  // configuration for deterministic partitioning
   DETERMINISTIC,
-  // partitioning mode for partitioning a (hyper)graph into a large number of blocks
+  // configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks)
   LARGE_K,
-  // computes good partitions very fast (corresponds to Mt-KaHyPar-D)
+  // computes good partitions very fast
   DEFAULT,
-  // extends default preset with flow-based refinement
-  // -> computes high-quality partitions (corresponds to Mt-KaHyPar-D-F)
+  // computes high-quality partitions (uses flow-based refinement)
   QUALITY,
-  // n-level code with flow-based refinement
-  // => highest quality configuration (corresponds to Mt-KaHyPar-Q-F)
+  // highest-quality configuration (uses n-level coarsening and flow-based refinement)
   HIGHEST_QUALITY
 } mt_kahypar_preset_type_t;
 

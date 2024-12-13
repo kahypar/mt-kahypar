@@ -46,13 +46,10 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
-#include "mt-kahypar/io/command_line_options.h"
-
 
 using namespace mt_kahypar;
 
@@ -77,6 +74,18 @@ namespace {
       case HIGHEST_QUALITY: return PresetType::highest_quality;
     }
     return PresetType::UNDEFINED;
+  }
+
+  mt_kahypar_preset_type_t from_preset_type(PresetType preset) {
+    switch ( preset ) {
+      case PresetType::deterministic: return DETERMINISTIC;
+      case PresetType::large_k: return LARGE_K;
+      case PresetType::default_preset: return DEFAULT;
+      case PresetType::quality: return QUALITY;
+      case PresetType::highest_quality: return HIGHEST_QUALITY;
+      case PresetType::UNDEFINED: return static_cast<mt_kahypar_preset_type_t>(0);
+    }
+    return static_cast<mt_kahypar_preset_type_t>(0);
   }
 
   mt_kahypar_error_t to_error(mt_kahypar_status_t status, const char* msg) {
@@ -107,10 +116,6 @@ namespace {
 }
 
 
-mt_kahypar_context_t* mt_kahypar_context_new() {
-  return reinterpret_cast<mt_kahypar_context_t*>(new Context(false));
-}
-
 void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   if (context == nullptr) {
     return;
@@ -118,27 +123,20 @@ void mt_kahypar_free_context(mt_kahypar_context_t* context) {
   delete reinterpret_cast<Context*>(context);
 }
 
-mt_kahypar_status_t mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
-                                                           const char* ini_file_name,
-                                                           mt_kahypar_error_t* error) {
+mt_kahypar_context_t* mt_kahypar_context_from_file(const char* ini_file_name,
+                                                   mt_kahypar_error_t* error) {
   try {
-    parseIniToContext(*reinterpret_cast<Context*>(context), ini_file_name, true);
-    return mt_kahypar_status_t::SUCCESS;
+    Context* context = new Context(lib::context_from_file(ini_file_name));
+    return reinterpret_cast<mt_kahypar_context_t*>(context);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
-    return error->status;
+    return nullptr;
   }
 }
 
-void mt_kahypar_load_preset(mt_kahypar_context_t* context,
-                            const mt_kahypar_preset_type_t preset) {
-  Context& c = *reinterpret_cast<Context*>(context);
-  PresetType preset_type = to_preset_type(preset);
-
-  if ( preset_type != PresetType::UNDEFINED ) {
-    auto preset_option_list = loadPreset(preset_type);
-    presetToContext(c, preset_option_list, true);
-  }
+mt_kahypar_context_t* mt_kahypar_context_from_preset(const mt_kahypar_preset_type_t preset) {
+  Context* context = new Context(lib::context_from_preset(to_preset_type(preset)));
+  return reinterpret_cast<mt_kahypar_context_t*>(context);
 }
 
 mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
@@ -209,6 +207,34 @@ void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
   }
 }
 
+mt_kahypar_preset_type_t mt_kahypar_get_preset(const mt_kahypar_context_t* context) {
+  return from_preset_type(reinterpret_cast<const Context*>(context)->partition.preset_type);
+}
+
+mt_kahypar_partition_id_t mt_kahypar_get_num_blocks(const mt_kahypar_context_t* context) {
+  return reinterpret_cast<const Context*>(context)->partition.k;
+}
+
+double mt_kahypar_get_epsilon(const mt_kahypar_context_t* context) {
+  return reinterpret_cast<const Context*>(context)->partition.epsilon;
+}
+
+mt_kahypar_objective_t mt_kahypar_get_objective(const mt_kahypar_context_t* context) {
+  switch ( reinterpret_cast<const Context*>(context)->partition.objective) {
+    case Objective::cut:
+      return CUT;
+    case Objective::km1:
+      return KM1;
+    case Objective::soed:
+      return SOED;
+    case Objective::steiner_tree:
+    case Objective::UNDEFINED:
+      return static_cast<mt_kahypar_objective_t>(0);
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return static_cast<mt_kahypar_objective_t>(0);
+}
+
 void mt_kahypar_set_seed(const size_t seed) {
   utils::Randomize::instance().setSeed(seed);
 }
@@ -220,7 +246,7 @@ void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* contex
 }
 
 void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations) {
-  lib::initialize(num_threads, interleaved_allocations);
+  lib::initialize(num_threads, interleaved_allocations, false);
 }
 
 void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
