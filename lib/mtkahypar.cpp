@@ -257,22 +257,25 @@ void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
 }
 
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,
-                                                             const mt_kahypar_preset_type_t preset,
+                                                             const mt_kahypar_context_t* context,
                                                              const mt_kahypar_file_format_type_t file_format,
                                                              mt_kahypar_error_t* error) {
-  const PresetType config = to_preset_type(preset);
+  const Context& c = *reinterpret_cast<const Context*>(context);
   const InstanceType instance = file_format == HMETIS ? InstanceType::hypergraph : InstanceType::graph;
   const FileFormat format = file_format == HMETIS ? FileFormat::hMetis : FileFormat::Metis;
-  const bool stable_construction = preset == DETERMINISTIC ? true : false;
+  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    return io::readInputFile(file_name, config, instance, format, stable_construction);
+    return io::readInputFile(file_name, c.partition.preset_type, instance, format, stable_construction);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
-mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name, mt_kahypar_error_t* error) {
+mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name,
+                                                                  const mt_kahypar_context_t* context,
+                                                                  mt_kahypar_error_t* error) {
+  unused(context);
   TargetGraph* target_graph = nullptr;
   try {
     ds::StaticGraph graph = io::readInputFile<ds::StaticGraph>(file_name, FileFormat::Metis, true);
@@ -284,7 +287,7 @@ mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* fi
 }
 
 
-mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_type_t preset,
+mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t* context,
                                                      const mt_kahypar_hypernode_id_t num_vertices,
                                                      const mt_kahypar_hyperedge_id_t num_hyperedges,
                                                      const size_t* hyperedge_indices,
@@ -292,8 +295,8 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
                                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                      const mt_kahypar_hypernode_weight_t* vertex_weights,
                                                      mt_kahypar_error_t* error) {
-  // Transform adjacence array into adjacence list
   // TODO: input validation
+  // Transform adjacence array into adjacency list
   vec<vec<HypernodeID>> edge_vector(num_hyperedges);
   tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
     const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
@@ -303,29 +306,34 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
     }
   });
 
+  const Context& c = *reinterpret_cast<const Context*>(context);
+  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    switch ( preset ) {
-      case DETERMINISTIC:
-      case LARGE_K:
-      case DEFAULT:
-      case QUALITY:
+    switch ( c.partition.preset_type ) {
+      case PresetType::deterministic:
+      case PresetType::large_k:
+      case PresetType::default_preset:
+      case PresetType::quality:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
             StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
-              edge_vector, hyperedge_weights, vertex_weights, preset == DETERMINISTIC))), STATIC_HYPERGRAPH };
-      case HIGHEST_QUALITY:
+              edge_vector, hyperedge_weights, vertex_weights, stable_construction))), STATIC_HYPERGRAPH };
+      case PresetType::highest_quality:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
             DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
               edge_vector, hyperedge_weights, vertex_weights, false))), DYNAMIC_HYPERGRAPH };
+      case PresetType::UNDEFINED:
+        break;
     }
+    *error = to_error(INVALID_PARAMETER, "Invalid preset type.");
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
-mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t preset,
+mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* context,
                                                 const mt_kahypar_hypernode_id_t num_vertices,
                                                 const mt_kahypar_hyperedge_id_t num_edges,
                                                 const mt_kahypar_hypernode_id_t* edges,
@@ -339,34 +347,41 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
   });
 
+  const Context& c = *reinterpret_cast<const Context*>(context);
+  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    switch ( preset ) {
-      case DETERMINISTIC:
-      case LARGE_K:
-      case DEFAULT:
-      case QUALITY:
+    switch ( c.partition.preset_type ) {
+      case PresetType::deterministic:
+      case PresetType::large_k:
+      case PresetType::default_preset:
+      case PresetType::quality:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
             StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-              edge_vector, edge_weights, vertex_weights, preset == DETERMINISTIC))), STATIC_GRAPH };
-      case HIGHEST_QUALITY:
+              edge_vector, edge_weights, vertex_weights, stable_construction))), STATIC_GRAPH };
+      case PresetType::highest_quality:
         return mt_kahypar_hypergraph_t {
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
             DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
               edge_vector, edge_weights, vertex_weights, false))), DYNAMIC_GRAPH };
+      case PresetType::UNDEFINED:
+        break;
     }
+    *error = to_error(INVALID_PARAMETER, "Invalid preset type.");
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
-mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hypernode_id_t num_vertices,
+mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_context_t* context,
+                                                          const mt_kahypar_hypernode_id_t num_vertices,
                                                           const mt_kahypar_hyperedge_id_t num_edges,
                                                           const mt_kahypar_hypernode_id_t* edges,
                                                           const mt_kahypar_hyperedge_weight_t* edge_weights,
                                                           mt_kahypar_error_t* error) {
-  // Transform adjacence array into adjacence list
+  unused(context);
+  // Transform adjacency array into adjacence list
   // TODO: input validation/deduplicate
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
   tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
