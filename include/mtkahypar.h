@@ -40,11 +40,6 @@ extern "C" {
 // ####################### Setup Context #######################
 
 /**
- * Creates a new empty partitioning context object.
- */
-MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
-
-/**
  * Deletes the partitioning context object.
  */
 MT_KAHYPAR_API void mt_kahypar_free_context(mt_kahypar_context_t* context);
@@ -52,17 +47,15 @@ MT_KAHYPAR_API void mt_kahypar_free_context(mt_kahypar_context_t* context);
 /**
  * Loads a partitioning context from a configuration file.
  */
-MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
-                                                                          const char* ini_file_name,
-                                                                          mt_kahypar_error_t* error);
+MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_from_file(const char* ini_file_name,
+                                                                  mt_kahypar_error_t* error);
 
 /**
  * Loads a partitioning context of a predefined preset type.
- * Possible preset types are DETERMINISTIC (corresponds to Mt-KaHyPar-SDet),
- * SPEED (corresponds to Mt-KaHyPar-D) and HIGH_QUALITY (corresponds to Mt-KaHyPar-D-F)
+ *
+ * See 'mt_kahypar_preset_type_t' for possible presets.
  */
-MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
-                                           const mt_kahypar_preset_type_t preset);
+MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_from_preset(const mt_kahypar_preset_type_t preset);
 
 /**
  * Sets a new value for a context parameter.
@@ -86,6 +79,23 @@ MT_KAHYPAR_API void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t*
                                                            const double epsilon,
                                                            const mt_kahypar_objective_t objective);
 
+MT_KAHYPAR_API mt_kahypar_preset_type_t mt_kahypar_get_preset(const mt_kahypar_context_t* context);
+
+/**
+ * Get number of blocks. Result is unspecified if not previously initialized.
+ */
+MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_get_num_blocks(const mt_kahypar_context_t* context);
+
+/**
+ * Get imbalance parameter epsilon. Result is unspecified if not previously initialized.
+ */
+MT_KAHYPAR_API double mt_kahypar_get_epsilon(const mt_kahypar_context_t* context);
+
+/**
+ * Get objective function. Result is unspecified if not previously initialized.
+ */
+MT_KAHYPAR_API mt_kahypar_objective_t mt_kahypar_get_objective(const mt_kahypar_context_t* context);
+
 
 /**
  * Initializes the random number generator with the given seed value (not thread-safe).
@@ -96,6 +106,8 @@ MT_KAHYPAR_API void mt_kahypar_set_seed(const size_t seed);
  * Sets individual target block weights for each block of the partition.
  * A balanced partition then satisfies that the weight of each block is smaller or equal than the
  * defined target block weight for the corresponding block.
+ *
+ * Note that the context is invalid if the number of block weights is not equal to the NUM_BLOCKS parameter.
  */
 MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* context,
                                                                    const mt_kahypar_partition_id_t num_blocks,
@@ -106,6 +118,8 @@ MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_co
 
 /**
  * Must be called once for global initialization, before trying to create or partition any (hyper)graph.
+ *
+ * Note: if 'num_threads' is larger than the number of actually available CPUs, only a reduced number of threads will be used.
  */
 MT_KAHYPAR_API void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations);
 
@@ -354,13 +368,13 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_k
                                                                       mt_kahypar_error_t* error);
 
 /**
- * Extracts a partition from a partitioned (hyper)graph.
+ * Extracts a partition from a partitioned (hyper)graph. The size of the provided array must be at least the number of nodes.
  */
 MT_KAHYPAR_API void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                              mt_kahypar_partition_id_t* partition);
 
 /**
- * Extracts the weight of each block from a partition.
+ * Extracts the weight of each block from a partition. The size of the provided array must be at least the number of blocks.
  */
 MT_KAHYPAR_API void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                  mt_kahypar_hypernode_weight_t* block_weights);

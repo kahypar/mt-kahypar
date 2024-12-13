@@ -51,11 +51,9 @@
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/io/command_line_options.h"
 
 
 namespace py = pybind11;
@@ -423,17 +421,12 @@ PYBIND11_MODULE(mtkahypar, m) {
   py::class_<Initializer>(m, "Initializer", py::module_local())
     .def("context_from_preset",
       [](Initializer&, const PresetType preset) {
-        Context context;
-        auto preset_option_list = loadPreset(preset);
-        mt_kahypar::presetToContext(context, preset_option_list, true);
-        return context;
+        return lib::context_from_preset(preset);
       }, "Creates a context from the given preset.",
       py::arg("preset"))
     .def("context_from_file",
       [](Initializer&, const std::string& config_file) {
-        Context context;
-        mt_kahypar::parseIniToContext(context, config_file, true);
-        return context;
+        return lib::context_from_file(config_file.c_str());
       }, "Creates a context from a configuration file.",
       py::arg("config_file"))
     .def("create_hypergraph",

@@ -38,6 +38,9 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/io/presets.h"
+
 
 using namespace mt_kahypar;
 
@@ -124,6 +127,19 @@ void check_if_all_relevant_parameters_are_set(Context& context) {
   if (!success) {
     throw InvalidInputException("A required context parameter is not set. Required are: preset type, k, epsilon, objective");
   }
+}
+
+Context context_from_file(const char* ini_file_name) {
+  Context context(false);
+  parseIniToContext(context, ini_file_name, true);
+  return context;
+}
+
+Context context_from_preset(PresetType preset) {
+  Context context(false);
+  auto preset_option_list = loadPreset(preset);
+  presetToContext(context, preset_option_list, true);
+  return context;
 }
 
 void prepare_context(Context& context) {
