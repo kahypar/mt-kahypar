@@ -259,7 +259,34 @@ namespace {
     that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
     is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
     processors do not communicate directly with each other or different speeds.
-            )pbdoc", py::arg("target_graph"), py::arg("context"));
+            )pbdoc", py::arg("target_graph"), py::arg("context"))
+    .def("create_partitioned_hypergraph",
+      [&](HypergraphT& hypergraph,
+          const PartitionID num_blocks,
+          const std::vector<PartitionID>& partition) {
+        // TODO: keep-alive
+        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+      }, R"pbdoc(
+Construct a partitioned hypergraph from this hypergraph.
+
+:param num_blocks: number of block in which the hypergraph should be partitioned into
+:param partition: list of block IDs for each node
+          )pbdoc",
+      py::arg("num_blocks"), py::arg("partition"))
+    .def("partitioned_hypergraph_from_file",
+      [&](HypergraphT& hypergraph,
+          const PartitionID num_blocks,
+          const std::string& partition_file) {
+        std::vector<PartitionID> partition;
+        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
+        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+      }, R"pbdoc(
+Construct a partitioned hypergraph from this hypergraph.
+
+:param num_blocks: number of block in which the hypergraph should be partitioned into
+:param partition_file: partition file containing block IDs for each node
+          )pbdoc",
+      py::arg("num_blocks"), py::arg("partition_file"));
   }
 
 
@@ -596,105 +623,15 @@ Construct a weighted graph.
   // ####################### Partitioned Hypergraph #######################
 
   using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
-  auto phg_class =
-    py::class_<PartitionedHypergraph>(m, "PartitionedHypergraph")
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<StaticHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<StaticHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto phg_class = py::class_<PartitionedHypergraph>(m, "PartitionedHypergraph");
   addPartitionedHypergraphDefinitions<StaticHypergraphTypeTraits>(phg_class);
 
-
- // ####################### Large K Partitioned Hypergraph #######################
-
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
-  auto sparse_phg_class =
-    py::class_<SparsePartitionedHypergraph>(m, "SparsePartitionedHypergraph")
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<LargeKHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<LargeKHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto sparse_phg_class = py::class_<SparsePartitionedHypergraph>(m, "SparsePartitionedHypergraph");
   addPartitionedHypergraphDefinitions<LargeKHypergraphTypeTraits>(sparse_phg_class);
 
-
-  // ####################### Partitioned Graph #######################
-
   using PartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
-  auto partitioned_graph_class =
-    py::class_<PartitionedGraph>(m, "PartitionedGraph")
-    .def(py::init<>([](Graph& graph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<StaticGraphTypeTraits>(graph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned graph.
-
-:param graph: graph object
-:param num_blocks: number of block in which the graph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("graph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Graph& graph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, graph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<StaticGraphTypeTraits>(graph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned graph.
-
-:param graph: graph object
-:param num_blocks: number of block in which the graph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("graph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto partitioned_graph_class = py::class_<PartitionedGraph>(m, "PartitionedGraph");
   addPartitionedHypergraphDefinitions<StaticGraphTypeTraits>(partitioned_graph_class);
 
 
