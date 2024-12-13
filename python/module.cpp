@@ -556,7 +556,10 @@ Construct a weighted graph.
       [](const Context& context) {
         return context.partition.k;
       }, [](Context& context, const PartitionID k) {
-        context.partition.k = k;
+        if (k != context.partition.k) {
+          context.partition.k = k;
+          context.partition.use_individual_part_weights = false;
+        }
       }, "Number of blocks in which the (hyper)graph should be partitioned into")
     .def_property("epsilon",
       [](const Context& context) {
@@ -582,12 +585,36 @@ Construct a weighted graph.
       }, [](Context& context, const bool verbose_output) {
         context.partition.verbose_output = verbose_output;
       }, "Enable partitioning output")
-    .def_property("max_block_weights",
-      [](const Context& context) {
-        return context.partition.max_part_weights;
-      }, [](Context& context, std::vector<HypernodeWeight>& block_weights) {
+    .def("set_individual_target_block_weights",
+      [](Context& context, std::vector<HypernodeWeight>& block_weights) {
+        if (static_cast<PartitionID>(block_weights.size()) != context.partition.k) {
+          throw InvalidParameterException("Number of block weights must be equal to k");
+        }
         lib::set_individual_block_weights(context, block_weights.size(), block_weights.data());
-      }, "Maximum allowed weight for each block of the output partition")
+      }, "Set individual maximum allowed weight for each block of the output partition",
+      py::arg("block_weights"))
+    .def("compute_max_block_weights",
+      [](Context& context, HypernodeWeight total_weight) {
+        context.setupPartWeights(total_weight);
+        return context.partition.max_part_weights;
+      }, R"pbdoc(
+Compute maximum allowed block weights for an input with the given total weight (depends on epsilon).
+If indiviual target weights are set, these are returned instead.
+
+:param total_weight: Total weight of input hypergraph
+          )pbdoc",
+      py::arg("total_weight"))
+    .def("compute_perfect_balance_block_weights",
+      [](Context& context, HypernodeWeight total_weight) {
+        context.setupPartWeights(total_weight);
+        return context.partition.perfect_balance_part_weights;
+      }, R"pbdoc(
+Compute block weights that represent perfect balance for an input with the given total weight.
+If indiviual target weights are set, these are used for the calculation instead.
+
+:param total_weight: Total weight of input hypergraph
+          )pbdoc",
+      py::arg("total_weight"))
     .def("print_configuration", [](const Context& context) {
         LOG << context;
       }, "Print partitioning configuration");

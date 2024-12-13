@@ -52,17 +52,35 @@ class MainTest(unittest.TestCase):
     context.objective = mtkahypar.Objective.CUT
     context.num_vcycles = 5
     context.logging = True
-    context.max_block_weights = [100, 200, 300, 400]
 
     self.assertEqual(context.k, 4)
     self.assertEqual(context.epsilon, 0.05)
     self.assertEqual(context.objective, mtkahypar.Objective.CUT)
     self.assertEqual(context.num_vcycles, 5)
     self.assertEqual(context.logging, True)
-    self.assertEqual(context.max_block_weights[0], 100)
-    self.assertEqual(context.max_block_weights[1], 200)
-    self.assertEqual(context.max_block_weights[2], 300)
-    self.assertEqual(context.max_block_weights[3], 400)
+
+  def test_get_and_set_max_block_weights(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    context.k = 4
+    context.epsilon = 0.05
+    perfect_balance_weights = context.compute_perfect_balance_block_weights(1000)
+    self.assertEqual(perfect_balance_weights[0], 250)
+    self.assertEqual(perfect_balance_weights[1], 250)
+    self.assertEqual(perfect_balance_weights[2], 250)
+    self.assertEqual(perfect_balance_weights[3], 250)
+
+    max_block_weights = context.compute_max_block_weights(1000)
+    self.assertEqual(max_block_weights[0], 262)
+    self.assertEqual(max_block_weights[1], 262)
+    self.assertEqual(max_block_weights[2], 262)
+    self.assertEqual(max_block_weights[3], 262)
+
+    context.set_individual_target_block_weights([100, 200, 300, 400])
+    max_block_weights = context.compute_max_block_weights(1000)
+    self.assertEqual(max_block_weights[0], 100)
+    self.assertEqual(max_block_weights[1], 200)
+    self.assertEqual(max_block_weights[2], 300)
+    self.assertEqual(max_block_weights[3], 400)
 
   def test_check_graph_stats(self):
     graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
@@ -542,7 +560,7 @@ class MainTest(unittest.TestCase):
     def setIndividualBlockWeights(self, individualBlockWeights):
       self.useIndividualBlockWeights = True
       self.individualBlockWeights = individualBlockWeights
-      self.context.max_block_weights = individualBlockWeights
+      self.context.set_individual_target_block_weights(individualBlockWeights)
 
     def addFixedVertices(self):
       self.graph.add_fixed_vertices_from_file(mydir + "/test_instances/delaunay_n15.k4.p1.fix", self.k)
@@ -710,7 +728,7 @@ class MainTest(unittest.TestCase):
     def setIndividualBlockWeights(self, individualBlockWeights):
       self.useIndividualBlockWeights = True
       self.individualBlockWeights = individualBlockWeights
-      self.context.max_block_weights = individualBlockWeights
+      self.context.set_individual_target_block_weights(individualBlockWeights)
 
     def addFixedVertices(self):
       self.hypergraph.add_fixed_vertices_from_file(mydir + "/test_instances/ibm01.k4.p1.fix", self.k)
