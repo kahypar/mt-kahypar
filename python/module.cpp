@@ -30,6 +30,7 @@
 
 #include "tbb/parallel_for.h"
 
+#include <atomic>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -61,8 +62,14 @@ namespace py = pybind11;
 using namespace mt_kahypar;
 
 namespace {
-  void initialize(const size_t num_threads) {
-    lib::initialize(num_threads, true);
+  void initialize(const size_t num_threads, const bool print_warnings) {
+    static std::atomic_bool is_initialized = false;
+    bool expected = false;
+    if (is_initialized.compare_exchange_strong(expected, true)) {
+      lib::initialize(num_threads, true, print_warnings);
+    } else if (print_warnings) {
+      WARNING("Mt-KaHyPar is already initialized");
+    }
   }
 
   template<typename TypeTraits>
@@ -250,9 +257,35 @@ namespace {
     that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
     is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
     processors do not communicate directly with each other or different speeds.
-            )pbdoc", py::arg("target_graph"), py::arg("context"));
-  }
+            )pbdoc", py::arg("target_graph"), py::arg("context"))
+    .def("create_partitioned_hypergraph",
+      [&](HypergraphT& hypergraph,
+          const PartitionID num_blocks,
+          const std::vector<PartitionID>& partition) {
+        // TODO: keep-alive
+        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+      }, R"pbdoc(
+Construct a partitioned hypergraph from this hypergraph.
 
+:param num_blocks: number of block in which the hypergraph should be partitioned into
+:param partition: list of block IDs for each node
+          )pbdoc",
+      py::arg("num_blocks"), py::arg("partition"))
+    .def("partitioned_hypergraph_from_file",
+      [&](HypergraphT& hypergraph,
+          const PartitionID num_blocks,
+          const std::string& partition_file) {
+        std::vector<PartitionID> partition;
+        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
+        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+      }, R"pbdoc(
+Construct a partitioned hypergraph from this hypergraph.
+
+:param num_blocks: number of block in which the hypergraph should be partitioned into
+:param partition_file: partition file containing block IDs for each node
+          )pbdoc",
+      py::arg("num_blocks"), py::arg("partition_file"));
+  }
 
 
   template<typename TypeTraits, typename PyClassDef>
@@ -332,7 +365,14 @@ namespace {
 }
 
 
+// Token type for initialization
+struct Initializer {};
+
 PYBIND11_MODULE(mtkahypar, m) {
+  using Hypergraph = ds::StaticHypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using Graph = ds::StaticGraph;
+  using GraphFactory = typename Graph::Factory;
 
   // ####################### Enum Types #######################
 
@@ -361,34 +401,134 @@ PYBIND11_MODULE(mtkahypar, m) {
   py::register_exception<UnsupportedOperationException>(m, "UnsupportedOperationError");
   py::register_exception<SystemException>(m, "SystemError");
 
-  // ####################### Initialize Thread Pool #######################
+  // ####################### Initialize Thread Pool and RNG #######################
 
-  m.def("initialize", [&](const size_t num_threads) {
-      initialize(num_threads);
-    }, "General initialization. Initializes the thread pool with the given number of threads",
-    py::arg("number of threads"));
-
-  // ####################### Initialize Random Number Generator #######################
+  m.def("initialize", [&](const size_t num_threads, const bool print_warnings) {
+      initialize(num_threads, print_warnings);
+      return Initializer{};
+    }, "Initializes Mt-KaHyPar with the given number of threads.",
+    py::arg("number of threads"), py::arg("print_warnings") = true);
 
   m.def("set_seed", [&](const int seed) {
       mt_kahypar::utils::Randomize::instance().setSeed(seed);
     }, "Initializes the random number generator with the given seed",
     py::arg("seed"));
 
-  // ####################### Context #######################
 
-  py::class_<Context>(m, "Context", py::module_local())
-    .def(py::init<>([](const PresetType preset) {
+  // ####################### The Initializer #######################
+
+  py::class_<Initializer>(m, "Initializer", py::module_local())
+    .def("context_from_preset",
+      [](Initializer&, const PresetType preset) {
         Context context;
         auto preset_option_list = loadPreset(preset);
         mt_kahypar::presetToContext(context, preset_option_list, true);
         return context;
-      }))
-    .def(py::init<>([](const std::string& config_file) {
+      }, "Creates a context from the given preset.",
+      py::arg("preset"))
+    .def("context_from_file",
+      [](Initializer&, const std::string& config_file) {
         Context context;
         mt_kahypar::parseIniToContext(context, config_file, true);
         return context;
-      }))
+      }, "Creates a context from a configuration file.",
+      py::arg("config_file"))
+    .def("create_hypergraph",
+      [](Initializer&,
+         const HypernodeID num_hypernodes,
+         const HyperedgeID num_hyperedges,
+         const vec<vec<HypernodeID>>& hyperedges) {
+        return HypergraphFactory::construct(
+          num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr, true);
+      }, R"pbdoc(
+Construct an unweighted hypergraph.
+
+:param num_hypernodes: Number of nodes
+:param num_hyperedges: Number of hyperedges
+:param hyperedges: list containing all hyperedges (e.g., [[0,1],[0,2,3],...])
+          )pbdoc",
+      py::arg("num_hypernodes"),
+      py::arg("num_hyperedges"),
+      py::arg("hyperedges"))
+    .def("create_hypergraph",
+      [](Initializer&,
+         const HypernodeID num_hypernodes,
+         const HyperedgeID num_hyperedges,
+         const vec<vec<HypernodeID>>& hyperedges,
+         const vec<HypernodeWeight>& node_weights,
+         const vec<HyperedgeWeight>& hyperedge_weights) {
+        return HypergraphFactory::construct(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedge_weights.data(), node_weights.data(), true);
+      }, R"pbdoc(
+Construct a weighted hypergraph.
+
+:param num_hypernodes: Number of nodes
+:param num_hyperedges: Number of hyperedges
+:param hyperedges: List containing all hyperedges (e.g., [[0,1],[0,2,3],...])
+:param node_weights: Weights of all hypernodes
+:param hyperedge_weights: Weights of all hyperedges
+          )pbdoc",
+      py::arg("num_hypernodes"),
+      py::arg("num_hyperedges"),
+      py::arg("hyperedges"),
+      py::arg("node_weights"),
+      py::arg("hyperedge_weights"))
+    .def("hypergraph_from_file",
+      [](Initializer&, const std::string& file_name, const FileFormat file_format) {
+        return io::readInputFile<Hypergraph>(file_name, file_format, true);
+      }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
+      py::arg("filename"), py::arg("format"))
+    .def("create_graph",
+      [](Initializer&,
+         const HypernodeID num_nodes,
+         const HyperedgeID num_edges,
+         const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
+        return GraphFactory::construct_from_graph_edges(
+          num_nodes, num_edges, edges, nullptr, nullptr, true);
+      }, R"pbdoc(
+Construct an unweighted graph.
+
+:param num_nodes: Number of nodes
+:param num_edges: Number of edges
+:param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
+          )pbdoc",
+      py::arg("num_nodes"),
+      py::arg("num_edges"),
+      py::arg("edges"))
+    .def("create_graph",
+      [](Initializer&,
+         const HypernodeID num_nodes,
+         const HyperedgeID num_edges,
+         const vec<std::pair<HypernodeID,HypernodeID>>& edges,
+         const vec<HypernodeWeight>& node_weights,
+         const vec<HyperedgeWeight>& edge_weights) {
+        return GraphFactory::construct_from_graph_edges(
+          num_nodes, num_edges, edges, edge_weights.data(), node_weights.data(), true);
+      }, R"pbdoc(
+Construct a weighted graph.
+
+:param num_nodes: Number of nodes
+:param num_edges: Number of edges
+:param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
+:param node_weights: Weights of all nodes
+:param hyperedge_weights: Weights of all edges
+          )pbdoc",
+      py::arg("num_nodes"),
+      py::arg("num_edges"),
+      py::arg("edges"),
+      py::arg("node_weights"),
+      py::arg("edge_weights"))
+    .def("graph_from_file",
+      [](Initializer&, const std::string& file_name, const FileFormat file_format) {
+          return io::readInputFile<Graph>(file_name, file_format, true);
+      }, "Reads a graph from a file (supported file formats are METIS and HMETIS)",
+      py::arg("filename"), py::arg("format"));
+
+
+  // ####################### Context #######################
+
+  py::class_<Context>(m, "Context", py::module_local())
     .def("set_partitioning_parameters",
       [](Context& context,
          const PartitionID k,
@@ -448,108 +588,13 @@ PYBIND11_MODULE(mtkahypar, m) {
       }, "Print partitioning configuration");
 
 
-  // ####################### Hypergraph #######################
+  // ####################### Hypergraph and Graph #######################
 
-  using Hypergraph = ds::StaticHypergraph;
-  using HypergraphFactory = typename Hypergraph::Factory;
-  auto hypergraph_class =
-    py::class_<Hypergraph>(m, "Hypergraph")
-    .def(py::init<>([](const HypernodeID num_hypernodes,
-                       const HyperedgeID num_hyperedges,
-                       const vec<vec<HypernodeID>>& hyperedges) {
-        return HypergraphFactory::construct(
-          num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr, true);
-      }), R"pbdoc(
-Construct an unweighted hypergraph.
-
-:param num_hypernodes: Number of nodes
-:param num_hyperedges: Number of hyperedges
-:param hyperedges: list containing all hyperedges (e.g., [[0,1],[0,2,3],...])
-          )pbdoc",
-      py::arg("num_hypernodes"),
-      py::arg("num_hyperedges"),
-      py::arg("hyperedges"))
-    .def(py::init<>([](const HypernodeID num_hypernodes,
-                       const HyperedgeID num_hyperedges,
-                       const vec<vec<HypernodeID>>& hyperedges,
-                       const vec<HypernodeWeight>& node_weights,
-                       const vec<HyperedgeWeight>& hyperedge_weights) {
-        return HypergraphFactory::construct(
-          num_hypernodes, num_hyperedges, hyperedges,
-          hyperedge_weights.data(), node_weights.data(), true);
-      }), R"pbdoc(
-Construct a weighted hypergraph.
-
-:param num_hypernodes: Number of nodes
-:param num_hyperedges: Number of hyperedges
-:param hyperedges: List containing all hyperedges (e.g., [[0,1],[0,2,3],...])
-:param node_weights: Weights of all hypernodes
-:param hyperedge_weights: Weights of all hyperedges
-          )pbdoc",
-      py::arg("num_hypernodes"),
-      py::arg("num_hyperedges"),
-      py::arg("hyperedges"),
-      py::arg("node_weights"),
-      py::arg("hyperedge_weights"))
-    .def(py::init<>([](const std::string& file_name,
-                       const FileFormat file_format) {
-        return io::readInputFile<Hypergraph>(file_name, file_format, true);
-      }), "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("format"));
-
+  auto hypergraph_class = py::class_<Hypergraph>(m, "Hypergraph");
   addHypergraphDefinitions<StaticHypergraphTypeTraits, LargeKHypergraphTypeTraits>(hypergraph_class);
 
-
-  // ####################### Graph #######################
-
-  using Graph = ds::StaticGraph;
-  using GraphFactory = typename Graph::Factory;
-  auto graph_class =
-    py::class_<Graph>(m, "Graph")
-    .def(py::init<>([](const HypernodeID num_nodes,
-                       const HyperedgeID num_edges,
-                       const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
-        return GraphFactory::construct_from_graph_edges(
-          num_nodes, num_edges, edges, nullptr, nullptr, true);
-      }), R"pbdoc(
-Construct an unweighted graph.
-
-:param num_nodes: Number of nodes
-:param num_edges: Number of edges
-:param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
-          )pbdoc",
-      py::arg("num_nodes"),
-      py::arg("num_edges"),
-      py::arg("edges"))
-    .def(py::init<>([](const HypernodeID num_nodes,
-                       const HyperedgeID num_edges,
-                       const vec<std::pair<HypernodeID,HypernodeID>>& edges,
-                       const vec<HypernodeWeight>& node_weights,
-                       const vec<HyperedgeWeight>& edge_weights) {
-        return GraphFactory::construct_from_graph_edges(
-          num_nodes, num_edges, edges, edge_weights.data(), node_weights.data(), true);
-      }), R"pbdoc(
-Construct a weighted graph.
-
-:param num_nodes: Number of nodes
-:param num_edges: Number of edges
-:param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
-:param node_weights: Weights of all nodes
-:param hyperedge_weights: Weights of all edges
-          )pbdoc",
-      py::arg("num_nodes"),
-      py::arg("num_edges"),
-      py::arg("edges"),
-      py::arg("node_weights"),
-      py::arg("edge_weights"))
-    .def(py::init<>([](const std::string& file_name,
-                      const FileFormat file_format) {
-          return io::readInputFile<Graph>(file_name, file_format, true);
-      }), "Reads a graph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("format"));
-
+  auto graph_class = py::class_<Graph>(m, "Graph");
   addHypergraphDefinitions<StaticGraphTypeTraits, StaticGraphTypeTraits>(graph_class);
-
   graph_class
     .def("num_directed_edges", &Graph::initialNumEdges,
       "Number of directed edges (equal to num_edges)")
@@ -576,105 +621,15 @@ Construct a weighted graph.
   // ####################### Partitioned Hypergraph #######################
 
   using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
-  auto phg_class =
-    py::class_<PartitionedHypergraph>(m, "PartitionedHypergraph")
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<StaticHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<StaticHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto phg_class = py::class_<PartitionedHypergraph>(m, "PartitionedHypergraph");
   addPartitionedHypergraphDefinitions<StaticHypergraphTypeTraits>(phg_class);
 
-
- // ####################### Large K Partitioned Hypergraph #######################
-
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
-  auto sparse_phg_class =
-    py::class_<SparsePartitionedHypergraph>(m, "SparsePartitionedHypergraph")
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<LargeKHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Hypergraph& hypergraph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<LargeKHypergraphTypeTraits>(hypergraph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned hypergraph.
-
-:param hypergraph: hypergraph object
-:param num_blocks: number of block in which the hypergraph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("hypergraph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto sparse_phg_class = py::class_<SparsePartitionedHypergraph>(m, "SparsePartitionedHypergraph");
   addPartitionedHypergraphDefinitions<LargeKHypergraphTypeTraits>(sparse_phg_class);
 
-
-  // ####################### Partitioned Graph #######################
-
   using PartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
-  auto partitioned_graph_class =
-    py::class_<PartitionedGraph>(m, "PartitionedGraph")
-    .def(py::init<>([](Graph& graph,
-                       const PartitionID num_blocks,
-                       const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<StaticGraphTypeTraits>(graph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned graph.
-
-:param graph: graph object
-:param num_blocks: number of block in which the graph should be partitioned into
-:param partition: List of block IDs for each node
-          )pbdoc",
-      py::arg("graph"), py::arg("num_blocks"), py::arg("partition"))
-    .def(py::init<>([](Graph& graph,
-                       const PartitionID num_blocks,
-                       const std::string& partition_file) {
-        std::vector<PartitionID> partition;
-        io::readPartitionFile(partition_file, graph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<StaticGraphTypeTraits>(graph, num_blocks, partition);
-      }), R"pbdoc(
-Construct a partitioned graph.
-
-:param graph: graph object
-:param num_blocks: number of block in which the graph should be partitioned into
-:param partition_file: Partition file containing block IDs for each node
-          )pbdoc",
-      py::arg("graph"), py::arg("num_blocks"), py::arg("partition_file"));
-
+  auto partitioned_graph_class = py::class_<PartitionedGraph>(m, "PartitionedGraph");
   addPartitionedHypergraphDefinitions<StaticGraphTypeTraits>(partitioned_graph_class);
 
 

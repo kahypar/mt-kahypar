@@ -45,14 +45,16 @@ namespace lib {
 
 // ####################### General Helper Functions #######################
 
-void initialize(const size_t num_threads, const bool interleaved_allocations) {
+void initialize(const size_t num_threads, const bool interleaved_allocations, const bool print_warnings) {
   size_t P = num_threads;
   #ifndef KAHYPAR_DISABLE_HWLOC
     size_t num_available_cpus = HardwareTopology::instance().num_cpus();
     if ( num_available_cpus < num_threads ) {
-      WARNING("There are currently only" << num_available_cpus << "cpus available."
-        << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
       P = num_available_cpus;
+      if (print_warnings) {
+        WARNING("There are currently only" << num_available_cpus << "cpus available."
+          << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
+      }
     }
   #endif
 
