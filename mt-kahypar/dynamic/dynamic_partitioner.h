@@ -67,8 +67,6 @@ namespace mt_kahypar::dyn {
 
         size_t log_step_size = max_changes * context.dynamic.logging_step_size_pct;
 
-        std::cout << log_step_size << std::endl;
-
         for (size_t i = 0; i < max_changes; ++i) {
           Change& change = changes[i];
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
