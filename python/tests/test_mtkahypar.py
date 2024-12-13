@@ -250,6 +250,13 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_graph.cut(), 4)
 
+  def test_phg_keeps_graph_alive(self):
+    graphs = [mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])]
+    partitioned_graph = graphs[0].create_partitioned_hypergraph(3, [0,1,1,2,2])
+    graphs = []  # graph is freed if it is not kept alive by the phg
+
+    partitioned_graph.cut()  # segfaults if graph is freed
+
   def test_for_graph_if_all_nodes_contains_correct_number_of_incident_cut_edges(self):
     graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
@@ -334,6 +341,13 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
+
+  def test_phg_keeps_hypergraph_alive(self):
+    hypergraphs = [mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])]
+    partitioned_hg = hypergraphs[0].create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
+    hypergraphs = []  # hypergraph is freed if it is not kept alive by the phg
+
+    partitioned_hg.cut()  # segfaults if hypergraph is freed
 
   def test_for_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
     hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])

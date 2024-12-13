@@ -264,7 +264,6 @@ namespace {
       [&](HypergraphT& hypergraph,
           const PartitionID num_blocks,
           const std::vector<PartitionID>& partition) {
-        // TODO: keep-alive
         return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
       }, R"pbdoc(
 Construct a partitioned hypergraph from this hypergraph.
@@ -272,7 +271,9 @@ Construct a partitioned hypergraph from this hypergraph.
 :param num_blocks: number of block in which the hypergraph should be partitioned into
 :param partition: list of block IDs for each node
           )pbdoc",
-      py::arg("num_blocks"), py::arg("partition"))
+      py::arg("num_blocks"), py::arg("partition"),
+      // prevent hypergraph from being freed while the PHG is still alive
+      py::keep_alive<0, 1>())
     .def("partitioned_hypergraph_from_file",
       [&](HypergraphT& hypergraph,
           const PartitionID num_blocks,
@@ -286,7 +287,9 @@ Construct a partitioned hypergraph from this hypergraph.
 :param num_blocks: number of block in which the hypergraph should be partitioned into
 :param partition_file: partition file containing block IDs for each node
           )pbdoc",
-      py::arg("num_blocks"), py::arg("partition_file"));
+      py::arg("num_blocks"), py::arg("partition_file"),
+      // prevent hypergraph from being freed while the PHG is still alive
+      py::keep_alive<0, 1>());
   }
 
 
@@ -452,6 +455,8 @@ Construct an unweighted hypergraph.
       py::arg("num_hypernodes"),
       py::arg("num_hyperedges"),
       py::arg("hyperedges"))
+    // Note: Using default arguments, i.e., nullable raw pointers, for the weights does not seem to work here.
+    // The overload resolution fails due to a bug in pybind (seems related to https://github.com/pybind/pybind11/issues/4956)
     .def("create_hypergraph",
       [](Initializer&,
          const HypernodeID num_hypernodes,
