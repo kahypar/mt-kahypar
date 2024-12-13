@@ -141,7 +141,7 @@ MT_KAHYPAR_API void mt_kahypar_free_error_content(mt_kahypar_error_t* error);
  * Make sure that you partition the hypergraph with the same configuration as it is loaded.
  */
 MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,
-                                                                            const mt_kahypar_preset_type_t preset,
+                                                                            const mt_kahypar_context_t* context,
                                                                             const mt_kahypar_file_format_type_t file_format,
                                                                             mt_kahypar_error_t* error);
 
@@ -149,7 +149,9 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(cons
  * Reads a target graph in Metis file format. The target graph can be used in the
  * 'mt_kahypar_map' function to map a (hyper)graph onto it.
  */
-MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name, mt_kahypar_error_t* error);
+MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name,
+                                                                                 const mt_kahypar_context_t* context,
+                                                                                 mt_kahypar_error_t* error);
 
 /**
  * Constructs a hypergraph from a given adjacency array that specifies the hyperedges.
@@ -162,7 +164,7 @@ MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file
  * \note For unweighted hypergraphs, you can pass nullptr to either hyperedge_weights or vertex_weights.
  * \note After construction, the arguments of this function are no longer needed and can be deleted.
  */
-MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(mt_kahypar_preset_type_t preset,
+MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t* context,
                                                                     const mt_kahypar_hypernode_id_t num_vertices,
                                                                     const mt_kahypar_hyperedge_id_t num_hyperedges,
                                                                     const size_t* hyperedge_indices,
@@ -181,7 +183,7 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(mt_kahypar_p
  * \note For unweighted graphs, you can pass nullptr to either hyperedge_weights or vertex_weights.
  * \note After construction, the arguments of this function are no longer needed and can be deleted.
  */
-MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t preset,
+MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* context,
                                                                const mt_kahypar_hypernode_id_t num_vertices,
                                                                const mt_kahypar_hyperedge_id_t num_edges,
                                                                const mt_kahypar_hypernode_id_t* edges,
@@ -199,7 +201,8 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_
  * \note For unweighted graphs, you can pass nullptr to either hyperedge_weights.
  * \note After construction, the arguments of this function are no longer needed and can be deleted.
  */
-MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hypernode_id_t num_vertices,
+MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_context_t* context,
+                                                                         const mt_kahypar_hypernode_id_t num_vertices,
                                                                          const mt_kahypar_hyperedge_id_t num_edges,
                                                                          const mt_kahypar_hypernode_id_t* edges,
                                                                          const mt_kahypar_hyperedge_weight_t* edge_weights,
