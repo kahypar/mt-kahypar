@@ -83,7 +83,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(max_block_weights[3], 400)
 
   def test_check_graph_stats(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
 
     self.assertEqual(graph.num_nodes(), 5)
     self.assertEqual(graph.num_edges(), 12)
@@ -92,7 +93,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.total_weight(), 5)
 
   def test_check_graph_node_degrees(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
 
     self.assertEqual(graph.node_degree(0), 2)
     self.assertEqual(graph.node_degree(1), 3)
@@ -101,7 +103,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.node_degree(4), 1)
 
   def test_check_graph_node_weights(self):
-    graph = mtk.create_graph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context,
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,1,1,1,1,1])
 
@@ -113,7 +116,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.node_weight(4), 5)
 
   def test_check_graph_edge_weights(self):
-    graph = mtk.create_graph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context,
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,2,3,4,5,6])
 
@@ -131,7 +135,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.edge_weight(11), 6) # (4,3)
 
   def test_source_nodes_of_edges(self):
-    graph = mtk.create_graph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context,
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,2,3,4,5,6])
 
@@ -149,7 +154,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.edge_source(11), 4) # (4,3)
 
   def test_target_nodes_of_edges(self):
-    graph = mtk.create_graph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context,
       5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)],
       [1,2,3,4,5], [1,2,3,4,5,6])
 
@@ -167,8 +173,9 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.edge_target(11), 3) # (4,3)
 
   def test_load_graph_in_metis_file_format(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     graph = mtk.graph_from_file(
-      mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
+      mydir + "/test_instances/delaunay_n15.graph", context, mtkahypar.FileFormat.METIS)
 
     self.assertEqual(graph.num_nodes(), 32768)
     self.assertEqual(graph.num_edges(), 2 * 98274)
@@ -177,7 +184,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.total_weight(), 32768)
 
   def test_check_hypergraph_stats(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
 
     self.assertEqual(hypergraph.num_nodes(), 7)
     self.assertEqual(hypergraph.num_edges(), 4)
@@ -185,7 +193,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.total_weight(), 7)
 
   def test_check_hypergraph_node_degrees(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
 
     self.assertEqual(hypergraph.node_degree(0), 2)
     self.assertEqual(hypergraph.node_degree(1), 1)
@@ -196,7 +205,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.node_degree(6), 2)
 
   def test_check_hypergraph_edge_sizes(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
 
     self.assertEqual(hypergraph.edge_size(0), 2)
     self.assertEqual(hypergraph.edge_size(1), 4)
@@ -204,7 +214,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.edge_size(3), 3)
 
   def test_check_hypergraph_node_weights(self):
-    hypergraph = mtk.create_hypergraph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context,
       7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]],
       [1,2,3,4,5,6,7], [1,1,1,1])
 
@@ -218,7 +229,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.node_weight(6), 7)
 
   def test_check_hypergraph_edge_weights(self):
-    hypergraph = mtk.create_hypergraph(
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context,
       7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]],
       [1,2,3,4,5,6,7], [1,2,3,4])
 
@@ -228,8 +240,9 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.edge_weight(3), 4)
 
   def test_load_hypergraph_in_hmetis_file_format(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     hypergraph = mtk.hypergraph_from_file(
-      mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
+      mydir + "/test_instances/ibm01.hgr", context, mtkahypar.FileFormat.HMETIS)
 
     self.assertEqual(hypergraph.num_nodes(), 12752)
     self.assertEqual(hypergraph.num_edges(), 14111)
@@ -237,15 +250,17 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.total_weight(), 12752)
 
   def test_load_hypergraph_in_metis_file_format(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     hypergraph = mtk.hypergraph_from_file(
-      mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
+      mydir + "/test_instances/delaunay_n15.graph", context, mtkahypar.FileFormat.METIS)
 
     self.assertEqual(hypergraph.num_nodes(), 32768)
     self.assertEqual(hypergraph.num_edges(), 98274)
     self.assertEqual(hypergraph.total_weight(), 32768)
 
   def test_for_graph_if_all_nodes_in_correct_block(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
 
     self.assertEqual(partitioned_graph.block_id(0), 0)
@@ -255,7 +270,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.block_id(4), 2)
 
   def test_for_graph_if_block_have_correct_weight(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
 
     self.assertEqual(partitioned_graph.block_weight(0), 1)
@@ -263,20 +279,23 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.block_weight(2), 2)
 
   def test_cut_metric_for_graph(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
 
     self.assertEqual(partitioned_graph.cut(), 4)
 
   def test_phg_keeps_graph_alive(self):
-    graphs = [mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])]
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graphs = [mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])]
     partitioned_graph = graphs[0].create_partitioned_hypergraph(3, [0,1,1,2,2])
     graphs = []  # graph is freed if it is not kept alive by the phg
 
     partitioned_graph.cut()  # segfaults if graph is freed
 
   def test_for_graph_if_all_nodes_contains_correct_number_of_incident_cut_edges(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
 
     self.assertEqual(partitioned_graph.num_incident_cut_edges(0), 2)
@@ -286,7 +305,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.num_incident_cut_edges(4), 0)
 
   def test_for_graph_if_all_edges_have_correct_connectivity(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,1,1,2,2])
 
     self.assertEqual(partitioned_graph.connectivity(0),  2) # (0,1)
@@ -303,7 +323,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.connectivity(11), 1) # (4,3)
 
   def test_load_graph_partition_from_file(self):
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.partitioned_hypergraph_from_file(3,
       mydir + "/test_instances/test_graph_partition.part3")
 
@@ -314,10 +335,11 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.block_id(4), 2)
 
   def test_write_graph_partition_to_file(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     if os.path.isfile(mydir + "/test_partition.part3"):
       os.remove(mydir + "/test_partition.part3")
 
-    graph = mtk.create_graph(5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(3, [0,0,1,2,2])
 
     partitioned_graph.write_partition_to_file(mydir + "/test_partition.part3")
@@ -334,7 +356,8 @@ class MainTest(unittest.TestCase):
       os.remove(mydir + "/test_partition.part3")
 
   def test_for_hypergraph_if_all_nodes_are_in_correct_block(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.block_id(0), 0)
@@ -346,7 +369,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.block_id(6), 2)
 
   def test_for_hypergraph_if_blocks_have_correct_weight(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.block_weight(0), 3)
@@ -354,21 +378,24 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.block_weight(2), 1)
 
   def test_all_metrics_for_hypergraph(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
 
   def test_phg_keeps_hypergraph_alive(self):
-    hypergraphs = [mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])]
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraphs = [mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])]
     partitioned_hg = hypergraphs[0].create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
     hypergraphs = []  # hypergraph is freed if it is not kept alive by the phg
 
     partitioned_hg.cut()  # segfaults if hypergraph is freed
 
   def test_for_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.num_incident_cut_edges(0), 1)
@@ -380,7 +407,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.num_incident_cut_edges(6), 2)
 
   def test_for_hypergraph_if_all_edges_have_correct_connectivity(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.connectivity(0), 1)
@@ -389,7 +417,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.connectivity(3), 3)
 
   def test_for_hypergraph_if_all_edges_have_correct_number_of_pins_in_blocks(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,1,2])
 
     self.assertEqual(partitioned_hg.num_pins_in_block(0,0), 2)
@@ -406,7 +435,8 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.num_pins_in_block(3,2), 1)
 
   def test_load_hypergraph_partition_from_file(self):
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.partitioned_hypergraph_from_file(3,
       mydir + "/test_instances/test_partition.part3")
 
@@ -419,10 +449,11 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.block_id(6), 2)
 
   def test_write_hypergraph_partition_to_file(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     if os.path.isfile(mydir + "/test_partition.part3"):
       os.remove(mydir + "/test_partition.part3")
 
-    hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(3, [0,0,0,1,1,2,2])
 
     partitioned_hg.write_partition_to_file(mydir + "/test_partition.part3")
@@ -441,7 +472,8 @@ class MainTest(unittest.TestCase):
       os.remove(mydir + "/test_partition.part3")
 
   # def test_for_sparse_hypergraph_if_all_nodes_are_in_correct_block(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.block_id(0), 0)
@@ -453,7 +485,8 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.block_id(6), 2)
 
   # def test_for_sparse_hypergraph_if_blocks_have_correct_weight(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.block_weight(0), 3)
@@ -461,14 +494,16 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.block_weight(2), 1)
 
   # def test_all_metrics_for_sparse_hypergraph(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.cut(), 3)
   #   self.assertEqual(partitioned_hg.km1(), 4)
 
   # def test_for_sparse_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.num_incident_cut_edges(0), 1)
@@ -480,7 +515,8 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.num_incident_cut_edges(6), 2)
 
   # def test_for_sparse_hypergraph_if_all_edges_have_correct_connectivity(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.connectivity(0), 1)
@@ -489,7 +525,8 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.connectivity(3), 3)
 
   # def test_for_sparse_hypergraph_if_all_edges_have_correct_number_of_pins_in_blocks(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,1,2])
 
   #   self.assertEqual(partitioned_hg.num_pins_in_block(0,0), 2)
@@ -506,7 +543,8 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.num_pins_in_block(3,2), 1)
 
   # def test_load_sparse_hypergraph_partition_from_file(self):
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3,
   #     mydir + "/test_instances/test_partition.part3")
 
@@ -519,10 +557,11 @@ class MainTest(unittest.TestCase):
   #   self.assertEqual(partitioned_hg.block_id(6), 2)
 
   # def test_write_sparse_hypergraph_partition_to_file(self):
+  #   context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
   #   if os.path.isfile(mydir + "/test_partition.part3"):
   #     os.remove(mydir + "/test_partition.part3")
 
-  #   hypergraph = mtk.create_hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  #   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   #   partitioned_hg = mtkahypar.SparsePartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,2,2])
 
   #   partitioned_hg.write_partition_to_file(mydir + "/test_partition.part3")
@@ -548,9 +587,9 @@ class MainTest(unittest.TestCase):
       mtkahypar.set_seed(42)
       self.context.logging = logging or force_logging
       self.target_graph = mtk.graph_from_file(
-        mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)
+        mydir + "/test_instances/target.graph", self.context, mtkahypar.FileFormat.METIS)
       self.graph = mtk.graph_from_file(
-        mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
+        mydir + "/test_instances/delaunay_n15.graph", self.context, mtkahypar.FileFormat.METIS)
       self.useIndividualBlockWeights = False
       self.k = num_blocks
       self.epsilon = epsilon
@@ -715,9 +754,9 @@ class MainTest(unittest.TestCase):
       mtkahypar.set_seed(42)
       self.context.logging = logging or force_logging
       self.target_graph = mtk.graph_from_file(
-        mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)
+        mydir + "/test_instances/target.graph", self.context, mtkahypar.FileFormat.METIS)
       self.hypergraph = mtk.hypergraph_from_file(
-        mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
+        mydir + "/test_instances/ibm01.hgr", self.context, mtkahypar.FileFormat.HMETIS)
       self.useIndividualBlockWeights = False
       self.k = num_blocks
       self.epsilon = epsilon

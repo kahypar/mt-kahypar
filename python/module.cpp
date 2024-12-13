@@ -431,6 +431,7 @@ PYBIND11_MODULE(mtkahypar, m) {
       py::arg("config_file"))
     .def("create_hypergraph",
       [](Initializer&,
+         const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges) {
@@ -439,10 +440,12 @@ PYBIND11_MODULE(mtkahypar, m) {
       }, R"pbdoc(
 Construct an unweighted hypergraph.
 
+:param context: the partitioning context
 :param num_hypernodes: Number of nodes
 :param num_hyperedges: Number of hyperedges
 :param hyperedges: list containing all hyperedges (e.g., [[0,1],[0,2,3],...])
           )pbdoc",
+      py::arg("context"),
       py::arg("num_hypernodes"),
       py::arg("num_hyperedges"),
       py::arg("hyperedges"))
@@ -450,6 +453,7 @@ Construct an unweighted hypergraph.
     // The overload resolution fails due to a bug in pybind (seems related to https://github.com/pybind/pybind11/issues/4956)
     .def("create_hypergraph",
       [](Initializer&,
+         const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges,
@@ -461,24 +465,30 @@ Construct an unweighted hypergraph.
       }, R"pbdoc(
 Construct a weighted hypergraph.
 
+:param context: the partitioning context
 :param num_hypernodes: Number of nodes
 :param num_hyperedges: Number of hyperedges
 :param hyperedges: List containing all hyperedges (e.g., [[0,1],[0,2,3],...])
 :param node_weights: Weights of all hypernodes
 :param hyperedge_weights: Weights of all hyperedges
           )pbdoc",
+      py::arg("context"),
       py::arg("num_hypernodes"),
       py::arg("num_hyperedges"),
       py::arg("hyperedges"),
       py::arg("node_weights"),
       py::arg("hyperedge_weights"))
     .def("hypergraph_from_file",
-      [](Initializer&, const std::string& file_name, const FileFormat file_format) {
+      [](Initializer&,
+         const std::string& file_name,
+         const Context& context,
+         const FileFormat file_format) {
         return io::readInputFile<Hypergraph>(file_name, file_format, true);
       }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("format"))
+      py::arg("filename"), py::arg("context"), py::arg("format"))
     .def("create_graph",
       [](Initializer&,
+         const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
@@ -487,15 +497,18 @@ Construct a weighted hypergraph.
       }, R"pbdoc(
 Construct an unweighted graph.
 
+:param context: the partitioning context
 :param num_nodes: Number of nodes
 :param num_edges: Number of edges
 :param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
           )pbdoc",
+      py::arg("context"),
       py::arg("num_nodes"),
       py::arg("num_edges"),
       py::arg("edges"))
     .def("create_graph",
       [](Initializer&,
+         const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
@@ -506,22 +519,27 @@ Construct an unweighted graph.
       }, R"pbdoc(
 Construct a weighted graph.
 
+:param context: the partitioning context
 :param num_nodes: Number of nodes
 :param num_edges: Number of edges
 :param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
 :param node_weights: Weights of all nodes
 :param hyperedge_weights: Weights of all edges
           )pbdoc",
+      py::arg("context"),
       py::arg("num_nodes"),
       py::arg("num_edges"),
       py::arg("edges"),
       py::arg("node_weights"),
       py::arg("edge_weights"))
     .def("graph_from_file",
-      [](Initializer&, const std::string& file_name, const FileFormat file_format) {
+      [](Initializer&,
+         const std::string& file_name,
+         const Context& context,
+         const FileFormat file_format) {
           return io::readInputFile<Graph>(file_name, file_format, true);
       }, "Reads a graph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("format"));
+      py::arg("filename"), py::arg("context"), py::arg("format"));
 
 
   // ####################### Context #######################
