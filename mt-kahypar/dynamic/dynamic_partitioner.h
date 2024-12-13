@@ -65,7 +65,7 @@ namespace mt_kahypar::dyn {
 
         strategy->init(hypergraph_s, context);
 
-        size_t log_step_size = max_changes * 0.001;
+        size_t log_step_size = max_changes * context.dynamic.logging_step_size_pct;
 
         std::cout << log_step_size << std::endl;
 
@@ -74,7 +74,7 @@ namespace mt_kahypar::dyn {
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
           strategy->partition(hypergraph_s, context, change, max_changes);
           auto duration = std::chrono::high_resolution_clock::now() - start;
-          if (i % log_step_size != 0) {
+          if (log_step_size != 0 && i % log_step_size != 0) {
             continue;
           }
           strategy->compute_km1_and_imbalance(hypergraph_s, context, change, strategy->history.back());

@@ -65,6 +65,9 @@ namespace mt_kahypar::dyn {
       }
 
       void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
+        if (!partition_result.valid) {
+          return;
+        }
         partition_result.km1 = mt_kahypar::metrics::quality(partitioned_hypergraph_s, Objective::km1);
         partition_result.imbalance = mt_kahypar::metrics::imbalance(partitioned_hypergraph_s, context);
       }
