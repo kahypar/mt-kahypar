@@ -28,15 +28,18 @@
 
 #include <string>
 #include <sstream>
+#include <type_traits>
 
 #include "mtkahypartypes.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/presets.h"
@@ -45,6 +48,22 @@
 using namespace mt_kahypar;
 
 namespace lib {
+  using StaticGraph = typename StaticGraphTypeTraits::Hypergraph;
+  using DynamicGraph = typename DynamicGraphTypeTraits::Hypergraph;
+  using StaticHypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+  using DynamicHypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+
+  using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
+  using DynamicPartitionedGraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
+  using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
+  using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
+
+  using StaticHypergraphFactory = typename ds::StaticHypergraph::Factory;
+  using DynamicHypergraphFactory = typename ds::DynamicHypergraph::Factory;
+  using StaticGraphFactory = typename ds::StaticGraph::Factory;
+  using DynamicGraphFactory = typename ds::DynamicGraph::Factory;
+
 
 // ####################### General Helper Functions #######################
 
@@ -264,6 +283,63 @@ void check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
   }
 }
 
+
+mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
+                                          const mt_kahypar_hypernode_id_t num_vertices,
+                                          const mt_kahypar_hyperedge_id_t num_hyperedges,
+                                          const vec<vec<HypernodeID>>& edge_vector,
+                                          const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
+                                          const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  // TODO
+  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
+  switch ( context.partition.preset_type ) {
+    case PresetType::deterministic:
+    case PresetType::large_k:
+    case PresetType::default_preset:
+    case PresetType::quality:
+      return mt_kahypar_hypergraph_t {
+        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
+          StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
+            edge_vector, hyperedge_weights, vertex_weights, true))), STATIC_HYPERGRAPH };
+    case PresetType::highest_quality:
+      return mt_kahypar_hypergraph_t {
+        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
+          DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
+            edge_vector, hyperedge_weights, vertex_weights, true))), DYNAMIC_HYPERGRAPH };
+    case PresetType::UNDEFINED:
+      break;
+  }
+  throw InvalidParameterException("Invalid preset type.");
+}
+
+mt_kahypar_hypergraph_t create_graph(const Context& context,
+                                     const mt_kahypar_hypernode_id_t num_vertices,
+                                     const mt_kahypar_hyperedge_id_t num_edges,
+                                     const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
+                                     const mt_kahypar_hyperedge_weight_t* edge_weights,
+                                     const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  // TODO
+  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
+  switch ( context.partition.preset_type ) {
+    case PresetType::deterministic:
+    case PresetType::large_k:
+    case PresetType::default_preset:
+    case PresetType::quality:
+      return mt_kahypar_hypergraph_t {
+        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
+          StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
+            edge_vector, edge_weights, vertex_weights, true))), STATIC_GRAPH };
+    case PresetType::highest_quality:
+      return mt_kahypar_hypergraph_t {
+        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
+          DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
+            edge_vector, edge_weights, vertex_weights, true))), DYNAMIC_GRAPH };
+    case PresetType::UNDEFINED:
+      break;
+  }
+  throw InvalidParameterException("Invalid preset type.");
+}
+
 template<typename PartitionedHypergraph, typename Hypergraph>
 mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(Hypergraph& hg,
                                                                   const mt_kahypar_partition_id_t num_blocks,
@@ -276,6 +352,47 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(Hypergraph& hg
   partitioned_hg.initializePartition();
   return mt_kahypar_partitioned_hypergraph_t { reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
     new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
+}
+
+mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
+                                                                  const Context& context,
+                                                                  const mt_kahypar_partition_id_t num_blocks,
+                                                                  const mt_kahypar_partition_id_t* partition) {
+  if ( hypergraph.type == STATIC_GRAPH || hypergraph.type == DYNAMIC_GRAPH ) {
+    switch ( context.partition.preset_type ) {
+      case PresetType::large_k:
+      case PresetType::deterministic:
+      case PresetType::default_preset:
+      case PresetType::quality:
+        ASSERT(hypergraph.type == STATIC_GRAPH);
+        return lib::create_partitioned_hypergraph<StaticPartitionedGraph>(
+          utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
+      case PresetType::highest_quality:
+        ASSERT(hypergraph.type == DYNAMIC_GRAPH);
+        return lib::create_partitioned_hypergraph<DynamicPartitionedGraph>(
+          utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
+      case PresetType::UNDEFINED: break;
+    }
+  } else {
+    switch ( context.partition.preset_type ) {
+      case PresetType::large_k:
+        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
+        return lib::create_partitioned_hypergraph<SparsePartitionedHypergraph>(
+          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
+      case PresetType::deterministic:
+      case PresetType::default_preset:
+      case PresetType::quality:
+        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
+        return lib::create_partitioned_hypergraph<StaticPartitionedHypergraph>(
+          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
+      case PresetType::highest_quality:
+        ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
+        return lib::create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
+          utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);
+      case PresetType::UNDEFINED: break;
+    }
+  }
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
 template<typename PartitionedHypergraph>
@@ -366,6 +483,152 @@ void improveMapping(mt_kahypar_partitioned_hypergraph_t phg,
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
   improveImpl(phg, partition_context, num_vcycles, &target_graph);
+}
+
+
+// ####################### Generic Handling of Different Graph Types #######################
+
+struct NoReturn {};
+
+template<typename ReturnT, bool Throwing, typename Func>
+ReturnT switch_hg(mt_kahypar_hypergraph_t hg, Func f) {
+  switch ( hg.type ) {
+    case STATIC_GRAPH:
+      return f(utils::cast<StaticGraph>(hg));
+    case DYNAMIC_GRAPH:
+      return f(utils::cast<DynamicGraph>(hg));
+    case STATIC_HYPERGRAPH:
+      return f(utils::cast<StaticHypergraph>(hg));
+    case DYNAMIC_HYPERGRAPH:
+      return f(utils::cast<DynamicHypergraph>(hg));
+    case NULLPTR_HYPERGRAPH: break;
+  }
+  if constexpr (Throwing) {
+    throw UnsupportedOperationException("Input is not a valid hypergraph.");
+  }
+  return ReturnT{};
+}
+
+template<typename ReturnT, bool Throwing, typename Func>
+ReturnT switch_graph(mt_kahypar_hypergraph_t hg, Func f) {
+  switch ( hg.type ) {
+    case STATIC_GRAPH:
+      return f(utils::cast<StaticGraph>(hg));
+    case DYNAMIC_GRAPH:
+      return f(utils::cast<DynamicGraph>(hg));
+    case STATIC_HYPERGRAPH:
+    case DYNAMIC_HYPERGRAPH:
+    case NULLPTR_HYPERGRAPH:
+      break;
+  }
+  if constexpr (Throwing) {
+    throw UnsupportedOperationException("Input is not a valid hypergraph.");
+  }
+  return ReturnT{};
+}
+
+template<typename ReturnT, typename Func>
+ReturnT switch_phg_throwing_impl(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+  switch ( phg.type ) {
+    case MULTILEVEL_GRAPH_PARTITIONING:
+      return f(utils::cast<StaticPartitionedGraph>(phg));
+    case N_LEVEL_GRAPH_PARTITIONING:
+      return f(utils::cast<DynamicPartitionedGraph>(phg));
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+      return f(utils::cast<StaticPartitionedHypergraph>(phg));
+    case N_LEVEL_HYPERGRAPH_PARTITIONING:
+      return f(utils::cast<DynamicPartitionedHypergraph>(phg));
+    case LARGE_K_PARTITIONING:
+      return f(utils::cast<SparsePartitionedHypergraph>(phg));
+    case NULLPTR_PARTITION:
+      break;
+  }
+  throw UnsupportedOperationException("Input is not a valid partitioned hypergraph.");
+}
+
+template<typename ReturnT = NoReturn, typename Func>
+ReturnT switch_phg_throwing(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+  if constexpr ( std::is_same_v<ReturnT, NoReturn> ) {
+    return switch_phg_throwing_impl<NoReturn>(phg, [=](auto& phg) {
+      f(phg);
+      return NoReturn{};
+    });
+  } else {
+    return switch_phg_throwing_impl<ReturnT>(phg, f);
+  }
+}
+
+
+// ####################### Generic Implementations #######################
+
+template<bool Throwing>
+HypernodeID num_nodes(mt_kahypar_hypergraph_t hypergraph) {
+  return switch_hg<PartitionID, Throwing>(hypergraph, [](const auto& hg) {
+    return hg.initialNumNodes();
+  });
+}
+
+template<bool Throwing>
+HyperedgeID num_edges(mt_kahypar_hypergraph_t hypergraph) {
+  return switch_hg<HyperedgeID, Throwing>(hypergraph, [](const auto& hg) {
+    return hg.initialNumEdges();
+  });
+}
+
+template<bool Throwing>
+HypernodeID num_pins(mt_kahypar_hypergraph_t hypergraph) {
+  return switch_hg<HypernodeID, Throwing>(hypergraph, [](const auto& hg) {
+    return hg.initialNumPins();
+  });
+}
+
+template<bool Throwing>
+HypernodeWeight total_weight(mt_kahypar_hypergraph_t hypergraph) {
+  return switch_hg<HypernodeWeight, Throwing>(hypergraph, [](const auto& hg) {
+    return hg.totalWeight();
+  });
+}
+
+template<bool Throwing>
+HyperedgeID node_degree(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
+  return switch_hg<HyperedgeID, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.nodeDegree(hn);
+  });
+}
+
+template<bool Throwing>
+HypernodeWeight node_weight(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
+  return switch_hg<HypernodeWeight, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.nodeWeight(hn);
+  });
+}
+
+template<bool Throwing>
+bool is_fixed(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
+  return switch_hg<bool, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.isFixed(hn);
+  });
+}
+
+template<bool Throwing>
+PartitionID fixed_vertex_block(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
+  return switch_hg<PartitionID, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.isFixed(hn) ? hg.fixedVertexBlock(hn) : kInvalidPartition;
+  });
+}
+
+template<bool Throwing>
+HypernodeID edge_size(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
+  return switch_hg<HypernodeID, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.edgeSize(he);
+  });
+}
+
+template<bool Throwing>
+HyperedgeWeight edge_weight(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
+  return switch_hg<HyperedgeWeight, Throwing>(hypergraph, [=](const auto& hg) {
+    return hg.edgeWeight(he);
+  });
 }
 
 } // namespace lib

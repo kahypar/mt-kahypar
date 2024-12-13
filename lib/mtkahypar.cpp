@@ -30,6 +30,7 @@
 #include <charconv>
 #include <boost/lexical_cast.hpp>
 
+// TODO: reduce
 #include "include/mtkahypar.h"
 #include "include/mtkahypartypes.h"
 #include "include/helper_functions.h"
@@ -307,26 +308,8 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t*
   });
 
   const Context& c = *reinterpret_cast<const Context*>(context);
-  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    switch ( c.partition.preset_type ) {
-      case PresetType::deterministic:
-      case PresetType::large_k:
-      case PresetType::default_preset:
-      case PresetType::quality:
-        return mt_kahypar_hypergraph_t {
-          reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
-            StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
-              edge_vector, hyperedge_weights, vertex_weights, stable_construction))), STATIC_HYPERGRAPH };
-      case PresetType::highest_quality:
-        return mt_kahypar_hypergraph_t {
-          reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
-            DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
-              edge_vector, hyperedge_weights, vertex_weights, false))), DYNAMIC_HYPERGRAPH };
-      case PresetType::UNDEFINED:
-        break;
-    }
-    *error = to_error(INVALID_PARAMETER, "Invalid preset type.");
+    return lib::create_hypergraph(c, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
@@ -348,26 +331,8 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* cont
   });
 
   const Context& c = *reinterpret_cast<const Context*>(context);
-  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    switch ( c.partition.preset_type ) {
-      case PresetType::deterministic:
-      case PresetType::large_k:
-      case PresetType::default_preset:
-      case PresetType::quality:
-        return mt_kahypar_hypergraph_t {
-          reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
-            StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-              edge_vector, edge_weights, vertex_weights, stable_construction))), STATIC_GRAPH };
-      case PresetType::highest_quality:
-        return mt_kahypar_hypergraph_t {
-          reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
-            DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-              edge_vector, edge_weights, vertex_weights, false))), DYNAMIC_GRAPH };
-      case PresetType::UNDEFINED:
-        break;
-    }
-    *error = to_error(INVALID_PARAMETER, "Invalid preset type.");
+    return lib::create_graph(c, num_vertices, num_edges, edge_vector, edge_weights, vertex_weights);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
@@ -421,6 +386,7 @@ mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t hype
   return 0;
 }
 
+// TODO
 mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumEdges() / 2;
@@ -567,54 +533,24 @@ mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph
   }
 }
 
+// TODO: use context
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
-                                                                             const mt_kahypar_preset_type_t preset,
+                                                                             const mt_kahypar_context_t* context,
                                                                              const mt_kahypar_partition_id_t num_blocks,
                                                                              const mt_kahypar_partition_id_t* partition) {
-  if ( hypergraph.type == STATIC_GRAPH || hypergraph.type == DYNAMIC_GRAPH ) {
-    switch ( preset ) {
-      case LARGE_K:
-      case DETERMINISTIC:
-      case DEFAULT:
-      case QUALITY:
-        ASSERT(hypergraph.type == STATIC_GRAPH);
-        return lib::create_partitioned_hypergraph<StaticPartitionedGraph>(
-          utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
-      case HIGHEST_QUALITY:
-        ASSERT(hypergraph.type == DYNAMIC_GRAPH);
-        return lib::create_partitioned_hypergraph<DynamicPartitionedGraph>(
-          utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
-    }
-  } else {
-    switch ( preset ) {
-      case LARGE_K:
-        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<SparsePartitionedHypergraph>(
-          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
-      case DETERMINISTIC:
-      case DEFAULT:
-      case QUALITY:
-        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<StaticPartitionedHypergraph>(
-          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
-      case HIGHEST_QUALITY:
-        ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
-          utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);
-    }
-  }
-  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+  const Context& c = reinterpret_cast<const Context&>(*context);
+  return lib::create_partitioned_hypergraph(hypergraph, c, num_blocks, partition);
 }
 
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t hypergraph,
-                                                                        const mt_kahypar_preset_type_t preset,
+                                                                        const mt_kahypar_context_t* context,
                                                                         const mt_kahypar_partition_id_t num_blocks,
                                                                         const char* partition_file,
                                                                         mt_kahypar_error_t* error) {
   std::vector<PartitionID> partition;
   try {
     io::readPartitionFile(partition_file, mt_kahypar_num_hypernodes(hypergraph), partition);
-    return mt_kahypar_create_partitioned_hypergraph(hypergraph, preset, num_blocks, partition.data());
+    return mt_kahypar_create_partitioned_hypergraph(hypergraph, context, num_blocks, partition.data());
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }

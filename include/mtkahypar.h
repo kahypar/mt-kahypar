@@ -225,6 +225,8 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hy
 
 /**
  * Returns the number of (hyper)edges of the (hyper)graph.
+ * 
+ * Note that for graphs, this returns the number of directed edges (i.e., twice the number of undirected edges).
  */
 MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t hypergraph);
 
@@ -349,8 +351,9 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partiti
 /**
  * Constructs a partitioned (hyper)graph out of the given partition.
  */
+// TODO: also use context here
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
-                                                                                            const mt_kahypar_preset_type_t preset,
+                                                                                            const mt_kahypar_context_t* context,
                                                                                             const mt_kahypar_partition_id_t num_blocks,
                                                                                             const mt_kahypar_partition_id_t* partition);
 
@@ -358,7 +361,7 @@ MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned
  * Constructs a partitioned (hyper)graph from a given partition file.
  */
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t hypergraph,
-                                                                                       const mt_kahypar_preset_type_t preset,
+                                                                                       const mt_kahypar_context_t* context,
                                                                                        const mt_kahypar_partition_id_t num_blocks,
                                                                                        const char* partition_file,
                                                                                        mt_kahypar_error_t* error);
@@ -369,6 +372,22 @@ MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_fro
 MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                                       const char* partition_file,
                                                                       mt_kahypar_error_t* error);
+
+// ####################### Partitioning Results #######################
+
+// edge and pin iterators?? (+ num pins)
+// node degree, node weight, edge weight, edge source, edge target
+// num directed edges / num undirected edges?
+
+// "num_blocks"
+// "block_weight"
+// "block_id", "Block to which the corresponding node is assigned"
+// "fixed_vertex_block" "Block to which the node is fixed (-1 if not fixed)"
+// "num_incident_cut_edges" "Number of incident cut hyperedges of the corresponding node"
+// "num_pins_in_block", pinCountInPart
+// "connectivity"
+
+// compute block weights
 
 /**
  * Extracts a partition from a partitioned (hyper)graph. The size of the provided array must be at least the number of nodes.
