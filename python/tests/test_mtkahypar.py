@@ -774,10 +774,7 @@ class MainTest(unittest.TestCase):
       self.hypergraph.add_fixed_vertices_from_file(mydir + "/test_instances/ibm01.k4.p1.fix", self.k)
 
     def partition(self):
-      if self.preset_type == mtkahypar.PresetType.LARGE_K:
-        self.partitioned_hg = self.hypergraph.partition_into_large_k(self.context)
-      else:
-        self.partitioned_hg = self.hypergraph.partition(self.context)
+      self.partitioned_hg = self.hypergraph.partition(self.context)
       self.__verifyPartition()
 
     def map_onto_graph(self):

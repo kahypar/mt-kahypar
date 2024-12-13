@@ -72,70 +72,6 @@ namespace {
     }
   }
 
-  template<typename TypeTraits>
-  typename TypeTraits::PartitionedHypergraph createPartitionedHypergraph(typename TypeTraits::Hypergraph& hg,
-                                                                         const PartitionID num_blocks,
-                                                                         const std::vector<PartitionID>& partition) {
-    typename TypeTraits::PartitionedHypergraph phg(num_blocks, hg, parallel_tag_t { });
-    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      PartitionID block = partition[hn];
-      if ( block < 0 || block >= num_blocks ) {
-        std::stringstream ss;
-        ss << "Invalid block ID for node " << hn << " ( block ID = " << partition[hn] << " )";
-        throw InvalidInputException(ss.str());
-      }
-      phg.setOnlyNodePart(hn, block);
-    });
-    phg.initializePartition();
-    return phg;
-  }
-
-
-  // ####################### Partitioning #######################
-
-  template<typename TypeTraits>
-  typename TypeTraits::PartitionedHypergraph partitionImpl(typename TypeTraits::Hypergraph& hypergraph,
-                                                           Context& context,
-                                                           TargetGraph* target_graph) {
-    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-    const bool is_graph = PartitionedHypergraph::TYPE == MULTILEVEL_GRAPH_PARTITIONING ||
-                          PartitionedHypergraph::TYPE == N_LEVEL_HYPERGRAPH_PARTITIONING;
-    if ( !is_graph && context.partition.preset_type == PresetType::large_k &&
-         PartitionedHypergraph::TYPE != LARGE_K_PARTITIONING ) {
-      throw UnsupportedOperationException(
-        "For hypergraphs, large k partitioning is only possible with the function partitionIntoLargeK(...).");
-    }
-
-    // note: we can't use lib::partition currently because we can't get a concrete PHG from it by value
-    mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
-    lib::check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type));
-    lib::check_if_all_relevant_parameters_are_set(context);
-    context.partition.instance_type = lib::get_instance_type(hg);
-    context.partition.partition_type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
-    lib::prepare_context(context);
-    context.partition.num_vcycles = 0;
-    return Partitioner<TypeTraits>::partition(hypergraph, context, target_graph);
-  }
-
-  template<typename TypeTraits>
-  typename TypeTraits::PartitionedHypergraph partition(typename TypeTraits::Hypergraph& hypergraph,
-                                                       const Context& context) {
-    Context partition_context(context);
-    return partitionImpl<TypeTraits>(hypergraph, partition_context, nullptr);
-  }
-
-  template<typename TypeTraits>
-  typename TypeTraits::PartitionedHypergraph map(typename TypeTraits::Hypergraph& hypergraph,
-                                                 const ds::StaticGraph& graph,
-                                                 const Context& context) {
-    TargetGraph target_graph(graph.copy());
-    Context partition_context(context);
-    partition_context.partition.objective = Objective::steiner_tree;
-    return partitionImpl<TypeTraits>(hypergraph, partition_context, &target_graph);
-  }
-
-
   // ####################### V-Cycles #######################
 
   template<typename TypeTraits>
@@ -242,13 +178,15 @@ namespace {
           }
         }, "Executes lambda expression for all pins of a hyperedge",
         py::arg("hyperedge"), py::arg("lambda"))
-      .def("partition", &partition<TypeTraits>,
-        "Partitions the hypergraph with the parameters given in the partitioning context",
+      .def("partition",
+        [&](HypergraphT& hypergraph, const Context& context) {
+          return lib::partition(utils::hypergraph_cast(hypergraph), context);
+        }, "Partitions the hypergraph with the parameters given in the partitioning context",
         py::arg("context"))
-      .def("partition_into_large_k", &partition<LargeKTypeTraits>,
-        "Partitions the hypergraph into a large number of blocks with the parameters given in the partitioning context",
-        py::arg("context"))
-      .def("map_onto_graph", &map<TypeTraits>,
+      .def("map_onto_graph",
+        [&](HypergraphT& hypergraph, const ds::StaticGraph& graph, const Context& context) {
+          return lib::map(utils::hypergraph_cast(hypergraph), graph, context);
+        },
         R"pbdoc(
     Maps a (hyper)graph onto a target graph with the parameters given in the partitioning context.
     The number of blocks of the output mapping/partition is the same as the number of nodes in the target graph
@@ -262,7 +200,9 @@ namespace {
       [&](HypergraphT& hypergraph,
           const PartitionID num_blocks,
           const std::vector<PartitionID>& partition) {
-        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+        // TODO: switch preset type for large k
+        return lib::create_partitioned_hypergraph<typename TypeTraits::PartitionedHypergraph>(
+          hypergraph, num_blocks, partition.data());
       }, R"pbdoc(
 Construct a partitioned hypergraph from this hypergraph.
 
@@ -278,7 +218,8 @@ Construct a partitioned hypergraph from this hypergraph.
           const std::string& partition_file) {
         std::vector<PartitionID> partition;
         io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
-        return createPartitionedHypergraph<TypeTraits>(hypergraph, num_blocks, partition);
+        return lib::create_partitioned_hypergraph<typename TypeTraits::PartitionedHypergraph>(
+          hypergraph, num_blocks, partition.data());
       }, R"pbdoc(
 Construct a partitioned hypergraph from this hypergraph.
 
@@ -288,82 +229,6 @@ Construct a partitioned hypergraph from this hypergraph.
       py::arg("num_blocks"), py::arg("partition_file"),
       // prevent hypergraph from being freed while the PHG is still alive
       py::keep_alive<0, 1>());
-  }
-
-
-  template<typename TypeTraits, typename PyClassDef>
-  void addPartitionedHypergraphDefinitions(PyClassDef& py_class) {
-    using PartitionedHypergraphT = typename TypeTraits::PartitionedHypergraph;
-
-    py_class
-      .def("num_blocks", &PartitionedHypergraphT::k,
-        "Number of blocks")
-      .def("block_weight", &PartitionedHypergraphT::partWeight,
-        "Weight of the corresponding block", py::arg("block"))
-      .def("block_id", &PartitionedHypergraphT::partID,
-        "Block to which the corresponding node is assigned", py::arg("node"))
-      .def("is_fixed", &PartitionedHypergraphT::isFixed,
-        "Returns whether or not the corresponding node is a fixed vertex",
-        py::arg("node"))
-      .def("fixed_vertex_block", [&](const PartitionedHypergraphT& hypergraph,
-                                  const HypernodeID hn) {
-          return hypergraph.isFixed(hn) ? hypergraph.fixedVertexBlock(hn) : kInvalidPartition;
-        }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
-      .def("is_incident_to_cut_edge", &PartitionedHypergraphT::isBorderNode,
-        "Returns true, if the corresponding node is incident to at least one cut hyperedge",
-        py::arg("node"))
-      .def("num_incident_cut_edges", &PartitionedHypergraphT::numIncidentCutHyperedges,
-        "Number of incident cut hyperedges of the corresponding node",
-        py::arg("node"))
-      .def("num_pins_in_block", &PartitionedHypergraphT::pinCountInPart,
-        "Number of nodes part of the corresponding block in the given hyperedge",
-        py::arg("hyperedge"), py::arg("block"))
-      .def("connectivity", &PartitionedHypergraphT::connectivity,
-        "Number of distinct blocks to which the pins of corresponding hyperedge are assigned",
-        py::arg("hyperedge"))
-      .def("do_for_all_blocks_in_edge",
-        [](PartitionedHypergraphT& partitioned_hg,
-          const HyperedgeID he,
-          const std::function<void(const PartitionID&)>& f) {
-          for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
-            f(block);
-          }
-        }, "Executes lambda expression on blocks contained in the given hyperedge",
-        py::arg("hyperedge"), py::arg("lambda"))
-      .def("imbalance", [](PartitionedHypergraphT& partitioned_hg, const Context& context) {
-          return lib::imbalance(partitioned_hg, context);
-        }, "Computes the imbalance of the partition")
-      .def("cut", [](PartitionedHypergraphT& partitioned_hg) {
-          return metrics::quality(partitioned_hg, Objective::cut);
-        },
-        "Computes the cut-net metric of the partition")
-      .def("km1", [](PartitionedHypergraphT& partitioned_hg) {
-          return metrics::quality(partitioned_hg, Objective::km1);
-        },
-        "Computes the connectivity metric of the partition")
-      .def("soed", [](PartitionedHypergraphT& partitioned_hg) {
-          return metrics::quality(partitioned_hg, Objective::soed);
-        },
-        "Computes the sum-of-external-degree metric of the partition")
-      .def("steiner_tree", [](PartitionedHypergraphT& partitioned_hg,
-                              ds::StaticGraph& graph) {
-          TargetGraph target_graph(graph.copy());
-          target_graph.precomputeDistances(4);
-          partitioned_hg.setTargetGraph(&target_graph);
-          return metrics::quality(partitioned_hg, Objective::steiner_tree);
-        }, "Computes the steiner tree metric of the mapping",
-        py::arg("target_graph"))
-      .def("write_partition_to_file", [](PartitionedHypergraphT& partitioned_hg,
-                                      const std::string& partition_file) {
-          io::writePartitionFile(partitioned_hg, partition_file);
-        }, "Writes the partition to a file",
-        py::arg("partition_file"))
-      .def("improve_partition", &improve<TypeTraits>,
-        "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
-        py::arg("context"), py::arg("num_vcycles"))
-      .def("improve_mapping", &improveMapping<TypeTraits>,
-        "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
-        py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"));
   }
 }
 
@@ -665,17 +530,130 @@ If indiviual target weights are set, these are used for the calculation instead.
 
   // ####################### Partitioned Hypergraph #######################
 
-  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
-  auto phg_class = py::class_<PartitionedHypergraph>(m, "PartitionedHypergraph");
-  addPartitionedHypergraphDefinitions<StaticHypergraphTypeTraits>(phg_class);
-
-  using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
-  auto sparse_phg_class = py::class_<SparsePartitionedHypergraph>(m, "SparsePartitionedHypergraph");
-  addPartitionedHypergraphDefinitions<LargeKHypergraphTypeTraits>(sparse_phg_class);
-
-  using PartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
-  auto partitioned_graph_class = py::class_<PartitionedGraph>(m, "PartitionedGraph");
-  addPartitionedHypergraphDefinitions<StaticGraphTypeTraits>(partitioned_graph_class);
+  py::class_<mt_kahypar_partitioned_hypergraph_t>(m, "PartitionedHypergraph")
+    .def("num_blocks",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        return lib::switch_phg_throwing<PartitionID>(p, [](const auto& phg) {
+          return phg.k();
+        });
+      },
+      "Number of blocks")
+    .def("block_weight",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const PartitionID block) {
+        return lib::switch_phg_throwing<HypernodeWeight>(p, [=](const auto& phg) {
+          return phg.partWeight(block);
+        });
+      },
+      "Weight of the corresponding block", py::arg("block"))
+    .def("block_id",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
+        return lib::switch_phg_throwing<HypernodeWeight>(p, [=](const auto& phg) {
+          return phg.partID(node);
+        });
+      },
+      "Block to which the corresponding node is assigned", py::arg("node"))
+    .def("is_fixed",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
+        return lib::switch_phg_throwing<bool>(p, [=](const auto& phg) {
+          return phg.isFixed(node);
+        });
+      },
+      "Returns whether or not the corresponding node is a fixed vertex", py::arg("node"))
+    .def("fixed_vertex_block",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
+        return lib::switch_phg_throwing<PartitionID>(p, [=](const auto& phg) {
+          return phg.isFixed(node) ? phg.fixedVertexBlock(node) : -1;
+        });
+      },
+      "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
+    .def("is_incident_to_cut_edge",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
+        return lib::switch_phg_throwing<bool>(p, [=](const auto& phg) {
+          return phg.isBorderNode(node);
+        });
+      },
+      "Returns true, if the corresponding node is incident to at least one cut hyperedge", py::arg("node"))
+    .def("num_incident_cut_edges",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
+        return lib::switch_phg_throwing<HyperedgeID>(p, [=](const auto& phg) {
+          return phg.numIncidentCutHyperedges(node);
+        });
+      },
+      "Number of incident cut hyperedges of the corresponding node", py::arg("node"))
+    .def("connectivity",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HyperedgeID he) {
+        return lib::switch_phg_throwing<PartitionID>(p, [=](const auto& phg) {
+          return phg.connectivity(he);
+        });
+      },
+      "Number of distinct blocks to which the pins of corresponding hyperedge are assigned", py::arg("hyperedge"))
+    .def("num_pins_in_block",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const HyperedgeID he, const PartitionID block_id) {
+        return lib::switch_phg_throwing<HypernodeID>(p, [=](const auto& phg) {
+          return phg.pinCountInPart(he, block_id);
+        });
+      },
+      "Number of nodes part of the corresponding block in the given hyperedge", py::arg("hyperedge"), py::arg("block_id"))
+    .def("imbalance",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const Context& context) {
+        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
+          return lib::imbalance(phg, context);
+        });
+      },
+      "Computes the imbalance of the partition", py::arg("context"))
+    .def("cut",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
+          return metrics::quality(phg, Objective::cut);
+        });
+      },
+      "Computes the cut-net metric of the partition")
+    .def("km1",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
+          return metrics::quality(phg, Objective::km1);
+        });
+      },
+      "Computes the connectivity metric of the partition")
+    .def("soed",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
+          return metrics::quality(phg, Objective::soed);
+        });
+      },
+      "Computes the sum-of-external-degree metric of the partition")
+    .def("steiner_tree",
+      [&](mt_kahypar_partitioned_hypergraph_t p, ds::StaticGraph& graph) {
+        return lib::switch_phg_throwing<PartitionID>(p, [&](auto& phg) {
+          TargetGraph target_graph(graph.copy());
+          target_graph.precomputeDistances(4);
+          phg.setTargetGraph(&target_graph);
+          return metrics::quality(phg, Objective::steiner_tree);
+        });
+      },
+      "Computes the sum-of-external-degree metric of the partition", py::arg("target_graph"))
+    .def("write_partition_to_file",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const std::string& partition_file) {
+        lib::switch_phg_throwing(p, [&](auto& phg) {
+          io::writePartitionFile(phg, partition_file);
+        });
+      },
+      "Writes the partition to a file", py::arg("partition_file"))
+    .def("improve_partition", &lib::improve,
+      "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
+      py::arg("context"), py::arg("num_vcycles"))
+    .def("improve_mapping", &lib::improveMapping,
+      "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
+      py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"));
+    // .def("do_for_all_blocks_in_edge",
+    //   [](PartitionedHypergraphT& partitioned_hg,
+    //     const HyperedgeID he,
+    //     const std::function<void(const PartitionID&)>& f) {
+    //     for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
+    //       f(block);
+    //     }
+    //   }, "Executes lambda expression on blocks contained in the given hyperedge",
+    //   py::arg("hyperedge"), py::arg("lambda"))
 
 
 #ifdef VERSION_INFO

@@ -28,15 +28,18 @@
 
 #include <string>
 #include <sstream>
+#include <type_traits>
 
 #include "mtkahypartypes.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/presets.h"
@@ -366,6 +369,50 @@ void improveMapping(mt_kahypar_partitioned_hypergraph_t phg,
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
   improveImpl(phg, partition_context, num_vcycles, &target_graph);
+}
+
+
+// ####################### Generic Handling of Different Graph Types #######################
+
+namespace {
+  using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
+  using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
+  using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
+  using DynamicPartitionedGraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
+
+  struct NoReturn {};
+
+  template<typename ReturnT, typename Func>
+  ReturnT switch_phg_throwing_impl(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+    switch ( phg.type ) {
+      case MULTILEVEL_GRAPH_PARTITIONING:
+        return f(utils::cast<StaticPartitionedGraph>(phg));
+      case N_LEVEL_GRAPH_PARTITIONING:
+        return f(utils::cast<DynamicPartitionedGraph>(phg));
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+        return f(utils::cast<StaticPartitionedHypergraph>(phg));
+      case N_LEVEL_HYPERGRAPH_PARTITIONING:
+        return f(utils::cast<DynamicPartitionedHypergraph>(phg));
+      case LARGE_K_PARTITIONING:
+        return f(utils::cast<SparsePartitionedHypergraph>(phg));
+      case NULLPTR_PARTITION:
+        break;
+    }
+    throw UnsupportedOperationException("Input is not a valid partitioned hypergraph.");
+  }
+}
+
+template<typename ReturnT = NoReturn, typename Func>
+ReturnT switch_phg_throwing(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+  if constexpr ( std::is_same_v<ReturnT, NoReturn> ) {
+    return switch_phg_throwing_impl<NoReturn>(phg, [=](auto& phg) {
+      f(phg);
+      return NoReturn{};
+    });
+  } else {
+    return switch_phg_throwing_impl<ReturnT>(phg, f);
+  }
 }
 
 } // namespace lib
