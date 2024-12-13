@@ -309,13 +309,15 @@ if(BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
 endif()
 
 block()
+  # define required boost libraries
+  set(BOOST_INCLUDE_LIBRARIES program_options range dynamic_bitset lexical_cast)
+
   if(KAHYPAR_STATIC_LINK_DEPENDENCIES)
     set(Boost_USE_STATIC_LIBS ON)
     set(BUILD_SHARED_LIBS OFF)
   endif()
   if(KAHYPAR_DOWNLOAD_BOOST)
     # Download Boost
-    set(BOOST_INCLUDE_LIBRARIES program_options range dynamic_bitset)
     set(BOOST_ENABLE_CMAKE ON)
     FetchContent_Declare(
       Boost EXCLUDE_FROM_ALL SYSTEM
@@ -332,16 +334,14 @@ block()
     endif()
     message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
   endif()
-endblock()
 
-# the downloaded (newer) boost requires to add these targets explicitly
-if(TARGET Boost::range)
-  target_link_libraries(MtKaHyPar-Include INTERFACE Boost::range)
-endif()
-if(TARGET Boost::dynamic_bitset)
-  target_link_libraries(MtKaHyPar-Include INTERFACE Boost::dynamic_bitset)
-endif()
-target_link_libraries(MtKaHyPar-Include INTERFACE Boost::program_options)
+  # newer boost versions require to add all targets explicitly
+  foreach(BOOST_TARGET ${BOOST_INCLUDE_LIBRARIES})
+    if(TARGET Boost::${BOOST_TARGET})
+      target_link_libraries(MtKaHyPar-Include INTERFACE Boost::${BOOST_TARGET})
+    endif()
+  endforeach()
+endblock()
 
 
 if(KAHYPAR_DOWNLOAD_TBB)
