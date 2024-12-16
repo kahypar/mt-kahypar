@@ -376,48 +376,35 @@ void mt_kahypar_free_target_graph(mt_kahypar_target_graph_t* target_graph) {
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t hypergraph) {
-  switch ( hypergraph.type ) {
-    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumNodes();
-    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumNodes();
-    case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumNodes();
-    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumNodes();
-    case NULLPTR_HYPERGRAPH: return 0;
-  }
-  return 0;
+  return lib::num_nodes<false>(hypergraph);
 }
 
-// TODO
 mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t hypergraph) {
-  switch ( hypergraph.type ) {
-    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumEdges() / 2;
-    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumEdges() / 2;
-    case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumEdges();
-    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumEdges();
-    case NULLPTR_HYPERGRAPH: return 0;
-  }
-  return 0;
+  return lib::num_edges<false>(hypergraph);
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t hypergraph) {
-  switch ( hypergraph.type ) {
-    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumPins();
-    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumPins();
-    case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumPins();
-    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumPins();
-    case NULLPTR_HYPERGRAPH: return 0;
-  }
-  return 0;
+  return lib::num_pins<false>(hypergraph);
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
-  switch ( hypergraph.type ) {
-    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).totalWeight();
-    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).totalWeight();
-    case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).totalWeight();
-    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).totalWeight();
-    case NULLPTR_HYPERGRAPH: return 0;
-  }
-  return 0;
+  return lib::total_weight<false>(hypergraph);
+}
+
+mt_kahypar_hyperedge_id_t mt_kahypar_hypernode_degree(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
+  return lib::node_degree<false>(hypergraph, node);
+}
+
+mt_kahypar_hypernode_weight_t mt_kahypar_hypernode_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
+  return lib::node_weight<false>(hypergraph, node);
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_hyperedge_size(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge) {
+  return lib::edge_size<false>(hypergraph, edge);
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_hyperedge_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge) {
+  return lib::edge_weight<false>(hypergraph, edge);
 }
 
 void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
@@ -466,6 +453,14 @@ mt_kahypar_status_t mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergrap
 
 void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph) {
   io::removeFixedVertices(hypergraph);
+}
+
+bool mt_kahypar_is_fixed_vertex(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
+  return lib::is_fixed<false>(hypergraph, node);
+}
+
+mt_kahypar_partition_id_t mt_kahypar_fixed_vertex_block(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
+  return lib::fixed_vertex_block<false>(hypergraph, node);
 }
 
 bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,

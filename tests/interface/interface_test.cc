@@ -119,7 +119,7 @@ namespace mt_kahypar {
       mt_kahypar_read_hypergraph_from_file("test_instances/delaunay_n15.graph", context, METIS, &error);
 
     ASSERT_EQ(32768,  mt_kahypar_num_hypernodes(graph));
-    ASSERT_EQ(98274,  mt_kahypar_num_hyperedges(graph));
+    ASSERT_EQ(196548, mt_kahypar_num_hyperedges(graph));
     ASSERT_EQ(196548, mt_kahypar_num_pins(graph));
     ASSERT_EQ(32768,  mt_kahypar_hypergraph_weight(graph));
 
@@ -204,7 +204,7 @@ namespace mt_kahypar {
     ASSERT_EQ(graph.type, STATIC_GRAPH);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
-    ASSERT_EQ(6, mt_kahypar_num_hyperedges(graph));
+    ASSERT_EQ(12, mt_kahypar_num_hyperedges(graph));
     ASSERT_EQ(5, mt_kahypar_hypergraph_weight(graph));
 
     mt_kahypar_free_hypergraph(graph);
@@ -230,7 +230,7 @@ namespace mt_kahypar {
     ASSERT_EQ(graph.type, DYNAMIC_GRAPH);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
-    ASSERT_EQ(6, mt_kahypar_num_hyperedges(graph));
+    ASSERT_EQ(12, mt_kahypar_num_hyperedges(graph));
     ASSERT_EQ(5, mt_kahypar_hypergraph_weight(graph));
 
     mt_kahypar_free_hypergraph(graph);
@@ -293,10 +293,57 @@ namespace mt_kahypar {
       context, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get(), &error);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
-    ASSERT_EQ(6, mt_kahypar_num_hyperedges(graph));
+    ASSERT_EQ(12, mt_kahypar_num_hyperedges(graph));
     ASSERT_EQ(15, mt_kahypar_hypergraph_weight(graph));
 
     mt_kahypar_free_hypergraph(graph);
+  }
+
+  TEST(MtKaHyPar, GetsPropertiesOfHypergraphWithNodeWeights) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> vertex_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(7);
+    vertex_weights[0] = 1; vertex_weights[1] = 2; vertex_weights[2] = 3; vertex_weights[3] = 4;
+    vertex_weights[4] = 5; vertex_weights[5] = 6; vertex_weights[6] = 7;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
+      context, num_vertices, num_hyperedges, hyperedge_indices.get(),
+      hyperedges.get(), nullptr, vertex_weights.get(), &error);
+
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 0));
+    ASSERT_EQ(1, mt_kahypar_hypernode_degree(hypergraph, 1));
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 2));
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 3));
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 4));
+    ASSERT_EQ(1, mt_kahypar_hypernode_degree(hypergraph, 5));
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 6));
+    ASSERT_EQ(2, mt_kahypar_hyperedge_size(hypergraph, 0));
+    ASSERT_EQ(4, mt_kahypar_hyperedge_size(hypergraph, 1));
+    ASSERT_EQ(3, mt_kahypar_hyperedge_size(hypergraph, 2));
+    ASSERT_EQ(3, mt_kahypar_hyperedge_size(hypergraph, 3));
+
+    for (size_t i = 0; i < 7; ++i) {
+      ASSERT_EQ(vertex_weights[i], mt_kahypar_hypernode_weight(hypergraph, i));
+    }
+    for (size_t i = 0; i < 4; ++i) {
+      ASSERT_EQ(1, mt_kahypar_hyperedge_weight(hypergraph, i));
+    }
+
+    mt_kahypar_free_hypergraph(hypergraph);
   }
 
   TEST(MtKaHyPar, CreatesPartitionedHypergraph) {
@@ -660,7 +707,11 @@ namespace mt_kahypar {
 
       for ( HypernodeID hn = 0; hn < num_nodes; ++hn ) {
         if ( fixed_vertices[hn] != -1 ) {
+          ASSERT_TRUE(mt_kahypar_is_fixed_vertex(hypergraph, hn));
+          ASSERT_EQ(fixed_vertices[hn], mt_kahypar_fixed_vertex_block(hypergraph, hn));
           ASSERT_EQ(fixed_vertices[hn], partition[hn]);
+        } else {
+          ASSERT_FALSE(mt_kahypar_is_fixed_vertex(hypergraph, hn));
         }
       }
     }

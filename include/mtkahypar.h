@@ -218,6 +218,8 @@ MT_KAHYPAR_API void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t hypergrap
  */
 MT_KAHYPAR_API void mt_kahypar_free_target_graph(mt_kahypar_target_graph_t* target_graph);
 
+// ####################### Properties of Hypergraph #######################
+
 /**
  * Returns the number of nodes of the (hyper)graph.
  */
@@ -239,6 +241,26 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergra
  * Returns the sum of all node weights of the (hyper)graph.
  */
 MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
+
+/**
+ * Returns the degree of the corresponding node.
+ */
+MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_hypernode_degree(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node);
+
+/**
+ * Returns the weight of the corresponding node.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_weight_t mt_kahypar_hypernode_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node);
+
+/**
+ * Returns the size of the corresponding hyperedge.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hyperedge_size(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge);
+
+/**
+ * Returns the weight of the corresponding edge.
+ */
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_hyperedge_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge);
 
 // ####################### Fixed Vertices #######################
 
@@ -276,6 +298,16 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_add_fixed_vertices_from_file(mt_ka
  * Removes all fixed vertices from the hypergraph.
  */
 MT_KAHYPAR_API void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph);
+
+/**
+ * Whether the corresponding node is a fixed vertex.
+ */
+MT_KAHYPAR_API bool mt_kahypar_is_fixed_vertex(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node);
+
+/**
+ * Block to which the node is fixed (-1 if not fixed).
+ */
+MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_fixed_vertex_block(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node);
 
 // ####################### Partition #######################
 
@@ -351,7 +383,6 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partiti
 /**
  * Constructs a partitioned (hyper)graph out of the given partition.
  */
-// TODO: also use context here
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
                                                                                             const mt_kahypar_context_t* context,
                                                                                             const mt_kahypar_partition_id_t num_blocks,
@@ -377,7 +408,6 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_k
 
 // edge and pin iterators?? (+ num pins)
 // node degree, node weight, edge weight, edge source, edge target
-// num directed edges / num undirected edges?
 
 // "num_blocks"
 // "block_weight"
