@@ -435,6 +435,7 @@ If indiviual target weights are set, these are used for the calculation instead.
         LOG << context;
       }, "Print partitioning configuration");
 
+
   // ####################### Hypergraph and Graph #######################
 
   hg_class
@@ -473,40 +474,34 @@ corresponding node or -1 if the node is not fixed.
          "Size of hyperedge", py::arg("hyperedge"))
     .def("edge_weight", &lib::edge_weight<true>,
          "Weight of hyperedge", py::arg("hyperedge"))
-    // .def("do_for_all_nodes",
-    //   [&](HypergraphT& hypergraph,
-    //       const std::function<void(const HypernodeID&)>& f) {
-    //     for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    //       f(hn);
-    //     }
-    //   }, "Executes lambda expression for all nodes",
-    //   py::arg("lambda"))
-    // .def("do_for_all_edges",
-    //   [&](HypergraphT& hypergraph,
-    //       const std::function<void(const HyperedgeID&)>& f) {
-    //     for ( const HyperedgeID& he : hypergraph.edges() ) {
-    //       f(he);
-    //     }
-    //   }, "Executes lambda expression for all hyperedges",
-    //   py::arg("lambda"))
-    // .def("do_for_all_incident_edges",
-    //   [&](HypergraphT& hypergraph,
-    //       const HypernodeID hn,
-    //       const std::function<void(const HyperedgeID&)>& f) {
-    //     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-    //       f(he);
-    //     }
-    //   }, "Executes lambda expression for all incident hyperedges of a node",
-    //   py::arg("node"), py::arg("lambda"))
-    // .def("do_for_all_pins",
-    //   [&](HypergraphT& hypergraph,
-    //       const HyperedgeID& he,
-    //       const std::function<void(const HypernodeID&)>& f) {
-    //     for ( const HyperedgeID& hn : hypergraph.pins(he) ) {
-    //       f(hn);
-    //     }
-    //   }, "Executes lambda expression for all pins of a hyperedge",
-    //   py::arg("hyperedge"), py::arg("lambda"))
+    .def("nodes",
+      [&](mt_kahypar_hypergraph_t hypergraph) {
+        return lib::switch_hg<py::iterator, true>(hypergraph, [](const auto& hg) {
+          auto range = hg.nodes();
+          return py::make_iterator(range.begin(), range.end());
+        });
+      }, "Iterator over all nodes", py::keep_alive<0, 1>())
+    .def("edges",
+      [&](mt_kahypar_hypergraph_t hypergraph) {
+        return lib::switch_hg<py::iterator, true>(hypergraph, [](const auto& hg) {
+          auto range = hg.edges();
+          return py::make_iterator(range.begin(), range.end());
+        });
+      }, "Iterator over all hyperedges", py::keep_alive<0, 1>())
+    .def("incident_edges",
+      [&](mt_kahypar_hypergraph_t hypergraph, const HypernodeID hn) {
+        return lib::switch_hg<py::iterator, true>(hypergraph, [=](const auto& hg) {
+          auto range = hg.incidentEdges(hn);
+          return py::make_iterator(range.begin(), range.end());
+        });
+      }, "Iterator over incident hyperedges of node", py::arg("node"), py::keep_alive<0, 1>())
+    .def("pins",
+      [&](mt_kahypar_hypergraph_t hypergraph, const HyperedgeID he) {
+        return lib::switch_hg<py::iterator, true>(hypergraph, [=](const auto& hg) {
+          auto range = hg.pins(he);
+          return py::make_iterator(range.begin(), range.end());
+        });
+      }, "Iterator over pins of hyperedge", py::arg("hyperedge"), py::keep_alive<0, 1>())
     .def("is_compatible",
       [&](mt_kahypar_hypergraph_t hypergraph, PresetType preset) {
         return lib::is_compatible(hypergraph, lib::get_preset_c_type(preset));
@@ -570,7 +565,6 @@ Construct a partitioned hypergraph from this hypergraph.
     // prevent hypergraph from being freed while the PHG is still alive
     py::keep_alive<0, 1>());
 
-
   graph_class
     .def("num_directed_edges",
       [&](mt_kahypar_py_graph_t g) {
@@ -596,15 +590,7 @@ Construct a partitioned hypergraph from this hypergraph.
           return graph.edgeTarget(edge);
         });
       }, "Target node of edge (e.g., (0,1) -> 1 is the target node)", py::arg("edge"));
-    // .def("do_for_all_neighbors",
-    //   [&](Graph& graph,
-    //       const HypernodeID hn,
-    //       const std::function<void(const HyperedgeID&)>& f) {
-    //     for ( const HyperedgeID& he : graph.incidentEdges(hn) ) {
-    //       f(graph.edgeTarget(he));
-    //     }
-    //   }, "Executes lambda expression for all adjacent nodes of a node",
-    //   py::arg("node"), py::arg("lambda"));
+
 
   // ####################### Partitioned Hypergraph #######################
 
@@ -664,7 +650,7 @@ Construct a partitioned hypergraph from this hypergraph.
           return phg.connectivity(he);
         });
       },
-      "Number of distinct blocks to which the pins of corresponding hyperedge are assigned", py::arg("hyperedge"))
+      "Number of distinct blocks to which the pins of the corresponding hyperedge are assigned", py::arg("hyperedge"))
     .def("num_pins_in_block",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HyperedgeID he, const PartitionID block_id) {
         return lib::switch_phg_throwing<HypernodeID>(p, [=](const auto& phg) {
@@ -729,16 +715,15 @@ Construct a partitioned hypergraph from this hypergraph.
         lib::improveMapping(phg, target_graph_cast(target_graph), context, num_vcycles);
       },
       "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
-      py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"));
-    // .def("do_for_all_blocks_in_edge",
-    //   [](PartitionedHypergraphT& partitioned_hg,
-    //     const HyperedgeID he,
-    //     const std::function<void(const PartitionID&)>& f) {
-    //     for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
-    //       f(block);
-    //     }
-    //   }, "Executes lambda expression on blocks contained in the given hyperedge",
-    //   py::arg("hyperedge"), py::arg("lambda"))
+      py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"))
+    .def("connectivity_set",
+      [&](mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he) {
+        return lib::switch_phg_throwing<py::iterator>(p, [=](const auto& phg) {
+          auto range = phg.connectivitySet(he);
+          return py::make_iterator(range.begin(), range.end());
+        });
+      }, "Iterator over blocks to which the pins of the corresponding hyperedge are assigned",
+      py::arg("hyperedge"), py::keep_alive<0, 1>());
 
 
 #ifdef VERSION_INFO

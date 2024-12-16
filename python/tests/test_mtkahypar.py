@@ -92,6 +92,30 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.num_directed_edges(), 12)
     self.assertEqual(graph.total_weight(), 5)
 
+  def test_check_graph_iterators(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+
+    self.assertEqual([hn for hn in graph.nodes()], [0,1,2,3,4])
+    self.assertEqual([he for he in graph.edges()], [0,1,2,3,4,5,6,7,8,9,10,11])
+    self.assertEqual([pin for pin in graph.pins(0)],  [0,1])
+    self.assertEqual([pin for pin in graph.pins(1)],  [0,2])
+    self.assertEqual([pin for pin in graph.pins(2)],  [1,0])
+    self.assertEqual([pin for pin in graph.pins(3)],  [1,2])
+    self.assertEqual([pin for pin in graph.pins(4)],  [1,3])
+    self.assertEqual([pin for pin in graph.pins(5)],  [2,0])
+    self.assertEqual([pin for pin in graph.pins(6)],  [2,1])
+    self.assertEqual([pin for pin in graph.pins(7)],  [2,3])
+    self.assertEqual([pin for pin in graph.pins(8)],  [3,1])
+    self.assertEqual([pin for pin in graph.pins(9)],  [3,2])
+    self.assertEqual([pin for pin in graph.pins(10)], [3,4])
+    self.assertEqual([pin for pin in graph.pins(11)], [4,3])
+    self.assertEqual([he for he in graph.incident_edges(0)], [0,1])
+    self.assertEqual([he for he in graph.incident_edges(1)], [2,3,4])
+    self.assertEqual([he for he in graph.incident_edges(2)], [5,6,7])
+    self.assertEqual([he for he in graph.incident_edges(3)], [8,9,10])
+    self.assertEqual([he for he in graph.incident_edges(4)], [11])
+
   def test_check_graph_node_degrees(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
@@ -191,6 +215,24 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.num_edges(), 4)
     self.assertEqual(hypergraph.num_pins(), 12)
     self.assertEqual(hypergraph.total_weight(), 7)
+
+  def test_check_hypergraph_iterators(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+
+    self.assertEqual([hn for hn in hypergraph.nodes()], [0,1,2,3,4,5,6])
+    self.assertEqual([he for he in hypergraph.edges()], [0,1,2,3])
+    self.assertEqual([pin for pin in hypergraph.pins(0)], [0,2])
+    self.assertEqual([pin for pin in hypergraph.pins(1)], [0,1,3,4])
+    self.assertEqual([pin for pin in hypergraph.pins(2)], [3,4,6])
+    self.assertEqual([pin for pin in hypergraph.pins(3)], [2,5,6])
+    self.assertEqual([he for he in hypergraph.incident_edges(0)], [0,1])
+    self.assertEqual([he for he in hypergraph.incident_edges(1)], [1])
+    self.assertEqual([he for he in hypergraph.incident_edges(2)], [0,3])
+    self.assertEqual([he for he in hypergraph.incident_edges(3)], [1,2])
+    self.assertEqual([he for he in hypergraph.incident_edges(4)], [1,2])
+    self.assertEqual([he for he in hypergraph.incident_edges(5)], [3])
+    self.assertEqual([he for he in hypergraph.incident_edges(6)], [2,3])
 
   def test_check_hypergraph_node_degrees(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
@@ -633,10 +675,9 @@ class MainTest(unittest.TestCase):
           self.assertLessEqual(self.partitioned_graph.block_weight(block), self.individualBlockWeights[block])
 
       # Verify block IDs of nodes
-      # self.graph.do_for_all_nodes(lambda hn : (
-      #   self.assertGreaterEqual(self.partitioned_graph.block_id(hn), 0),
-      #   self.assertLess(self.partitioned_graph.block_id(hn), self.k)
-      # ))
+      for hn in self.graph.nodes():
+        self.assertGreaterEqual(self.partitioned_graph.block_id(hn), 0),
+        self.assertLess(self.partitioned_graph.block_id(hn), self.k)
 
       # Verify block IDs of fixed vertices
       for hn in range(0, self.graph.num_nodes()):
@@ -805,10 +846,9 @@ class MainTest(unittest.TestCase):
           self.assertLessEqual(self.partitioned_hg.block_weight(block), self.individualBlockWeights[block])
 
       # Verify block IDs of nodes
-      # self.hypergraph.do_for_all_nodes(lambda hn : (
-      #   self.assertGreaterEqual(self.partitioned_hg.block_id(hn), 0),
-      #   self.assertLess(self.partitioned_hg.block_id(hn), self.k)
-      # ))
+      for hn in self.hypergraph.nodes():
+        self.assertGreaterEqual(self.partitioned_hg.block_id(hn), 0),
+        self.assertLess(self.partitioned_hg.block_id(hn), self.k)
 
       # Verify block IDs of fixed vertices
       for hn in range(0, self.hypergraph.num_nodes()):
