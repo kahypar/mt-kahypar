@@ -33,8 +33,6 @@
 #include <atomic>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <sstream>
 
 #ifndef KAHYPAR_DISABLE_HWLOC
   #include <hwloc.h>
@@ -45,7 +43,6 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
@@ -54,7 +51,6 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
-#include "mt-kahypar/utils/randomize.h"
 
 
 namespace py = pybind11;
@@ -76,6 +72,13 @@ namespace {
       lib::initialize(num_threads, true, print_warnings);
     } else if (print_warnings) {
       WARNING("Mt-KaHyPar is already initialized");
+    }
+  }
+
+  template<typename T>
+  void ensure_correct_size(size_t expected, const vec<T>& data, const char* data_kind) {
+    if (data.size() != expected) {
+      throw InvalidInputException(std::string("Stated number of ") + data_kind + " does not match length of input data!");
     }
   }
 
@@ -183,6 +186,7 @@ PYBIND11_MODULE(mtkahypar, m) {
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges) {
+        ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         return lib::create_hypergraph(
           context, num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr);
       }, R"pbdoc(
@@ -207,6 +211,9 @@ Construct an unweighted hypergraph.
          const vec<vec<HypernodeID>>& hyperedges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& hyperedge_weights) {
+        ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
+        ensure_correct_size(num_hypernodes, node_weights, "nodes");
+        ensure_correct_size(num_hyperedges, hyperedge_weights, "hyperedges");
         return lib::create_hypergraph(
           context, num_hypernodes, num_hyperedges, hyperedges, hyperedge_weights.data(), node_weights.data());
       }, R"pbdoc(
@@ -240,6 +247,7 @@ Construct a weighted hypergraph.
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
+        ensure_correct_size(num_edges, edges, "edges");
         return mt_kahypar_py_graph_t{lib::create_graph(
           context, num_nodes, num_edges, edges, nullptr, nullptr)};
       }, R"pbdoc(
@@ -262,6 +270,9 @@ Construct an unweighted graph.
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& edge_weights) {
+        ensure_correct_size(num_edges, edges, "edges");
+        ensure_correct_size(num_nodes, node_weights, "nodes");
+        ensure_correct_size(num_edges, edge_weights, "edges");
         return mt_kahypar_py_graph_t{lib::create_graph(
           context, num_nodes, num_edges, edges, edge_weights.data(), node_weights.data())};
       }, R"pbdoc(
@@ -297,8 +308,9 @@ Construct a weighted graph.
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
          const vec<HyperedgeWeight>& edge_weights) {
-        // TODO: check input lengths
         unused(context);
+        ensure_correct_size(num_edges, edges, "edges");
+        ensure_correct_size(num_edges, edge_weights, "edges");
         return mt_kahypar_py_target_graph_t{
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
             StaticGraphFactory::construct_from_graph_edges(num_nodes, num_edges,
@@ -352,6 +364,10 @@ Construct a target graph.
            context.partition.epsilon = epsilon;
          }, "Sets all required parameters for mapping to a target graph",
          py::arg("k"), py::arg("epsilon"))
+    .def_property_readonly("preset",
+      [](const Context& context) {
+        return context.partition.preset_type;
+      }, "Preset of the context")
     .def_property("k",
       [](const Context& context) {
         return context.partition.k;
@@ -421,7 +437,6 @@ If indiviual target weights are set, these are used for the calculation instead.
 
   // ####################### Hypergraph and Graph #######################
 
-  // TODO: preset compatibility check
   hg_class
     .def("num_nodes", &lib::num_nodes<true>, "Number of nodes")
     .def("num_edges", &lib::num_edges<true>, "Number of hyperedges")
@@ -492,6 +507,10 @@ corresponding node or -1 if the node is not fixed.
     //     }
     //   }, "Executes lambda expression for all pins of a hyperedge",
     //   py::arg("hyperedge"), py::arg("lambda"))
+    .def("is_compatible",
+      [&](mt_kahypar_hypergraph_t hypergraph, PresetType preset) {
+        return lib::is_compatible(hypergraph, lib::get_preset_c_type(preset));
+      }, "Returns whether or not the given hypergraph can be partitioned with the preset", py::arg("preset"))
     .def("partition",
       [&](mt_kahypar_hypergraph_t hypergraph, const Context& context) {
         return lib::partition(hypergraph, context);
@@ -691,6 +710,10 @@ Construct a partitioned hypergraph from this hypergraph.
         });
       },
       "Computes the sum-of-external-degree metric of the partition", py::arg("target_graph"))
+    .def("is_compatible",
+      [&](mt_kahypar_partitioned_hypergraph_t phg, PresetType preset) {
+        return lib::is_compatible(phg, lib::get_preset_c_type(preset));
+      }, "Returns whether or not the given partitioned hypergraph can be improved with the preset", py::arg("preset"))
     .def("write_partition_to_file",
       [&](mt_kahypar_partitioned_hypergraph_t p, const std::string& partition_file) {
         lib::switch_phg_throwing(p, [&](auto& phg) {
