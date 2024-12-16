@@ -324,7 +324,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-      mt_kahypar_create_partitioned_hypergraph(hypergraph, DEFAULT, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
     ASSERT_EQ(partitioned_hg.type, MULTILEVEL_HYPERGRAPH_PARTITIONING);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
@@ -369,7 +369,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, DEFAULT, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
     ASSERT_EQ(partitioned_graph.type, MULTILEVEL_GRAPH_PARTITIONING);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
@@ -409,12 +409,12 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-      mt_kahypar_create_partitioned_hypergraph(hypergraph, DEFAULT, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
 
     mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition", &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg_2 =
-      mt_kahypar_read_partition_from_file(hypergraph, DEFAULT, 2, "tmp.partition", &error);
+      mt_kahypar_read_partition_from_file(hypergraph, context, 2, "tmp.partition", &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -459,12 +459,12 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, DEFAULT, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
 
     mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph_2 =
-      mt_kahypar_read_partition_from_file(graph, DEFAULT, 2, "tmp.partition", &error);
+      mt_kahypar_read_partition_from_file(graph, context, 2, "tmp.partition", &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -504,7 +504,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, DEFAULT, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
 
     mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
 
@@ -512,11 +512,11 @@ namespace mt_kahypar {
       context, num_vertices - 1, num_hyperedges - 1, edges.get(), nullptr, nullptr, &error);
     ASSERT_EQ(error.status, 0);
 
-    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, DEFAULT, 2, "invalid_file", &error).partitioned_hg, nullptr);
+    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, context, 2, "invalid_file", &error).partitioned_hg, nullptr);
     ASSERT_EQ(error.status, INVALID_INPUT);
     mt_kahypar_free_error_content(&error);
 
-    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, DEFAULT, 2, "tmp.partition", &error).partitioned_hg, nullptr);
+    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, context, 2, "tmp.partition", &error).partitioned_hg, nullptr);
     ASSERT_EQ(error.status, INVALID_INPUT);
     mt_kahypar_free_error_content(&error);
 
