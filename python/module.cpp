@@ -238,11 +238,9 @@ Construct a weighted hypergraph.
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
-        // TODO
-        // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
-        return io::readInputFile(file_name, context.partition.preset_type, InstanceType::hypergraph, file_format, true);
+        return lib::hypergraph_from_file(file_name, context, InstanceType::hypergraph, file_format);
       }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("context"), py::arg("format"))
+      py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::hMetis)
     .def("create_graph",
       [](Initializer&,
          const Context& context,
@@ -298,12 +296,9 @@ Construct a weighted graph.
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
-         // TODO
-        // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
-        return mt_kahypar_py_graph_t{io::readInputFile(
-          file_name, context.partition.preset_type, InstanceType::graph, file_format, true)};
+        return mt_kahypar_py_graph_t{lib::hypergraph_from_file(file_name, context, InstanceType::graph, file_format)};
       }, "Reads a graph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("context"), py::arg("format"))
+      py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::Metis)
     .def("create_target_graph",
       [](Initializer&,
          const Context& context,
@@ -343,7 +338,7 @@ Construct a target graph.
             io::readInputFile<ds::StaticGraph>(file_name, file_format, true))),
             STATIC_GRAPH };
       }, "Reads a target graph from a file (supported file formats are METIS and HMETIS)",
-      py::arg("filename"), py::arg("context"), py::arg("format"));
+      py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::Metis);
 
 
   // ####################### Context #######################
