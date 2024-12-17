@@ -30,25 +30,22 @@
 #include <charconv>
 #include <boost/lexical_cast.hpp>
 
-// TODO: reduce
 #include "include/mtkahypar.h"
 #include "include/mtkahypartypes.h"
-#include "include/helper_functions.h"
+#include "include/lib_generic_impls.h"
+#include "include/lib_helper_functions.h"
 
 #include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
 
@@ -569,7 +566,7 @@ mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_partitioned_hyp
 }
 
 mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                       const mt_kahypar_partition_id_t block) {
+                                                      const mt_kahypar_partition_id_t block) {
   return lib::block_weight<false>(partitioned_hg, block);
 }
 

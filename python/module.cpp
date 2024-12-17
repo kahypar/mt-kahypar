@@ -39,7 +39,8 @@
 #endif
 
 #include "include/mtkahypartypes.h"
-#include "include/helper_functions.h"
+#include "include/lib_generic_impls.h"
+#include "include/lib_helper_functions.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
