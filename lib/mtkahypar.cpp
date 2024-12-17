@@ -292,7 +292,6 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t*
                                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                      const mt_kahypar_hypernode_weight_t* vertex_weights,
                                                      mt_kahypar_error_t* error) {
-  // TODO: input validation
   // Transform adjacence array into adjacency list
   vec<vec<HypernodeID>> edge_vector(num_hyperedges);
   tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
@@ -320,7 +319,6 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* cont
                                                 const mt_kahypar_hypernode_weight_t* vertex_weights,
                                                 mt_kahypar_error_t* error) {
   // Transform adjacence array into adjacence list
-  // TODO: input validation
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
   tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
@@ -343,7 +341,6 @@ mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_conte
                                                           mt_kahypar_error_t* error) {
   unused(context);
   // Transform adjacency array into adjacence list
-  // TODO: input validation/deduplicate
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
   tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);

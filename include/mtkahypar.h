@@ -406,10 +406,6 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_k
 
 // ####################### Partitioning Results #######################
 
-// edge and pin iterators?? (+ num pins)
-// edge source, edge target
-// compute block weights
-
 /**
  * Number of blocks of the partition.
  */

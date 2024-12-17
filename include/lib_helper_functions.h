@@ -289,8 +289,6 @@ mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
                                              const Context& context,
                                              const InstanceType instance_type,
                                              const FileFormat file_format) {
-  // TODO
-  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
   return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format, true);
 }
 
@@ -300,8 +298,6 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const vec<vec<HypernodeID>>& edge_vector,
                                           const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                           const mt_kahypar_hypernode_weight_t* vertex_weights) {
-  // TODO
-  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::large_k:
@@ -328,8 +324,6 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
                                      const mt_kahypar_hyperedge_weight_t* edge_weights,
                                      const mt_kahypar_hypernode_weight_t* vertex_weights) {
-  // TODO
-  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::large_k:
