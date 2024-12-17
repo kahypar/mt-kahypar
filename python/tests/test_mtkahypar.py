@@ -376,13 +376,20 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.block_id(3), 1)
     self.assertEqual(partitioned_graph.block_id(4), 2)
 
-  def test_write_graph_partition_to_file(self):
+  def test_get_and_write_graph_partition_to_file(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     if os.path.isfile(mydir + "/test_partition.part3"):
       os.remove(mydir + "/test_partition.part3")
 
     graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
     partitioned_graph = graph.create_partitioned_hypergraph(context, 3, [0,0,1,2,2])
+
+    partition = partitioned_graph.get_partition()
+    self.assertEqual(partition[0], 0)
+    self.assertEqual(partition[1], 0)
+    self.assertEqual(partition[2], 1)
+    self.assertEqual(partition[3], 2)
+    self.assertEqual(partition[4], 2)
 
     partitioned_graph.write_partition_to_file(mydir + "/test_partition.part3")
     partitioned_graph_2 = graph.partitioned_hypergraph_from_file(context, 3,
@@ -490,13 +497,22 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.block_id(5), 1)
     self.assertEqual(partitioned_hg.block_id(6), 2)
 
-  def test_write_hypergraph_partition_to_file(self):
+  def test_get_and_write_hypergraph_partition_to_file(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     if os.path.isfile(mydir + "/test_partition.part3"):
       os.remove(mydir + "/test_partition.part3")
 
     hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
     partitioned_hg = hypergraph.create_partitioned_hypergraph(context, 3, [0,0,0,1,1,2,2])
+
+    partition = partitioned_hg.get_partition()
+    self.assertEqual(partition[0], 0)
+    self.assertEqual(partition[1], 0)
+    self.assertEqual(partition[2], 0)
+    self.assertEqual(partition[3], 1)
+    self.assertEqual(partition[4], 1)
+    self.assertEqual(partition[5], 2)
+    self.assertEqual(partition[6], 2)
 
     partitioned_hg.write_partition_to_file(mydir + "/test_partition.part3")
     partitioned_hg_2 = hypergraph.partitioned_hypergraph_from_file(context, 3,
