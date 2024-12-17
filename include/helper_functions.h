@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/io/command_line_options.h"
@@ -365,11 +366,11 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
       case PresetType::default_preset:
       case PresetType::quality:
         ASSERT(hypergraph.type == STATIC_GRAPH);
-        return lib::create_partitioned_hypergraph<StaticPartitionedGraph>(
+        return create_partitioned_hypergraph<StaticPartitionedGraph>(
           utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
       case PresetType::highest_quality:
         ASSERT(hypergraph.type == DYNAMIC_GRAPH);
-        return lib::create_partitioned_hypergraph<DynamicPartitionedGraph>(
+        return create_partitioned_hypergraph<DynamicPartitionedGraph>(
           utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
       case PresetType::UNDEFINED: break;
     }
@@ -377,40 +378,22 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
     switch ( context.partition.preset_type ) {
       case PresetType::large_k:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<SparsePartitionedHypergraph>(
+        return create_partitioned_hypergraph<SparsePartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case PresetType::deterministic:
       case PresetType::default_preset:
       case PresetType::quality:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<StaticPartitionedHypergraph>(
+        return create_partitioned_hypergraph<StaticPartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case PresetType::highest_quality:
         ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
-        return lib::create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
+        return create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
           utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);
       case PresetType::UNDEFINED: break;
     }
   }
   return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
-}
-
-template<typename PartitionedHypergraph>
-void get_partition(const PartitionedHypergraph& partitioned_hg,
-                   mt_kahypar_partition_id_t* partition) {
-  ASSERT(partition != nullptr);
-  partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-    partition[hn] = partitioned_hg.partID(hn);
-  });
-}
-
-template<typename PartitionedHypergraph>
-void get_block_weights(const PartitionedHypergraph& partitioned_hg,
-                       mt_kahypar_hypernode_weight_t* block_weights) {
-  ASSERT(block_weights != nullptr);
-  for ( PartitionID i = 0; i < partitioned_hg.k(); ++i ) {
-    block_weights[i] = partitioned_hg.partWeight(i);
-  }
 }
 
 void set_individual_block_weights(Context& context,
@@ -423,19 +406,13 @@ void set_individual_block_weights(Context& context,
   }
 }
 
-template<typename PartitionedHypergraph>
-double imbalance(const PartitionedHypergraph& partitioned_graph, const Context& context) {
-  Context c(context);
-  c.setupPartWeights(partitioned_graph.totalWeight());
-  return metrics::imbalance(partitioned_graph, c);
-}
 
 // ####################### Partitioning #######################
 
-mt_kahypar_partitioned_hypergraph_t partitionImpl(mt_kahypar_hypergraph_t hg, Context& context, TargetGraph* target_graph) {
-  check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type));
+mt_kahypar_partitioned_hypergraph_t partition_impl(mt_kahypar_hypergraph_t hg, Context& context, TargetGraph* target_graph) {
+  check_compatibility(hg, get_preset_c_type(context.partition.preset_type));
   check_if_all_relevant_parameters_are_set(context);
-  context.partition.instance_type = lib::get_instance_type(hg);
+  context.partition.instance_type = get_instance_type(hg);
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
   prepare_context(context);
   context.partition.num_vcycles = 0;
@@ -444,26 +421,26 @@ mt_kahypar_partitioned_hypergraph_t partitionImpl(mt_kahypar_hypergraph_t hg, Co
 
 mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hg, const Context& context) {
   Context partition_context(context);
-  return partitionImpl(hg, partition_context, nullptr);
+  return partition_impl(hg, partition_context, nullptr);
 }
 
 mt_kahypar_partitioned_hypergraph_t map(mt_kahypar_hypergraph_t hg, const ds::StaticGraph& graph, const Context& context) {
   TargetGraph target_graph(graph.copy());
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
-  return partitionImpl(hg, partition_context, &target_graph);
+  return partition_impl(hg, partition_context, &target_graph);
 }
 
 
 // ####################### V-Cycles #######################
 
-void improveImpl(mt_kahypar_partitioned_hypergraph_t phg,
+void improve_impl(mt_kahypar_partitioned_hypergraph_t phg,
                   Context& context,
                   const size_t num_vcycles,
                   TargetGraph* target_graph) {
-  check_compatibility(phg, lib::get_preset_c_type(context.partition.preset_type));
+  check_compatibility(phg, get_preset_c_type(context.partition.preset_type));
   check_if_all_relevant_parameters_are_set(context);
-  context.partition.instance_type = lib::get_instance_type(phg);
+  context.partition.instance_type = get_instance_type(phg);
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
   prepare_context(context);
   context.partition.num_vcycles = num_vcycles;
@@ -472,23 +449,21 @@ void improveImpl(mt_kahypar_partitioned_hypergraph_t phg,
 
 void improve(mt_kahypar_partitioned_hypergraph_t phg, const Context& context, const size_t num_vcycles) {
   Context partition_context(context);
-  improveImpl(phg, partition_context, num_vcycles, nullptr);
+  improve_impl(phg, partition_context, num_vcycles, nullptr);
 }
 
-void improveMapping(mt_kahypar_partitioned_hypergraph_t phg,
+void improve_mapping(mt_kahypar_partitioned_hypergraph_t phg,
                     const ds::StaticGraph& graph,
                     const Context& context,
                     const size_t num_vcycles) {
   TargetGraph target_graph(graph.copy());
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
-  improveImpl(phg, partition_context, num_vcycles, &target_graph);
+  improve_impl(phg, partition_context, num_vcycles, &target_graph);
 }
 
 
 // ####################### Generic Handling of Different Graph Types #######################
-
-struct NoReturn {};
 
 template<typename ReturnT, bool Throwing, typename Func>
 ReturnT switch_hg(mt_kahypar_hypergraph_t hg, Func f) {
@@ -527,8 +502,8 @@ ReturnT switch_graph(mt_kahypar_hypergraph_t hg, Func f) {
   return ReturnT{};
 }
 
-template<typename ReturnT, typename Func>
-ReturnT switch_phg_throwing_impl(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+template<typename ReturnT, bool Throwing, typename Func>
+ReturnT switch_phg(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
   switch ( phg.type ) {
     case MULTILEVEL_GRAPH_PARTITIONING:
       return f(utils::cast<StaticPartitionedGraph>(phg));
@@ -543,19 +518,10 @@ ReturnT switch_phg_throwing_impl(mt_kahypar_partitioned_hypergraph_t phg, Func f
     case NULLPTR_PARTITION:
       break;
   }
-  throw UnsupportedOperationException("Input is not a valid partitioned hypergraph.");
-}
-
-template<typename ReturnT = NoReturn, typename Func>
-ReturnT switch_phg_throwing(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
-  if constexpr ( std::is_same_v<ReturnT, NoReturn> ) {
-    return switch_phg_throwing_impl<NoReturn>(phg, [=](auto& phg) {
-      f(phg);
-      return NoReturn{};
-    });
-  } else {
-    return switch_phg_throwing_impl<ReturnT>(phg, f);
+  if constexpr (Throwing) {
+    throw UnsupportedOperationException("Input is not a valid partitioned hypergraph.");
   }
+  return ReturnT{};
 }
 
 
@@ -628,6 +594,116 @@ template<bool Throwing>
 HyperedgeWeight edge_weight(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
   return switch_hg<HyperedgeWeight, Throwing>(hypergraph, [=](const auto& hg) {
     return hg.edgeWeight(he);
+  });
+}
+
+
+template<bool Throwing>
+void write_partition_to_file(mt_kahypar_partitioned_hypergraph_t p, const std::string& partition_file) {
+  switch_phg<int, Throwing>(p, [&](auto& phg) {
+    io::writePartitionFile(phg, partition_file);
+    return 0;
+  });
+}
+
+template<bool Throwing>
+void get_partition(mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_partition_id_t* partition) {
+  ASSERT(partition != nullptr);
+  switch_phg<int, Throwing>(p, [&](const auto& phg) {
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      partition[hn] = phg.partID(hn);
+    });
+    return 0;
+  });
+}
+
+template<bool Throwing>
+void get_block_weights(mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_hypernode_weight_t* block_weights) {
+  ASSERT(block_weights != nullptr);
+  switch_phg<int, Throwing>(p, [&](const auto& phg) {
+    for ( PartitionID i = 0; i < phg.k(); ++i ) {
+      block_weights[i] = phg.partWeight(i);
+    }
+    return 0;
+  });
+}
+
+template<bool Throwing>
+PartitionID num_blocks(mt_kahypar_partitioned_hypergraph_t p) {
+  return switch_phg<PartitionID, Throwing>(p, [](const auto& phg) {
+    return phg.k();
+  });
+}
+
+template<bool Throwing>
+HypernodeWeight block_weight(mt_kahypar_partitioned_hypergraph_t p, PartitionID block) {
+  return switch_phg<HypernodeWeight, Throwing>(p, [=](const auto& phg) {
+    return phg.partWeight(block);
+  });
+}
+
+template<bool Throwing>
+PartitionID block_id(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+  return switch_phg<PartitionID, Throwing>(p, [=](const auto& phg) {
+    return phg.partID(node);
+  });
+}
+
+template<bool Throwing>
+bool is_incident_to_cut_edge(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+  return switch_phg<bool, Throwing>(p, [=](const auto& phg) {
+    return phg.isBorderNode(node);
+  });
+}
+
+template<bool Throwing>
+HyperedgeID num_incident_cut_edges(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+  return switch_phg<HyperedgeID, Throwing>(p, [=](const auto& phg) {
+    return phg.numIncidentCutHyperedges(node);
+  });
+}
+
+template<bool Throwing>
+PartitionID connectivity(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he) {
+  return switch_phg<PartitionID, Throwing>(p, [=](const auto& phg) {
+    return phg.connectivity(he);
+  });
+}
+
+template<bool Throwing>
+HypernodeID num_pins_in_block(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he, PartitionID block_id) {
+  return switch_phg<HypernodeID, Throwing>(p, [=](const auto& phg) {
+    return phg.pinCountInPart(he, block_id);
+  });
+}
+
+template<bool Throwing>
+double imbalance(mt_kahypar_partitioned_hypergraph_t p, const Context& context) {
+  return switch_phg<double, Throwing>(p, [&](const auto& phg) {
+    Context c(context);
+    c.setupPartWeights(phg.totalWeight());
+    return metrics::imbalance(phg, c);
+  });
+}
+
+template<bool Throwing>
+HyperedgeWeight cut(mt_kahypar_partitioned_hypergraph_t p) {
+  return switch_phg<HyperedgeWeight, Throwing>(p, [&](const auto& phg) {
+    return metrics::quality(phg, Objective::cut);
+  });
+}
+
+template<bool Throwing>
+HyperedgeWeight km1(mt_kahypar_partitioned_hypergraph_t p) {
+  return switch_phg<HyperedgeWeight, Throwing>(p, [&](const auto& phg) {
+    return metrics::quality(phg, Objective::km1);
+  });
+}
+
+template<bool Throwing>
+HyperedgeWeight soed(mt_kahypar_partitioned_hypergraph_t p) {
+  return switch_phg<HyperedgeWeight, Throwing>(p, [&](const auto& phg) {
+    return metrics::quality(phg, Objective::soed);
   });
 }
 

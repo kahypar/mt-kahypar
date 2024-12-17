@@ -237,8 +237,9 @@ Construct a weighted hypergraph.
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
-        const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
-        return io::readInputFile(file_name, context.partition.preset_type, InstanceType::hypergraph, file_format, stable_construction);
+        // TODO
+        // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
+        return io::readInputFile(file_name, context.partition.preset_type, InstanceType::hypergraph, file_format, true);
       }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("context"), py::arg("format"))
     .def("create_graph",
@@ -296,9 +297,10 @@ Construct a weighted graph.
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
-        const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
+         // TODO
+        // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
         return mt_kahypar_py_graph_t{io::readInputFile(
-          file_name, context.partition.preset_type, InstanceType::graph, file_format, stable_construction)};
+          file_name, context.partition.preset_type, InstanceType::graph, file_format, true)};
       }, "Reads a graph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("context"), py::arg("format"))
     .def("create_target_graph",
@@ -595,130 +597,75 @@ Construct a partitioned hypergraph from this hypergraph.
   // ####################### Partitioned Hypergraph #######################
 
   phg_class
-    .def("num_blocks",
-      [&](mt_kahypar_partitioned_hypergraph_t p) {
-        return lib::switch_phg_throwing<PartitionID>(p, [](const auto& phg) {
-          return phg.k();
-        });
-      },
-      "Number of blocks")
-    .def("block_weight",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const PartitionID block) {
-        return lib::switch_phg_throwing<HypernodeWeight>(p, [=](const auto& phg) {
-          return phg.partWeight(block);
-        });
-      },
+    .def("num_blocks", &lib::num_blocks<true>, "Number of blocks")
+    .def("block_weight", &lib::block_weight<true>,
       "Weight of the corresponding block", py::arg("block"))
-    .def("block_id",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
-        return lib::switch_phg_throwing<HypernodeWeight>(p, [=](const auto& phg) {
-          return phg.partID(node);
-        });
-      },
+    .def("block_id", &lib::block_id<true>,
       "Block to which the corresponding node is assigned", py::arg("node"))
     .def("is_fixed",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
-        return lib::switch_phg_throwing<bool>(p, [=](const auto& phg) {
+        return lib::switch_phg<bool, true>(p, [=](const auto& phg) {
           return phg.isFixed(node);
         });
-      },
-      "Returns whether or not the corresponding node is a fixed vertex", py::arg("node"))
+      }, "Returns whether or not the corresponding node is a fixed vertex", py::arg("node"))
     .def("fixed_vertex_block",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
-        return lib::switch_phg_throwing<PartitionID>(p, [=](const auto& phg) {
+        return lib::switch_phg<PartitionID, true>(p, [=](const auto& phg) {
           return phg.isFixed(node) ? phg.fixedVertexBlock(node) : -1;
         });
-      },
-      "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
-    .def("is_incident_to_cut_edge",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
-        return lib::switch_phg_throwing<bool>(p, [=](const auto& phg) {
-          return phg.isBorderNode(node);
-        });
-      },
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
+    .def("is_incident_to_cut_edge", &lib::is_incident_to_cut_edge<true>,
       "Returns true, if the corresponding node is incident to at least one cut hyperedge", py::arg("node"))
-    .def("num_incident_cut_edges",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
-        return lib::switch_phg_throwing<HyperedgeID>(p, [=](const auto& phg) {
-          return phg.numIncidentCutHyperedges(node);
-        });
-      },
+    .def("num_incident_cut_edges", &lib::num_incident_cut_edges<true>,
       "Number of incident cut hyperedges of the corresponding node", py::arg("node"))
-    .def("connectivity",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const HyperedgeID he) {
-        return lib::switch_phg_throwing<PartitionID>(p, [=](const auto& phg) {
-          return phg.connectivity(he);
-        });
-      },
+    .def("connectivity", &lib::connectivity<true>,
       "Number of distinct blocks to which the pins of the corresponding hyperedge are assigned", py::arg("hyperedge"))
-    .def("num_pins_in_block",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const HyperedgeID he, const PartitionID block_id) {
-        return lib::switch_phg_throwing<HypernodeID>(p, [=](const auto& phg) {
-          return phg.pinCountInPart(he, block_id);
-        });
-      },
+    .def("num_pins_in_block", &lib::num_pins_in_block<true>,
       "Number of nodes part of the corresponding block in the given hyperedge", py::arg("hyperedge"), py::arg("block_id"))
-    .def("imbalance",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const Context& context) {
-        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
-          return lib::imbalance(phg, context);
-        });
-      },
+    .def("imbalance", &lib::imbalance<true>,
       "Computes the imbalance of the partition", py::arg("context"))
-    .def("cut",
-      [&](mt_kahypar_partitioned_hypergraph_t p) {
-        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
-          return metrics::quality(phg, Objective::cut);
-        });
-      },
+    .def("cut", &lib::cut<true>,
       "Computes the cut-net metric of the partition")
-    .def("km1",
-      [&](mt_kahypar_partitioned_hypergraph_t p) {
-        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
-          return metrics::quality(phg, Objective::km1);
-        });
-      },
+    .def("km1", &lib::km1<true>,
       "Computes the connectivity metric of the partition")
-    .def("soed",
-      [&](mt_kahypar_partitioned_hypergraph_t p) {
-        return lib::switch_phg_throwing<PartitionID>(p, [&](const auto& phg) {
-          return metrics::quality(phg, Objective::soed);
-        });
-      },
+    .def("soed", &lib::soed<true>,
       "Computes the sum-of-external-degree metric of the partition")
     .def("steiner_tree",
       [&](mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_py_target_graph_t graph) {
-        return lib::switch_phg_throwing<PartitionID>(p, [&](auto& phg) {
+        return lib::switch_phg<PartitionID, true>(p, [&](auto& phg) {
           TargetGraph target_graph(target_graph_cast(graph).copy());
           target_graph.precomputeDistances(4);
           phg.setTargetGraph(&target_graph);
           return metrics::quality(phg, Objective::steiner_tree);
         });
-      },
-      "Computes the sum-of-external-degree metric of the partition", py::arg("target_graph"))
+      }, "Computes the sum-of-external-degree metric of the partition", py::arg("target_graph"))
     .def("is_compatible",
       [&](mt_kahypar_partitioned_hypergraph_t phg, PresetType preset) {
         return lib::is_compatible(phg, lib::get_preset_c_type(preset));
-      }, "Returns whether or not the given partitioned hypergraph can be improved with the preset", py::arg("preset"))
-    .def("write_partition_to_file",
-      [&](mt_kahypar_partitioned_hypergraph_t p, const std::string& partition_file) {
-        lib::switch_phg_throwing(p, [&](auto& phg) {
-          io::writePartitionFile(phg, partition_file);
+      }, "Returns whether or not improving the given partitioned hypergraph is compatible with the preset", py::arg("preset"))
+    .def("get_partition",
+      [&](mt_kahypar_partitioned_hypergraph_t phg) {
+        std::vector<PartitionID> result;
+        HypernodeID num_nodes = lib::switch_phg<HypernodeID, true>(phg, [=](const auto& p) {
+          return p.initialNumNodes();
         });
-      },
+        result.resize(num_nodes, 0);
+        lib::get_partition<true>(phg, result.data());
+        return result;
+      }, "Returns a list with the block to which each node is assigned.")
+    .def("write_partition_to_file", &lib::write_partition_to_file<true>,
       "Writes the partition to a file", py::arg("partition_file"))
     .def("improve_partition", &lib::improve,
       "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
       py::arg("context"), py::arg("num_vcycles"))
     .def("improve_mapping",
       [&](mt_kahypar_partitioned_hypergraph_t phg, mt_kahypar_py_target_graph_t target_graph, const Context& context, size_t num_vcycles) {
-        lib::improveMapping(phg, target_graph_cast(target_graph), context, num_vcycles);
-      },
-      "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
+        lib::improve_mapping(phg, target_graph_cast(target_graph), context, num_vcycles);
+      }, "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
       py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"))
     .def("connectivity_set",
       [&](mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he) {
-        return lib::switch_phg_throwing<py::iterator>(p, [=](const auto& phg) {
+        return lib::switch_phg<py::iterator, true>(p, [=](const auto& phg) {
           auto range = phg.connectivitySet(he);
           return py::make_iterator(range.begin(), range.end());
         });
