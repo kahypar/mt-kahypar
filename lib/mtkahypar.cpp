@@ -368,6 +368,10 @@ void mt_kahypar_free_target_graph(mt_kahypar_target_graph_t* target_graph) {
   }
 }
 
+void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+  utils::delete_partitioned_hypergraph(partitioned_hg);
+}
+
 mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t hypergraph) {
   return lib::num_nodes<false>(hypergraph);
 }
@@ -400,9 +404,46 @@ mt_kahypar_hyperedge_weight_t mt_kahypar_hyperedge_weight(mt_kahypar_hypergraph_
   return lib::edge_weight<false>(hypergraph, edge);
 }
 
-void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
-  utils::delete_partitioned_hypergraph(partitioned_hg);
+mt_kahypar_hyperedge_id_t mt_kahypar_get_incident_hyperedges(mt_kahypar_hypergraph_t hypergraph,
+                                                             mt_kahypar_hypernode_id_t node,
+                                                             mt_kahypar_hyperedge_id_t* edge_buffer) {
+  return lib::switch_hg<mt_kahypar_hyperedge_id_t, false>(hypergraph, [&](auto& hg) {
+    HyperedgeID i = 0;
+    for (HypernodeID he: hg.incidentEdges(node)) {
+      edge_buffer[i++] = he;
+    }
+    return i;
+  });
 }
+
+mt_kahypar_hypernode_id_t mt_kahypar_get_hyperedge_pins(mt_kahypar_hypergraph_t hypergraph,
+                                                        mt_kahypar_hyperedge_id_t edge,
+                                                        mt_kahypar_hypernode_id_t* pin_buffer) {
+  return lib::switch_hg<mt_kahypar_hypernode_id_t, false>(hypergraph, [&](auto& hg) {
+    HypernodeID i = 0;
+    for (HypernodeID hn: hg.pins(edge)) {
+      pin_buffer[i++] = hn;
+    }
+    return i;
+  });
+}
+
+bool mt_kahypar_is_graph(mt_kahypar_hypergraph_t hypergraph) {
+  return hypergraph.type == STATIC_GRAPH || hypergraph.type == DYNAMIC_GRAPH;
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_edge_source(mt_kahypar_hypergraph_t graph, mt_kahypar_hyperedge_id_t edge) {
+  return lib::switch_graph<mt_kahypar_hypernode_id_t, false>(graph, [=](auto& hg) {
+    return hg.edgeSource(edge);
+  });
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_edge_target(mt_kahypar_hypergraph_t graph, mt_kahypar_hyperedge_id_t edge) {
+  return lib::switch_graph<mt_kahypar_hypernode_id_t, false>(graph, [=](auto& hg) {
+    return hg.edgeTarget(edge);
+  });
+}
+
 
 mt_kahypar_status_t mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hypergraph,
                                                   const mt_kahypar_partition_id_t* fixed_vertices,
