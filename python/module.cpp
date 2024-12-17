@@ -597,7 +597,7 @@ Construct a partitioned hypergraph from this hypergraph.
   // ####################### Partitioned Hypergraph #######################
 
   phg_class
-    .def("num_blocks", &lib::num_blocks<true>, "Number of blocks")
+    .def("num_blocks", &lib::num_blocks<true>, "Number of blocks of the partition")
     .def("block_weight", &lib::block_weight<true>,
       "Weight of the corresponding block", py::arg("block"))
     .def("block_id", &lib::block_id<true>,
@@ -621,7 +621,7 @@ Construct a partitioned hypergraph from this hypergraph.
     .def("connectivity", &lib::connectivity<true>,
       "Number of distinct blocks to which the pins of the corresponding hyperedge are assigned", py::arg("hyperedge"))
     .def("num_pins_in_block", &lib::num_pins_in_block<true>,
-      "Number of nodes part of the corresponding block in the given hyperedge", py::arg("hyperedge"), py::arg("block_id"))
+      "Number of pins assigned to the corresponding block in the given hyperedge", py::arg("hyperedge"), py::arg("block_id"))
     .def("imbalance", &lib::imbalance<true>,
       "Computes the imbalance of the partition", py::arg("context"))
     .def("cut", &lib::cut<true>,

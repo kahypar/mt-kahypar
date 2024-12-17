@@ -477,6 +477,61 @@ namespace mt_kahypar {
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg_2);
   }
 
+  TEST(MtKaHyPar, ReportsPropertiesOfHypergraphPartition) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
+      context, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr, &error);
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> partition = std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    partition[0] = 0; partition[1] = 0; partition[2] = 0;
+    partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
+
+    mt_kahypar_partitioned_hypergraph_t partitioned_hg =
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
+
+    ASSERT_EQ(2, mt_kahypar_km1(partitioned_hg));
+    ASSERT_EQ(2, mt_kahypar_num_blocks(partitioned_hg));
+    ASSERT_EQ(3, mt_kahypar_block_weight(partitioned_hg, 0));
+    ASSERT_EQ(4, mt_kahypar_block_weight(partitioned_hg, 1));
+    for ( mt_kahypar_hypernode_id_t hn = 0; hn < 7; ++hn ) {
+      ASSERT_EQ(partition[hn], mt_kahypar_block_id(partitioned_hg, hn));
+    }
+
+    ASSERT_EQ(1, mt_kahypar_num_incident_cut_hyperedges(partitioned_hg, 0));
+    ASSERT_EQ(1, mt_kahypar_num_incident_cut_hyperedges(partitioned_hg, 6));
+
+    ASSERT_EQ(1, mt_kahypar_connectivity(partitioned_hg, 0));
+    ASSERT_EQ(2, mt_kahypar_connectivity(partitioned_hg, 1));
+    ASSERT_EQ(1, mt_kahypar_connectivity(partitioned_hg, 2));
+    ASSERT_EQ(2, mt_kahypar_connectivity(partitioned_hg, 3));
+
+    ASSERT_EQ(2, mt_kahypar_num_pins_in_block(partitioned_hg, 0, 0));
+    ASSERT_EQ(0, mt_kahypar_num_pins_in_block(partitioned_hg, 0, 1));
+    ASSERT_EQ(2, mt_kahypar_num_pins_in_block(partitioned_hg, 1, 0));
+    ASSERT_EQ(2, mt_kahypar_num_pins_in_block(partitioned_hg, 1, 1));
+    ASSERT_EQ(0, mt_kahypar_num_pins_in_block(partitioned_hg, 2, 0));
+    ASSERT_EQ(3, mt_kahypar_num_pins_in_block(partitioned_hg, 2, 1));
+    ASSERT_EQ(1, mt_kahypar_num_pins_in_block(partitioned_hg, 3, 0));
+    ASSERT_EQ(2, mt_kahypar_num_pins_in_block(partitioned_hg, 3, 1));
+
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+  }
+
   TEST(MtKaHyPar, WritesAndLoadsGraphPartitionFile) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);

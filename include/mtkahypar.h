@@ -407,17 +407,44 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_k
 // ####################### Partitioning Results #######################
 
 // edge and pin iterators?? (+ num pins)
-// node degree, node weight, edge weight, edge source, edge target
-
-// "num_blocks"
-// "block_weight"
-// "block_id", "Block to which the corresponding node is assigned"
-// "fixed_vertex_block" "Block to which the node is fixed (-1 if not fixed)"
-// "num_incident_cut_edges" "Number of incident cut hyperedges of the corresponding node"
-// "num_pins_in_block", pinCountInPart
-// "connectivity"
-
+// edge source, edge target
 // compute block weights
+
+/**
+ * Number of blocks of the partition.
+ */
+MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
+
+/**
+ * Weight of the corresponding block.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                     const mt_kahypar_partition_id_t block);
+
+/**
+ * Block to which the corresponding hypernode is assigned.
+ */
+MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_block_id(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                             const mt_kahypar_hypernode_id_t node);
+
+/**
+ * Number of incident cut hyperedges of the corresponding node.
+ */
+MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_incident_cut_hyperedges(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                                const mt_kahypar_hypernode_id_t node);
+
+/**
+ * Number of distinct blocks to which the pins of the corresponding hyperedge are assigned.
+ */
+MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_connectivity(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                 const mt_kahypar_hyperedge_id_t edge);
+
+/**
+ * Number of pins assigned to the corresponding block in the given hyperedge.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins_in_block(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                      const mt_kahypar_hyperedge_id_t edge,
+                                                                      const mt_kahypar_partition_id_t block);
 
 /**
  * Extracts a partition from a partitioned (hyper)graph. The size of the provided array must be at least the number of nodes.

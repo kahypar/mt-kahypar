@@ -563,6 +563,37 @@ mt_kahypar_status_t mt_kahypar_write_partition_to_file(const mt_kahypar_partitio
   }
 }
 
+
+mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+  return lib::num_blocks<false>(partitioned_hg);
+}
+
+mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                       const mt_kahypar_partition_id_t block) {
+  return lib::block_weight<false>(partitioned_hg, block);
+}
+
+mt_kahypar_partition_id_t mt_kahypar_block_id(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                              const mt_kahypar_hypernode_id_t node) {
+  return lib::block_id<false>(partitioned_hg, node);
+}
+
+mt_kahypar_hyperedge_id_t mt_kahypar_num_incident_cut_hyperedges(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                 const mt_kahypar_hypernode_id_t node)  {
+  return lib::num_incident_cut_edges<false>(partitioned_hg, node);
+}
+
+mt_kahypar_partition_id_t mt_kahypar_connectivity(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                  const mt_kahypar_hyperedge_id_t edge) {
+  return lib::connectivity<false>(partitioned_hg, edge);
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_num_pins_in_block(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                       const mt_kahypar_hyperedge_id_t edge,
+                                                       const mt_kahypar_partition_id_t block) {
+  return lib::num_pins_in_block<false>(partitioned_hg, edge, block);
+}
+
 void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypar_partition_id_t* partition) {
   lib::get_partition<false>(partitioned_hg, partition);
 }
