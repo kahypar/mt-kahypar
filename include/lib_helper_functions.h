@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/registries/registry.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
@@ -284,6 +285,14 @@ void check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
   }
 }
 
+mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
+                                             const Context& context,
+                                             const InstanceType instance_type,
+                                             const FileFormat file_format) {
+  // TODO
+  // const bool stable_construction = context.partition.preset_type == PresetType::deterministic ? true : false;
+  return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format, true);
+}
 
 mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const mt_kahypar_hypernode_id_t num_vertices,

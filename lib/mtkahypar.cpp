@@ -261,9 +261,8 @@ mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_na
   const Context& c = *reinterpret_cast<const Context*>(context);
   const InstanceType instance = file_format == HMETIS ? InstanceType::hypergraph : InstanceType::graph;
   const FileFormat format = file_format == HMETIS ? FileFormat::hMetis : FileFormat::Metis;
-  const bool stable_construction = c.partition.preset_type == PresetType::deterministic ? true : false;
   try {
-    return io::readInputFile(file_name, c.partition.preset_type, instance, format, stable_construction);
+    return lib::hypergraph_from_file(file_name, c, instance, format);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }

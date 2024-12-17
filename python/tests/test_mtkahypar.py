@@ -283,8 +283,8 @@ class MainTest(unittest.TestCase):
 
   def test_load_hypergraph_in_hmetis_file_format(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
-    hypergraph = mtk.hypergraph_from_file(
-      mydir + "/test_instances/ibm01.hgr", context, mtkahypar.FileFormat.HMETIS)
+    # default file format is HMETIS
+    hypergraph = mtk.hypergraph_from_file(mydir + "/test_instances/ibm01.hgr", context)
 
     self.assertEqual(hypergraph.num_nodes(), 12752)
     self.assertEqual(hypergraph.num_edges(), 14111)
@@ -635,10 +635,8 @@ class MainTest(unittest.TestCase):
       self.context.set_partitioning_parameters(num_blocks, epsilon, objective)
       mtkahypar.set_seed(42)
       self.context.logging = logging or force_logging
-      self.target_graph = mtk.target_graph_from_file(
-        mydir + "/test_instances/target.graph", self.context, mtkahypar.FileFormat.METIS)
-      self.graph = mtk.graph_from_file(
-        mydir + "/test_instances/delaunay_n15.graph", self.context, mtkahypar.FileFormat.METIS)
+      self.target_graph = mtk.target_graph_from_file(mydir + "/test_instances/target.graph", self.context)
+      self.graph = mtk.graph_from_file(mydir + "/test_instances/delaunay_n15.graph", self.context)
       self.useIndividualBlockWeights = False
       self.k = num_blocks
       self.epsilon = epsilon
@@ -805,10 +803,8 @@ class MainTest(unittest.TestCase):
       self.context.set_partitioning_parameters(num_blocks, epsilon, objective)
       mtkahypar.set_seed(42)
       self.context.logging = logging or force_logging
-      self.target_graph = mtk.target_graph_from_file(
-        mydir + "/test_instances/target.graph", self.context, mtkahypar.FileFormat.METIS)
-      self.hypergraph = mtk.hypergraph_from_file(
-        mydir + "/test_instances/ibm01.hgr", self.context, mtkahypar.FileFormat.HMETIS)
+      self.target_graph = mtk.target_graph_from_file(mydir + "/test_instances/target.graph", self.context)
+      self.hypergraph = mtk.hypergraph_from_file(mydir + "/test_instances/ibm01.hgr", self.context)
       self.useIndividualBlockWeights = False
       self.k = num_blocks
       self.epsilon = epsilon
