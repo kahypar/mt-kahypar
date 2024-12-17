@@ -42,6 +42,8 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, LoadsContextFromFile) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_file("test_preset.ini", &error);
+    // verbose should be false by default
+    ASSERT_FALSE(reinterpret_cast<Context*>(context)->partition.verbose_output);
     ASSERT_EQ(DEFAULT, mt_kahypar_get_preset(context));
     mt_kahypar_free_context(context);
 
@@ -323,6 +325,7 @@ namespace mt_kahypar {
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
       context, num_vertices, num_hyperedges, hyperedge_indices.get(),
       hyperedges.get(), nullptr, vertex_weights.get(), &error);
+    ASSERT_FALSE(mt_kahypar_is_graph(hypergraph));
 
     ASSERT_EQ(2, mt_kahypar_hypernode_degree(hypergraph, 0));
     ASSERT_EQ(1, mt_kahypar_hypernode_degree(hypergraph, 1));
@@ -342,6 +345,123 @@ namespace mt_kahypar {
     for (size_t i = 0; i < 4; ++i) {
       ASSERT_EQ(1, mt_kahypar_hyperedge_weight(hypergraph, i));
     }
+
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  TEST(MtKaHyPar, GetsPropertiesOfGraphWithNodeWeights) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 5;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> vertex_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(7);
+    vertex_weights[0] = 1; vertex_weights[1] = 2; vertex_weights[2] = 3;
+    vertex_weights[3] = 4; vertex_weights[4] = 5;
+
+    std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
+      std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
+    edges[0] = 0;  edges[1] = 1;
+    edges[2] = 0;  edges[3] = 2;
+    edges[4] = 1;  edges[5] = 2;
+    edges[6] = 1;  edges[7] = 3;
+    edges[8] = 2;  edges[9] = 3;
+    edges[10] = 3; edges[11] = 4;
+
+    mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
+      context, num_vertices, num_hyperedges, edges.get(), nullptr, vertex_weights.get(), &error);
+    ASSERT_TRUE(mt_kahypar_is_graph(graph));
+
+    ASSERT_EQ(2, mt_kahypar_hypernode_degree(graph, 0));
+    ASSERT_EQ(3, mt_kahypar_hypernode_degree(graph, 1));
+    ASSERT_EQ(3, mt_kahypar_hypernode_degree(graph, 2));
+    ASSERT_EQ(3, mt_kahypar_hypernode_degree(graph, 3));
+    ASSERT_EQ(1, mt_kahypar_hypernode_degree(graph, 4));
+
+    for (size_t i = 0; i < 5; ++i) {
+      ASSERT_EQ(vertex_weights[i], mt_kahypar_hypernode_weight(graph, i));
+    }
+    for (size_t i = 0; i < 12; ++i) {
+      ASSERT_EQ(1, mt_kahypar_hyperedge_weight(graph, i));
+      ASSERT_EQ(2, mt_kahypar_hyperedge_size(graph, i));
+    }
+
+    ASSERT_EQ(0, mt_kahypar_edge_source(graph, 0));  ASSERT_EQ(1, mt_kahypar_edge_target(graph, 0));
+    ASSERT_EQ(0, mt_kahypar_edge_source(graph, 1));  ASSERT_EQ(2, mt_kahypar_edge_target(graph, 1));
+    ASSERT_EQ(1, mt_kahypar_edge_source(graph, 2));  ASSERT_EQ(0, mt_kahypar_edge_target(graph, 2));
+    ASSERT_EQ(1, mt_kahypar_edge_source(graph, 3));  ASSERT_EQ(2, mt_kahypar_edge_target(graph, 3));
+    ASSERT_EQ(1, mt_kahypar_edge_source(graph, 4));  ASSERT_EQ(3, mt_kahypar_edge_target(graph, 4));
+    ASSERT_EQ(2, mt_kahypar_edge_source(graph, 5));  ASSERT_EQ(0, mt_kahypar_edge_target(graph, 5));
+    ASSERT_EQ(2, mt_kahypar_edge_source(graph, 6));  ASSERT_EQ(1, mt_kahypar_edge_target(graph, 6));
+    ASSERT_EQ(2, mt_kahypar_edge_source(graph, 7));  ASSERT_EQ(3, mt_kahypar_edge_target(graph, 7));
+    ASSERT_EQ(3, mt_kahypar_edge_source(graph, 8));  ASSERT_EQ(1, mt_kahypar_edge_target(graph, 8));
+    ASSERT_EQ(3, mt_kahypar_edge_source(graph, 9));  ASSERT_EQ(2, mt_kahypar_edge_target(graph, 9));
+    ASSERT_EQ(3, mt_kahypar_edge_source(graph, 10)); ASSERT_EQ(4, mt_kahypar_edge_target(graph, 10));
+    ASSERT_EQ(4, mt_kahypar_edge_source(graph, 11)); ASSERT_EQ(3, mt_kahypar_edge_target(graph, 11));
+
+    mt_kahypar_free_hypergraph(graph);
+  }
+
+  TEST(MtKaHyPar, IteratesOverUnweightedStaticHypergraph) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
+      context, num_vertices, num_hyperedges, hyperedge_indices.get(),
+      hyperedges.get(), nullptr, nullptr, &error);
+    ASSERT_EQ(hypergraph.type, STATIC_HYPERGRAPH);
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> incidence_buffer = std::make_unique<mt_kahypar_hyperedge_id_t[]>(2);
+    ASSERT_EQ(2, mt_kahypar_get_incident_hyperedges(hypergraph, 0, incidence_buffer.get()));
+    ASSERT_EQ(0, incidence_buffer[0]);
+    ASSERT_EQ(1, incidence_buffer[1]);
+    ASSERT_EQ(1, mt_kahypar_get_incident_hyperedges(hypergraph, 1, incidence_buffer.get()));
+    ASSERT_EQ(1, incidence_buffer[0]);
+    ASSERT_EQ(2, mt_kahypar_get_incident_hyperedges(hypergraph, 2, incidence_buffer.get()));
+    ASSERT_EQ(0, incidence_buffer[0]);
+    ASSERT_EQ(3, incidence_buffer[1]);
+    ASSERT_EQ(2, mt_kahypar_get_incident_hyperedges(hypergraph, 3, incidence_buffer.get()));
+    ASSERT_EQ(1, incidence_buffer[0]);
+    ASSERT_EQ(2, incidence_buffer[1]);
+    ASSERT_EQ(2, mt_kahypar_get_incident_hyperedges(hypergraph, 4, incidence_buffer.get()));
+    ASSERT_EQ(1, incidence_buffer[0]);
+    ASSERT_EQ(2, incidence_buffer[1]);
+    ASSERT_EQ(1, mt_kahypar_get_incident_hyperedges(hypergraph, 5, incidence_buffer.get()));
+    ASSERT_EQ(3, incidence_buffer[0]);
+    ASSERT_EQ(2, mt_kahypar_get_incident_hyperedges(hypergraph, 6, incidence_buffer.get()));
+    ASSERT_EQ(2, incidence_buffer[0]);
+    ASSERT_EQ(3, incidence_buffer[1]);
+
+    std::unique_ptr<mt_kahypar_hypernode_id_t[]> pin_buffer = std::make_unique<mt_kahypar_hypernode_id_t[]>(4);
+    ASSERT_EQ(2, mt_kahypar_get_hyperedge_pins(hypergraph, 0, pin_buffer.get()));
+    ASSERT_EQ(0, pin_buffer[0]);
+    ASSERT_EQ(2, pin_buffer[1]);
+    ASSERT_EQ(4, mt_kahypar_get_hyperedge_pins(hypergraph, 1, pin_buffer.get()));
+    ASSERT_EQ(0, pin_buffer[0]);
+    ASSERT_EQ(1, pin_buffer[1]);
+    ASSERT_EQ(3, pin_buffer[2]);
+    ASSERT_EQ(4, pin_buffer[3]);
+    ASSERT_EQ(3, mt_kahypar_get_hyperedge_pins(hypergraph, 2, pin_buffer.get()));
+    ASSERT_EQ(3, pin_buffer[0]);
+    ASSERT_EQ(4, pin_buffer[1]);
+    ASSERT_EQ(6, pin_buffer[2]);
+    ASSERT_EQ(3, mt_kahypar_get_hyperedge_pins(hypergraph, 3, pin_buffer.get()));
+    ASSERT_EQ(2, pin_buffer[0]);
+    ASSERT_EQ(5, pin_buffer[1]);
+    ASSERT_EQ(6, pin_buffer[2]);
 
     mt_kahypar_free_hypergraph(hypergraph);
   }

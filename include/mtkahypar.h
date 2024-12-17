@@ -254,6 +254,8 @@ MT_KAHYPAR_API mt_kahypar_hypernode_weight_t mt_kahypar_hypernode_weight(mt_kahy
 
 /**
  * Returns the size of the corresponding hyperedge.
+ *
+ * Note that for graphs, the size is always 2.
  */
 MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hyperedge_size(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge);
 
@@ -261,6 +263,45 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hyperedge_size(mt_kahypar_hy
  * Returns the weight of the corresponding edge.
  */
 MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_hyperedge_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge);
+
+/**
+ * Writes the IDs of the hyperedges that are incident to the corresponding node into the provided buffer.
+ * The size of the provided array must be at least 'mt_kahypar_hypernode_degree(node)'
+ * (note that 'mt_kahypar_num_hyperedges' also provides an upper bound).
+ *
+ * \return the number of returned hyperedges
+ */
+MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_get_incident_hyperedges(mt_kahypar_hypergraph_t hypergraph,
+                                                                            mt_kahypar_hypernode_id_t node,
+                                                                            mt_kahypar_hyperedge_id_t* edge_buffer);
+
+/**
+ * Writes the IDs of the pins (i.e., hypernodes) in the corresponding hyperedge into the provided buffer.
+ * The size of the provided array must be at least 'mt_kahypar_hyperedge_size(edge)'
+ * (note that 'mt_kahypar_num_hypernodes' also provides an upper bound).
+ *
+ * \return the number of returned pins
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_get_hyperedge_pins(mt_kahypar_hypergraph_t hypergraph,
+                                                                       mt_kahypar_hyperedge_id_t edge,
+                                                                       mt_kahypar_hypernode_id_t* pin_buffer);
+
+/**
+ * Returns whether 'hypergraph' is a graph (i.e., not a hypergraph).
+ */
+MT_KAHYPAR_API bool mt_kahypar_is_graph(mt_kahypar_hypergraph_t hypergraph);
+
+/**
+ * Source of the corresponding graph edge.
+ * Returns 0 if 'graph' is not a graph but a hypergraph.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_edge_source(mt_kahypar_hypergraph_t graph, mt_kahypar_hyperedge_id_t edge);
+
+/**
+ * Target of the corresponding graph edge.
+ * Returns 0 if 'graph' is not a graph but a hypergraph.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_edge_target(mt_kahypar_hypergraph_t graph, mt_kahypar_hyperedge_id_t edge);
 
 // ####################### Fixed Vertices #######################
 
