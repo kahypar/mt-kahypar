@@ -396,7 +396,7 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
       case PresetType::UNDEFINED: break;
     }
   }
-  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+  throw InvalidParameterException("Invalid preset type.");
 }
 
 void set_individual_block_weights(Context& context,

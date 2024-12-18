@@ -565,9 +565,15 @@ mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
                                                                              const mt_kahypar_context_t* context,
                                                                              const mt_kahypar_partition_id_t num_blocks,
-                                                                             const mt_kahypar_partition_id_t* partition) {
+                                                                             const mt_kahypar_partition_id_t* partition,
+                                                                             mt_kahypar_error_t* error) {
   const Context& c = reinterpret_cast<const Context&>(*context);
-  return lib::create_partitioned_hypergraph(hypergraph, c, num_blocks, partition);
+  try {
+    return lib::create_partitioned_hypergraph(hypergraph, c, num_blocks, partition);
+  } catch ( std::exception& ex ) {
+    *error = to_error(ex);
+  }
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t hypergraph,
@@ -576,9 +582,10 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_read_partition_from_file(mt_kahyp
                                                                         const char* partition_file,
                                                                         mt_kahypar_error_t* error) {
   std::vector<PartitionID> partition;
+  const Context& c = reinterpret_cast<const Context&>(*context);
   try {
     io::readPartitionFile(partition_file, mt_kahypar_num_hypernodes(hypergraph), partition);
-    return mt_kahypar_create_partitioned_hypergraph(hypergraph, context, num_blocks, partition.data());
+    return lib::create_partitioned_hypergraph(hypergraph, c, num_blocks, partition.data());
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }

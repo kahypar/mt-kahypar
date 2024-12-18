@@ -431,7 +431,8 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partiti
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
                                                                                             const mt_kahypar_context_t* context,
                                                                                             const mt_kahypar_partition_id_t num_blocks,
-                                                                                            const mt_kahypar_partition_id_t* partition);
+                                                                                            const mt_kahypar_partition_id_t* partition,
+                                                                                            mt_kahypar_error_t* error);
 
 /**
  * Constructs a partitioned (hyper)graph from a given partition file.

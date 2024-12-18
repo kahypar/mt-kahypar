@@ -491,7 +491,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get(), &error);
     ASSERT_EQ(partitioned_hg.type, MULTILEVEL_HYPERGRAPH_PARTITIONING);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
@@ -536,7 +536,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get(), &error);
     ASSERT_EQ(partitioned_graph.type, MULTILEVEL_GRAPH_PARTITIONING);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
@@ -576,7 +576,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get(), &error);
 
     mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition", &error);
 
@@ -621,7 +621,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get(), &error);
 
     ASSERT_EQ(2, mt_kahypar_km1(partitioned_hg));
     ASSERT_EQ(2, mt_kahypar_num_blocks(partitioned_hg));
@@ -681,7 +681,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get(), &error);
 
     mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
 
@@ -726,7 +726,7 @@ namespace mt_kahypar {
     partition[3] = 1; partition[4] = 1;
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get());
+      mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get(), &error);
 
     mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
 
