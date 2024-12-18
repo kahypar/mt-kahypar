@@ -83,7 +83,7 @@ namespace mt_kahypar::io {
     struct stat stat_buf;
     const int res = stat( filename.c_str(), &stat_buf);
     if (res < 0) {
-      throw InvalidInputException("Could not open:" + filename);
+      throw InvalidInputException("Could not open: " + filename);
     }
     return static_cast<size_t>(stat_buf.st_size);
   }

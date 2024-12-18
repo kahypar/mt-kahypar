@@ -876,7 +876,6 @@ namespace mt_kahypar {
       std::vector<PartitionID> fixed_vertices;
       fixed_vertices.resize(num_nodes);
       mt_kahypar_read_fixed_vertices_from_file(fixed_vertex_file, num_nodes, fixed_vertices.data(), &error);
-      io::readPartitionFile(fixed_vertex_file, num_nodes, fixed_vertices);
       vec<PartitionID> partition(num_nodes, kInvalidPartition);
       mt_kahypar_get_partition(partitioned_hg, partition.data());
 
