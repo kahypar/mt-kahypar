@@ -79,7 +79,7 @@ namespace {
   template<typename T>
   void ensure_correct_size(size_t expected, const vec<T>& data, const char* data_kind) {
     if (data.size() != expected) {
-      throw InvalidInputException(std::string("Stated number of ") + data_kind + " does not match length of input data!");
+      throw InvalidInputException(std::string("Number of ") + data_kind + " does not match length of input data!");
     }
   }
 
@@ -526,7 +526,8 @@ corresponding node or -1 if the node is not fixed.
     [&](mt_kahypar_hypergraph_t hypergraph,
         const Context& context,
         const PartitionID num_blocks,
-        const std::vector<PartitionID>& partition) {
+        const vec<PartitionID>& partition) {
+      ensure_correct_size(lib::num_nodes<true>(hypergraph), partition, "nodes");
       auto result = lib::create_partitioned_hypergraph(hypergraph, context, num_blocks, partition.data());
       if (result.partitioned_hg == nullptr) {
         throw UnsupportedOperationException("Input is not a valid hypergraph!");
