@@ -115,11 +115,9 @@ namespace mt_kahypar::dyn {
 
           partition_result.valid = true;
 
-          const HypernodeID& hn = change.added_nodes[0];
-
           for (const HypernodeID &hn : change.added_nodes) {
+            add_node_to_partitioned_hypergraph(hypergraph, context, hn);
             if (std::find(nodes_to_partition.begin(), nodes_to_partition.end(), hn) == nodes_to_partition.end()) {
-              add_node_to_partitioned_hypergraph(hypergraph, context, hn);
               nodes_to_partition.push_back(hn);
             }
           }
