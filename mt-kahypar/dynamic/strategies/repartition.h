@@ -19,6 +19,7 @@ namespace mt_kahypar::dyn {
       }
 
       void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
+        context.dynamic.repartition_count++;
 
         process_change(hypergraph, context, change);
         PartitionResult partition_result = *new PartitionResult();

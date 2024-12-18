@@ -292,6 +292,7 @@ struct DynamicParameters {
     // logging values
     double logging_step_size_pct = 0.001;
     LocalFMRound* localFM_round = nullptr;
+    size_t repartition_count = 0;
 
     // generate file endings
     [[nodiscard]] std::string getOutputFileName() const {

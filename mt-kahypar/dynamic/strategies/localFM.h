@@ -17,6 +17,7 @@ namespace mt_kahypar::dyn {
         std::unique_ptr<IRebalancer> _rebalancer;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
+          context.dynamic.repartition_count++;
           if (!context.dynamic.server) {
             std::cout << "Repartitioning" << std::endl;
           }

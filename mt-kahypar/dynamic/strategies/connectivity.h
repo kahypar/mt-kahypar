@@ -11,6 +11,9 @@ namespace mt_kahypar::dyn {
         int repartition_count = 0;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
+
+          context.dynamic.repartition_count++;
+
           //ASSERT thet num_removed_nodes is correct
           ASSERT([&]() {
               size_t num_removed_nodes = 0;

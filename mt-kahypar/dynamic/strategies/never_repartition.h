@@ -24,6 +24,7 @@ namespace mt_kahypar::dyn {
               std::cout << "num_removed_nodes: " << num_removed_nodes << " " << hypergraph_s.numRemovedHypernodes() << std::endl;
               return num_removed_nodes == hypergraph_s.numRemovedHypernodes();
           } (), "Number of removed nodes is not correct.");
+          context.dynamic.repartition_count++;
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
 
           if (!context.dynamic.use_final_weight) {

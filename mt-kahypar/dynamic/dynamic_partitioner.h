@@ -30,7 +30,7 @@ namespace mt_kahypar::dyn {
         changes = parseChanges(context.dynamic.changes_file);
         resetHypergraph(hypergraph_s, changes, context);
       }
-      
+
       std::cout << "Number of changes: " << changes.size() << std::endl;
 
       // If the max_changes is not specified or is greater than the number of changes in the file, we process all the changes

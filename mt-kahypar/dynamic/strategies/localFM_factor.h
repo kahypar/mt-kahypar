@@ -20,6 +20,7 @@ namespace mt_kahypar::dyn {
         parallel::scalable_vector<HypernodeID> nodes_to_partition;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
+          context.dynamic.repartition_count++;
           if (!context.dynamic.server) {
             std::cout << "Repartitioning" << std::endl;
           }

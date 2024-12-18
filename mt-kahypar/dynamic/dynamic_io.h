@@ -403,7 +403,7 @@ namespace mt_kahypar::dyn {
       }
       file << i << ", " << result.km1 << ", " << result.imbalance << ", " << std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
       mt_kahypar::LocalFMRound* localFM_round = context.dynamic.localFM_round;
-      file << ", " << localFM_round->overall_improvement << ", " << localFM_round->touched_nodes << std::endl;
+      file << ", " << localFM_round->overall_improvement << ", " << localFM_round->touched_nodes << context.dynamic.repartition_count << std::endl;
       file.close();
       // reset the localFM_round
       localFM_round->overall_improvement = 0;
@@ -417,7 +417,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "change, km1, imbalance, time, overall_improvement, touched_nodes" << std::endl;
+      file << "change, km1, imbalance, time, overall_improvement, touched_nodes, repartition_count" << std::endl;
       file.close();
     }
 
