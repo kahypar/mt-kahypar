@@ -97,27 +97,31 @@ namespace mt_kahypar::dyn {
             repartition(hypergraph, context);
           }
 
+          for (const HypernodeID& hn : change.removed_nodes) {
+            partitioned_hypergraph_s->removeNodePart(hn);
+            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
+                if (std::find(nodes_to_partition.begin(), nodes_to_partition.end(), hn2) == nodes_to_partition.end()) {
+                  nodes_to_partition.push_back(hn2);
+                }
+              }
+            }
+          }
+
           process_change(hypergraph, context, change);
 
           PartitionResult partition_result = *new PartitionResult();
-          partition_result.valid = true;
-
-          if (change.added_nodes.empty()) {
-            history.push_back(partition_result);
-            return;
-          }
-
-          if (change.added_nodes.size() > 1) {
-            repartition(hypergraph, context);
-            history.push_back(partition_result);
-            return;
-          }
 
           partition_result.valid = true;
 
           const HypernodeID& hn = change.added_nodes[0];
 
-          add_node_to_partitioned_hypergraph(hypergraph, context, hn);
+          for (const HypernodeID &hn : change.added_nodes) {
+            if (std::find(nodes_to_partition.begin(), nodes_to_partition.end(), hn) == nodes_to_partition.end()) {
+              add_node_to_partitioned_hypergraph(hypergraph, context, hn);
+              nodes_to_partition.push_back(hn);
+            }
+          }
 
           //skip changes until step_size is reached
           if (skipped_changes >= step_size) {

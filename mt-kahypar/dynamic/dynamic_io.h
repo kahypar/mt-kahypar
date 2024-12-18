@@ -148,8 +148,8 @@ namespace mt_kahypar::dyn {
         for (const HyperedgeID& he : change.added_edges) {
           hypergraph_s.removeEdge(he);
         }
-        for (const PinChange& pin: change.removed_pins) {
-          hypergraph_s.restorePin(pin.node, pin.edge);
+        for (const HyperedgeID& he : change.removed_edges) {
+          hypergraph_s.restoreEdge(he);
         }
         for (const HypernodeID& hn : change.removed_nodes) {
           hypergraph_s.enableHypernodeWithEdges(hn);
@@ -157,8 +157,8 @@ namespace mt_kahypar::dyn {
             hypergraph_s.incrementTotalWeight(hn);
           }
         }
-        for (const HyperedgeID& he : change.removed_edges) {
-          hypergraph_s.restoreEdge(he);
+        for (const PinChange& pin: change.removed_pins) {
+          hypergraph_s.restorePin(pin.node, pin.edge);
         }
       }
     }

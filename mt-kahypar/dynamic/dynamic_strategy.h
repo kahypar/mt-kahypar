@@ -34,6 +34,16 @@ namespace mt_kahypar::dyn {
             hypergraph.disableHypernodeWithEdges(hn);
             if (!context.dynamic.use_final_weight) {
               hypergraph.decrementTotalWeight(hn);
+              // TODO check if this is necessary
+              ASSERT(context.partition.use_individual_part_weights == false);
+              context.partition.perfect_balance_part_weights.clear();
+              context.partition.perfect_balance_part_weights = std::vector<HypernodeWeight>(context.partition.k, ceil(
+                      hypergraph.totalWeight()
+                      / static_cast<double>(context.partition.k)));
+              context.partition.max_part_weights.clear();
+              context.partition.max_part_weights = std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
+                                                                                                     * context.partition.perfect_balance_part_weights[0]);
+
             }
           }
         }
@@ -104,12 +114,13 @@ namespace mt_kahypar::dyn {
          * Process the whole Change object.
          */
         void process_change(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
-          activate_nodes(hypergraph, context, change);
-          deactivate_nodes(hypergraph, context, change);
-          activate_edges(hypergraph, context, change);
-          deactivate_edges(hypergraph, context, change);
-          activate_pins(hypergraph, context, change);
           deactivate_pins(hypergraph, context, change);
+          deactivate_nodes(hypergraph, context, change);
+          deactivate_edges(hypergraph, context, change);
+
+          activate_edges(hypergraph, context, change);
+          activate_nodes(hypergraph, context, change);
+          activate_pins(hypergraph, context, change);
 
           context.setupPartWeights(hypergraph.totalWeight());
         }

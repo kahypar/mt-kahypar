@@ -39,7 +39,7 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_s
-        void local_fm(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
+        void local_fm(ds::StaticHypergraph& hypergraph, Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes) {
 
           GainCachePtr::resetGainCache(_gain_cache);
 
@@ -50,7 +50,7 @@ namespace mt_kahypar::dyn {
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
-          _fm->refine(partitioned_hypergraph, {hn}, best_Metrics, std::numeric_limits<double>::max());
+          _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
 
         }
 
@@ -88,29 +88,31 @@ namespace mt_kahypar::dyn {
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
+          parallel::scalable_vector<HypernodeID> local_fm_nodes;
+
+          for (const HypernodeID& hn : change.removed_nodes) {
+            partitioned_hypergraph_s->removeNodePart(hn);
+            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
+                if (std::find(local_fm_nodes.begin(), local_fm_nodes.end(), hn2) == local_fm_nodes.end()) {
+                  local_fm_nodes.push_back(hn2);
+                }
+              }
+            }
+          }
+
           process_change(hypergraph, context, change);
 
           PartitionResult partition_result = *new PartitionResult();
-          partition_result.valid = true;
-
-          if (change.added_nodes.empty()) {
-            history.push_back(partition_result);
-            return;
-          }
-
-          if (change.added_nodes.size() > 1) {
-            repartition(hypergraph, context);
-            history.push_back(partition_result);
-            return;
-          }
 
           partition_result.valid = true;
 
-          const HypernodeID& hn = change.added_nodes[0];
+          for (const HypernodeID& hn : change.added_nodes) {
+            add_node_to_partitioned_hypergraph(hypergraph, context, hn);
+            local_fm_nodes.push_back(hn);
+          }
 
-          add_node_to_partitioned_hypergraph(hypergraph, context, hn);
-
-          local_fm(hypergraph, context, hn);
+          local_fm(hypergraph, context, local_fm_nodes);
 
           //check if imbalance is still within bounds else repartition
           if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon ) {
