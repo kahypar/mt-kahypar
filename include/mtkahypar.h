@@ -29,6 +29,10 @@
 
 #include <stddef.h>
 
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
+
 #include "mtkahypartypes.h"
 
 #ifdef __cplusplus

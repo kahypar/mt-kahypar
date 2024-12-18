@@ -57,7 +57,7 @@ typedef struct mt_kahypar_context_s mt_kahypar_context_t;
 struct mt_kahypar_target_graph_s;
 typedef struct mt_kahypar_target_graph_s mt_kahypar_target_graph_t;
 
-struct mt_kahypar_hypergraph_s;
+typedef struct mt_kahypar_hypergraph_s mt_kahypar_hypergraph_s;
 typedef struct {
   mt_kahypar_hypergraph_s* hypergraph;
   mt_kahypar_hypergraph_type_t type;
@@ -68,7 +68,7 @@ typedef struct {
   mt_kahypar_hypergraph_type_t type;
 } mt_kahypar_hypergraph_const_t;
 
-struct mt_kahypar_partitioned_hypergraph_s;
+typedef struct mt_kahypar_partitioned_hypergraph_s mt_kahypar_partitioned_hypergraph_s;
 typedef struct {
   mt_kahypar_partitioned_hypergraph_s* partitioned_hg;
   mt_kahypar_partition_type_t type;
