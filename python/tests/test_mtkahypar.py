@@ -716,6 +716,14 @@ class MainTest(unittest.TestCase):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.QUALITY, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
+  def test_partitions_a_graph_with_highest_quality_preset_into_two_blocks(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 2, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+
+  def test_partitions_a_graph_with_highest_quality_preset_into_four_blocks(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+
   def test_partitions_a_graph_with_deterministic_preset_into_two_blocks(self):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 2, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
@@ -755,6 +763,11 @@ class MainTest(unittest.TestCase):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     partitioner.improvePartition(3)
+
+  def test_improves_a_graph_partition_with_one_vcycle_and_highest_quality_preset(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+    partitioner.improvePartition(1)
 
   def test_partitions_a_graph_with_individual_block_weights(self):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
@@ -889,6 +902,14 @@ class MainTest(unittest.TestCase):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
 
+  def test_partitions_a_hypergraph_with_highest_quality_preset_into_two_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_highest_quality_preset_into_four_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
   def test_partitions_a_hypergraph_with_deterministic_preset_into_two_blocks(self):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 2, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
@@ -922,6 +943,11 @@ class MainTest(unittest.TestCase):
     partitioner.partition()
     partitioner.context = mtk.context_from_preset(mtkahypar.PresetType.QUALITY)
     partitioner.context.set_partitioning_parameters(4, 0.03, mtkahypar.Objective.KM1)
+    partitioner.improvePartition(1)
+
+  def test_improves_a_hypergraph_partition_with_one_vcycle_and_highest_quality_preset(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.HIGHEST_QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
     partitioner.improvePartition(1)
 
   def test_improves_a_hypergraph_partition_with_three_vcycle(self):
