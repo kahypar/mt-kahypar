@@ -54,6 +54,9 @@ namespace mt_kahypar::dyn {
             _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
           }
 
+          //TODO: is second reset after rebalancing necessary?
+          GainCachePtr::resetGainCache(_gain_cache);
+
           _fm->initialize(partitioned_hypergraph);
 
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
