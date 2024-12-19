@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 
   // Read Partition
   std::vector<PartitionID> partition;
-  io::readPartitionFile(context.partition.graph_partition_filename, partition);
+  io::readPartitionFile(context.partition.graph_partition_filename, hg.initialNumNodes(), partition);
   PartitionedHypergraph partitioned_hg(context.partition.k, hg, parallel_tag_t { });
   partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, partition[hn]);

@@ -898,7 +898,7 @@ namespace mt_kahypar {
   }
 
 
-  void parseIniToContext(Context& context, const std::string& ini_filename) {
+  void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_verbose_output) {
     std::ifstream file(ini_filename.c_str());
     if (!file) {
       throw InvalidInputException(
@@ -910,13 +910,20 @@ namespace mt_kahypar {
     po::store(po::parse_config_file(file, ini_line_options, false), cmd_vm);
     po::notify(cmd_vm);
 
+    if (disable_verbose_output) {
+      bool verbose_is_manually_set = !cmd_vm.find("verbose")->second.defaulted();
+      if (!verbose_is_manually_set) {
+        context.partition.verbose_output = false;
+      }
+    }
     if (context.partition.deterministic) {
       context.preprocessing.stable_construction_of_incident_edges = true;
     }
   }
 
 
-  void presetToContext(Context& context, const std::vector<option>& option_list) {
+  void presetToContext(Context& context, std::vector<option>& option_list, bool disable_verbose_output) {
+
     po::variables_map cmd_vm;
     po::options_description ini_line_options = getIniOptionsDescription(context);
     po::basic_parsed_options<char> options(&ini_line_options);
@@ -925,6 +932,9 @@ namespace mt_kahypar {
     po::store(options, cmd_vm);
     po::notify(cmd_vm);
 
+    if (disable_verbose_output) {
+      context.partition.verbose_output = false;
+    }
     if (context.partition.deterministic) {
       context.preprocessing.stable_construction_of_incident_edges = true;
     }

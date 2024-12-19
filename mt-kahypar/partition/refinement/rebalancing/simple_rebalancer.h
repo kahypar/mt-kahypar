@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 template <typename GraphAndGainTypes>
@@ -101,7 +102,7 @@ public:
                                 vec<vec<Move>>&,
                                 Metrics&,
                                 const double) override final {
-    ERR("simple rebalancer can not be used for unconstrained refinement");
+    throw UnsupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
   }
 
   bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
@@ -109,7 +110,7 @@ public:
                                       vec<Move>&,
                                       Metrics&,
                                       const double) override final {
-    ERR("simple rebalancer can not be used for unconstrained refinement");
+    throw UnsupportedOperationException("simple rebalancer can not be used for unconstrained refinement");
   }
 
   vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);

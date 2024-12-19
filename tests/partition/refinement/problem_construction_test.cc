@@ -70,7 +70,7 @@ class AProblemConstruction : public Test {
 
     // Read Partition
     std::vector<PartitionID> partition;
-    io::readPartitionFile("../tests/instances/ibm01.hgr.part8", partition);
+    io::readPartitionFile("../tests/instances/ibm01.hgr.part8", phg.initialNumNodes(), partition);
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       phg.setOnlyNodePart(hn, partition[hn]);
     });
