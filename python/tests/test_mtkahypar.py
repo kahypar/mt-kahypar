@@ -196,6 +196,22 @@ class MainTest(unittest.TestCase):
     self.assertEqual(graph.edge_target(10), 4) # (3,4)
     self.assertEqual(graph.edge_target(11), 3) # (4,3)
 
+  def test_graph_applies_bounds_checking(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+
+    # call all the methods with invalid IDs
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.node_degree(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.node_weight(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.is_fixed(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.fixed_vertex_block(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.edge_size(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.edge_weight(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.edge_source(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.edge_target(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.incident_edges(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: graph.pins(12))
+
   def test_load_graph_in_metis_file_format(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     graph = mtk.graph_from_file(
@@ -281,6 +297,22 @@ class MainTest(unittest.TestCase):
     self.assertEqual(hypergraph.edge_weight(2), 3)
     self.assertEqual(hypergraph.edge_weight(3), 4)
 
+  def test_hypergraph_applies_bounds_checking(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context,
+      7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]],
+      [1,2,3,4,5,6,7], [1,2,3,4])
+
+    # call all the methods with invalid IDs
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.node_degree(8))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.node_weight(8))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.is_fixed(8))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.fixed_vertex_block(8))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.edge_size(4))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.edge_weight(4))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.incident_edges(8))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: hypergraph.pins(4))
+
   def test_load_hypergraph_in_hmetis_file_format(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     # default file format is HMETIS
@@ -363,6 +395,23 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_graph.connectivity(9),  2) # (3,2)
     self.assertEqual(partitioned_graph.connectivity(10), 1) # (3,4)
     self.assertEqual(partitioned_graph.connectivity(11), 1) # (4,3)
+
+  def test_partitioned_graph_applies_bounds_checking(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    graph = mtk.create_graph(context, 5, 6, [(0,1),(0,2),(1,2),(1,3),(2,3),(3,4)])
+    partitioned_graph = graph.create_partitioned_hypergraph(context, 3, [0,1,1,2,2])
+
+    # call all the methods with invalid IDs
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.block_weight(3))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.block_id(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.is_fixed(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.fixed_vertex_block(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.is_incident_to_cut_edge(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.num_incident_cut_edges(5))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.connectivity(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.connectivity_set(12))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.num_pins_in_block(12, 0))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_graph.num_pins_in_block(0, 3))
 
   def test_load_graph_partition_from_file(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
@@ -482,6 +531,23 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.num_pins_in_block(3,0), 1)
     self.assertEqual(partitioned_hg.num_pins_in_block(3,1), 1)
     self.assertEqual(partitioned_hg.num_pins_in_block(3,2), 1)
+
+  def test_partitioned_hypergraph_applies_bounds_checking(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    partitioned_hg = hypergraph.create_partitioned_hypergraph(context, 3, [0,0,0,1,1,1,2])
+
+    # call all the methods with invalid IDs
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.block_weight(3))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.block_id(7))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.is_fixed(7))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.fixed_vertex_block(7))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.is_incident_to_cut_edge(7))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.num_incident_cut_edges(7))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.connectivity(4))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.connectivity_set(4))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.num_pins_in_block(4, 0))
+    self.assertRaises(mtkahypar.InvalidInputError, lambda: partitioned_hg.num_pins_in_block(0, 3))
 
   def test_load_hypergraph_partition_from_file(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)

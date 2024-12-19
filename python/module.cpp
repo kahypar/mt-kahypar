@@ -489,6 +489,7 @@ corresponding node or -1 if the node is not fixed.
     .def("incident_edges",
       [&](mt_kahypar_hypergraph_t hypergraph, const HypernodeID hn) {
         return lib::switch_hg<py::iterator, true>(hypergraph, [=](const auto& hg) {
+          lib::check_hypernode_is_valid(hg, hn);
           auto range = hg.incidentEdges(hn);
           return py::make_iterator(range.begin(), range.end());
         });
@@ -496,6 +497,7 @@ corresponding node or -1 if the node is not fixed.
     .def("pins",
       [&](mt_kahypar_hypergraph_t hypergraph, const HyperedgeID he) {
         return lib::switch_hg<py::iterator, true>(hypergraph, [=](const auto& hg) {
+          lib::check_hyperedge_is_valid(hg, he);
           auto range = hg.pins(he);
           return py::make_iterator(range.begin(), range.end());
         });
@@ -580,12 +582,14 @@ Construct a partitioned hypergraph from this hypergraph.
     .def("edge_source",
       [&](mt_kahypar_py_graph_t g, HyperedgeID edge) {
         return lib::switch_graph<HypernodeID, true>(g, [=](const auto& graph) {
+          lib::check_hyperedge_is_valid(graph, edge);
           return graph.edgeSource(edge);
         });
       }, "Source node of edge (e.g., (0,1) -> 0 is the source node)", py::arg("edge"))
     .def("edge_target",
       [&](mt_kahypar_py_graph_t g, HyperedgeID edge) {
         return lib::switch_graph<HypernodeID, true>(g, [=](const auto& graph) {
+          lib::check_hyperedge_is_valid(graph, edge);
           return graph.edgeTarget(edge);
         });
       }, "Target node of edge (e.g., (0,1) -> 1 is the target node)", py::arg("edge"));
@@ -602,12 +606,14 @@ Construct a partitioned hypergraph from this hypergraph.
     .def("is_fixed",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
         return lib::switch_phg<bool, true>(p, [=](const auto& phg) {
+          lib::check_hypernode_is_valid(phg, node);
           return phg.isFixed(node);
         });
       }, "Returns whether or not the corresponding node is a fixed vertex", py::arg("node"))
     .def("fixed_vertex_block",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
         return lib::switch_phg<PartitionID, true>(p, [=](const auto& phg) {
+          lib::check_hypernode_is_valid(phg, node);
           return phg.isFixed(node) ? phg.fixedVertexBlock(node) : -1;
         });
       }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
@@ -663,6 +669,7 @@ Construct a partitioned hypergraph from this hypergraph.
     .def("connectivity_set",
       [&](mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he) {
         return lib::switch_phg<py::iterator, true>(p, [=](const auto& phg) {
+          lib::check_hyperedge_is_valid(phg, he);
           auto range = phg.connectivitySet(he);
           return py::make_iterator(range.begin(), range.end());
         });

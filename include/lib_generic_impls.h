@@ -90,7 +90,7 @@ ReturnT switch_graph(mt_kahypar_hypergraph_t hg, Func f) {
       break;
   }
   if constexpr (Throwing) {
-    throw UnsupportedOperationException("Input is not a valid hypergraph.");
+    throw UnsupportedOperationException("Input is not a graph.");
   }
   return ReturnT{};
 }
@@ -115,6 +115,36 @@ ReturnT switch_phg(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
     throw UnsupportedOperationException("Input is not a valid partitioned hypergraph.");
   }
   return ReturnT{};
+}
+
+template<typename HypergraphT>
+void check_hypernode_is_valid(const HypergraphT& hg, HypernodeID hn) {
+  if (hn >= hg.initialNumNodes()) {
+    std::stringstream ss;
+    ss << "Invalid hypernode: ID is \"" << hn << "\", but there are only "
+       << hg.initialNumNodes() << " nodes";
+    throw InvalidInputException(ss.str());
+  }
+}
+
+template<typename HypergraphT>
+void check_hyperedge_is_valid(const HypergraphT& hg, HyperedgeID he) {
+  if (he >= hg.initialNumEdges()) {
+    std::stringstream ss;
+    ss << "Invalid hyperedge: ID is \"" << he << "\", but there are only "
+       << hg.initialNumEdges() << " edges";
+    throw InvalidInputException(ss.str());
+  }
+}
+
+template<typename PartitionedHypergraphT>
+void check_block_is_valid(const PartitionedHypergraphT& phg, PartitionID block) {
+  if (block >= phg.k()) {
+    std::stringstream ss;
+    ss << "Invalid block: ID is \"" << block << "\", but the partition has only "
+       << phg.k() << " blocks";
+    throw InvalidInputException(ss.str());
+  }
 }
 
 
@@ -151,6 +181,9 @@ HypernodeWeight total_weight(mt_kahypar_hypergraph_t hypergraph) {
 template<bool Throwing>
 HyperedgeID node_degree(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
   return switch_hg<HyperedgeID, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(hg, hn);
+    }
     return hg.nodeDegree(hn);
   });
 }
@@ -158,6 +191,9 @@ HyperedgeID node_degree(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
 template<bool Throwing>
 HypernodeWeight node_weight(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
   return switch_hg<HypernodeWeight, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(hg, hn);
+    }
     return hg.nodeWeight(hn);
   });
 }
@@ -165,6 +201,9 @@ HypernodeWeight node_weight(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) 
 template<bool Throwing>
 bool is_fixed(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
   return switch_hg<bool, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(hg, hn);
+    }
     return hg.isFixed(hn);
   });
 }
@@ -172,6 +211,9 @@ bool is_fixed(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
 template<bool Throwing>
 PartitionID fixed_vertex_block(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
   return switch_hg<PartitionID, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(hg, hn);
+    }
     return hg.isFixed(hn) ? hg.fixedVertexBlock(hn) : kInvalidPartition;
   });
 }
@@ -179,6 +221,9 @@ PartitionID fixed_vertex_block(mt_kahypar_hypergraph_t hypergraph, HypernodeID h
 template<bool Throwing>
 HypernodeID edge_size(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
   return switch_hg<HypernodeID, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hyperedge_is_valid(hg, he);
+    }
     return hg.edgeSize(he);
   });
 }
@@ -186,6 +231,9 @@ HypernodeID edge_size(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
 template<bool Throwing>
 HyperedgeWeight edge_weight(mt_kahypar_hypergraph_t hypergraph, HyperedgeID he) {
   return switch_hg<HyperedgeWeight, Throwing>(hypergraph, [=](const auto& hg) {
+    if constexpr (Throwing) {
+      check_hyperedge_is_valid(hg, he);
+    }
     return hg.edgeWeight(he);
   });
 }
@@ -233,42 +281,61 @@ PartitionID num_blocks(mt_kahypar_partitioned_hypergraph_t p) {
 template<bool Throwing>
 HypernodeWeight block_weight(mt_kahypar_partitioned_hypergraph_t p, PartitionID block) {
   return switch_phg<HypernodeWeight, Throwing>(p, [=](const auto& phg) {
+    if constexpr (Throwing) {
+      check_block_is_valid(phg, block);
+    }
     return phg.partWeight(block);
   });
 }
 
 template<bool Throwing>
-PartitionID block_id(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+PartitionID block_id(mt_kahypar_partitioned_hypergraph_t p, HypernodeID hn) {
   return switch_phg<PartitionID, Throwing>(p, [=](const auto& phg) {
-    return phg.partID(node);
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(phg, hn);
+    }
+    return phg.partID(hn);
   });
 }
 
 template<bool Throwing>
-bool is_incident_to_cut_edge(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+bool is_incident_to_cut_edge(mt_kahypar_partitioned_hypergraph_t p, HypernodeID hn) {
   return switch_phg<bool, Throwing>(p, [=](const auto& phg) {
-    return phg.isBorderNode(node);
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(phg, hn);
+    }
+    return phg.isBorderNode(hn);
   });
 }
 
 template<bool Throwing>
-HyperedgeID num_incident_cut_edges(mt_kahypar_partitioned_hypergraph_t p, HypernodeID node) {
+HyperedgeID num_incident_cut_edges(mt_kahypar_partitioned_hypergraph_t p, HypernodeID hn) {
   return switch_phg<HyperedgeID, Throwing>(p, [=](const auto& phg) {
-    return phg.numIncidentCutHyperedges(node);
+    if constexpr (Throwing) {
+      check_hypernode_is_valid(phg, hn);
+    }
+    return phg.numIncidentCutHyperedges(hn);
   });
 }
 
 template<bool Throwing>
 PartitionID connectivity(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he) {
   return switch_phg<PartitionID, Throwing>(p, [=](const auto& phg) {
+    if constexpr (Throwing) {
+      check_hyperedge_is_valid(phg, he);
+    }
     return phg.connectivity(he);
   });
 }
 
 template<bool Throwing>
-HypernodeID num_pins_in_block(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he, PartitionID block_id) {
+HypernodeID num_pins_in_block(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID he, PartitionID block) {
   return switch_phg<HypernodeID, Throwing>(p, [=](const auto& phg) {
-    return phg.pinCountInPart(he, block_id);
+    if constexpr (Throwing) {
+      check_hyperedge_is_valid(phg, he);
+      check_block_is_valid(phg, block);
+    }
+    return phg.pinCountInPart(he, block);
   });
 }
 
