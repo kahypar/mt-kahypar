@@ -14,10 +14,9 @@ mtk = mtkahypar.initialize(multiprocessing.cpu_count()) # use all available core
 context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
 # In the following, we partition a hypergraph into two blocks
 # with an allowed imbalance of 3% and optimize the connectivity metric
-context.set_partitioning_parameters(
+context.set_mapping_parameters(
   8,                       # number of blocks - number of nodes of the target graph
-  0.03,                    # imbalance parameter
-  mtkahypar.Objective.KM1) # objective function - not relevant for mapping
+  0.03)                    # imbalance parameter
 mtkahypar.set_seed(42)     # seed
 context.logging = True
 
