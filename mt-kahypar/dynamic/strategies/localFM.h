@@ -46,7 +46,7 @@ namespace mt_kahypar::dyn {
 
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
-          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon) {
+          if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
             // use rebalancer to rebalance partitioned_hypergraph_s
             parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
             Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
@@ -127,10 +127,8 @@ namespace mt_kahypar::dyn {
 
           local_fm(hypergraph, context, local_fm_nodes);
 
-          //check if imbalance is still within bounds else repartition
-          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon + 0.0000001) {
-            repartition(hypergraph, context);
-          }
+          ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
+
           history.push_back(partition_result);
         }
 

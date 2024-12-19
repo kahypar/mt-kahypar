@@ -90,8 +90,7 @@ namespace mt_kahypar::dyn {
 
 
           //check if imbalance is still within bounds else repartition
-          if (partitioned_hypergraph_s->partWeight(std::get<1>(*max_connectivity)) /
-              static_cast<double>(context.partition.perfect_balance_part_weights[std::get<1>(*max_connectivity)]) - 1.0 > context.partition.epsilon ) {
+          if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
             repartition(hypergraph, context);
           }
           history.push_back(partition_result);
