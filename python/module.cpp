@@ -4,6 +4,7 @@
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2024 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +29,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 
-#include "tbb/parallel_for.h"
+#include <boost/range/irange.hpp>
+
+#include <tbb/parallel_for.h>
 
 #include <atomic>
 #include <string>
