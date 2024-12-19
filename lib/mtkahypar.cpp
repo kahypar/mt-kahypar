@@ -515,12 +515,12 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t
 }
 
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
-                                                   const mt_kahypar_target_graph_t* target_graph,
+                                                   mt_kahypar_target_graph_t* target_graph,
                                                    const mt_kahypar_context_t* context,
                                                    mt_kahypar_error_t* error) {
   try {
     return lib::map(hypergraph,
-                    reinterpret_cast<const TargetGraph*>(target_graph)->graph(),
+                    reinterpret_cast<TargetGraph&>(*target_graph),
                     reinterpret_cast<const Context&>(*context));
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
@@ -547,15 +547,15 @@ mt_kahypar_status_t mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergra
 }
 
 mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                               const mt_kahypar_target_graph_t* target_graph,
+                                               mt_kahypar_target_graph_t* target_graph,
                                                const mt_kahypar_context_t* context,
                                                const size_t num_vcycles,
                                                mt_kahypar_error_t* error) {
   try {
     lib::improve_mapping(partitioned_hg,
-                        reinterpret_cast<const TargetGraph*>(target_graph)->graph(),
-                        reinterpret_cast<const Context&>(*context),
-                        num_vcycles);
+                         reinterpret_cast<TargetGraph&>(*target_graph),
+                         reinterpret_cast<const Context&>(*context),
+                         num_vcycles);
     return mt_kahypar_status_t::SUCCESS;
   } catch ( std::exception& ex ) {
     *error = to_error(ex);

@@ -390,7 +390,7 @@ MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahyp
  * target graph each having 64 nodes.
  */
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
-                                                                  const mt_kahypar_target_graph_t* target_graph,
+                                                                  mt_kahypar_target_graph_t* target_graph,
                                                                   const mt_kahypar_context_t* context,
                                                                   mt_kahypar_error_t* error);
 
@@ -421,7 +421,7 @@ MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_improve_partition(mt_kahypar_parti
  * \note There is no guarantee that this call will find an improvement.
  */
 MT_KAHYPAR_API mt_kahypar_status_t mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                              const mt_kahypar_target_graph_t* target_graph,
+                                                              mt_kahypar_target_graph_t* target_graph,
                                                               const mt_kahypar_context_t* context,
                                                               const size_t num_vcycles,
                                                               mt_kahypar_error_t* error);

@@ -515,8 +515,9 @@ corresponding node or -1 if the node is not fixed.
       }, "Partitions the hypergraph with the parameters given in the partitioning context",
       py::arg("context"))
     .def("map_onto_graph",
-      [&](mt_kahypar_hypergraph_t hypergraph, mt_kahypar_py_target_graph_t target_graph, const Context& context) {
-        return lib::map(hypergraph, target_graph_cast(target_graph), context);
+      [&](mt_kahypar_hypergraph_t hypergraph, mt_kahypar_py_target_graph_t graph, const Context& context) {
+        TargetGraph target_graph(target_graph_cast(graph).copy());
+        return lib::map(hypergraph, target_graph, context);
       },
       R"pbdoc(
   Maps a (hyper)graph onto a target graph with the parameters given in the partitioning context.
@@ -673,8 +674,9 @@ Construct a partitioned hypergraph from this hypergraph.
       "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
       py::arg("context"), py::arg("num_vcycles"))
     .def("improve_mapping",
-      [&](mt_kahypar_partitioned_hypergraph_t phg, mt_kahypar_py_target_graph_t target_graph, const Context& context, size_t num_vcycles) {
-        lib::improve_mapping(phg, target_graph_cast(target_graph), context, num_vcycles);
+      [&](mt_kahypar_partitioned_hypergraph_t phg, mt_kahypar_py_target_graph_t graph, const Context& context, size_t num_vcycles) {
+        TargetGraph target_graph(target_graph_cast(graph).copy());
+        lib::improve_mapping(phg, target_graph, context, num_vcycles);
       }, "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
       py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"))
     .def("connectivity_set",

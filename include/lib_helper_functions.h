@@ -427,14 +427,13 @@ mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hg, const 
   return partition_impl(hg, partition_context, nullptr);
 }
 
-mt_kahypar_partitioned_hypergraph_t map(mt_kahypar_hypergraph_t hg, const ds::StaticGraph& graph, const Context& context) {
-  if (static_cast<PartitionID>(graph.initialNumNodes()) != context.partition.k) {
+mt_kahypar_partitioned_hypergraph_t map(mt_kahypar_hypergraph_t hg, TargetGraph& target_graph, const Context& context) {
+  if (static_cast<PartitionID>(target_graph.graph().initialNumNodes()) != context.partition.k) {
     std::stringstream ss;
     ss << "Mismatched number of blocks: the context specifies " << context.partition.k
-        << " blocks, but the target graph has " << graph.initialNumNodes() << " blocks";
+        << " blocks, but the target graph has " << target_graph.graph().initialNumNodes() << " blocks";
     throw InvalidInputException(ss.str());
   }
-  TargetGraph target_graph(graph.copy());
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
   return partition_impl(hg, partition_context, &target_graph);
@@ -462,10 +461,9 @@ void improve(mt_kahypar_partitioned_hypergraph_t phg, const Context& context, co
 }
 
 void improve_mapping(mt_kahypar_partitioned_hypergraph_t phg,
-                    const ds::StaticGraph& graph,
+                    TargetGraph& target_graph,
                     const Context& context,
                     const size_t num_vcycles) {
-  TargetGraph target_graph(graph.copy());
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
   improve_impl(phg, partition_context, num_vcycles, &target_graph);
