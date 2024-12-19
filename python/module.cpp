@@ -606,6 +606,14 @@ Construct a partitioned hypergraph from this hypergraph.
       "Weight of the corresponding block", py::arg("block"))
     .def("block_id", &lib::block_id<true>,
       "Block to which the corresponding node is assigned", py::arg("node"))
+    .def("blocks",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        return lib::switch_phg<py::iterator, true>(p, [=](const auto& phg) {
+          return py::make_iterator(
+            boost::range_detail::integer_iterator<PartitionID>(0),
+            boost::range_detail::integer_iterator<PartitionID>(phg.k()));
+        });
+      }, "Iterator over blocks of the partition", py::keep_alive<0, 1>())
     .def("is_fixed",
       [&](mt_kahypar_partitioned_hypergraph_t p, const HypernodeID node) {
         return lib::switch_phg<bool, true>(p, [=](const auto& phg) {

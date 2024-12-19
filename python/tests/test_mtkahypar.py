@@ -532,6 +532,17 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.num_pins_in_block(3,1), 1)
     self.assertEqual(partitioned_hg.num_pins_in_block(3,2), 1)
 
+  def test_partitioned_hypergraph_iterators(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    partitioned_hg = hypergraph.create_partitioned_hypergraph(context, 3, [0,0,0,1,1,1,2])
+
+    self.assertEqual([block for block in partitioned_hg.blocks()], [0,1,2])
+    self.assertEqual([block for block in partitioned_hg.connectivity_set(0)], [0])
+    self.assertEqual([block for block in partitioned_hg.connectivity_set(1)], [0,1])
+    self.assertEqual([block for block in partitioned_hg.connectivity_set(2)], [1,2])
+    self.assertEqual([block for block in partitioned_hg.connectivity_set(3)], [0,1,2])
+
   def test_partitioned_hypergraph_applies_bounds_checking(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
