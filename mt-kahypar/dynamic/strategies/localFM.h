@@ -46,6 +46,14 @@ namespace mt_kahypar::dyn {
 
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
+          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon) {
+            // use rebalancer to rebalance partitioned_hypergraph_s
+            parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
+            Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
+                                    mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
+            _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
+          }
+
           _fm->initialize(partitioned_hypergraph);
 
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
@@ -57,7 +65,7 @@ namespace mt_kahypar::dyn {
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
 
-          //compute for each block the number of nodes it is connected to
+          //compute for each block the number of nodes the new node connected to
           std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
           for ( PartitionID p = 0; p < context.partition.k; ++p ) {
             block_connectivities[p] = std::make_tuple(0, p);
@@ -73,7 +81,8 @@ namespace mt_kahypar::dyn {
 
           //Add node to block with highest connectivity if it doesn't violate max_part_weights (imbalance)
           for (const auto& block_connectivity : block_connectivities) {
-            if (partitioned_hypergraph_s->partWeight(std::get<1>(block_connectivity)) + hypergraph.nodeWeight(hn) < context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
+            if (partitioned_hypergraph_s->partWeight(std::get<1>(block_connectivity)) + hypergraph.nodeWeight(hn) <
+                context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
               partitioned_hypergraph_s->setNodePart(hn, std::get<1>(block_connectivity));
               return std::get<1>(block_connectivity);
             }
@@ -116,7 +125,7 @@ namespace mt_kahypar::dyn {
           local_fm(hypergraph, context, local_fm_nodes);
 
           //check if imbalance is still within bounds else repartition
-          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon ) {
+          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon + 0.0000001) {
             repartition(hypergraph, context);
           }
           history.push_back(partition_result);
