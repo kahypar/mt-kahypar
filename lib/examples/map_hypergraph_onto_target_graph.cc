@@ -1,3 +1,4 @@
+#include <cassert>
 #include <memory>
 #include <vector>
 #include <iostream>
@@ -8,6 +9,7 @@
 // Install library interface via 'sudo make install.mtkahypar' in build folder
 // Compile with: g++ -std=c++14 -DNDEBUG -O3 map_hypergraph_onto_target_graph.cc -o example -lmtkahypar
 int main(int argc, char* argv[]) {
+  mt_kahypar_error_t error{};
 
   // Initialize thread pool
   mt_kahypar_initialize(
@@ -15,8 +17,7 @@ int main(int argc, char* argv[]) {
     true /* activate interleaved NUMA allocation policy */ );
 
   // Setup partitioning context
-  mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_load_preset(context, DEFAULT /* corresponds to MT-KaHyPar-D */);
+  mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
   // In the following, we map a hypergraph into target graph with 8 nodes
   // with an allowed imbalance of 3%
   mt_kahypar_set_partitioning_parameters(context,
@@ -24,20 +25,31 @@ int main(int argc, char* argv[]) {
     KM1 /* objective function - not relevant for mapping */);
   mt_kahypar_set_seed(42 /* seed */);
   // Enable logging
-  mt_kahypar_set_context_parameter(context, VERBOSE, "1");
+  mt_kahypar_status_t status =
+    mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error);
+  assert(status == SUCCESS);
 
   // Load Hypergraph for DEFAULT preset
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar_read_hypergraph_from_file("ibm01.hgr",
-      DEFAULT, HMETIS /* file format */);
+      context, HMETIS /* file format */, &error);
+  if (hypergraph.hypergraph == nullptr) {
+    std::cout << error.msg << std::endl; std::exit(1);
+  }
 
   // Read target graph file in Metis file format
   mt_kahypar_target_graph_t* target_graph =
-    mt_kahypar_read_target_graph_from_file("target.graph");
+    mt_kahypar_read_target_graph_from_file("target.graph", context, &error);
+  if (target_graph == nullptr) {
+    std::cout << error.msg << std::endl; std::exit(1);
+  }
 
   // Map hypergraph onto target graph
   mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-    mt_kahypar_map(hypergraph, target_graph, context);
+    mt_kahypar_map(hypergraph, target_graph, context, &error);
+  if (partitioned_hg.partitioned_hg == nullptr) {
+    std::cout << error.msg << std::endl; std::exit(1);
+  }
 
   // Extract Mapping
   std::unique_ptr<mt_kahypar_partition_id_t[]> mapping =
@@ -51,7 +63,7 @@ int main(int argc, char* argv[]) {
 
   // Compute Metrics
   const double imbalance = mt_kahypar_imbalance(partitioned_hg, context);
-  const double steiner_tree_metric = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+  const int steiner_tree_metric = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
 
   // Output Results
   std::cout << "Partitioning Results:" << std::endl;

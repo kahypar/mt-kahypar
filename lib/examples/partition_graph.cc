@@ -1,3 +1,4 @@
+#include <cassert>
 #include <memory>
 #include <vector>
 #include <iostream>
@@ -8,15 +9,15 @@
 // Install library interface via 'sudo make install.mtkahypar' in build folder
 // Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_graph.cc -o example -lmtkahypar
 int main(int argc, char* argv[]) {
+  mt_kahypar_error_t error{};
 
-  // Initialize thread pool
+  // Initialize
   mt_kahypar_initialize(
     std::thread::hardware_concurrency() /* use all available cores */,
     true /* activate interleaved NUMA allocation policy */ );
 
   // Setup partitioning context
-  mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_load_preset(context, DEFAULT /* corresponds to MT-KaHyPar-D */);
+  mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
   // In the following, we partition a graph into two blocks
   // with an allowed imbalance of 3% and optimize the edge cut (CUT)
   mt_kahypar_set_partitioning_parameters(context,
@@ -24,16 +25,23 @@ int main(int argc, char* argv[]) {
     CUT /* objective function */);
   mt_kahypar_set_seed(42 /* seed */);
   // Enable logging
-  mt_kahypar_set_context_parameter(context, VERBOSE, "1");
+  mt_kahypar_status_t status =
+    mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error);
+  assert(status == SUCCESS);
 
-  // Load Hypergraph for DEFAULT preset
-  mt_kahypar_hypergraph_t graph =
-    mt_kahypar_read_hypergraph_from_file("delaunay_n15.graph",
-    DEFAULT, METIS /* file format */);
+  // Read Graph
+  mt_kahypar_hypergraph_t graph = mt_kahypar_read_hypergraph_from_file(
+    "delaunay_n15.graph", context, METIS /* file format */, &error);
+  if (graph.hypergraph == nullptr) {
+    std::cout << error.msg << std::endl; std::exit(1);
+  }
 
-  // Partition Hypergraph
+  // Partition Graph
   mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-    mt_kahypar_partition(graph, context);
+    mt_kahypar_partition(graph, context, &error);
+  if (partitioned_graph.partitioned_hg == nullptr) {
+    std::cout << error.msg << std::endl; std::exit(1);
+  }
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
@@ -47,7 +55,7 @@ int main(int argc, char* argv[]) {
 
   // Compute Metrics
   const double imbalance = mt_kahypar_imbalance(partitioned_graph, context);
-  const double cut = mt_kahypar_cut(partitioned_graph);
+  const int cut = mt_kahypar_cut(partitioned_graph);
 
   // Output Results
   std::cout << "Partitioning Results:" << std::endl;
