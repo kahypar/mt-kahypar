@@ -342,6 +342,12 @@ HypernodeID num_pins_in_block(mt_kahypar_partitioned_hypergraph_t p, HyperedgeID
 template<bool Throwing>
 double imbalance(mt_kahypar_partitioned_hypergraph_t p, const Context& context) {
   return switch_phg<double, Throwing>(p, [&](const auto& phg) {
+    if (Throwing && context.partition.k != phg.k()) {
+      std::stringstream ss;
+      ss << "Mismatched number of blocks: the context specifies " << context.partition.k
+         << " blocks, but the partition has " << phg.k() << " blocks";
+      throw InvalidInputException(ss.str());
+    }
     Context c(context);
     c.setupPartWeights(phg.totalWeight());
     return metrics::imbalance(phg, c);

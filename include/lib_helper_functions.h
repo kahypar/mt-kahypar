@@ -428,6 +428,12 @@ mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hg, const 
 }
 
 mt_kahypar_partitioned_hypergraph_t map(mt_kahypar_hypergraph_t hg, const ds::StaticGraph& graph, const Context& context) {
+  if (static_cast<PartitionID>(graph.initialNumNodes()) != context.partition.k) {
+    std::stringstream ss;
+    ss << "Mismatched number of blocks: the context specifies " << context.partition.k
+        << " blocks, but the target graph has " << graph.initialNumNodes() << " blocks";
+    throw InvalidInputException(ss.str());
+  }
   TargetGraph target_graph(graph.copy());
   Context partition_context(context);
   partition_context.partition.objective = Objective::steiner_tree;
