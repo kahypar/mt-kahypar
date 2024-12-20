@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mt-kahypar/dynamic/strategies/localFM_factor.h>
+#include <mt-kahypar/dynamic/strategies/rebalance.h>
 #include "mt-kahypar/dynamic/strategies/repartition.h"
 #include "mt-kahypar/dynamic/strategies/connectivity.h"
 #include "mt-kahypar/dynamic/strategies/localFM.h"
@@ -48,6 +49,8 @@ namespace mt_kahypar::dyn {
         strategy = new NeverRepartition();
       } else if (context.dynamic.strategy == "localFM_factor") {
         strategy = new LocalFMFactor();
+      } else if (context.dynamic.strategy == "rebalance") {
+        strategy = new Rebalance();
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }

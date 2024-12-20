@@ -93,6 +93,8 @@ namespace mt_kahypar::dyn {
               return std::get<1>(block_connectivity);
             }
           }
+          // if no partition could accomodate the node put in the best
+          partitioned_hypergraph_s->setNodePart(hn, std::get<1>(block_connectivities[0]));
         }
 
     public:
@@ -144,10 +146,7 @@ namespace mt_kahypar::dyn {
             skipped_changes++;
           }
 
-          //check if imbalance is still within bounds else repartition
-          if (mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context) > context.partition.epsilon ) {
-            repartition(hypergraph, context);
-          }
+          ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
 
           history.push_back(partition_result);
         }

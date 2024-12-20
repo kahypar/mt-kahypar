@@ -7,13 +7,11 @@
 
 namespace mt_kahypar::dyn {
 
-    class LocalFM : public DynamicStrategy {
+    class Rebalance : public DynamicStrategy {
 
     private:
         std::optional<ds::PartitionedHypergraph<ds::StaticHypergraph>> partitioned_hypergraph_s;
-        int repartition_count = 0;
         gain_cache_t _gain_cache;
-        std::unique_ptr<IRefiner> _fm;
         std::unique_ptr<IRebalancer> _rebalancer;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
@@ -22,48 +20,25 @@ namespace mt_kahypar::dyn {
             std::cout << "Repartitioning" << std::endl;
           }
           partitioned_hypergraph_s = partition_hypergraph_km1(hypergraph_s, context);
-          repartition_count++;
         }
 
-        void init_local_fm(ds::StaticHypergraph& hypergraph_s, Context& context) {
+        void init_rebalancer(ds::StaticHypergraph& hypergraph_s, Context& context) {
           _gain_cache = GainCachePtr::constructGainCache(context);
           _rebalancer = RebalancerFactory::getInstance().createObject(
                   context.refinement.rebalancer, hypergraph_s.initialNumNodes(), context, _gain_cache);
-
-
-          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
-          context.refinement.fm.multitry_rounds = context.dynamic.multitry_localFM;
-
-          _fm = FMFactory::getInstance().createObject(
-                  context.refinement.fm.algorithm,
-                  hypergraph_s.initialNumNodes(), hypergraph_s.initialNumEdges(), context, _gain_cache, *_rebalancer);
         }
 
-        //use local_fm to refine partitioned_hypergraph_s
-        void local_fm(ds::StaticHypergraph& hypergraph, Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes) {
+        //use rebalancer to rebalance partitioned_hypergraph_s
+        void rebalance(ds::StaticHypergraph& hypergraph, Context& context) {
 
           GainCachePtr::resetGainCache(_gain_cache);
 
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
-
-          if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
-            // use rebalancer to rebalance partitioned_hypergraph_s
-            parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
-            Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
-                                    mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
-            _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
-          }
-
-          //TODO: is second reset after rebalancing necessary?
-          GainCachePtr::resetGainCache(_gain_cache);
-
-          _fm->initialize(partitioned_hypergraph);
-
+          parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
-          _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
-
+          _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
@@ -98,22 +73,13 @@ namespace mt_kahypar::dyn {
 
         void init(ds::StaticHypergraph& hypergraph, Context& context) override {
           repartition(hypergraph, context);
-          init_local_fm(hypergraph, context);
+          init_rebalancer(hypergraph, context);
         }
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
-          parallel::scalable_vector<HypernodeID> local_fm_nodes;
-
           for (const HypernodeID& hn : change.removed_nodes) {
             partitioned_hypergraph_s->removeNodePart(hn);
-            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                if (std::find(local_fm_nodes.begin(), local_fm_nodes.end(), hn2) == local_fm_nodes.end()) {
-                  local_fm_nodes.push_back(hn2);
-                }
-              }
-            }
           }
 
           process_change(hypergraph, context, change);
@@ -124,10 +90,11 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes) {
             add_node_to_partitioned_hypergraph(hypergraph, context, hn);
-            local_fm_nodes.push_back(hn);
           }
 
-          local_fm(hypergraph, context, local_fm_nodes);
+          if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
+            rebalance(hypergraph, context);
+          }
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
 
