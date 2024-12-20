@@ -13,6 +13,7 @@ namespace mt_kahypar::dyn {
         std::optional<ds::PartitionedHypergraph<ds::StaticHypergraph>> partitioned_hypergraph_s;
         gain_cache_t _gain_cache;
         std::unique_ptr<IRebalancer> _rebalancer;
+        std::unique_ptr<IRefiner> _fm;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
           context.dynamic.repartition_count++;
@@ -26,10 +27,19 @@ namespace mt_kahypar::dyn {
           _gain_cache = GainCachePtr::constructGainCache(context);
           _rebalancer = RebalancerFactory::getInstance().createObject(
                   context.refinement.rebalancer, hypergraph_s.initialNumNodes(), context, _gain_cache);
+
+          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+          context.refinement.fm.multitry_rounds = context.dynamic.multitry_localFM;
+
+          _fm = FMFactory::getInstance().createObject(
+                  context.refinement.fm.algorithm,
+                  hypergraph_s.initialNumNodes(), hypergraph_s.initialNumEdges(), context, _gain_cache, *_rebalancer);
         }
 
         //use rebalancer to rebalance partitioned_hypergraph_s
-        void rebalance(ds::StaticHypergraph& hypergraph, Context& context) {
+        void rebalance(Context& context) {
+
+          std::cout << "Rebalancing" << std::endl;
 
           GainCachePtr::resetGainCache(_gain_cache);
 
@@ -37,6 +47,8 @@ namespace mt_kahypar::dyn {
           parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
+
+          _fm->initialize(partitioned_hypergraph);
 
           _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
         }
@@ -93,7 +105,7 @@ namespace mt_kahypar::dyn {
           }
 
           if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
-            rebalance(hypergraph, context);
+            rebalance(context);
           }
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));

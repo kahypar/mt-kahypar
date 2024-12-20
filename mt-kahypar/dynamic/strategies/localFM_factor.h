@@ -59,6 +59,7 @@ namespace mt_kahypar::dyn {
           //TODO: is second reset after rebalancing necessary?
           GainCachePtr::resetGainCache(_gain_cache);
 
+          //TODO does this need to be done prior to rebalancing?
           _fm->initialize(partitioned_hypergraph);
 
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
@@ -140,7 +141,7 @@ namespace mt_kahypar::dyn {
           if (skipped_changes >= step_size) {
             skipped_changes = 0;
             step_size *= 2;
-            local_fm(hypergraph, context);
+            local_fm(hypergraph, context, nodes_to_partition);
             nodes_to_partition = parallel::scalable_vector<HypernodeID>(changes_size);
           } else {
             skipped_changes++;
