@@ -38,8 +38,9 @@ namespace mt_kahypar::dyn {
 
         //use rebalancer to rebalance partitioned_hypergraph_s
         void rebalance(Context& context) {
-
-          std::cout << "Rebalancing" << std::endl;
+          if (!context.dynamic.server) {
+            std::cout << "Rebalancing" << std::endl;
+          }
 
           GainCachePtr::resetGainCache(_gain_cache);
 
