@@ -9,7 +9,7 @@ Any results obtained from the binary or one of the library interfaces will also 
 ## hMetis Format for Input Hypergraphs
 
 Per default, Mt-KaHyPar assumes that the input hypergraph is provided in the hMetis format:
-[Unweighted Example](tests/instances/unweighted_hypergraph.hgr), [Weighted Example](tests/instances/hypergraph_with_node_and_edge_weights.hgr), [hMetis manual](https://karypis.github.io/glaros/files/sw/hmetis/manual.pdf)
+Unweighted Example, Weighted Example, in Figure 5 of [hMetis manual](https://karypis.github.io/glaros/files/sw/hmetis/manual.pdf).
 
 The general format looks as follows:
 
@@ -38,7 +38,7 @@ Otherwise, there is one line for each hypernode containing a single entry, which
 
 Mt-KaHyPar can also read input *graphs* in Metis format via `--input-file-format=metis`.
 Also, target graphs for the Steiner tree metric need to be provided in the Metis format:
-[Unweighted Example](tests/instances/unweighted_graph.graph), [Weighted Example](tests/instances/graph_with_node_and_edge_weights.graph), [Metis manual](https://karypis.github.io/glaros/files/sw/metis/manual.pdf)
+Unweighted Example, Weighted Example in Figure 2 of [Metis manual](https://karypis.github.io/glaros/files/sw/metis/manual.pdf).
 
 **Important note:** Mt-KaHyPar only works on undirected graphs. Therefore, for each edge `u -> v` in the input file there *must be* a corresponding entry for `v -> u` with the same edge weight.
 
