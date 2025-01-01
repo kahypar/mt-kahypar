@@ -238,11 +238,7 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
                               const std::string& filename,
                               const PartitionID k) {
   std::vector<PartitionID> fixed_vertices;
-  io::readPartitionFile(filename, fixed_vertices);
-  if ( ID(fixed_vertices.size()) != numberOfNodes(hypergraph) ) {
-    throw InvalidInputException(
-      "Fixed vertex file has more lines than the number of nodes!");
-  }
+  io::readPartitionFile(filename, numberOfNodes(hypergraph), fixed_vertices);
   addFixedVertices(hypergraph, fixed_vertices.data(), k);
 }
 

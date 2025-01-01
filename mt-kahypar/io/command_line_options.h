@@ -38,8 +38,8 @@ namespace mt_kahypar {
 using option = boost::program_options::basic_option<char>;
 
 void processCommandLineInput(Context& context, int argc, char *argv[], const std::vector<option>* preset_option_list);
-void parseIniToContext(Context& context, const std::string& ini_filename);
-void presetToContext(Context& context, const std::vector<option>& option_list);
+void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_verbose_output = false);
+void presetToContext(Context& context, std::vector<option>& option_list, bool disable_verbose_output = false);
 
 // for testing
 boost::program_options::options_description getIniOptionsDescription(Context& context);
