@@ -51,10 +51,10 @@ namespace mt_kahypar {
     Base::initializeRefinementAlgorithms();
 
     // Initialize separate refiner for global unconstrained FM
-    if (_context.refinement.fm.algorithm != _context.refinement.global_fm.algorithm) {
+    if (_context.refinement.fm.algorithm != _context.refinement.global.fm_algorithm) {
       runInGlobalFMContext([&]{
         _global_fm = FMFactory::getInstance().createObject(
-          _context.refinement.global_fm.algorithm,
+          _context.refinement.global.fm_algorithm,
           _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
       });
     }
@@ -350,7 +350,7 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void NLevelUncoarsener<TypeTraits>::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                        const double time_limit) {
-    if ( _context.refinement.global_fm.use_global_fm ) {
+    if ( _context.refinement.global.use_global_refinement ) {
       if ( debug && _context.type == ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
           _context, "Refinement Hypergraph", false);
@@ -375,7 +375,7 @@ namespace mt_kahypar {
         const HyperedgeWeight metric_before = _current_metrics.quality;
 
           IRefiner* fm_ptr = _global_fm ? _global_fm.get() : _fm.get();
-          if ( fm_ptr && _context.refinement.global_fm.algorithm != FMAlgorithm::do_nothing ) {
+          if ( fm_ptr && _context.refinement.global.fm_algorithm != FMAlgorithm::do_nothing ) {
             _timer.start_timer("fm", "FM");
             runInGlobalFMContext([&]{
               improvement_found |= fm_ptr->refine(phg, {}, _current_metrics, time_limit);
@@ -402,7 +402,7 @@ namespace mt_kahypar {
         const HyperedgeWeight metric_after = _current_metrics.quality;
         const double relative_improvement = 1.0 -
           static_cast<double>(metric_after) / metric_before;
-        if ( !_context.refinement.global_fm.refine_until_no_improvement ||
+        if ( !_context.refinement.global.refine_until_no_improvement ||
             relative_improvement <= _context.refinement.relative_improvement_threshold ) {
           break;
         }
@@ -422,19 +422,19 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   template<typename Func>
   void NLevelUncoarsener<TypeTraits>::runInGlobalFMContext(Func func) {
-    auto applyGlobalFMParameters = [&](const FMParameters& fm, const NLevelGlobalFMParameters global_fm){
-      NLevelGlobalFMParameters tmp_global_fm;
-      tmp_global_fm.algorithm = fm.algorithm;
+    auto applyGlobalFMParameters = [&](const FMParameters& fm, const NLevelGlobalRefinementParameters global_fm){
+      NLevelGlobalRefinementParameters tmp_global_fm;
+      tmp_global_fm.fm_algorithm = fm.algorithm;
       tmp_global_fm.num_seed_nodes = fm.num_seed_nodes;
       tmp_global_fm.obey_minimal_parallelism = fm.obey_minimal_parallelism;
-      fm.algorithm = global_fm.algorithm;
+      fm.algorithm = global_fm.fm_algorithm;
       fm.num_seed_nodes = global_fm.num_seed_nodes;
       fm.obey_minimal_parallelism = global_fm.obey_minimal_parallelism;
       return tmp_global_fm;
     };
 
-    NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
-      _context.refinement.fm, _context.refinement.global_fm);
+    NLevelGlobalRefinementParameters tmp_global_fm = applyGlobalFMParameters(
+      _context.refinement.fm, _context.refinement.global);
     func();
 
     // Reset FM context

@@ -163,8 +163,8 @@ namespace mt_kahypar {
     return out;
   }
 
-  std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
-    if ( params.use_global_fm ) {
+  std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params) {
+    if ( params.use_global_refinement ) {
       out << "  Boundary FM Parameters: \n";
       out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
       out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
@@ -210,8 +210,8 @@ namespace mt_kahypar {
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-    if ( params.global_fm.use_global_fm ) {
-      str << "\n" << params.global_fm;
+    if ( params.global.use_global_refinement ) {
+      str << "\n" << params.global;
     }
     str << "\n" << params.flows;
     return str;
