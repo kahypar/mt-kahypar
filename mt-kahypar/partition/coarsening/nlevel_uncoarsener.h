@@ -93,6 +93,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
     Base(hypergraph, context, uncoarseningData),
     _target_graph(target_graph),
     _hierarchy(),
+    _global_fm(nullptr),
     _tmp_refinement_nodes(),
     _border_vertices_of_batch(hypergraph.initialNumNodes()),
     _stats(context),
@@ -136,6 +137,9 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     const double time_limit);
 
+  template<typename Func>
+  void runInGlobalFMContext(Func func);
+
   using Base::_hg;
   using Base::_context;
   using Base::_uncoarseningData;
@@ -156,6 +160,8 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   // ! completly processed single-pin and parallel nets have to be restored.
   VersionedBatchVector _hierarchy;
 
+  // ! If we use different FM algorithms for local and global refinement, we need two FM refiner instances
+  std::unique_ptr<IRefiner> _global_fm;
   ds::StreamingVector<HypernodeID> _tmp_refinement_nodes;
   kahypar::ds::FastResetFlagArray<> _border_vertices_of_batch;
 

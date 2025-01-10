@@ -496,6 +496,19 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
              "Executes a globalized FM local search as long as it finds an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-global-fm-type" : "r-global-fm-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.global_fm.algorithm = fmAlgorithmFromString(type);
+                       } else {
+                         context.refinement.global_fm.algorithm = fmAlgorithmFromString(type);
+                       }
+                     })->default_value("kway_fm"),
+             "FM Algorithm for the globalized FM local search:\n"
+             "- kway_fm\n"
+             "- unconstrained_fm\n"
+             "- do_nothing")
             ((initial_partitioning ? "i-r-global-fm-seed-nodes" : "r-global-fm-seed-nodes"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global_fm.num_seed_nodes :
                                 &context.refinement.global_fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),

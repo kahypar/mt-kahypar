@@ -141,6 +141,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_penalty_for_activation_test=" << context.refinement.fm.penalty_for_activation_test
         << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
         << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
+        << " global_fm_algorithm=" << context.refinement.global_fm.algorithm
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism;
     oss << " flow_algorithm=" << context.refinement.flows.algorithm
