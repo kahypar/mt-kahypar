@@ -518,6 +518,16 @@ namespace mt_kahypar {
                      (initial_partitioning ? &context.initial_partitioning.refinement.global.obey_minimal_parallelism :
                       &context.refinement.global.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+            ((initial_partitioning ? "i-r-global-use-lp" : "r-global-use-lp"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global.use_lp :
+                      &context.refinement.global.use_lp))->value_name("<bool>")->default_value(false),
+             "If true, then a label propagation pass is included in the globalized refinement.")
+            ((initial_partitioning ? "i-r-global-lp-unconstrained" : "r-global-lp-unconstrained"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global.unconstrained_lp :
+                      &context.refinement.global.unconstrained_lp))->value_name("<bool>")->default_value(false),
+             "If true, then the unconstrained LP is used for the globalized LP.")
             ((initial_partitioning ? "i-r-rebalancer-type" : "r-rebalancer-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

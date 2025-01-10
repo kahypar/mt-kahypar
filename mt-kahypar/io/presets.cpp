@@ -342,6 +342,8 @@ std::vector<option> load_highest_quality_preset() {
     create_option("r-global-fm-type", "unconstrained_fm"),
     create_option("r-global-fm-seed-nodes", "5"),
     create_option("r-global-fm-obey-minimal-parallelism", "true"),
+    create_option("r-global-use-lp", "true"),
+    create_option("r-global-lp-unconstrained", "true"),
     // main -> refinement -> flows
     create_option("r-flow-algo", "flow_cutter"),
     create_option("r-flow-scaling", "16"),

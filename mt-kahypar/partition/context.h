@@ -133,7 +133,7 @@ std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
-  bool unconstrained = false;
+  mutable bool unconstrained = false;
   bool rebalancing = true;
   bool execute_sequential = false;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
@@ -180,6 +180,8 @@ struct NLevelGlobalRefinementParameters {
   FMAlgorithm fm_algorithm = FMAlgorithm::do_nothing;
   size_t num_seed_nodes = 0;
   bool obey_minimal_parallelism = false;
+  bool use_lp = false;
+  bool unconstrained_lp = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params);

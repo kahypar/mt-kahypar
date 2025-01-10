@@ -138,7 +138,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
                     const double time_limit);
 
   template<typename Func>
-  void runInGlobalFMContext(Func func);
+  void runInGlobalRefinementContext(Func func);
 
   using Base::_hg;
   using Base::_context;
