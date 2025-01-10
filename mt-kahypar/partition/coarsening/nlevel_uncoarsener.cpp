@@ -306,23 +306,24 @@ namespace mt_kahypar {
           << ", imbalance = " << _current_metrics.imbalance;
     }
 
+    _timer.start_timer("local_refinement", "Local Refinement", false, _force_measure_timings);
     bool improvement_found = true;
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     while( improvement_found ) {
       improvement_found = false;
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        _timer.start_timer("label_propagation", "Label Propagation", false, _force_measure_timings);
+        _timer.start_timer("local_label_propagation", "Label Propagation", false, _force_measure_timings);
         improvement_found |= _label_propagation->refine(phg,
           refinement_nodes, _current_metrics, std::numeric_limits<double>::max());
-        _timer.stop_timer("label_propagation", _force_measure_timings);
+        _timer.stop_timer("local_label_propagation", _force_measure_timings);
       }
 
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        _timer.start_timer("fm", "FM", false, _force_measure_timings);
+        _timer.start_timer("local_fm", "FM", false, _force_measure_timings);
         improvement_found |= _fm->refine(phg,
           refinement_nodes, _current_metrics, std::numeric_limits<double>::max());
-        _timer.stop_timer("fm", _force_measure_timings);
+        _timer.stop_timer("local_fm", _force_measure_timings);
       }
 
       if ( _context.type == ContextType::main ) {
@@ -335,6 +336,7 @@ namespace mt_kahypar {
         break;
       }
     }
+    _timer.stop_timer("local_refinement", _force_measure_timings);
 
     if ( _context.type == ContextType::main) {
       DBG << "--------------------------------------------------\n";
