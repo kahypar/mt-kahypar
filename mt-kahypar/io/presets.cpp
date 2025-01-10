@@ -322,11 +322,16 @@ std::vector<option> load_highest_quality_preset() {
     // main -> refinement -> fm
     create_option("r-fm-type", "kway_fm"),
     create_option("r-fm-multitry-rounds", "10"),
+    create_option("r-fm-unconstrained-rounds", "8"),
     create_option("r-fm-rollback-parallel", "false"),
-    create_option("r-fm-rollback-balance-violation-factor", "1.25"),
+    create_option("r-fm-rollback-balance-violation-factor", "1.0"),
+    create_option("r-fm-threshold-border-node-inclusion", "0.7"),
+    create_option("r-fm-imbalance-penalty-min", "0.2"),
+    create_option("r-fm-imbalance-penalty-max", "1.0"),
     create_option("r-fm-seed-nodes", "5"),
     create_option("r-fm-release-nodes", "true"),
     create_option("r-fm-min-improvement", "-1.0"),
+    create_option("r-fm-unconstrained-min-improvement", "0.001"),
     create_option("r-fm-obey-minimal-parallelism", "false"),
     create_option("r-fm-time-limit-factor", "0.25"),
     // applies only to global fm
@@ -334,8 +339,11 @@ std::vector<option> load_highest_quality_preset() {
     // main -> refinement -> global
     create_option("r-use-global-fm", "true"),
     create_option("r-global-refine-until-no-improvement", "true"),
+    create_option("r-global-fm-type", "unconstrained_fm"),
     create_option("r-global-fm-seed-nodes", "5"),
     create_option("r-global-fm-obey-minimal-parallelism", "true"),
+    create_option("r-global-lp-type", "label_propagation"),
+    create_option("r-global-lp-unconstrained", "true"),
     // main -> refinement -> flows
     create_option("r-flow-algo", "flow_cutter"),
     create_option("r-flow-scaling", "16"),

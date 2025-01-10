@@ -486,25 +486,56 @@ namespace mt_kahypar {
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
              "the next finer level.")
             ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
-             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
-                              &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
+             po::value<bool>((!initial_partitioning ? &context.refinement.global.use_global_refinement :
+                              &context.initial_partitioning.refinement.global.use_global_refinement))->value_name(
                      "<bool>")->default_value(false),
              "If true, than we execute a globalized FM local search interleaved with the localized searches."
              "Note, gobalized FM local searches are performed in multilevel style (not after each batch uncontraction)")
             ((initial_partitioning ? "i-r-global-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
-             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.refine_until_no_improvement :
-                              &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
+             po::value<bool>((!initial_partitioning ? &context.refinement.global.refine_until_no_improvement :
+                              &context.initial_partitioning.refinement.global.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
              "Executes a globalized FM local search as long as it finds an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-global-fm-type" : "r-global-fm-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.global.fm_algorithm = fmAlgorithmFromString(type);
+                       } else {
+                         context.refinement.global.fm_algorithm = fmAlgorithmFromString(type);
+                       }
+                     })->default_value("kway_fm"),
+             "FM Algorithm for the globalized FM local search:\n"
+             "- kway_fm\n"
+             "- unconstrained_fm\n"
+             "- do_nothing")
             ((initial_partitioning ? "i-r-global-fm-seed-nodes" : "r-global-fm-seed-nodes"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global_fm.num_seed_nodes :
-                                &context.refinement.global_fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global.fm_num_seed_nodes :
+                                &context.refinement.global.fm_num_seed_nodes))->value_name("<size_t>")->default_value(25),
              "Number of nodes to start the 'highly localized FM' with during the globalized FM local search.")
             ((initial_partitioning ? "i-r-global-fm-obey-minimal-parallelism" : "r-global-fm-obey-minimal-parallelism"),
              po::value<bool>(
-                     (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
-                      &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global.fm_obey_minimal_parallelism :
+                      &context.refinement.global.fm_obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+             ((initial_partitioning ? "i-r-global-lp-type" : "r-global-lp-type"),
+              po::value<std::string>()->value_name("<string>")->notifier(
+                      [&, initial_partitioning](const std::string& type) {
+                        if (initial_partitioning) {
+                          context.initial_partitioning.refinement.global.lp_algorithm = labelPropagationAlgorithmFromString(type);
+                        } else {
+                          context.refinement.global.lp_algorithm = labelPropagationAlgorithmFromString(type);
+                        }
+                      })->default_value("label_propagation"),
+              "Label Propagation Algorithm for the globalized label propagation refinement:\n"
+              "- label_propagation\n"
+              "- deterministic\n"
+              "- do_nothing")
+            ((initial_partitioning ? "i-r-global-lp-unconstrained" : "r-global-lp-unconstrained"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global.lp_unconstrained :
+                      &context.refinement.global.lp_unconstrained))->value_name("<bool>")->default_value(false),
+             "If true, then the unconstrained LP is used for the globalized LP.")
             ((initial_partitioning ? "i-r-rebalancer-type" : "r-rebalancer-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

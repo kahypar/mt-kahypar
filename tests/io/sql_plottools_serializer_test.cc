@@ -44,7 +44,7 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
+    "LabelPropagationParameters", "FMParameters", "NLevelGlobalRefinementParameters",
     "FlowParameters", "RefinementParameters", "SharedMemoryParameters", "DeterministicRefinement",
     "FlowParameters", "MappingParameters" };
 
@@ -52,7 +52,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"},
-    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalRefinementParameters", "global_refine_"},
     {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
     {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
 
@@ -61,7 +61,7 @@ std::set<std::string> excluded_members =
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos", "original_num_threads",
-    "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
+    "stable_construction_of_incident_edges", "fm", "global", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
     "mapping_target_graph_file" };
 
 bool is_target_struct(const std::string& line) {

@@ -69,8 +69,8 @@ class LabelPropagationRefiner final : public IRefiner {
     _gain(context),
     _active_nodes(),
     _active_node_was_moved(2 * num_hypernodes, uint8_t(false)),
-    _old_part(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0, kInvalidPartition),
-    _old_part_is_initialized(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0),
+    _old_part(_context.refinement.label_propagation.unconstrained || context.refinement.global.lp_unconstrained ? num_hypernodes : 0, kInvalidPartition),
+    _old_part_is_initialized(_context.refinement.label_propagation.unconstrained || context.refinement.global.lp_unconstrained ? num_hypernodes : 0),
     _next_active(num_hypernodes),
     _visited_he(Hypergraph::is_graph ? 0 : num_hyperedges),
     _rebalancer(rb) { }
