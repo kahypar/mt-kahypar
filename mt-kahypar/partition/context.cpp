@@ -163,12 +163,15 @@ namespace mt_kahypar {
     return out;
   }
 
-  std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
-    if ( params.use_global_fm ) {
-      out << "  Boundary FM Parameters: \n";
+  std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params) {
+    if ( params.use_global_refinement ) {
+      out << "  Global Refinement Parameters:" << std::endl;
       out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
-      out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-      out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+      out << "    FM Algorithm:                     " << params.fm_algorithm << std::endl;
+      out << "    FM Num Seed Nodes:                " << params.fm_num_seed_nodes << std::endl;
+      out << "    FM Obey Minimal Parallelism:      " << std::boolalpha << params.fm_obey_minimal_parallelism << std::endl;
+      out << "    LP Algorithm:                     " << params.lp_algorithm << std::endl;
+      out << "    LP Unconstrained:                 " << std::boolalpha << params.lp_unconstrained << std::endl;
     }
     return out;
   }
@@ -210,8 +213,8 @@ namespace mt_kahypar {
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-    if ( params.global_fm.use_global_fm ) {
-      str << "\n" << params.global_fm;
+    if ( params.global.use_global_refinement ) {
+      str << "\n" << params.global;
     }
     str << "\n" << params.flows;
     return str;

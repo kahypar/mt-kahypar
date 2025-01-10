@@ -133,7 +133,7 @@ std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
-  bool unconstrained = false;
+  mutable bool unconstrained = false;
   bool rebalancing = true;
   bool execute_sequential = false;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
@@ -143,7 +143,7 @@ struct LabelPropagationParameters {
 std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
 
 struct FMParameters {
-  FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+  mutable FMAlgorithm algorithm = FMAlgorithm::do_nothing;
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;
@@ -173,14 +173,19 @@ struct FMParameters {
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
 
-struct NLevelGlobalFMParameters {
-  bool use_global_fm = false;   // TODO this should be renamed to something more appropriate: e.g. log_level_fm or refine_after_coarsening_pass
+struct NLevelGlobalRefinementParameters {
+  bool use_global_refinement = false;
   bool refine_until_no_improvement = false;
-  size_t num_seed_nodes = 0;
-  bool obey_minimal_parallelism = false;
+
+  FMAlgorithm fm_algorithm = FMAlgorithm::do_nothing;
+  size_t fm_num_seed_nodes = 0;
+  bool fm_obey_minimal_parallelism = false;
+
+  LabelPropagationAlgorithm lp_algorithm = LabelPropagationAlgorithm::do_nothing;
+  bool lp_unconstrained = false;
 };
 
-std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
+std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params);
 
 struct FlowParameters {
   FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
@@ -212,7 +217,7 @@ struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
-  NLevelGlobalFMParameters global_fm;
+  NLevelGlobalRefinementParameters global;
   FlowParameters flows;
   RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
   bool refine_until_no_improvement = false;

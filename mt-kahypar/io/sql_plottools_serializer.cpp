@@ -139,10 +139,13 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_imbalance_penalty_max=" << context.refinement.fm.imbalance_penalty_max
         << " fm_activate_unconstrained_dynamically=" << std::boolalpha << context.refinement.fm.activate_unconstrained_dynamically
         << " fm_penalty_for_activation_test=" << context.refinement.fm.penalty_for_activation_test
-        << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
-        << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
-        << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
-        << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism;
+        << " global_refine_use_global_refinement=" << std::boolalpha << context.refinement.global.use_global_refinement
+        << " global_refine_refine_until_no_improvement=" << std::boolalpha << context.refinement.global.refine_until_no_improvement
+        << " global_refine_fm_algorithm=" << context.refinement.global.fm_algorithm
+        << " global_refine_fm_num_seed_nodes=" << context.refinement.global.fm_num_seed_nodes
+        << " global_refine_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global.fm_obey_minimal_parallelism
+        << " global_refine_lp_algorithm=" << context.refinement.global.lp_algorithm
+        << " global_refine_lp_unconstrained=" << std::boolalpha << context.refinement.global.lp_unconstrained;
     oss << " flow_algorithm=" << context.refinement.flows.algorithm
         << " flow_parallel_searches_multiplier=" << context.refinement.flows.parallel_searches_multiplier
         << " flow_num_parallel_searches=" << context.refinement.flows.num_parallel_searches

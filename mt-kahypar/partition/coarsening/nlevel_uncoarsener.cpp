@@ -50,6 +50,22 @@ namespace mt_kahypar {
     _stats.current_number_of_nodes = _uncoarseningData.compactified_hg->initialNumNodes();
     Base::initializeRefinementAlgorithms();
 
+    // Initialize separate refiner for global LP and global (unconstrained) FM
+    if (_context.refinement.label_propagation.algorithm != _context.refinement.global.lp_algorithm) {
+      runInGlobalRefinementContext([&]{
+        _global_label_propagation = LabelPropagationFactory::getInstance().createObject(
+          _context.refinement.global.lp_algorithm,
+          _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
+      });
+    }
+    if (_context.refinement.fm.algorithm != _context.refinement.global.fm_algorithm) {
+      runInGlobalRefinementContext([&]{
+        _global_fm = FMFactory::getInstance().createObject(
+          _context.refinement.global.fm_algorithm,
+          _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
+      });
+    }
+
     if (_context.type == ContextType::main) {
       _context.initial_km1 = _current_metrics.quality;
     }
@@ -68,12 +84,6 @@ namespace mt_kahypar {
     });
     _uncoarseningData.partitioned_hg->initializePartition();
     _uncoarseningData.partitioned_hg->setTargetGraph(_target_graph);
-
-    // Initialize Gain Cache
-    if ( _context.refinement.fm.algorithm == FMAlgorithm::kway_fm ) {
-      GainCachePtr::initializeGainCache(
-        *_uncoarseningData.partitioned_hg, _gain_cache);
-    }
 
     ASSERT(metrics::quality(*_uncoarseningData.compactified_phg, _context) ==
            metrics::quality(*_uncoarseningData.partitioned_hg, _context),
@@ -103,6 +113,12 @@ namespace mt_kahypar {
     }
     if ( _fm ) {
       _fm->initialize(phg);
+    }
+    if ( _global_label_propagation ) {
+      runInGlobalRefinementContext([&]{ _global_label_propagation->initialize(phg); });
+    }
+    if ( _global_fm ) {
+      runInGlobalRefinementContext([&]{ _global_fm->initialize(phg); });
     }
 
     ASSERT(_uncoarseningData.round_coarsening_times.size() == _uncoarseningData.removed_hyperedges_batches.size());
@@ -346,17 +362,7 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void NLevelUncoarsener<TypeTraits>::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                        const double time_limit) {
-
-    auto applyGlobalFMParameters = [&](const FMParameters& fm, const NLevelGlobalFMParameters global_fm){
-      NLevelGlobalFMParameters tmp_global_fm;
-      tmp_global_fm.num_seed_nodes = fm.num_seed_nodes;
-      tmp_global_fm.obey_minimal_parallelism = fm.obey_minimal_parallelism;
-      fm.num_seed_nodes = global_fm.num_seed_nodes;
-      fm.obey_minimal_parallelism = global_fm.obey_minimal_parallelism;
-      return tmp_global_fm;
-    };
-
-    if ( _context.refinement.global_fm.use_global_fm ) {
+    if ( _context.refinement.global.use_global_refinement ) {
       if ( debug && _context.type == ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
           _context, "Refinement Hypergraph", false);
@@ -374,46 +380,52 @@ namespace mt_kahypar {
 
       // Apply global FM parameters to FM context and temporary store old fm context
       _timer.start_timer("global_refinement", "Global Refinement");
-      NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
-        _context.refinement.fm, _context.refinement.global_fm);
       bool improvement_found = true;
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-      while( improvement_found ) {
-        improvement_found = false;
-        const HyperedgeWeight metric_before = _current_metrics.quality;
+      runInGlobalRefinementContext([&]{
+        while( improvement_found ) {
+          improvement_found = false;
+          const HyperedgeWeight metric_before = _current_metrics.quality;
 
-        if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          _timer.start_timer("fm", "FM");
-          improvement_found |= _fm->refine(phg, {}, _current_metrics, time_limit);
-          _timer.stop_timer("fm");
+          IRefiner* lp_ptr = _global_label_propagation ? _global_label_propagation.get() : _label_propagation.get();
+          if ( lp_ptr && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+            _timer.start_timer("label_propagation", "Label Propagation");
+              improvement_found |= lp_ptr->refine(phg, {}, _current_metrics, time_limit);
+            _timer.stop_timer("label_propagation");
+          }
+
+          IRefiner* fm_ptr = _global_fm ? _global_fm.get() : _fm.get();
+          if ( fm_ptr && _context.refinement.global.fm_algorithm != FMAlgorithm::do_nothing ) {
+            _timer.start_timer("fm", "FM");
+              improvement_found |= fm_ptr->refine(phg, {}, _current_metrics, time_limit);
+            _timer.stop_timer("fm");
+          }
+
+          if ( _flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+            _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
+            _flows->initialize(phg);
+            _timer.stop_timer("initialize_flow_scheduler");
+
+            _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
+            improvement_found |= _flows->refine(phg, {}, _current_metrics, time_limit);
+            _timer.stop_timer("flow_refinement_scheduler");
+          }
+
+          if ( _context.type == ContextType::main ) {
+            ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context.partition.objective),
+                "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
+                "does not match the metric updated by the refiners" << V(_current_metrics.quality));
+          }
+
+          const HyperedgeWeight metric_after = _current_metrics.quality;
+          const double relative_improvement = 1.0 -
+            static_cast<double>(metric_after) / metric_before;
+          if ( !_context.refinement.global.refine_until_no_improvement ||
+              relative_improvement <= _context.refinement.relative_improvement_threshold ) {
+            break;
+          }
         }
-
-        if ( _flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
-          _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
-          _flows->initialize(phg);
-          _timer.stop_timer("initialize_flow_scheduler");
-
-          _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
-          improvement_found |= _flows->refine(phg, {}, _current_metrics, time_limit);
-          _timer.stop_timer("flow_refinement_scheduler");
-        }
-
-        if ( _context.type == ContextType::main ) {
-          ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context.partition.objective),
-              "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
-              "does not match the metric updated by the refiners" << V(_current_metrics.quality));
-        }
-
-        const HyperedgeWeight metric_after = _current_metrics.quality;
-        const double relative_improvement = 1.0 -
-          static_cast<double>(metric_after) / metric_before;
-        if ( !_context.refinement.global_fm.refine_until_no_improvement ||
-            relative_improvement <= _context.refinement.relative_improvement_threshold ) {
-          break;
-        }
-      }
-      // Reset FM context
-      applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
+      });
       _timer.stop_timer("global_refinement");
 
       if ( was_enabled ) {
@@ -424,6 +436,30 @@ namespace mt_kahypar {
         DBG << "--------------------------------------------------\n";
       }
     }
+  }
+
+  template<typename TypeTraits>
+  template<typename Func>
+  void NLevelUncoarsener<TypeTraits>::runInGlobalRefinementContext(Func func) {
+    auto applyGlobalFMParameters = [&](const LabelPropagationParameters& label_propagation, const FMParameters& fm, const NLevelGlobalRefinementParameters global){
+      NLevelGlobalRefinementParameters tmp_global;
+      tmp_global.fm_algorithm = fm.algorithm;
+      tmp_global.fm_num_seed_nodes = fm.num_seed_nodes;
+      tmp_global.fm_obey_minimal_parallelism = fm.obey_minimal_parallelism;
+      tmp_global.lp_unconstrained = label_propagation.unconstrained;
+      fm.algorithm = global.fm_algorithm;
+      fm.num_seed_nodes = global.fm_num_seed_nodes;
+      fm.obey_minimal_parallelism = global.fm_obey_minimal_parallelism;
+      label_propagation.unconstrained = global.lp_unconstrained;
+      return tmp_global;
+    };
+
+    NLevelGlobalRefinementParameters tmp_global = applyGlobalFMParameters(
+      _context.refinement.label_propagation, _context.refinement.fm, _context.refinement.global);
+    func();
+
+    // Reset FM context
+    applyGlobalFMParameters(_context.refinement.label_propagation, _context.refinement.fm, tmp_global);
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS(NLevelUncoarsener)
