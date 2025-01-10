@@ -8,12 +8,7 @@ version = "@PROJECT_VERSION@"
 description="Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
 readme = "README.md"
 lincense.text = "MIT License"
-# TODO
-authors = [
-  { name = "Tobias Heuer", email = "tobias.heuer@gmx.net" },
-  { name = "Lars Gottesbüren", email = "gottesbueren@google.com" },
-  { name = "Nikolai Maas", email = "nikolai.maas@kit.edu" },
-]
+authors = [{ name = "Mt-KaHyPar Developers", email = "mtkahypar-devs@mail.informatik.kit.edu" }]
 requires-python = ">=3.7"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
