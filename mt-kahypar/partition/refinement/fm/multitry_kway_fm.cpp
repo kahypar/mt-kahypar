@@ -165,6 +165,12 @@ namespace mt_kahypar {
         }
       }
 
+      mt_kahypar::LocalFMRound* local_fm_round = context.dynamic.localFM_round;
+      if (local_fm_round != nullptr) {
+        local_fm_round->overall_improvement = overall_improvement;
+        local_fm_round->touched_nodes = sharedData.moveTracker.numPerformedMoves();
+      }
+
       timer.start_timer("rollback", "Rollback to Best Solution");
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, max_part_weights);
       timer.stop_timer("rollback");
@@ -218,23 +224,6 @@ namespace mt_kahypar {
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.quality == metrics::quality(phg, context),
            V(metrics.quality) << V(metrics::quality(phg, context)));
-
-//    vec<HypernodeID> touched_nodes;
-//    for (const Move& m : sharedData.moveTracker.moveOrder) {
-//      if (m.isValid()) {
-//        touched_nodes.push_back(m.node);
-//      }
-//    }
-//    // count the number of individual nodes that were touched
-//    std::sort(touched_nodes.begin(), touched_nodes.end());
-
-    mt_kahypar::LocalFMRound* local_fm_round = context.dynamic.localFM_round;
-    if (local_fm_round != nullptr) {
-      local_fm_round->overall_improvement = overall_improvement;
-//      local_fm_round->touched_nodes =
-//              std::unique(touched_nodes.begin(), touched_nodes.end()) - touched_nodes.begin();
-        local_fm_round->touched_nodes = sharedData.moveTracker.numPerformedMoves();
-    }
 
     return overall_improvement > 0;
   }

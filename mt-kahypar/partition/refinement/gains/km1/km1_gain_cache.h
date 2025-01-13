@@ -112,11 +112,11 @@ class Km1GainCache {
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
 
-  template<typename PartitionedHypergraph>
-  void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
-                                       const HypernodeID&) {
-    // Do nothing
-  }
+//  template<typename PartitionedHypergraph>
+//  void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
+//                                       const HypernodeID&) {
+//    // Do nothing
+//  }
 
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
     // We do not maintain the adjacent blocks of a node in this gain cache.
@@ -267,6 +267,22 @@ class Km1GainCache {
     return true;
   }
 
+  void storePenalty(const HypernodeID hn, const Gain penalty) {
+    _gain_cache[penalty_index(hn)].store(penalty, std::memory_order_relaxed);
+  }
+
+  void storeBenefit(const HypernodeID hn, const PartitionID i, vec<Gain>& _benefit_aggregator) {
+    _gain_cache[benefit_index(hn, i)].store(_benefit_aggregator[i], std::memory_order_relaxed);
+  }
+
+
+    // ! Initializes the benefit and penalty terms for a node u
+    template<typename PartitionedHypergraph>
+//    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                         const HypernodeID u,
+                                         vec<Gain>& benefit_aggregator);
+
  private:
   friend class DeltaKm1GainCache;
 
@@ -290,13 +306,6 @@ class Km1GainCache {
         "Refinement", "gain_cache", num_nodes * size_t(_k + 1), true);
     }
   }
-
-  // ! Initializes the benefit and penalty terms for a node u
-  template<typename PartitionedHypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
-                                       const HypernodeID u,
-                                       vec<Gain>& benefit_aggregator);
 
   bool nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
     if ( p == kInvalidPartition || p >= _k ) {

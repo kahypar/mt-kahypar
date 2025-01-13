@@ -272,6 +272,7 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 struct LocalFMRound {
     size_t overall_improvement;
     size_t touched_nodes;
+    size_t moved_nodes;
 };
 
 struct DynamicParameters {

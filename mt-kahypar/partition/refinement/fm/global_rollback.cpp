@@ -172,6 +172,8 @@ namespace mt_kahypar {
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
     typename BalanceAndBestIndexScan<PartitionedHypergraph>::Prefix b = s.finalize(partWeights);
 
+    this->context.dynamic.localFM_round->moved_nodes = b.best_index;
+
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
       if (m.isValid()) {

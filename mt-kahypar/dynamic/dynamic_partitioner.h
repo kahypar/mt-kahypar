@@ -60,6 +60,7 @@ namespace mt_kahypar::dyn {
       mt_kahypar::LocalFMRound localFM_round = mt_kahypar::LocalFMRound();
       localFM_round.overall_improvement = 0;
       localFM_round.touched_nodes = 0;
+      localFM_round.moved_nodes = 0;
       context.dynamic.localFM_round = &localFM_round;
 
       try {
