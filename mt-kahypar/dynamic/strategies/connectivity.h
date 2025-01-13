@@ -49,6 +49,8 @@ namespace mt_kahypar::dyn {
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
+          throw std::runtime_error("Connectivity strategy is deprecated.");
+
           for (const HypernodeID& hn : change.removed_nodes) {
             partitioned_hypergraph_s->removeNodePart(hn);
           }

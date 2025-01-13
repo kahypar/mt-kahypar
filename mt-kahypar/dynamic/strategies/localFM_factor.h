@@ -106,6 +106,9 @@ namespace mt_kahypar::dyn {
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
+          //TODO copy changes from mt-kahypar/dynamic/strategies/localFM_factor.h
+          throw std::runtime_error("Connectivity strategy is deprecated.");
+
           //on first call, initialize partitioned_hypergraph_s
           if (!partitioned_hypergraph_s) {
             nodes_to_partition = parallel::scalable_vector<HypernodeID>(changes_size);
