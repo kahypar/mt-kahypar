@@ -76,15 +76,12 @@ namespace mt_kahypar::dyn {
           }
 
           if (context.dynamic.custom_output_file == "_non-incremental-gain") {
-            std::cout << "Non-incremental gain" << std::endl;
             GainCachePtr::resetGainCache(_gain_cache);
             _fm->initialize(partitioned_hypergraph);
           }
 
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
-
-          std::cout << std::endl << "Node count: " << local_fm_nodes.size() << std::endl;
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
         }
