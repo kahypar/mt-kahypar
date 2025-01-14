@@ -49,7 +49,7 @@ namespace mt_kahypar::dyn {
 
           //update gain cache for all changed nodes
           for (const HypernodeID& hn : gain_cache_nodes) {
-            ASSERT(_gain_cache.type == GainPolicy::km1)
+            ASSERT(_gain_cache.type == GainPolicy::km1);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
           }
 
@@ -63,14 +63,10 @@ namespace mt_kahypar::dyn {
             // update gain cache for all nodes in moves_by_part
             for (const parallel::scalable_vector<Move>& moves : moves_by_part) {
               for (const Move& move : moves) {
-                HypernodeID hn = move.node;
-                ASSERT(_gain_cache.type == GainPolicy::km1)
-                GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(
-                        partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
-                // also update all neighbors
-                // TODO: Is this necessary?
-                for (const HyperedgeID &he: partitioned_hypergraph_s->incidentEdges(hn)) {
+                // TODO: Is it necessary to update all neighbors?
+                for (const HyperedgeID &he: partitioned_hypergraph_s->incidentEdges(move.node)) {
                   for (const HypernodeID &hn2: partitioned_hypergraph_s->pins(he)) {
+                    ASSERT(_gain_cache.type == GainPolicy::km1);
                     GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(
                             partitioned_hypergraph_s.value(), hn2, _benefit_aggregator);
                   }
@@ -79,8 +75,16 @@ namespace mt_kahypar::dyn {
             }
           }
 
+          if (context.dynamic.custom_output_file == "_non-incremental-gain") {
+            std::cout << "Non-incremental gain" << std::endl;
+            GainCachePtr::resetGainCache(_gain_cache);
+            _fm->initialize(partitioned_hypergraph);
+          }
+
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
+
+          std::cout << std::endl << "Node count: " << local_fm_nodes.size() << std::endl;
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
         }
@@ -128,10 +132,11 @@ namespace mt_kahypar::dyn {
           std::vector<HypernodeID> gain_cache_nodes;
 
           for (const HypernodeID& hn : change.removed_nodes) {
-            gain_cache_nodes.push_back(hn);
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                gain_cache_nodes.push_back(hn2);
+                if (hn2 != hn) {
+                  gain_cache_nodes.push_back(hn2);
+                }
               }
             }
           }
@@ -140,21 +145,29 @@ namespace mt_kahypar::dyn {
             gain_cache_nodes.push_back(hn);
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                gain_cache_nodes.push_back(hn2);
+                if (hn2 != hn) {
+                  gain_cache_nodes.push_back(hn2);
+                }
               }
             }
           }
+
+          //remove duplicates
+          std::sort(gain_cache_nodes.begin(), gain_cache_nodes.end());
+          gain_cache_nodes.erase(std::unique(gain_cache_nodes.begin(), gain_cache_nodes.end()), gain_cache_nodes.end());
 
           for (const HypernodeID& hn : change.removed_nodes) {
             partitioned_hypergraph_s->removeNodePart(hn);
             //TODO: mixed queries -> remove node from local_fm_nodes
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                //TODO: does refinement care about duplicate nodes?
-                local_fm_nodes.push_back(hn2);
-              }
+              //append all nodes in incident edges to local_fm_nodes
+              local_fm_nodes.insert(local_fm_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
             }
           }
+
+          //remove duplicates
+          std::sort(local_fm_nodes.begin(), local_fm_nodes.end());
+          local_fm_nodes.erase(std::unique(local_fm_nodes.begin(), local_fm_nodes.end()), local_fm_nodes.end());
 
           process_change(hypergraph, context, change);
 
