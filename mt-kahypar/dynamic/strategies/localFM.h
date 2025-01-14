@@ -53,6 +53,11 @@ namespace mt_kahypar::dyn {
             GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
           }
 
+          if (context.dynamic.custom_output_file == "_non-incremental-gain") {
+            GainCachePtr::resetGainCache(_gain_cache);
+            _fm->initialize(partitioned_hypergraph);
+          }
+
           if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
             // use rebalancer to rebalance partitioned_hypergraph_s
             parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
@@ -73,11 +78,11 @@ namespace mt_kahypar::dyn {
                 }
               }
             }
-          }
 
-          if (context.dynamic.custom_output_file == "_non-incremental-gain") {
-            GainCachePtr::resetGainCache(_gain_cache);
-            _fm->initialize(partitioned_hypergraph);
+            if (context.dynamic.custom_output_file == "_non-incremental-gain") {
+              GainCachePtr::resetGainCache(_gain_cache);
+              _fm->initialize(partitioned_hypergraph);
+            }
           }
 
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
