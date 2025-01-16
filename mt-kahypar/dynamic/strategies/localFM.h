@@ -187,9 +187,6 @@ namespace mt_kahypar::dyn {
           std::sort(local_fm_nodes.begin(), local_fm_nodes.end());
           local_fm_nodes.erase(std::unique(local_fm_nodes.begin(), local_fm_nodes.end()), local_fm_nodes.end());
 
-          std::cout << std::endl << "Local FM nodes: " << local_fm_nodes.size() << std::endl;
-          std::cout << "Gain cache nodes: " << gain_cache_nodes.size() << std::endl;
-
           local_fm(context, local_fm_nodes, gain_cache_nodes);
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
