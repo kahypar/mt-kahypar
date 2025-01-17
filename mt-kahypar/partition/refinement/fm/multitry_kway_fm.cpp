@@ -225,6 +225,7 @@ namespace mt_kahypar {
     ASSERT(metrics.quality == metrics::quality(phg, context),
            V(metrics.quality) << V(metrics::quality(phg, context)));
 
+    context.dynamic.localFM_round->incremental_km1 -= overall_improvement;
     return overall_improvement > 0;
   }
 

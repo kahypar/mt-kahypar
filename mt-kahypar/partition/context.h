@@ -273,6 +273,7 @@ struct LocalFMRound {
     size_t overall_improvement;
     size_t touched_nodes;
     size_t moved_nodes;
+    mt_kahypar::HyperedgeWeight incremental_km1 = 0;
 };
 
 struct DynamicParameters {
