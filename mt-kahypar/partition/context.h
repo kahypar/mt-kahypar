@@ -122,6 +122,7 @@ struct RatingParameters {
   double guiding_treshold = 1.0;
   double guiding_treshold_max = 1.0;
   size_t num_guided_subrounds = 1;
+  size_t guided_coarsening_levels = std::numeric_limits<size_t>::max();
   bool consider_edges_deleted = false;
 };
 
