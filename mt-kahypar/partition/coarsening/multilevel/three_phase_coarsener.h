@@ -160,7 +160,7 @@ class ThreePhaseCoarsener : public ICoarsener,
                     current_hg, _lp_clustering, _similarity_policy, cc);
     _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
-    if (!_uncoarseningData.coarsestEdgeMetadata().empty() && _pass_nr < _context.coarsening.rating.num_guided_subrounds &&
+    if (!_uncoarseningData.coarsestEdgeMetadata().empty() && _pass_nr < _context.coarsening.rating.guided_coarsening_levels &&
         _context.coarsening.rating.guiding_treshold_max > _context.coarsening.rating.guiding_treshold) {
       const size_t num_rounds = _context.coarsening.rating.num_guided_subrounds;
       for (size_t round = 1; round < num_rounds && current_num_nodes > target_contraction_size; ++round) {
