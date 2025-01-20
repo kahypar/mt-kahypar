@@ -49,7 +49,7 @@ namespace mt_kahypar::dyn {
         strategy = new LocalFM();
       } else if (context.dynamic.strategy == "localFM_filter") {
         strategy = new LocalFMFilter();
-      } else if (context.dynamic.strategy == "localFM_filter") {
+      } else if (context.dynamic.strategy == "localFM_old") {
         strategy = new LocalFMOld();
       } else if (context.dynamic.strategy == "never_repartition") {
         strategy = new NeverRepartition();
