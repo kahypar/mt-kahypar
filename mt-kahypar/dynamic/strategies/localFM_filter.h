@@ -7,7 +7,7 @@
 
 namespace mt_kahypar::dyn {
 
-    class LocalFM : public DynamicStrategy {
+    class LocalFMFilter : public DynamicStrategy {
 
     private:
         std::optional<ds::PartitionedHypergraph<ds::StaticHypergraph>> partitioned_hypergraph_s;
@@ -41,20 +41,16 @@ namespace mt_kahypar::dyn {
           GainCachePtr::resetGainCache(_gain_cache);
           mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
           _fm->initialize(partitioned_hypergraph);
-
-          context.dynamic.localFM_round->incremental_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
         }
 
         //use local_fm to refine partitioned_hypergraph_s
         void local_fm(Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes) {
-          mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
-                  *partitioned_hypergraph_s);
+          mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
 
           //update gain cache for all changed nodes
-          for (const HypernodeID &hn: gain_cache_nodes) {
+          for (const HypernodeID& hn : gain_cache_nodes) {
             ASSERT(_gain_cache.type == GainPolicy::km1);
-            GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(
-                    partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
+            GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
           }
 
           if (context.dynamic.custom_output_file == "_non-incremental-gain") {
@@ -67,12 +63,11 @@ namespace mt_kahypar::dyn {
             parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
             Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                     mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
-            _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics,
-                                              std::numeric_limits<double>::max());
+            _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
 
             // update gain cache for all nodes in moves_by_part
-            for (const parallel::scalable_vector<Move> &moves: moves_by_part) {
-              for (const Move &move: moves) {
+            for (const parallel::scalable_vector<Move>& moves : moves_by_part) {
+              for (const Move& move : moves) {
                 // TODO: Is it necessary to update all neighbors?
                 for (const HyperedgeID &he: partitioned_hypergraph_s->incidentEdges(move.node)) {
                   for (const HypernodeID &hn2: partitioned_hypergraph_s->pins(he)) {
@@ -84,8 +79,6 @@ namespace mt_kahypar::dyn {
               }
             }
 
-            context.dynamic.localFM_round->incremental_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
-
             if (context.dynamic.custom_output_file == "_non-incremental-gain") {
               GainCachePtr::resetGainCache(_gain_cache);
               _fm->initialize(partitioned_hypergraph);
@@ -96,7 +89,7 @@ namespace mt_kahypar::dyn {
             return;
           }
 
-          Metrics best_Metrics = {context.dynamic.localFM_round->incremental_km1,
+          Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
@@ -132,7 +125,7 @@ namespace mt_kahypar::dyn {
 
     public:
 
-        LocalFM() : _benefit_aggregator(*new vec<Gain>()) {}
+        LocalFMFilter() : _benefit_aggregator(*new vec<Gain>()) {}
 
         void init(ds::StaticHypergraph& hypergraph, Context& context) override {
           repartition(hypergraph, context);
@@ -144,55 +137,29 @@ namespace mt_kahypar::dyn {
           parallel::scalable_vector<HypernodeID> local_fm_nodes;
           std::vector<HypernodeID> gain_cache_nodes;
 
-          //account for removed edges in incremental km1
-          for (const HyperedgeID& he : change.removed_edges) {
-            context.dynamic.localFM_round->incremental_km1 -= std::max(partitioned_hypergraph_s->connectivity(he) - 1, 0) * partitioned_hypergraph_s->edgeWeight(he);
-          }
-
-          for (const HyperedgeID& he : change.removed_edges) {
-            for (const HypernodeID& hn : hypergraph.pins(he)) {
-              gain_cache_nodes.push_back(hn);
-            }
-          }
-
           for (const HypernodeID& hn : change.removed_nodes) {
+            partitioned_hypergraph_s->removeNodePart(hn);
             //TODO: mixed queries -> remove node from local_fm_nodes
-            //TODO: does this work for multiple node removals?
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              //skip removed edges
-              bool skip = false;
-              for (const HyperedgeID &he2 : change.removed_edges) {
-                if (he == he2) {
-                  skip = true;
-                  break;
-                }
-              }
-              if (skip) {
-                continue;
-              }
-              size_t nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
+              size_t remaining_nodes_in_removed_partition = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
               //gain increases for remaining node in partition because moving it to another partition will decrease the cut
-              if (nodes_in_removed_partition_prior_removal == 2) {
+              if (remaining_nodes_in_removed_partition == 0) {
                 //append remaining node in partition to local_fm_nodes
                 for (const HypernodeID& hn2 : hypergraph.pins(he)) {
                   if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == partitioned_hypergraph_s->partID(hn)) {
                     local_fm_nodes.push_back(hn2);
                     gain_cache_nodes.push_back(hn2);
-//                    break;
                   }
                 }
-              //only negative gains => update gains but do not refine
-              } else if (nodes_in_removed_partition_prior_removal == 1) {
-                context.dynamic.localFM_round->incremental_km1 -= partitioned_hypergraph_s->connectivity(he) > 1 ? partitioned_hypergraph_s->connectivity(he) * hypergraph.edgeWeight(he): 0;
-                context.dynamic.localFM_round->incremental_km1 += partitioned_hypergraph_s->connectivity(he) > 1 ? (partitioned_hypergraph_s->connectivity(he) - 1) * (hypergraph.edgeWeight(he)) : 0;
+                //only negative gains => update gains but do not refine
+              } else if (remaining_nodes_in_removed_partition == 1) {
                 for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                  if (hn2 != hn) {
+                  if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == partitioned_hypergraph_s->partID(hn)) {
                     gain_cache_nodes.push_back(hn2);
                   }
                 }
               }
             }
-            partitioned_hypergraph_s->removeNodePart(hn);
           }
 
           process_change(hypergraph, context, change);
@@ -205,32 +172,14 @@ namespace mt_kahypar::dyn {
               size_t nodes_in_added_partition = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
               //gain increase for all connected nodes because they can be moved here without penalty
               if (nodes_in_added_partition == 1) {
-                context.dynamic.localFM_round->incremental_km1 -= std::max(partitioned_hypergraph_s->connectivity(he) - 2, 0) * partitioned_hypergraph_s->edgeWeight(he);
-                context.dynamic.localFM_round->incremental_km1 += std::max(partitioned_hypergraph_s->connectivity(he) - 1, 0) * partitioned_hypergraph_s->edgeWeight(he);
                 local_fm_nodes.insert(local_fm_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
                 gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
-              //only negative gains => update gains but do not refine
+                //only negative gains => update gains but do not refine
               } else if (nodes_in_added_partition == 2) {
-                //TODO: only change gains for node in partition (empiric says this breaks things)
                 gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
               }
             }
           }
-
-          //TODO fix pin counts of added edges
-//          for (const HyperedgeID& he : change.added_edges) {
-//            std::vector<size_t> pin_counts(context.partition.k, 0);
-//            size_t connectivity = 0;
-//            for (const HypernodeID& hn : hypergraph.pins(he)) {
-//              pin_counts[partitioned_hypergraph_s->partID(hn)]++;
-//            }
-//            for (PartitionID p = 0; p < context.partition.k; ++p) {
-//              if (pin_counts[p] > 0) {
-//                connectivity++;
-//              }
-//              partitioned_hypergraph_s->setPinCountInPart(he, p, pin_counts[p]);
-//            }
-//          }
 
           //remove duplicates
           std::sort(gain_cache_nodes.begin(), gain_cache_nodes.end());
@@ -249,16 +198,10 @@ namespace mt_kahypar::dyn {
 
         void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
           partition_result.km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
-          if (!context.dynamic.server) {
-            std::cout << "km1: " << partition_result.km1 << " Incremental km1: "
-                      << context.dynamic.localFM_round->incremental_km1 << std::endl;
-          }
           partition_result.imbalance = mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context);
         }
 
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {
-          assert(context.dynamic.localFM_round->incremental_km1 == mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1) && ("Error: incremental_km1 does not match the quality metric. " + std::to_string(context.dynamic.localFM_round->incremental_km1) + " " + std::to_string(mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1))).c_str());
-          std::cout << std::endl << "Final km1: " << context.dynamic.localFM_round->incremental_km1 << " Real km1: " << mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1) << std::endl;
           (void) hypergraph;
           (void) context;
         }

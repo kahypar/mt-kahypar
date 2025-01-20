@@ -5,6 +5,8 @@
 #include "mt-kahypar/dynamic/strategies/repartition.h"
 #include "mt-kahypar/dynamic/strategies/connectivity.h"
 #include "mt-kahypar/dynamic/strategies/localFM.h"
+#include "mt-kahypar/dynamic/strategies/localFM_filter.h"
+#include "mt-kahypar/dynamic/strategies/localFM_old.h"
 #include "mt-kahypar/dynamic/strategies/never_repartition.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
@@ -45,6 +47,10 @@ namespace mt_kahypar::dyn {
         strategy = new Repartition();
       } else if (context.dynamic.strategy == "localFM") {
         strategy = new LocalFM();
+      } else if (context.dynamic.strategy == "localFM_filter") {
+        strategy = new LocalFMFilter();
+      } else if (context.dynamic.strategy == "localFM_filter") {
+        strategy = new LocalFMOld();
       } else if (context.dynamic.strategy == "never_repartition") {
         strategy = new NeverRepartition();
       } else if (context.dynamic.strategy == "localFM_factor") {
