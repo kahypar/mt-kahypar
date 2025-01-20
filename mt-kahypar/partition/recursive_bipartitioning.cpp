@@ -389,7 +389,7 @@ RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
 
 template<typename TypeTraits>
 void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
-                                                    vec<EdgeMetadata>&& edge_md,
+                                                    vec<EdgeMetadata>&& /*edge_md*/,
                                                     const Context& context,
                                                     const TargetGraph* target_graph) {
   unused(target_graph);
