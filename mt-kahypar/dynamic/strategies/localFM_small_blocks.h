@@ -179,7 +179,7 @@ namespace mt_kahypar::dyn {
               }
 
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 5) {
+                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 100) {
                   local_fm_nodes.push_back(hn2);
                 }
               }
