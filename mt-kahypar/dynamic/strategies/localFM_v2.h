@@ -196,6 +196,15 @@ namespace mt_kahypar::dyn {
             partitioned_hypergraph_s->removeNodePart(hn);
           }
 
+          for (const HypernodeID& hn : change.removed_nodes) {
+//            partitioned_hypergraph_s->removeNodePart(hn);
+            //TODO: mixed queries -> remove node from local_fm_nodes
+            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+              //append all nodes in incident edges to local_fm_nodes
+              local_fm_nodes.insert(local_fm_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
+            }
+          }
+
           process_change(hypergraph, context, change);
 
           for (const HypernodeID& hn : change.added_nodes) {
