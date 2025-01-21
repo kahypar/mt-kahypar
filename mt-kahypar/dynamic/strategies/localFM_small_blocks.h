@@ -166,6 +166,13 @@ namespace mt_kahypar::dyn {
             //TODO: mixed queries -> remove node from local_fm_nodes
             //TODO: does this work for multiple node removals?
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+
+              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
+                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 100) {
+                  local_fm_nodes.push_back(hn2);
+                }
+              }
+              
               //skip removed edges
               bool skip = false;
               for (const HyperedgeID &he2 : change.removed_edges) {
@@ -176,12 +183,6 @@ namespace mt_kahypar::dyn {
               }
               if (skip) {
                 continue;
-              }
-
-              for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 100) {
-                  local_fm_nodes.push_back(hn2);
-                }
               }
 
               size_t nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
