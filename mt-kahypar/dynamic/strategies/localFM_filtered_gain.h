@@ -138,9 +138,9 @@ namespace mt_kahypar::dyn {
             partitioned_hypergraph_s->removeNodePart(hn);
             //TODO: mixed queries -> remove node from local_fm_nodes
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              size_t remaining_nodes_in_removed_partition = partitioned_hypergraph_s->pinCountInPart(he, part);
+              size_t remaining_nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, part);
               //gain increases for remaining node in partition because moving it to another partition will decrease the cut
-              if (remaining_nodes_in_removed_partition == 0) {
+              if (remaining_nodes_in_removed_partition_prior_removal == 2) {
                 //append remaining node in partition to local_fm_nodes
                 for (const HypernodeID& hn2 : hypergraph.pins(he)) {
                   if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == part) {
@@ -148,12 +148,8 @@ namespace mt_kahypar::dyn {
                   }
                 }
                 //only negative gains => update gains but do not refine
-              } else if (remaining_nodes_in_removed_partition == 1) {
-                for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                  if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == part) {
-                    gain_cache_nodes.push_back(hn2);
-                  }
-                }
+              } else if (remaining_nodes_in_removed_partition_prior_removal == 1) {
+                gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
               }
             }
           }
