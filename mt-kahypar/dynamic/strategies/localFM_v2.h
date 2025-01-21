@@ -207,7 +207,7 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.removed_nodes) {
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              local_fm_nodes.insert(rebalance_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
+              rebalance_nodes.insert(rebalance_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
             }
           }
 
