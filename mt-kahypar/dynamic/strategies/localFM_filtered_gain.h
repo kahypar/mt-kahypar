@@ -134,16 +134,15 @@ namespace mt_kahypar::dyn {
           std::vector<HypernodeID> gain_cache_nodes;
 
           for (const HypernodeID& hn : change.removed_nodes) {
-            PartitionID part = partitioned_hypergraph_s->partID(hn);
-            partitioned_hypergraph_s->removeNodePart(hn);
+            PartitionID partID = partitioned_hypergraph_s->partID(hn);
             //TODO: mixed queries -> remove node from local_fm_nodes
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              size_t remaining_nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, part);
+              size_t remaining_nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, partID);
               //gain increases for remaining node in partition because moving it to another partition will decrease the cut
               if (remaining_nodes_in_removed_partition_prior_removal == 2) {
                 //append remaining node in partition to local_fm_nodes
                 for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                  if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == part) {
+                  if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == partID) {
                     gain_cache_nodes.push_back(hn2);
                   }
                 }
@@ -152,6 +151,7 @@ namespace mt_kahypar::dyn {
                 gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
               }
             }
+            partitioned_hypergraph_s->removeNodePart(hn);
           }
 
           for (const HypernodeID& hn : change.removed_nodes) {
