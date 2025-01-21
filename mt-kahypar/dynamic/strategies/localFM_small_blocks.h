@@ -168,11 +168,11 @@ namespace mt_kahypar::dyn {
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
 
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 100) {
+                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= 5) {
                   local_fm_nodes.push_back(hn2);
                 }
               }
-              
+
               //skip removed edges
               bool skip = false;
               for (const HyperedgeID &he2 : change.removed_edges) {
