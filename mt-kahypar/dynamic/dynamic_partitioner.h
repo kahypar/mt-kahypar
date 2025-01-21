@@ -7,6 +7,7 @@
 #include "mt-kahypar/dynamic/strategies/localFM.h"
 #include "mt-kahypar/dynamic/strategies/localFM_filter.h"
 #include "mt-kahypar/dynamic/strategies/localFM_old.h"
+#include "mt-kahypar/dynamic/strategies/localFM_incremental_gain.h"
 #include "mt-kahypar/dynamic/strategies/never_repartition.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
@@ -55,6 +56,8 @@ namespace mt_kahypar::dyn {
         strategy = new NeverRepartition();
       } else if (context.dynamic.strategy == "localFM_factor") {
         strategy = new LocalFMFactor();
+      } else if (context.dynamic.strategy == "localFM_incremental_gain") {
+        strategy = new LocalFMIncGain();
       } else if (context.dynamic.strategy == "rebalance") {
         strategy = new Rebalance();
       } else {
