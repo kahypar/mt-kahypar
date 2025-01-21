@@ -46,7 +46,7 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_s
-        void local_fm(Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, parallel::scalable_vector<HypernodeID> rebalance_nodes) {
+        void local_fm(Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes) {
           mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                   *partitioned_hypergraph_s);
 
@@ -84,12 +84,12 @@ namespace mt_kahypar::dyn {
               }
             }
 
-            //deduplicate rebalance_nodes
-            std::sort(rebalance_nodes.begin(), rebalance_nodes.end());
-            rebalance_nodes.erase(std::unique(rebalance_nodes.begin(), rebalance_nodes.end()), rebalance_nodes.end());
-
-            //append rebalance_nodes to local_fm_nodes
-            local_fm_nodes.insert(local_fm_nodes.end(), rebalance_nodes.begin(), rebalance_nodes.end());
+//            //deduplicate rebalance_nodes
+//            std::sort(rebalance_nodes.begin(), rebalance_nodes.end());
+//            rebalance_nodes.erase(std::unique(rebalance_nodes.begin(), rebalance_nodes.end()), rebalance_nodes.end());
+//
+//            //append rebalance_nodes to local_fm_nodes
+//            local_fm_nodes.insert(local_fm_nodes.end(), rebalance_nodes.begin(), rebalance_nodes.end());
 
             context.dynamic.localFM_round->incremental_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
 
@@ -188,12 +188,11 @@ namespace mt_kahypar::dyn {
               size_t nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
               //gain increases for remaining node in partition because moving it to another partition will decrease the cut
               if (nodes_in_removed_partition_prior_removal == 2) {
-                //append remaining node in partition to local_fm_nodes
+                //append remaining node in partition to gain_cache_nodes
                 for (const HypernodeID& hn2 : hypergraph.pins(he)) {
                   if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == partitioned_hypergraph_s->partID(hn)) {
-                    local_fm_nodes.push_back(hn2);
                     gain_cache_nodes.push_back(hn2);
-//                  break;
+                    break;
                   }
                 }
               //only negative gains => update gains but do not refine
@@ -211,13 +210,13 @@ namespace mt_kahypar::dyn {
           }
 
 
-          parallel::scalable_vector<HypernodeID> rebalance_nodes;
-
-          for (const HypernodeID& hn : change.removed_nodes) {
-            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-              rebalance_nodes.insert(rebalance_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
-            }
-          }
+//          parallel::scalable_vector<HypernodeID> rebalance_nodes;
+//
+//          for (const HypernodeID& hn : change.removed_nodes) {
+//            for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+//              rebalance_nodes.insert(rebalance_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
+//            }
+//          }
 
           process_change(hypergraph, context, change);
 
@@ -262,7 +261,8 @@ namespace mt_kahypar::dyn {
           std::sort(local_fm_nodes.begin(), local_fm_nodes.end());
           local_fm_nodes.erase(std::unique(local_fm_nodes.begin(), local_fm_nodes.end()), local_fm_nodes.end());
 
-          local_fm(context, local_fm_nodes, gain_cache_nodes, rebalance_nodes);
+//          local_fm(context, local_fm_nodes, gain_cache_nodes, rebalance_nodes);
+          local_fm(context, local_fm_nodes, gain_cache_nodes);
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
 
