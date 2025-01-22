@@ -197,11 +197,9 @@ namespace mt_kahypar::dyn {
                 gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
               //only negative gains => update gains but do not refine
               } else if (nodes_in_added_partition == 2) {
-                  for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                    if (hn2 != hn && partitioned_hypergraph_s->partID(hn2) == partitioned_hypergraph_s->partID(hn)) {
-                      gain_cache_nodes.push_back(hn2);
-                    }
-                  }
+                //TODO: only change gains for node in partition (empiric says this breaks things)
+                // Empiric: is not so sure about this
+                gain_cache_nodes.insert(gain_cache_nodes.end(), hypergraph.pins(he).begin(), hypergraph.pins(he).end());
               }
             }
           }
