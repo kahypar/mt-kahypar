@@ -579,6 +579,15 @@ class PartitionedHypergraph {
     _part_ids[u] = kInvalidPartition;
   }
 
+
+  HypernodeID decrementPinCountOfBlockWrapper(const HyperedgeID e, const PartitionID p) {
+    return decrementPinCountOfBlock(e, p);
+  }
+
+  HypernodeID incrementPinCountOfBlockWrapper(const HyperedgeID e, const PartitionID p) {
+    return incrementPinCountOfBlock(e, p);
+  }
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   template<typename SuccessFunc>
