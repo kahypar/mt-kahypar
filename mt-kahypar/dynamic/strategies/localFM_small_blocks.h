@@ -59,6 +59,8 @@ namespace mt_kahypar::dyn {
                     partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
           }
 
+          ASSERT(partitioned_hypergraph_s->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(_gain_cache)));
+
           if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
             // use rebalancer to rebalance partitioned_hypergraph_s
             parallel::scalable_vector<parallel::scalable_vector<Move>> moves_by_part;
@@ -99,6 +101,7 @@ namespace mt_kahypar::dyn {
           }
           for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
             for ( const PartitionID& p : partitioned_hypergraph_s->connectivitySet(he) ) {
+              ASSERT(partitioned_hypergraph_s->checkConnectivitySet(he, context.partition.k));
               block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
             }
           }

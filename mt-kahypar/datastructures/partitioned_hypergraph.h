@@ -302,6 +302,28 @@ class PartitionedHypergraph {
     return _con_info.connectivitySet(e);
   }
 
+  // ! Checks the connectivity set of a hyperedge
+  bool checkConnectivitySet(const HyperedgeID e, size_t k) const {
+    PartitionID expected_connectivity = 0;
+    bool success = true;
+    for (PartitionID i = 0; i < k; ++i) {
+      const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
+      if ( actual_pin_count_in_part != pinCountInPartRecomputed(e, i) ) {
+        LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
+            "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
+            "Actual:" <<  V(pinCountInPart(e, i));
+      }
+      expected_connectivity += (actual_pin_count_in_part > 0);
+    }
+    if ( expected_connectivity != connectivity(e) ) {
+      LOG << "Connectivity of hyperedge" << e << "=>" <<
+          "Expected:" << V(expected_connectivity)  << "," <<
+          "Actual:" << V(connectivity(e));
+      success = false;
+    }
+    return success;
+  }
+
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex

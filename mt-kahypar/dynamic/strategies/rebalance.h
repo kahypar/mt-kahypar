@@ -34,6 +34,10 @@ namespace mt_kahypar::dyn {
           _fm = FMFactory::getInstance().createObject(
                   context.refinement.fm.algorithm,
                   hypergraph_s.initialNumNodes(), hypergraph_s.initialNumEdges(), context, _gain_cache, *_rebalancer);
+
+          GainCachePtr::resetGainCache(_gain_cache);
+          mt_kahypar_partitioned_hypergraph_t  partitioned_hypergraph = utils::partitioned_hg_cast(*partitioned_hypergraph_s);
+          _fm->initialize(partitioned_hypergraph);
         }
 
         //use rebalancer to rebalance partitioned_hypergraph_s
@@ -62,6 +66,7 @@ namespace mt_kahypar::dyn {
             block_connectivities[p] = std::make_tuple(0, p);
           }
           for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+            ASSERT(partitioned_hypergraph_s->checkConnectivitySet(he, context.partition.k));
             for ( const PartitionID& p : partitioned_hypergraph_s->connectivitySet(he) ) {
               block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
             }
@@ -103,6 +108,19 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes) {
             add_node_to_partitioned_hypergraph(hypergraph, context, hn);
+          }
+
+          //reset pin counts of added edges
+          for (const HyperedgeID& he : change.added_edges) {
+            std::cout << "Adding edge " << he << std::endl;
+            for (PartitionID p = 0; p < context.partition.k; ++p) {
+              while(partitioned_hypergraph_s->pinCountInPart(he, p) > 0) {
+                partitioned_hypergraph_s->decrementPinCountOfBlockWrapper(he, p);
+              }
+            }
+            for (const HypernodeID& hn : hypergraph.pins(he)) {
+              partitioned_hypergraph_s->incrementPinCountOfBlockWrapper(he, partitioned_hypergraph_s->partID(hn));
+            }
           }
 
           if (!metrics::isBalanced(*partitioned_hypergraph_s, context)) {
