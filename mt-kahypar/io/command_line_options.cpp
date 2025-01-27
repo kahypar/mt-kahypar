@@ -785,6 +785,11 @@ namespace mt_kahypar {
             ("d-server",
              po::value<bool>(&context.dynamic.server)->value_name("<bool>"),
              "If true, then the partitioner is started in server mode");
+    dynamic_options.add_options()
+            ("d-sb-threshold",
+              po::value<size_t>(&context.dynamic.small_blocks_threshold)->value_name("<size_t>"),
+              "Threshold for the small blocks strategie");
+
     return dynamic_options;
   }
 
