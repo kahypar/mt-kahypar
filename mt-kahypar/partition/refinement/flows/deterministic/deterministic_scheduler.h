@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "tbb/concurrent_queue.h"
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
@@ -34,6 +36,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/participations_schedule.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/participation_improvement_schedule.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_common.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_quotient_graph.h"
@@ -58,15 +61,21 @@ public:
         GainCache& gain_cache) :
         _context(context),
         _gain_cache(gain_cache),
-        _scheduled_blocks(),
-        _refiners(num_hypernodes, num_hyperedges, context),
+        _refiners(),
         _quotient_graph(context),
         _schedule(context),
         _was_moved(num_hypernodes, uint8_t(false)),
         _apply_moves_lock(),
         num_hyperedges(num_hyperedges),
         num_hypernodes(num_hypernodes),
-        _new_cut_hes() {}
+        _new_cut_hes(),
+        _scheduled_blocks() {
+        size_t numRefiners = std::min(size_t(_context.partition.k / 2), _context.shared_memory.num_threads);
+        _refiners.reserve(numRefiners);
+        for (size_t i = 0; i < numRefiners; ++i) {
+            _refiners.emplace_back(std::make_unique<DeterministicFlowRefiner<GraphAndGainTypes>>(num_hypernodes, num_hyperedges, context));
+        }
+    }
 
     DeterministicFlowRefinementScheduler(const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
@@ -95,15 +104,6 @@ private:
     HyperedgeWeight applyMoves(MoveSequence& sequence, PartitionedHypergraph& phg) {
         _apply_moves_lock.lock();
         // Compute Part Weight Deltas
-        vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
-        for (Move& move : sequence.moves) {
-            move.from = phg.partID(move.node);
-            if (move.from != move.to) {
-                const HypernodeWeight node_weight = phg.nodeWeight(move.node);
-                part_weight_deltas[move.from] -= node_weight;
-                part_weight_deltas[move.to] += node_weight;
-            }
-        }
         HyperedgeWeight improvement = 0;
         auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
             improvement -= AttributedGains::gain(sync_update);
@@ -186,15 +186,15 @@ private:
 
     const Context& _context;
     GainCache& _gain_cache;
-    vec<ScheduledPair> _scheduled_blocks;
-    tbb::enumerable_thread_specific<DeterministicFlowRefiner<GraphAndGainTypes>> _refiners;
+    vec<std::unique_ptr<DeterministicFlowRefiner<GraphAndGainTypes>>> _refiners;
     DeterministicQuotientGraph<TypeTraits> _quotient_graph;
-    ParticipationsSchedule<TypeTraits> _schedule;
+    ParticipationImprovementSchedule<TypeTraits> _schedule;
     vec<uint8_t> _was_moved;
     SpinLock _apply_moves_lock; // reset
     const HyperedgeID num_hyperedges;
     const HypernodeID num_hypernodes;
     vec<NewCutHyperedge> _new_cut_hes;
+    tbb::concurrent_queue<ScheduledPair> _scheduled_blocks;
 };
 
 }  // namespace kahypar

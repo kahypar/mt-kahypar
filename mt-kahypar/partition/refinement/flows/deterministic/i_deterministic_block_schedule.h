@@ -55,8 +55,8 @@ public:
         initializeImpl(hypergraph, qg);
     }
 
-    vec<ScheduledPair> getNextMatching(const DeterministicQuotientGraph<TypeTraits>& qg) {
-        return getNextMatchingImpl(qg);
+    size_t getNextMatching(tbb::concurrent_queue<ScheduledPair>& tasks,const DeterministicQuotientGraph<TypeTraits>& qg) {
+        return getNextMatchingImpl(tasks, qg);
     }
 
 protected:
@@ -65,7 +65,7 @@ protected:
 private:
     virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph, const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 
-    virtual vec<ScheduledPair> getNextMatchingImpl(const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
+    virtual size_t getNextMatchingImpl(tbb::concurrent_queue<ScheduledPair>& tasks, const DeterministicQuotientGraph<TypeTraits>& qg) = 0;
 };
 
 }  // namespace mt_kahypar

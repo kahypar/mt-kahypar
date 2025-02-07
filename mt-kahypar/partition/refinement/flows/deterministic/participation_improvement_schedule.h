@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "include/libmtkahypartypes.h"
+#include "tbb/parallel_for.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -38,15 +39,15 @@
 namespace mt_kahypar {
 
 template<typename TypeTraits>
-class ParticipationsSchedule final : public IDeterministicBlockSchedule<TypeTraits> {
+class ParticipationImprovementSchedule final : public IDeterministicBlockSchedule<TypeTraits> {
     static constexpr bool debug = false;
 
-    ParticipationsSchedule(const ParticipationsSchedule&) = delete;
-    ParticipationsSchedule(ParticipationsSchedule&&) = delete;
-    ParticipationsSchedule& operator= (const ParticipationsSchedule&) = delete;
-    ParticipationsSchedule& operator= (ParticipationsSchedule&&) = delete;
+    ParticipationImprovementSchedule(const ParticipationImprovementSchedule&) = delete;
+    ParticipationImprovementSchedule(ParticipationImprovementSchedule&&) = delete;
+    ParticipationImprovementSchedule& operator= (const ParticipationImprovementSchedule&) = delete;
+    ParticipationImprovementSchedule& operator= (ParticipationImprovementSchedule&&) = delete;
 public:
-    explicit ParticipationsSchedule(const Context& context) :
+    explicit ParticipationImprovementSchedule(const Context& context) :
         _active_blocks(context.partition.k, true),
         _active_blocks_next_round(context.partition.k, false),
         _participations(context.partition.k, 0),
@@ -55,8 +56,8 @@ public:
         _scheduled(context.partition.k, false),
         _round(0),
         _k(context.partition.k),
-        _rng(context.partition.seed)//,
-        /*_active_block_pairs(_k)*/ {}
+        _rng(context.partition.seed),
+        _active_block_pairs(_k) {}
 
     void resetForNewRound(const DeterministicQuotientGraph<TypeTraits>& qg) {
         _scheduled.assign(_scheduled.size(), false);
@@ -66,11 +67,17 @@ public:
         for (auto& v : _processed) {
             v.assign(v.size(), false);
         }
+        for (auto& active_pairs : _active_block_pairs) {
+            active_pairs.clear();
+            active_pairs.reserve(_k - 1);
+        }
         for (PartitionID i = 0; i < _k - 1; ++i) {
             for (PartitionID j = i + 1; j < _k; ++j) {
                 if (isEligible(i, j, qg)) {
                     _participations[i]++;
                     _participations[j]++;
+                    _active_block_pairs[i].push_back(j);
+                    _active_block_pairs[j].push_back(i);
                 }
             }
         }
@@ -84,18 +91,28 @@ public:
         std::sort(_partitions_sorted_by_participations.begin(), _partitions_sorted_by_participations.end(), [&](const PartitionID i, const PartitionID j) {
             return _participations[i] > _participations[j] || (_participations[i] == _participations[j] && i < j);
         });
+        tbb::parallel_for(PartitionID(0), _k, [&](const size_t i) {
+            auto& active_pairs = _active_block_pairs[i];
+            std::sort(active_pairs.begin(), active_pairs.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
+                const HyperedgeWeight lImprove = qg.getImprovement(i, lhs);
+                const HyperedgeWeight rImprove = qg.getImprovement(i, rhs);
+                const HyperedgeWeight lCut = qg.getCutWeight(i, lhs);
+                const HyperedgeWeight rCut = qg.getCutWeight(i, rhs);
+
+                return std::tie(lImprove, lCut, lhs) > std::tie(rImprove, rCut, rhs);
+            });
+        });
+
         _round++;
     }
 
     bool hasActiveBlocks() {
-        DBG << (_partitions_sorted_by_participations.size() > 0);
         return _partitions_sorted_by_participations.size() > 0;
     }
 
 
     void reportResults(const PartitionID block0, const PartitionID block1, const MoveSequence& sequence) {
         if (sequence.expected_improvement > 0) {
-            // There was improvement
             _active_blocks_next_round[block0] = true;
             _active_blocks_next_round[block1] = true;
         }
@@ -123,8 +140,7 @@ private:
                 const PartitionID block0 = _partitions_sorted_by_participations[i];
                 assert(block0 < _k);
                 if (_scheduled[block0]) continue;
-                for (size_t j = i + 1; j < _partitions_sorted_by_participations.size(); ++j) {
-                    const PartitionID block1 = _partitions_sorted_by_participations[j];
+                for (PartitionID block1 : _active_block_pairs[block0]) {
                     assert(block1 < _k);
                     if (_scheduled[block1] || _processed[block0][block1] || block0 == block1) continue;
                     const PartitionID smaller = std::min(block0, block1);
@@ -143,13 +159,13 @@ private:
         if constexpr (debug) {
             for (auto it = tasks.unsafe_begin(); it != tasks.unsafe_end(); ++it) {
                 auto t = *it;
-                DBG << "Scheduling: (" << t.bp.i << ", " << t.bp.j << ", " << t.seed << ") in round " << _round;
             }
         }
         return taskSize;
     }
 
     void addBlockPair(const PartitionID i, const PartitionID j) {
+        //DBG << V(i) << ", " << V(j);
         assert(i < _k);
         assert(j < _k);
         _processed[i][j] = true;
@@ -182,7 +198,6 @@ private:
     }
 
     bool isEligible(const PartitionID i, const PartitionID j, const DeterministicQuotientGraph<TypeTraits>& qg) {
-        DBG << "isEligible: " << V(i) << ", " << V(j);
         assert(i < j);
         const HyperedgeWeight weight = qg.getCutWeight(i, j);
         const bool skip_small_cuts = !_top_level;
@@ -206,6 +221,7 @@ private:
     PartitionID _k;
     std::mt19937 _rng;
     bool _top_level = false;
+    vec<vec<PartitionID>> _active_block_pairs;
 };
 
 }  // namespace mt_kahypar

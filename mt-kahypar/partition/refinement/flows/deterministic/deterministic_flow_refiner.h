@@ -120,22 +120,24 @@ private:
         whfc::Node s = flow_problem.source;
         whfc::Node t = flow_problem.sink;
         if (sequential) {
+            _sequential_hfc.reset();
+
             _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
                 flow_problem.weight_of_block_0, _context.partition.max_part_weights[block0]));
             _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
-            _sequential_hfc.reset();
             _sequential_hfc.setSeed(seed);
             _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);
         } else {
+            _parallel_hfc.reset();
+
             _parallel_hfc.cs.setMaxBlockWeight(0, std::max(
                 flow_problem.weight_of_block_0, _context.partition.max_part_weights[block0]));
             _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
                 flow_problem.weight_of_block_1, _context.partition.max_part_weights[block1]));
 
-            _parallel_hfc.reset();
             _parallel_hfc.setSeed(seed);
             _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
             return _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t);

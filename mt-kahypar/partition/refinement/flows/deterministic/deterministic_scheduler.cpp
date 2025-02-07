@@ -10,6 +10,11 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     Metrics& best_metrics,
     const double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    if (num_hypernodes == phg.initialNumNodes()) {
+        _schedule.setTopLevelFlag();
+    }
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+
     Metrics current_metrics = best_metrics;
     _schedule.initialize(hypergraph, _quotient_graph);
     HyperedgeWeight overall_delta = 0;
@@ -17,25 +22,30 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
     std::atomic<HyperedgeWeight> round_delta(std::numeric_limits<HyperedgeWeight>::max());
     minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
     while (round_delta >= minImprovement && _schedule.hasActiveBlocks()) {
-        _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+        size_t numScheduledBlocks = _schedule.getNextMatching(_scheduled_blocks, _quotient_graph);
         round_delta = 0;
-        while (_scheduled_blocks.size() > 0) {
-            vec<MoveSequence> sequences(_scheduled_blocks.size());
-            tbb::parallel_for(0UL, _scheduled_blocks.size(), [&](const size_t i) {
-                const ScheduledPair& sp = _scheduled_blocks[i];
-                DeterministicFlowRefiner<GraphAndGainTypes> refiner(num_hypernodes, num_hyperedges,
-                    _context);
-                refiner.initialize(phg);
-                MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
-                sequences[i] = moves;
-                const HyperedgeWeight improvement = applyMoves(moves, phg);
-                round_delta += improvement;
-                reportResults(sp.bp.i, sp.bp.j, moves);
-                _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
+        minImprovement = _context.refinement.flows.min_relative_improvement_per_round * current_metrics.quality;
+        while (numScheduledBlocks > 0) {
+            timer.start_timer("flow_refiner", "Flow_Refiner");
+                tbb::parallel_for(0UL, _refiners.size(), [&](const size_t refinerIdx) {
+                auto& refiner = *_refiners[refinerIdx];
+                ScheduledPair sp;
+                while (_scheduled_blocks.try_pop(sp)) {
+                    refiner.initialize(phg);
+
+                    MoveSequence moves = refiner.refine(phg, _quotient_graph, sp.bp.i, sp.bp.j, sp.seed);
+                    const HyperedgeWeight improvement = applyMoves(moves, phg);
+
+                    round_delta += improvement;
+                    reportResults(sp.bp.i, sp.bp.j, moves);
+                    _quotient_graph.reportImprovement(sp.bp.i, sp.bp.j, improvement);
+
+                }
             });
+            timer.stop_timer("flow_refiner");
             addCutHyperedgesToQuotientGraph(phg);
             _new_cut_hes.clear();
-            _scheduled_blocks = _schedule.getNextMatching(_quotient_graph);
+            numScheduledBlocks = _schedule.getNextMatching(_scheduled_blocks, _quotient_graph);
             ASSERT(metrics::isBalanced(phg, _context));
         }
         overall_delta += round_delta;
