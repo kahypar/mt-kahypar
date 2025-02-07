@@ -33,6 +33,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
+#include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_problem_construction.h"
 #include "mt-kahypar/utils/cast.h"
@@ -43,7 +44,7 @@ template<typename GraphAndGainTypes>
 class DeterministicFlowRefiner {
 
     static constexpr bool debug = false;
-    static constexpr bool sequential = true;
+    static constexpr bool sequential = false;
 
     using PartitionedHypergraph = typename GraphAndGainTypes::PartitionedHypergraph;
     using TypeTraits = typename GraphAndGainTypes::TypeTraits;
@@ -53,8 +54,9 @@ public:
         _context(context),
         _flow_hg(),
         _sequential_hfc(_flow_hg, context.partition.seed),
-        _parallel_hfc(_flow_hg, context.partition.seed),
+        _parallel_hfc(_flow_hg, context.partition.seed, true),
         _sequential_construction(num_hyperedges, _flow_hg, _sequential_hfc, context),
+        _parallel_construction(num_hyperedges, _flow_hg, _parallel_hfc, context),
         _problem_construction(num_hypernodes, num_hyperedges, context),
         _whfc_to_node() {
         _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
@@ -95,10 +97,18 @@ private:
         const size_t seed) {
         MoveSequence sequence{ { }, 0 };
         Subhypergraph sub_hg = _problem_construction.construct(phg, quotientGraph, block0, block1);
-        FlowProblem flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
-        bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
-        if (flowcutter_succeeded) {
-            extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+        // TODO: Decide wether to use sequential or parallel problem construction?
+        FlowProblem flow_problem;
+        if (sequential) {
+            flow_problem = _sequential_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+        } else {
+            flow_problem = _parallel_construction.constructFlowHypergraph(phg, sub_hg, block0, block1, _whfc_to_node);
+        }
+        if (flow_problem.total_cut - flow_problem.non_removable_cut > 0) {
+            bool flowcutter_succeeded = runFlowCutter(flow_problem, block0, block1, seed);
+            if (flowcutter_succeeded) {
+                extractMoveSequence(phg, flow_problem, sequence, block0, block1);
+            }
         }
         return sequence;
 
@@ -177,8 +187,9 @@ private:
     whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
     SequentialConstruction<GraphAndGainTypes> _sequential_construction;
+    ParallelConstruction<GraphAndGainTypes> _parallel_construction;
+
     DeterministicProblemConstruction<TypeTraits> _problem_construction;
-    //ParallelConstruction<GraphAndGainTypes> _parallel_construction;
 
     vec<HypernodeID> _whfc_to_node;
 
