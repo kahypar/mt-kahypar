@@ -204,7 +204,6 @@ private:
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> tmp_potential_moves;
-    //parallel::scalable_vector<PartitionID> _part_before_round;
 };
 
 }  // namespace kahypar
