@@ -168,7 +168,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       }
     }
   });
-  tbb::parallel_for(0UL, _moves.size(), [&](const size_t part) {
+  tbb::parallel_for(0, _current_k, [&](const PartitionID part) {
     if (tmp_potential_moves[part].size() > 0) {
       _moves[part] = tmp_potential_moves[part].copy_parallel();
       const size_t move_size = _moves[part].size();
