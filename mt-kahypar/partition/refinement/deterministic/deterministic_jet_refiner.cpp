@@ -132,7 +132,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             timer.start_timer("afterburner", "Afterburner");
             // label prop round
             _locks.reset();
-            tmp_active_nodes.clear_parallel();
+            tmp_active_nodes.clear_sequential();
 
             if (phg.is_graph) {
                 tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
@@ -154,11 +154,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 });
             } else {
                 auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
-                auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
+                auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain init) -> Gain {
                     Gain my_gain = init;
                     for (size_t i = r.begin(); i < r.end(); ++i) {
                         const HypernodeID hn = _active_nodes[i];
-                        if (_afterburner_gain[hn] <= 0) {
+                        if (_afterburner_gain[hn] <= 0) { // NOTE Have we tried a skip zero gain moves policy? Might be helpful with balance-violating moves
                             _locks.set(hn);
                             my_gain += performMoveWithAttributedGain<false>(phg, hn);
                         }
@@ -259,7 +259,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
         }
     };
     tmp_active_nodes.clear_sequential();
-    // compute gain for every node 
+    // compute gain for every node
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
         process_node(hn, [&] {tmp_active_nodes.stream(hn);});
     });
