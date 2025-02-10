@@ -76,6 +76,7 @@ namespace mt_kahypar {
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "4", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, EPSILON, "0.03", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, OBJECTIVE, "km1", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "0", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error));
 

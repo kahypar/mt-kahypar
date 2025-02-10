@@ -147,12 +147,13 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
     *error = to_error(mt_kahypar_status_t::INVALID_PARAMETER, msg.c_str());
   };
   auto parse_number = [&](auto& context_parameter, const char* expected) {
-    std::errc errc = std::from_chars(value, value + std::strlen(value), context_parameter).ec;
-    if (errc == std::errc{}) {
+    try {
+      context_parameter = std::stod(value);
       return mt_kahypar_status_t::SUCCESS;
+    } catch (const std::exception& e) {
+      report_conversion_error(expected);
+      return mt_kahypar_status_t::INVALID_PARAMETER;
     }
-    report_conversion_error(expected);
-    return mt_kahypar_status_t::INVALID_PARAMETER;
   };
 
   Context& c = *reinterpret_cast<Context*>(context);
