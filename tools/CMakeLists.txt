@@ -18,6 +18,9 @@ target_link_libraries(BenchShuffle MtKaHyPar-ToolsMin)
 add_executable(MtxToGraph mtx_to_graph.cc)
 target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags)
 
+add_executable(FixedVertexFileGenerator fixed_vertex_file_generator.cc)
+target_link_libraries(FixedVertexFileGenerator MtKaHyPar-ToolsMin)
+
 
 #################################################################
 ## Tools with more dependencies                                ##
@@ -66,6 +69,3 @@ target_link_libraries(EvaluatePartition MtKaHyPar-BuildTools)
 
 add_executable(VerifyPartition verify_partition.cc)
 target_link_libraries(VerifyPartition MtKaHyPar-BuildTools)
-
-add_executable(FixedVertexFileGenerator fixed_vertex_file_generator.cc)
-target_link_libraries(FixedVertexFileGenerator MtKaHyPar-BuildTools)

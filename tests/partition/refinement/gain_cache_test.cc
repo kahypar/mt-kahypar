@@ -128,9 +128,9 @@ class AGainCache : public Test {
     if ( !is_nlevel ) {
       std::vector<PartitionID> partition;
       if constexpr ( Hypergraph::is_graph ) {
-        io::readPartitionFile("../tests/instances/delaunay_n10.graph.part8", partition);
+        io::readPartitionFile("../tests/instances/delaunay_n10.graph.part8", hypergraph.initialNumNodes(), partition);
       } else {
-        io::readPartitionFile("../tests/instances/contracted_unweighted_ibm01.hgr.part8", partition);
+        io::readPartitionFile("../tests/instances/contracted_unweighted_ibm01.hgr.part8", hypergraph.initialNumNodes(), partition);
       }
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         partitioned_hg.setOnlyNodePart(hn, partition[hn]);

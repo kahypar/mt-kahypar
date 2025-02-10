@@ -32,7 +32,6 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace po = boost::program_options;
@@ -60,7 +59,16 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   std::vector<PartitionID> partition;
-  io::readPartitionFile(partition_file, partition);
+  std::ifstream file(partition_file);
+  if (file) {
+    int part;
+    while (file >> part) {
+      partition.push_back(part);
+    }
+    file.close();
+  } else {
+    ERR("File not found:" << partition_file);
+  }
 
   int threshold = percentage * 1000;
   std::string fixed_vertex_file = partition_file;

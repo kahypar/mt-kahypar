@@ -53,8 +53,8 @@ namespace io {
                      vec<HyperedgeWeight>& hyperedges_weight,
                      vec<HypernodeWeight>& hypernodes_weight);
 
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
-  void readPartitionFile(const std::string& filename, PartitionID* partition);
+  void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
+  void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
 
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);

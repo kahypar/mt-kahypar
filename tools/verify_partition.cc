@@ -51,7 +51,7 @@ using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::Connecti
 bool readPartitionFile(const std::string& partition_file, PartitionedHypergraph& hypergraph) {
   bool success = true;
   std::vector<PartitionID> partition;
-  mt_kahypar::io::readPartitionFile(partition_file, partition);
+  mt_kahypar::io::readPartitionFile(partition_file, hypergraph.initialNumNodes(), partition);
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     if ( partition[hn] == kInvalidPartition ) {
       LOG << RED << "[ERROR]" << END << "Hypernode" << hn << "is not assigned to a block";

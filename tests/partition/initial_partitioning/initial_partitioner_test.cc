@@ -121,7 +121,7 @@ class AInitialPartitionerTest : public Test {
 
   void assignCommunities() {
     std::vector<PartitionID> communities;
-    io::readPartitionFile(context.partition.graph_community_filename, communities);
+    io::readPartitionFile(context.partition.graph_community_filename, hypergraph.initialNumNodes(), communities);
 
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hn]);

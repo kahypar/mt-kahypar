@@ -83,7 +83,7 @@ namespace mt_kahypar::io {
     struct stat stat_buf;
     const int res = stat( filename.c_str(), &stat_buf);
     if (res < 0) {
-      throw InvalidInputException("Could not open:" + filename);
+      throw InvalidInputException("Could not open: " + filename);
     }
     return static_cast<size_t>(stat_buf.st_size);
   }
@@ -648,40 +648,45 @@ namespace mt_kahypar::io {
     munmap_file(handle);
   }
 
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
-    ASSERT(!filename.empty(), "No filename for partition file specified");
-    ASSERT(partition.empty(), "Partition vector is not empty");
-    std::ifstream file(filename);
-    if (file) {
-      int part;
-      while (file >> part) {
-        partition.push_back(part);
-      }
-      file.close();
-    } else {
-      std::cerr << "Error: File not found: " << std::endl;
-    }
-  }
-
-  void readPartitionFile(const std::string& filename, PartitionID* partition) {
+  template<typename InitFunc>
+  void readPartitionFileImpl(const std::string& filename, HypernodeID num_nodes, InitFunc init_func) {
     ASSERT(!filename.empty(), "No filename for partition file specified");
     std::ifstream file(filename);
     if (file) {
+      PartitionID* partition = init_func();
       int part;
       HypernodeID hn = 0;
       while (file >> part) {
+        if (hn >= num_nodes) {
+          throw InvalidInputException(std::string("Input file has more entries than the number of nodes: ") + filename);
+        }
         partition[hn++] = part;
       }
       file.close();
+      if (hn < num_nodes) {
+        throw InvalidInputException(std::string("Input file has less entries than the number of nodes: ") + filename);
+      }
     } else {
-      std::cerr << "Error: File not found: " << std::endl;
+      throw InvalidInputException(std::string("File not found: ") + filename);
     }
+  }
+
+  void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition) {
+    readPartitionFileImpl(filename, num_nodes, [&]{
+      partition.clear();
+      partition.resize(num_nodes);
+      return partition.data();
+    });
+  }
+
+  void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition) {
+    readPartitionFileImpl(filename, num_nodes, [=]{ return partition; });
   }
 
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
     if (filename.empty()) {
-      LOG << "No filename for partition file specified";
+      throw InvalidInputException("No filename for output partition file specified");
     } else {
       std::ofstream out_stream(filename.c_str());
       std::vector<PartitionID> partition(phg.initialNumNodes(), -1);
