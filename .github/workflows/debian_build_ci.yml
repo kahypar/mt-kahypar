@@ -6,7 +6,7 @@ on:
       - "v[0-9]+.*"
 
 jobs:
-  package_x86:
+  debian_package_x86:
     name: Debian Package x86
 
     runs-on: ubuntu-20.04  # use old ubuntu for better backwards compatibility with system libraries
@@ -42,7 +42,7 @@ jobs:
           path: ./build/packages/*.deb
 
 
-  package_arm64:
+  debian_package_arm64:
     name: Debian Package ARM
 
     runs-on: ubuntu-20.04
@@ -100,6 +100,7 @@ jobs:
 
 
   upload_to_release:
+    needs: [debian_package_x86, debian_package_arm64]
     name: Upload Packages to GitHub Release
     runs-on: ubuntu-24.04
     steps:
