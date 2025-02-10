@@ -87,6 +87,7 @@ option(KAHYPAR_ENABLE_TESTING "Enables tests, which requires dowloading googlete
 option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies (other than TBB) statically." OFF)
 option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
 option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mtkahypar`." OFF)
+option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package." OFF)
 
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
@@ -482,29 +483,55 @@ add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
 ## Installation                                                ##
 #################################################################
 
-if(UNIX AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  # set default installation prefix if not user-defined
-  set(CMAKE_INSTALL_PREFIX "/usr/" CACHE STRING "" FORCE)
-endif()
+# only create installation targets if this is the top level project
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  if(UNIX AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    # set default installation prefix if not user-defined
+    set(CMAKE_INSTALL_PREFIX "/usr/" CACHE STRING "" FORCE)
+  endif()
 
-if(NOT WIN32 AND BUILD_SHARED_LIBS AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  # library installation target
-  include(SetupInstallation)
-endif()
+  if(KAHYPAR_INSTALL_CLI)
+    # CLI installation target
+    include(GNUInstallDirs)
+    set_target_properties(MtKaHyPar-CLI PROPERTIES OUTPUT_NAME mtkahypar)
+    install(TARGETS MtKaHyPar-CLI
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      RENAME mtkahypar
+      COMPONENT MtKaHyPar_CLI)
+    add_custom_target(install-mtkahypar-cli
+      ${CMAKE_COMMAND}
+      -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
+      -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_CLI
+      -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
+      DEPENDS MtKaHyPar-CLI)
+  endif()
 
-if(KAHYPAR_INSTALL_CLI AND ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  # CLI installation target
-  include(GNUInstallDirs)
-  set_target_properties(MtKaHyPar-CLI PROPERTIES OUTPUT_NAME mtkahypar)
-  install(TARGETS MtKaHyPar-CLI
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    RENAME mtkahypar
-    COMPONENT MtKaHyPar_CLI)
-  add_custom_target(install-mtkahypar-cli
-    ${CMAKE_COMMAND}
-    -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_INSTALL_COMPONENT=MtKaHyPar_CLI
-    -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
-    DEPENDS MtKaHyPar-CLI)
-endif()
+  if(NOT WIN32 AND BUILD_SHARED_LIBS)
+    # library installation target
+    include(SetupInstallation)
+  endif()
 
+  if(KAHYPAR_BUILD_DEBIAN_PACKAGE)
+    # packaging via CPack
+    include(SetupCPack)
+  endif()
+
+  if(KAHYPAR_SETUP_PYTHON AND DEFINED KAHYPAR_TBB_DIR)
+    # preparation for python wheel
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml @ONLY)
+  endif()
+  if(KAHYPAR_PYTHON AND DEFINED SKBUILD_PROJECT_NAME)
+    # build python wheel
+    if(NOT KAHYPAR_DOWNLOAD_TBB OR NOT DEFINED KAHYPAR_TBB_DIR)
+      message(FATAL_ERROR "TBB must be built from source for python wheel and KAHYPAR_TBB_DIR must be specified.")
+    endif()
+    message(STATUS "Python wheel build enabled, installing TBB to ${KAHYPAR_TBB_DIR}")
+
+    install(TARGETS mtkahypar_python
+      DESTINATION .
+      COMPONENT MtKaHyPar_Python)
+    install(TARGETS tbb tbbmalloc
+      DESTINATION ${KAHYPAR_TBB_DIR}
+      COMPONENT MtKaHyPar_Python)
+  endif()
+endif()

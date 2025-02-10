@@ -1,0 +1,61 @@
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mtkahypar"
+version = "@PROJECT_VERSION@"
+description="Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
+readme = "README.md"
+lincense.text = "MIT License"
+authors = [{ name = "Mt-KaHyPar Developers", email = "mtkahypar-devs@mail.informatik.kit.edu" }]
+requires-python = ">=3.7"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+github = "https://github.com/kahypar/mt-kahypar"
+
+[tool.scikit-build]
+wheel.license-files = ["LICENSE"]
+minimum-version = "0.10"
+logging.level = "INFO"
+strict-config = true
+
+build.targets = ["mtkahypar_python"]
+cmake.build-type = "Release"
+cmake.args = [
+    "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+    "-DKAHYPAR_PYTHON=ON",
+    "-DKAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS=ON",
+    "-DKAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS=OFF",
+    "-DKAHYPAR_ENABLE_THREAD_PINNING=OFF",
+    "-DKAHYPAR_STATIC_LINK_DEPENDENCIES=ON",
+    "-DKAHYPAR_DOWNLOAD_BOOST=ON",
+    "-DKAHYPAR_DOWNLOAD_TBB=ON",
+    "-DKAHYPAR_TBB_DIR=@KAHYPAR_TBB_DIR@",
+    "-DKAHYPAR_DISABLE_HWLOC=@KAHYPAR_DISABLE_HWLOC@",
+]
+install.components = ["MtKaHyPar_Python"]
+
+# cibuildwheel orchestrates the build for different platforms
+[tool.cibuildwheel]
+build = "cp312-manylinux_x86_64"
+test-command = "python3 {project}/python/tests/test_mtkahypar.py"
+
+[tool.cibuildwheel.linux]
+before-build = "yum -y install hwloc-devel"
+repair-wheel-command = """
+  export LD_LIBRARY_PATH="@KAHYPAR_TBB_DIR@:$LD_LIBRARY_PATH"
+  auditwheel repair -w {dest_dir} {wheel}
+"""
+
+[tool.cibuildwheel.macos]
+repair-wheel-command = """
+  export DYLD_LIBRARY_PATH="@KAHYPAR_TBB_DIR@:$DYLD_LIBRARY_PATH"
+  delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}
+"""
