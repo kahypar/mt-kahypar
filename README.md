@@ -9,8 +9,8 @@ Table of Contents
 
    * [About Mt-KaHyPar](#about-mt-kahypar)
    * [Features](#features)
-   * [Requirements](#requirements)
-   * [Building Mt-KaHyPar](#building-mt-kahypar)
+   * [Installing Mt-KaHyPar](#installing-mt-kahypar)
+   * [Building Mt-KaHyPar from Source](#building-mt-kahypar-from-source)
    * [Running Mt-KaHyPar](#running-mt-kahypar)
    * [Using Mt-KaHyPar as a library](#using-mt-kahypar-as-a-library)
    * [Supported Objective Functions](#supported-objective-functions)
@@ -50,7 +50,19 @@ Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides ma
   We therefore provide a mode that maps the nodes of a (hyper)graph onto a target graph via the [Steiner tree metric](#steiner-tree-metric).
 - **Fixed Vertices**: Fixed vertices are nodes that are preassigned to a particular block and are not allowed to change their block during partitioning.
 
-Requirements
+
+Installing Mt-KaHyPar
+-----------
+
+For Linux (x86) and MacOS, the [Mt-KaHyPar Python package](https://pypi.org/project/mtkahypar/) can be installed via pip:
+
+    pip install mtkahypar
+
+
+We also provide Debian packages that contain the CLI application and the C library interface for the [latest release](https://github.com/kahypar/mt-kahypar/releases/latest).
+
+
+Building Mt-KaHyPar from Source
 -----------
 
 Mt-KaHyPar requires:
@@ -92,11 +104,7 @@ The following instructions set up the environment used to build Mt-KaHyPar on Wi
 
     pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-boost mingw-w64-x86_64-tbb
 
-
-Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
-
-Building Mt-KaHyPar
------------
+### Build Commands
 
 To build Mt-KaHyPar, use the following commands:
 
@@ -113,6 +121,8 @@ The build produces the executable `MtKaHyPar`, which can be found in `build/mt-k
 
 As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
 If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
+
+Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
 
 Running Mt-KaHyPar
 -----------
