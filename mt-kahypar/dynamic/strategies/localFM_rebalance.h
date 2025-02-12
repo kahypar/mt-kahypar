@@ -67,7 +67,7 @@ namespace mt_kahypar::dyn {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
             context.dynamic.localFM_round->incremental_km1 -= gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
-            if (gain > 0) {
+            if (gain > 0 && !context.dynamic.server) {
               std::cout << std::endl << "Gain is positive: " << gain << std::endl;
             }
           }

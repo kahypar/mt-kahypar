@@ -40,15 +40,16 @@ public:
         ASSERT(imbalanced_block != kInvalidPartition);
         ASSERT(!_blocks[imbalanced_block].push.empty());
         std::vector<std::tuple<PartitionID, HyperedgeWeight>> violations;
-        while (!_blocks[imbalanced_block].push.empty()) {
+        while (!_blocks[imbalanced_block].push.empty() && _partitioned_hypergraph_s->partWeight(imbalanced_block) > _context->partition.max_part_weights[imbalanced_block]) {
           const HypernodeID u = _blocks[imbalanced_block].push.top();
           const HyperedgeWeight stored_gain = _blocks[imbalanced_block].push.topKey();
-          ASSERT(_partitioned_hypergraph_s->partID(u) == imbalanced_block);
           _blocks[imbalanced_block].push.deleteTop();
 
           if (!_partitioned_hypergraph_s->nodeIsEnabled(u)) {
             continue;
           }
+
+          ASSERT(_partitioned_hypergraph_s->partID(u) == imbalanced_block);
 
           auto [best_push_block, gain] = findFittingBestPushBlock(u, imbalanced_block);
           ASSERT(best_push_block != kInvalidPartition && best_push_block != imbalanced_block);
@@ -108,11 +109,6 @@ public:
           continue;
         }
 
-        //reinsert skipped nodes
-        for (const auto& violation : violations) {
-          _blocks[block_pull_target].pull.insert(std::get<0>(violation), std::get<1>(violation));
-        }
-
         Move move = {block_pull_source, block_pull_target, u, gain};
         executeMoveAndUpdateGainCache(move);
         applyMove(move);
@@ -121,6 +117,12 @@ public:
 
         total_gain += gain;
       }
+
+      //reinsert skipped nodes
+      for (const auto& violation : violations) {
+        _blocks[block_pull_target].pull.insert(std::get<0>(violation), std::get<1>(violation));
+      }
+
       return std::make_tuple(total_gain, moved_nodes);
     }
 
