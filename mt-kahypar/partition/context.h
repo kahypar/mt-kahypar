@@ -272,6 +272,7 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 struct LocalFMRound {
     size_t overall_improvement;
     size_t touched_nodes;
+    std::vector<Move> moves;
     size_t moved_nodes;
     mt_kahypar::HyperedgeWeight incremental_km1 = 0;
 };

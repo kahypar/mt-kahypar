@@ -112,7 +112,6 @@ namespace mt_kahypar::dyn {
 
           //reset pin counts of added edges
           for (const HyperedgeID& he : change.added_edges) {
-            std::cout << "Adding edge " << he << std::endl;
             for (PartitionID p = 0; p < context.partition.k; ++p) {
               while(partitioned_hypergraph_s->pinCountInPart(he, p) > 0) {
                 partitioned_hypergraph_s->decrementPinCountOfBlockWrapper(he, p);

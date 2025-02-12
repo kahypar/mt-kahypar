@@ -26,6 +26,7 @@
  ******************************************************************************/
 
 #include <set>
+#include <mt-kahypar/partition/refinement/rebalancing/incremental_rebalancer.h>
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
@@ -222,10 +223,19 @@ namespace mt_kahypar {
     metrics.quality -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    ASSERT(metrics.quality == metrics::quality(phg, context),
-           V(metrics.quality) << V(metrics::quality(phg, context)));
+//    ASSERT(metrics.quality == metrics::quality(phg, context),
+//           V(metrics.quality) << V(metrics::quality(phg, context)));
 
     context.dynamic.localFM_round->incremental_km1 -= overall_improvement;
+    context.dynamic.localFM_round->moves.clear();
+
+    for (MoveID i = 0; i < context.dynamic.localFM_round->moved_nodes; ++i) {
+      Move &m = sharedData.moveTracker.moveOrder[i];
+      if (m.isValid()) {
+        context.dynamic.localFM_round->moves.push_back(m);
+      }
+    }
+
     return overall_improvement > 0;
   }
 

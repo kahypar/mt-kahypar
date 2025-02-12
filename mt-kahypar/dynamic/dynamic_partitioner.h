@@ -12,6 +12,7 @@
 #include "mt-kahypar/dynamic/strategies/localFM_v2.h"
 #include "mt-kahypar/dynamic/strategies/localFM_small_blocks.h"
 #include "mt-kahypar/dynamic/strategies/never_repartition.h"
+#include "mt-kahypar/dynamic/strategies/localFM_rebalance.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
 namespace mt_kahypar::dyn {
@@ -67,6 +68,8 @@ namespace mt_kahypar::dyn {
         strategy = new LocalFMV2();
       } else if (context.dynamic.strategy == "localFM_small_blocks") {
         strategy = new LocalFMSBlocks();
+      } else if (context.dynamic.strategy == "localFM_rebalance") {
+        strategy = new LocalFMRebalance();
       } else if (context.dynamic.strategy == "rebalance") {
         strategy = new Rebalance();
       } else {
