@@ -123,6 +123,14 @@ enum class SwapResolutionStrategy : uint8_t {
   UNDEFINED
 };
 
+enum class HeavyClusterStrategy: uint8_t {
+  fill,
+  reset,
+  recalculate,
+  pass_on,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -216,6 +224,8 @@ std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& 
 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const HeavyClusterStrategy& strategy);
+
 std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
@@ -253,6 +263,8 @@ SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::str
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 
 SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy);
+
+HeavyClusterStrategy heavyClusterStrategyFromString(const std::string& strategy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

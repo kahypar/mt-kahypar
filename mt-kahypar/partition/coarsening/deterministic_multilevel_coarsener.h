@@ -79,9 +79,8 @@ public:
     nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
-    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false)
-  {
-  }
+    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+    passed_nodes_from_previous_subround() {}
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -140,6 +139,8 @@ private:
         &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
 
+  size_t recalculateForPassedOnHypernodes(vec<HypernodeID>& clusters);
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
@@ -156,6 +157,6 @@ private:
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
   size_t pass;
   utils::ProgressBar progress_bar;
-
+  vec<HypernodeID> passed_nodes_from_previous_subround;
 };
 }

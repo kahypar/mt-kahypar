@@ -321,6 +321,17 @@ namespace mt_kahypar {
              " - to_smaller"
              " - to_larger"
              " - ignore"
+             )
+             ("c-heavy-cluster-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.coarsening.heavy_cluster_strategy = mt_kahypar::heavyClusterStrategyFromString(strategy);
+                     })->default_value("fill"),
+             "Heavy Cluster strategy:\n"
+             " - fill"
+             " - recalculate"
+             " - reset"
+             " - pass_on"
              );
     return options;
   }
