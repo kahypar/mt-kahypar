@@ -50,6 +50,13 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     clusters[u] = u;
   });
 
+  if (_context.coarsening.use_adaptive_edge_size) {
+    hyperedge_size.resize(hg.initialNumEdges());
+    tbb::parallel_for(HyperedgeID(0), hg.initialNumEdges(), [&](HyperedgeID e) {
+      hyperedge_size[e] = hg.edgeSize(e);
+    });
+  }
+
   {
     const size_t contractable_nodes_per_subround = std::ceil(static_cast<double>(num_nodes - currentLevelContractionLimit()) / config.num_sub_rounds);
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
@@ -212,6 +219,33 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           cluster_weights_to_fix.clear();
         }
 
+        if (_context.coarsening.use_adaptive_edge_size) {
+          // update hyperedge sizes
+          tbb::parallel_for(first, last, [&](size_t pos) {
+            HypernodeID u = permutation.at(pos);
+            if (u == propositions[u] || u == clusters[u]) {
+              return;
+            }
+
+            // another idea to speed this up. this is slow if degree(clusters[u]) is unnecessarily large --> can mark smaller?
+            // mark hg.incidentEdges(clusters[u]) in bitset
+            // for each e in hg.incidentEdges(u)
+            //     if e is marked --> reduce its size by 1
+            // this is assuming that the vertex clusters[u] is still in that cluster. If it left in this subround, the number of edge size reductions is reduced by 1
+
+            auto& ratings = default_rating_maps.local();
+            for (HyperedgeID he : hg.incidentEdges(u)) {
+              // this could be optimized to run once per affected hyperedge
+              if (hg.edgeSize(he) >= _context.partition.ignore_hyperedge_size_threshold) continue;
+              ratings.clear();
+              for (HypernodeID v : hg.pins(he)) {
+                ratings[clusters[v]] += 1;
+              }
+              hyperedge_size[he] = ratings.size();  // benign race
+            }
+          });
+        }
+
         HEAVY_COARSENING_ASSERT([&] {
           vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
           for (const HypernodeID hn : hg.nodes()) {
@@ -252,6 +286,8 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   for (HyperedgeID he : hg.incidentEdges(u)) {
     HypernodeID he_size = hg.edgeSize(he);
     if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+      // TODO should he_size filter use the original edge size or the adaptive one?
+      he_size = _context.coarsening.use_adaptive_edge_size ? hyperedge_size[he] : he_size;
       double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
       for (HypernodeID v : hg.pins(he)) {
         ratings[clusters[v]] += he_score;
