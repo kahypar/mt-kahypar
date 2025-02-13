@@ -134,6 +134,8 @@ struct CoarseningParameters {
 
   EdgeDeduplicationPolicy edge_deduplication_policy = EdgeDeduplicationPolicy::UNDEFINED;
 
+  bool prefix_doubling = false;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

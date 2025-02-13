@@ -253,7 +253,7 @@ private:
     }
   }
 
-  void handleNodesInTooHeavyClusters(size_t& num_nodes, vec<HypernodeID>& clusters, const Hypergraph& hg) {
+  void handleNodesInTooHeavyClusters(HypernodeID& num_nodes, vec<HypernodeID>& clusters, const Hypergraph& hg) {
     switch (_context.coarsening.heavy_cluster_strategy) {
     case HeavyClusterStrategy::fill:
       num_nodes -= approveVerticesInTooHeavyClusters(clusters);
@@ -372,5 +372,6 @@ private:
   size_t bloom_filter_mask;
   tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>> bloom_filters;
   tbb::enumerable_thread_specific<vec<size_t>> pins_per_cluster;
+  int round_seed = 0;
 };
 }

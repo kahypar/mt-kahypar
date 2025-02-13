@@ -374,7 +374,11 @@ namespace mt_kahypar {
              " - bloom_2"
              " - bloom_3"
              " - exact"
-             );
+             )
+             ("c-prefix-doubling",
+             po::value<bool>(&context.coarsening.prefix_doubling)->value_name(
+                     "<bool>")->default_value(false),
+             "subround sizes according to prefix doubling");
     return options;
   }
 
