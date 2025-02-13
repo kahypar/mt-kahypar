@@ -75,8 +75,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
       handleNodeSwaps(first, last, hg);
 
-      tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
-      if (_context.coarsening.split_contraction_limit_between_subrounds) {
+      if (_context.coarsening.split_contraction_limit_between_subrounds && _context.type == ContextType::main) {
         contractable_nodes.clear();
         for (size_t i = first; i < last; ++i) {
           HypernodeID u = permutation.at(i);
@@ -88,33 +87,61 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         if (contractable_nodes.size() > contractable_nodes_per_subround) {
           std::shuffle(contractable_nodes.begin(), contractable_nodes.end(), std::mt19937(_context.partition.seed));
         }
-        const size_t end = std::min(contractable_nodes.size(), contractable_nodes_per_subround);
-        tbb::parallel_for(end, contractable_nodes.size(), [&](const size_t i) {
-          HypernodeID u = contractable_nodes[i];
-          HypernodeID target = propositions[u];
-          if (target != u) {
-            __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
-          }
-        });
-
-        tbb::parallel_for(0UL, end, [&](const size_t i) {
-          HypernodeID u = contractable_nodes[i];
-          HypernodeID target = propositions[u];
-          if (target != u) {
-            if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
-              // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-              if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-                num_contracted_nodes.local() += 1;
+        const size_t nodes_before_subround = num_nodes;
+        size_t start = 0UL;
+        size_t end = std::min(contractable_nodes.size(), contractable_nodes_per_subround);
+        size_t actually_contracted_nodes = 0UL;
+        while (end < contractable_nodes.size() && actually_contracted_nodes < contractable_nodes_per_subround) {
+          tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+          if (start == 0UL) {
+            tbb::parallel_for(end, contractable_nodes.size(), [&](const size_t i) {
+              HypernodeID u = contractable_nodes[i];
+              HypernodeID target = propositions[u];
+              if (target != u) {
+                __atomic_fetch_sub(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
               }
-              clusters[u] = target;
-              cluster_weight[target] = opportunistic_cluster_weight[target];
-            } else {
-              nodes_in_too_heavy_clusters.push_back_buffered(u);
-            }
+            });
+          } else {
+            tbb::parallel_for(start, end, [&](const size_t i) {
+              HypernodeID u = contractable_nodes[i];
+              HypernodeID target = propositions[u];
+              if (target != u) {
+                __atomic_fetch_add(&opportunistic_cluster_weight[target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+              }
+            });
           }
-        });
+
+          tbb::parallel_for(start, end, [&](const size_t i) {
+            HypernodeID u = contractable_nodes[i];
+            HypernodeID target = propositions[u];
+            if (target != u) {
+              if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
+                // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+                if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+                  num_contracted_nodes.local() += 1;
+                }
+                clusters[u] = target;
+                cluster_weight[target] = opportunistic_cluster_weight[target];
+              } else {
+                nodes_in_too_heavy_clusters.push_back_buffered(u);
+              }
+            }
+          });
+          num_nodes -= num_contracted_nodes.combine(std::plus<>());
+          nodes_in_too_heavy_clusters.finalize();
+          if (nodes_in_too_heavy_clusters.size() > 0) {
+            handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
+            nodes_in_too_heavy_clusters.clear();
+          }
+          actually_contracted_nodes = nodes_before_subround - num_nodes;
+          start = end;
+          end = std::min(start + contractable_nodes_per_subround - actually_contracted_nodes, contractable_nodes.size());
+          passed_nodes_from_previous_subround.clear();
+        }
 
       } else {
+        tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+
         // already approve if we can grant all requests for proposed cluster
         // otherwise insert to shared vector so that we can group vertices by cluster
         tbb::parallel_for(first, last, [&](size_t pos) {
@@ -133,34 +160,34 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
             }
           }
         });
-      }
-      if (passed_nodes_from_previous_subround.size() > 0) {
-        tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t pos) {
-          const HypernodeID u = passed_nodes_from_previous_subround[pos];
-          HypernodeID target = propositions[u];
-          if (target != u) {
-            if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
-              // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-              if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-                num_contracted_nodes.local() += 1;
+        if (passed_nodes_from_previous_subround.size() > 0) {
+          tbb::parallel_for(0UL, passed_nodes_from_previous_subround.size(), [&](const size_t pos) {
+            const HypernodeID u = passed_nodes_from_previous_subround[pos];
+            HypernodeID target = propositions[u];
+            if (target != u) {
+              if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
+                // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+                if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+                  num_contracted_nodes.local() += 1;
+                }
+                clusters[u] = target;
+                cluster_weight[target] = opportunistic_cluster_weight[target];
+              } else {
+                nodes_in_too_heavy_clusters.push_back_buffered(u);
               }
-              clusters[u] = target;
-              cluster_weight[target] = opportunistic_cluster_weight[target];
-            } else {
-              nodes_in_too_heavy_clusters.push_back_buffered(u);
             }
-          }
-        });
+          });
+        }
+        const size_t contracted = num_contracted_nodes.combine(std::plus<>());
+        DBG << "subround: " << sub_round << ", " << "contracted_nodes: " << contracted << "/" << contractable_nodes_per_subround;
+        num_nodes -= contracted;
+        nodes_in_too_heavy_clusters.finalize();
+        if (nodes_in_too_heavy_clusters.size() > 0) {
+          handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
+          nodes_in_too_heavy_clusters.clear();
+        }
+        passed_nodes_from_previous_subround.clear();
       }
-      const size_t contracted = num_contracted_nodes.combine(std::plus<>());
-      DBG << "subround: " << sub_round << ", " << "contracted_nodes: " << contracted << "/" << contractable_nodes_per_subround;
-      num_nodes -= contracted;
-      nodes_in_too_heavy_clusters.finalize();
-      if (nodes_in_too_heavy_clusters.size() > 0) {
-        handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
-        nodes_in_too_heavy_clusters.clear();
-      }
-      passed_nodes_from_previous_subround.clear();
     }
 
   }
