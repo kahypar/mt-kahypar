@@ -60,6 +60,7 @@ namespace mt_kahypar::dyn {
             ASSERT(_gain_cache.type == GainPolicy::km1);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(
                     partitioned_hypergraph_s.value(), hn, _benefit_aggregator);
+            _rebalancer.insertOrUpdateNode(hn, partitioned_hypergraph_s->partID(hn));
           }
 
           //pull into emptier blocks
@@ -67,9 +68,6 @@ namespace mt_kahypar::dyn {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
             context.dynamic.localFM_round->incremental_km1 -= gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
-            if (gain > 0 && !context.dynamic.server) {
-              std::cout << std::endl << "Gain is positive: " << gain << std::endl;
-            }
           }
 
           ASSERT(partitioned_hypergraph_s->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(_gain_cache)));
@@ -97,8 +95,10 @@ namespace mt_kahypar::dyn {
             _rebalancer.applyMove(move);
           }
 
-          ASSERT(_rebalancer.checkBlockQueues());
+          _rebalancer.updateGainForMoves(context.dynamic.localFM_round->moves);
 
+          ASSERT(_rebalancer.checkBlockQueues());
+          ASSERT(_rebalancer.checkPullQueueGains())
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
@@ -197,7 +197,7 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes) {
             PartitionID assigned_part = add_node_to_partitioned_hypergraph(hypergraph, context, hn);
-            _rebalancer.insertNewNode(hn, assigned_part);
+            _rebalancer.insertOrUpdateNode(hn, assigned_part);
             local_fm_nodes.push_back(hn);
             gain_cache_nodes.push_back(hn);
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
