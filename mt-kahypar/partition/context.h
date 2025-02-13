@@ -124,6 +124,10 @@ struct CoarseningParameters {
   SwapResolutionStrategy swapStrategy = SwapResolutionStrategy::UNDEFINED;
   HeavyClusterStrategy heavy_cluster_strategy = HeavyClusterStrategy::UNDEFINED;
 
+  double first_round_cluster_factor = 1.0;
+  double second_round_cluster_factor = 1.0;
+  double third_round_cluster_factor = 1.0;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

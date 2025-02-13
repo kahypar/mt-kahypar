@@ -167,7 +167,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       HypernodeID u = permutation.at(pos);
       HypernodeID target = propositions[u];
       if (target != u) {
-        if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+        if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
           // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
           if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
             num_contracted_nodes.local() += 1;
@@ -184,7 +184,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         const HypernodeID u = passed_nodes_from_previous_subround[pos];
         HypernodeID target = propositions[u];
         if (target != u) {
-          if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+          if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
             // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
             if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
               num_contracted_nodes.local() += 1;
@@ -288,7 +288,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
     HypernodeID target_cluster = entry.key;
     double target_score = entry.value;
     if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u
-        && cluster_weight[target_cluster] + weight_u <= _context.coarsening.max_allowed_node_weight) {
+      && cluster_weight[target_cluster] + weight_u <= maxAllowedNodeWeightInPass()) {
       if (target_score > best_score) {
         best_targets.clear();
         best_score = target_score;
@@ -342,7 +342,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyCl
         assert(first_rejected < nodes_in_too_heavy_clusters.size());
         assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
         HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
-        if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+        if (target_weight + hg.nodeWeight(v) > maxAllowedNodeWeightInPass()) {
           break;
         }
         clusters[v] = target;
@@ -426,7 +426,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::recalculateForPassedOnHyper
     const HypernodeID u = passed_nodes_from_previous_subround[i];
     HypernodeID target = propositions[u];
     if (target != u) {
-      if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+      if (opportunistic_cluster_weight[target] <= maxAllowedNodeWeightInPass()) {
         // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
         if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
           num_contracted_nodes.local() += 1;

@@ -141,6 +141,19 @@ private:
 
   size_t recalculateForPassedOnHypernodes(vec<HypernodeID>& clusters);
 
+  HypernodeWeight maxAllowedNodeWeightInPass() const {
+    switch (pass) {
+    case 0:
+      return _context.coarsening.first_round_cluster_factor * _context.coarsening.max_allowed_node_weight;
+    case 1:
+      return _context.coarsening.second_round_cluster_factor * _context.coarsening.max_allowed_node_weight;
+    case 2:
+      return _context.coarsening.third_round_cluster_factor * _context.coarsening.max_allowed_node_weight;
+    default:
+      return _context.coarsening.max_allowed_node_weight;
+    }
+  }
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
