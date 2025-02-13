@@ -130,6 +130,8 @@ struct CoarseningParameters {
 
   bool split_contraction_limit_between_subrounds = false;
 
+  ClusterTieBreakingPolicy cluster_tie_breaking_policy = ClusterTieBreakingPolicy::UNDEFINED;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;

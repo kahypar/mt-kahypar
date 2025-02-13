@@ -348,7 +348,20 @@ namespace mt_kahypar {
              ("c-split-shrinkage",
              po::value<bool>(&context.coarsening.split_contraction_limit_between_subrounds)->value_name(
                      "<bool>")->default_value(false),
-             "split shrinkage between subrounds");
+             "split shrinkage between subrounds")
+            ("c-cluster-tie-breaking-policy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& rating) {
+                       context.coarsening.cluster_tie_breaking_policy = mt_kahypar::clusterTieBreakingPolicyFromString(rating);
+                     })->default_value("sh_uniform"),
+             "Cluster Tie-breaking Policy:\n"
+             " - sh_uniform"
+             " - mt_uniform"
+             " - sh_geometric"
+             " - mt_geometric"
+             " - first"
+             " - last"
+             );
     return options;
   }
 

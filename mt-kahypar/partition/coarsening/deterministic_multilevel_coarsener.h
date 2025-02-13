@@ -37,6 +37,7 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/partition/coarsening/policies/cluster_tie_breaking_policy.h"
 
 #include <tbb/enumerable_thread_specific.h>
 #include "tbb/parallel_sort.h"
@@ -82,8 +83,10 @@ public:
     pass(0),
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     passed_nodes_from_previous_subround(),
-    contractable_nodes() {
+    contractable_nodes(),
+    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
     contractable_nodes.reserve(std::ceil(utils::cast<Hypergraph>(hypergraph).initialNumNodes() / config.num_sub_rounds));
+    initializeClusterTieBreaking(context.coarsening.cluster_tie_breaking_policy);
   }
 
   ~DeterministicMultilevelCoarsener() {
@@ -97,6 +100,7 @@ private:
   };
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   void initializeImpl() override {
     if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
@@ -293,6 +297,25 @@ private:
     }
   }
 
+  void initializeClusterTieBreaking(const ClusterTieBreakingPolicy policy) {
+    if (policy == ClusterTieBreakingPolicy::sh_uniform) {
+      cluster_tie_breaker = std::make_unique<SimpleHashUniform>();
+    } else if (policy == ClusterTieBreakingPolicy::mt_uniform) {
+      cluster_tie_breaker = std::make_unique<MtUniform>();
+    } else if (policy == ClusterTieBreakingPolicy::sh_geometric) {
+      cluster_tie_breaker = std::make_unique<SimpleHashGeometric>();
+    } else if (policy == ClusterTieBreakingPolicy::mt_geometric) {
+      cluster_tie_breaker = std::make_unique<MtGeometric>();
+    } else if (policy == ClusterTieBreakingPolicy::first) {
+      cluster_tie_breaker = std::make_unique<First>();
+    } else if (policy == ClusterTieBreakingPolicy::last) {
+      cluster_tie_breaker =std::make_unique<Last>();
+    } else {
+      std::cout << "ERROR in clusterTieBreakingPolicy" << std::endl;
+      cluster_tie_breaker = std::make_unique<SimpleHashUniform>();
+    }
+  }
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
@@ -311,5 +334,7 @@ private:
   utils::ProgressBar progress_bar;
   vec<HypernodeID> passed_nodes_from_previous_subround;
   parallel::scalable_vector<HypernodeID> contractable_nodes;
+  ds::BufferedVector<HypernodeID> cluster_weights_to_fix;
+  std::unique_ptr<ClusterTieBreaker> cluster_tie_breaker;
 };
 }

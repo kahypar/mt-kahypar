@@ -141,7 +141,6 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
       } else {
         tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
-
         // already approve if we can grant all requests for proposed cluster
         // otherwise insert to shared vector so that we can group vertices by cluster
         tbb::parallel_for(first, last, [&](size_t pos) {
@@ -152,10 +151,16 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
               // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
               if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
                 num_contracted_nodes.local() += 1;
+              } else {
+                cluster_weights_to_fix.push_back_buffered(u);
               }
               clusters[u] = target;
               cluster_weight[target] = opportunistic_cluster_weight[target];
             } else {
+              if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+                // node u could still not move
+                cluster_weights_to_fix.push_back_buffered(u);
+              }
               nodes_in_too_heavy_clusters.push_back_buffered(u);
             }
           }
@@ -169,10 +174,16 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
                 // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
                 if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
                   num_contracted_nodes.local() += 1;
+                } else {
+                  cluster_weights_to_fix.push_back_buffered(u);
                 }
                 clusters[u] = target;
                 cluster_weight[target] = opportunistic_cluster_weight[target];
               } else {
+                if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+                  // node u could still not move
+                  cluster_weights_to_fix.push_back_buffered(u);
+                }
                 nodes_in_too_heavy_clusters.push_back_buffered(u);
               }
             }
@@ -186,6 +197,34 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
           handleNodesInTooHeavyClusters(num_nodes, clusters, hg);
           nodes_in_too_heavy_clusters.clear();
         }
+
+        // TODO: no need to fix cluster weights in the last subround
+        cluster_weights_to_fix.finalize();
+        if (cluster_weights_to_fix.size() > 0) {
+          tbb::parallel_for(0UL, cluster_weights_to_fix.size(), [&](const size_t i) {
+            const HypernodeID hn = cluster_weights_to_fix[i];
+            const HypernodeID cluster = clusters[hn];
+            if (cluster != hn) {
+              cluster_weight[hn] -= hg.nodeWeight(hn);
+              opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+            }
+          });
+          cluster_weights_to_fix.clear();
+        }
+
+        HEAVY_COARSENING_ASSERT([&] {
+          vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
+          for (const HypernodeID hn : hg.nodes()) {
+            const HypernodeID cluster = clusters[hn];
+            cluster_weight_recalced[cluster] += hg.nodeWeight(hn);
+          }
+          for (const HypernodeID c : hg.nodes()) {
+            if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
+              LOG << "ERROR wrong cluster_weight: " << V(sub_round) << ", " << V(c) << ", " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]) << std::endl;
+            }
+          }
+        }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");
+
         passed_nodes_from_previous_subround.clear();
       }
     }
@@ -245,9 +284,8 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   } else if (best_targets.empty()) {
     best_target = u;
   } else {
-    hashing::SimpleIntHash<uint32_t> sih;
-    hashing::HashRNG<hashing::SimpleIntHash<uint32_t>> hash_prng(sih, u);
-    size_t pos = std::uniform_int_distribution<uint32_t>(0, best_targets.size() - 1)(hash_prng);
+    // TODO: "rebase conflict"
+    size_t pos = cluster_tie_breaker->select(best_targets.size() - 1, u);
     assert(pos < best_targets.size());
     best_target = best_targets[pos];
   }
