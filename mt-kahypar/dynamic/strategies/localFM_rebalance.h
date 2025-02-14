@@ -64,11 +64,8 @@ namespace mt_kahypar::dyn {
           }
 
           //pull into emptier blocks
-          for (PartitionID p = 0; p < context.partition.k; ++p) {
-            auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
-            context.dynamic.localFM_round->incremental_km1 -= gain;
-            local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
-          }
+          HyperedgeWeight round_gain;
+          pull(context, local_fm_nodes);
 
           ASSERT(partitioned_hypergraph_s->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(_gain_cache)));
 
@@ -77,6 +74,8 @@ namespace mt_kahypar::dyn {
             auto [gain, moved_nodes] = _rebalancer.rebalanceAndUpdateGainCache();
             context.dynamic.localFM_round->incremental_km1 -= gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
+
+            pull(context, local_fm_nodes);
           }
 
           if (local_fm_nodes.size() == 0) {
@@ -97,8 +96,23 @@ namespace mt_kahypar::dyn {
 
           _rebalancer.updateGainForMoves(context.dynamic.localFM_round->moves);
 
+          pull(context, local_fm_nodes);
+
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains())
+        }
+
+        void pull(Context &context, parallel::scalable_vector <HypernodeID> &local_fm_nodes) {
+          HyperedgeWeight round_gain = -1;
+          while (round_gain != 0) {
+            round_gain = 0;
+            for (PartitionID p = 0; p < context.partition.k; ++p) {
+              auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
+              context.dynamic.localFM_round->incremental_km1 -= gain;
+              local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
+              round_gain += gain;
+            }
+          }
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
