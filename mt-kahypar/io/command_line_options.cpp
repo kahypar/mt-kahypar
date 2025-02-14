@@ -408,6 +408,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.deterministic_refinement.jet.max_rebalancing_rounds))->value_name(
                     "<size_t>")->default_value(0),
             "Maximum number of iterations per rebalancing call")
+            ((initial_partitioning ? "i-r-jet-seq-find-moves": "r-jet-seq-find-moves"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves: 
+                              &context.initial_partitioning.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves))->value_name(
+                    "<size_t>")->default_value(0),
+            "If the number of moves for a part is larger, then execute in parallel")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(

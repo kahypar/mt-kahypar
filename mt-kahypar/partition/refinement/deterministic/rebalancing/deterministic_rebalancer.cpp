@@ -40,7 +40,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/cast.h"
 
-#include <tbb/parallel_sort.h>
+#include "external_tools/parlaylib/include/parlay/primitives.h"
 
 namespace mt_kahypar {
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
@@ -157,42 +157,58 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
 
   // calculate gain and target for each node in a overweight part
   // group moves by source part
-  timer.start_timer("gain_computation", "Gain Computation");
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
     if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
-      tmp_potential_moves[from].stream(computeGainAndTargetPart(phg, hn, true));
-    }
-  });
-  timer.stop_timer("gain_computation");
-  for (size_t i = 0; i < _moves.size(); ++i) {
-    _moves[i] = tmp_potential_moves[i].copy_parallel();
-    if (_moves[i].size() > 0) {
-      tbb::parallel_sort(_moves[i].begin(), _moves[i].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      });
-      // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
-      _move_weights[i].resize(_moves[i].size());
-      tbb::parallel_for(0UL, _moves[i].size(), [&](const size_t j) {
-        _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
-      });
-      parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].end(), _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
-      const size_t last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].end(), phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
-
-      if (phg.is_graph) {
-        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<true>(phg, move.hn, i, move.to, false);
-        });
-      } else {
-        tbb::parallel_for(0UL, last_move_idx + 1, [&](const size_t j) {
-          const auto move = _moves[i][j];
-          changeNodePart<false>(phg, move.hn, i, move.to, false);
-        });
+      const auto& triple = computeGainAndTargetPart(phg, hn, true);
+      if (from != triple.to && triple.to != kInvalidPartition) {
+        tmp_potential_moves[from].stream(triple);
       }
     }
-  }
+  });
+  tbb::parallel_for(0UL, _moves.size(), [&](const size_t i) {
+    if (tmp_potential_moves[i].size() > 0) {
+      _moves[i] = tmp_potential_moves[i].copy_parallel();
+      const size_t move_size = _moves[i].size();
+
+      if (move_size > 0) {
+        // sort the moves from each overweight part by priority
+        parlay::sort_inplace(_moves[i], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+          return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+        });
+        // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
+        size_t last_move_idx = 0;
+        if (move_size > _context.refinement.deterministic_refinement.jet.seq_find_rebalancing_moves) {
+          if (move_size > _move_weights[i].size()) {
+            _move_weights[i].resize(move_size);
+          }
+          tbb::parallel_for(0UL, move_size, [&](const size_t j) {
+            _move_weights[i][j] = phg.nodeWeight(_moves[i][j].hn);
+          });
+          parallel_prefix_sum(_move_weights[i].begin(), _move_weights[i].begin() + move_size, _move_weights[i].begin(), std::plus<HypernodeWeight>(), 0);
+          last_move_idx = std::upper_bound(_move_weights[i].begin(), _move_weights[i].begin() + move_size, phg.partWeight(i) - _max_part_weights[i] - 1) - _move_weights[i].begin();
+          ++last_move_idx;
+        } else {
+          HypernodeWeight sum = 0;
+          for (; last_move_idx < move_size && sum <= phg.partWeight(i) - _max_part_weights[i] - 1; ++last_move_idx) {
+            sum += phg.nodeWeight(_moves[i][last_move_idx].hn);
+          }
+        }
+        if (phg.is_graph) {
+          tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
+            const auto move = _moves[i][j];
+            changeNodePart<true>(phg, move.hn, i, move.to, false);
+          });
+        } else {
+          tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
+            const auto move = _moves[i][j];
+            changeNodePart<false>(phg, move.hn, i, move.to, false);
+          });
+        }
+      }
+    }
+  });
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file

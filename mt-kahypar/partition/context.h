@@ -158,6 +158,7 @@ struct JetParameters {
   double heavy_vertex_exclusion_factor = 1.5;
   double relative_deadzone_size = 1.0;
   size_t max_rebalancing_rounds = std::numeric_limits<size_t>::max();
+  size_t seq_find_rebalancing_moves = 0;
 };
 
 std::ostream & operator<< (std::ostream& str, const JetParameters& params);
