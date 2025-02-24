@@ -132,25 +132,14 @@ namespace mt_kahypar::dyn {
             mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                     *partitioned_hypergraph_s);
             HyperedgeWeight prior_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
-            /*
-             *  c.partition.instance_type = lib::get_instance_type(partitioned_hg);
-      c.partition.partition_type = to_partition_c_type(
-        c.partition.preset_type, c.partition.instance_type);
-      lib::prepare_context(c);
-      c.partition.num_vcycles = num_vcycles;
-             */
-//            std::cout << "Instance type: " << context.partition.instance_type << std::endl;
-//            std::cout << "Partition type: " << context.partition.partition_type << std::endl;
-//            std::cout << "preset type: " << context.partition.preset_type << std::endl;
-//            std::cout << "Num vcycles: " << context.partition.num_vcycles << std::endl;
-//
-//            exit(1);
 
             context.partition.num_vcycles = 1;
 
             PartitionerFacade::improve(partitioned_hypergraph, context);
             HyperedgeWeight post_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
-            std::cout << std::endl << "Improvement: " << post_km1 - prior_km1 << std::endl;
+            if (!context.dynamic.server) {
+              std::cout << std::endl << "Improvement: " << prior_km1 - post_km1 << std::endl;
+            }
 
             context.partition.num_vcycles = 0;
             changed_weight = 0;
