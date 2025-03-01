@@ -442,8 +442,6 @@ namespace mt_kahypar::io {
     //Check the end of the file
     while ( handle.mapped_file[pos] == '%' ) {
         goto_next_line(handle.mapped_file, pos, handle.length);
-        //if comment is at the end, should use <= rather than <
-        ASSERT(pos <= handle.length);
     }
     ASSERT(pos == handle.length);
 
