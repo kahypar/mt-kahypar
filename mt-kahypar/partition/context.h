@@ -290,6 +290,7 @@ struct DynamicParameters {
     // not included in the output file ending
     std::string result_folder = "";
     bool server = false;
+    size_t setup_moves_count = 0;
     size_t small_blocks_threshold = 5;
     // not a parameter
     std::string output_path = "";

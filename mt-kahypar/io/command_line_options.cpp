@@ -789,6 +789,10 @@ namespace mt_kahypar {
             ("d-sb-threshold",
               po::value<size_t>(&context.dynamic.small_blocks_threshold)->value_name("<size_t>"),
               "Threshold for the small blocks strategie");
+    dynamic_options.add_options()
+            ("d-setup-moves-count",
+              po::value<size_t>(&context.dynamic.setup_moves_count)->value_name("<size_t>"),
+      "Number of moves to be performed prior to the strategy");
 
     return dynamic_options;
   }

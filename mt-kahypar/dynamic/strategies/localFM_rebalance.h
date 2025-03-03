@@ -98,7 +98,7 @@ namespace mt_kahypar::dyn {
           _rebalancer.updateGainForMoves(context.dynamic.localFM_round->moves);
 
           ASSERT(_rebalancer.checkBlockQueues());
-          ASSERT(_rebalancer.checkPullQueueGains())
+          ASSERT(_rebalancer.checkPullQueueGains());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {

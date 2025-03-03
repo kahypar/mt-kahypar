@@ -39,7 +39,12 @@ namespace mt_kahypar::dyn {
         changes = generateChanges(hypergraph_s, context);
       } else {
         changes = parseChanges(context.dynamic.changes_file);
-        resetHypergraph(hypergraph_s, changes, context);
+        //TODO add reset flag
+        //resetHypergraph(hypergraph_s, changes, context);
+        for (size_t i = 0; i < context.dynamic.setup_moves_count; ++i) {
+          Change& change = changes[i];
+          DynamicStrategy::process_change(hypergraph_s, context, change);
+        }
       }
 
       std::cout << "Number of changes: " << changes.size() << std::endl;
@@ -103,7 +108,7 @@ namespace mt_kahypar::dyn {
 
         auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
-        for (size_t i = 0; i < max_changes; ++i) {
+        for (size_t i = context.dynamic.setup_moves_count; i < max_changes; ++i) {
           Change& change = changes[i];
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
           strategy->partition(hypergraph_s, context, change, max_changes);

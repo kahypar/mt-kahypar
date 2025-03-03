@@ -100,7 +100,7 @@ namespace mt_kahypar::dyn {
           _rebalancer.updateGainForMoves(context.dynamic.localFM_round->moves);
 
           ASSERT(_rebalancer.checkBlockQueues());
-          ASSERT(_rebalancer.checkPullQueueGains())
+          ASSERT(_rebalancer.checkPullQueueGains());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
@@ -256,6 +256,9 @@ namespace mt_kahypar::dyn {
 
             PartitionerFacade::improve(partitioned_hypergraph, context);
             HyperedgeWeight post_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
+            context.dynamic.localFM_round->incremental_km1 = post_km1;
+            GainCachePtr::resetGainCache(_gain_cache);
+            GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_s.value());
             if (!context.dynamic.server) {
               std::cout << std::endl << "Improvement: " << prior_km1 - post_km1 << std::endl;
             }

@@ -49,6 +49,13 @@ public:
             continue;
           }
 
+          //TODO: Why is this happening with mixed queries?
+          if (_partitioned_hypergraph_s->partID(u) != imbalanced_block) {
+            std::cout << "Node " << u << " is not in block " << imbalanced_block << " but in " << _partitioned_hypergraph_s->partID(u) << std::endl;
+            insertOrUpdateNode(u, _partitioned_hypergraph_s->partID(u));
+            continue;
+          }
+
           ASSERT(_partitioned_hypergraph_s->partID(u) == imbalanced_block);
 
           auto [best_push_block, gain] = findFittingBestPushBlock(u, imbalanced_block);
@@ -91,6 +98,14 @@ public:
           continue;
         }
         PartitionID block_pull_source = _partitioned_hypergraph_s->partID(u);
+
+        //TODO: Why is this happening with mixed queries?
+        //TODO: Because v_cycle changes are not reflected in the rebalancer
+        if (block_pull_source == block_pull_target) {
+          std::cout << "Node " << u << " is in block " << block_pull_source << " and should be moved to " << block_pull_target << std::endl;
+          insertOrUpdateNode(u, block_pull_target);
+          continue;
+        }
         ASSERT(block_pull_source != block_pull_target);
 
         HyperedgeWeight gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, block_pull_source, block_pull_target);
@@ -147,6 +162,11 @@ public:
     //if the node was deleted and reinserted, the queues are updated to prevent duplicate entries
     void insertOrUpdateNode(HypernodeID u, PartitionID part) {
       ASSERT(_partitioned_hypergraph_s->nodeIsEnabled(u));
+      if (!_partitioned_hypergraph_s->nodeIsEnabled(u)) {
+        //TODO Why is this happening with mixed queries?
+        return;
+      }
+      ASSERT(_partitioned_hypergraph_s->partID(u) == part);
       HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
       for (PartitionID b = 0; b < _context->partition.k; ++b) {
         if (b == part) {

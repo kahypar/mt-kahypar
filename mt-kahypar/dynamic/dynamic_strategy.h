@@ -11,7 +11,7 @@ namespace mt_kahypar::dyn {
 
     class DynamicStrategy {
     private:
-        void activate_nodes(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
+        static void activate_nodes(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
           for (const HypernodeID &hn: change.added_nodes) {
             hypergraph.enableHypernodeWithEdges(hn);
             if (!context.dynamic.use_final_weight) {
@@ -29,7 +29,7 @@ namespace mt_kahypar::dyn {
             }
           }
         }
-        void deactivate_nodes(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
+        static void deactivate_nodes(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
           for (const HypernodeID &hn: change.removed_nodes) {
             hypergraph.disableHypernodeWithEdges(hn);
             if (!context.dynamic.use_final_weight) {
@@ -113,7 +113,7 @@ namespace mt_kahypar::dyn {
         /*
          * Process the whole Change object.
          */
-        void process_change(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
+        static void process_change(ds::StaticHypergraph &hypergraph, Context &context, Change change) {
           deactivate_pins(hypergraph, context, change);
           deactivate_nodes(hypergraph, context, change);
           deactivate_edges(hypergraph, context, change);
