@@ -16,6 +16,7 @@
 #include "mt-kahypar/dynamic/strategies/localFM_rebalance_vcycle.h"
 #include "mt-kahypar/dynamic/strategies/localFM_rebalance_debug.h"
 #include "mt-kahypar/dynamic/strategies/v_cycle.h"
+#include "mt-kahypar/dynamic/strategies/repartition_cycle.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
 
 namespace mt_kahypar::dyn {
@@ -86,6 +87,8 @@ namespace mt_kahypar::dyn {
         strategy = new Rebalance();
       } else if (context.dynamic.strategy == "v_cycle") {
         strategy = new VCycle();
+      } else if (context.dynamic.strategy == "repartition_cycle") {
+        strategy = new RepartitionCycle();
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }

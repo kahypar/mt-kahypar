@@ -312,6 +312,7 @@ class PartitionedHypergraph {
         LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
             "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
             "Actual:" <<  V(pinCountInPart(e, i));
+        success = false;
       }
       expected_connectivity += (actual_pin_count_in_part > 0);
     }
