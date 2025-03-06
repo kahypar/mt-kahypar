@@ -438,10 +438,10 @@ namespace mt_kahypar::io {
 
     // Read Hypernode Weights
     readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes, type, hypernodes_weight);
-    
-    //Check the end of the file
+
+    // Check the end of the file
     while ( handle.mapped_file[pos] == '%' ) {
-        goto_next_line(handle.mapped_file, pos, handle.length);
+      goto_next_line(handle.mapped_file, pos, handle.length);
     }
     ASSERT(pos == handle.length);
 
@@ -593,7 +593,7 @@ namespace mt_kahypar::io {
       while ( current_vertex_id < last_vertex_id ) {
         // Skip Comments
         ASSERT(current_pos < current_end);
-        while ( mapped_file[pos] == '%' ) {
+        while ( mapped_file[current_pos] == '%' ) {
           goto_next_line(mapped_file, current_pos, current_end);
           ASSERT(current_pos < current_end);
         }
@@ -648,6 +648,11 @@ namespace mt_kahypar::io {
     // Read Vertices
     readVertices(handle.mapped_file, pos, handle.length, num_edges, num_vertices,
       has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
+
+    // Check the end of the file
+    while ( handle.mapped_file[pos] == '%' ) {
+      goto_next_line(handle.mapped_file, pos, handle.length);
+    }
     ASSERT(pos == handle.length);
 
     munmap_file(handle);
