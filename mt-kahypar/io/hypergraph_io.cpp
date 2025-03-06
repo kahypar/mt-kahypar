@@ -438,6 +438,11 @@ namespace mt_kahypar::io {
 
     // Read Hypernode Weights
     readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes, type, hypernodes_weight);
+    
+    //Check the end of the file
+    while ( handle.mapped_file[pos] == '%' ) {
+        goto_next_line(handle.mapped_file, pos, handle.length);
+    }
     ASSERT(pos == handle.length);
 
     munmap_file(handle);
