@@ -168,13 +168,19 @@ namespace mt_kahypar::dyn {
             //TODO: does this work for multiple node removals?
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
 
+              size_t nodes_in_removed_partition_prior_removal = 0;
+
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-                if (partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <= context.dynamic.small_blocks_threshold) {
+                if (partitioned_hypergraph_s->partID(hn2) != kInvalidPartition &&
+                    partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn2)) <=
+                    context.dynamic.small_blocks_threshold) {
                   local_fm_nodes.push_back(hn2);
+                }
+                if (partitioned_hypergraph_s->partID(hn2) == partitioned_hypergraph_s->partID(hn)) {
+                  nodes_in_removed_partition_prior_removal++;
                 }
               }
 
-              size_t nodes_in_removed_partition_prior_removal = partitioned_hypergraph_s->pinCountInPart(he, partitioned_hypergraph_s->partID(hn));
               //gain increases for remaining node in partition because moving it to another partition will decrease the cut
               if (nodes_in_removed_partition_prior_removal == 2) {
                 //append remaining node in partition to gain_cache_nodes
