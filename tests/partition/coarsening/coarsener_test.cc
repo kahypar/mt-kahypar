@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #endif
+#include "mt-kahypar/partition/coarsening/do_nothing_coarsener.h"
 
 
 using ::testing::Test;
@@ -147,5 +148,36 @@ TEST_F(ANLevelCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   }
 }
 #endif
+
+template<typename TypeTraits, typename, typename, typename>
+using DoNothingCoarsenerAdapter = DoNothingCoarsener<TypeTraits>;
+
+using ADoNothingCoarsener = ACoarsener<StaticHypergraphTypeTraits,
+                                       DoNothingCoarsenerAdapter,
+                                       MultilevelUncoarsener,
+                                       PresetType::default_preset>;
+
+TEST_F(ADoNothingCoarsener, TerminatesCoarseningWithoutContractions) {
+  context.coarsening.contraction_limit = 1;
+  decreasesNumberOfPins(hypergraph.initialNumPins());
+}
+
+TEST_F(ADoNothingCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
+  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  context.coarsening.contraction_limit = 1;
+  context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+  context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+  context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+  context.type = ContextType::initial_partitioning;
+  doCoarsening();
+  PartitionedHypergraph& coarsest_partitioned_hypergraph =
+    utils::cast<PartitionedHypergraph>(coarsener->coarsestPartitionedHypergraph());
+  assignPartitionIDs(coarsest_partitioned_hypergraph);
+  PartitionedHypergraph partitioned_hypergraph = uncoarsener->uncoarsen();
+  for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
+    PartitionID part_id = 0;
+    ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
+  }
+}
 
 }  // namespace mt_kahypar

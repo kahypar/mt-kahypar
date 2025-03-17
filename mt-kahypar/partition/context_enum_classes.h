@@ -112,6 +112,7 @@ enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
   nlevel_coarsener,
+  do_nothing_coarsener,
   UNDEFINED
 };
 
