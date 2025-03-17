@@ -163,6 +163,7 @@ namespace mt_kahypar {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
       case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
+      case CoarseningAlgorithm::do_nothing_coarsener: return os << "do_nothing";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -362,6 +363,8 @@ namespace mt_kahypar {
       return CoarseningAlgorithm::nlevel_coarsener;
     } else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
+    } else if (type == "do_nothing_coarsener") {
+      return CoarseningAlgorithm::do_nothing_coarsener;
     }
     throw InvalidParameterException("Illegal option: " + type);
     return CoarseningAlgorithm::UNDEFINED;

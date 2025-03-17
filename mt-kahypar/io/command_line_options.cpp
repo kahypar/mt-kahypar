@@ -245,6 +245,7 @@ namespace mt_kahypar {
              " - multilevel_coarsener"
              " - nlevel_coarsener"
              " - deterministic_multilevel_coarsener"
+             " - do_nothing"
              )
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),

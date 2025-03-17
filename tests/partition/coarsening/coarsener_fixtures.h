@@ -86,6 +86,7 @@ class ACoarsener : public Test {
     }
 
     context.partition.k = 2;
+    context.partition.epsilon = 0.03;
     context.partition.mode = Mode::direct;
     context.partition.preset_type = PRESET;
     context.partition.instance_type = InstanceType::hypergraph;
