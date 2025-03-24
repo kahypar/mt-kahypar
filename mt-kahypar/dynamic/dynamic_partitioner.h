@@ -127,6 +127,8 @@ namespace mt_kahypar::dyn {
           }
         }
 
+        context.dynamic.timings.push_back(std::make_pair("Total", std::chrono::duration_cast<std::chrono::nanoseconds>(duration_sum).count()));
+
         strategy->printFinalStats(hypergraph_s, context);
         //log_km1(context, &strategy->history);
 

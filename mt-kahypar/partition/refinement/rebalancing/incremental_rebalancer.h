@@ -26,6 +26,16 @@ public:
       populateBlockQueues();
     }
 
+    void updateAllForMove(Move move) {
+      if (!_partitioned_hypergraph_s->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache))) {
+        std::cout << "Gain cache is not valid" << std::endl;
+        exit(1);
+      }
+      _context->dynamic.localFM_round->incremental_km1 -= GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(move.node, move.from, move.to);
+      updateGainCacheForMove(move);
+      updateHeapsForMove(move);
+    }
+
     std::tuple<HyperedgeWeight, std::vector<HypernodeID>> rebalanceAndUpdateGainCache() {
       HyperedgeWeight total_gain = 0;
       std::vector<HypernodeID> moved_nodes;
@@ -69,8 +79,9 @@ public:
           }
 
           Move move = {imbalanced_block, best_push_block, u, gain};
-          executeMoveAndUpdateGainCache(move);
-          applyMove(move);
+          _partitioned_hypergraph_s->changeNodePart(move.node, move.from, move.to);
+          updateGainCacheForMove(move);
+          updateHeapsForMove(move);
 
           moved_nodes.push_back(u);
 
@@ -125,8 +136,9 @@ public:
         }
 
         Move move = {block_pull_source, block_pull_target, u, gain};
-        executeMoveAndUpdateGainCache(move);
-        applyMove(move);
+        _partitioned_hypergraph_s->changeNodePart(move.node, move.from, move.to);
+        updateGainCacheForMove(move);
+        updateHeapsForMove(move);
 
         moved_nodes.push_back(u);
 
@@ -141,7 +153,7 @@ public:
       return std::make_tuple(total_gain, moved_nodes);
     }
 
-    void applyMove(Move move) {
+    void updateHeapsForMove(Move move) {
       HypernodeID u = move.node;
       ASSERT(_partitioned_hypergraph_s->nodeIsEnabled(u));
 
@@ -329,9 +341,8 @@ private:
       ASSERT(checkBlockQueues());
     }
 
-    void executeMoveAndUpdateGainCache(Move move) {
+    void updateGainCacheForMove(Move move) {
 
-      _partitioned_hypergraph_s->changeNodePart(move.node, move.from, move.to);
       HypernodeID hn = move.node;
       ds::StaticHypergraph &hypergraph = _partitioned_hypergraph_s->hypergraph();
 

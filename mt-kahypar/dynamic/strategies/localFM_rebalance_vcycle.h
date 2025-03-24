@@ -65,6 +65,8 @@ namespace mt_kahypar::dyn {
             _rebalancer.insertOrUpdateNode(hn, partitioned_hypergraph_s->partID(hn));
           }
 
+          auto start = std::chrono::high_resolution_clock::now();
+
           //pull into emptier blocks
           for (PartitionID p = 0; p < context.partition.k; ++p) {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
@@ -81,6 +83,19 @@ namespace mt_kahypar::dyn {
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
           }
 
+          auto rebalancer_timer = std::chrono::high_resolution_clock::now() - start;
+          bool found = false;
+          for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+            if (context.dynamic.timings[i].first == "Rebalancer") {
+              context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(rebalancer_timer).count();
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            context.dynamic.timings.push_back(std::make_pair("Rebalancer", std::chrono::duration_cast<std::chrono::nanoseconds>(rebalancer_timer).count()));
+          }
+
           if (local_fm_nodes.size() == 0) {
             return;
           }
@@ -88,13 +103,28 @@ namespace mt_kahypar::dyn {
           Metrics best_Metrics = {context.dynamic.localFM_round->incremental_km1,
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
+          start = std::chrono::high_resolution_clock::now();
+
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
+
+          auto fm_timer = std::chrono::high_resolution_clock::now() - start;
+          found = false;
+          for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+            if (context.dynamic.timings[i].first == "Refinement") {
+              context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(fm_timer).count();
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            context.dynamic.timings.push_back(std::make_pair("Refinement", std::chrono::duration_cast<std::chrono::nanoseconds>(fm_timer).count()));
+          }
 
           for (Move move : context.dynamic.localFM_round->moves) {
             if (move.to != partitioned_hypergraph_s->partID(move.node)) {
               continue;
             }
-            _rebalancer.applyMove(move);
+            _rebalancer.updateHeapsForMove(move);
           }
 
           _rebalancer.updateGainForMoves(context.dynamic.localFM_round->moves);
@@ -146,6 +176,8 @@ namespace mt_kahypar::dyn {
         }
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
+
+          auto start = std::chrono::high_resolution_clock::now();
 
           parallel::scalable_vector<HypernodeID> local_fm_nodes;
           std::vector<HypernodeID> gain_cache_nodes;
@@ -251,16 +283,65 @@ namespace mt_kahypar::dyn {
           std::sort(local_fm_nodes.begin(), local_fm_nodes.end());
           local_fm_nodes.erase(std::unique(local_fm_nodes.begin(), local_fm_nodes.end()), local_fm_nodes.end());
 
+          auto processing = std::chrono::high_resolution_clock::now() - start;
+          bool found = false;
+          for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+            if (context.dynamic.timings[i].first == "Processing") {
+              context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(processing).count();
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            context.dynamic.timings.push_back(std::make_pair("Processing", std::chrono::duration_cast<std::chrono::nanoseconds>(processing).count()));
+          }
+
+          start = std::chrono::high_resolution_clock::now();
+
           local_fm(context, local_fm_nodes, gain_cache_nodes, change, empty_blocks);
+
+          auto local_fm_complete = std::chrono::high_resolution_clock::now() - start;
+          found = false;
+          for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+            if (context.dynamic.timings[i].first == "LocalFM_complete") {
+              context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(local_fm_complete).count();
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            context.dynamic.timings.push_back(std::make_pair("LocalFM_complete", std::chrono::duration_cast<std::chrono::nanoseconds>(local_fm_complete).count()));
+          }
 
           if (changed_weight > context.dynamic.step_size_pct * prior_total_weight) {
             mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                     *partitioned_hypergraph_s);
             HyperedgeWeight prior_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
 
+            start = std::chrono::high_resolution_clock::now();
+
             context.partition.num_vcycles = 1;
 
+            //TODO old context
+            context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+            
             PartitionerFacade::improve(partitioned_hypergraph, context);
+
+            auto vcycle = std::chrono::high_resolution_clock::now() - start;
+            found = false;
+            for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+              if (context.dynamic.timings[i].first == "VCycle") {
+                context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(vcycle).count();
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              context.dynamic.timings.push_back(std::make_pair("VCycle", std::chrono::duration_cast<std::chrono::nanoseconds>(vcycle).count()));
+            }
+
+            start = std::chrono::high_resolution_clock::now();
+
             HyperedgeWeight post_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
             context.dynamic.localFM_round->incremental_km1 = post_km1;
             GainCachePtr::resetGainCache(_gain_cache);
@@ -272,6 +353,19 @@ namespace mt_kahypar::dyn {
             context.partition.num_vcycles = 0;
             changed_weight = 0;
             prior_total_weight = hypergraph.totalWeight();
+
+            auto post_vcycle = std::chrono::high_resolution_clock::now() - start;
+            found = false;
+            for (size_t i = 0; i < context.dynamic.timings.size(); ++i) {
+              if (context.dynamic.timings[i].first == "PostVCycle") {
+                context.dynamic.timings[i].second += std::chrono::duration_cast<std::chrono::nanoseconds>(post_vcycle).count();
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              context.dynamic.timings.push_back(std::make_pair("PostVCycle", std::chrono::duration_cast<std::chrono::nanoseconds>(post_vcycle).count()));
+            }
           }
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
@@ -292,10 +386,20 @@ namespace mt_kahypar::dyn {
         }
 
         void printFinalStats(ds::StaticHypergraph &hypergraph, Context &context) override {
+          (void) hypergraph;
           assert(context.dynamic.localFM_round->incremental_km1 == mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1) && ("Error: incremental_km1 does not match the quality metric. " + std::to_string(context.dynamic.localFM_round->incremental_km1) + " " + std::to_string(mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1))).c_str());
           std::cout << std::endl << "Final km1: " << context.dynamic.localFM_round->incremental_km1 << " Real km1: " << mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1) << std::endl;
-          (void) hypergraph;
-          (void) context;
+
+          std::string filename = context.dynamic.output_path.substr(0, context.dynamic.output_path.size() - 4) + "_timings.csv";
+          std::ofstream file(filename, std::ios_base::trunc);
+          if (!file.is_open()) {
+            throw std::runtime_error("Could not open file: " + filename);
+          }
+
+          file << "Name, Time" << std::endl;
+          for (const auto& [name, time] : context.dynamic.timings) {
+            file << name << ", " << time / 1000000 << std::endl;
+          }
         }
     };
 }

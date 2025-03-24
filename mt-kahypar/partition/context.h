@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 
@@ -297,6 +298,7 @@ struct DynamicParameters {
     // logging values
     double logging_step_size_pct = 0.001;
     LocalFMRound* localFM_round = nullptr;
+    std::vector<std::pair<std::string, std::chrono::milliseconds::rep>> timings;
     size_t repartition_count = 0;
 
     // generate file endings

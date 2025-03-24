@@ -94,7 +94,7 @@ namespace mt_kahypar::dyn {
             if (move.to != partitioned_hypergraph_s->partID(move.node)) {
               continue;
             }
-            _rebalancer.applyMove(move);
+            _rebalancer.updateHeapsForMove(move);
           }
 
           ASSERT(_rebalancer.checkBlockQueues());
