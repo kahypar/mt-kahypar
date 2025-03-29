@@ -5,6 +5,7 @@
 #include <mt-kahypar/partition/refinement/gains/gain_cache_ptr.h>
 #include <mt-kahypar/partition/factories.h>
 #include <mt-kahypar/partition/refinement/rebalancing/incremental_rebalancer.h>
+#include <fstream>
 
 namespace mt_kahypar::dyn {
 
@@ -19,6 +20,7 @@ namespace mt_kahypar::dyn {
         IncrementalRebalancer _rebalancer;
         HyperedgeWeight prior_total_weight = 0;
         HyperedgeWeight changed_weight = 0;
+        size_t vcycle_touched_nodes = 0;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
           context.dynamic.repartition_count++;
@@ -316,16 +318,32 @@ namespace mt_kahypar::dyn {
           if (changed_weight > context.dynamic.step_size_pct * prior_total_weight) {
             mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                     *partitioned_hypergraph_s);
-            HyperedgeWeight prior_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
+
+            HyperedgeWeight prior_km1 = 0;
+            if (!context.dynamic.server) {
+              prior_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
+            }
+
+            //save partition of nodes
+            std::vector<PartitionID> partition_of_nodes(hypergraph.initialNumNodes());
+            for (HypernodeID hn = 0; hn < hypergraph.initialNumNodes(); ++hn) {
+              partition_of_nodes[hn] = partitioned_hypergraph_s->partID(hn);
+            }
 
             start = std::chrono::high_resolution_clock::now();
 
-            context.partition.num_vcycles = 1;
+            context.partition.num_vcycles = context.dynamic.vcycle_num;
+            static_cast<Context*>(context.dynamic.old_context)->partition.num_vcycles = context.dynamic.vcycle_num;
 
-            //TODO old context
             context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
-            
-            PartitionerFacade::improve(partitioned_hypergraph, context);
+
+            if (context.dynamic.vcycle_algorithm == "kway_fm") {
+              PartitionerFacade::improve(partitioned_hypergraph, context);
+            } else if (context.dynamic.vcycle_algorithm == "unconstrained") {
+              PartitionerFacade::improve(partitioned_hypergraph, *static_cast<Context*>(context.dynamic.old_context));
+            } else {
+              throw std::runtime_error("Unknown vcycle algorithm: " + context.dynamic.vcycle_algorithm);
+            }
 
             auto vcycle = std::chrono::high_resolution_clock::now() - start;
             found = false;
@@ -344,8 +362,10 @@ namespace mt_kahypar::dyn {
 
             HyperedgeWeight post_km1 = mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1);
             context.dynamic.localFM_round->incremental_km1 = post_km1;
+
             GainCachePtr::resetGainCache(_gain_cache);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_s.value());
+
             if (!context.dynamic.server) {
               std::cout << std::endl << "Improvement: " << prior_km1 - post_km1 << std::endl;
             }
@@ -366,6 +386,16 @@ namespace mt_kahypar::dyn {
             if (!found) {
               context.dynamic.timings.push_back(std::make_pair("PostVCycle", std::chrono::duration_cast<std::chrono::nanoseconds>(post_vcycle).count()));
             }
+
+            for (HypernodeID hn = 0; hn < hypergraph.initialNumNodes(); ++hn) {
+              if (partitioned_hypergraph_s->partID(hn) != partition_of_nodes[hn]) {
+                //TODO why is this worse than reset?
+                _rebalancer.insertOrUpdateNode(hn, partitioned_hypergraph_s->partID(hn));
+                vcycle_touched_nodes ++;
+                context.dynamic.localFM_round->touched_nodes++;
+              }
+            }
+            _rebalancer.reset();
           }
 
           ASSERT(metrics::isBalanced(*partitioned_hypergraph_s, context));
@@ -400,6 +430,8 @@ namespace mt_kahypar::dyn {
           for (const auto& [name, time] : context.dynamic.timings) {
             file << name << ", " << time / 1000000 << std::endl;
           }
+
+          std::cout << "Touched nodes: " << vcycle_touched_nodes << std::endl;
         }
     };
 }

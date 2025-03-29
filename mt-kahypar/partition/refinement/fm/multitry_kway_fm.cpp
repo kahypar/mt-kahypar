@@ -166,10 +166,12 @@ namespace mt_kahypar {
         }
       }
 
-      mt_kahypar::LocalFMRound* local_fm_round = context.dynamic.localFM_round;
-      if (local_fm_round != nullptr) {
-        local_fm_round->overall_improvement = overall_improvement;
-        local_fm_round->touched_nodes = sharedData.moveTracker.numPerformedMoves();
+      if(context.dynamic.localFM_round != nullptr) {
+        mt_kahypar::LocalFMRound *local_fm_round = context.dynamic.localFM_round;
+        if (local_fm_round != nullptr) {
+          local_fm_round->overall_improvement = overall_improvement;
+          local_fm_round->touched_nodes = sharedData.moveTracker.numPerformedMoves();
+        }
       }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -226,13 +228,15 @@ namespace mt_kahypar {
 //    ASSERT(metrics.quality == metrics::quality(phg, context),
 //           V(metrics.quality) << V(metrics::quality(phg, context)));
 
-    context.dynamic.localFM_round->incremental_km1 -= overall_improvement;
-    context.dynamic.localFM_round->moves.clear();
+    if (context.dynamic.localFM_round != nullptr) {
+      context.dynamic.localFM_round->incremental_km1 -= overall_improvement;
+      context.dynamic.localFM_round->moves.clear();
 
-    for (MoveID i = 0; i < context.dynamic.localFM_round->moved_nodes; ++i) {
-      Move &m = sharedData.moveTracker.moveOrder[i];
-      if (m.isValid()) {
-        context.dynamic.localFM_round->moves.push_back(m);
+      for (MoveID i = 0; i < context.dynamic.localFM_round->moved_nodes; ++i) {
+        Move &m = sharedData.moveTracker.moveOrder[i];
+        if (m.isValid()) {
+          context.dynamic.localFM_round->moves.push_back(m);
+        }
       }
     }
 

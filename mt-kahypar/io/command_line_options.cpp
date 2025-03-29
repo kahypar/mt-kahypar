@@ -793,6 +793,14 @@ namespace mt_kahypar {
             ("d-setup-moves-count",
               po::value<size_t>(&context.dynamic.setup_moves_count)->value_name("<size_t>"),
       "Number of moves to be performed prior to the strategy");
+    dynamic_options.add_options()
+            ("d-vcycle-algorithm",
+              po::value<std::string>(&context.dynamic.vcycle_algorithm)->value_name("<string>"),
+      "Algorithm to be used for the v-cycle");
+    dynamic_options.add_options()
+            ("d-vcycle-num",
+              po::value<size_t>(&context.dynamic.vcycle_num)->value_name("<size_t>"),
+      "Number of v-cycles to be performed");
 
     return dynamic_options;
   }

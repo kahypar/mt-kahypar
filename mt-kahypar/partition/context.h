@@ -279,6 +279,10 @@ struct LocalFMRound {
 };
 
 struct DynamicParameters {
+    void* old_context;
+    std::string vcycle_algorithm = "kway_fm";
+    size_t vcycle_num = 1;
+
     std::string changes_file = "";
     std::string strategy = "";
     size_t initial_partitioning_size = 0;
@@ -307,6 +311,8 @@ struct DynamicParameters {
         file_name += std::to_string(initial_partitioning_size) + "_";
         file_name += std::to_string(max_changes) + "_";
         file_name += std::to_string(use_final_weight) + "_";
+        file_name += vcycle_algorithm + "_";
+        file_name += std::to_string(vcycle_num) + "_";
         // round to 2 decimal places
         file_name += std::to_string((int)(step_size_pct * 100)) + "_";
         file_name += std::to_string(reduce_deg_0) + "_";

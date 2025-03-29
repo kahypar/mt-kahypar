@@ -26,6 +26,14 @@ public:
       populateBlockQueues();
     }
 
+    void reset() {
+      for (PartitionID b = 0; b < _context->partition.k; ++b) {
+        _blocks[b].push.clear();
+        _blocks[b].pull.clear();
+      }
+      populateBlockQueues();
+    }
+
     void updateAllForMove(Move move) {
       if (!_partitioned_hypergraph_s->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache))) {
         std::cout << "Gain cache is not valid" << std::endl;
