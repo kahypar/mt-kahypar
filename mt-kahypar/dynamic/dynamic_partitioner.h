@@ -18,6 +18,14 @@
 #include "mt-kahypar/dynamic/strategies/v_cycle.h"
 #include "mt-kahypar/dynamic/strategies/repartition_cycle.h"
 #include "mt-kahypar/dynamic/dynamic_io.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_rebalance_vcycle_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/rebalance_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/repartition_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_rebalance_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_small_blocks_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_filter_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_incremental_gain_v4.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_v4.h"
 
 namespace mt_kahypar::dyn {
 
@@ -29,7 +37,6 @@ namespace mt_kahypar::dyn {
       context.partition.instance_type = InstanceType::hypergraph;
       context.partition.objective = Objective::km1;
       context.partition.gain_policy = GainPolicy::km1;
-
 
       // Read Hypergraph
       mt_kahypar_hypergraph_t hypergraph_t = io::readInputFile(
@@ -59,42 +66,64 @@ namespace mt_kahypar::dyn {
 
       DynamicStrategy* strategy;
 
-      if (context.dynamic.strategy == "connectivity") {
-        strategy = new Connectivity();
-      } else if (context.dynamic.strategy == "repartition") {
-        strategy = new Repartition();
-      } else if (context.dynamic.strategy == "localFM") {
-        strategy = new LocalFM();
-      } else if (context.dynamic.strategy == "localFM_filter") {
-        strategy = new LocalFMFilter();
-      } else if (context.dynamic.strategy == "localFM_old") {
-        strategy = new LocalFMOld();
-      } else if (context.dynamic.strategy == "never_repartition") {
-        strategy = new NeverRepartition();
-      } else if (context.dynamic.strategy == "localFM_factor") {
-        strategy = new LocalFMFactor();
-      } else if (context.dynamic.strategy == "localFM_incremental_gain") {
-        strategy = new LocalFMIncGain();
-      } else if (context.dynamic.strategy == "localFM_filtered_gain") {
-        strategy = new LocalFMFilterGain();
-      } else if (context.dynamic.strategy == "localFM_v2") {
-        strategy = new LocalFMV2();
-      } else if (context.dynamic.strategy == "localFM_small_blocks") {
-        strategy = new LocalFMSBlocks();
-      } else if (context.dynamic.strategy == "localFM_rebalance") {
-        strategy = new LocalFMRebalance();
-      } else if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
-        strategy = new LocalFMRebalanceVCycle();
-      }else if (context.dynamic.strategy == "localFM_rebalance_debug") {
-        strategy = new LocalFMRebalanceDebug();
-      } else if (context.dynamic.strategy == "rebalance") {
-        strategy = new Rebalance();
-      } else if (context.dynamic.strategy == "v_cycle") {
-        strategy = new VCycle();
-      } else if (context.dynamic.strategy == "repartition_cycle") {
-        strategy = new RepartitionCycle();
+      if (context.dynamic.version == 4) {
+        if (context.dynamic.strategy == "repartition") {
+          strategy = new RepartitionV4();
+        } else if (context.dynamic.strategy == "rebalance") {
+          strategy = new RebalanceV4();
+        } else if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
+          strategy = new LocalFMRebalanceVCycleV4();
+        } else if (context.dynamic.strategy == "localFM_rebalance") {
+          strategy = new LocalFMRebalanceV4();
+        } else if (context.dynamic.strategy == "localFM_small_blocks") {
+          strategy = new LocalFMSmallBlocksV4();
+        } else if (context.dynamic.strategy == "localFM_filter") {
+          strategy = new LocalFMFilterV4();
+        } else if (context.dynamic.strategy == "localFM_incremental_gain") {
+          strategy = new LocalFMIncrementalGainV4();
+        } else if (context.dynamic.strategy == "localFM") {
+          strategy = new LocalFMV4();
+        } else {
+          throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
+        }
       } else {
-        throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
+        if (context.dynamic.strategy == "connectivity") {
+          strategy = new Connectivity();
+        } else if (context.dynamic.strategy == "repartition") {
+          strategy = new Repartition();
+        } else if (context.dynamic.strategy == "localFM") {
+          strategy = new LocalFM();
+        } else if (context.dynamic.strategy == "localFM_filter") {
+          strategy = new LocalFMFilter();
+        } else if (context.dynamic.strategy == "localFM_old") {
+          strategy = new LocalFMOld();
+        } else if (context.dynamic.strategy == "never_repartition") {
+          strategy = new NeverRepartition();
+        } else if (context.dynamic.strategy == "localFM_factor") {
+          strategy = new LocalFMFactor();
+        } else if (context.dynamic.strategy == "localFM_incremental_gain") {
+          strategy = new LocalFMIncGain();
+        } else if (context.dynamic.strategy == "localFM_filtered_gain") {
+          strategy = new LocalFMFilterGain();
+        } else if (context.dynamic.strategy == "localFM_v2") {
+          strategy = new LocalFMV2();
+        } else if (context.dynamic.strategy == "localFM_small_blocks") {
+          strategy = new LocalFMSBlocks();
+        } else if (context.dynamic.strategy == "localFM_rebalance") {
+          strategy = new LocalFMRebalance();
+        } else if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
+          strategy = new LocalFMRebalanceVCycle();
+        } else if (context.dynamic.strategy == "localFM_rebalance_debug") {
+          strategy = new LocalFMRebalanceDebug();
+        } else if (context.dynamic.strategy == "rebalance") {
+          strategy = new Rebalance();
+        } else if (context.dynamic.strategy == "v_cycle") {
+          strategy = new VCycle();
+        } else if (context.dynamic.strategy == "repartition_cycle") {
+          strategy = new RepartitionCycle();
+        } else {
+          throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
+        }
       }
 
       initOutputFile(context);

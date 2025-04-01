@@ -292,6 +292,8 @@ struct DynamicParameters {
     bool reduce_deg_0 = false;
     size_t multitry_localFM = 1;
     std::string custom_output_file = "";
+    size_t version = 0;
+
     // not included in the output file ending
     std::string result_folder = "";
     bool server = false;
@@ -307,7 +309,8 @@ struct DynamicParameters {
 
     // generate file endings
     [[nodiscard]] std::string getOutputFileName() const {
-        std::string file_name = strategy + "_";
+        std::string file_name = "v" + std::to_string(version) + "_";
+        file_name += strategy + "_";
         file_name += std::to_string(initial_partitioning_size) + "_";
         file_name += std::to_string(max_changes) + "_";
         file_name += std::to_string(use_final_weight) + "_";
