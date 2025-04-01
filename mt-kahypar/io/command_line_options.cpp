@@ -802,25 +802,8 @@ namespace mt_kahypar {
               po::value<size_t>(&context.dynamic.vcycle_num)->value_name("<size_t>"),
       "Number of v-cycles to be performed");
     dynamic_options.add_options()
-            ("d-enable-refinement",
-              po::value<bool>(&context.dynamic.enable_refinement)->value_name("<bool>"),
-      "If true, then localFM-refinement is enabled");
-    dynamic_options.add_options()
-            ("d-use-basic-incremental-gain",
-              po::value<bool>(&context.dynamic.use_basic_incremental_gain)->value_name("<bool>"),
-      "If true, then basic incremental gain is used");
-    dynamic_options.add_options()
-            ("d-enable-filter",
-              po::value<bool>(&context.dynamic.enable_filter)->value_name("<bool>"),
-      "If true, then filter is enabled");
-    dynamic_options.add_options()
-            ("d-enable-incremental-rebalance",
-              po::value<bool>(&context.dynamic.enable_incremental_rebalance)->value_name("<bool>"),
-      "If true, then incremental rebalance is enabled");
-    dynamic_options.add_options()
-            ("d-enable-vcycle",
-              po::value<bool>(&context.dynamic.enable_vcycle)->value_name("<bool>"),
-      "If true, then v-cycle is enabled");
+            ("d-version",
+              po::value<size_t>(&context.dynamic.version)->value_name("<string>"),
 
     return dynamic_options;
   }
