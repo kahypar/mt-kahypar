@@ -803,7 +803,8 @@ namespace mt_kahypar {
       "Number of v-cycles to be performed");
     dynamic_options.add_options()
             ("d-version",
-              po::value<size_t>(&context.dynamic.version)->value_name("<string>"),
+              po::value<size_t>(&context.dynamic.version)->value_name("<size_t>"),
+      "Version of the dynamic partitioning");
 
     return dynamic_options;
   }
