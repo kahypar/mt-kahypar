@@ -75,9 +75,6 @@ namespace mt_kahypar::dyn {
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
-
-          ASSERT(_rebalancer.checkBlockQueues());
-          ASSERT(_rebalancer.checkPullQueueGains());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {

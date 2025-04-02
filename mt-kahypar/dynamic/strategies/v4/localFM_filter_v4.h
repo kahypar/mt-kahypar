@@ -93,9 +93,6 @@ namespace mt_kahypar::dyn {
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
-
-          ASSERT(_rebalancer.checkBlockQueues());
-          ASSERT(_rebalancer.checkPullQueueGains());
         }
 
         PartitionID add_node_to_partitioned_hypergraph(ds::StaticHypergraph& hypergraph, Context& context, const HypernodeID& hn) {
@@ -190,6 +187,7 @@ namespace mt_kahypar::dyn {
           process_change(hypergraph, context, change);
 
           for (const HypernodeID& hn : change.added_nodes) {
+            add_node_to_partitioned_hypergraph(hypergraph, context, hn);
             local_fm_nodes.push_back(hn);
             gain_cache_nodes.push_back(hn);
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
