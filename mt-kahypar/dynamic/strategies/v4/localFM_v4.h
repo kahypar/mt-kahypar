@@ -144,7 +144,7 @@ namespace mt_kahypar::dyn {
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
                 if (hn2 != hn) {
-                  local_fm_nodes.push_back(hn2);
+//                  local_fm_nodes.push_back(hn2);
                 }
               }
             }
