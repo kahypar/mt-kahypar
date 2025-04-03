@@ -50,6 +50,10 @@ namespace mt_kahypar::dyn {
         //use local_fm to refine partitioned_hypergraph_s
         void local_fm(Context& context, parallel::scalable_vector<HypernodeID> local_fm_nodes) {
 
+          //reset gain cache
+          GainCachePtr::resetGainCache(_gain_cache);
+          GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_s.value());
+
           mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                   *partitioned_hypergraph_s);
 
@@ -61,15 +65,15 @@ namespace mt_kahypar::dyn {
             Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                     mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
             _rebalancer->refineAndOutputMoves(partitioned_hypergraph, {}, moves_by_part, best_Metrics, std::numeric_limits<double>::max());
+
+            //reset gain cache
+            GainCachePtr::resetGainCache(_gain_cache);
+            GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_s.value());
           }
 
           if (local_fm_nodes.size() == 0) {
             return;
           }
-
-          //reset gain cache
-          GainCachePtr::resetGainCache(_gain_cache);
-          GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_s.value());
           
           Metrics best_Metrics = {mt_kahypar::metrics::quality(*partitioned_hypergraph_s, Objective::km1),
                                   mt_kahypar::metrics::imbalance(*partitioned_hypergraph_s, context)};
@@ -165,7 +169,6 @@ namespace mt_kahypar::dyn {
           PartitionResult partition_result = *new PartitionResult();
           partition_result.valid = true;
           history.push_back(partition_result);
-
         }
 
         void compute_km1_and_imbalance(ds::StaticHypergraph& hypergraph, Context &context, Change change, PartitionResult& partition_result) override {
