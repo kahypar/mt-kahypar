@@ -26,6 +26,7 @@
 #include "mt-kahypar/dynamic/strategies/v4/localFM_filter_v4.h"
 #include "mt-kahypar/dynamic/strategies/v4/localFM_incremental_gain_v4.h"
 #include "mt-kahypar/dynamic/strategies/v4/localFM_v4.h"
+#include "mt-kahypar/dynamic/strategies/do_nothing_coarsener.h"
 
 namespace mt_kahypar::dyn {
 
@@ -121,6 +122,8 @@ namespace mt_kahypar::dyn {
           strategy = new VCycle();
         } else if (context.dynamic.strategy == "repartition_cycle") {
           strategy = new RepartitionCycle();
+        } else if (context.dynamic.strategy == "do_nothing_coarsener") {
+            strategy = new DNCoarsener();
         } else {
           throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
         }

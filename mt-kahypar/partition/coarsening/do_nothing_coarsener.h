@@ -27,8 +27,6 @@
 
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "include/mtkahypartypes.h"
-
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
