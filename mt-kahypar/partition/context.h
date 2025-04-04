@@ -306,6 +306,7 @@ struct DynamicParameters {
     LocalFMRound* localFM_round = nullptr;
     std::vector<std::pair<std::string, std::chrono::milliseconds::rep>> timings;
     size_t repartition_count = 0;
+    size_t stop_vcycle_at_pct = 100;
 
     // generate file endings
     [[nodiscard]] std::string getOutputFileName() const {

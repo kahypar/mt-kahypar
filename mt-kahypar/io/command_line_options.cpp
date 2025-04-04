@@ -806,7 +806,10 @@ namespace mt_kahypar {
             ("d-version",
               po::value<size_t>(&context.dynamic.version)->value_name("<size_t>"),
       "Version of the dynamic partitioning");
-
+    dynamic_options.add_options()
+            ("d-stop-vcycle",
+              po::value<size_t>(&context.dynamic.stop_vcycle_at_pct)->value_name("<size_t>"),
+      "Stop the v-cycle at this percentage of the changes");
     return dynamic_options;
   }
 

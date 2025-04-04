@@ -252,7 +252,7 @@ namespace mt_kahypar::dyn {
 
           local_fm(context, local_fm_nodes, gain_cache_nodes, change, empty_blocks);
 
-          if (changed_weight > context.dynamic.step_size_pct * prior_total_weight && change_count <= changes_size / 2) {
+          if (changed_weight > context.dynamic.step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) {
             mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                     *partitioned_hypergraph_s);
 
