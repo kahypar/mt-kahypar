@@ -21,6 +21,7 @@ namespace mt_kahypar::dyn {
         HyperedgeWeight prior_total_weight = 0;
         HyperedgeWeight changed_weight = 0;
         size_t vcycle_touched_nodes = 0;
+        size_t change_count = 0;
 
         void repartition(ds::StaticHypergraph& hypergraph_s, Context& context) {
           context.dynamic.repartition_count++;
@@ -149,6 +150,8 @@ namespace mt_kahypar::dyn {
 
         void partition(ds::StaticHypergraph& hypergraph, Context& context, Change change, size_t changes_size) override {
 
+          change_count++;
+
           parallel::scalable_vector<HypernodeID> local_fm_nodes;
           std::vector<HypernodeID> gain_cache_nodes;
 
@@ -249,7 +252,7 @@ namespace mt_kahypar::dyn {
 
           local_fm(context, local_fm_nodes, gain_cache_nodes, change, empty_blocks);
 
-          if (changed_weight > context.dynamic.step_size_pct * prior_total_weight) {
+          if (changed_weight > context.dynamic.step_size_pct * prior_total_weight && change_count <= changes_size / 2) {
             mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
                     *partitioned_hypergraph_s);
 
