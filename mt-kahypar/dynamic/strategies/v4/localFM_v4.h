@@ -141,6 +141,7 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes) {
             add_node_to_partitioned_hypergraph(hypergraph, context, hn);
+            local_fm_nodes.push_back(hn);
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               for (const HypernodeID& hn2 : hypergraph.pins(he)) {
                 if (hn2 != hn) {
