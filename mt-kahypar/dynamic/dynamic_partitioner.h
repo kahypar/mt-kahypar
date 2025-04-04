@@ -27,6 +27,7 @@
 #include "mt-kahypar/dynamic/strategies/v4/localFM_incremental_gain_v4.h"
 #include "mt-kahypar/dynamic/strategies/v4/localFM_v4.h"
 #include "mt-kahypar/dynamic/strategies/do_nothing_coarsener.h"
+#include "mt-kahypar/dynamic/strategies/v4/localFM_rebalance_globalFM_v4.h"
 
 namespace mt_kahypar::dyn {
 
@@ -84,6 +85,8 @@ namespace mt_kahypar::dyn {
           strategy = new LocalFMIncrementalGainV4();
         } else if (context.dynamic.strategy == "localFM") {
           strategy = new LocalFMV4();
+        } else if (context.dynamic.strategy == "localFM_rebalance_globalFM") {
+          strategy = new LocalFMRebalanceGlobalFMV4();
         } else {
           throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
         }
