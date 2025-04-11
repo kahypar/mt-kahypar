@@ -185,13 +185,13 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const Pa
   flow_problem.source = whfc::Node(0);
   whfc_to_node[flow_problem.source] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
+    std::max<HypernodeWeight>(HypernodeWeight(0), phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
   add_nodes(sub_hg.nodes_of_block_0, flow_problem.source + 1);
   // Add sink nodes
   flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
   whfc_to_node[flow_problem.sink] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
+    std::max<HypernodeWeight>(HypernodeWeight(0), phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
   add_nodes(sub_hg.nodes_of_block_1, flow_problem.sink + 1);
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
@@ -316,13 +316,13 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
   flow_problem.source = whfc::Node(0);
   whfc_to_node[flow_problem.source] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
+    std::max<HypernodeWeight>(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
   add_nodes(sub_hg.nodes_of_block_0, block_0, flow_problem.source + 1);
   // Add sink nodes
   flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
   whfc_to_node[flow_problem.sink] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
+    std::max<HypernodeWeight>(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
   add_nodes(sub_hg.nodes_of_block_1, block_1, flow_problem.sink + 1);
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
