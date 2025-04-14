@@ -93,6 +93,9 @@ namespace mt_kahypar::dyn {
 
           _fm->refine(partitioned_hypergraph, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
 
+          context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+          context.refinement.fm.multitry_rounds = 1;
+
           for (Move move : context.dynamic.localFM_round->moves) {
             if (move.to != partitioned_hypergraph_s->partID(move.node)) {
               continue;
@@ -273,7 +276,8 @@ namespace mt_kahypar::dyn {
             context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
             context.coarsening.algorithm = CoarseningAlgorithm::do_nothing_coarsener;
-
+            context.refinement.fm.multitry_rounds = 10;
+            context.refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
             if (context.dynamic.vcycle_algorithm == "kway_fm") {
               PartitionerFacade::improve(partitioned_hypergraph, context);
             } else if (context.dynamic.vcycle_algorithm == "unconstrained") {
