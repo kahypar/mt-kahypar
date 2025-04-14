@@ -276,8 +276,8 @@ namespace mt_kahypar::dyn {
             context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
             context.coarsening.algorithm = CoarseningAlgorithm::do_nothing_coarsener;
-            context.refinement.fm.multitry_rounds = 10;
-            context.refinement.fm.algorithm = FMAlgorithm::unconstrained_fm;
+            context.refinement.fm.multitry_rounds = 1;
+            context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
             if (context.dynamic.vcycle_algorithm == "kway_fm") {
               PartitionerFacade::improve(partitioned_hypergraph, context);
             } else if (context.dynamic.vcycle_algorithm == "unconstrained") {
