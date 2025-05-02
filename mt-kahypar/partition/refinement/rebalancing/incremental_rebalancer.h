@@ -27,10 +27,7 @@ public:
     }
 
     void reset() {
-      for (PartitionID b = 0; b < _context->partition.k; ++b) {
-        _blocks[b].push.clear();
-        _blocks[b].pull.clear();
-      }
+      _blocks.clear();
       populateBlockQueues();
     }
 
