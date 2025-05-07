@@ -85,6 +85,7 @@ namespace mt_kahypar::dyn {
           }
           // if no partition could accomodate the node put in the best
           partitioned_hypergraph_s->setNodePart(hn, std::get<1>(block_connectivities[0]));
+          return std::get<1>(block_connectivities[0]);
         }
 
     public:
