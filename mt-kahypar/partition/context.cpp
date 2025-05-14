@@ -132,6 +132,16 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const JetParameters& params) {
+    str << "  Jet Parameters:" << std::endl;
+    str << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm != JetAlgorithm::do_nothing ) {
+      str << "    Iterations without Improvement:   " << params.num_iterations << std::endl;
+      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
+    }
+    return str;
+  }
+
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -212,6 +222,7 @@ namespace mt_kahypar {
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
+    str << "\n" << params.jet;
     str << "\n" << params.fm;
     if ( params.global.use_global_refinement ) {
       str << "\n" << params.global;

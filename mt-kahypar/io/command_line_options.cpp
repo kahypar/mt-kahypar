@@ -389,6 +389,28 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(-1.0),
              "Relative improvement threshold for label propagation.")
+            ((initial_partitioning ? "i-r-jet-type" : "r-jet-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.jet.algorithm = jetAlgorithmFromString(type);
+                       } else {
+                         context.refinement.jet.algorithm = jetAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Jet Algorithm:\n"
+             "- deterministic\n"
+             "- do_nothing")
+            ((initial_partitioning ? "i-r-jet-num-iterations": "r-jet-num-iterations"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.jet.num_iterations :
+                              &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
+                    "<size_t>")->default_value(12),
+             "Number of iterations without significant improvement")
+            ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(0.001),
+             "Relative improvement threshold for Jet.")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

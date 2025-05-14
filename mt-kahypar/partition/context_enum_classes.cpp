@@ -227,6 +227,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const JetAlgorithm& algo) {
+    switch (algo) {
+      case JetAlgorithm::deterministic: return os << "deterministic";
+      case JetAlgorithm::do_nothing: return os << "jet_do_nothing";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
       case FMAlgorithm::kway_fm: return os << "kway_fm";
@@ -445,6 +454,16 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + type);
     return LabelPropagationAlgorithm::do_nothing;
+  }
+
+  JetAlgorithm jetAlgorithmFromString(const std::string& type) {
+    if (type == "deterministic") {
+      return JetAlgorithm::deterministic;
+    } else if (type == "do_nothing") {
+      return JetAlgorithm::do_nothing;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return JetAlgorithm::do_nothing;
   }
 
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
