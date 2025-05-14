@@ -56,6 +56,7 @@ enum class InstanceType : int8_t {
 
 enum class PresetType : int8_t {
   deterministic,
+  deterministic_quality,
   large_k,
   default_preset,
   quality,
