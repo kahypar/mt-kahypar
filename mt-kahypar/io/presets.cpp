@@ -449,6 +449,18 @@ std::vector<option> load_deterministic_preset() {
     create_option("r-fm-type", "do_nothing"),
     // main -> refinement -> flows
     create_option("r-flow-algo", "do_nothing"),
+    create_option("r-flow-scaling", "16"),
+    create_option("r-flow-max-num-pins", "4294967295"),
+    create_option("r-flow-find-most-balanced-cut", "true"),
+    create_option("r-flow-determine-distance-from-cut", "true"),
+    create_option("r-flow-parallel-search-multiplier", "1.0"),
+    create_option("r-flow-max-bfs-distance", "2"),
+    create_option("r-flow-min-relative-improvement-per-round", "0.001"),
+    create_option("r-flow-time-limit-factor", "8"),
+    create_option("r-flow-skip-small-cuts", "true"),
+    create_option("r-flow-skip-unpromising-blocks", "true"),
+    create_option("r-flow-pierce-in-bulk", "true"),
+    create_option("r-flow-process-mapping-policy", "lower_bound"),
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
