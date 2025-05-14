@@ -139,6 +139,7 @@ PYBIND11_MODULE(mtkahypar, m) {
   using mt_kahypar::PresetType;
   py::enum_<PresetType>(m, "PresetType", py::module_local())
     .value("DETERMINISTIC", PresetType::deterministic)
+    .value("DETERMINISTIC_QUALITY", PresetType::deterministic_quality)
     .value("LARGE_K", PresetType::large_k)
     .value("DEFAULT", PresetType::default_preset)
     .value("QUALITY", PresetType::quality)

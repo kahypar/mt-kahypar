@@ -107,6 +107,7 @@ bool is_compatible(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_preset_type_t 
     case DEFAULT:
     case QUALITY:
     case DETERMINISTIC:
+    case DETERMINISTIC_QUALITY:
     case LARGE_K:
       return hypergraph.type == STATIC_GRAPH || hypergraph.type == STATIC_HYPERGRAPH;
     case HIGHEST_QUALITY:
@@ -120,6 +121,7 @@ bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypa
     case DEFAULT:
     case QUALITY:
     case DETERMINISTIC:
+    case DETERMINISTIC_QUALITY:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == MULTILEVEL_HYPERGRAPH_PARTITIONING;
     case LARGE_K:
@@ -211,6 +213,7 @@ mt_kahypar_preset_type_t get_preset_c_type(const PresetType preset) {
     case PresetType::quality: return QUALITY;
     case PresetType::highest_quality: return HIGHEST_QUALITY;
     case PresetType::deterministic: return DETERMINISTIC;
+    case PresetType::deterministic_quality: return DETERMINISTIC_QUALITY;
     case PresetType::large_k: return LARGE_K;
     case PresetType::UNDEFINED: return DEFAULT;
   }
@@ -223,7 +226,7 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
     case STATIC_GRAPH:
       ss << "The hypergraph uses the static graph data structure which can be only used "
          << "in combination with the following presets: "
-         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC, DETERMINISTIC_QUALITY and LARGE_K"; break;
     case DYNAMIC_GRAPH:
       ss << "The hypergraph uses the dynamic graph data structure which can be only used "
          << "in combination with the following preset: "
@@ -231,7 +234,7 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
     case STATIC_HYPERGRAPH:
       ss << "The hypergraph uses the static hypergraph data structure which can be only used "
          << "in combination with the following presets: "
-         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC, DETERMINISTIC_QUALITY and LARGE_K"; break;
     case DYNAMIC_HYPERGRAPH:
       ss << "The hypergraph uses the dynamic hypergraph data structure which can be only used "
          << "in combination with the following preset: "
@@ -256,7 +259,7 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
     case MULTILEVEL_GRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel graph partitioning "
          << "which can be only used in combination with the following presets: "
-         << "DEFAULT, QUALITY, DETERMINISTIC, and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC, DETERMINISTIC_QUALITY, and LARGE_K"; break;
     case N_LEVEL_GRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for n-level graph partitioning "
          << "which can be only used in combination with the following preset: "
@@ -264,7 +267,7 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel hypergraph partitioning "
          << "which can be only used in combination with the following presets: "
-         << "DEFAULT, QUALITY, and DETERMINISTIC"; break;
+         << "DEFAULT, QUALITY, and DETERMINISTIC, DETERMINISTIC_QUALITY"; break;
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for n-level hypergraph partitioning "
          << "which can be only used in combination with the following preset: "
@@ -302,6 +305,7 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const mt_kahypar_hypernode_weight_t* vertex_weights) {
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
+    case PresetType::deterministic_quality:
     case PresetType::large_k:
     case PresetType::default_preset:
     case PresetType::quality:
@@ -328,6 +332,7 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const mt_kahypar_hypernode_weight_t* vertex_weights) {
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
+    case PresetType::deterministic_quality:
     case PresetType::large_k:
     case PresetType::default_preset:
     case PresetType::quality:
@@ -368,6 +373,7 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
     switch ( context.partition.preset_type ) {
       case PresetType::large_k:
       case PresetType::deterministic:
+      case PresetType::deterministic_quality:
       case PresetType::default_preset:
       case PresetType::quality:
         ASSERT(hypergraph.type == STATIC_GRAPH);
@@ -386,6 +392,7 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
         return create_partitioned_hypergraph<SparsePartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case PresetType::deterministic:
+      case PresetType::deterministic_quality:
       case PresetType::default_preset:
       case PresetType::quality:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
