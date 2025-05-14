@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #endif
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/experimental_coarsener.h"
 #include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/do_nothing_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
@@ -51,6 +52,10 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                                         RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
+
+using ExperimentalCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<ExperimentalCoarsener,
+                                                                                  ICoarsener,
+                                                                                  kahypar::meta::Typelist<TypeTraitsList>>;
 
 using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
                                                                                    ICoarsener,
@@ -107,6 +112,11 @@ void register_coarsening_algorithms() {
 
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
                                 DeterministicCoarsenerDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                  context.partition.partition_type));
+
+  REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::experimental_coarsener,
+                                ExperimentalCoarsenerDispatcher,
                                 kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type));
 

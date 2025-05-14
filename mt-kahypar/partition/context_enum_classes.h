@@ -111,6 +111,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
+  experimental_coarsener,
   nlevel_coarsener,
   do_nothing_coarsener,
   UNDEFINED

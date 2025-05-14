@@ -1,6 +1,7 @@
 set(MultilevelCoarseningSources
         deterministic_multilevel_coarsener.cpp
-        multilevel_uncoarsener.cpp)
+        multilevel_uncoarsener.cpp
+        experimental_coarsener.cpp)
 
 set(NLevelCoarseningSources
         nlevel_uncoarsener.cpp)
