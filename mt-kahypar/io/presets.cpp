@@ -393,7 +393,8 @@ std::vector<option> load_deterministic_preset() {
     create_option("p-num-sub-rounds", "16"),
     // main -> coarsening
     create_option("c-type", "deterministic_multilevel_coarsener"),
-    create_option("c-use-adaptive-edge-size", "true"),
+    create_option("c-use-adaptive-edge-size", "false"),
+    create_option("c-resolve-swaps", "true"),
     create_option("c-min-shrink-factor", "1.01"),
     create_option("c-max-shrink-factor", "2.5"),
     create_option("c-s", "1"),
@@ -413,8 +414,9 @@ std::vector<option> load_deterministic_preset() {
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
-    create_option("r-rebalancer-type", "advanced_rebalancer"),
     create_option("i-r-refine-until-no-improvement", "false"),
+    // main -> initial_partitioning -> refinement -> rebalancing
+    create_option("i-r-rebalancer-type", "deterministic"),
     // main -> initial_partitioning -> refinement -> label_propagation
     create_option("i-r-lp-type", "deterministic"),
     create_option("i-r-lp-maximum-iterations", "5"),
@@ -426,12 +428,23 @@ std::vector<option> load_deterministic_preset() {
     create_option("i-population-size", "64"),
     // main -> refinement
     create_option("r-refine-until-no-improvement", "false"),
+    // main -> refinement -> rebalancing
+    create_option("r-rebalancer-type", "deterministic"),
+    create_option("r-max-det-rebalancing-rounds", "0"),
+    create_option("r-det-rebalancing-deadzone", "0.1"),
+    create_option("r-det-rebalancing-heavy-vertex-exclusion", "1.5"),
     // main -> refinement -> label_propagation
-    create_option("r-lp-type", "deterministic"),
+    create_option("r-lp-type", "do_nothing"),
     create_option("r-lp-maximum-iterations", "5"),
     create_option("r-sync-lp-sub-rounds", "1"),
     create_option("r-lp-he-size-activation-threshold", "100"),
     create_option("r-sync-lp-active-nodeset", "true"),
+    // main -> refinement -> jet
+    create_option("r-jet-type", "deterministic"),
+    create_option("r-jet-num-iterations", "8"),
+    create_option("r-jet-dynamic-rounds", "3"),
+    create_option("r-jet-initial-negative-gain", "0.75"),
+    create_option("r-jet-final-negative-gain", "0.0"),
     // main -> refinement -> fm
     create_option("r-fm-type", "do_nothing"),
     // main -> refinement -> flows
