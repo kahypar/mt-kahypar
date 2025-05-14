@@ -228,6 +228,16 @@ namespace mt_kahypar {
         _timer.stop_timer("label_propagation");
       }
 
+      if ( _jet && _context.refinement.jet.algorithm != JetAlgorithm::do_nothing ) {
+        _timer.start_timer("initialize_jet_refiner", "Initialize Jet Refiner");
+        _jet->initialize(phg);
+        _timer.stop_timer("initialize_jet_refiner");
+
+        _timer.start_timer("jet", "Jet");
+        improvement_found |= _jet->refine(phg, dummy, _current_metrics, time_limit);
+        _timer.stop_timer("jet");
+      }
+
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         _fm->initialize(phg);
