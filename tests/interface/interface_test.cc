@@ -1033,6 +1033,22 @@ namespace mt_kahypar {
     Partition(GRAPH_FILE, METIS, DETERMINISTIC, 4, 0.03, CUT, false);
   }
 
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDeterministicQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 2, 0.03, KM1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithDeterministicQualityPreset) {
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 2, 0.03, CUT, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithDeterministicQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 4, 0.03, KM1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithDeterministicQualityPreset) {
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 4, 0.03, CUT, false);
+  }
+
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithLargeKPreset) {
     Partition(HYPERGRAPH_FILE, HMETIS, LARGE_K, 2, 0.03, KM1, false);
   }
@@ -1096,12 +1112,34 @@ namespace mt_kahypar {
     ASSERT_EQ(objective_1, objective_3);
   }
 
+  TEST_F(APartitioner, ChecksIfDeterministicQualityPresetProducesSameResultsForHypergraphs) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 8, 0.03, KM1, false);
+    const double objective_1 = mt_kahypar_km1(partitioned_hg);
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 8, 0.03, KM1, false);
+    const double objective_2 = mt_kahypar_km1(partitioned_hg);
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 8, 0.03, KM1, false);
+    const double objective_3 = mt_kahypar_km1(partitioned_hg);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
   TEST_F(APartitioner, ChecksIfDeterministicPresetProducesSameResultsForGraphs) {
     Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
     const double objective_1 = mt_kahypar_cut(partitioned_hg);
     Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
     const double objective_2 = mt_kahypar_cut(partitioned_hg);
     Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
+    const double objective_3 = mt_kahypar_cut(partitioned_hg);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
+  TEST_F(APartitioner, ChecksIfDeterministicQualityPresetProducesSameResultsForGraphs) {
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 8, 0.03, CUT, false);
+    const double objective_1 = mt_kahypar_cut(partitioned_hg);
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 8, 0.03, CUT, false);
+    const double objective_2 = mt_kahypar_cut(partitioned_hg);
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 8, 0.03, CUT, false);
     const double objective_3 = mt_kahypar_cut(partitioned_hg);
     ASSERT_EQ(objective_1, objective_2);
     ASSERT_EQ(objective_1, objective_3);
@@ -1225,6 +1263,22 @@ namespace mt_kahypar {
     ASSERT_EQ(objective_1, objective_3);
   }
 
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithDeterministicQualityPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 0.03, false);
+  }
+
+  TEST_F(APartitioner, ChecksIfDeterministicQualityMappingProducesSameResultsForHypergraphs) {
+    // note: this test doesn't seem to be very successful at actually catching non-determinism
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 0.03, false);
+    const double objective_1 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 0.03, false);
+    const double objective_2 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 0.03, false);
+    const double objective_3 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultPreset) {
     Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
   }
@@ -1248,6 +1302,22 @@ namespace mt_kahypar {
     Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
     const double objective_2 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
     Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false);
+    const double objective_3 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDeterministicQualityPreset) {
+    Map(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 0.03, false);
+  }
+
+  TEST_F(APartitioner, ChecksIfDeterministicQualityMappingProducesSameResultsForGraphs) {
+    // note: this test doesn't seem to be very successful at actually catching non-determinism
+    Map(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 0.03, false);
+    const double objective_1 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 0.03, false);
+    const double objective_2 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+    Map(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 0.03, false);
     const double objective_3 = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
     ASSERT_EQ(objective_1, objective_2);
     ASSERT_EQ(objective_1, objective_3);
@@ -1293,6 +1363,11 @@ namespace mt_kahypar {
     verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
   }
 
+  TEST_F(APartitioner, PartitionsAHypergraphWithFixedVerticesAndDeterministicQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC_QUALITY, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
   TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDefaultPreset) {
     Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false, true /* add fixed vertices */);
     verifyFixedVertexAssignment(GRAPH_FIX_FILE);
@@ -1310,6 +1385,11 @@ namespace mt_kahypar {
 
   TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDeterministicPreset) {
     Partition(GRAPH_FILE, METIS, DETERMINISTIC, 4, 0.03, CUT, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDeterministicQualityPreset) {
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC_QUALITY, 4, 0.03, CUT, false, true /* add fixed vertices */);
     verifyFixedVertexAssignment(GRAPH_FIX_FILE);
   }
 
