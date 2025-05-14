@@ -142,6 +142,17 @@ struct LabelPropagationParameters {
 
 std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
 
+struct JetParameters {
+  JetAlgorithm algorithm = JetAlgorithm::do_nothing;
+  size_t num_iterations = 12;
+  size_t fixed_n_iterations = 0;
+  double relative_improvement_threshold = 0.001;
+  double negative_gain_factor_coarse = 0.75;
+  double negative_gain_factor_fine = 0.25;
+};
+
+std::ostream & operator<< (std::ostream& str, const JetParameters& params);
+
 struct FMParameters {
   mutable FMAlgorithm algorithm = FMAlgorithm::do_nothing;
 
@@ -215,6 +226,7 @@ std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParamet
 
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
+  JetParameters jet;
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalRefinementParameters global;
