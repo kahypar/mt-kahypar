@@ -116,6 +116,7 @@ namespace mt_kahypar {
              }),
              "Preset Types: \n"
              " - deterministic\n"
+             " - deterministic_quality\n"
              " - large_k\n"
              " - default\n"
              " - quality\n"

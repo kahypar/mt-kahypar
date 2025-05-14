@@ -41,7 +41,7 @@ Features
 Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides many other useful features:
 
 - **Scalability**: Mt-KaHyPar has excellent scaling behaviour (up to 25 with 64 threads), while increasing the number of threads does not adversely affect the solution quality.
-- **Deterministic Partitioning**: Mt-KaHyPar offers a deterministic partitioning algorithm, ensuring consistent solutions for the same input and random seed.
+- **Deterministic Partitioning**: Mt-KaHyPar offers a high-quality deterministic partitioning algorithm, ensuring consistent solutions for the same input and random seed.
 - **Large K Partitioning**: We provide a partitioning configuration for partitioning (hyper)graphs into a large number of blocks (e.g., k > 1024).
 - **Graph Partitioning**: Mt-KaHyPar includes optimized data structures for graph partitioning, achieving a speedup by a factor of two for plain graphs.
 - **Objective Functions**: Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degrees metric (for more details, see [Supported Objective Functions](#supported-objective-functions))
@@ -136,16 +136,17 @@ To partition a **hypergraph** with our default configuration, you can use the fo
 
 Mt-KaHyPar provides several partitioning configurations with different time-quality trade-offs. The configurations are stored in `ini` files located in the `config` folder. However, we recommend using the `--preset-type` command line parameter to run Mt-KaHyPar with a specific partitioning configuration:
 
-    --preset-type=<large_k/deterministic/default/quality/highest_quality>
+    --preset-type=<default/quality/highest_quality/deterministic/deterministic_quality/large_k>
 
-- `large_k`: configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks)
-- `deterministic`: configuration for deterministic partitioning
 - `default`: computes good partitions very fast
 - `quality`: computes high-quality partitions (uses flow-based refinement)
 - `highest_quality`: highest-quality configuration (uses n-level coarsening and flow-based refinement)
+- `deterministic`: fast deterministic partitioning
+- `deterministic_quality`: high-quality deterministic partitioning (uses flow-based refinement)
+- `large_k`: configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks)
 
-The presets can be ranked from lowest to the highest-quality as follows: `large_k`, `deterministic`,
-`default`, `quality`, and `highest_quality`.
+The presets can be ranked from lowest quality to highest quality as follows: `large_k`,
+`default`, `deterministic`, `quality`, `deterministic_quality`, and `highest_quality` (the quality of the matching deterministic and non-deterministic configurations is roughly equivalent).
 We recommend using the `default` configuration to compute good partitions very fast and the `quality` configuration to compute high-quality solutions.
 The `highest_quality` configuration computes better partitions than our `quality` configuration by 0.5% on average at the cost of a two times longer running time for medium-sized instances (up to 100 million pins).
 When you have to partition a (hyper)graph into a large number of blocks (e.g., >= 1024 blocks), you can use our `large_k` configuration.
@@ -485,7 +486,7 @@ Mt-KaHyPar implements several graph and hypergraph data structures, and supports
 In the hot parts of the algorithm, each combination of (hyper)graph data structure and objective function is compiled separately, which notably increases the compile time.
 We therefore provide the cmake preset `minimal` to disable some of the features of Mt-KaHyPar for faster compilation.
 
-With this, only the `deterministic`, `default`, and `quality` configurations are available in combination with the cut-net or connectivity metric.
+With this, only the `deterministic`, `deterministic_quality`, `default`, and `quality` configurations are available in combination with the cut-net or connectivity metric.
 Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
 
 For more fine-grained control, you can directly use the corresponding cmake flags:
