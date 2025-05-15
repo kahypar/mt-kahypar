@@ -81,6 +81,7 @@ public:
     pass(0),
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
+    initializeEdgeDeduplication(hypergraph);
   }
 
   ~DeterministicMultilevelCoarsener() {
@@ -143,6 +144,19 @@ private:
 
   void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg);
 
+  void initializeEdgeDeduplication(mt_kahypar_hypergraph_t hypergraph) {
+    auto& hg = utils::cast<Hypergraph>(hypergraph);
+    if constexpr (!Hypergraph::is_graph) {
+      size_t max_edge_size = hg.maxEdgeSize();
+      bloom_filter_mask = align_to_next_power_of_two(std::min<size_t>(10 * max_edge_size, initial_num_nodes)) - 1;
+      bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask + 1);
+    }
+  }
+
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;
   using Base::_context;
@@ -160,5 +174,8 @@ private:
   size_t pass;
   utils::ProgressBar progress_bar;
   ds::BufferedVector<HypernodeID> cluster_weights_to_fix;
+
+  size_t bloom_filter_mask;
+  tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>> bloom_filters;
 };
 }
