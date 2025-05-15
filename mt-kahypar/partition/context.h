@@ -124,6 +124,7 @@ struct CoarseningParameters {
   SwapResolutionStrategy det_swap_strategy = SwapResolutionStrategy::UNDEFINED;
   ClusterTieBreakingPolicy det_cluster_tie_breaking_policy = ClusterTieBreakingPolicy::UNDEFINED;
   bool det_prefix_doubling = false;
+  bool det_fix_cluster_weights = true;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;

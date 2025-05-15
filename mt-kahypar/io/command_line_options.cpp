@@ -335,7 +335,11 @@ namespace mt_kahypar {
              ("c-prefix-doubling",
              po::value<bool>(&context.coarsening.det_prefix_doubling)->value_name(
                      "<bool>")->default_value(false),
-             "subround sizes according to prefix doubling");
+             "subround sizes according to prefix doubling")
+             ("c-fix-cluster-weights",
+             po::value<bool>(&context.coarsening.det_fix_cluster_weights)->value_name(
+                     "<bool>")->default_value(true),
+             "fix cluster weights after each sub round");
     return options;
   }
 
