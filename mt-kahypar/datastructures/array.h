@@ -56,7 +56,7 @@ class Array {
       using difference_type = std::ptrdiff_t;
 
       ArrayIterator() : _ptr(nullptr) { }
-      ArrayIterator(T* ptr) : _ptr(ptr) { }
+      explicit ArrayIterator(T* ptr) : _ptr(ptr) { }
 
       reference operator*() const {
         return *_ptr;
@@ -142,6 +142,9 @@ class Array {
         return (_ptr - other._ptr);
       }
 
+      friend ArrayIterator operator+(const difference_type& n, const ArrayIterator& it) {
+        return it + n;
+      }
     private:
       T* _ptr;
 
