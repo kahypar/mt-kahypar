@@ -33,6 +33,10 @@
 
 namespace mt_kahypar {
 
+static size_t align_to_next_power_of_two(const size_t size) {
+  return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+}
+
 template<typename TypeTraits>
 bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
@@ -148,12 +152,27 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   ratings.clear();
 
   // calculate ratings
-  for (HyperedgeID he : hg.incidentEdges(u)) {
-    HypernodeID he_size = hg.edgeSize(he);
-    if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
-      double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
-      for (HypernodeID v : hg.pins(he)) {
-        ratings[clusters[v]] += he_score;
+  if constexpr (Hypergraph::is_graph) {
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      double he_score = static_cast<double>(hg.edgeWeight(he));
+      const HypernodeID representative = clusters[hg.edgeTarget(he)];
+      ratings[representative] += he_score;
+    }
+  } else {
+    auto& bloom_filter = bloom_filters.local();
+    for (HyperedgeID he : hg.incidentEdges(u)) {
+      HypernodeID he_size = hg.edgeSize(he);
+      if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
+        double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
+        for (HypernodeID v : hg.pins(he)) {
+          const HypernodeID target = clusters[v];
+          const HypernodeID bloom_rep = target & bloom_filter_mask;
+          if (!bloom_filter[bloom_rep]) {
+            ratings[target] += he_score;
+            bloom_filter.set(bloom_rep, true);
+          }
+        }
+        bloom_filter.reset();
       }
     }
   }
@@ -255,6 +274,15 @@ void DeterministicMultilevelCoarsener<TypeTraits>::handleNodeSwaps(const size_t 
   });
 }
 
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::initializeEdgeDeduplication(mt_kahypar_hypergraph_t hypergraph) {
+  auto& hg = utils::cast<Hypergraph>(hypergraph);
+  if constexpr (!Hypergraph::is_graph) {
+    size_t max_edge_size = hg.maxEdgeSize();
+    bloom_filter_mask = align_to_next_power_of_two(std::min<size_t>(10 * max_edge_size, initial_num_nodes)) - 1;
+    bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask + 1);
+  }
+}
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)
 
