@@ -72,14 +72,16 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     ++iteration;
   }
 
-  Gain delta = _gain_computation.delta();
-  HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
-    V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
-  best_metrics.quality += delta;
+  if constexpr (!PartitionedHypergraph::is_graph) {
+    Gain delta = _gain_computation.delta();
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
+      V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
+    best_metrics.quality += delta;
+  }
   best_metrics.imbalance = metrics::imbalance(phg, _context);
-  DBG << "[REBALANCE] " << V(delta) << "  imbalance=" << best_metrics.imbalance;
+  DBG << "[REBALANCE] " << "  imbalance=" << best_metrics.imbalance;
   _max_part_weights = nullptr;
-  return delta < 0;
+  return true;
 }
 
 template <typename  GraphAndGainTypes>
