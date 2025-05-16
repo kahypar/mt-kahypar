@@ -217,9 +217,14 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params) {
+    out << "  Rebalancing Parameters:" << std::endl;
+    out << "    Algorithm:                        " << params.algorithm << std::endl;
+    return out;
+  }
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
-    str << "  Rebalancing Algorithm:              " << params.rebalancer << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
@@ -231,6 +236,7 @@ namespace mt_kahypar {
       str << "\n" << params.global;
     }
     str << "\n" << params.flows;
+    str << "\n" << params.rebalancing;
     return str;
   }
 
