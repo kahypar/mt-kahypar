@@ -76,7 +76,10 @@ public:
     _locks(num_hypernodes),
     _rebalancer(rebalancer),
     _tmp_active_nodes(),
-    _part_before_round(num_hypernodes) {}
+    _part_before_round(num_hypernodes),
+    _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
+    _afterburner_buffer(PartitionedHypergraph::is_graph ? 0 : _current_k, 0),
+    _hyperedge_buffer() {}
 
 private:
   static constexpr bool debug = false;
@@ -107,6 +110,10 @@ private:
     ASSERT(success);
     unused(success);
   }
+
+  void graphAfterburner(const PartitionedHypergraph& phg);
+
+  void hypergraphAfterburner(const PartitionedHypergraph& phg);
 
   HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const;
 
@@ -140,6 +147,10 @@ private:
   ds::StreamingVector<HypernodeID> _tmp_active_nodes;
   parallel::scalable_vector<PartitionID> _part_before_round;
 
+  // hypergraph afterburner
+  parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
+  tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
+  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
 };
 
 }
