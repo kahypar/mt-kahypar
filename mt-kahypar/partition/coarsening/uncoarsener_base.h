@@ -123,7 +123,7 @@ class UncoarsenerBase {
     _gain_cache = GainCachePtr::constructGainCache(_context);
     // refinement algorithms require access to the rebalancer
     _rebalancer = RebalancerFactory::getInstance().createObject(
-      _context.refinement.rebalancer, _hg.initialNumNodes(), _context, _gain_cache);
+      _context.refinement.rebalancing.algorithm, _hg.initialNumNodes(), _context, _gain_cache);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
