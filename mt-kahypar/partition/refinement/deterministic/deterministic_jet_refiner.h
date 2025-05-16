@@ -59,7 +59,7 @@ public:
       GainCachePtr::cast<GainCache>(gain_cache), rebalancer) {}
 
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
-    const HyperedgeID,
+    const HyperedgeID num_hyperedges,
     const Context& context,
     GainCache&,
     IRebalancer& rebalancer) :
@@ -79,7 +79,9 @@ public:
     _part_before_round(num_hypernodes),
     _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
     _afterburner_buffer(PartitionedHypergraph::is_graph ? 0 : _current_k, 0),
-    _hyperedge_buffer() {}
+    _hyperedge_buffer(),
+    _edge_flag(num_hyperedges),
+    _current_edge_flag(1) {}
 
 private:
   static constexpr bool debug = false;
@@ -151,6 +153,9 @@ private:
   parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
   tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
   tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
+  // incident edges in hypergraph afterburner
+  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
+  size_t _current_edge_flag;
 };
 
 }
