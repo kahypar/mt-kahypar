@@ -58,7 +58,7 @@ private:
     static constexpr bool enable_heavy_assert = false;
 
 public:
-    explicit DeterministicRebalancer(const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
         _context(context),
         _current_k(context.partition.k),
         _gain_computation(context),
@@ -66,11 +66,9 @@ public:
         _moves(context.partition.k),
         _move_weights(context.partition.k),
         _tmp_potential_moves(context.partition.k) {}
-    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
-        DeterministicRebalancer(context) {}
 
-    explicit DeterministicRebalancer(HypernodeID, const Context& context, GainCache&) :
-        DeterministicRebalancer(context) {}
+    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
+        DeterministicRebalancer(num_nodes, context) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -161,7 +159,7 @@ private:
 
         HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
         bool success = false;
-        success = phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
+        success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to, max_weight) : phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
         ASSERT(success || ensure_balanced);
         return success;
     }
