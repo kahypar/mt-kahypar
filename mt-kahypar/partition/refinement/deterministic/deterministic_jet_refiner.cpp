@@ -72,7 +72,9 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         }
         DBG << V(_negative_gain_factor) << ", " << V(jet_context.dynamic_rounds) << ", " << V(metrics::quality(phg, _context, false));
 
-        _locks.reset();
+        if (dynamic_round > 0) { // TODO: destroys compatibility with code from paper
+            _locks.reset();
+        }
         size_t rounds_without_improvement = 0;
         for (size_t i = 0; rounds_without_improvement < jet_context.num_iterations; ++i) {
             if (_current_partition_is_best) {

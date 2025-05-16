@@ -53,6 +53,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   const bool isPrefixDoublingPass = _context.coarsening.det_prefix_doubling;
   if (isPrefixDoublingPass) {
     permutation.shuffle(utils::IntegerRange<HypernodeID>{0, num_nodes}, _context.shared_memory.static_balancing_work_packages, config.prng); // need shuffle for prefix-doubling
+    config.prng();  // TODO: removing this will make the results diverge from the paper version
   }
   constexpr size_t num_sequential_steps = 150;
   constexpr double growth_factor = 1.8;
