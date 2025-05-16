@@ -75,7 +75,8 @@ public:
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
     _rebalancer(rebalancer),
-    _tmp_active_nodes() {}
+    _tmp_active_nodes(),
+    _part_before_round(num_hypernodes) {}
 
 private:
   static constexpr bool debug = false;
@@ -102,10 +103,12 @@ private:
                       const PartitionID to,
                       const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    const bool success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to, inf_weight) : phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
     ASSERT(success);
     unused(success);
   }
+
+  HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const;
 
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
 
@@ -135,6 +138,8 @@ private:
   kahypar::ds::FastResetFlagArray<> _locks;
   IRebalancer& _rebalancer;
   ds::StreamingVector<HypernodeID> _tmp_active_nodes;
+  parallel::scalable_vector<PartitionID> _part_before_round;
+
 };
 
 }
