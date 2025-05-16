@@ -126,22 +126,19 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
         // Apply all moves
         timer.start_timer("apply_moves", "Apply Moves");
-
         auto range = tbb::blocked_range<size_t>(UL(0), _moves.size());
         auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
             Gain my_gain = init;
             for (size_t i = r.begin(); i < r.end(); ++i) {
-                my_gain += performMoveWithAttributedGain(phg, _moves[i]);
+                const HypernodeID hn = _moves[i];
+                my_gain += performMoveWithAttributedGain(phg, hn);
             }
             return my_gain;
         };
         Gain gain = tbb::parallel_reduce(range, 0, accum, std::plus<>());
-        timer.stop_timer("apply moves");
-
         current_metrics.quality -= gain;
         current_metrics.imbalance = metrics::imbalance(phg, _context);
-        HEAVY_REFINEMENT_ASSERT(current_metrics.quality == metrics::quality(phg, _context, false),
-            V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
+        timer.stop_timer("apply_moves");
 
         // rebalance
         if (!metrics::isBalanced(phg, _context)) {
@@ -152,6 +149,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
+        }
+        if (PartitionedHypergraph::is_graph) {
+            timer.start_timer("reb_quality", "Quality after Rebalancing");
+            current_metrics.quality += calculateGainDelta(phg);
+            timer.stop_timer("reb_quality");
         }
 
         ASSERT(current_metrics.quality == metrics::quality(phg, _context, false), V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
@@ -173,6 +175,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         DBG << "[JET] Finished iteration " << i << " with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
     }
 
+    phg.resetEdgeSynchronization();
     if (!_current_partition_is_best) {
         DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
         rollbackToBestPartition(phg);
@@ -191,6 +194,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
 
     // compute gain for every node 
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        _part_before_round[hn] = phg.partID(hn);
         const bool is_locked = _locks[hn];
         if (!phg.isBorderNode(hn) || is_locked || phg.isFixed(hn)) {
             _gains_and_target[hn] = { 0, phg.partID(hn) };
@@ -224,6 +228,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
     _rebalancer.initialize(phg);
 }
 
+
 template<typename GraphAndGainTypes>
 Gain DeterministicJetRefiner<GraphAndGainTypes>::performMoveWithAttributedGain(PartitionedHypergraph& phg, const HypernodeID hn) {
     const auto from = phg.partID(hn);
@@ -234,6 +239,7 @@ Gain DeterministicJetRefiner<GraphAndGainTypes>::performMoveWithAttributedGain(P
     };
     ASSERT(to >= 0 && to < _current_k);
     changeNodePart(phg, hn, from, to, objective_delta);
+    // note: returns 0 in "NoSync" case
     return attributed_gain;
 }
 
@@ -258,6 +264,39 @@ void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(Partiti
 }
 
 template <typename GraphAndGainTypes>
+HyperedgeWeight DeterministicJetRefiner<GraphAndGainTypes>::calculateGainDelta(const PartitionedHypergraph& phg) const {
+    tbb::enumerable_thread_specific<HyperedgeWeight> gain_delta(0);
+    phg.doParallelForAllNodes([&](const HypernodeID hn) {
+        const PartitionID from = _part_before_round[hn];
+        const PartitionID to = phg.partID(hn);
+        if (from != to) {
+            for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+                HypernodeID pin_count_in_from_part_after = 0;
+                HypernodeID pin_count_in_to_part_after = 1;
+                for (const HypernodeID& pin : phg.pins(he)) {
+                    if (pin != hn) {
+                        const PartitionID part = pin < hn ? phg.partID(pin) : _part_before_round[pin];
+                        if (part == from) {
+                        pin_count_in_from_part_after++;
+                        } else if (part == to) {
+                        pin_count_in_to_part_after++;
+                        }
+                    }
+                }
+                SynchronizedEdgeUpdate sync_update;
+                sync_update.he = he;
+                sync_update.edge_weight = phg.edgeWeight(he);
+                sync_update.edge_size = phg.edgeSize(he);
+                sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
+                sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
+                gain_delta.local() += AttributedGains::gain(sync_update);
+            }
+        }
+    });
+    return gain_delta.combine(std::plus<>());
+}
+
+template <typename GraphAndGainTypes>
 template<typename F>
 void DeterministicJetRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHypergraph& phg,
                                                                 const HypernodeID hn,
@@ -265,7 +304,12 @@ void DeterministicJetRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHyper
                                                                 const PartitionID to,
                                                                 const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    bool success;
+    if constexpr (PartitionedHypergraph::is_graph) {
+      success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
+    } else {
+      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    }
     ASSERT(success);
     unused(success);
 }
