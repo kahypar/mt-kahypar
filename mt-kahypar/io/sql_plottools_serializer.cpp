@@ -105,11 +105,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " initial_partitioning_population_size=" << context.initial_partitioning.population_size;
-    oss << " rebalancer=" << std::boolalpha << context.refinement.rebalancer
-        << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
+    oss << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
         << " relative_improvement_threshold=" << context.refinement.relative_improvement_threshold
         << " max_batch_size=" << context.refinement.max_batch_size
         << " min_border_vertices_per_thread=" << context.refinement.min_border_vertices_per_thread
+        << " rebalancing_algorithm=" << context.refinement.rebalancing.algorithm
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing

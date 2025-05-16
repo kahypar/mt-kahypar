@@ -61,7 +61,7 @@ std::set<std::string> excluded_members =
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement", "jet",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos", "original_num_threads",
-    "stable_construction_of_incident_edges", "fm", "global", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
+    "stable_construction_of_incident_edges", "fm", "global", "flows", "rebalancing", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
     "mapping_target_graph_file" };
 
 bool is_target_struct(const std::string& line) {
