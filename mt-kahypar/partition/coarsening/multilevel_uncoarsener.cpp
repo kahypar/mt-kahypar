@@ -214,7 +214,7 @@ namespace mt_kahypar {
       improvement_found = false;
       const HyperedgeWeight metric_before = _current_metrics.quality;
 
-      if ( _rebalancer && _context.refinement.rebalancer != RebalancingAlgorithm::do_nothing ) {
+      if ( _rebalancer && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
         _rebalancer->initialize(phg);
       }
 
