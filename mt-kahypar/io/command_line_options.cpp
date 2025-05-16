@@ -578,9 +578,9 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
                        if (initial_partitioning) {
-                         context.initial_partitioning.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                         context.initial_partitioning.refinement.rebalancing.algorithm = rebalancingAlgorithmFromString(type);
                        } else {
-                         context.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                         context.refinement.rebalancing.algorithm = rebalancingAlgorithmFromString(type);
                        }
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"

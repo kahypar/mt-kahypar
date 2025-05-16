@@ -224,6 +224,12 @@ struct DeterministicRefinementParameters {
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
 
+struct RebalancingParameters {
+  RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
+};
+
+std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   JetParameters jet;
@@ -231,7 +237,7 @@ struct RefinementParameters {
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalRefinementParameters global;
   FlowParameters flows;
-  RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
+  RebalancingParameters rebalancing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
