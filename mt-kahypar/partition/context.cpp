@@ -444,15 +444,41 @@ namespace mt_kahypar {
       initial_partitioning.use_adaptive_ip_runs = false;
 
 
-      // switch silently
+      // switch to deterministic algorithms
+      bool switched = false;
       auto lp_algo = refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+        switched = true;
+      }
+      auto jet_algo = refinement.jet.algorithm;
+      if ( jet_algo != JetAlgorithm::do_nothing && jet_algo != JetAlgorithm::deterministic ) {
+        refinement.jet.algorithm = JetAlgorithm::deterministic;
+        switched = true;
+      }
+      auto rebalancing_algo = refinement.rebalancing.algorithm;
+      if ( rebalancing_algo != RebalancingAlgorithm::do_nothing && rebalancing_algo != RebalancingAlgorithm::deterministic ) {
+        refinement.rebalancing.algorithm = RebalancingAlgorithm::deterministic;
+        switched = true;
       }
 
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+        switched = true;
+      }
+      jet_algo = initial_partitioning.refinement.jet.algorithm;
+      if ( jet_algo != JetAlgorithm::do_nothing && jet_algo != JetAlgorithm::deterministic ) {
+        initial_partitioning.refinement.jet.algorithm = JetAlgorithm::deterministic;
+        switched = true;
+      }
+      rebalancing_algo = initial_partitioning.refinement.rebalancing.algorithm;
+      if ( rebalancing_algo != RebalancingAlgorithm::do_nothing && rebalancing_algo != RebalancingAlgorithm::deterministic ) {
+        initial_partitioning.refinement.rebalancing.algorithm = RebalancingAlgorithm::deterministic;
+        switched = true;
+      }
+      if (switched) {
+        WARNING("Switching to deterministic algorithm variants since deterministic mode is active");
       }
     }
 
