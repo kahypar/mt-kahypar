@@ -49,6 +49,11 @@ class DeterministicJetRefiner final : public IRefiner {
   using RatingMap = typename GainComputation::RatingMap;
 
 public:
+  struct AfterburnerBuffer {
+    std::vector<size_t> pin_count_buffer;
+    std::vector<HypernodeID> hyperedge_buffer;
+    AfterburnerBuffer(size_t k) : pin_count_buffer(k, 0), hyperedge_buffer() {}
+  };
 
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
     const HyperedgeID num_hyperedges,
@@ -77,8 +82,7 @@ public:
     _tmp_active_nodes(),
     _part_before_round(num_hypernodes),
     _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
-    _afterburner_buffer(PartitionedHypergraph::is_graph ? 0 : _current_k, 0),
-    _hyperedge_buffer(),
+    _buffer(_current_k),
     _edge_flag(num_hyperedges),
     _current_edge_flag(1) {}
 
@@ -107,7 +111,12 @@ private:
                       const PartitionID to,
                       const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    const bool success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to, inf_weight) : phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    bool success;
+    if constexpr (PartitionedHypergraph::is_graph) {
+      success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
+    } else {
+      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+    }
     ASSERT(success);
     unused(success);
   }
@@ -149,11 +158,10 @@ private:
 
   // hypergraph afterburner
   parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
-  tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
-  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
+  tbb::enumerable_thread_specific<AfterburnerBuffer> _buffer;
   // incident edges in hypergraph afterburner
-  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
-  size_t _current_edge_flag;
+  parallel::scalable_vector<std::atomic<uint16_t>> _edge_flag;
+  uint16_t _current_edge_flag;
   double _negative_gain_factor;
 };
 

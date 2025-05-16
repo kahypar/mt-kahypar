@@ -107,11 +107,11 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                 });
             } else {
                 auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
-                auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
+                auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain init) -> Gain {
                     Gain my_gain = init;
                     for (size_t i = r.begin(); i < r.end(); ++i) {
                         const HypernodeID hn = _active_nodes[i];
-                        if (_afterburner_gain[hn] <= 0) {
+                        if (_afterburner_gain[hn] <= 0) { // NOTE Have we tried a skip zero gain moves policy? Might be helpful with balance-violating moves
                             _locks.set(hn);
                             my_gain += performMoveWithAttributedGain(phg, hn);
                         }
@@ -346,8 +346,9 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
             return afterburn_two_pins(he);
         }
 
-        auto& edgeBuffer = _hyperedge_buffer.local();
-        auto& pinCountBuffer = _afterburner_buffer.local();
+        auto& buffer = _buffer.local();
+        auto& edgeBuffer = buffer.hyperedge_buffer;
+        auto& pinCountBuffer = buffer.pin_count_buffer;
         pinCountBuffer.assign(pinCountBuffer.size(), 0);
         if (edgeSize > edgeBuffer.size()) {
             edgeBuffer.resize(edgeSize);
@@ -393,22 +394,21 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
         }
 
         // scan through the sorted pins and compute gains, updating the pin counts at each step
+        SynchronizedEdgeUpdate sync_update;
+        sync_update.he = he;
+        sync_update.edge_weight = phg.edgeWeight(he);
+        sync_update.edge_size = phg.edgeSize(he);
         for (size_t i = 0; i < index; ++i) {
             const HypernodeID pin = edgeBuffer[i];
             const PartitionID from = phg.partID(pin);
             const auto [gain, to] = _gains_and_target[pin];
             pinCountBuffer[from]--;
             pinCountBuffer[to]++;
-
-            SynchronizedEdgeUpdate sync_update;
-            sync_update.he = he;
-            sync_update.edge_weight = phg.edgeWeight(he);
-            sync_update.edge_size = phg.edgeSize(he);
             sync_update.pin_count_in_from_part_after = pinCountBuffer[from];
             sync_update.pin_count_in_to_part_after = pinCountBuffer[to];
             const Gain attributedGain = AttributedGains::gain(sync_update);
             if (attributedGain != 0) {
-                _afterburner_gain[pin] += attributedGain;
+                _afterburner_gain[pin].fetch_add(attributedGain, std::memory_order_relaxed);
             }
         }
     };
@@ -416,8 +416,8 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
     tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& i) {
         const HypernodeID hn = _active_nodes[i];
         for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-            size_t flag = _edge_flag[he].load();
-            if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag)) continue;
+            uint16_t flag = _edge_flag[he].load(std::memory_order_relaxed);
+            if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag, std::memory_order_acquire)) continue;
             afterburn_edge(he);
         }
     });
