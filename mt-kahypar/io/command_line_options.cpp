@@ -584,9 +584,25 @@ namespace mt_kahypar {
                        }
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"
+             "- deterministic\n"
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
-             "- do_nothing");
+             "- do_nothing")
+            ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
+                              &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(
+                    "<double>")->default_value(1.0),
+             "Relative deadzone size for deterministic rebalancer")
+            ((initial_partitioning ? "i-r-det-rebalancing-heavy-vertex-exclusion": "r-det-rebalancing-heavy-vertex-exclusion"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_heavy_vertex_exclusion_factor :
+                              &context.initial_partitioning.refinement.rebalancing.det_heavy_vertex_exclusion_factor))->value_name(
+                    "<double>")->default_value(1.5),
+             "Relative weight threshold for heavy vertices which are ignored in deterministic rebalancing.")
+            ((initial_partitioning ? "i-r-max-det-rebalancing-rounds": "r-max-det-rebalancing-rounds"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.det_max_rounds :
+                              &context.initial_partitioning.refinement.rebalancing.det_max_rounds))->value_name(
+                    "<size_t>")->default_value(0),
+            "Deterministic rebalancer: maximum number of iterations per rebalancing call");
     return options;
   }
 
