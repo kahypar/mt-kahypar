@@ -153,13 +153,16 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   for (auto& moves : _tmp_potential_moves) {
     moves.clear_sequential();
   }
+  for (PartitionID part = 0; part < _current_k; ++part) {
+    _previous_block_imbalance[part] = imbalance(phg, part);
+  }
 
   // calculate gain and target for each node in a overweight part
   // group moves by source part
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
-    if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
+    if (_previous_block_imbalance[from] > 0 && mayMoveNode(phg, from, weight)) {
       const auto triple = computeGainAndTargetPart(phg, hn, true);
       if (from != triple.to && triple.to != kInvalidPartition) {
         _tmp_potential_moves[from].stream(triple);
@@ -179,7 +182,9 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       });
 
       // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
+      const HypernodeWeight imbalance_of_block = _previous_block_imbalance[part];
       size_t last_move_idx = 0;
+      bool success = false;  // whether the block is balanced afterwards
       if (move_size > _context.refinement.rebalancing.det_moves_sequential) {
         if (move_size > _move_weights[part].size()) {
           _move_weights[part].resize(move_size);
@@ -188,16 +193,17 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
           _move_weights[part][j] = phg.nodeWeight(_moves[part][j].hn);
         });
         parallel_prefix_sum(_move_weights[part].begin(), _move_weights[part].begin() + move_size, _move_weights[part].begin(), std::plus<HypernodeWeight>(), 0);
-        last_move_idx = std::upper_bound(_move_weights[part].begin(), _move_weights[part].begin() + move_size, phg.partWeight(part) - _max_part_weights[part] - 1) - _move_weights[part].begin();
-        // this check is necessary since last_move_idx == move_size can happen with excluded hypernodes
+        last_move_idx = std::upper_bound(_move_weights[part].begin(), _move_weights[part].begin() + move_size, imbalance_of_block - 1) - _move_weights[part].begin();
         if (last_move_idx < move_size) {
+          success = true;
           ++last_move_idx;
         }
       } else {
         HypernodeWeight sum = 0;
-        for (; last_move_idx < move_size && sum <= phg.partWeight(part) - _max_part_weights[part] - 1; ++last_move_idx) {
+        for (; last_move_idx < move_size && sum < imbalance_of_block; ++last_move_idx) {
           sum += phg.nodeWeight(_moves[part][last_move_idx].hn);
         }
+        success = (sum >= imbalance_of_block);
       }
 
       tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
@@ -205,6 +211,9 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
         changeNodePart(phg, move.hn, part, move.to, false);
       });
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(!success);
+    } else if (_previous_block_imbalance[part] > 0) {
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(true);
     }
   });
 }

@@ -65,7 +65,9 @@ public:
         _num_imbalanced_parts(0),
         _moves(context.partition.k),
         _move_weights(context.partition.k),
-        _tmp_potential_moves(context.partition.k) {}
+        _tmp_potential_moves(context.partition.k),
+        _previous_block_imbalance(context.partition.k),
+        _block_has_only_heavy_vertices(context.partition.k) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
         DeterministicRebalancer(num_nodes, context) {}
@@ -113,6 +115,8 @@ private:
             _moves.resize(_current_k);
             _move_weights.resize(_current_k);
             _tmp_potential_moves.resize(_current_k);
+            _previous_block_imbalance.resize(_current_k);
+            _block_has_only_heavy_vertices.resize(_current_k);
         }
     }
 
@@ -124,7 +128,7 @@ private:
     bool mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HypernodeWeight hn_weight) const {
         double allowed_weight = phg.partWeight(part) - _context.partition.perfect_balance_part_weights[part];
         allowed_weight *= _context.refinement.rebalancing.det_heavy_vertex_exclusion_factor;
-        return hn_weight <= allowed_weight;
+        return hn_weight <= allowed_weight || _block_has_only_heavy_vertices[part];
     }
 
     HypernodeWeight imbalance(const PartitionedHypergraph& phg, PartitionID part) const {
@@ -172,8 +176,8 @@ private:
         for (PartitionID i = 0; i < _current_k; ++i) {
             const auto partWeight = phg.partWeight(i);
             unused(partWeight);
-            if (_moves[i].size() > 0) {
-                ASSERT(partWeight <= _max_part_weights[i], V(partWeight) << V(_max_part_weights[i]));
+            if (_previous_block_imbalance[i] > 0) {
+                ASSERT(partWeight <= _max_part_weights[i] || _block_has_only_heavy_vertices[i], V(partWeight) << V(_max_part_weights[i]));
             }
         }
         return true;
@@ -187,6 +191,8 @@ private:
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
     parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> _tmp_potential_moves;
+    parallel::scalable_vector<HypernodeWeight> _previous_block_imbalance;
+    parallel::scalable_vector<uint8_t> _block_has_only_heavy_vertices;
 };
 
 }  // namespace kahypar
