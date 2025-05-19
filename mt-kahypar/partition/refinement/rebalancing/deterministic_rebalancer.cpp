@@ -30,7 +30,12 @@
 #include <tbb/parallel_for_each.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
+
+#ifndef KAHYPAR_DISABLE_PARLAY
+#include <parlay/primitives.h>
+#else
 #include <tbb/parallel_sort.h>
+#endif
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -161,9 +166,14 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       ASSERT(_moves[part].size() > 0);
 
       // sort the moves from each overweight part by priority
-      tbb::parallel_sort(_moves[part].begin(), _moves[part].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      auto ordering = [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      });
+      };
+      #ifndef KAHYPAR_DISABLE_PARLAY
+        parlay::sort_inplace(_moves[part], ordering);
+      #else
+        tbb::parallel_sort(_moves[part], ordering);
+      #endif
 
       // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
       _move_weights[part].resize(_moves[part].size());
