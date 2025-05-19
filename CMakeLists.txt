@@ -398,7 +398,7 @@ endif()
 # Add compile flags that enable warnings
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
   -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
-  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
+  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -DPARLAY_TBB -Wno-unused-function)
 
 if(KAHYPAR_USE_GCOV)
   # add coverage anaylsis compile and link flags
