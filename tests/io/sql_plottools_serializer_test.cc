@@ -53,7 +53,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"},
     {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalRefinementParameters", "global_refine_"},
-    {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
+    {"RefinementParameters", ""}, {"SharedMemoryParameters", ""}, {"RebalancingParameters", "rebalancing_"},
     {"DeterministicRefinement", "sync_lp_"}, {"JetParameters", "jet_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
 
 std::set<std::string> excluded_members =
