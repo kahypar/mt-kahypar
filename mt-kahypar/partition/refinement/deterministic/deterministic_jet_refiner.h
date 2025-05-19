@@ -68,7 +68,6 @@ public:
     _top_level_num_nodes(num_hypernodes),
     _current_partition_is_best(true),
     _active_nodes(),
-    _moves(),
     _best_partition(num_hypernodes, kInvalidPartition),
     _current_partition(num_hypernodes, kInvalidPartition),
     _gain_computation(context, true /* disable_randomization */),
@@ -139,7 +138,6 @@ private:
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
   ActiveNodes _active_nodes;
-  parallel::scalable_vector<HypernodeID> _moves;
   parallel::scalable_vector<PartitionID> _best_partition;
   parallel::scalable_vector<PartitionID> _current_partition;
   GainComputation _gain_computation;
@@ -156,6 +154,7 @@ private:
   // incident edges in hypergraph afterburner
   parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
   size_t _current_edge_flag;
+  double _negative_gain_factor;
 };
 
 }
