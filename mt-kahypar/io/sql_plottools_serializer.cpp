@@ -110,6 +110,9 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " max_batch_size=" << context.refinement.max_batch_size
         << " min_border_vertices_per_thread=" << context.refinement.min_border_vertices_per_thread
         << " rebalancing_algorithm=" << context.refinement.rebalancing.algorithm
+        << " rebalancing_heavy_vertex_exclusion_factor=" << context.refinement.rebalancing.det_heavy_vertex_exclusion_factor
+        << " rebalancing_relative_deadzone_size=" << context.refinement.rebalancing.det_relative_deadzone_size
+        << " rebalancing_det_max_rounds=" << context.refinement.rebalancing.det_max_rounds
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
