@@ -220,6 +220,11 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params) {
     out << "  Rebalancing Parameters:" << std::endl;
     out << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm == RebalancingAlgorithm::deterministic ) {
+      out << "    Heavy vertex exclusion factor:    " << params.det_heavy_vertex_exclusion_factor << std::endl;
+      out << "    Relative deadone size:            " << params.det_relative_deadzone_size << std::endl;
+      out << "    Max rounds:                       " << params.det_max_rounds << std::endl;
+    }
     return out;
   }
 
