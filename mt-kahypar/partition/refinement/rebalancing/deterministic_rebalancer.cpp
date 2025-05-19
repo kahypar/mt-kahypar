@@ -30,9 +30,9 @@
 #include <tbb/parallel_for_each.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
-#include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
@@ -161,7 +161,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       ASSERT(_moves[part].size() > 0);
 
       // sort the moves from each overweight part by priority
-      tbb::parallel_sort(_moves[part].begin(), _moves[part].end(), [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      parallel::scalable_sort(_moves[part], [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
 
