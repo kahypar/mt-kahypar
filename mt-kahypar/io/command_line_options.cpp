@@ -602,7 +602,12 @@ namespace mt_kahypar {
             po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.det_max_rounds :
                               &context.initial_partitioning.refinement.rebalancing.det_max_rounds))->value_name(
                     "<size_t>")->default_value(0),
-            "Deterministic rebalancer: maximum number of iterations per rebalancing call");
+            "Deterministic rebalancer: maximum number of iterations per rebalancing call")
+            ((initial_partitioning ? "i-r-det-rebalancing-seq-find-moves": "r-det-rebalancing-seq-find-moves"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.det_moves_sequential :
+                              &context.initial_partitioning.refinement.rebalancing.det_moves_sequential))->value_name(
+                    "<size_t>")->default_value(0),
+            "If the number of moves for a part is larger, then execute in parallel");
     return options;
   }
 

@@ -229,6 +229,7 @@ struct RebalancingParameters {
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;
   size_t det_max_rounds = std::numeric_limits<size_t>::max();
+  size_t det_moves_sequential = 0;
 };
 
 std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params);
