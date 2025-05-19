@@ -93,6 +93,7 @@ option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package.
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
 option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
 option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact performance on NUMA platforms." OFF)
+option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact running time of deterministic mode on some instances." OFF)
 
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
@@ -247,6 +248,10 @@ if(KAHYPAR_DISABLE_HWLOC)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_HWLOC)
 endif()
 
+if(KAHYPAR_DISABLE_PARLAY)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_PARLAY)
+endif()
+
 
 #################################################################
 ## Setup of dependencies                                       ##
@@ -256,6 +261,7 @@ include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
 set(KAHYPAR_WHFC_TAG             30b0eeb0e49577d06c3deb09a44b035d81c529d2)
 set(KAHYPAR_GROWT_TAG            0c1148ebcdfd4c04803be79706533ad09cc81d37)
+set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_TBB_VERSION          v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
 set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
@@ -281,6 +287,17 @@ FetchContent_Populate(
   GIT_TAG        ${KAHYPAR_GROWT_TAG}
   SOURCE_DIR     external_tools/growt
 )
+
+if(NOT KAHYPAR_DISABLE_PARLAY)
+  FetchContent_Populate(
+    parlay QUIET EXLUDE_FROM_ALL
+    GIT_REPOSITORY https://github.com/cmuparlay/parlaylib.git
+    GIT_TAG        ${KAHYPAR_PARLAY_TAG}
+    SOURCE_DIR     external_tools/parlay
+  )
+  target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external_tools/parlay/include)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -DPARLAY_TBB)
+endif()
 
 target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
