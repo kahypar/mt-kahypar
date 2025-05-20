@@ -172,6 +172,13 @@ struct BucketHashing {
   uint32_t state;
 };
 
+template<typename IntegralT>
+struct IntegerRange {
+    IntegralT a, b;
+    using value_type = IntegralT;
+    IntegralT operator[](IntegralT i) const { return a + i;  }
+    size_t size() const { return b - a; }
+};
 
 template<typename T, typename GetBucketCallable = PrecomputeBucketOpt>
 class ParallelShuffle {
@@ -237,13 +244,13 @@ class ParallelPermutation : public ParallelShuffle<IntegralT, GetBucketCallable>
 public:
   void create_integer_permutation(IntegralT n, size_t num_tasks, std::mt19937& rng) {
     static_assert(std::is_integral<IntegralT>::value);
-    IntegerRange iota = {0, n};
+    IntegerRange<size_t> iota = {size_t(0), n};
     this->shuffle(iota, num_tasks, rng);
   }
 
   void random_grouping(IntegralT n, size_t num_tasks, uint32_t seed) {
     static_assert(std::is_integral<IntegralT>::value);
-    IntegerRange iota = {0, n};
+    IntegerRange<size_t> iota = {size_t(0), n};
     this->sample_buckets_and_group_by(iota, num_tasks, seed);
   }
 
@@ -261,15 +268,6 @@ public:
     assert(this->bucket_bounds.back() == n);
     assert(std::is_sorted(this->bucket_bounds.begin(), this->bucket_bounds.end()));
   }
-
-
-protected:
-  struct IntegerRange {
-    IntegralT a, b;
-    using value_type = IntegralT;
-    IntegralT operator[](IntegralT i) const { return a + i;  }
-    size_t size() const { return b - a; }
-  };
 };
 
 class FeistelPermutation {

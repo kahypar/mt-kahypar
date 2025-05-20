@@ -331,7 +331,11 @@ namespace mt_kahypar {
              " - uniform"
              " - first"
              " - last"
-             );
+             )
+             ("c-prefix-doubling",
+             po::value<bool>(&context.coarsening.det_prefix_doubling)->value_name(
+                     "<bool>")->default_value(false),
+             "subround sizes according to prefix doubling");
     return options;
   }
 
