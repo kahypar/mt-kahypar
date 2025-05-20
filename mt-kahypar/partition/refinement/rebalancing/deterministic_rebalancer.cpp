@@ -37,8 +37,6 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 
-#include <external_tools/parlaylib/include/parlay/primitives.h>
-
 namespace mt_kahypar {
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
@@ -177,7 +175,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       ASSERT(move_size > 0);
 
       // sort the moves from each overweight part by priority
-      parlay::sort_inplace(_moves[part], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+      tbb::parallel_sort(_moves[part], [&](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
 
