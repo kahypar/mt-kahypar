@@ -281,6 +281,9 @@ namespace impl {
       if (!_is_overloaded[b] || phg.isFixed(u)) return;
 
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
+      ASSERT(target == kInvalidPartition ||
+             gain == impl::transformGain(_gain_cache.recomputeBenefitTerm(phg, u, target) - _gain_cache.recomputePenaltyTerm(phg, u), phg.nodeWeight(u)),
+             "Gain cache is in invalid state!");
       if (target == kInvalidPartition) return;
 
       _node_state[u].markAsMovable();
@@ -356,7 +359,7 @@ namespace impl {
         auto update_neighbor = [&](HypernodeID v) {
           if (v != m.node && _node_state[v].tryLock()) {
             int my_pq_id = _pq_id[v];
-            assert(my_pq_id != -1);
+            ASSERT(my_pq_id != -1);
             if (nodes_to_update[my_pq_id].empty()) {
               pqs_to_update.push_back(my_pq_id);
             }
@@ -426,6 +429,7 @@ namespace impl {
                                                                   vec<Move>* moves_linear,
                                                                   Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
 
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
