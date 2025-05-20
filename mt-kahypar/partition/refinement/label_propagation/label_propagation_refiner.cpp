@@ -180,7 +180,7 @@ namespace mt_kahypar {
       if (!metrics::isBalanced(hypergraph, _context)) {
         should_stop = applyRebalancing(hypergraph, best_metrics, current_metrics, rebalance_moves);
         // rebalancer might initialize the gain cache
-        should_update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized();
+        should_update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized() && should_stop;
         did_rebalance = true;
       } else {
         should_update_gain_cache = false;

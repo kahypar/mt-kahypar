@@ -60,7 +60,15 @@ namespace impl {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
+        HyperedgeWeight benefit;
+        if (gain_cache.blockIsAdjacent(u, i)) {
+          benefit = gain_cache.benefitTerm(u, i);
+        } else if (to != kInvalidPartition || to_weight + wu > context.partition.max_part_weights[i]) {
+          // skip expensive gain recomputation
+          continue;
+        } else {
+          benefit = gain_cache.recomputeBenefitTerm(phg, u, i);
+        }
         if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
@@ -89,7 +97,7 @@ namespace impl {
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
+        const HyperedgeWeight benefit = gain_cache.blockIsAdjacent(u, i) ? gain_cache.benefitTerm(u, i) : gain_cache.recomputeBenefitTerm(phg, u, i);
         if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
@@ -281,6 +289,9 @@ namespace impl {
       if (!_is_overloaded[b] || phg.isFixed(u)) return;
 
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
+      ASSERT(target == kInvalidPartition ||
+             gain == impl::transformGain(_gain_cache.recomputeBenefitTerm(phg, u, target) - _gain_cache.recomputePenaltyTerm(phg, u), phg.nodeWeight(u)),
+             "Gain cache is in invalid state!");
       if (target == kInvalidPartition) return;
 
       _node_state[u].markAsMovable();
@@ -356,7 +367,7 @@ namespace impl {
         auto update_neighbor = [&](HypernodeID v) {
           if (v != m.node && _node_state[v].tryLock()) {
             int my_pq_id = _pq_id[v];
-            assert(my_pq_id != -1);
+            ASSERT(my_pq_id != -1);
             if (nodes_to_update[my_pq_id].empty()) {
               pqs_to_update.push_back(my_pq_id);
             }
@@ -390,7 +401,12 @@ namespace impl {
               for (HypernodeID v : nodes_to_update[my_pq_id]) {
                 if (pq.contains(v)) {
                   if (_target_part[v] != kInvalidPartition) {
-                    Gain new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
+                    Gain new_gain_int;
+                    if (_gain_cache.blockIsAdjacent(v, _target_part[v])) {
+                      new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
+                    } else {
+                      new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, _target_part[v]) - _gain_cache.penaltyTerm(v, phg.partID(v));
+                    }
                     float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
                     pq.adjustKey(v, new_gain);
                   } else {
@@ -426,6 +442,7 @@ namespace impl {
                                                                   vec<Move>* moves_linear,
                                                                   Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
 
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
@@ -439,6 +456,14 @@ namespace impl {
     insertNodesInOverloadedBlocks(hypergraph);
 
     auto [attributed_gain, num_moves_performed] = findMoves(hypergraph);
+
+    if constexpr (GainCache::invalidates_entries) {
+      tbb::parallel_for(0UL, num_moves_performed, [&](const MoveID i) {
+        _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+      });
+    }
+
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
 
     if (moves_by_part != nullptr) {
       moves_by_part->resize(_context.partition.k);

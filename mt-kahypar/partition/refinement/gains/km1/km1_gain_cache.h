@@ -118,6 +118,11 @@ class Km1GainCache {
     // Do nothing
   }
 
+  // ! Returns whether the block is adjacent to the node
+  bool blockIsAdjacent(const HypernodeID, const PartitionID) const {
+    return true;
+  }
+
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
     // We do not maintain the adjacent blocks of a node in this gain cache.
     // We therefore return an iterator over all blocks here
@@ -366,6 +371,11 @@ class DeltaKm1GainCache {
   }
 
   // ####################### Gain Computation #######################
+
+  // ! Returns whether the block is adjacent to the node
+  bool blockIsAdjacent(const HypernodeID hn, const PartitionID block) const {
+    return _gain_cache.blockIsAdjacent(hn, block);
+  }
 
   // ! Returns an iterator over the adjacent blocks of a node
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID hn) const {
