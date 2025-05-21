@@ -153,13 +153,16 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   for (auto& moves : _tmp_potential_moves) {
     moves.clear_sequential();
   }
+  for (PartitionID part = 0; part < _current_k; ++part) {
+    _previous_block_imbalance[part] = imbalance(phg, part);
+  }
 
   // calculate gain and target for each node in a overweight part
   // group moves by source part
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
-    if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight)) {
+    if (_previous_block_imbalance[from] > 0 && mayMoveNode(phg, from, weight)) {
       const auto triple = computeGainAndTargetPart(phg, hn, true);
       if (from != triple.to && triple.to != kInvalidPartition) {
         _tmp_potential_moves[from].stream(triple);
@@ -186,12 +189,17 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         sum += _moves[part][last_move_idx].weight;
       }
 
+      bool success = (sum >= imbalance_of_block);
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(!success);
+
       // execute moves in parallel
       tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
         const auto& move = _moves[part][j];
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
         changeNodePart(phg, move.hn, part, move.to, false);
       });
+    } else if (_previous_block_imbalance[part] > 0) {
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(true);
     }
   });
 }

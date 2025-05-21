@@ -142,6 +142,34 @@ TYPED_TEST(DeterministicRebalancerTest, CanNotBeRebalanced) {
 }
 
 
+TYPED_TEST(DeterministicRebalancerTest, MustMoveHeavyVertex) {
+  // tests a specific edge case which can only be solved if the rebalancer moves vertices which are usually excluded
+  this->constructFromValues(7, 1, { {0, 1} }, {4, 4, 4, 3, 4, 3, 3});
+  this->setup();
+
+  this->partitioned_hypergraph.setOnlyNodePart(0, 0);
+  this->partitioned_hypergraph.setOnlyNodePart(1, 1);
+  this->partitioned_hypergraph.setOnlyNodePart(2, 0);
+  this->partitioned_hypergraph.setOnlyNodePart(3, 1);
+  this->partitioned_hypergraph.setOnlyNodePart(4, 2 % this->context.partition.k);
+  this->partitioned_hypergraph.setOnlyNodePart(5, 2 % this->context.partition.k);
+  this->partitioned_hypergraph.setOnlyNodePart(6, 3 % this->context.partition.k);
+  this->partitioned_hypergraph.initializePartition();
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->rebalancer->initialize(phg);
+
+  Metrics metrics;
+  metrics.quality = metrics::quality(this->partitioned_hypergraph, this->context);
+  metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
+  this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
+
+  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+  for (PartitionID part = 0; part < this->context.partition.k; ++part) {
+    ASSERT_LE(this->partitioned_hypergraph.partWeight(part), this->context.partition.max_part_weights[part]);
+  }
+}
+
+
 TYPED_TEST(DeterministicRebalancerTest, ProducesBalancedResult) {
   this->constructFromFile();
   this->setup();
