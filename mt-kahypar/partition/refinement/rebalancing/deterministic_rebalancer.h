@@ -42,6 +42,7 @@ struct RebalancingMove {
     HypernodeID hn;
     PartitionID to;
     float priority;
+    HypernodeWeight weight;
 };
 }; // namespace rebalancer
 
@@ -64,7 +65,6 @@ public:
         _gain_computation(context),
         _num_imbalanced_parts(0),
         _moves(context.partition.k),
-        _move_weights(context.partition.k),
         _tmp_potential_moves(context.partition.k) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
@@ -111,7 +111,6 @@ private:
             _current_k = _context.partition.k;
             _gain_computation.changeNumberOfBlocks(_current_k);
             _moves.resize(_current_k);
-            _move_weights.resize(_current_k);
             _tmp_potential_moves.resize(_current_k);
         }
     }
@@ -184,7 +183,6 @@ private:
     GainComputation _gain_computation;
     PartitionID _num_imbalanced_parts;
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
-    parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> _move_weights;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> _tmp_potential_moves;
 };
 
