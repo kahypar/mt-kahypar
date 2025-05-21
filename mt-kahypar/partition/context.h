@@ -122,6 +122,7 @@ struct CoarseningParameters {
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
   SwapResolutionStrategy det_swap_strategy = SwapResolutionStrategy::UNDEFINED;
+  ClusterTieBreakingPolicy det_cluster_tie_breaking_policy = ClusterTieBreakingPolicy::UNDEFINED;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;

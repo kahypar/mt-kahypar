@@ -124,6 +124,13 @@ enum class SwapResolutionStrategy : uint8_t {
   UNDEFINED
 };
 
+enum class ClusterTieBreakingPolicy: uint8_t {
+  uniform,
+  first,
+  last,
+  UNDEFINED
+};
+
 enum class RatingFunction : uint8_t {
   heavy_edge,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
@@ -221,6 +228,8 @@ std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& 
 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const ClusterTieBreakingPolicy& rating);
+
 std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
@@ -260,6 +269,8 @@ SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::str
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 
 SwapResolutionStrategy swapResolutionStrategyFromString(const std::string& strategy);
+
+ClusterTieBreakingPolicy clusterTieBreakingPolicyFromString(const std::string& policy);
 
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 

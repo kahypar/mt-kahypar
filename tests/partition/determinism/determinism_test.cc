@@ -87,6 +87,7 @@ public:
 
     // coarsening
     context.coarsening.det_swap_strategy = SwapResolutionStrategy::to_larger;
+    context.coarsening.det_cluster_tie_breaking_policy = ClusterTieBreakingPolicy::uniform;
     context.coarsening.num_sub_rounds_deterministic = 3;
     context.coarsening.contraction_limit = 320;
     context.coarsening.max_allowed_node_weight = 30;

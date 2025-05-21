@@ -321,6 +321,16 @@ namespace mt_kahypar {
              " - to_smaller"
              " - to_larger"
              " - ignore"
+             )
+            ("c-cluster-tie-breaking-policy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& rating) {
+                       context.coarsening.det_cluster_tie_breaking_policy = mt_kahypar::clusterTieBreakingPolicyFromString(rating);
+                     })->default_value("uniform"),
+             "Cluster Tie-breaking Policy:\n"
+             " - uniform"
+             " - first"
+             " - last"
              );
     return options;
   }
