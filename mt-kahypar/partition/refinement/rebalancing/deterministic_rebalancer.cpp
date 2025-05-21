@@ -84,7 +84,9 @@ template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::updateImbalance(const PartitionedHypergraph& phg) {
   _num_imbalanced_parts = 0;
   for (PartitionID part = 0; part < _context.partition.k; ++part) {
-    if (imbalance(phg, part) > 0) {
+    const HypernodeWeight current_imbalance = phg.partWeight(part) - _context.partition.max_part_weights[part];
+    _current_imbalance[part] = current_imbalance;
+    if (current_imbalance > 0) {
       ++_num_imbalanced_parts;
     }
   }
@@ -147,7 +149,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HypernodeWeight weight = phg.nodeWeight(hn);
-    if (imbalance(phg, from) > 0 && mayMoveNode(phg, from, weight) && !phg.isFixed(hn)) {
+    if (_current_imbalance[from] > 0 && mayMoveNode(phg, from, weight) && !phg.isFixed(hn)) {
       const auto triple = computeGainAndTargetPart(phg, hn, true);
       if (from != triple.to && triple.to != kInvalidPartition) {
         _tmp_potential_moves[from].stream(triple);
@@ -166,12 +168,14 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       });
 
       // determine which moves to execute
-      const HypernodeWeight imbalance_of_block = phg.partWeight(part) - _context.partition.max_part_weights[part];
       size_t last_move_idx = 0;
       HypernodeWeight sum = 0;
-      for (; last_move_idx < _moves[part].size() && sum < imbalance_of_block; ++last_move_idx) {
+      for (; last_move_idx < _moves[part].size() && sum < _current_imbalance[part]; ++last_move_idx) {
         sum += _moves[part][last_move_idx].weight;
       }
+
+      bool success = (sum >= _current_imbalance[part]);
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(!success);
 
       // execute moves in parallel
       tbb::parallel_for(UL(0), last_move_idx, [&](const size_t j) {
@@ -179,6 +183,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
         changeNodePart(phg, move.hn, part, move.to, false);
       });
+    } else if (_current_imbalance[part] > 0) {
+      _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(true);
     }
   });
 }
