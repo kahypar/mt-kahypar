@@ -144,7 +144,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
     ASSERT(best_target == kInvalidPartition || (best_target >= 0 && best_target < _current_k));
   }
   tmp_scores.clear();
-  return { hn, best_target, transformGain(best_gain, hn_weight) };
+  return { hn, best_target, transformGain(best_gain, hn_weight), hn_weight };
 }
 
 template <typename GraphAndGainTypes>
@@ -178,20 +178,15 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
       });
 
-      // calculate perfix sum for each source-part to know which moves to execute (prefix_sum > current_weight - max_weight)
-      if (move_size > _move_weights[part].size()) {
-        _move_weights[part].resize(move_size);
-      }
-      tbb::parallel_for(0UL, move_size, [&](const size_t j) {
-        _move_weights[part][j] = phg.nodeWeight(_moves[part][j].hn);
-      });
-      parallel_prefix_sum(_move_weights[part].begin(), _move_weights[part].begin() + move_size, _move_weights[part].begin(), std::plus<HypernodeWeight>(), 0);
-      size_t last_move_idx = std::upper_bound(_move_weights[part].begin(), _move_weights[part].begin() + move_size, phg.partWeight(part) - _max_part_weights[part] - 1) - _move_weights[part].begin();
-      // this check is necessary since last_move_idx == move_size can happen with excluded hypernodes
-      if (last_move_idx < move_size) {
-        ++last_move_idx;
+      // determine which moves to execute
+      const HypernodeWeight imbalance_of_block = phg.partWeight(part) - _max_part_weights[part];
+      size_t last_move_idx = 0;
+      HypernodeWeight sum = 0;
+      for (; last_move_idx < move_size && sum < imbalance_of_block; ++last_move_idx) {
+        sum += _moves[part][last_move_idx].weight;
       }
 
+      // execute moves in parallel
       tbb::parallel_for(0UL, last_move_idx, [&](const size_t j) {
         const auto& move = _moves[part][j];
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
