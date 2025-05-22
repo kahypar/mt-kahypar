@@ -27,6 +27,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 
 namespace mt_kahypar {
 
