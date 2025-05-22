@@ -30,6 +30,7 @@
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/concurrent_vector.h>
 
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {

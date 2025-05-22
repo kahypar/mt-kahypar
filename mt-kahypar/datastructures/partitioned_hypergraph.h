@@ -38,6 +38,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_info.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
@@ -742,6 +743,22 @@ class PartitionedHypergraph {
 
   const ConInfo& getConnectivityInformation() const {
     return _con_info;
+  }
+
+  // ! Creates a SynchronizedEdgeUpdate for the hyperedge. The caller must ensure that there is no concurrent access
+  // ! which modifies connectivity set of the hyperedge.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  SynchronizedEdgeUpdate createEdgeUpdate(const HyperedgeID he) {
+    SynchronizedEdgeUpdate sync_update;
+    ASSERT(he < _pin_count_update_ownership.size());
+    sync_update.he = he;
+    sync_update.edge_weight = edgeWeight(he);
+    sync_update.edge_size = edgeSize(he);
+    sync_update.target_graph = _target_graph;
+    sync_update.edge_locks = &_pin_count_update_ownership;
+    sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
+    sync_update.pin_counts_after = &_con_info.pinCountSnapshot(he);
+    return sync_update;
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
