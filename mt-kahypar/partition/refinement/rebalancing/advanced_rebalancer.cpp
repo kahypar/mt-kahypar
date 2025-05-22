@@ -458,7 +458,7 @@ namespace impl {
     auto [attributed_gain, num_moves_performed] = findMoves(hypergraph);
 
     if constexpr (GainCache::invalidates_entries) {
-      tbb::parallel_for(0UL, num_moves_performed, [&](const MoveID i) {
+      tbb::parallel_for(UL(0), num_moves_performed, [&](const size_t i) {
         _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
       });
     }
