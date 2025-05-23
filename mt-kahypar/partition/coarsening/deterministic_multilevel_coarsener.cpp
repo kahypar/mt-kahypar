@@ -29,6 +29,7 @@
 #include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 #include "mt-kahypar/utils/hash.h"
 
 namespace mt_kahypar {
@@ -54,13 +55,20 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     clusters[u] = u;
   });
 
+  ds::FixedVertexSupport<Hypergraph> fixed_vertices = hg.copyOfFixedVertexSupport();
+  fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
+
   permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
   for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(
       sub_round, config.num_buckets, config.num_buckets_per_sub_round);
     size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
 
-    clusterNodesInRange(clusters, num_nodes, first, last);
+    if (hg.hasFixedVertices()) {
+      clusterNodesInRange<true>(clusters, num_nodes, first, last, fixed_vertices);
+    } else {
+      clusterNodesInRange<false>(clusters, num_nodes, first, last, fixed_vertices);
+    }
   }
 
   timer.stop_timer("coarsening_pass");
@@ -75,7 +83,12 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 }
 
 template<typename TypeTraits>
-void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<HypernodeID>& clusters, HypernodeID& num_nodes, size_t first, size_t last) {
+template<bool has_fixed_vertices>
+void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<HypernodeID>& clusters,
+                                                                       HypernodeID& num_nodes,
+                                                                       size_t first,
+                                                                       size_t last,
+                                                                       ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   const Hypergraph& hg = Base::currentHypergraph();
 
   // each vertex finds a cluster it wants to join
@@ -83,10 +96,10 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
     const HypernodeID u = permutation.at(pos);
     if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
       if (useLargeRatingMapForRatingOfHypernode(hg, u)) {
-        calculatePreferredTargetCluster(u, clusters, default_rating_maps.local());
+        calculatePreferredTargetCluster<has_fixed_vertices>(u, clusters, default_rating_maps.local(), fixed_vertices);
       } else {
         // note: the cache efficient rating map is still deterministic since its size (and thus the iteration order) never changes
-        calculatePreferredTargetCluster(u, clusters, cache_efficient_rating_maps.local());
+        calculatePreferredTargetCluster<has_fixed_vertices>(u, clusters, cache_efficient_rating_maps.local(), fixed_vertices);
       }
     }
   });
@@ -109,8 +122,14 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
         } else {
           cluster_weights_to_fix.push_back_buffered(u);
         }
-        clusters[u] = target;
-        cluster_weight[target] = opportunistic_cluster_weight[target];
+        bool accept_fixed_vertex_contraction = true;
+        if constexpr (has_fixed_vertices) {
+          accept_fixed_vertex_contraction = fixed_vertices.contract(target, u);
+        }
+        if (accept_fixed_vertex_contraction) {
+          clusters[u] = target;
+          cluster_weight[target] = opportunistic_cluster_weight[target];
+        }
       } else {
         if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
           // node u could still not move
@@ -124,7 +143,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
   num_nodes -= num_contracted_nodes.combine(std::plus<>());
   nodes_in_too_heavy_clusters.finalize();
   if (nodes_in_too_heavy_clusters.size() > 0) {
-    num_nodes -= approveNodes(clusters);
+    num_nodes -= approveNodes<has_fixed_vertices>(clusters, fixed_vertices);
     nodes_in_too_heavy_clusters.clear();
   }
 
@@ -157,8 +176,11 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
 }
 
 template<typename TypeTraits>
-template<typename RatingMap>
-void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters, RatingMap& tmp_ratings) {
+template<bool has_fixed_vertices, typename RatingMap>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u,
+                                                                                   const vec<HypernodeID>& clusters,
+                                                                                   RatingMap& tmp_ratings,
+                                                                                   const ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   const Hypergraph& hg = Base::currentHypergraph();
   tmp_ratings.clear();
 
@@ -197,8 +219,14 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   for (const auto& entry : tmp_ratings) {
     HypernodeID target_cluster = entry.key;
     double target_score = entry.value;
+    bool accept_fixed_vertex_contraction = true;
+    if constexpr ( has_fixed_vertices ) {
+      accept_fixed_vertex_contraction = FixedVertexAcceptancePolicy::acceptContraction(hg, fixed_vertices, _context, target_cluster,u);
+    }
+
     if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u
-        && cluster_weight[target_cluster] + weight_u <= _context.coarsening.max_allowed_node_weight) {
+        && cluster_weight[target_cluster] + weight_u <= _context.coarsening.max_allowed_node_weight
+        && accept_fixed_vertex_contraction) {
       if (target_score > best_score) {
         best_targets.clear();
         best_score = target_score;
@@ -228,7 +256,8 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 }
 
 template<typename TypeTraits>
-size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeID>& clusters) {
+template<bool has_fixed_vertices>
+size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   const Hypergraph& hg = Base::currentHypergraph();
   tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
@@ -254,6 +283,9 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
         HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
         if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
           break;
+        }
+        if (has_fixed_vertices && !fixed_vertices.contract(target, v)) {
+          continue;
         }
         clusters[v] = target;
         target_weight += hg.nodeWeight(v);
