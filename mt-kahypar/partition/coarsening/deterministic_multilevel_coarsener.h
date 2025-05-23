@@ -34,6 +34,7 @@
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/cast.h"
@@ -125,12 +126,21 @@ private:
                     (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
   }
 
-  void clusterNodesInRange(vec<HypernodeID>& clusters, HypernodeID& num_nodes, size_t first, size_t last);
+  template<bool has_fixed_vertices>
+  void clusterNodesInRange(vec<HypernodeID>& clusters,
+                           HypernodeID& num_nodes,
+                           size_t first,
+                           size_t last,
+                           ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 
-  template<typename RatingMap>
-  void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters, RatingMap& tmp_ratings);
+  template<bool has_fixed_vertices, typename RatingMap>
+  void calculatePreferredTargetCluster(HypernodeID u,
+                                       const vec<HypernodeID>& clusters,
+                                       RatingMap& tmp_ratings,
+                                       const ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 
-  size_t approveNodes(vec<HypernodeID>& clusters);
+  template<bool has_fixed_vertices>
+  size_t approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
 
   HypernodeID currentNumberOfNodesImpl() const override {
     return Base::currentNumNodes();
