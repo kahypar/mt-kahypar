@@ -1288,6 +1288,11 @@ namespace mt_kahypar {
     verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
   }
 
+  TEST_F(APartitioner, PartitionsAHypergraphWithFixedVerticesAndDeterministicPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
   TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDefaultPreset) {
     Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false, true /* add fixed vertices */);
     verifyFixedVertexAssignment(GRAPH_FIX_FILE);
@@ -1300,6 +1305,11 @@ namespace mt_kahypar {
 
   TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndHighestQualityPreset) {
     Partition(GRAPH_FILE, METIS, HIGHEST_QUALITY, 4, 0.03, CUT, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDeterministicPreset) {
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 4, 0.03, CUT, false, true /* add fixed vertices */);
     verifyFixedVertexAssignment(GRAPH_FIX_FILE);
   }
 
