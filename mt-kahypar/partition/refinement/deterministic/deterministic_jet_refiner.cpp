@@ -59,42 +59,6 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
     resizeDataStructuresForCurrentK();
 
-    auto afterburner = [&](const HypernodeID hn, auto add_node_fn) {
-        const PartitionID from = phg.partID(hn);
-        const auto [gain, to] = _gains_and_target[hn];
-        Gain total_gain = 0;
-        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-            HypernodeID pin_count_in_from_part_after = 0;
-            HypernodeID pin_count_in_to_part_after = 1;
-            for (const HypernodeID& pin : phg.pins(he)) {
-                if (pin != hn) {
-                    // Jet uses an order based on the precomputed gain values:
-                    // If the precomputed gain of another node is better than for the current node
-                    // (or the gain is equal and the id is smaller), we assume the node is already
-                    // moved to its target part.
-                    auto [gain_p, to_p] = _gains_and_target[pin];
-                    PartitionID part = (gain_p < gain || (gain_p == gain && pin < hn)) ? to_p : phg.partID(pin);
-                    if (part == from) {
-                        pin_count_in_from_part_after++;
-                    } else if (part == to) {
-                        pin_count_in_to_part_after++;
-                    }
-                }
-            }
-            SynchronizedEdgeUpdate sync_update;
-            sync_update.he = he;
-            sync_update.edge_weight = phg.edgeWeight(he);
-            sync_update.edge_size = phg.edgeSize(he);
-            sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
-            sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
-            total_gain += AttributedGains::gain(sync_update);
-        }
-
-        if (total_gain <= 0) {
-            add_node_fn();
-            _locks.set(hn);
-        }
-    };
     _current_partition_is_best = true;
     size_t rounds_without_improvement = 0;
     const size_t max_rounds = _context.refinement.jet.fixed_n_iterations;
@@ -116,22 +80,25 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         timer.start_timer("afterburner", "Afterburner");
         _locks.reset();
         _tmp_active_nodes.clear_sequential();
-        tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
-            const auto n = _active_nodes[j];
-            afterburner(n, [&] {_tmp_active_nodes.stream(n);});
-        });
-        _moves = _tmp_active_nodes.copy_parallel();
-        HEAVY_REFINEMENT_ASSERT(arePotentialMovesToOtherParts(phg, _moves), "moves");
+        if constexpr (PartitionedHypergraph::is_graph) {
+            graphAfterburner(phg);
+        } else {
+            hypergraphAfterburner(phg);
+        }
+        HEAVY_REFINEMENT_ASSERT(arePotentialMovesToOtherParts(phg, _active_nodes), "moves");
         timer.stop_timer("afterburner");
 
         // Apply all moves
         timer.start_timer("apply_moves", "Apply Moves");
-        auto range = tbb::blocked_range<size_t>(UL(0), _moves.size());
+        auto range = tbb::blocked_range<size_t>(UL(0), _active_nodes.size());
         auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
             Gain my_gain = init;
-            for (size_t i = r.begin(); i < r.end(); ++i) {
-                const HypernodeID hn = _moves[i];
-                my_gain += performMoveWithAttributedGain(phg, hn);
+            for (size_t j = r.begin(); j < r.end(); ++j) {
+                const HypernodeID hn = _active_nodes[j];
+                if (PartitionedHypergraph::is_graph || _afterburner_gain[hn] <= 0) {
+                    my_gain += performMoveWithAttributedGain(phg, hn);
+                    _locks.set(hn);
+                }
             }
             return my_gain;
         };
@@ -150,13 +117,15 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
         }
-        if (PartitionedHypergraph::is_graph) {
+
+        if constexpr (PartitionedHypergraph::is_graph) {
             timer.start_timer("reb_quality", "Quality after Rebalancing");
             current_metrics.quality += calculateGainDelta(phg);
             timer.stop_timer("reb_quality");
         }
 
-        ASSERT(current_metrics.quality == metrics::quality(phg, _context, false), V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
+        HEAVY_REFINEMENT_ASSERT(current_metrics.quality == metrics::quality(phg, _context, false),
+            V(current_metrics.quality) << V(metrics::quality(phg, _context, false)));
         ++rounds_without_improvement;
 
         // if the parition was ever balanced => look for balanced partition with better quality
@@ -261,6 +230,102 @@ void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(Partiti
     };
     phg.doParallelForAllNodes(reset_node);
     _current_partition_is_best = true;
+}
+
+template <typename GraphAndGainTypes>
+void DeterministicJetRefiner<GraphAndGainTypes>::graphAfterburner(const PartitionedHypergraph& phg) {
+    tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
+        const HypernodeID hn = _active_nodes[j];
+        const PartitionID from = phg.partID(hn);
+        const auto [gain, to] = _gains_and_target[hn];
+
+        Gain total_gain = 0;
+        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+            HypernodeID pin_count_in_from_part_after = 0;
+            HypernodeID pin_count_in_to_part_after = 1;
+            for (const HypernodeID& pin : phg.pins(he)) {
+                if (pin != hn) {
+                    // Jet uses an order based on the precomputed gain values:
+                    // If the precomputed gain of another node is better than for the current node
+                    // (or the gain is equal and the id is smaller), we assume the node is already
+                    // moved to its target part.
+                    auto [gain_p, to_p] = _gains_and_target[pin];
+                    PartitionID part = (gain_p < gain || (gain_p == gain && pin < hn)) ? to_p : phg.partID(pin);
+                    if (part == from) {
+                        pin_count_in_from_part_after++;
+                    } else if (part == to) {
+                        pin_count_in_to_part_after++;
+                    }
+                }
+            }
+            SynchronizedEdgeUpdate sync_update;
+            sync_update.he = he;
+            sync_update.edge_weight = phg.edgeWeight(he);
+            sync_update.edge_size = phg.edgeSize(he);
+            sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
+            sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
+            total_gain += AttributedGains::gain(sync_update);
+        }
+
+        if (total_gain <= 0) {
+            _tmp_active_nodes.stream(hn);
+        }
+    });
+    _active_nodes = _tmp_active_nodes.copy_parallel();
+}
+
+template <typename GraphAndGainTypes>
+void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const PartitionedHypergraph& phg) {
+    tbb::parallel_for(UL(0), _afterburner_gain.size(), [&](const size_t i) {
+        _afterburner_gain[i].store(0);
+    });
+    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+        auto& edgeBuffer = _hyperedge_buffer.local();
+        auto& afterburnerBuffer = _afterburner_buffer.local();
+        const HypernodeID edgeSize = phg.edgeSize(he);
+        if (edgeSize > edgeBuffer.size()) {
+            edgeBuffer.resize(edgeSize);
+        }
+        // materialize Hyperedge
+        size_t index = 0;
+        for (const auto pin : phg.pins(he)) {
+            edgeBuffer[index] = pin;
+            ++index;
+        }
+        // sort by afterburner order
+        std::sort(edgeBuffer.begin(), edgeBuffer.begin() + edgeSize, [&](const HypernodeID& a, const HypernodeID& b) {
+            auto [gain_a, to_a] = _gains_and_target[a];
+            auto [gain_b, to_b] = _gains_and_target[b];
+            return (gain_a < gain_b || (gain_a == gain_b && a < b));
+        });
+
+        // initial pin-counts
+        for (auto& pinCount : afterburnerBuffer) {
+            pinCount = 0;
+        }
+        for (size_t i = 0; i < edgeSize; ++i) {
+            const HypernodeID pin = edgeBuffer[i];
+            afterburnerBuffer[phg.partID(pin)]++;
+        }
+        // update pin-counts for each pin
+        for (size_t i = 0; i < edgeSize; ++i) {
+            const HypernodeID pin = edgeBuffer[i];
+            const PartitionID from = phg.partID(pin);
+            const auto [gain, to] = _gains_and_target[pin];
+            afterburnerBuffer[from]--;
+            afterburnerBuffer[to]++;
+            SynchronizedEdgeUpdate sync_update;
+            sync_update.he = he;
+            sync_update.edge_weight = phg.edgeWeight(he);
+            sync_update.edge_size = phg.edgeSize(he);
+            sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
+            sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
+            const Gain attributedGain = AttributedGains::gain(sync_update);
+            if (gain != 0) {
+                _afterburner_gain[pin] += attributedGain;
+            }
+        }
+    });
 }
 
 template <typename GraphAndGainTypes>

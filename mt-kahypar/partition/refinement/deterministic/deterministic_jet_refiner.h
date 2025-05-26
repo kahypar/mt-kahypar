@@ -75,7 +75,10 @@ public:
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
     _gain_computation(context, true /* disable_randomization */),
-    _rebalancer(rebalancer) {}
+    _rebalancer(rebalancer),
+    _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
+    _afterburner_buffer(PartitionedHypergraph::is_graph ? 0 : _current_k, 0),
+    _hyperedge_buffer()  {}
 
 private:
   static constexpr bool debug = false;
@@ -100,6 +103,10 @@ private:
                       const PartitionID to,
                       const F& objective_delta);
 
+  void graphAfterburner(const PartitionedHypergraph& phg);
+
+  void hypergraphAfterburner(const PartitionedHypergraph& phg);
+
   HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const;
 
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
@@ -123,6 +130,11 @@ private:
   kahypar::ds::FastResetFlagArray<> _locks;
   GainComputation _gain_computation;
   IRebalancer& _rebalancer;
+
+  // hypergraph afterburner
+  parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
+  tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
+  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
 };
 
 }
