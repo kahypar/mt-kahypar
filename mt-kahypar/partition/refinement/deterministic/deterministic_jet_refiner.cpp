@@ -279,53 +279,125 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
     tbb::parallel_for(UL(0), _afterburner_gain.size(), [&](const size_t i) {
         _afterburner_gain[i].store(0);
     });
-    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-        auto& edgeBuffer = _hyperedge_buffer.local();
-        auto& afterburnerBuffer = _afterburner_buffer.local();
+
+    auto afterburn_two_pins = [&](const HyperedgeID& he) {
+        HypernodeID a = kInvalidHypernode;
+        HypernodeID b = kInvalidHypernode;
+        Gain minGain = std::numeric_limits<Gain>::max();
+        for (const auto pin : phg.pins(he)) {
+            const Gain& gain = _gains_and_target[pin].first;
+            if (a == kInvalidHypernode || gain < minGain || (minGain == gain && pin < a)) {
+                b = a;
+                a = pin;
+                minGain = gain;
+            } else {
+                b = pin;
+            }
+        }
+        const auto& [gain_a, to_a] = _gains_and_target[a];
+        const auto& [gain_b, to_b] = _gains_and_target[b];
+        const PartitionID from_a = phg.partID(a);
+        const PartitionID from_b = phg.partID(b);
+        const HyperedgeWeight weight = phg.edgeWeight(he);
+        // moving a
+        if (from_a != to_a) {
+            if (from_a == from_b) {
+                _afterburner_gain[a] += weight;
+            } else if (to_a == from_b) {
+                _afterburner_gain[a] -= weight;
+            }
+        }
+        // moving b after a
+        if (from_b != to_b) {
+            if (from_b == to_a) {
+                _afterburner_gain[b] += weight;
+            } else if (to_b == to_a) {
+                _afterburner_gain[b] -= weight;
+            }
+        }
+    };
+
+    auto afterburn_edge = [&](const HyperedgeID& he) {
         const HypernodeID edgeSize = phg.edgeSize(he);
+        if (edgeSize == 2) {
+            return afterburn_two_pins(he);
+        }
+
+        auto& edgeBuffer = _hyperedge_buffer.local();
+        auto& pinCountBuffer = _afterburner_buffer.local();
+        pinCountBuffer.assign(pinCountBuffer.size(), 0);
         if (edgeSize > edgeBuffer.size()) {
             edgeBuffer.resize(edgeSize);
         }
-        // materialize Hyperedge
+
+        // materialize the hyperedge and initialize pin counts
         size_t index = 0;
         for (const auto pin : phg.pins(he)) {
-            edgeBuffer[index] = pin;
-            ++index;
+            const auto part = phg.partID(pin);
+            pinCountBuffer[part]++;
+            if (part != _gains_and_target[pin].second) {
+                edgeBuffer[index] = pin;
+                ++index;
+            }
         }
-        // sort by afterburner order
-        std::sort(edgeBuffer.begin(), edgeBuffer.begin() + edgeSize, [&](const HypernodeID& a, const HypernodeID& b) {
-            auto [gain_a, to_a] = _gains_and_target[a];
-            auto [gain_b, to_b] = _gains_and_target[b];
-            return (gain_a < gain_b || (gain_a == gain_b && a < b));
-        });
 
-        // initial pin-counts
-        for (auto& pinCount : afterburnerBuffer) {
-            pinCount = 0;
+        // sort the pins by afterburner order, with special cases for small pin counts
+        if (index == 0) {
+            return;
+        } else if (index == 1) {
+        } else if (index == 2) {
+            auto& a = edgeBuffer[0];
+            auto& b = edgeBuffer[1];
+            auto& [gain_a, to_a] = _gains_and_target[a];
+            auto& [gain_b, to_b] = _gains_and_target[b];
+            if (!(gain_a < gain_b || (gain_a == gain_b && a < b))) std::swap(a, b);
+        } else if (index == 3) {
+            auto& a = edgeBuffer[0];
+            auto& b = edgeBuffer[1];
+            auto& c = edgeBuffer[2];
+            if (!(_gains_and_target[a].first < _gains_and_target[c].first || (_gains_and_target[a].first == _gains_and_target[c].first && a < c)))
+                std::swap(a, c);
+            if (!(_gains_and_target[a].first < _gains_and_target[b].first || (_gains_and_target[a].first == _gains_and_target[b].first && a < b)))
+                std::swap(a, b);
+            if (!(_gains_and_target[b].first < _gains_and_target[c].first || (_gains_and_target[b].first == _gains_and_target[c].first && b < c)))
+                std::swap(b, c);
+        } else {
+            std::sort(edgeBuffer.begin(), edgeBuffer.begin() + index, [&](const HypernodeID& a, const HypernodeID& b) {
+                auto& [gain_a, to_a] = _gains_and_target[a];
+                auto& [gain_b, to_b] = _gains_and_target[b];
+                return (gain_a < gain_b || (gain_a == gain_b && a < b));
+            });
         }
-        for (size_t i = 0; i < edgeSize; ++i) {
-            const HypernodeID pin = edgeBuffer[i];
-            afterburnerBuffer[phg.partID(pin)]++;
-        }
-        // update pin-counts for each pin
-        for (size_t i = 0; i < edgeSize; ++i) {
+
+        // scan through the sorted pins and compute gains, updating the pin counts at each step
+        SynchronizedEdgeUpdate sync_update;
+        sync_update.he = he;
+        sync_update.edge_weight = phg.edgeWeight(he);
+        sync_update.edge_size = phg.edgeSize(he);
+        for (size_t i = 0; i < index; ++i) {
             const HypernodeID pin = edgeBuffer[i];
             const PartitionID from = phg.partID(pin);
             const auto [gain, to] = _gains_and_target[pin];
-            afterburnerBuffer[from]--;
-            afterburnerBuffer[to]++;
-            SynchronizedEdgeUpdate sync_update;
-            sync_update.he = he;
-            sync_update.edge_weight = phg.edgeWeight(he);
-            sync_update.edge_size = phg.edgeSize(he);
-            sync_update.pin_count_in_from_part_after = afterburnerBuffer[from];
-            sync_update.pin_count_in_to_part_after = afterburnerBuffer[to];
+            pinCountBuffer[from]--;
+            pinCountBuffer[to]++;
+            sync_update.pin_count_in_from_part_after = pinCountBuffer[from];
+            sync_update.pin_count_in_to_part_after = pinCountBuffer[to];
             const Gain attributedGain = AttributedGains::gain(sync_update);
-            if (gain != 0) {
-                _afterburner_gain[pin] += attributedGain;
+            if (attributedGain != 0) {
+                _afterburner_gain[pin].fetch_add(attributedGain, std::memory_order_relaxed);
             }
         }
+    };
+
+    tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t& i) {
+        const HypernodeID hn = _active_nodes[i];
+        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+            size_t flag = _edge_flag[he].load();
+            if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag)) continue;
+            afterburn_edge(he);
+        }
     });
+    _current_edge_flag++;
 }
 
 template <typename GraphAndGainTypes>
