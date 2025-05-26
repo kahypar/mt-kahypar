@@ -80,6 +80,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         }
         phg.resetEdgeSynchronization();
     }
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
         V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
     return best_metrics.quality < input_quality;
@@ -134,6 +135,15 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
         Gain gain = tbb::parallel_reduce(range, 0, accum, std::plus<>());
         current_metrics.quality -= gain;
         current_metrics.imbalance = metrics::imbalance(phg, _context);
+
+        if (GainCache::invalidates_entries && _gain_cache.isInitialized()) {
+            tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
+                const HypernodeID hn = _active_nodes[j];
+                if (_part_before_round[hn] != phg.partID(hn)) {
+                    _gain_cache.recomputeInvalidTerms(phg, hn);
+                }
+            });
+        }
         timer.stop_timer("apply_moves");
 
         // rebalance
@@ -147,7 +157,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
         }
 
-        if constexpr (PartitionedHypergraph::is_graph) {
+        if (PartitionedHypergraph::is_graph && !_gain_cache.isInitialized()) {
             timer.start_timer("reb_quality", "Quality after Rebalancing");
             current_metrics.quality += calculateGainDelta(phg);
             timer.stop_timer("reb_quality");
@@ -236,16 +246,26 @@ void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(Partiti
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
         _gain_computation.computeDeltaForHyperedge(sync_update);
     };
+    const bool update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized();
 
-    auto reset_node = [&](const HypernodeID hn) {
+    phg.doParallelForAllNodes([&](const HypernodeID hn) {
         const PartitionID part_id = phg.partID(hn);
+        if (update_gain_cache) {
+            _part_before_round[hn] = part_id;
+        }
         if (part_id != _best_partition[hn]) {
             ASSERT(_best_partition[hn] != kInvalidPartition);
             ASSERT(_best_partition[hn] >= 0 && _best_partition[hn] < _current_k);
             changeNodePart(phg, hn, part_id, _best_partition[hn], objective_delta);
         }
-    };
-    phg.doParallelForAllNodes(reset_node);
+    });
+    if (update_gain_cache) {
+         phg.doParallelForAllNodes([&](const HypernodeID hn) {
+            if (_part_before_round[hn] != phg.partID(hn)) {
+                _gain_cache.recomputeInvalidTerms(phg, hn);
+            }
+        });
+    }
     _current_partition_is_best = true;
 }
 
@@ -444,10 +464,12 @@ void DeterministicJetRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHyper
                                                                 const F& objective_delta) {
     constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
     bool success;
-    if constexpr (PartitionedHypergraph::is_graph) {
-      success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
+    if (_gain_cache.isInitialized()) {
+        success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
+    } else if constexpr (PartitionedHypergraph::is_graph) {
+        success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
     } else {
-      success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
+        success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
     }
     ASSERT(success);
     unused(success);

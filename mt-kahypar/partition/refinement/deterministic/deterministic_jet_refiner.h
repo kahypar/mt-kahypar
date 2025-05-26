@@ -61,7 +61,7 @@ public:
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
                                    const Context& context,
-                                   GainCache&,
+                                   GainCache& gain_cache,
                                    IRebalancer& rebalancer) :
     _context(context),
     _current_k(context.partition.k),
@@ -76,6 +76,7 @@ public:
     _part_before_round(num_hypernodes, kInvalidPartition),
     _gains_and_target(num_hypernodes),
     _locks(num_hypernodes),
+    _gain_cache(gain_cache),
     _gain_computation(context, true /* disable_randomization */),
     _rebalancer(rebalancer),
     _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
@@ -134,6 +135,7 @@ private:
   parallel::scalable_vector<PartitionID> _part_before_round;
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   kahypar::ds::FastResetFlagArray<> _locks;
+  GainCache& _gain_cache;
   GainComputation _gain_computation;
   IRebalancer& _rebalancer;
 
