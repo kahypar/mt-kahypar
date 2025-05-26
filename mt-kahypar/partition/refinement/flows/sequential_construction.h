@@ -28,8 +28,8 @@
 
 #include <tbb/concurrent_vector.h>
 
-#include "algorithm/hyperflowcutter.h"
-#include "algorithm/sequential_push_relabel.h"
+#include "WHFC/algorithm/hyperflowcutter.h"
+#include "WHFC/algorithm/sequential_push_relabel.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"

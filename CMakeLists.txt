@@ -92,7 +92,8 @@ option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package.
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
 option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
-option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact performance on NUMA platforms." OFF)
+option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact running time on NUMA platforms." OFF)
+option(KAHYPAR_DISABLE_GROWT "Remove the growt dependency. Might significantly impact running time of the Steiner tree metric." OFF)
 option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact running time of deterministic mode on some instances." OFF)
 
 # specific compile features/build properties
@@ -254,6 +255,80 @@ endif()
 
 
 #################################################################
+## Compile options and specialized builds                      ##
+#################################################################
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+    set(KAHYPAR_X86 TRUE)
+else()
+    set(KAHYPAR_X86 FALSE)
+endif()
+
+if (NOT KAHYPAR_DISABLE_GROWT AND KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    AND KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
+    # growt requires SSE instructions
+    set(KAHYPAR_USE_GROWT TRUE)
+else()
+    set(KAHYPAR_USE_GROWT FALSE)
+endif()
+
+# Add compile flags that enable warnings
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+  -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
+  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
+
+if(KAHYPAR_USE_GCOV)
+  # add coverage anaylsis compile and link flags
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
+endif(KAHYPAR_USE_GCOV)
+
+# lld is way faster than ld. If you have it, use it!
+find_program(LLD_BIN lld)
+if (LLD_BIN AND KAHYPAR_X86)
+  message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+endif()
+
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
+                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
+                                                      $<$<CONFIG:DEBUG>:-g3 -fno-omit-frame-pointer>)
+target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
+
+if(UNIX AND NOT WIN32)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
+endif()
+
+if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
+  include(CheckCXXCompilerFlag)
+  include(CheckSSE4_2)
+  block()
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
+  endblock()
+
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
+  if(KAHYPAR_HAS_CRC32)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
+  endif()
+  if(BUILTIN_POPCNT)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
+  endif()
+endif()
+
+if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>
+                                                        $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
+endif()
+
+if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
+endif()
+
+
+#################################################################
 ## Setup of dependencies                                       ##
 #################################################################
 
@@ -281,12 +356,20 @@ FetchContent_Populate(
   GIT_TAG        ${KAHYPAR_WHFC_TAG}
   SOURCE_DIR     external_tools/WHFC
 )
-FetchContent_Populate(
-  growt QUIET EXLUDE_FROM_ALL
-  GIT_REPOSITORY https://github.com/TooBiased/growt.git
-  GIT_TAG        ${KAHYPAR_GROWT_TAG}
-  SOURCE_DIR     external_tools/growt
-)
+target_include_directories(MtKaHyPar-Include INTERFACE
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
+                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools)
+
+if(KAHYPAR_USE_GROWT)
+  FetchContent_Populate(
+    growt QUIET EXLUDE_FROM_ALL
+    GIT_REPOSITORY https://github.com/TooBiased/growt.git
+    GIT_TAG        ${KAHYPAR_GROWT_TAG}
+    SOURCE_DIR     external_tools/growt
+  )
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
+  target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external_tools/growt)
+endif()
 
 if(NOT KAHYPAR_DISABLE_PARLAY)
   FetchContent_Populate(
@@ -298,11 +381,6 @@ if(NOT KAHYPAR_DISABLE_PARLAY)
   target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external_tools/parlay/include)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -DPARLAY_TBB)
 endif()
-
-target_include_directories(MtKaHyPar-Include INTERFACE
-                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
-                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/growt
-                           ${CMAKE_CURRENT_BINARY_DIR}/external_tools/WHFC)
 
 
 if (KAHYPAR_ENABLE_TESTING)
@@ -399,77 +477,6 @@ if(NOT KAHYPAR_DISABLE_HWLOC)
     message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
   endif()
   target_link_libraries(MtKaHyPar-Include INTERFACE HWLOC::hwloc)
-endif()
-
-
-#################################################################
-## Compile options and specialized builds                      ##
-#################################################################
-
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set(KAHYPAR_X86 TRUE)
-else()
-    set(KAHYPAR_X86 FALSE)
-endif()
-
-# Add compile flags that enable warnings
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-  -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
-  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
-
-if(KAHYPAR_USE_GCOV)
-  # add coverage anaylsis compile and link flags
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
-endif(KAHYPAR_USE_GCOV)
-
-# lld is way faster than ld. If you have it, use it!
-find_program(LLD_BIN lld)
-if (LLD_BIN AND KAHYPAR_X86)
-  message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
-endif()
-
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
-                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
-                                                      $<$<CONFIG:DEBUG>:-g3 -fno-omit-frame-pointer>)
-target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
-
-if(UNIX AND NOT WIN32)
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
-endif()
-
-if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
-  include(CheckCXXCompilerFlag)
-  include(CheckSSE4_2)
-  block()
-    set(CMAKE_REQUIRED_QUIET TRUE)
-    check_cxx_compiler_flag(-mcrc32 KAHYPAR_HAS_CRC32)
-  endblock()
-
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcx16)
-  if(KAHYPAR_HAS_CRC32)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
-  endif()
-  if(BUILTIN_POPCNT)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
-  endif()
-  if(BUILTIN_POPCNT AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # growt requires SSE instructions
-    # TODO: it is not clear whether/why Linux is required for growt
-    target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
-  endif()
-endif()
-
-if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>
-                                                        $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
-endif()
-
-if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
 endif()
 
 

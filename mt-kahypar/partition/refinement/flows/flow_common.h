@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "datastructure/flow_hypergraph_builder.h"
+#include "WHFC/datastructure/flow_hypergraph_builder.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 

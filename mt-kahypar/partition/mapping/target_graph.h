@@ -41,9 +41,9 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-#include "allocator/alignedallocator.hpp"
-#include "data-structures/hash_table_mods.hpp"
-#include "data-structures/table_config.hpp"
+#include "growt/allocator/alignedallocator.hpp"
+#include "growt/data-structures/hash_table_mods.hpp"
+#include "growt/data-structures/table_config.hpp"
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
