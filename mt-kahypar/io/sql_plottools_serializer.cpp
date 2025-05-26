@@ -120,8 +120,10 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
         << " jet_algorithm=" << context.refinement.jet.algorithm
         << " jet_num_iterations_without_improvement=" << context.refinement.jet.num_iterations
-        << " jet_fixed_num_iterations=" << context.refinement.jet.fixed_n_iterations
-        << " jet_realtive_improvement_threshold=" << context.refinement.jet.relative_improvement_threshold;
+        << " jet_relative_improvement_threshold=" << context.refinement.jet.relative_improvement_threshold
+        << " jet_dynamic_rounds=" << context.refinement.jet.dynamic_rounds
+        << " jet_initial_negative_gain_factor=" << context.refinement.jet.initial_negative_gain_factor
+        << " jet_initial_final_negative_gain_factor=" << context.refinement.jet.final_negative_gain_factor;
     oss << " fm_algorithm=" << context.refinement.fm.algorithm
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_rollback_parallel=" << std::boolalpha << context.refinement.fm.rollback_parallel

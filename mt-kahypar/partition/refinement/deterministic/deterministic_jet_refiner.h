@@ -67,6 +67,8 @@ public:
     _current_k(context.partition.k),
     _top_level_num_nodes(num_hypernodes),
     _current_partition_is_best(true),
+    _was_already_balanced(false),
+    _negative_gain_factor(0.0),
     _active_nodes(),
     _tmp_active_nodes(),
     _moves(),
@@ -91,6 +93,8 @@ private:
                   Metrics& best_metrics, double) final;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg);
+
+  void runJetRounds(PartitionedHypergraph& phg, Metrics& best_metrics, double time_limit);
 
   void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
 
@@ -123,6 +127,8 @@ private:
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
+  bool _was_already_balanced;
+  double _negative_gain_factor;
   ActiveNodes _active_nodes;
   ds::StreamingVector<HypernodeID> _tmp_active_nodes;
   parallel::scalable_vector<HypernodeID> _moves;

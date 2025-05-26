@@ -411,6 +411,21 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(0.001),
              "Relative improvement threshold for Jet.")
+             ((initial_partitioning ? "i-r-jet-dynamic-rounds" : "r-jet-dynamic-rounds"),
+             po::value<size_t>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.dynamic_rounds :
+                      &context.refinement.jet.dynamic_rounds))->value_name("<size_t>")->default_value(1),
+             "Number of dynamic rounds with decreasing temperature")
+             ((initial_partitioning ? "i-r-jet-initial-negative-gain" : "r-jet-initial-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.initial_negative_gain_factor :
+                      &context.refinement.jet.initial_negative_gain_factor))->value_name("<double>")->default_value(0.75),
+             "Initial negative gain factor for dynamic gain factor")
+             ((initial_partitioning ? "i-r-jet-final-negative-gain" : "r-jet-final-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.final_negative_gain_factor :
+                      &context.refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.0),
+             "Final negative gain factor for dynamic gain factor")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
