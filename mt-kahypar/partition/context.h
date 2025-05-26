@@ -145,10 +145,10 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 struct JetParameters {
   JetAlgorithm algorithm = JetAlgorithm::do_nothing;
   size_t num_iterations = 12;
-  size_t fixed_n_iterations = 0;
   double relative_improvement_threshold = 0.001;
-  double negative_gain_factor_coarse = 0.75;
-  double negative_gain_factor_fine = 0.25;
+  size_t dynamic_rounds = 3;
+  double initial_negative_gain_factor = 0.75;
+  double final_negative_gain_factor = 0.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const JetParameters& params);

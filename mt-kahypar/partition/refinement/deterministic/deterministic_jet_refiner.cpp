@@ -51,19 +51,48 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         throw UnsupportedOperationException("Deterministic Jet does not support local refinement");
     }
 
-    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     Metrics current_metrics = best_metrics;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const HyperedgeWeight input_quality = best_metrics.quality;
-    bool was_already_balanced = metrics::isBalanced(phg, _context);
-
+    _was_already_balanced = metrics::isBalanced(phg, _context);
+    const auto& jet_context = _context.refinement.jet;
     resizeDataStructuresForCurrentK();
 
     _current_partition_is_best = true;
+    for (size_t dynamic_round = 0; dynamic_round < jet_context.dynamic_rounds; ++dynamic_round) {
+        if (jet_context.dynamic_rounds > 1) {
+            _negative_gain_factor =
+                jet_context.initial_negative_gain_factor +
+                (static_cast<double>(dynamic_round) / (jet_context.dynamic_rounds - 1.0)) *
+                (jet_context.final_negative_gain_factor - jet_context.initial_negative_gain_factor);
+        } else {
+            _negative_gain_factor =
+                (jet_context.final_negative_gain_factor + jet_context.initial_negative_gain_factor) / 2.0;
+        }
+        DBG << V(_negative_gain_factor) << ", " << V(jet_context.dynamic_rounds) << ", " << V(metrics::quality(phg, _context, false));
+
+        runJetRounds(phg, best_metrics, time_limit);
+
+        if (!_current_partition_is_best) {
+            DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
+            rollbackToBestPartition(phg);
+            current_metrics = best_metrics;
+        }
+        phg.resetEdgeSynchronization();
+    }
+    ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
+        V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
+    return best_metrics.quality < input_quality;
+}
+
+template <typename GraphAndGainTypes>
+void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergraph& phg, Metrics& best_metrics, const double time_limit) {
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+    Metrics current_metrics = best_metrics;
+    _locks.reset();
+
     size_t rounds_without_improvement = 0;
-    const size_t max_rounds = _context.refinement.jet.fixed_n_iterations;
-    const size_t max_rounds_without_improvement = _context.refinement.jet.num_iterations;
-    for (size_t i = 0; rounds_without_improvement < max_rounds_without_improvement && (max_rounds == 0 || i < max_rounds); ++i) {
+    for (size_t i = 0; rounds_without_improvement < _context.refinement.jet.num_iterations; ++i) {
         if (_current_partition_is_best) {
             phg.doParallelForAllNodes([&](const HypernodeID hn) {
                 _best_partition[hn] = phg.partID(hn);
@@ -131,33 +160,23 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
         // if the parition was ever balanced => look for balanced partition with better quality
         // if the partition was never balanced => look for less imbalanced partition regardless of quality
         const bool is_balanced = metrics::isBalanced(phg, _context);
-        if ((current_metrics.quality < best_metrics.quality && was_already_balanced && is_balanced) || (!was_already_balanced && current_metrics.imbalance < best_metrics.imbalance)) {
+        if ((current_metrics.quality < best_metrics.quality && _was_already_balanced && is_balanced) || (!_was_already_balanced && current_metrics.imbalance < best_metrics.imbalance)) {
             if (best_metrics.quality - current_metrics.quality > _context.refinement.jet.relative_improvement_threshold * best_metrics.quality) {
                 rounds_without_improvement = 0;
             }
             best_metrics = current_metrics;
             _current_partition_is_best = true;
-            was_already_balanced |= is_balanced;
+            _was_already_balanced |= is_balanced;
         } else {
             _current_partition_is_best = false;
         }
         DBG << "[JET] Finished iteration " << i << " with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
     }
-
-    phg.resetEdgeSynchronization();
-    if (!_current_partition_is_best) {
-        DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
-        rollbackToBestPartition(phg);
-    }
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(phg, _context, false),
-        V(best_metrics.quality) << V(metrics::quality(phg, _context, false)));
-    return best_metrics.quality < input_quality;
 }
 
 
 template<typename GraphAndGainTypes>
 void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(const PartitionedHypergraph& phg) {
-    const bool top_level = (phg.initialNumNodes() == _top_level_num_nodes);
     _active_nodes.clear();
     _tmp_active_nodes.clear_sequential();
 
@@ -168,8 +187,6 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
         if (!phg.isBorderNode(hn) || is_locked || phg.isFixed(hn)) {
             _gains_and_target[hn] = { 0, phg.partID(hn) };
         } else {
-            const double gain_factor = top_level ? _context.refinement.jet.negative_gain_factor_fine :
-                _context.refinement.jet.negative_gain_factor_coarse;
             RatingMap& tmp_scores = _gain_computation.localScores();
             Gain isolated_block_gain = 0;
             _gain_computation.precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
@@ -179,7 +196,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
                 /*consider_non_adjacent_blocks=*/false,
                 /*allow_imbalance=*/true);
             tmp_scores.clear();
-            bool accept_node = (best_move.gain <= 0 || best_move.gain < std::floor(gain_factor * isolated_block_gain))
+            bool accept_node = (best_move.gain <= 0 || best_move.gain < std::floor(_negative_gain_factor * isolated_block_gain))
                 && best_move.to != phg.partID(hn);
             if (accept_node) {
                 _gains_and_target[hn] = { best_move.gain, best_move.to };

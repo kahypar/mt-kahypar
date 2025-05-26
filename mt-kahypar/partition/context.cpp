@@ -138,6 +138,9 @@ namespace mt_kahypar {
     if ( params.algorithm != JetAlgorithm::do_nothing ) {
       str << "    Iterations without Improvement:   " << params.num_iterations << std::endl;
       str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
+      str << "    Dynamic Rounds:                   " << params.dynamic_rounds << std::endl;
+      str << "    Initial Negative Gain Factor:     " << params.initial_negative_gain_factor << std::endl;
+      str << "    Final Negative Gain Factor:       " << params.final_negative_gain_factor << std::endl;
     }
     return str;
   }
