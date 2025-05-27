@@ -7,7 +7,7 @@ name = "mtkahypar"
 version = "@PROJECT_VERSION@"
 description="Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
 readme = "README.md"
-lincense.text = "MIT License"
+license.text = "MIT License"
 authors = [{ name = "Mt-KaHyPar Developers", email = "mtkahypar-devs@mail.informatik.kit.edu" }]
 requires-python = ">=3.7"
 classifiers = [
