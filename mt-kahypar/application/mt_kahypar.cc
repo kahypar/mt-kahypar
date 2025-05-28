@@ -125,10 +125,10 @@ int main(int argc, char* argv[]) {
   // Read Frequencies
   vec<EdgeMetadata> edge_metadata;
   if ( context.partition.frequencies_filename != "" ) {
-    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, context.partition.frequencies_filename);
+    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, context.partition.frequencies_filename, context.coarsening.rating.guiding_binary_treshold);
   } else if ( context.partition.frequencies_default_file ) {
     std::string frequencies_file = context.partition.graph_filename + ".freq.csv";
-    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, frequencies_file);
+    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, frequencies_file, context.coarsening.rating.guiding_binary_treshold);
   }
 
   if ( context.partition.fixed_vertex_filename != "" ) {

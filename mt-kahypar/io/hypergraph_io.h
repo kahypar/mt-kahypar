@@ -59,7 +59,7 @@ namespace io {
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
 
-  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies);
+  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies, double binary_threshold);
 
   inline __uint128_t hashedEdgeKey(const utils_tm::hash_tm::murmur2_hash& hasher, HypernodeID u, HypernodeID v) {
     // this is a bit ugly, but we need it to avoid collisions (since we don't have a good hashmap with a non-trivial hash function)

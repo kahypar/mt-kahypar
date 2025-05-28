@@ -62,7 +62,8 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
 
 vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
-                                          const std::string& filename);
+                                          const std::string& filename,
+                                          double binary_threshold);
 
 }  // namespace io
 }  // namespace mt_kahypar

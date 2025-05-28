@@ -292,9 +292,10 @@ vec<EdgeMetadata> getEdgeMetadata(const Hypergraph& hypergraph,
 }
 
 vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
-                                          const std::string& filename) {
+                                          const std::string& filename,
+                                          double binary_threshold) {
   ds::DynamicSparseMap<__uint128_t, float> frequencies;
-  io::readFrequencyFile(filename, frequencies);
+  io::readFrequencyFile(filename, frequencies, binary_threshold);
   switch ( hypergraph.type ) {
     // case STATIC_HYPERGRAPH:
     //   return getEdgeMetadata(utils::cast<ds::StaticHypergraph>(hypergraph), frequencies);
