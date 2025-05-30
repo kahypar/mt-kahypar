@@ -378,6 +378,14 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.rating.guiding_binary_treshold)->value_name(
                      "<double>")->default_value(-1.0),
              "Binary treshold for guided coarsening (e.g. by ML with classification).")
+            ("c-guiding-ternary-threshold",
+             po::value<double>(&context.coarsening.rating.guiding_ternary_treshold)->value_name(
+                     "<double>")->default_value(-1.0),
+             "Ternary treshold for guided coarsening (e.g. by ML with classification).")
+            ("c-guiding-ternary-value",
+             po::value<double>(&context.coarsening.rating.guiding_ternary_value)->value_name(
+                     "<double>")->default_value(-1.0),
+             "Value used as ternary between 0 and 1 when using ternary threshold.")
             ("c-guiding-threshold-max",
              po::value<double>(&context.coarsening.rating.guiding_treshold_max)->value_name(
                      "<double>")->default_value(0.8),

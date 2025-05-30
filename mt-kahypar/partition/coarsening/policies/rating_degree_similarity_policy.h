@@ -364,7 +364,7 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
         sum += value;
         break;
       case GuidedEdgeAccumulation::quadratic:
-        sum += value / static_cast<double>(edge_weight) * value;
+        sum += value == 0 ? 0 : value / static_cast<double>(edge_weight) * value;
         break;
       case GuidedEdgeAccumulation::max:
         sum = std::max(sum, value / static_cast<float>(edge_weight));

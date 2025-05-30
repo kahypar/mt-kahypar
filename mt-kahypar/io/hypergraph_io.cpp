@@ -681,7 +681,11 @@ namespace mt_kahypar::io {
     }
   }
 
-  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies, double binary_threshold) {
+  void readFrequencyFile(const std::string& filename,
+                         ds::DynamicSparseMap<__uint128_t, float>& frequencies,
+                         double binary_threshold,
+                         double ternary_threshold,
+                         double ternary_value) {
     ALWAYS_ASSERT(!filename.empty(), "No filename for frequency file specified");
     std::ifstream file(filename);
     if (file) {
@@ -716,7 +720,13 @@ namespace mt_kahypar::io {
           ALWAYS_ASSERT(!frequencies.contains(key) && f <= max);
           frequencies[key] = f / static_cast<double>(max);
           if (binary_threshold >= 0) {
-            frequencies[key] = frequencies[key] > binary_threshold ? 1.0 : 0.0;
+            if (ternary_threshold >= 0) {
+              ALWAYS_ASSERT(binary_threshold < ternary_threshold && ternary_threshold < 1);
+              const double mid = ternary_value >= 0 ? ternary_value : ternary_threshold;
+              frequencies[key] = frequencies[key] > binary_threshold ? (frequencies[key] > ternary_threshold ? 1.0 : mid) : 0.0;
+            } else {
+              frequencies[key] = frequencies[key] > binary_threshold ? 1.0 : 0.0;
+            }
           }
       }
       file.close();
