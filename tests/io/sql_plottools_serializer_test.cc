@@ -53,15 +53,15 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"},
     {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalRefinementParameters", "global_refine_"},
-    {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
-    {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
+    {"RefinementParameters", ""}, {"SharedMemoryParameters", ""}, {"RebalancingParameters", "rebalancing_"},
+    {"DeterministicRefinement", "sync_lp_"}, {"JetParameters", "jet_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
-    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
+    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement", "jet",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos", "original_num_threads",
-    "stable_construction_of_incident_edges", "fm", "global", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
+    "stable_construction_of_incident_edges", "fm", "global", "flows", "rebalancing", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism",
     "mapping_target_graph_file" };
 
 bool is_target_struct(const std::string& line) {

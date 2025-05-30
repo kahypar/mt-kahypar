@@ -219,7 +219,7 @@ class InitialPartitioningDataContainer {
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _rebalancer = RebalancerFactory::getInstance().createObject(
-          _context.refinement.rebalancer, hypergraph.initialNumNodes(), _context, _gain_cache);
+          _context.refinement.rebalancing.algorithm, hypergraph.initialNumNodes(), _context, _gain_cache);
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm,
           hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context, _gain_cache, *_rebalancer);

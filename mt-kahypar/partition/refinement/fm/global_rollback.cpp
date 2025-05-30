@@ -33,8 +33,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
-#include "mt-kahypar/datastructures/bitset.h"
-#include "mt-kahypar/datastructures/pin_count_snapshot.h"
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 
 namespace mt_kahypar {
 
@@ -255,18 +254,6 @@ namespace mt_kahypar {
                                                                                      FMSharedData& sharedData,
                                                                                      const HyperedgeID& e) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
-    ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(e);
-    ds::PinCountSnapshot pin_counts(phg.k(), phg.hypergraph().maxEdgeSize());
-    for ( const PartitionID& block : phg.connectivitySet(e) ) {
-      pin_counts.setPinCountInPart(block, phg.pinCountInPart(e, block));
-    }
-    SynchronizedEdgeUpdate sync_update;
-    sync_update.he = e;
-    sync_update.edge_weight = phg.edgeWeight(e);
-    sync_update.edge_size = phg.edgeSize(e);
-    sync_update.target_graph = phg.targetGraph();
-    sync_update.connectivity_set_after = &connectivity_set;
-    sync_update.pin_counts_after = &pin_counts;
 
     // Find all pins of hyperedge that were moved in this round
     vec<HypernodeID> moved_pins;
@@ -284,21 +271,14 @@ namespace mt_kahypar {
       });
 
     // Revert moves and compute attributed gain
+    SynchronizedEdgeUpdate sync_update = phg.createEdgeUpdate(e);
     for ( const HypernodeID& u : moved_pins ) {
       const MoveID m_id = tracker.moveOfNode[u];
       Move& m = tracker.getMove(m_id);
       sync_update.from = m.to;
       sync_update.to = m.from;
-      sync_update.pin_count_in_from_part_after = pin_counts.decrementPinCountInPart(sync_update.from);
-      sync_update.pin_count_in_to_part_after = pin_counts.incrementPinCountInPart(sync_update.to);
-      if ( sync_update.pin_count_in_from_part_after == 0 ) {
-        ASSERT(connectivity_set.isSet(sync_update.from));
-        connectivity_set.unset(sync_update.from);
-      }
-      if ( sync_update.pin_count_in_to_part_after == 1 ) {
-        ASSERT(!connectivity_set.isSet(sync_update.to));
-        connectivity_set.set(sync_update.to);
-      }
+      sync_update.pin_count_in_from_part_after = sync_update.decrementPinCountInPart(sync_update.from);
+      sync_update.pin_count_in_to_part_after = sync_update.incrementPinCountInPart(sync_update.to);
       // This is the gain for reverting the move.
       const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
       // For recomputed gains, a postive gain means improvement. However, the opposite
@@ -313,11 +293,6 @@ namespace mt_kahypar {
                                                                                      const HyperedgeID& e) {
     if ( !phg.isSinglePin(e) ) {
       GlobalMoveTracker& tracker = sharedData.moveTracker;
-      SynchronizedEdgeUpdate sync_update;
-      sync_update.he = e;
-      sync_update.edge_weight = phg.edgeWeight(e);
-      sync_update.edge_size = phg.edgeSize(e);
-      sync_update.target_graph = phg.targetGraph();
 
       HypernodeID first_move = phg.edgeSource(e);
       HypernodeID second_move = phg.edgeTarget(e);
@@ -346,6 +321,7 @@ namespace mt_kahypar {
         tracker.getMove(tracker.moveOfNode[second_move]) : tmp_second_m;
 
       // Compute gain of first move
+      SynchronizedEdgeUpdate sync_update = phg.createEdgeUpdate(e);
       sync_update.from = first_m.from;
       sync_update.to = first_m.to;
       sync_update.pin_count_in_from_part_after =

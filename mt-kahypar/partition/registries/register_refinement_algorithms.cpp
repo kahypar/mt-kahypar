@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
@@ -46,6 +47,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 
 
 namespace mt_kahypar {
@@ -56,6 +58,11 @@ using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicLabelPropagationRefiner,
+                                                IRefiner,
+                                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                DeterministicJetRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -80,6 +87,11 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   DeterministicRebalancer,
+                                   IRebalancer,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    SimpleRebalancer,
@@ -110,6 +122,26 @@ using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                      \
   kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(               \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
+  })
+
+
+#define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
+  kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                        \
+    id,                                                                                                \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) {                     \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
+#define REGISTER_JET_REFINER(id, refiner, t)                                                     \
+  kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                            \
     id,                                                                                          \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
        const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
@@ -220,6 +252,11 @@ void register_refinement_algorithms() {
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
+  REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::deterministic,
+                                  DeterministicJetDispatcher,
+                                  getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
+
   REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                 DefaultFMDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
@@ -240,6 +277,9 @@ void register_refinement_algorithms() {
                                     getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
+  REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::deterministic,
+                                DeterministicRebalancerDispatcher,
+                                getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                 SimpleRebalancerDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
