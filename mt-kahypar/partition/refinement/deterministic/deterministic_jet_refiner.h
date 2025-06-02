@@ -29,6 +29,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -49,7 +50,6 @@ class DeterministicJetRefiner final : public IRefiner {
   using RatingMap = typename GainComputation::RatingMap;
 
 public:
-
   explicit DeterministicJetRefiner(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
                                    const Context& context,
@@ -79,10 +79,8 @@ public:
     _gain_computation(context, true /* disable_randomization */),
     _rebalancer(rebalancer),
     _afterburner_gain(PartitionedHypergraph::is_graph ? 0 : num_hypernodes),
-    _afterburner_buffer(PartitionedHypergraph::is_graph ? 0 : _current_k, 0),
-    _hyperedge_buffer(),
-    _edge_flag(num_hyperedges),
-    _current_edge_flag(1) {}
+    _afterburner_edge_buffer(),
+    _afterburner_visited_hes(PartitionedHypergraph::is_graph ? 0 : num_hyperedges) {}
 
 private:
   static constexpr bool debug = false;
@@ -109,11 +107,11 @@ private:
                       const PartitionID to,
                       const F& objective_delta);
 
-  void graphAfterburner(const PartitionedHypergraph& phg);
+  void graphAfterburner(PartitionedHypergraph& phg);
 
-  void hypergraphAfterburner(const PartitionedHypergraph& phg);
+  void hypergraphAfterburner(PartitionedHypergraph& phg);
 
-  HyperedgeWeight calculateGainDelta(const PartitionedHypergraph& phg) const;
+  HyperedgeWeight calculateGainDelta(PartitionedHypergraph& phg) const;
 
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
 
@@ -141,11 +139,8 @@ private:
 
   // hypergraph afterburner
   parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
-  tbb::enumerable_thread_specific<std::vector<size_t>> _afterburner_buffer;
-  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _hyperedge_buffer;
-  // incident edges in hypergraph afterburner
-  parallel::scalable_vector<std::atomic<size_t>> _edge_flag;
-  size_t _current_edge_flag;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> _afterburner_edge_buffer;
+  ds::ThreadSafeFastResetFlagArray<> _afterburner_visited_hes;
 };
 
 }
