@@ -250,37 +250,33 @@ void DeterministicJetRefiner<GraphAndGainTypes>::rollbackToBestPartition(Partiti
 }
 
 template <typename GraphAndGainTypes>
-void DeterministicJetRefiner<GraphAndGainTypes>::graphAfterburner(const PartitionedHypergraph& phg) {
+void DeterministicJetRefiner<GraphAndGainTypes>::graphAfterburner(PartitionedHypergraph& phg) {
     tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) {
         const HypernodeID hn = _active_nodes[j];
         const PartitionID from = phg.partID(hn);
         const auto [gain, to] = _gains_and_target[hn];
+        ASSERT(from != to && to != kInvalidPartition);
 
         Gain total_gain = 0;
         for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-            HypernodeID pin_count_in_from_part_after = 0;
-            HypernodeID pin_count_in_to_part_after = 1;
-            for (const HypernodeID& pin : phg.pins(he)) {
-                if (pin != hn) {
-                    // Jet uses an order based on the precomputed gain values:
-                    // If the precomputed gain of another node is better than for the current node
-                    // (or the gain is equal and the id is smaller), we assume the node is already
-                    // moved to its target part.
-                    auto [gain_p, to_p] = _gains_and_target[pin];
-                    PartitionID part = (gain_p < gain || (gain_p == gain && pin < hn)) ? to_p : phg.partID(pin);
-                    if (part == from) {
-                        pin_count_in_from_part_after++;
-                    } else if (part == to) {
-                        pin_count_in_to_part_after++;
-                    }
-                }
+            SynchronizedEdgeUpdate sync_update = phg.createEdgeUpdate(he);
+            sync_update.from = from;
+            sync_update.to = to;
+            sync_update.pin_count_in_from_part_after = 0;
+            sync_update.pin_count_in_to_part_after = 1;
+
+            // Jet uses an order based on the precomputed gain values:
+            // If the precomputed gain of another node is better than for the current node
+            // (or the gain is equal and the id is smaller), we assume the node is already
+            // moved to its target part.
+            const HypernodeID other_node = phg.edgeTarget(he);
+            auto [gain_p, to_p] = _gains_and_target[other_node];
+            sync_update.block_of_other_node = (gain_p < gain || (gain_p == gain && other_node < hn)) ? to_p : phg.partID(other_node);
+            if (sync_update.block_of_other_node == from) {
+                sync_update.pin_count_in_from_part_after++;
+            } else if (sync_update.block_of_other_node == to) {
+                sync_update.pin_count_in_to_part_after++;
             }
-            SynchronizedEdgeUpdate sync_update;
-            sync_update.he = he;
-            sync_update.edge_weight = phg.edgeWeight(he);
-            sync_update.edge_size = phg.edgeSize(he);
-            sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
-            sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
             total_gain += AttributedGains::gain(sync_update);
         }
 
@@ -292,7 +288,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::graphAfterburner(const Partitio
 }
 
 template <typename GraphAndGainTypes>
-void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const PartitionedHypergraph& phg) {
+void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(PartitionedHypergraph& phg) {
     tbb::parallel_for(UL(0), _afterburner_gain.size(), [&](const size_t i) {
         _afterburner_gain[i].store(0);
     });
@@ -340,9 +336,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
             return afterburn_two_pins(he);
         }
 
-        auto& edgeBuffer = _hyperedge_buffer.local();
-        auto& pinCountBuffer = _afterburner_buffer.local();
-        pinCountBuffer.assign(pinCountBuffer.size(), 0);
+        auto& edgeBuffer = _afterburner_edge_buffer.local();
         if (edgeSize > edgeBuffer.size()) {
             edgeBuffer.resize(edgeSize);
         }
@@ -351,7 +345,6 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
         size_t index = 0;
         for (const auto pin : phg.pins(he)) {
             const auto part = phg.partID(pin);
-            pinCountBuffer[part]++;
             if (part != _gains_and_target[pin].second) {
                 edgeBuffer[index] = pin;
                 ++index;
@@ -387,18 +380,14 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
         }
 
         // scan through the sorted pins and compute gains, updating the pin counts at each step
-        SynchronizedEdgeUpdate sync_update;
-        sync_update.he = he;
-        sync_update.edge_weight = phg.edgeWeight(he);
-        sync_update.edge_size = phg.edgeSize(he);
+        SynchronizedEdgeUpdate sync_update = phg.createEdgeUpdate(he);
         for (size_t i = 0; i < index; ++i) {
             const HypernodeID pin = edgeBuffer[i];
-            const PartitionID from = phg.partID(pin);
             const auto [gain, to] = _gains_and_target[pin];
-            pinCountBuffer[from]--;
-            pinCountBuffer[to]++;
-            sync_update.pin_count_in_from_part_after = pinCountBuffer[from];
-            sync_update.pin_count_in_to_part_after = pinCountBuffer[to];
+            sync_update.from = phg.partID(pin);
+            sync_update.to = to;
+            sync_update.pin_count_in_from_part_after = sync_update.decrementPinCountInPart(sync_update.from);
+            sync_update.pin_count_in_to_part_after = sync_update.incrementPinCountInPart(sync_update.to);
             const Gain attributedGain = AttributedGains::gain(sync_update);
             if (attributedGain != 0) {
                 _afterburner_gain[pin].fetch_add(attributedGain, std::memory_order_relaxed);
@@ -409,40 +398,36 @@ void DeterministicJetRefiner<GraphAndGainTypes>::hypergraphAfterburner(const Par
     tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t& i) {
         const HypernodeID hn = _active_nodes[i];
         for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-            size_t flag = _edge_flag[he].load();
-            if (flag == _current_edge_flag || !_edge_flag[he].compare_exchange_strong(flag, _current_edge_flag)) continue;
-            afterburn_edge(he);
+            if (_afterburner_visited_hes.compare_and_set_to_true(he)) {
+                afterburn_edge(he);
+            }
         }
     });
-    _current_edge_flag++;
+    _afterburner_visited_hes.reset();
 }
 
 template <typename GraphAndGainTypes>
-HyperedgeWeight DeterministicJetRefiner<GraphAndGainTypes>::calculateGainDelta(const PartitionedHypergraph& phg) const {
+HyperedgeWeight DeterministicJetRefiner<GraphAndGainTypes>::calculateGainDelta(PartitionedHypergraph& phg) const {
     tbb::enumerable_thread_specific<HyperedgeWeight> gain_delta(0);
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
         const PartitionID from = _part_before_round[hn];
         const PartitionID to = phg.partID(hn);
+
         if (from != to) {
             for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-                HypernodeID pin_count_in_from_part_after = 0;
-                HypernodeID pin_count_in_to_part_after = 1;
-                for (const HypernodeID& pin : phg.pins(he)) {
-                    if (pin != hn) {
-                        const PartitionID part = pin < hn ? phg.partID(pin) : _part_before_round[pin];
-                        if (part == from) {
-                        pin_count_in_from_part_after++;
-                        } else if (part == to) {
-                        pin_count_in_to_part_after++;
-                        }
-                    }
+                SynchronizedEdgeUpdate sync_update = phg.createEdgeUpdate(he);
+                sync_update.from = from;
+                sync_update.to = to;
+                sync_update.pin_count_in_from_part_after = 0;
+                sync_update.pin_count_in_to_part_after = 1;
+
+                const HypernodeID other_node = phg.edgeTarget(he);
+                sync_update.block_of_other_node = other_node < hn ? phg.partID(other_node) : _part_before_round[other_node];
+                if (sync_update.block_of_other_node == from) {
+                    sync_update.pin_count_in_from_part_after++;
+                } else if (sync_update.block_of_other_node == to) {
+                    sync_update.pin_count_in_to_part_after++;
                 }
-                SynchronizedEdgeUpdate sync_update;
-                sync_update.he = he;
-                sync_update.edge_weight = phg.edgeWeight(he);
-                sync_update.edge_size = phg.edgeSize(he);
-                sync_update.pin_count_in_from_part_after = pin_count_in_from_part_after;
-                sync_update.pin_count_in_to_part_after = pin_count_in_to_part_after;
                 gain_delta.local() += AttributedGains::gain(sync_update);
             }
         }
