@@ -132,6 +132,19 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const JetParameters& params) {
+    str << "  Jet Parameters:" << std::endl;
+    str << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm != JetAlgorithm::do_nothing ) {
+      str << "    Iterations without Improvement:   " << params.num_iterations << std::endl;
+      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
+      str << "    Dynamic Rounds:                   " << params.dynamic_rounds << std::endl;
+      str << "    Initial Negative Gain Factor:     " << params.initial_negative_gain_factor << std::endl;
+      str << "    Final Negative Gain Factor:       " << params.final_negative_gain_factor << std::endl;
+    }
+    return str;
+  }
+
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -204,19 +217,31 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params) {
+    out << "  Rebalancing Parameters:" << std::endl;
+    out << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm == RebalancingAlgorithm::deterministic ) {
+      out << "    Heavy vertex exclusion factor:    " << params.det_heavy_vertex_exclusion_factor << std::endl;
+      out << "    Relative deadone size:            " << params.det_relative_deadzone_size << std::endl;
+      out << "    Max rounds:                       " << params.det_max_rounds << std::endl;
+    }
+    return out;
+  }
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
-    str << "  Rebalancing Algorithm:              " << params.rebalancer << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
+    str << "\n" << params.jet;
     str << "\n" << params.fm;
     if ( params.global.use_global_refinement ) {
       str << "\n" << params.global;
     }
     str << "\n" << params.flows;
+    str << "\n" << params.rebalancing;
     return str;
   }
 

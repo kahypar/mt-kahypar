@@ -142,6 +142,17 @@ struct LabelPropagationParameters {
 
 std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
 
+struct JetParameters {
+  JetAlgorithm algorithm = JetAlgorithm::do_nothing;
+  size_t num_iterations = 12;
+  double relative_improvement_threshold = 0.001;
+  size_t dynamic_rounds = 3;
+  double initial_negative_gain_factor = 0.75;
+  double final_negative_gain_factor = 0.0;
+};
+
+std::ostream & operator<< (std::ostream& str, const JetParameters& params);
+
 struct FMParameters {
   mutable FMAlgorithm algorithm = FMAlgorithm::do_nothing;
 
@@ -213,13 +224,23 @@ struct DeterministicRefinementParameters {
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
 
+struct RebalancingParameters {
+  RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
+  double det_heavy_vertex_exclusion_factor = 1.5;
+  double det_relative_deadzone_size = 1.0;
+  size_t det_max_rounds = std::numeric_limits<size_t>::max();
+};
+
+std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
+  JetParameters jet;
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalRefinementParameters global;
   FlowParameters flows;
-  RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
+  RebalancingParameters rebalancing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();

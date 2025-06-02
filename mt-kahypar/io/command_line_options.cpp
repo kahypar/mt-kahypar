@@ -389,6 +389,43 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(-1.0),
              "Relative improvement threshold for label propagation.")
+            ((initial_partitioning ? "i-r-jet-type" : "r-jet-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.jet.algorithm = jetAlgorithmFromString(type);
+                       } else {
+                         context.refinement.jet.algorithm = jetAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Jet Algorithm:\n"
+             "- deterministic\n"
+             "- do_nothing")
+            ((initial_partitioning ? "i-r-jet-num-iterations": "r-jet-num-iterations"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.jet.num_iterations :
+                              &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
+                    "<size_t>")->default_value(12),
+             "Number of iterations without significant improvement")
+            ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(0.001),
+             "Relative improvement threshold for Jet.")
+             ((initial_partitioning ? "i-r-jet-dynamic-rounds" : "r-jet-dynamic-rounds"),
+             po::value<size_t>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.dynamic_rounds :
+                      &context.refinement.jet.dynamic_rounds))->value_name("<size_t>")->default_value(1),
+             "Number of dynamic rounds with decreasing temperature")
+             ((initial_partitioning ? "i-r-jet-initial-negative-gain" : "r-jet-initial-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.initial_negative_gain_factor :
+                      &context.refinement.jet.initial_negative_gain_factor))->value_name("<double>")->default_value(0.75),
+             "Initial negative gain factor for dynamic gain factor")
+             ((initial_partitioning ? "i-r-jet-final-negative-gain" : "r-jet-final-negative-gain"),
+             po::value<double>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.jet.final_negative_gain_factor :
+                      &context.refinement.jet.final_negative_gain_factor))->value_name("<double>")->default_value(0.0),
+             "Final negative gain factor for dynamic gain factor")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
@@ -541,15 +578,31 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
                        if (initial_partitioning) {
-                         context.initial_partitioning.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                         context.initial_partitioning.refinement.rebalancing.algorithm = rebalancingAlgorithmFromString(type);
                        } else {
-                         context.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                         context.refinement.rebalancing.algorithm = rebalancingAlgorithmFromString(type);
                        }
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"
+             "- deterministic\n"
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
-             "- do_nothing");
+             "- do_nothing")
+            ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
+                              &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(
+                    "<double>")->default_value(1.0),
+             "Relative deadzone size for deterministic rebalancer")
+            ((initial_partitioning ? "i-r-det-rebalancing-heavy-vertex-exclusion": "r-det-rebalancing-heavy-vertex-exclusion"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_heavy_vertex_exclusion_factor :
+                              &context.initial_partitioning.refinement.rebalancing.det_heavy_vertex_exclusion_factor))->value_name(
+                    "<double>")->default_value(1.5),
+             "Relative weight threshold for heavy vertices which are ignored in deterministic rebalancing.")
+            ((initial_partitioning ? "i-r-max-det-rebalancing-rounds": "r-max-det-rebalancing-rounds"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.det_max_rounds :
+                              &context.initial_partitioning.refinement.rebalancing.det_max_rounds))->value_name(
+                    "<size_t>")->default_value(0),
+            "Deterministic rebalancer: maximum number of iterations per rebalancing call");
     return options;
   }
 

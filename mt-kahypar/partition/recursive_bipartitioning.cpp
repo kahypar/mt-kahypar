@@ -360,10 +360,11 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
         PartitionID to = block + rb_phg.partID(mapping[hn]);
         ASSERT(to != kInvalidPartition && to < phg.k());
         if ( block != to ) {
-          phg.changeNodePart(hn, block, to, NOOP_FUNC, true);
+          phg.changeNodePartNoSync(hn, block, to, true);
         }
       }
     });
+    phg.resetEdgeSynchronization();
     DBG << "Recursive Bipartitioning Result -"
         << "k =" << (k1 - k0)
         << "Objective =" << metrics::quality(phg, context)

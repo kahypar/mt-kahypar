@@ -39,11 +39,12 @@ namespace mt_kahypar {
 
 class CutGainComputation : public GainComputationBase<CutGainComputation, CutAttributedGains> {
   using Base = GainComputationBase<CutGainComputation, CutAttributedGains>;
-  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
  public:
+  using RatingMap = typename Base::RatingMap;
+
   CutGainComputation(const Context& context,
                      bool disable_randomization = false) :
     Base(context, disable_randomization) { }
