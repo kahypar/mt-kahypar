@@ -249,7 +249,7 @@ namespace mt_kahypar {
 
     void finalizeHyperedges();
 
-    void finalizeParallel();
+    void finalizeParallel(const bool deterministic = false);
 
     // ####################### Common Functions #######################
 

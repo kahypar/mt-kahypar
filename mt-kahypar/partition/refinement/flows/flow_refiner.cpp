@@ -158,10 +158,10 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
   const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
   if ( sequential ) {
     flow_problem = _sequential_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
   } else {
     flow_problem = _parallel_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
   }
 
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()

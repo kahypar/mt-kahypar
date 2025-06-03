@@ -69,11 +69,12 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(c
                                                                             const Subhypergraph& sub_hg,
                                                                             const PartitionID block_0,
                                                                             const PartitionID block_1,
-                                                                            vec<HypernodeID>& whfc_to_node) {
+                                                                            vec<HypernodeID>& whfc_to_node,
+                                                                            const bool deterministic) {
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
   const bool default_construction = density >= 0.5 && avg_he_size <= 100;
-  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction);
+  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction, deterministic);
 }
 
 template<typename GraphAndGainTypes>
@@ -82,7 +83,8 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraphEx
                                                                                        const PartitionID block_0,
                                                                                        const PartitionID block_1,
                                                                                        vec<HypernodeID>& whfc_to_node,
-                                                                                       const bool default_construction) {
+                                                                                       const bool default_construction,
+                                                                                       const bool /*deterministic*/) {
   FlowProblem flow_problem;
   if ( default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if

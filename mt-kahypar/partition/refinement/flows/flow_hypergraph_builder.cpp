@@ -114,7 +114,7 @@ void FlowHypergraphBuilder::finalizeHyperedges() {
   hyperedges.emplace_back( HyperedgeData { whfc::PinIndex(num_pins), whfc::Flow(0) } ); // sentinel
 }
 
-void FlowHypergraphBuilder::finalizeParallel() {
+void FlowHypergraphBuilder::finalizeParallel(const bool deterministic) {
   ASSERT(verifyParallelConstructedHypergraph(), "Parallel construction failed!");
 
   tbb::parallel_invoke([&] {
@@ -166,6 +166,11 @@ void FlowHypergraphBuilder::finalizeParallel() {
 
   tbb::parallel_for(UL(0), numHyperedges(), [&](const size_t i) {
     const whfc::Hyperedge e(i);
+    if (deterministic) {
+      std::sort(pins.begin() + beginIndexPins(e), pins.begin() + endIndexPins(e), [&](const Pin& a, const Pin& b) {
+        return a.pin < b.pin;
+      });
+    }
     for ( auto pin_it = beginIndexPins(e); pin_it != endIndexPins(e); pin_it++ ) {
       Pin& p = pins[pin_it];
       const whfc::Node& u = p.pin;
@@ -177,7 +182,17 @@ void FlowHypergraphBuilder::finalizeParallel() {
       p.he_inc_iter = whfc::InHeIndex(ind_he);
     }
   });
-
+  if (deterministic) {
+    tbb::parallel_for(UL(0), numNodes(), [&](const size_t i) {
+      const whfc::Node n(i);
+      std::sort(beginHyperedges(n), endHyperedges(n), [&](const InHe& a, const InHe& b) {
+        return a.e < b.e;
+      });
+      for (const auto& idx : incidentHyperedgeIndices(n)) {
+        pins[incident_hyperedges[idx].pin_iter].he_inc_iter = idx;
+      }
+    });
+  }
   ASSERT([&]() {
     size_t num_pins = 0;
     for ( const whfc::Node& u : nodeIDs() ) {
