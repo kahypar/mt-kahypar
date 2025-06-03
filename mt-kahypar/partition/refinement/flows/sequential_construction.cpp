@@ -70,52 +70,19 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(c
                                                                             const PartitionID block_0,
                                                                             const PartitionID block_1,
                                                                             vec<HypernodeID>& whfc_to_node) {
-  FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
-  if ( density >= 0.5 && avg_he_size <= 100 ) {
-    // This algorithm iterates over all hyperedges and checks for all pins if
-    // they are contained in the flow problem. Algorithm could have overheads, if
-    // only a small portion of each hyperedge is contained in the flow hypergraph.
-    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
-  } else {
-    // This is a construction algorithm optimized for hypergraphs with large hyperedges.
-    // Algorithm constructs a temporary pin list, therefore it could have overheads
-    // for hypergraphs with small hyperedges.
-    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
-  }
-
-  if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
-       _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
-    // Source or sink not connected to vertices in the flow problem
-    flow_problem.non_removable_cut = 0;
-    flow_problem.total_cut = 0;
-  } else {
-    _flow_hg.finalize();
-
-    if ( _context.refinement.flows.determine_distance_from_cut ) {
-      // Determine the distance of each node contained in the flow network from the cut.
-      // This technique improves piercing decision within the WHFC framework.
-      determineDistanceFromCut(phg, flow_problem.source,
-        flow_problem.sink, block_0, block_1, whfc_to_node);
-    }
-  }
-
-  DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
-      << ", Edges =" << _flow_hg.numHyperedges()
-      << ", Pins =" << _flow_hg.numPins()
-      << ", Blocks = (" << block_0 << "," << block_1 << ") ]";
-
-  return flow_problem;
+  const bool default_construction = density >= 0.5 && avg_he_size <= 100;
+  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction);
 }
 
 template<typename GraphAndGainTypes>
-FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                            const Subhypergraph& sub_hg,
-                                                                            const PartitionID block_0,
-                                                                            const PartitionID block_1,
-                                                                            vec<HypernodeID>& whfc_to_node,
-                                                                            const bool default_construction) {
+FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraphExplicit(const PartitionedHypergraph& phg,
+                                                                                       const Subhypergraph& sub_hg,
+                                                                                       const PartitionID block_0,
+                                                                                       const PartitionID block_1,
+                                                                                       vec<HypernodeID>& whfc_to_node,
+                                                                                       const bool default_construction) {
   FlowProblem flow_problem;
   if ( default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
