@@ -189,6 +189,75 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   });
 }
 
+
+template <typename GraphAndGainTypes>
+void DeterministicRebalancer<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
+  // If the number of blocks changes, we resize data structures
+  // (can happen during deep multilevel partitioning)
+  if (_current_k != _context.partition.k) {
+    _current_k = _context.partition.k;
+    _gain_computation.changeNumberOfBlocks(_current_k);
+    _moves.resize(_current_k);
+    _tmp_potential_moves.resize(_current_k);
+    _current_imbalance.resize(_current_k);
+    _block_has_only_heavy_vertices.resize(_current_k);
+  }
+}
+
+template <typename GraphAndGainTypes>
+bool DeterministicRebalancer<GraphAndGainTypes>::mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HypernodeWeight hn_weight) const {
+  double allowed_weight = phg.partWeight(part) - _context.partition.perfect_balance_part_weights[part];
+  allowed_weight *= _context.refinement.rebalancing.det_heavy_vertex_exclusion_factor;
+  return hn_weight <= allowed_weight || _block_has_only_heavy_vertices[part];
+}
+
+template <typename GraphAndGainTypes>
+HypernodeWeight DeterministicRebalancer<GraphAndGainTypes>::deadzoneForPart(PartitionID part) const {
+  const HypernodeWeight balanced = _context.partition.perfect_balance_part_weights[part];
+  const HypernodeWeight max = _context.partition.max_part_weights[part];
+  return max - _context.refinement.rebalancing.det_relative_deadzone_size * (max - balanced);
+}
+
+template <typename GraphAndGainTypes>
+bool DeterministicRebalancer<GraphAndGainTypes>::isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HypernodeWeight hn_weight) const {
+  const HypernodeWeight part_weight = hypergraph.partWeight(part);
+  return (part_weight < deadzoneForPart(part)) &&
+    part_weight + hn_weight <= _context.partition.max_part_weights[part];
+}
+
+template <typename GraphAndGainTypes>
+bool DeterministicRebalancer<GraphAndGainTypes>::changeNodePart(PartitionedHypergraph& phg,
+                                                                const HypernodeID hn,
+                                                                const PartitionID from,
+                                                                const PartitionID to,
+                                                                bool ensure_balanced) {
+  // This function is passed as lambda to the changeNodePart function and used
+  // to calculate the "real" delta of a move (in terms of the used objective function).
+  auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
+      _gain_computation.computeDeltaForHyperedge(sync_update);
+  };
+
+  HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
+  bool success = false;
+  success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to, max_weight) : phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
+  ASSERT(success || ensure_balanced);
+  return success;
+}
+
+template <typename GraphAndGainTypes>
+bool DeterministicRebalancer<GraphAndGainTypes>::checkPreviouslyOverweightParts(const PartitionedHypergraph& phg) const {
+  for (PartitionID i = 0; i < _current_k; ++i) {
+    const auto partWeight = phg.partWeight(i);
+    unused(partWeight);
+    if (_current_imbalance[i] > 0) {
+        const auto& max_part_weights = _context.partition.max_part_weights;
+        ASSERT(partWeight <= max_part_weights[i] || _block_has_only_heavy_vertices[i], V(partWeight) << V(max_part_weights[i]));
+        unused(max_part_weights);
+    }
+  }
+  return true;
+}
+
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
 namespace {
 #define DETERMINISTIC_REBALANCER(X) DeterministicRebalancer<X>
