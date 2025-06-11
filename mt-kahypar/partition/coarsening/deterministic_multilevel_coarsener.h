@@ -63,6 +63,8 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, double>;
+  using LargeRatingMap = ds::SparseMap<HypernodeID, double>;
 
 public:
   DeterministicMultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
@@ -78,6 +80,7 @@ public:
     opportunistic_cluster_weight(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0),
     nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    cache_efficient_rating_maps(0.0),
     pass(0),
     progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
@@ -124,7 +127,8 @@ private:
 
   void clusterNodesInRange(vec<HypernodeID>& clusters, HypernodeID& num_nodes, size_t first, size_t last);
 
-  void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
+  template<typename RatingMap>
+  void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters, RatingMap& tmp_ratings);
 
   size_t approveNodes(vec<HypernodeID>& clusters);
 
@@ -146,6 +150,8 @@ private:
 
   void handleNodeSwaps(const size_t first, const size_t last, const Hypergraph& hg);
 
+  bool useLargeRatingMapForRatingOfHypernode(const Hypergraph& hypergraph, const HypernodeID u);
+
   void initializeEdgeDeduplication(mt_kahypar_hypergraph_t hypergraph);
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
@@ -160,7 +166,8 @@ private:
   vec<HypernodeID> propositions;
   vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
   ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
-  tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
+  tbb::enumerable_thread_specific<LargeRatingMap> default_rating_maps;
+  tbb::enumerable_thread_specific<CacheEfficientRatingMap> cache_efficient_rating_maps;
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
   size_t pass;
   utils::ProgressBar progress_bar;
