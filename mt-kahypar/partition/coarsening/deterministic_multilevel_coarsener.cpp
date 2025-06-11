@@ -82,7 +82,12 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
   tbb::parallel_for(first, last, [&](size_t pos) {
     const HypernodeID u = permutation.at(pos);
     if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
-      calculatePreferredTargetCluster(u, clusters);
+      if (useLargeRatingMapForRatingOfHypernode(hg, u)) {
+        calculatePreferredTargetCluster(u, clusters, default_rating_maps.local());
+      } else {
+        // note: the cache efficient rating map is still deterministic since its size (and thus the iteration order) never changes
+        calculatePreferredTargetCluster(u, clusters, cache_efficient_rating_maps.local());
+      }
     }
   });
 
@@ -152,17 +157,17 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
 }
 
 template<typename TypeTraits>
-void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
+template<typename RatingMap>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters, RatingMap& tmp_ratings) {
   const Hypergraph& hg = Base::currentHypergraph();
-  auto& ratings = default_rating_maps.local();
-  ratings.clear();
+  tmp_ratings.clear();
 
   // calculate ratings
   if constexpr (Hypergraph::is_graph) {
     for (HyperedgeID he : hg.incidentEdges(u)) {
       double he_score = static_cast<double>(hg.edgeWeight(he));
       const HypernodeID representative = clusters[hg.edgeTarget(he)];
-      ratings[representative] += he_score;
+      tmp_ratings[representative] += he_score;
     }
   } else {
     auto& bloom_filter = bloom_filters.local();
@@ -174,7 +179,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
           const HypernodeID target = clusters[v];
           const HypernodeID bloom_rep = target & bloom_filter_mask;
           if (!bloom_filter[bloom_rep]) {
-            ratings[target] += he_score;
+            tmp_ratings[target] += he_score;
             bloom_filter.set(bloom_rep, true);
           }
         }
@@ -189,7 +194,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
   vec<HypernodeID>& best_targets = ties.local();
   double best_score = 0.0;
 
-  for (const auto& entry : ratings) {
+  for (const auto& entry : tmp_ratings) {
     HypernodeID target_cluster = entry.key;
     double target_score = entry.value;
     if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u
@@ -278,6 +283,38 @@ void DeterministicMultilevelCoarsener<TypeTraits>::handleNodeSwaps(const size_t 
       opportunistic_cluster_weight[source] -= hg.nodeWeight(target);
     }
   });
+}
+
+template<typename TypeTraits>
+bool DeterministicMultilevelCoarsener<TypeTraits>::useLargeRatingMapForRatingOfHypernode(const Hypergraph& hypergraph, const HypernodeID u) {
+  const size_t cache_efficient_map_size = CacheEfficientRatingMap::MAP_SIZE;
+
+  // In case the current number of nodes is smaller than size
+  // of the cache-efficient sparse map, the large tmp rating map
+  // consumes less memory
+  if (Base::currentNumNodes() < cache_efficient_map_size) {
+    return true;
+  }
+
+  // If the number of estimated neighbors is greater than the size of the cache efficient rating map / 3, we
+  // use the large sparse map. The division by 3 also ensures that the fill grade
+  // of the cache efficient sparse map would be small enough such that linear probing
+  // is fast.
+  if constexpr (Hypergraph::is_graph) {
+    return hypergraph.nodeDegree(u) > cache_efficient_map_size / 3UL;
+  } else {
+    // Compute estimation for the upper bound of neighbors of u
+    HypernodeID ub_neighbors_u = 0;
+    for (const HyperedgeID& he : hypergraph.incidentEdges(u)) {
+      const HypernodeID edge_size = hypergraph.edgeSize(he);
+      // Ignore large hyperedges
+      ub_neighbors_u += edge_size < _context.partition.ignore_hyperedge_size_threshold ? edge_size : 0;
+      if (ub_neighbors_u > cache_efficient_map_size / 3UL) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 template<typename TypeTraits>
