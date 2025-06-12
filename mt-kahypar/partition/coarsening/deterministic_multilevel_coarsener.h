@@ -122,6 +122,8 @@ private:
                     (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
   }
 
+  void clusterNodesInRange(vec<HypernodeID>& clusters, HypernodeID& num_nodes, size_t first, size_t last);
+
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
 
   size_t approveNodes(vec<HypernodeID>& clusters);
