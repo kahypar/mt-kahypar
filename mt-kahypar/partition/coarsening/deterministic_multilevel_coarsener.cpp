@@ -44,94 +44,23 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   timer.start_timer("coarsening_pass", "Clustering");
 
   const Hypergraph& hg = Base::currentHypergraph();
-  size_t num_nodes = Base::currentNumNodes();
+  HypernodeID num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
   vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
-  tbb::parallel_for(UL(0), num_nodes, [&](HypernodeID u) {
+  tbb::parallel_for(ID(0), num_nodes, [&](HypernodeID u) {
     cluster_weight[u] = hg.nodeWeight(u);
     opportunistic_cluster_weight[u] = cluster_weight[u];
     propositions[u] = u;
     clusters[u] = u;
   });
 
-  {
-    permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
-    for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-      auto [first_bucket, last_bucket] = parallel::chunking::bounds(
-        sub_round, config.num_buckets, config.num_buckets_per_sub_round);
-      size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-      // each vertex finds a cluster it wants to join
-      tbb::parallel_for(first, last, [&](size_t pos) {
-        const HypernodeID u = permutation.at(pos);
-        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
-          calculatePreferredTargetCluster(u, clusters);
-        }
-      });
+  permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, config.prng());
+  for (size_t sub_round = 0; sub_round < config.num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+    auto [first_bucket, last_bucket] = parallel::chunking::bounds(
+      sub_round, config.num_buckets, config.num_buckets_per_sub_round);
+    size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
 
-      if (_context.coarsening.det_resolve_swaps) {
-        handleNodeSwaps(first, last, hg);
-      }
-
-      tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
-      // already approve if we can grant all requests for proposed cluster
-      // otherwise insert to shared vector so that we can group vertices by cluster
-      tbb::parallel_for(first, last, [&](size_t pos) {
-        HypernodeID u = permutation.at(pos);
-        HypernodeID target = propositions[u];
-        if (target != u) {
-          if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
-            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
-            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
-              num_contracted_nodes.local() += 1;
-            } else {
-              cluster_weights_to_fix.push_back_buffered(u);
-            }
-            clusters[u] = target;
-            cluster_weight[target] = opportunistic_cluster_weight[target];
-          } else {
-            if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
-              // node u could still not move
-              cluster_weights_to_fix.push_back_buffered(u);
-            }
-            nodes_in_too_heavy_clusters.push_back_buffered(u);
-          }
-        }
-      });
-
-      num_nodes -= num_contracted_nodes.combine(std::plus<>());
-      nodes_in_too_heavy_clusters.finalize();
-      if (nodes_in_too_heavy_clusters.size() > 0) {
-        num_nodes -= approveNodes(clusters);
-        nodes_in_too_heavy_clusters.clear();
-      }
-
-      cluster_weights_to_fix.finalize();
-      if (cluster_weights_to_fix.size() > 0) {
-        tbb::parallel_for(UL(0), cluster_weights_to_fix.size(), [&](const size_t i) {
-          const HypernodeID hn = cluster_weights_to_fix[i];
-          const HypernodeID cluster = clusters[hn];
-          if (cluster != hn) {
-            cluster_weight[hn] -= hg.nodeWeight(hn);
-            opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
-          }
-        });
-        cluster_weights_to_fix.clear();
-      }
-
-      HEAVY_COARSENING_ASSERT([&] {
-        vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
-        for (const HypernodeID hn : hg.nodes()) {
-          const HypernodeID cluster = clusters[hn];
-          cluster_weight_recalced[cluster] += hg.nodeWeight(hn);
-        }
-        for (const HypernodeID c : hg.nodes()) {
-          if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
-            LOG << "Wrong cluster weight: " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]);
-            return false;
-          }
-        }
-      }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");
-    }
+    clusterNodesInRange(clusters, num_nodes, first, last);
   }
 
   timer.stop_timer("coarsening_pass");
@@ -143,6 +72,83 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
   _timer.stop_timer("contraction");
   return true;
+}
+
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<HypernodeID>& clusters, HypernodeID& num_nodes, size_t first, size_t last) {
+  const Hypergraph& hg = Base::currentHypergraph();
+
+  // each vertex finds a cluster it wants to join
+  tbb::parallel_for(first, last, [&](size_t pos) {
+    const HypernodeID u = permutation.at(pos);
+    if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+      calculatePreferredTargetCluster(u, clusters);
+    }
+  });
+
+  if (_context.coarsening.det_resolve_swaps) {
+    handleNodeSwaps(first, last, hg);
+  }
+
+  tbb::enumerable_thread_specific<size_t> num_contracted_nodes{ 0 };
+  // already approve if we can grant all requests for proposed cluster
+  // otherwise insert to shared vector so that we can group vertices by cluster
+  tbb::parallel_for(first, last, [&](size_t pos) {
+    HypernodeID u = permutation.at(pos);
+    HypernodeID target = propositions[u];
+    if (target != u) {
+      if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
+        // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+        if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+          num_contracted_nodes.local() += 1;
+        } else {
+          cluster_weights_to_fix.push_back_buffered(u);
+        }
+        clusters[u] = target;
+        cluster_weight[target] = opportunistic_cluster_weight[target];
+      } else {
+        if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+          // node u could still not move
+          cluster_weights_to_fix.push_back_buffered(u);
+        }
+        nodes_in_too_heavy_clusters.push_back_buffered(u);
+      }
+    }
+  });
+
+  num_nodes -= num_contracted_nodes.combine(std::plus<>());
+  nodes_in_too_heavy_clusters.finalize();
+  if (nodes_in_too_heavy_clusters.size() > 0) {
+    num_nodes -= approveNodes(clusters);
+    nodes_in_too_heavy_clusters.clear();
+  }
+
+  cluster_weights_to_fix.finalize();
+  if (cluster_weights_to_fix.size() > 0) {
+    tbb::parallel_for(UL(0), cluster_weights_to_fix.size(), [&](const size_t i) {
+      const HypernodeID hn = cluster_weights_to_fix[i];
+      const HypernodeID cluster = clusters[hn];
+      if (cluster != hn) {
+        cluster_weight[hn] -= hg.nodeWeight(hn);
+        opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+      }
+    });
+    cluster_weights_to_fix.clear();
+  }
+
+  HEAVY_COARSENING_ASSERT([&] {
+    vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
+    for (const HypernodeID hn : hg.nodes()) {
+      const HypernodeID cluster = clusters[hn];
+      cluster_weight_recalced[cluster] += hg.nodeWeight(hn);
+    }
+    for (const HypernodeID c : hg.nodes()) {
+      if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
+        LOG << "Wrong cluster weight: " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]);
+        return false;
+      }
+    }
+  }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");
 }
 
 template<typename TypeTraits>
