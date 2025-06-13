@@ -79,10 +79,16 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
             // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
             if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
               num_contracted_nodes.local() += 1;
+            } else {
+              cluster_weights_to_fix.push_back_buffered(u);
             }
             clusters[u] = target;
             cluster_weight[target] = opportunistic_cluster_weight[target];
           } else {
+            if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
+              // node u could still not move
+              cluster_weights_to_fix.push_back_buffered(u);
+            }
             nodes_in_too_heavy_clusters.push_back_buffered(u);
           }
         }
@@ -94,9 +100,36 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
         num_nodes -= approveNodes(clusters);
         nodes_in_too_heavy_clusters.clear();
       }
-    }
 
+      cluster_weights_to_fix.finalize();
+      if (cluster_weights_to_fix.size() > 0) {
+        tbb::parallel_for(UL(0), cluster_weights_to_fix.size(), [&](const size_t i) {
+          const HypernodeID hn = cluster_weights_to_fix[i];
+          const HypernodeID cluster = clusters[hn];
+          if (cluster != hn) {
+            cluster_weight[hn] -= hg.nodeWeight(hn);
+            opportunistic_cluster_weight[hn] -= hg.nodeWeight(hn);
+          }
+        });
+        cluster_weights_to_fix.clear();
+      }
+
+      HEAVY_COARSENING_ASSERT([&] {
+        vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
+        for (const HypernodeID hn : hg.nodes()) {
+          const HypernodeID cluster = clusters[hn];
+          cluster_weight_recalced[cluster] += hg.nodeWeight(hn);
+        }
+        for (const HypernodeID c : hg.nodes()) {
+          if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
+            LOG << "Wrong cluster weight: " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]);
+            return false;
+          }
+        }
+      }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");
+    }
   }
+
   timer.stop_timer("coarsening_pass");
   ++pass;
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {

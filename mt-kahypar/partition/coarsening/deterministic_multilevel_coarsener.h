@@ -79,8 +79,8 @@ public:
     nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
-    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false)
-  {
+    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
   }
 
   ~DeterministicMultilevelCoarsener() {
@@ -94,6 +94,7 @@ private:
   };
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   void initializeImpl() override {
     if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
@@ -158,6 +159,6 @@ private:
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
   size_t pass;
   utils::ProgressBar progress_bar;
-
+  ds::BufferedVector<HypernodeID> cluster_weights_to_fix;
 };
 }
