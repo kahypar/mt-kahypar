@@ -27,8 +27,6 @@
 
 #pragma once
 
-#include "kahypar-resources/meta/abstract_factory.h"
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/context.h"
@@ -39,32 +37,33 @@
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/thread_safe_abstract_factory.h"
 
 namespace mt_kahypar {
 
 typedef struct ip_data_container_s ip_data_container_t;
 
-using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(mt_kahypar_hypergraph_t, const Context&, uncoarsening_data_t*)>;
-using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+using CoarsenerFactory = mt_kahypar::ThreadSafeFactory<CoarseningAlgorithm,
+                                           ICoarsener* (*)(mt_kahypar_hypergraph_t, const Context&, uncoarsening_data_t*)>;
+using InitialPartitionerFactory = mt_kahypar::ThreadSafeFactory<InitialPartitioningAlgorithm,
   IInitialPartitioner* (*)(const InitialPartitioningAlgorithm, ip_data_container_t*, const Context&, const int, const int)>;
 
-using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
+using LabelPropagationFactory = mt_kahypar::ThreadSafeFactory<LabelPropagationAlgorithm,
                                   IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-using JetFactory = kahypar::meta::Factory<JetAlgorithm,
+using JetFactory = mt_kahypar::ThreadSafeFactory<JetAlgorithm,
                      IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-using FMFactory = kahypar::meta::Factory<FMAlgorithm,
+using FMFactory = mt_kahypar::ThreadSafeFactory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-using FMStrategyFactory = kahypar::meta::Factory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
+using FMStrategyFactory = mt_kahypar::ThreadSafeFactory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
 
-using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
+using FlowSchedulerFactory = mt_kahypar::ThreadSafeFactory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
 
-using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
+using RebalancerFactory = mt_kahypar::ThreadSafeFactory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
 
-using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
+using FlowRefinementFactory = mt_kahypar::ThreadSafeFactory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
 }  // namespace mt_kahypar
