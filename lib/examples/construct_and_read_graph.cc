@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     std::make_unique<mt_kahypar_hyperedge_weight_t[]>(6);
   edge_weights[0] = 1; edge_weights[1] = 10;
   edge_weights[2] = 1; edge_weights[3] = 10;
-  edge_weights[3] = 1; edge_weights[4] = 10;
+  edge_weights[4] = 1; edge_weights[5] = 10;
 
   // Construct graph
   mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
