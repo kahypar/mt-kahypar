@@ -136,9 +136,7 @@ struct CoarseningParameters {
   bool det_resolve_swaps = true;
 
   // Two-Hop Coarsening
-  double twin_required_similarity = 0.75;
-  double twin_reduced_required_similarity = 0.4;
-  double twin_min_relative_connectivity = 0.1;
+  double two_hop_required_similarity = 0.5;
   HypernodeID degree_one_node_cluster_size = 4;
 
   // Those will be determined dynamically
