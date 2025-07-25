@@ -41,6 +41,7 @@
 #include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pq_selection_policy.h"
+#include "mt-kahypar/partition/thread_safe_policy_registry.h"
 
 
 #define REGISTER_DISPATCHED_INITIAL_PARTITIONER(id, dispatcher, ...)                                  \
@@ -110,39 +111,39 @@ using GreedySequentialMaxNetDispatcher = kahypar::meta::StaticMultiDispatchFacto
 void register_initial_partitioning_algorithms() {
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::random,
                                           RandomPartitionerDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::bfs,
                                           BFSPartitionerDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::label_propagation,
                                           LPPartitionerDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_round_robin_fm,
                                           GreedyRoundRobinFMDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_global_fm,
                                           GreedyGlobalFMDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequential_fm,
                                           GreedySequentialFMDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_round_robin_max_net,
                                           GreedyRoundRobinMaxNetDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_global_max_net,
                                           GreedyGlobalMaxNetDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
   REGISTER_DISPATCHED_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequential_max_net,
                                           GreedySequentialMaxNetDispatcher,
-                                          kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                          ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                           context.partition.partition_type));
 }
 

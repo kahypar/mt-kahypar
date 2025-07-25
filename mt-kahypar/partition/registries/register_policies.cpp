@@ -27,7 +27,6 @@
 
 #include "register_policies.h"
 
-#include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/definitions.h"
@@ -36,9 +35,10 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/thread_safe_policy_registry.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
-  static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> > register_ ## policy_class( \
+  static kahypar::meta::Registrar<ThreadSafePolicyRegistry<policy> > register_ ## policy_class( \
     id, new policy_class())
 
 namespace mt_kahypar {

@@ -42,6 +42,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/thread_safe_policy_registry.h"
 
 
 namespace mt_kahypar {
@@ -83,36 +84,36 @@ using DoNothingCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<D
 void register_coarsening_algorithms() {
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                                 MultilevelCoarsenerDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                   context.coarsening.rating.rating_function),
-                                kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                   context.coarsening.rating.heavy_node_penalty_policy),
-                                kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                   context.coarsening.rating.acceptance_policy));
 
   #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                                 NLevelCoarsenerDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                   context.coarsening.rating.rating_function),
-                                kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                   context.coarsening.rating.heavy_node_penalty_policy),
-                                kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                   context.coarsening.rating.acceptance_policy));
   #endif
 
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
                                 DeterministicCoarsenerDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type));
 
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::do_nothing_coarsener,
                                 DoNothingCoarsenerDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type));
 
 }

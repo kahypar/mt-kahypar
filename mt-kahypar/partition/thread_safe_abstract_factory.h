@@ -35,7 +35,6 @@
 #include "kahypar-resources/meta/function_traits.h"
 #include "kahypar-resources/meta/template_parameter_to_string.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/exception.h"
 
 
@@ -74,12 +73,11 @@ class ThreadSafeFactory {
     return _factory_instance;
   }
 
-  static bool registerObject(const IdentifierType& id, ProductCreator creator) {
+  bool registerObject(const IdentifierType& id, ProductCreator creator) {
     static std::mutex lock;
 
     std::lock_guard<std::mutex> guard(lock);
-    auto& instance = getInstance();
-    return instance._callbacks.insert({ static_cast<UnderlyingIdentifierType>(id), creator }).second;
+    return _callbacks.insert({ static_cast<UnderlyingIdentifierType>(id), creator }).second;
   }
 
  private:
