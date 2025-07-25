@@ -56,12 +56,12 @@ class ConcurrentClusteringData {
 
   ~ConcurrentClusteringData();
 
-  bool vertexIsUnmatched(const HypernodeID u) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool vertexIsUnmatched(const HypernodeID u) const {
     ASSERT(u < _matching_state.size());
     return _matching_state[u] == static_cast<uint8_t>(MatchingState::UNMATCHED);
   }
 
-  const parallel::scalable_vector<AtomicWeight>& clusterWeight() const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const parallel::scalable_vector<AtomicWeight>& clusterWeight() const {
     return _cluster_weight;
   }
 

@@ -36,6 +36,7 @@
 
 #include "include/mtkahypartypes.h"
 
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
@@ -116,35 +117,29 @@ class MultilevelCoarsener : public ICoarsener,
         << V(current_hg.initialNumEdges())
         << V(current_hg.initialNumPins());
 
-    // Random shuffle vertices of current hypergraph
-    _current_vertices.resize(current_hg.initialNumNodes());
+    // initialization of various things
     parallel::scalable_vector<HypernodeID> cluster_ids;
+    const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
+                                     _rater, _clustering_data);
+    cc.initializeCoarseningPass(current_hg, _context);
+
+    // the actual coarsening pass
+    _current_vertices.resize(current_hg.initialNumNodes());
     tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
       _current_vertices[hn] = hn;
     });
-    _clustering_data.initializeCoarseningPass(current_hg, cluster_ids);
-
     if ( _enable_randomization ) {
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
 
     const HypernodeID num_hns_before_pass =
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    HypernodeID current_num_nodes = 0;
-    if ( current_hg.hasFixedVertices() ) {
-      current_num_nodes = performClustering<true>(current_hg, cluster_ids);
-    } else {
-      current_num_nodes = performClustering<false>(current_hg, cluster_ids);
-    }
-    DBG << V(current_num_nodes);
+    HypernodeID current_num_nodes = performClustering(current_hg, cc);
+    DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
 
-    HEAVY_COARSENING_ASSERT(_clustering_data.verifyClustering(current_hg, cluster_ids),
-                            "Parallel clustering computed invalid cluster ids and weights");
-
-    const double reduction_vertices_percentage =
-      static_cast<double>(num_hns_before_pass) /
-      static_cast<double>(current_num_nodes);
-    if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
+    bool should_continue = cc.finalize(current_hg, _context);
+    if (!should_continue) {
       return false;
     }
     _progress_bar += (num_hns_before_pass - current_num_nodes);
@@ -158,24 +153,16 @@ class MultilevelCoarsener : public ICoarsener,
     return true;
   }
 
-  template<bool has_fixed_vertices>
   HypernodeID performClustering(const Hypergraph& current_hg,
-                                vec<HypernodeID>& cluster_ids) {
+                                ClusteringContext<Hypergraph>& cc) {
     // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
-    // Matched vertices are linked in a concurrent union find data structure, that also aggregates
-    // weights of the resulting clusters and keep track of the number of nodes left, if we would
-    // contract all matched vertices.
     _timer.start_timer("clustering", "Clustering");
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
     }
 
-    _rater.resetMatches();
-    _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
+    const bool has_fixed_vertices = current_hg.hasFixedVertices();
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
-    NumNodesTracker num_nodes_tracker(current_hg.initialNumNodes() - current_hg.numRemovedHypernodes());
-    ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
-    fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
     tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < _current_vertices.size());
@@ -183,19 +170,11 @@ class MultilevelCoarsener : public ICoarsener,
       // We perform rating if ...
       //  1.) The contraction limit of the current level is not reached
       //  2.) Vertex hn is not matched before
-      if (current_hg.nodeIsEnabled(hn)
-          && num_nodes_tracker.currentNumNodes() > hierarchy_contraction_limit
-          && _clustering_data.vertexIsUnmatched(hn)) {
-        const Rating rating = _rater.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
-                                     current_hg, hn, cluster_ids, _clustering_data.clusterWeight(),
-                                     fixed_vertices, _context.coarsening.max_allowed_node_weight);
+      if (current_hg.nodeIsEnabled(hn) && cc.shouldContinue() && cc.vertexIsUnmatched(hn)) {
+        const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>(
+                                current_hg, hn, has_fixed_vertices);
         if (rating.target != kInvalidHypernode) {
-          bool success = _clustering_data.template matchVertices<has_fixed_vertices>(
-            current_hg, hn, rating.target, cluster_ids, _rater, fixed_vertices);
-          if (success) {
-            // update the number of nodes in a way that minimizes synchronization overhead
-            num_nodes_tracker.subtractNode(_context.shared_memory.original_num_threads, hierarchy_contraction_limit);
-          }
+          cc.matchVertices(current_hg, hn, rating.target, has_fixed_vertices);
         }
       }
     });
@@ -204,11 +183,8 @@ class MultilevelCoarsener : public ICoarsener,
       _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
     }
     _timer.stop_timer("clustering");
-    if constexpr ( has_fixed_vertices ) {
-      ASSERT(fixed_vertices.verifyClustering(current_hg, cluster_ids), "Fixed vertex support is corrupted");
-    }
 
-    return num_nodes_tracker.finalNumNodes();
+    return cc.finalNumNodes();
   }
 
   void terminateImpl() override {
