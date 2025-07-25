@@ -314,7 +314,20 @@ namespace mt_kahypar {
              "Number of sub-rounds used for deterministic coarsening.")
             ("c-resolve-swaps",
              po::value<bool>(&context.coarsening.det_resolve_swaps)->value_name("<bool>")->default_value(true),
-             "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.");
+             "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.")
+            ("c-two-hop-required-connectivity",
+             po::value<double>(&context.coarsening.two_hop_required_connectivity)->value_name(
+                     "<double>")->default_value(0.25),
+             "Only consider nodes for two-hop coarsening if at least this fraction of their incident edge weight "
+             "is incident to a single cluster.")
+            ("c-two-hop-cluster-size",
+             po::value<HypernodeID>(&context.coarsening.two_hop_cluster_size)->value_name(
+                     "<int>")->default_value(4),
+             "Two-hop coarsening: maximum number of degree one nodes in one cluster.")
+            ("c-two-hop-degree-threshold",
+             po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
+                     "<size_t>")->default_value(100),
+             "If set, then vertices with more adjacent pins than the provided threshold are ignored during two-hop coarsening.");
     return options;
   }
 
