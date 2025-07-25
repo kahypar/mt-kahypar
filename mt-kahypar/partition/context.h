@@ -113,8 +113,6 @@ struct RatingParameters {
   double preserve_nodes_scaling_factor = 0.25;
   double preserve_nodes_relative_weight_limit = 0.001;
   double acceptance_limit_bound = 1.0;
-  HypernodeID max_considered_neighbors = 0;
-  bool use_similarity_penalty = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
