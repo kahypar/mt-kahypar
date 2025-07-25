@@ -327,13 +327,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.det_resolve_swaps)->value_name("<bool>")->default_value(true),
              "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.")
             ("c-two-hop-required-similarity",
-             po::value<double>(&context.coarsening.twin_required_similarity)->value_name(
+             po::value<double>(&context.coarsening.two_hop_required_similarity)->value_name(
                      "<double>")->default_value(0.75),
              "Required neighborhood similarity for two-hop coarsening.")
-            ("c-twin-min-relative-connectivity",
-             po::value<double>(&context.coarsening.twin_min_relative_connectivity)->value_name(
-                     "<double>")->default_value(0.1),
-             "Required relative connectivity to a cluster to include this neighbor in the twin matching neighborhood.")
             ("c-degree-one-node-cluster-size",
              po::value<HypernodeID>(&context.coarsening.degree_one_node_cluster_size)->value_name(
                      "<int>")->default_value(4),
