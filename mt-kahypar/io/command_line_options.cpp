@@ -313,7 +313,31 @@ namespace mt_kahypar {
              "Number of sub-rounds used for deterministic coarsening.")
             ("c-resolve-swaps",
              po::value<bool>(&context.coarsening.det_resolve_swaps)->value_name("<bool>")->default_value(true),
-             "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.");
+             "Whether to resolve node swaps in a postprocessing step for deterministic coarsening.")
+            ("c-sim-incident-weight-scaling",
+             po::value<uint32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
+                     "<int>")->default_value(1),
+             "Scales how incident weight is computed when determining similarity thresholds.")
+            ("c-sim-preserve-nodes-scaling-factor",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_scaling_factor)->value_name(
+                     "<double>")->default_value(0.25),
+             "Scales the similarity threshold for rejecting contractions (lower = more accepting).")
+            ("c-sim-preserve-nodes-relative-weight-limit",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_relative_weight_limit)->value_name(
+                     "<double>")->default_value(0.001),
+             "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster.")
+            ("c-sim-acceptance-limit-bound",
+             po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
+                     "<double>")->default_value(1.0),
+             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
+            ("c-sim-max-considered-neighbors",
+             po::value<HypernodeID>(&context.coarsening.rating.max_considered_neighbors)->value_name(
+                     "<int>")->default_value(0),
+             "Maximum number of neighbors considered to compute similarity acceptance limit (0 = unlimited).")
+            ("c-use-sim-penalty",
+             po::value<bool>(&context.coarsening.rating.use_similarity_penalty)->value_name(
+                     "<bool>")->default_value(false),
+             "Whether a similarity penalty is used for LP coarsening.");
     return options;
   }
 

@@ -112,29 +112,30 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
-           bool has_fixed_vertices, typename Hypergraph>
+           bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const DegreeSimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
         hypergraph, u, _local_cache_efficient_rating_map.local(),
-        cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, false);
+        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
         hypergraph, u, _local_vertex_degree_bounded_rating_map.local(),
-        cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, true);
+        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
       return rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
         hypergraph, u, large_tmp_rating_map,
-        cluster_ids, cluster_weight, fixed_vertices, max_allowed_node_weight, false);
+        cluster_ids, cluster_weight, fixed_vertices, similarity_policy, max_allowed_node_weight, false);
     }
   }
 
@@ -156,13 +157,14 @@ class MultilevelVertexPairRater {
 
  private:
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy,
-           bool has_fixed_vertices, typename Hypergraph, typename RatingMap>
+           bool has_fixed_vertices, typename Hypergraph, typename RatingMap, typename DegreeSimilarityPolicy>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const DegreeSimilarityPolicy& similarity_policy,
                         const HypernodeWeight max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
 
@@ -183,10 +185,12 @@ class MultilevelVertexPairRater {
       const HypernodeID tmp_target = tmp_target_id;
       const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
 
-      if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
+      if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight
+           && similarity_policy.acceptContraction(hypergraph, _context, u, tmp_target) ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = std::max(penalty, 1);
-        const RatingType tmp_rating = it->value / static_cast<double>(penalty);
+        const RatingType tmp_rating = it->value / (static_cast<double>(penalty)
+            * similarity_policy.similarityPenalty(hypergraph, _context, u, tmp_target));
 
         bool accept_fixed_vertex_contraction = true;
         if constexpr ( has_fixed_vertices ) {
