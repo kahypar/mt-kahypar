@@ -57,12 +57,6 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double similarityPenalty(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
-    return 1.0;
-  }
-
-  template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   double weightRatioForNode(const Hypergraph&, HypernodeID) const {
     return 1.0;
   }
@@ -240,19 +234,6 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     } else {
       return ratio_u >= _acceptance_limit[v] || hypergraph.nodeWeight(u) == 0;
     }
-  }
-
-  template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double similarityPenalty(const Hypergraph& hypergraph,
-                                                              const Context& context,
-                                                              const HypernodeID u,
-                                                              const HypernodeID v) const {
-    if (context.coarsening.rating.use_similarity_penalty) {
-      double ratio_u = weightRatioForNode(hypergraph, u);
-      double ratio_v = weightRatioForNode(hypergraph, v);
-      return std::max(ratio_u / ratio_v, ratio_v / ratio_u);
-    }
-    return 1.0;
   }
 
   template<typename Hypergraph>
