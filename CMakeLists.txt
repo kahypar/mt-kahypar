@@ -264,14 +264,6 @@ else()
     set(KAHYPAR_X86 FALSE)
 endif()
 
-if (NOT KAHYPAR_DISABLE_GROWT AND KAHYPAR_ENABLE_STEINER_TREE_METRIC
-    AND KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
-    # growt requires SSE instructions
-    set(KAHYPAR_USE_GROWT TRUE)
-else()
-    set(KAHYPAR_USE_GROWT FALSE)
-endif()
-
 # Add compile flags that enable warnings
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
   -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
@@ -315,6 +307,15 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   if(BUILTIN_POPCNT)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
   endif()
+endif()
+
+# check this after include(CheckSSE4_2) so BUILTIN_POPCNT is available
+if (NOT KAHYPAR_DISABLE_GROWT AND KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    AND KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
+    # growt requires SSE instructions
+    set(KAHYPAR_USE_GROWT TRUE)
+else()
+    set(KAHYPAR_USE_GROWT FALSE)
 endif()
 
 if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
