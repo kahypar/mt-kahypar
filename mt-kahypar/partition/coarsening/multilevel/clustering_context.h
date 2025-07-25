@@ -111,7 +111,7 @@ struct ClusteringContext {
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy) {
     return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, has_fixed_vertices>(
                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
-                 similarity_policy, max_allowed_node_weight);
+                 similarity_policy, max_allowed_node_weight, may_ignore_communities);
   }
 
   template<bool has_fixed_vertices>

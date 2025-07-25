@@ -267,6 +267,9 @@ namespace mt_kahypar {
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")
+            ("c-min-accepted-shrink-factor",
+             po::value<double>(&context.coarsening.min_accepted_shrink_factor)->value_name("<double>")->default_value(1.75),
+             "Minimum factor a hypergraph should shrink in a multilevel pass. Sub-optimal contractions might be used to reach it.")
             ("c-max-shrink-factor",
              po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>")->default_value(2.5),
              "Maximum factor a hypergraph is allowed to shrink in a clustering pass")
