@@ -133,6 +133,11 @@ struct CoarseningParameters {
   size_t num_sub_rounds_deterministic = 16;
   bool det_resolve_swaps = true;
 
+  // Two-Hop Coarsening
+  double twin_required_similarity = 0.75;
+  double twin_min_relative_connectivity = 0.1;
+  HypernodeID degree_one_node_cluster_size = 4;
+
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;
