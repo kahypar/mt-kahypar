@@ -91,6 +91,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     _clustering_data(_hg.initialNumNodes(), context),
     _num_nodes_tracker(),
     _initial_num_nodes(_hg.initialNumNodes()),
+    _num_communities(kInvalidPartition),
     _current_vertices(),
     _pass_nr(0),
     _progress_bar(_hg.initialNumNodes(), 0, false),
@@ -135,6 +136,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     });
 
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    const HypernodeID target_contraction_size = targetContractionSize(current_hg);
+    ASSERT(target_contraction_size >= hierarchy_contraction_limit);
     const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = num_hns_before_pass;
 
@@ -142,8 +145,14 @@ class ThreePhaseCoarsener : public ICoarsener,
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data, _num_nodes_tracker);
     cc.initializeCoarseningPass(current_hg, _context);
+    _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context);
+    _timer.stop_timer("init_similarity");
     _always_accept_policy.initialize(current_hg, _context);
+
+    if (shouldIgnoreCommunities(hierarchy_contraction_limit)) {
+      cc.may_ignore_communities = true;
+    }
 
     // TODO: degree zero nodes?!
     // Phase 1: LP coarsening, but forbid contraction of low degree nodes onto high degree nodes
@@ -152,15 +161,40 @@ class ThreePhaseCoarsener : public ICoarsener,
     _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
     current_num_nodes = _num_nodes_tracker.currentNumNodes();
 
+    // Phase 2: Two-hop coarsening for low degree nodes
     if (current_num_nodes > hierarchy_contraction_limit) {
-      // Phase 2: Two-hop coarsening for low degree nodes
+      DBG << "Start Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(hierarchy_contraction_limit);
+      coarseningRound("first_two_hop_round", "First two-hop round",
+                     current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
       current_num_nodes = _num_nodes_tracker.currentNumNodes();
     }
 
-    // TODO: community ids
+    // Phase 3: LP and two-hop coarsening with all contractions allowed (as well as contracting size 1 communities)
+    cc.contract_aggressively = true;
+    cc.hierarchy_contraction_limit = target_contraction_size;
+    if (current_num_nodes > target_contraction_size) {
+      // lazy initialization of community count, since it requires scanning all nodes
+      initializeCommunityCount(current_hg);
+      if (shouldIgnoreCommunities(target_contraction_size)) {
+        cc.may_ignore_communities = true;
+      }
 
-    DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
+      DBG << "Start Second LP round: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
+      coarseningRound("second_lp_round", "Second LP round",
+                      current_hg, _lp_clustering, _always_accept_policy, cc);
+      _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
+      current_num_nodes = _num_nodes_tracker.currentNumNodes();
+    }
+    if (current_num_nodes > target_contraction_size) {
+      DBG << "Start Second Two-Hop Coarsening: " << V(_num_nodes_tracker.currentNumNodes()) << V(target_contraction_size);
+      coarseningRound("second_two_hop_round", "Second two-hop round",
+                     current_hg, _two_hop_clustering, _always_accept_policy, cc);
+      _progress_bar += (current_num_nodes - _num_nodes_tracker.finalNumNodes());
+      current_num_nodes = _num_nodes_tracker.currentNumNodes();
+    }
+
+    DBG << V(current_num_nodes) << V(target_contraction_size) << V(hierarchy_contraction_limit);
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {
       return false;
@@ -228,6 +262,37 @@ class ThreePhaseCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
+  HypernodeID targetContractionSize(const Hypergraph& hypergraph) const {
+    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
+      hypergraph.numRemovedHypernodes()) / _context.coarsening.min_accepted_shrink_factor ),
+      _context.coarsening.contraction_limit );
+  }
+
+  void initializeCommunityCount(const Hypergraph& hypergraph) {
+    if (_num_communities == kInvalidPartition) {
+      _num_communities =
+          tbb::parallel_reduce(
+                  tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
+                  0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+            PartitionID my_range_num_communities = init;
+            for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+              if ( hypergraph.nodeIsEnabled(hn) ) {
+                my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+              }
+            }
+            return my_range_num_communities;
+          },
+          [](const PartitionID lhs, const PartitionID rhs) {
+            return std::max(lhs, rhs);
+          });
+      _num_communities = std::max(_num_communities, 1);
+    }
+  }
+
+  bool shouldIgnoreCommunities(HypernodeID hierarchy_contraction_limit) {
+    return _num_communities != kInvalidPartition && UL(_num_communities) > hierarchy_contraction_limit;
+  }
+
   LPClustering _lp_clustering;
   TwoHopClustering _two_hop_clustering;
   SimilarityPolicy _similarity_policy;
@@ -236,6 +301,7 @@ class ThreePhaseCoarsener : public ICoarsener,
   ConcurrentClusteringData _clustering_data;
   NumNodesTracker _num_nodes_tracker;
   HypernodeID _initial_num_nodes;
+  PartitionID _num_communities;
   parallel::scalable_vector<HypernodeID> _current_vertices;
   int _pass_nr;
   utils::ProgressBar _progress_bar;
