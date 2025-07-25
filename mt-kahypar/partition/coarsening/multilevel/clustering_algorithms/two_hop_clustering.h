@@ -43,11 +43,7 @@
 namespace mt_kahypar {
 
 class TwoHopClustering {
-  using IncidenceMap = ds::SparseMap<HypernodeID, float>;
-
-  // degree threshold where it is extremely unlikely that two-hop coarsening is applicable
-  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = 500;
-  static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+  using CacheEfficienIncidenceMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
 
   struct MatchingEntry {
     HypernodeID key;
@@ -59,7 +55,7 @@ class TwoHopClustering {
     _context(context),
     _degree_one_map(),
     _local_incidence_map([=] {
-      return IncidenceMap(num_nodes);
+      return CacheEfficienIncidenceMap(3UL * std::min(UL(num_nodes), _context.coarsening.two_hop_degree_threshold), 0.0);
     }) {
       if (_context.coarsening.degree_one_node_cluster_size < 2) {
         ERR("Value for c-degree-one-node-cluster-size too small, must be at least 2");
@@ -79,18 +75,26 @@ class TwoHopClustering {
                          ClusteringContext<Hypergraph>& cc) {
     _degree_one_map.reserve_for_estimated_number_of_insertions(cc.currentNumNodes() / 3);
 
-    auto fill_incidence_map_for_node = [&](IncidenceMap& incidence_map, const HypernodeID hn) {
-      // TODO: can we do this more efficiently for graphs?
+    auto fill_incidence_map_for_node = [&](auto& incidence_map, const HypernodeID hn, bool& too_many_accesses) {
+      // TODO: specialized version for graphs
+      size_t num_accesses = 0;
       HyperedgeWeight incident_weight_sum = 0;
       for (const HyperedgeID& he : hg.incidentEdges(hn)) {
-        incident_weight_sum += hg.edgeWeight(he);
+        const HypernodeID considered_pins = hg.edgeSize(he) - 1;
+        if (num_accesses + considered_pins > _context.coarsening.two_hop_degree_threshold) {
+          too_many_accesses = true;
+          break;
+        }
+
         for (const HypernodeID& pin: hg.pins(he)) {
           if (pin != hn) {
             HypernodeID target_cluster = cc.clusterID(pin);
             ASSERT(target_cluster != cc.clusterID(hn));  // holds since we only consider unmatched nodes
-            incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / (hg.edgeSize(he) - 1);
+            incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / considered_pins;
           }
         }
+        num_accesses += considered_pins;
+        incident_weight_sum += hg.edgeWeight(he);
       }
       return incident_weight_sum;
     };
@@ -100,27 +104,29 @@ class TwoHopClustering {
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
       ASSERT(id < node_mapping.size());
       const HypernodeID hn = node_mapping[id];
-      if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn) && hg.nodeDegree(hn) <= HIGH_DEGREE_THRESHOLD) {
-        IncidenceMap& incidence_map = _local_incidence_map.local();
-        const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn);
+      if (hg.nodeIsEnabled(hn) && cc.vertexIsUnmatched(hn)
+          && hg.nodeWeight(hn) <= _context.coarsening.max_allowed_node_weight / 2
+          && hg.nodeDegree(hn) <= _context.coarsening.two_hop_degree_threshold) {
+        CacheEfficienIncidenceMap& incidence_map = _local_incidence_map.local();
+        incidence_map.clear();
 
-        const float required_connectivity = required_similarity * incident_weight_sum;
-        float max_connectivity = 0;
-        HypernodeID best_target = kInvalidHypernode;
-        for (const auto& [target_cluster, connectivity]: incidence_map) {
-          if (connectivity >= required_connectivity && connectivity > max_connectivity) {
-            max_connectivity = connectivity;
-            best_target = target_cluster;
-            if (required_similarity >= 0.5) {
-              // in this case, this already must be the maximum
-              break;
+        bool too_many_accesses = false;
+        const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn, too_many_accesses);
+
+        if (!too_many_accesses) {
+          const float required_connectivity = required_similarity * incident_weight_sum;
+          float max_connectivity = 0;
+          HypernodeID best_target = kInvalidHypernode;
+          for (const auto& [target_cluster, connectivity]: incidence_map) {
+            if (connectivity >= required_connectivity && connectivity > max_connectivity) {
+              max_connectivity = connectivity;
+              best_target = target_cluster;
             }
           }
+          if (best_target != kInvalidHypernode) {
+            _degree_one_map.insert(best_target, MatchingEntry{best_target, hn});
+          }
         }
-        if (best_target != kInvalidHypernode) {
-          _degree_one_map.insert(best_target, MatchingEntry{best_target, hn});
-        }
-        incidence_map.clear();
       }
     });
 
@@ -171,7 +177,7 @@ class TwoHopClustering {
  private:
   const Context& _context;
   ds::ConcurrentBucketMap<MatchingEntry> _degree_one_map;
-  tbb::enumerable_thread_specific<IncidenceMap> _local_incidence_map;
+  tbb::enumerable_thread_specific<CacheEfficienIncidenceMap> _local_incidence_map;
 };
 
 }  // namespace mt_kahypar

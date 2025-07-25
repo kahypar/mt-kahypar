@@ -136,6 +136,7 @@ struct CoarseningParameters {
   // Two-Hop Coarsening
   double two_hop_required_similarity = 0.5;
   HypernodeID degree_one_node_cluster_size = 4;
+  size_t two_hop_degree_threshold = 100;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
