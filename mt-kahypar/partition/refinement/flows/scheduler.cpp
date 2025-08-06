@@ -58,6 +58,23 @@ void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_
 }
 
 template<typename GraphAndGainTypes>
+SearchID FlowRefinementScheduler<GraphAndGainTypes>::requestNewSearch(PartitionedHypergraph& phg, FlowRefinerAdapter<TypeTraits>& refiner) {
+  BlockPair blocks { kInvalidPartition, kInvalidPartition };
+  size_t round = 0;
+  bool success = _active_block_scheduler.popBlockPairFromQueue(blocks, round);
+
+  if (success) {
+    SearchID search_id = _quotient_graph.requestNewSearch(phg, refiner, blocks, round);
+    if (search_id == INVALID_SEARCH_ID) {
+      _active_block_scheduler.finalizeSearch(blocks, round, 0);
+    }
+    return search_id;
+  } else {
+    return INVALID_SEARCH_ID;
+  }
+}
+
+template<typename GraphAndGainTypes>
 bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const parallel::scalable_vector<HypernodeID>&,
@@ -65,16 +82,16 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
                 const double)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   ASSERT(_phg == &phg);
-  _quotient_graph.setObjective(best_metrics.quality);
+  _active_block_scheduler.setObjective(best_metrics.quality);
 
   std::atomic<HyperedgeWeight> overall_delta(0);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
     while ( i < std::max(UL(1), static_cast<size_t>(
         std::ceil(_context.refinement.flows.parallel_searches_multiplier *
-            _quotient_graph.numActiveBlockPairs()))) ) {
-      SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
-      if ( search_id != QuotientGraph<TypeTraits>::INVALID_SEARCH_ID ) {
+            (_active_block_scheduler.numRemainingBlocks() + _quotient_graph.numActiveSearches()) ))) ) {
+      SearchID search_id = requestNewSearch(phg, _refiner);
+      if ( search_id != INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
             << ", Refiner =" << i << ")";
@@ -103,6 +120,8 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
           }
         }
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
+        // In case the block pair becomes active, we reinsert it into the queue
+        _active_block_scheduler.finalizeSearch(_quotient_graph.getBlockPair(search_id), _quotient_graph.getRound(search_id), improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
         DBG << "End search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
@@ -167,10 +186,11 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
   _quotient_graph.initialize(phg);
+  _active_block_scheduler.initialize(_quotient_graph.isInputHypergraph());
   timer.stop_timer("initialize_quotient_graph");
 
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
-  DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
+  DBG << "Initial Active Block Pairs =" << _active_block_scheduler.numRemainingBlocks()
       << ", Initial Num Threads =" << max_parallism;
   _refiner.initialize(max_parallism);
 }
@@ -192,11 +212,6 @@ void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK
 }
 
 namespace {
-
-struct NewCutHyperedge {
-  HyperedgeID he;
-  PartitionID block;
-};
 
 template<typename PartitionedHypergraph, typename GainCache, typename F>
 bool changeNodePart(PartitionedHypergraph& phg,
@@ -225,7 +240,7 @@ void applyMoveSequence(PartitionedHypergraph& phg,
                        const F& objective_delta,
                        const bool gain_cache_update,
                        vec<uint8_t>& was_moved,
-                       vec<NewCutHyperedge>& new_cut_hes) {
+                       vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes) {
   for ( const Move& move : sequence.moves ) {
     ASSERT(move.from == phg.partID(move.node));
     if ( move.from != move.to ) {
@@ -235,8 +250,8 @@ void applyMoveSequence(PartitionedHypergraph& phg,
       // If move increases the pin count of some hyperedges in block 'move.to' to one 1
       // we set the corresponding block here.
       int i = new_cut_hes.size() - 1;
-      while ( i >= 0 && new_cut_hes[i].block == kInvalidPartition ) {
-        new_cut_hes[i].block = move.to;
+      while ( i >= 0 && new_cut_hes[i].second == kInvalidPartition ) {
+        new_cut_hes[i].second = move.to;
         --i;
       }
     }
@@ -255,15 +270,6 @@ void revertMoveSequence(PartitionedHypergraph& phg,
       changeNodePart(phg, gain_cache, move.node, move.to,
         move.from, objective_delta, gain_cache_update);
     }
-  }
-}
-
-template<typename TypeTraits>
-void addCutHyperedgesToQuotientGraph(QuotientGraph<TypeTraits>& quotient_graph,
-                                     const vec<NewCutHyperedge>& new_cut_hes) {
-  for ( const NewCutHyperedge& new_cut_he : new_cut_hes ) {
-    ASSERT(new_cut_he.block != kInvalidPartition);
-    quotient_graph.addNewCutHyperedge(new_cut_he.he, new_cut_he.block);
   }
 }
 
@@ -290,14 +296,14 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
   }
 
   HyperedgeWeight improvement = 0;
-  vec<NewCutHyperedge> new_cut_hes;
+  vec<std::pair<HyperedgeID, PartitionID>> new_cut_hes;
   auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
     improvement -= AttributedGains::gain(sync_update);
 
     // Collect hyperedges with new blocks in its connectivity set
     if ( sync_update.pin_count_in_to_part_after == 1 ) {
       // the corresponding block will be set in applyMoveSequence(...) function
-      new_cut_hes.emplace_back(NewCutHyperedge { sync_update.he, kInvalidPartition });
+      new_cut_hes.emplace_back(sync_update.he, kInvalidPartition);
     }
   };
 
@@ -352,7 +358,7 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
   _apply_moves_lock.unlock();
 
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
-    addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
+    _quotient_graph.addNewCutHyperedges(*_phg, new_cut_hes);
     _stats.total_improvement += improvement;
   }
 

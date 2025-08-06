@@ -13,6 +13,7 @@ set(RefinementSources
         flows/refiner_adapter.cpp
         flows/problem_construction.cpp
         flows/scheduler.cpp
+        flows/active_block_scheduler.cpp
         flows/quotient_graph.cpp
         flows/flow_refiner.cpp
         flows/sequential_construction.cpp
