@@ -38,6 +38,12 @@
 namespace mt_kahypar {
 
 struct BlockPair {
+  BlockPair() = default;
+
+  BlockPair(PartitionID i, PartitionID j): i(i), j(j) {
+    ASSERT(i < j);
+  }
+
   PartitionID i = kInvalidPartition;
   PartitionID j = kInvalidPartition;
 };
@@ -64,7 +70,7 @@ struct QuotientGraphEdge {
     return ownership.load(std::memory_order_relaxed);
   }
 
-  // ! Tries to acquire quotient graph edge with corresponding search id
+  // ! Tries to acquire quotient graph edge
   bool acquire() {
     bool expected = false;
     return ownership.compare_exchange_strong(expected, true, std::memory_order_acquire);
@@ -125,8 +131,6 @@ public:
 
   QuotientGraph & operator= (const QuotientGraph &) = delete;
   QuotientGraph & operator= (QuotientGraph &&) = delete;
-
-  vec<vec<QuotientGraphEdge>>& getGraph();
 
   QuotientGraphEdge& edge(const BlockPair& blocks) {
     ASSERT(blocks.i < blocks.j);

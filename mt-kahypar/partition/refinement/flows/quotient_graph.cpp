@@ -63,10 +63,6 @@ QuotientGraph::QuotientGraph(const HyperedgeID num_hyperedges, const Context& co
   }
 }
 
-vec<vec<QuotientGraphEdge>>& QuotientGraph::getGraph() {
-  return _quotient_graph;
-}
-
 template<typename PartitionedHypergraph>
 void QuotientGraph::addNewCutHyperedges(const PartitionedHypergraph& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes) {
   for ( const auto& [he, block] : new_cut_hes ) {
