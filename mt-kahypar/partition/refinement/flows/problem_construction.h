@@ -127,7 +127,7 @@ class ProblemConstruction {
   ProblemConstruction & operator= (const ProblemConstruction &) = delete;
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
-  Subhypergraph construct(const SearchID search_id,
+  Subhypergraph construct(const BlockPair& blocks,
                           QuotientGraph& quotient_graph,
                           const PartitionedHypergraph& phg);
 

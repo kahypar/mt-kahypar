@@ -32,67 +32,35 @@
 
 namespace mt_kahypar {
 
-namespace {
-  #define NOW std::chrono::high_resolution_clock::now()
-  #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
-}
-
 template<typename TypeTraits>
-bool FlowRefinerAdapter<TypeTraits>::registerNewSearch(const SearchID search_id,
-                                                       const PartitionedHypergraph& phg) {
-  bool success = true;
-  size_t refiner_idx = INVALID_REFINER_IDX;
-  if ( _unused_refiners.try_pop(refiner_idx) ) {
-    // Note, search id are usually consecutive starting from 0.
-    // However, this function is not called in increasing search id order.
-    _search_lock.lock();
-    while ( static_cast<size_t>(search_id) >= _active_searches.size() ) {
-      _active_searches.push_back(ActiveSearch { INVALID_REFINER_IDX, NOW, 0.0, false });
-    }
-    _search_lock.unlock();
-
-    if ( !_refiner[refiner_idx] ) {
-      // Lazy initialization of refiner
-      _refiner[refiner_idx] = initializeRefiner();
-    }
-
-    _active_searches[search_id].refiner_idx = refiner_idx;
-    _active_searches[search_id].start = NOW;
-    mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
-      utils::partitioned_hg_const_cast(phg);
-    _refiner[refiner_idx]->initialize(partitioned_hg);
-    _refiner[refiner_idx]->updateTimeLimit(timeLimit());
-  } else {
-    success = false;
+void FlowRefinerAdapter<TypeTraits>::registerNewSearch(const PartitionedHypergraph& phg,
+                                                       const size_t refiner_idx) {
+  ALWAYS_ASSERT(refiner_idx < _refiner.size());
+  if ( !_refiner[refiner_idx] ) {
+    // Lazy initialization of refiner
+    _refiner[refiner_idx] = initializeRefiner();
   }
-  return success;
+
+  mt_kahypar_partitioned_hypergraph_const_t partitioned_hg = utils::partitioned_hg_const_cast(phg);
+  _refiner[refiner_idx]->initialize(partitioned_hg);
+  _refiner[refiner_idx]->updateTimeLimit(timeLimit());
 }
 
 template<typename TypeTraits>
-MoveSequence FlowRefinerAdapter<TypeTraits>::refine(const SearchID search_id,
-                                                    const PartitionedHypergraph& phg,
-                                                    const Subhypergraph& sub_hg) {
-  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
-  ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
-
-  // Perform refinement
-  mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
-    utils::partitioned_hg_const_cast(phg);
-  const size_t refiner_idx = _active_searches[search_id].refiner_idx;
-  MoveSequence moves = _refiner[refiner_idx]->refine(partitioned_hg, sub_hg, _active_searches[search_id].start);
-  _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
+MoveSequence FlowRefinerAdapter<TypeTraits>::refine(const PartitionedHypergraph& phg,
+                                                    const Subhypergraph& sub_hg,
+                                                    HighResClockTimepoint start,
+                                                    size_t refiner_idx) {
+  mt_kahypar_partitioned_hypergraph_const_t partitioned_hg = utils::partitioned_hg_const_cast(phg);
+  MoveSequence moves = _refiner[refiner_idx]->refine(partitioned_hg, sub_hg, start);
   return moves;
 }
 
 template<typename TypeTraits>
-void FlowRefinerAdapter<TypeTraits>::finalizeSearch(const SearchID search_id) {
-  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
-  const double running_time = RUNNING_TIME(_active_searches[search_id].start);
-  _active_searches[search_id].running_time = running_time;
-
-  //Update average running time
+void FlowRefinerAdapter<TypeTraits>::finalizeSearch(double running_time, bool reaches_time_limit) {
+  // Update average running time
   _search_lock.lock();
-  if ( !_active_searches[search_id].reaches_time_limit ) {
+  if ( !reaches_time_limit ) {
     _average_running_time = (running_time + _num_refinements *
       _average_running_time) / static_cast<double>(_num_refinements + 1);
     ++_num_refinements;
@@ -107,19 +75,10 @@ void FlowRefinerAdapter<TypeTraits>::finalizeSearch(const SearchID search_id) {
       }
     }
   }
-
-  ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
-  _unused_refiners.push(_active_searches[search_id].refiner_idx);
-  _active_searches[search_id].refiner_idx = INVALID_REFINER_IDX;
 }
 
 template<typename TypeTraits>
-void FlowRefinerAdapter<TypeTraits>::initialize(const size_t max_parallelism) {
-  _unused_refiners.clear();
-  for ( size_t i = 0; i < max_parallelism; ++i ) {
-    _unused_refiners.push(i);
-  }
-  _active_searches.clear();
+void FlowRefinerAdapter<TypeTraits>::initialize() {
   _num_refinements = 0;
   _average_running_time = 0.0;
 }

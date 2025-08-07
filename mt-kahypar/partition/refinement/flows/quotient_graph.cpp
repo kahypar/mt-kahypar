@@ -45,7 +45,7 @@ void QuotientGraphEdge::add_hyperedge(const HyperedgeID he, const HyperedgeWeigh
 
 void QuotientGraphEdge::reset() {
   cut_hes.clear();
-  ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
+  ownership.store(false, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
   num_cut_hes.store(0, std::memory_order_relaxed);
   cut_he_weight.store(0, std::memory_order_relaxed);
@@ -53,38 +53,20 @@ void QuotientGraphEdge::reset() {
 
 
 QuotientGraph::QuotientGraph(const HyperedgeID num_hyperedges, const Context& context) :
-  _context(context),
   _initial_num_edges(num_hyperedges),
   _current_num_edges(kInvalidHyperedge),
   _quotient_graph(context.partition.k,
-    vec<QuotientGraphEdge>(context.partition.k)),
-  _register_search_lock(),
-  _num_active_searches(0),
-  _searches() {
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
+    vec<QuotientGraphEdge>(context.partition.k)) {
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
       _quotient_graph[i][j].blocks.i = i;
       _quotient_graph[i][j].blocks.j = j;
     }
   }
 }
 
-BlockPair QuotientGraph::getBlockPair(const SearchID search_id) const {
-  ASSERT(search_id < _searches.size());
-  return _searches[search_id].blocks;
-}
-
-size_t QuotientGraph::getRound(const SearchID search_id) const {
-  ASSERT(search_id < _searches.size());
-  return _searches[search_id].round;
-}
-
 vec<vec<QuotientGraphEdge>>& QuotientGraph::getGraph() {
   return _quotient_graph;
-}
-
-size_t QuotientGraph::numActiveSearches() const {
-  return _num_active_searches;
 }
 
 template<typename PartitionedHypergraph>
@@ -102,34 +84,14 @@ void QuotientGraph::addNewCutHyperedges(const PartitionedHypergraph& phg, const 
   }
 }
 
-void QuotientGraph::finalizeConstruction(const SearchID search_id) {
-  ASSERT(search_id < _searches.size());
-  _searches[search_id].is_finalized = true;
-  const BlockPair& blocks = _searches[search_id].blocks;
-  _quotient_graph[blocks.i][blocks.j].release(search_id);
-}
-
-void QuotientGraph::finalizeSearch(const SearchID search_id, const HyperedgeWeight total_improvement) {
-  ASSERT(search_id < _searches.size());
-  ASSERT(_searches[search_id].is_finalized);
-
-  const BlockPair& blocks = _searches[search_id].blocks;
-  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  if ( total_improvement > 0 ) {
-    // If the search improves the quality of the partition, we reinsert
-    // all hyperedges that were used by the search and are still cut.
-    ++qg_edge.num_improvements_found;
-    qg_edge.total_improvement += total_improvement;
-  }
-  --_num_active_searches;
-}
-
 template<typename PartitionedHypergraph>
 void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
-  // Reset internal members
-  resetQuotientGraphEdges();
-  _num_active_searches.store(0, std::memory_order_relaxed);
-  _searches.clear();
+  // Reset quotient graph edges
+  for ( size_t i = 0; i < _quotient_graph.size(); ++i ) {
+    for ( size_t j = i + 1; j < _quotient_graph[i].size(); ++j ) {
+      _quotient_graph[i][j].reset();
+    }
+  }
 
   // Find all cut hyperedges between the blocks
   tbb::enumerable_thread_specific<HyperedgeID> local_num_hes(0);
@@ -147,13 +109,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
 }
 
-HyperedgeWeight QuotientGraph::getCutHyperedgeWeightOfBlockPair(const PartitionID i, const PartitionID j) const {
-  ASSERT(i < j);
-  ASSERT(0 <= i && i < _context.partition.k);
-  ASSERT(0 <= j && j < _context.partition.k);
-  return _quotient_graph[i][j].cut_he_weight;
-}
-
 void QuotientGraph::changeNumberOfBlocks(const PartitionID new_k) {
   // Reset improvement history as the number of blocks had changed
   for ( size_t i = 0; i < _quotient_graph.size(); ++i ) {
@@ -166,14 +121,6 @@ void QuotientGraph::changeNumberOfBlocks(const PartitionID new_k) {
   if ( static_cast<size_t>(new_k) > _quotient_graph.size() ) {
     _quotient_graph.clear();
     _quotient_graph.assign(new_k, vec<QuotientGraphEdge>(new_k));
-  }
-}
-
-void QuotientGraph::resetQuotientGraphEdges() {
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].reset();
-    }
   }
 }
 

@@ -92,65 +92,10 @@ void executeConcurrent(F f1, K f2) {
 
 TEST_F(AFlowRefinerAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
   refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
-  refiner->initialize(2);
+  refiner->initialize();
 
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  ASSERT_TRUE(refiner->registerNewSearch(1, phg));
-  ASSERT_FALSE(refiner->registerNewSearch(2, phg));
-}
-
-TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
-  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
-  refiner->initialize(2);
-
-  FlowRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t) -> MoveSequence {
-      return MoveSequence { {}, 0 };
-    };
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  refiner->refine(0, phg, {});
-  refiner->finalizeSearch(0);
-}
-
-TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
-  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
-  refiner->initialize(2);
-
-  std::atomic<size_t> cnt(0);
-  FlowRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t) -> MoveSequence {
-      ++cnt;
-      while ( cnt < 2 ) { }
-      return MoveSequence { {}, 0 };
-    };
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  FlowRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t) -> MoveSequence {
-      ++cnt;
-      return MoveSequence { {}, 0 };
-    };
-  ASSERT_TRUE(refiner->registerNewSearch(1, phg));
-  executeConcurrent([&] {
-    refiner->refine(0, phg, {});
-  }, [&] {
-    while ( cnt < 1 ) { }
-    refiner->refine(1, phg, {});
-  });
-  refiner->finalizeSearch(0);
-  refiner->finalizeSearch(1);
-}
-
-TEST_F(AFlowRefinerAdapter, UsesMoreThreadsIfOneRefinerTermiantes) {
-  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
-  refiner->initialize(2);
-
-  FlowRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t) -> MoveSequence {
-      return MoveSequence { {}, 0 };
-    };
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  refiner->refine(0, phg, {});
-  refiner->finalizeSearch(0);
+  refiner->registerNewSearch(phg, 0);
+  refiner->registerNewSearch(phg, 1);
 }
 
 }
