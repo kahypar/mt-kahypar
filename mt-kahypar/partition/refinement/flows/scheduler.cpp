@@ -72,8 +72,49 @@ class TimeLimitTracker {
   double average_running_time;
 };
 
-template<typename GraphAndGainTypes>
-void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_stats() {
+
+namespace {
+
+  static constexpr size_t PROGRESS_BAR_SIZE = 50;
+
+  template<typename F>
+  std::string progress_bar(const size_t value, const size_t max, const F& f) {
+    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
+    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
+    std::stringstream pbar_str;
+    pbar_str << "|"
+             << f(percentage) << std::string(ticks, '|') << END
+             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
+             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
+    return pbar_str.str();
+  }
+}
+
+RefinementStats::RefinementStats(utils::Stats& stats) :
+  _stats(stats),
+  num_refinements(0),
+  num_improvements(0),
+  num_time_limits(0),
+  correct_expected_improvement(0),
+  zero_gain_improvement(0),
+  failed_updates_due_to_conflicting_moves(0),
+  failed_updates_due_to_conflicting_moves_without_rollback(0),
+  failed_updates_due_to_balance_constraint(0),
+  total_improvement(0) { }
+
+void RefinementStats::reset() {
+  num_refinements.store(0);
+  num_improvements.store(0);
+  num_time_limits.store(0);
+  correct_expected_improvement.store(0);
+  zero_gain_improvement.store(0);
+  failed_updates_due_to_conflicting_moves.store(0);
+  failed_updates_due_to_conflicting_moves_without_rollback.store(0);
+  failed_updates_due_to_balance_constraint.store(0);
+  total_improvement.store(0);
+}
+
+void RefinementStats::update_global_stats() {
   _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
   _stats.update_stat("num_flow_improvement",
@@ -93,6 +134,75 @@ void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_
   _stats.update_stat("total_flow_refinement_improvement",
     total_improvement.load(std::memory_order_relaxed));
 }
+
+std::ostream & operator<< (std::ostream& str, const RefinementStats& stats) {
+  str << "\n";
+  str << "Total Improvement                   = " << stats.total_improvement << "\n";
+  str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
+  str << "+ No Improvements                   = "
+      << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
+  str << "+ Number of Improvements            = "
+      << progress_bar(stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
+  str << "  + Correct Expected Improvements   = "
+      << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
+  str << "  + Incorrect Expected Improvements = "
+      << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
+  str << "  + Zero-Gain Improvements          = "
+      << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
+          [&](const double) { return WHITE; }) << "\n";
+  str << "+ Failed due to Balance Constraint  = "
+      << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Failed due to Conflicting Moves   = "
+      << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Time Limits                       = "
+      << progress_bar(stats.num_time_limits, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
+  str << "---------------------------------------------------------------";
+  return str;
+}
+
+std::string blocksToString(const BlockPair& blocks) {
+  return "(" + std::to_string(blocks.i) + "," + std::to_string(blocks.j) + ")";
+}
+
+template<typename GraphAndGainTypes>
+FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                                                                    const HyperedgeID num_hyperedges,
+                                                                    const Context& context,
+                                                                    GainCache& gain_cache) :
+  _phg(nullptr),
+  _context(context),
+  _gain_cache(gain_cache),
+  _current_k(context.partition.k),
+  _num_hyperedges(num_hyperedges),
+  _quotient_graph(num_hyperedges, context),
+  _active_block_scheduler(context, _quotient_graph.getGraph()),
+  _refiner(),
+  _constructor(num_hypernodes, num_hyperedges, context),
+  _was_moved(num_hypernodes, uint8_t(false)),
+  _part_weights_lock(),
+  _part_weights(context.partition.k, 0),
+  _max_part_weights(context.partition.k, 0),
+  _stats(utils::Utilities::instance().getStats(context.utility_id)),
+  _apply_moves_lock() {
+    for ( size_t i = 0; i < _context.shared_memory.num_threads; ++i ) {
+      _refiner.emplace_back(nullptr);
+    }
+  }
+
+template<typename GraphAndGainTypes>
+FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                                                                    const HyperedgeID num_hyperedges,
+                                                                    const Context& context,
+                                                                    gain_cache_t gain_cache) :
+  FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
+    GainCachePtr::cast<GainCache>(gain_cache)) { }
 
 template<typename GraphAndGainTypes>
 std::pair<BlockPair, size_t> FlowRefinementScheduler<GraphAndGainTypes>::requestNewSearch(PartitionedHypergraph& phg,
@@ -443,9 +553,12 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
 }
 
 template<typename GraphAndGainTypes>
-typename FlowRefinementScheduler<GraphAndGainTypes>::PartWeightUpdateResult
-FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
-                                                          const bool rollback) {
+const vec<HypernodeWeight>& FlowRefinementScheduler<GraphAndGainTypes>::partWeights() const {
+  return _part_weights;
+}
+
+template<typename GraphAndGainTypes>
+PartWeightUpdateResult FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;
   _part_weights_lock.lock();
