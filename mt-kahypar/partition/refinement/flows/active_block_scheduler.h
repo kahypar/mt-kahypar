@@ -42,17 +42,8 @@ static constexpr bool enable_heavy_assert = false;
  * Maintains the block pair of a round of the active block scheduling strategy
  */
 class ActiveBlockSchedulingRound {
-
-  public:
-  explicit ActiveBlockSchedulingRound(const Context& context,
-                                      vec<vec<QuotientGraphEdge>>& quotient_graph) :
-    _context(context),
-    _quotient_graph(quotient_graph),
-    _unscheduled_blocks(),
-    _round_improvement(0),
-    _active_blocks_lock(),
-    _active_blocks(context.partition.k, false),
-    _remaining_blocks(0) { }
+ public:
+  explicit ActiveBlockSchedulingRound(const Context& context, QuotientGraph& quotient_graph);
 
   // ! Pops a block pair from the queue.
   // ! Returns true, if a block pair was successfully popped from the queue.
@@ -86,7 +77,7 @@ class ActiveBlockSchedulingRound {
 
   const Context& _context;
   // ! Quotient graph
-  vec<vec<QuotientGraphEdge>>& _quotient_graph;
+  QuotientGraph& _quotient_graph;
   // ! Queue that contains all unscheduled block pairs of the current round
   tbb::concurrent_queue<BlockPair> _unscheduled_blocks;
   // ! Current improvement made in this round
@@ -112,19 +103,9 @@ class ActiveBlockSchedulingRound {
  * scheduled.
  */
 class ActiveBlockScheduler {
-
-  public:
+ public:
   explicit ActiveBlockScheduler(const Context& context,
-                                vec<vec<QuotientGraphEdge>>& quotient_graph) :
-    _context(context),
-    _quotient_graph(quotient_graph),
-    _num_rounds(0),
-    _rounds(),
-    _min_improvement_per_round(0),
-    _terminate(false),
-    _round_lock(),
-    _first_active_round(0),
-    _is_input_hypergraph(false) { }
+                                QuotientGraph& quotient_graph);
 
   ActiveBlockScheduler(const ActiveBlockScheduler&) = delete;
   ActiveBlockScheduler(ActiveBlockScheduler&&) = delete;
@@ -154,11 +135,11 @@ class ActiveBlockScheduler {
  private:
   void reset();
 
-  bool isActiveBlockPair(const PartitionID i, const PartitionID j) const;
+  bool isActiveBlockPair(const BlockPair& blocks) const;
 
   const Context& _context;
   // ! Quotient graph
-  vec<vec<QuotientGraphEdge>>& _quotient_graph;
+  QuotientGraph& _quotient_graph;
   // Contains all active block scheduling rounds
   CAtomic<size_t> _num_rounds;
   tbb::concurrent_vector<ActiveBlockSchedulingRound> _rounds;
