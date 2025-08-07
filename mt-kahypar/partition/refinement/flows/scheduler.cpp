@@ -86,7 +86,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
 
   std::atomic<HyperedgeWeight> overall_delta(0);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-  tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), _context.refinement.flows.num_parallel_searches, [&](const size_t i) {
     while ( i < std::max(UL(1), static_cast<size_t>(
         std::ceil(_active_block_scheduler.numRemainingBlocks() + _quotient_graph.numActiveSearches()))) ) {
       SearchID search_id = requestNewSearch(phg, _refiner);
@@ -130,7 +130,6 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
         break;
       }
     }
-    _refiner.terminateRefiner();
     DBG << RED << "Refiner" << i << "terminates!" << END;
   });
 

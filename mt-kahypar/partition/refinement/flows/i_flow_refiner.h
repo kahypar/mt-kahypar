@@ -57,17 +57,6 @@ class IFlowRefiner {
     return refineImpl(phg, sub_hg, start);
   }
 
-  // ! Returns the maximum number of blocks that can be refined
-  // ! per search with this refinement algorithm
-  PartitionID maxNumberOfBlocksPerSearch() const {
-    return maxNumberOfBlocksPerSearchImpl();
-  }
-
-  // ! Set the number of threads that is used for the next search
-  void setNumThreadsForSearch(const size_t num_threads) {
-    setNumThreadsForSearchImpl(num_threads);
-  }
-
   // ! Updates the time limit (in seconds)
   void updateTimeLimit(const double time_limit) {
     _time_limit = time_limit;
@@ -85,10 +74,6 @@ class IFlowRefiner {
   virtual MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& phg,
                                   const Subhypergraph& sub_hg,
                                   const HighResClockTimepoint& start) = 0;
-
-  virtual PartitionID maxNumberOfBlocksPerSearchImpl() const = 0;
-
-  virtual void setNumThreadsForSearchImpl(const size_t num_threads) = 0;
 };
 
 }  // namespace mt_kahypar

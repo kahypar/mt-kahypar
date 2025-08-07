@@ -51,50 +51,6 @@ class FlowRefinerAdapter {
     bool reaches_time_limit;
   };
 
-  struct ThreadOrganizer {
-    ThreadOrganizer() :
-      lock(),
-      num_threads(0),
-      num_used_threads(0),
-      num_parallel_refiners(0),
-      num_active_refiners(0) { }
-
-    size_t acquireFreeThreads() {
-      lock.lock();
-      const size_t num_threads_per_search =
-        std::max(UL(1), static_cast<size_t>(std::ceil(
-          static_cast<double>(num_threads - num_used_threads) /
-          ( num_parallel_refiners - num_active_refiners ) )));
-      const size_t num_free_threads = std::min(
-        num_threads_per_search, num_threads - num_used_threads);
-      ++num_active_refiners;
-      num_used_threads += num_free_threads;
-      lock.unlock();
-      return num_free_threads;
-    }
-
-    void releaseThreads(const size_t num_threads) {
-      lock.lock();
-      ASSERT(num_threads <= num_used_threads);
-      ASSERT(num_active_refiners);
-      num_used_threads -= num_threads;
-      --num_active_refiners;
-      lock.unlock();
-    }
-
-    void terminateRefiner() {
-      lock.lock();
-      --num_parallel_refiners;
-      lock.unlock();
-    }
-
-    SpinLock lock;
-    size_t num_threads;
-    size_t num_used_threads;
-    size_t num_parallel_refiners;
-    size_t num_active_refiners;
-  };
-
 public:
   explicit FlowRefinerAdapter(const HyperedgeID num_hyperedges,
                               const Context& context) :
@@ -104,8 +60,6 @@ public:
     _refiner(),
     _search_lock(),
     _active_searches(),
-    _threads(),
-    _num_parallel_refiners(0),
     _num_refinements(0),
     _average_running_time(0.0) {
     for ( size_t i = 0; i < _context.shared_memory.num_threads; ++i ) {
@@ -139,14 +93,6 @@ public:
   // ! available again
   void finalizeSearch(const SearchID search_id);
 
-  void terminateRefiner() {
-    _threads.terminateRefiner();
-  }
-
-  size_t numAvailableRefiner() const {
-    return _num_parallel_refiners;
-  }
-
   double runningTime(const SearchID search_id) const {
     ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
     return _active_searches[search_id].running_time;
@@ -156,11 +102,6 @@ public:
     return shouldSetTimeLimit() ?
       std::max(_context.refinement.flows.time_limit_factor *
         _average_running_time, 0.1) : std::numeric_limits<double>::max();
-  }
-
-  // ! Only for testing
-  size_t numUsedThreads() const {
-    return _threads.num_used_threads;
   }
 
 private:
@@ -181,9 +122,6 @@ private:
   // ! Mapping from search id to refiner
   SpinLock _search_lock;
   tbb::concurrent_vector<ActiveSearch> _active_searches;
-
-  ThreadOrganizer _threads;
-  size_t _num_parallel_refiners;
 
   size_t _num_refinements;
   double _average_running_time;
