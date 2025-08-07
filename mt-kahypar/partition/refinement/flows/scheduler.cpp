@@ -88,8 +88,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
     while ( i < std::max(UL(1), static_cast<size_t>(
-        std::ceil(_context.refinement.flows.parallel_searches_multiplier *
-            (_active_block_scheduler.numRemainingBlocks() + _quotient_graph.numActiveSearches()) ))) ) {
+        std::ceil(_active_block_scheduler.numRemainingBlocks() + _quotient_graph.numActiveSearches()))) ) {
       SearchID search_id = requestNewSearch(phg, _refiner);
       if ( search_id != INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id

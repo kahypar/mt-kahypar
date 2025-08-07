@@ -157,7 +157,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_refine_lp_algorithm=" << context.refinement.global.lp_algorithm
         << " global_refine_lp_unconstrained=" << std::boolalpha << context.refinement.global.lp_unconstrained;
     oss << " flow_algorithm=" << context.refinement.flows.algorithm
-        << " flow_parallel_searches_multiplier=" << context.refinement.flows.parallel_searches_multiplier
         << " flow_num_parallel_searches=" << context.refinement.flows.num_parallel_searches
         << " flow_max_bfs_distance=" << context.refinement.flows.max_bfs_distance
         << " flow_min_relative_improvement_per_round=" << context.refinement.flows.min_relative_improvement_per_round
