@@ -83,6 +83,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   const Hypergraph& hg = Base::currentHypergraph();
   HypernodeID num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
+
   vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
   tbb::parallel_for(ID(0), num_nodes, [&](HypernodeID u) {
     cluster_weight[u] = hg.nodeWeight(u);
@@ -158,14 +159,12 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
         } else {
           cluster_weights_to_fix.push_back_buffered(u);
         }
-        bool accept_fixed_vertex_contraction = true;
         if constexpr (has_fixed_vertices) {
-          accept_fixed_vertex_contraction = fixed_vertices.contract(target, u);
+          bool success = fixed_vertices.contractWithoutChains(target, u);
+          ASSERT(success); unused(success);
         }
-        if (accept_fixed_vertex_contraction) {
-          clusters[u] = target;
-          cluster_weight[target] = opportunistic_cluster_weight[target];
-        }
+        clusters[u] = target;
+        cluster_weight[target] = opportunistic_cluster_weight[target];
       } else {
         if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
           // node u could still not move
@@ -257,7 +256,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
     double target_score = entry.value;
     bool accept_fixed_vertex_contraction = true;
     if constexpr ( has_fixed_vertices ) {
-      accept_fixed_vertex_contraction = FixedVertexAcceptancePolicy::acceptContraction(hg, fixed_vertices, _context, target_cluster,u);
+      accept_fixed_vertex_contraction = FixedVertexAcceptancePolicy::acceptContraction(hg, fixed_vertices, _context, target_cluster, u);
     }
 
     if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u
@@ -320,8 +319,9 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
         if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
           break;
         }
-        if (has_fixed_vertices && !fixed_vertices.contract(target, v)) {
-          continue;
+        if constexpr (has_fixed_vertices) {
+          bool success = fixed_vertices.contractWithoutChains(target, v);
+          ASSERT(success); unused(success);
         }
         clusters[v] = target;
         target_weight += hg.nodeWeight(v);

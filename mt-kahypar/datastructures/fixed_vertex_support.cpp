@@ -33,6 +33,16 @@ namespace ds {
 
 template<typename Hypergraph>
 bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const HypernodeID v) {
+  return contractImpl(u, v, false);
+}
+
+template<typename Hypergraph>
+bool FixedVertexSupport<Hypergraph>::contractWithoutChains(const HypernodeID u, const HypernodeID v) {
+  return contractImpl(u, v, true);
+}
+
+template<typename Hypergraph>
+bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const HypernodeID v, bool ignore_v) {
   ASSERT(_hg);
   ASSERT(u < _num_nodes && v < _num_nodes);
   bool success = true;
@@ -99,7 +109,7 @@ bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const Hyperno
   }
   _fixed_vertex_data[u].sync.unlock();
 
-  if ( v_becomes_fixed ) {
+  if ( !ignore_v && v_becomes_fixed ) {
     // Our contraction algorithm ensures that there are no concurrent contractions onto v
     // if v is contracted onto another node. We therefore can set the fixed vertex block of
     // v outside the lock
