@@ -39,11 +39,47 @@ static size_t align_to_next_power_of_two(const size_t size) {
 }
 
 template<typename TypeTraits>
+DeterministicMultilevelCoarsener<TypeTraits>::DeterministicMultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
+                                                                               const Context& context,
+                                                                               uncoarsening_data_t* uncoarseningData) :
+  Base(utils::cast<Hypergraph>(hypergraph),
+        context,
+        uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+  config(context),
+  initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+  propositions(),
+  cluster_weight(),
+  opportunistic_cluster_weight(),
+  nodes_in_too_heavy_clusters(),
+  default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+  cache_efficient_rating_maps(0.0),
+  pass(0),
+  progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
+  cluster_weights_to_fix(),
+  bloom_filter_mask(0),
+  bloom_filters() {
+
+  // Initialize internal data structures parallel
+  tbb::parallel_invoke([&] {
+    propositions.resize(_hg.initialNumNodes());
+  }, [&] {
+    cluster_weight.resize(_hg.initialNumNodes(), 0);
+  }, [&] {
+    opportunistic_cluster_weight.resize(_hg.initialNumNodes(), 0);
+  }, [&] {
+    nodes_in_too_heavy_clusters.adapt_capacity(_hg.initialNumNodes());
+  }, [&] {
+    cluster_weights_to_fix.adapt_capacity(_hg.initialNumNodes());
+  });
+  initializeEdgeDeduplication();
+}
+
+template<typename TypeTraits>
 bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   const auto pass_start_time = std::chrono::high_resolution_clock::now();
-  timer.start_timer("coarsening_pass", "Clustering");
 
+  timer.start_timer("coarsening_pass", "Clustering");
   const Hypergraph& hg = Base::currentHypergraph();
   HypernodeID num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
@@ -70,8 +106,8 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
       clusterNodesInRange<false>(clusters, num_nodes, first, last, fixed_vertices);
     }
   }
-
   timer.stop_timer("coarsening_pass");
+
   ++pass;
   if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
     return false;
@@ -350,10 +386,9 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::useLargeRatingMapForRatingOfH
 }
 
 template<typename TypeTraits>
-void DeterministicMultilevelCoarsener<TypeTraits>::initializeEdgeDeduplication(mt_kahypar_hypergraph_t hypergraph) {
-  auto& hg = utils::cast<Hypergraph>(hypergraph);
+void DeterministicMultilevelCoarsener<TypeTraits>::initializeEdgeDeduplication() {
   if constexpr (!Hypergraph::is_graph) {
-    size_t max_edge_size = hg.maxEdgeSize();
+    size_t max_edge_size = _hg.maxEdgeSize();
     bloom_filter_mask = align_to_next_power_of_two(std::min<size_t>(10 * max_edge_size, initial_num_nodes)) - 1;
     bloom_filters = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>(bloom_filter_mask + 1);
   }

@@ -70,23 +70,7 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 public:
   DeterministicMultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
                                    const Context& context,
-                                   uncoarsening_data_t* uncoarseningData) :
-    Base(utils::cast<Hypergraph>(hypergraph),
-         context,
-         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
-    config(context),
-    initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    propositions(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    cluster_weight(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0),
-    opportunistic_cluster_weight(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0),
-    nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
-    cache_efficient_rating_maps(0.0),
-    pass(0),
-    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
-    cluster_weights_to_fix(utils::cast<Hypergraph>(hypergraph).initialNumNodes()) {
-    initializeEdgeDeduplication(hypergraph);
-  }
+                                   uncoarsening_data_t* uncoarseningData);
 
   ~DeterministicMultilevelCoarsener() {
 
@@ -162,7 +146,7 @@ private:
 
   bool useLargeRatingMapForRatingOfHypernode(const Hypergraph& hypergraph, const HypernodeID u);
 
-  void initializeEdgeDeduplication(mt_kahypar_hypergraph_t hypergraph);
+  void initializeEdgeDeduplication();
 
   using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Base::_hg;

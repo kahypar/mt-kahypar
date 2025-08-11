@@ -40,7 +40,10 @@ class BufferedVector {
 public:
   using vec_t = std::vector<T, tbb::scalable_allocator<T>>;
 
-  BufferedVector(size_t max_size) :
+  BufferedVector() : BufferedVector(0)
+  { }
+
+  explicit BufferedVector(size_t max_size) :
     data(max_size, T()),
     buffers([&] { vec_t x; x.reserve(MAX_BUFFER_SIZE); return x; })
   { }
