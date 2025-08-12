@@ -123,7 +123,6 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
   // between the involved block associated with the search
   bfs.clearQueue();
   auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
-  ASSERT(cut_hes.size() == quotient_graph.edge(blocks).num_cut_hes);
   std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
   for ( size_t i = 0; i < cut_hes.size(); ++i ) {
     const HyperedgeID he = cut_hes[i];
