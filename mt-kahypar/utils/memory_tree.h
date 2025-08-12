@@ -29,6 +29,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <cstdint>
 
 namespace mt_kahypar::utils {
 
