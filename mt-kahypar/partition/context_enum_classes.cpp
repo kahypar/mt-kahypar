@@ -251,6 +251,7 @@ namespace mt_kahypar {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
       case FlowAlgorithm::mock: return os << "mock";
       case FlowAlgorithm::do_nothing: return os << "do_nothing";
+      case FlowAlgorithm::deterministic: return os << "deterministic";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -484,6 +485,8 @@ namespace mt_kahypar {
       return FlowAlgorithm::flow_cutter;
     } else if (type == "do_nothing") {
       return FlowAlgorithm::do_nothing;
+    } else if (type == "deterministic") {
+      return FlowAlgorithm::deterministic;
     }
     throw InvalidParameterException("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;
