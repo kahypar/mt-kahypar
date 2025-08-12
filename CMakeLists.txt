@@ -336,7 +336,7 @@ endif()
 include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
 set(KAHYPAR_WHFC_TAG             30b0eeb0e49577d06c3deb09a44b035d81c529d2)
-set(KAHYPAR_GROWT_TAG            0c1148ebcdfd4c04803be79706533ad09cc81d37)
+set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_TBB_VERSION          v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
@@ -362,14 +362,14 @@ target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools)
 
 if(KAHYPAR_USE_GROWT)
+  # Note: we use our own fork of growt since growt is no longer maintained and we need to fix some errors
   FetchContent_Populate(
     growt QUIET EXLUDE_FROM_ALL
-    GIT_REPOSITORY https://github.com/TooBiased/growt.git
+    GIT_REPOSITORY https://github.com/N-Maas/growt.git
     GIT_TAG        ${KAHYPAR_GROWT_TAG}
     SOURCE_DIR     external_tools/growt
   )
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
-  target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external_tools/growt)
 endif()
 
 if(NOT KAHYPAR_DISABLE_PARLAY)
