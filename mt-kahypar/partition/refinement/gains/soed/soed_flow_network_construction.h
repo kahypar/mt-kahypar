@@ -38,6 +38,8 @@ namespace mt_kahypar {
  * is relevant for optimizing the objective function.
  */
 struct SoedFlowNetworkConstruction {
+  static constexpr bool is_exact_model = true;
+
   template<typename PartitionedHypergraph>
   static FlowNetworkEdgeParameters getParameters(const PartitionedHypergraph& phg,
                                                  const Context&,

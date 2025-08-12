@@ -168,7 +168,8 @@ enum class FMAlgorithm : uint8_t {
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
-  do_nothing
+  do_nothing,
+  deterministic
 };
 
 enum class RebalancingAlgorithm : uint8_t {
