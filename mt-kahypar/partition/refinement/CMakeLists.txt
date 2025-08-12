@@ -18,6 +18,7 @@ set(RefinementSources
         flows/sequential_construction.cpp
         flows/parallel_construction.cpp
         flows/flow_hypergraph_builder.cpp
+        flows/deterministic/deterministic_scheduler.cpp
         )
 
 set(Km1Sources

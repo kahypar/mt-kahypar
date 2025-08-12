@@ -625,7 +625,8 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Flow Algorithms:\n"
              "- do_nothing\n"
-             "- flow_cutter")
+             "- flow_cutter\n"
+             "- deterministic")
             ((initial_partitioning ? "i-r-flow-max-bfs-distance" : "r-flow-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),
