@@ -118,6 +118,8 @@ private:
 
   void resizeDataStructuresForCurrentK();
 
+  std::unique_ptr<IFlowRefiner> constructFlowRefiner();
+
   template<typename F>
   HyperedgeWeight runFlowSearch(PartitionedHypergraph& phg,
                                 utils::Timer& timer,
