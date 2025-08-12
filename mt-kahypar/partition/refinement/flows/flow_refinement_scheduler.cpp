@@ -550,7 +550,7 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
 
   _apply_moves_lock.unlock();
 
-  if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
+  if ( sequence.state == MoveSequenceState::SUCCESS ) {
     _quotient_graph.addNewCutHyperedges(*_phg, new_cut_hes);
     _stats.total_improvement += improvement;
   }
