@@ -47,6 +47,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 
 
 namespace mt_kahypar {
@@ -84,6 +85,11 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
 
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
+                                IRefiner,
+                                kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                DeterministicFlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
@@ -251,6 +257,9 @@ void register_refinement_algorithms() {
 
   REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                     FlowSchedulerDispatcher,
+                                    getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::deterministic,
+                                    DeterministicFlowSchedulerDispatcher,
                                     getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
