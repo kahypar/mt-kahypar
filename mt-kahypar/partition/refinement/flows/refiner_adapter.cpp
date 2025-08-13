@@ -79,20 +79,9 @@ MoveSequence FlowRefinerAdapter<TypeTraits>::refine(const SearchID search_id,
   mt_kahypar_partitioned_hypergraph_const_t partitioned_hg =
     utils::partitioned_hg_const_cast(phg);
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
-  const size_t num_free_threads = _threads.acquireFreeThreads();
-  _refiner[refiner_idx]->setNumThreadsForSearch(num_free_threads);
   MoveSequence moves = _refiner[refiner_idx]->refine(partitioned_hg, sub_hg, _active_searches[search_id].start);
-  _threads.releaseThreads(num_free_threads);
   _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;
-}
-
-template<typename TypeTraits>
-PartitionID FlowRefinerAdapter<TypeTraits>::maxNumberOfBlocks(const SearchID search_id) {
-  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
-  ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
-  const size_t refiner_idx = _active_searches[search_id].refiner_idx;
-  return _refiner[refiner_idx]->maxNumberOfBlocksPerSearch();
 }
 
 template<typename TypeTraits>
@@ -126,14 +115,8 @@ void FlowRefinerAdapter<TypeTraits>::finalizeSearch(const SearchID search_id) {
 
 template<typename TypeTraits>
 void FlowRefinerAdapter<TypeTraits>::initialize(const size_t max_parallelism) {
-  _num_parallel_refiners = max_parallelism;
-  _threads.num_threads = _context.shared_memory.num_threads;
-  _threads.num_parallel_refiners = max_parallelism;
-  _threads.num_active_refiners = 0;
-  _threads.num_used_threads = 0;
-
   _unused_refiners.clear();
-  for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
+  for ( size_t i = 0; i < max_parallelism; ++i ) {
     _unused_refiners.push(i);
   }
   _active_searches.clear();
