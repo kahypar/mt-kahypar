@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/active_block_scheduler.h"
@@ -182,8 +184,7 @@ public:
    * the balance constaint and not worsen solution quality.
    * Returns, improvement in solution quality.
    */
-  HyperedgeWeight applyMoves(const SearchID search_id,
-                             MoveSequence& sequence);
+  HyperedgeWeight applyMoves(const uint32_t search_id, MoveSequence& sequence);
 
   /**
    * Returns the current weight of each block.
@@ -213,16 +214,17 @@ private:
    * Returns a new search id which is associated with a certain number
    * of block pairs. The corresponding search can request hyperedges
    * with the search id that are cut between the corresponding blocks
-   * associated with the search. If there are currently no block pairs
-   * available then INVALID_SEARCH_ID is returned.
+   * associated with the search.
    */
-  SearchID requestNewSearch(PartitionedHypergraph& phg, FlowRefinerAdapter<TypeTraits>& refiner);
+  std::pair<BlockPair, size_t> requestNewSearch(PartitionedHypergraph& phg,
+                                                FlowRefinerAdapter<TypeTraits>& refiner,
+                                                std::atomic_uint32_t& num_actives_searches,
+                                                size_t refiner_idx);
 
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
 
-  std::string blocksOfSearch(const SearchID search_id) {
-    const BlockPair blocks = _quotient_graph.getBlockPair(search_id);
+  std::string blocksToString(const BlockPair& blocks) {
     return "(" + std::to_string(blocks.i) + "," + std::to_string(blocks.j) + ")";
   }
 
