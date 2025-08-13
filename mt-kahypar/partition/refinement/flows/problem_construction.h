@@ -128,7 +128,7 @@ class ProblemConstruction {
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
   Subhypergraph construct(const SearchID search_id,
-                          QuotientGraph<TypeTraits>& quotient_graph,
+                          QuotientGraph& quotient_graph,
                           const PartitionedHypergraph& phg);
 
   void changeNumberOfBlocks(const PartitionID new_k);

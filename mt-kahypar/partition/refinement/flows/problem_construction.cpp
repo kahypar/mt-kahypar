@@ -101,7 +101,7 @@ namespace {
 
 template<typename TypeTraits>
 Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_id,
-                                                         QuotientGraph<TypeTraits>& quotient_graph,
+                                                         QuotientGraph& quotient_graph,
                                                          const PartitionedHypergraph& phg) {
   Subhypergraph sub_hg;
   BFSData& bfs = _local_bfs.local();
@@ -122,7 +122,7 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
   // We initialize the BFS with all cut hyperedges running
   // between the involved block associated with the search
   bfs.clearQueue();
-  quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
+  quotient_graph.doForAllCutHyperedgesOfSearch(phg, search_id, [&](const HyperedgeID& he) {
     bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
       max_weight_block_0, max_weight_block_1);
   });

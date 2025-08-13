@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/active_block_scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
@@ -152,6 +153,7 @@ public:
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _quotient_graph(num_hyperedges, context),
+    _active_block_scheduler(context, _quotient_graph.getGraph()),
     _refiner(num_hyperedges, context),
     _constructor(num_hypernodes, num_hyperedges, context),
     _was_moved(num_hypernodes, uint8_t(false)),
@@ -207,6 +209,15 @@ private:
 
   void resizeDataStructuresForCurrentK();
 
+    /**
+   * Returns a new search id which is associated with a certain number
+   * of block pairs. The corresponding search can request hyperedges
+   * with the search id that are cut between the corresponding blocks
+   * associated with the search. If there are currently no block pairs
+   * available then INVALID_SEARCH_ID is returned.
+   */
+  SearchID requestNewSearch(PartitionedHypergraph& phg, FlowRefinerAdapter<TypeTraits>& refiner);
+
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
 
@@ -222,7 +233,10 @@ private:
 
   // ! Contains information of all cut hyperedges between the
   // ! blocks of the partition
-  QuotientGraph<TypeTraits> _quotient_graph;
+  QuotientGraph _quotient_graph;
+
+  // ! Block scheduling logic
+  ActiveBlockScheduler _active_block_scheduler;
 
   // ! Maintains the flow refiner instances
   FlowRefinerAdapter<TypeTraits> _refiner;
