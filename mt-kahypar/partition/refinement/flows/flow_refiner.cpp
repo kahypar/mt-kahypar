@@ -148,7 +148,7 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
 
 template<typename GraphAndGainTypes>
 FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                 const Subhypergraph& sub_hg) {
+                                                                    const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);

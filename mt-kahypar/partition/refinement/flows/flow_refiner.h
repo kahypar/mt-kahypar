@@ -121,8 +121,8 @@ class FlowRefiner final : public IFlowRefiner {
   using IFlowRefiner::_time_limit;
   size_t _num_available_threads;
 
-  mutable PartitionID _block_0;
-  mutable PartitionID _block_1;
+  PartitionID _block_0;
+  PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
   whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
