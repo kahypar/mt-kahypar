@@ -40,12 +40,10 @@ class FlowRefinerAdapter {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static constexpr size_t INVALID_REFINER_IDX = std::numeric_limits<size_t>::max();
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   struct ActiveSearch {
-    size_t refiner_idx;
     HighResClockTimepoint start;
     double running_time;
     bool reaches_time_limit;
@@ -56,10 +54,8 @@ public:
                               const Context& context) :
     _num_hyperedges(num_hyperedges),
     _context(context),
-    _unused_refiners(),
     _refiner(),
     _search_lock(),
-    _active_searches(),
     _num_refinements(0),
     _average_running_time(0.0) {
     for ( size_t i = 0; i < _context.shared_memory.num_threads; ++i ) {
@@ -73,30 +69,21 @@ public:
   FlowRefinerAdapter & operator= (const FlowRefinerAdapter &) = delete;
   FlowRefinerAdapter & operator= (FlowRefinerAdapter &&) = delete;
 
-  void initialize(const size_t max_parallelism);
+  void initialize();
 
   // ! Associates a refiner with a search id.
   // ! Returns true, if there is an idle refiner left.
-  bool registerNewSearch(const SearchID search_id,
-                         const PartitionedHypergraph& phg);
+  void registerNewSearch(const PartitionedHypergraph& phg,
+                         const size_t refiner_idx);
 
-  MoveSequence refine(const SearchID search_id,
-                      const PartitionedHypergraph& phg,
-                      const Subhypergraph& sub_hg);
-
-  // ! Returns the maximum number of blocks which is allowed to be
-  // ! contained in the problem of the refiner associated with
-  // ! corresponding search id
-  PartitionID maxNumberOfBlocks(const SearchID search_id);
+  MoveSequence refine(const PartitionedHypergraph& phg,
+                      const Subhypergraph& sub_hg,
+                      HighResClockTimepoint start,
+                      size_t refiner_idx);
 
   // ! Makes the refiner associated with the corresponding search id
   // ! available again
-  void finalizeSearch(const SearchID search_id);
-
-  double runningTime(const SearchID search_id) const {
-    ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
-    return _active_searches[search_id].running_time;
-  }
+  void finalizeSearch(double running_time, bool reaches_time_limit);
 
   double timeLimit() const {
     return shouldSetTimeLimit() ?
@@ -115,13 +102,9 @@ private:
   const HyperedgeID _num_hyperedges;
   const Context& _context;
 
-  // ! Indices of unused refiners
-  tbb::concurrent_queue<size_t> _unused_refiners;
   // ! Available refiners
   vec<std::unique_ptr<IFlowRefiner>> _refiner;
-  // ! Mapping from search id to refiner
   SpinLock _search_lock;
-  tbb::concurrent_vector<ActiveSearch> _active_searches;
 
   size_t _num_refinements;
   double _average_running_time;

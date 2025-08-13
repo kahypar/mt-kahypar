@@ -26,6 +26,8 @@
 
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 
+#include <chrono>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -58,20 +60,23 @@ void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_
 }
 
 template<typename GraphAndGainTypes>
-SearchID FlowRefinementScheduler<GraphAndGainTypes>::requestNewSearch(PartitionedHypergraph& phg, FlowRefinerAdapter<TypeTraits>& refiner) {
+std::pair<BlockPair, size_t> FlowRefinementScheduler<GraphAndGainTypes>::requestNewSearch(PartitionedHypergraph& phg,
+                                                                                          FlowRefinerAdapter<TypeTraits>& refiner,
+                                                                                          std::atomic_uint32_t& num_actives_searches,
+                                                                                          size_t refiner_idx) {
   BlockPair blocks { kInvalidPartition, kInvalidPartition };
   size_t round = 0;
   bool success = _active_block_scheduler.popBlockPairFromQueue(blocks, round);
 
   if (success) {
-    SearchID search_id = _quotient_graph.requestNewSearch(phg, refiner, blocks, round);
-    if (search_id == INVALID_SEARCH_ID) {
+    if ( _quotient_graph.edge(blocks).acquire() ) {
+      num_actives_searches.fetch_add(1, std::memory_order_relaxed);
+      refiner.registerNewSearch(phg, refiner_idx);
+    } else {
       _active_block_scheduler.finalizeSearch(blocks, round, 0);
     }
-    return search_id;
-  } else {
-    return INVALID_SEARCH_ID;
   }
+  return {blocks, round};
 }
 
 template<typename GraphAndGainTypes>
@@ -85,25 +90,31 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
   _active_block_scheduler.setObjective(best_metrics.quality);
 
   std::atomic<HyperedgeWeight> overall_delta(0);
+  std::atomic_uint32_t search_id_counter(0);
+  std::atomic_uint32_t num_actives_searches(0);
+
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   tbb::parallel_for(UL(0), _context.refinement.flows.num_parallel_searches, [&](const size_t i) {
-    while ( i < std::max(UL(1), _active_block_scheduler.numRemainingBlocks() + _quotient_graph.numActiveSearches()) ) {
-      SearchID search_id = requestNewSearch(phg, _refiner);
-      if ( search_id != INVALID_SEARCH_ID ) {
+    while ( i < std::max(UL(1), _active_block_scheduler.numRemainingBlocks() + num_actives_searches.load(std::memory_order_relaxed)) ) {
+      auto [blocks, round] = requestNewSearch(phg, _refiner, num_actives_searches, i);
+      if ( blocks.i != kInvalidPartition && blocks.j != kInvalidPartition ) {
+        uint32_t search_id = search_id_counter.fetch_add(1, std::memory_order_relaxed);
         DBG << "Start search" << search_id
-            << "( Blocks =" << blocksOfSearch(search_id)
+            << "( Blocks =" << blocksToString(blocks)
             << ", Refiner =" << i << ")";
+
         timer.start_timer("region_growing", "Grow Region", true);
-        const Subhypergraph sub_hg =
-          _constructor.construct(search_id, _quotient_graph, phg);
-        _quotient_graph.finalizeConstruction(search_id);
+        const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg);
+        _quotient_graph.edge(blocks).release();
         timer.stop_timer("region_growing");
 
         HyperedgeWeight delta = 0;
         bool improved_solution = false;
+        bool reaches_time_limit = false;
+        auto start = std::chrono::high_resolution_clock::now();
         if ( sub_hg.numNodes() > 0 ) {
           ++_stats.num_refinements;
-          MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
+          MoveSequence sequence = _refiner.refine(phg, sub_hg, start, i);
 
           if ( !sequence.moves.empty() ) {
             timer.start_timer("apply_moves", "Apply Moves", true);
@@ -112,19 +123,28 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             timer.stop_timer("apply_moves");
           } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
+            reaches_time_limit = true;
             ++_stats.num_time_limits;
             DBG << RED << "Search" << search_id << "reaches the time limit ( Time Limit ="
                 << _refiner.timeLimit() << "s )" << END;
           }
         }
-        _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
+        double time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
+
+        const HyperedgeWeight total_improvement = improved_solution ? delta : 0;
+        if ( total_improvement > 0 ) {
+          _quotient_graph.edge(blocks).num_improvements_found++;
+          _quotient_graph.edge(blocks).total_improvement += total_improvement;
+        }
+        num_actives_searches.fetch_sub(1, std::memory_order_relaxed);
+
         // In case the block pair becomes active, we reinsert it into the queue
-        _active_block_scheduler.finalizeSearch(_quotient_graph.getBlockPair(search_id), _quotient_graph.getRound(search_id), improved_solution ? delta : 0);
-        _refiner.finalizeSearch(search_id);
+        _active_block_scheduler.finalizeSearch(blocks, round, total_improvement);
+        _refiner.finalizeSearch(time, reaches_time_limit);
         DBG << "End search" << search_id
-            << "( Blocks =" << blocksOfSearch(search_id)
+            << "( Blocks =" << blocksToString(blocks)
             << ", Refiner =" << i
-            << ", Running Time =" << _refiner.runningTime(search_id) << ")";
+            << ", Running Time =" << time << ")";
       } else {
         break;
       }
@@ -189,7 +209,7 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
   DBG << "Initial Active Block Pairs =" << _active_block_scheduler.numRemainingBlocks()
       << ", Initial Num Threads =" << max_parallism;
-  _refiner.initialize(max_parallism);
+  _refiner.initialize();
 }
 
 template<typename GraphAndGainTypes>
@@ -273,7 +293,8 @@ void revertMoveSequence(PartitionedHypergraph& phg,
 } // namespace
 
 template<typename GraphAndGainTypes>
-HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const SearchID search_id, MoveSequence& sequence) {
+HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uint32_t search_id,
+                                                                       MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
