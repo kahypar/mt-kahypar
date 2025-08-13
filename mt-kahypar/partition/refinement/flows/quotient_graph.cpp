@@ -46,6 +46,7 @@ void QuotientGraphEdge::reset() {
   cut_hes.clear();
   ownership.store(false, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
+  was_previously_scheduled.store(false, std::memory_order_relaxed);
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
 

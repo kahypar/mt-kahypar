@@ -55,6 +55,7 @@ struct QuotientGraphEdge {
     blocks(),
     ownership(false),
     is_in_queue(false),
+    was_previously_scheduled(false),
     cut_hes(),
     cut_he_weight(0),
     num_improvements_found(0),
@@ -101,12 +102,19 @@ struct QuotientGraphEdge {
     return is_in_queue.compare_exchange_strong(expected, desired);
   }
 
+  // ! Marks quotient graph edge as alread scheduled
+  void markAsPreviouslyScheduled() {
+    was_previously_scheduled.store(true, std::memory_order_relaxed);
+  }
+
   // ! Block pair this quotient graph edge represents
   BlockPair blocks;
   // ! Ture, if there is an active search on this block pair
   CAtomic<bool> ownership;
   // ! True, if block is contained in block scheduler queue
   CAtomic<bool> is_in_queue;
+  // ! True, if block was already scheduled in a previous round (deterministic scheduler)
+  CAtomic<bool> was_previously_scheduled;
   // ! Cut hyperedges of block pair
   tbb::concurrent_vector<HyperedgeID> cut_hes;
   // ! Current weight of all cut hyperedges
