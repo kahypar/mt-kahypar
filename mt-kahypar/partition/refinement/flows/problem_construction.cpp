@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
@@ -102,7 +103,8 @@ namespace {
 template<typename TypeTraits>
 Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks,
                                                          QuotientGraph& quotient_graph,
-                                                         const PartitionedHypergraph& phg) {
+                                                         const PartitionedHypergraph& phg,
+                                                         bool deterministic) {
   Subhypergraph sub_hg;
   BFSData& bfs = _local_bfs.local();
   bfs.reset();
@@ -123,7 +125,13 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
   // between the involved block associated with the search
   bfs.clearQueue();
   auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
-  std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
+
+  if (deterministic) {
+    tbb::parallel_sort(cut_hes.begin(), cut_hes.end());
+  } else {
+    std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
+  }
+
   for ( size_t i = 0; i < cut_hes.size(); ++i ) {
     const HyperedgeID he = cut_hes[i];
     if ( phg.pinCountInPart(he, blocks.i) > 0 && phg.pinCountInPart(he, blocks.j) > 0 ) {

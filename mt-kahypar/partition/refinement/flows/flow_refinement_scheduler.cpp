@@ -218,7 +218,7 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::runFlowSearch(Partit
       << ", Refiner =" << refiner_idx << ")";
 
   timer.start_timer("region_growing", "Grow Region", true);
-  const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg);
+  const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg, /*deterministic=*/false);
   _quotient_graph.edge(blocks).release();
   timer.stop_timer("region_growing");
 
