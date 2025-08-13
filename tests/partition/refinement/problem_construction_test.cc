@@ -141,10 +141,8 @@ void verifyThatVertexSetAreDisjoint(const Subhypergraph& sub_hg_1, const Subhype
 TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
-  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
   QuotientGraph qg(hg.initialNumEdges(), context);
   ActiveBlockScheduler abs(context, qg.getGraph());
-  refiner.initialize();
   qg.initialize(phg);
   abs.initialize(true);
 
@@ -162,10 +160,8 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
 TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
-  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
   QuotientGraph qg(hg.initialNumEdges(), context);
   ActiveBlockScheduler abs(context, qg.getGraph());
-  refiner.initialize();
   qg.initialize(phg);
   abs.initialize(true);
 
@@ -183,10 +179,8 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
 TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
-  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
   QuotientGraph qg(hg.initialNumEdges(), context);
   ActiveBlockScheduler abs(context, qg.getGraph());
-  refiner.initialize();
   qg.initialize(phg);
   abs.initialize(true);
 

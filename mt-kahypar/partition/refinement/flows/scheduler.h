@@ -31,8 +31,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/active_block_scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
-#include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -154,16 +154,21 @@ public:
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
+    _num_hyperedges(num_hyperedges),
     _quotient_graph(num_hyperedges, context),
     _active_block_scheduler(context, _quotient_graph.getGraph()),
-    _refiner(num_hyperedges, context),
+    _refiner(),
     _constructor(num_hypernodes, num_hyperedges, context),
     _was_moved(num_hypernodes, uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
     _max_part_weights(context.partition.k, 0),
     _stats(utils::Utilities::instance().getStats(context.utility_id)),
-    _apply_moves_lock() { }
+    _apply_moves_lock() {
+      for ( size_t i = 0; i < _context.shared_memory.num_threads; ++i ) {
+        _refiner.emplace_back(nullptr);
+      }
+    }
 
   FlowRefinementScheduler(const HypernodeID num_hypernodes,
                           const HyperedgeID num_hyperedges,
@@ -217,9 +222,9 @@ private:
    * associated with the search.
    */
   std::pair<BlockPair, size_t> requestNewSearch(PartitionedHypergraph& phg,
-                                                FlowRefinerAdapter<TypeTraits>& refiner,
                                                 std::atomic_uint32_t& num_actives_searches,
-                                                size_t refiner_idx);
+                                                size_t refiner_idx,
+                                                double time_limit);
 
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
@@ -232,6 +237,7 @@ private:
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
+  HyperedgeID _num_hyperedges;
 
   // ! Contains information of all cut hyperedges between the
   // ! blocks of the partition
@@ -240,8 +246,8 @@ private:
   // ! Block scheduling logic
   ActiveBlockScheduler _active_block_scheduler;
 
-  // ! Maintains the flow refiner instances
-  FlowRefinerAdapter<TypeTraits> _refiner;
+  // ! Available flow refiners
+  vec<std::unique_ptr<IFlowRefiner>> _refiner;
 
   // ! Responsible for construction of an flow problems
   ProblemConstruction<TypeTraits> _constructor;
