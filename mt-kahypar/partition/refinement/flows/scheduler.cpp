@@ -70,9 +70,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
   std::atomic<HyperedgeWeight> overall_delta(0);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( i < std::max(UL(1), static_cast<size_t>(
-        std::ceil(_context.refinement.flows.parallel_searches_multiplier *
-            _quotient_graph.numActiveBlockPairs()))) ) {
+    while ( i < std::max(UL(1), _quotient_graph.numActiveBlockPairs()) ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph<TypeTraits>::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id

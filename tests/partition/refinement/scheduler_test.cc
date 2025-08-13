@@ -61,7 +61,6 @@ class AFlowRefinementScheduler : public Test {
 
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.parallel_searches_multiplier = 1.0;
     context.refinement.flows.max_bfs_distance = 2;
 
     phg.setOnlyNodePart(0, 0);
@@ -251,7 +250,6 @@ class AFlowRefinementEndToEnd : public Test {
     context.partition.objective = Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.parallel_searches_multiplier = 1.0;
     context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
