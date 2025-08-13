@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/partition/refinement/flows/active_block_scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
 
@@ -81,7 +82,7 @@ class AProblemConstruction : public Test {
 
   void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg,
                                                         const SearchID search_id,
-                                                        const QuotientGraph<TypeTraits>& qg) {
+                                                        const QuotientGraph& qg) {
     vec<HypernodeWeight> part_weights(context.partition.k, 0);
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
       part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
@@ -144,13 +145,19 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
   FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
-  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
+  QuotientGraph qg(hg.initialNumEdges(), context);
+  ActiveBlockScheduler abs(context, qg.getGraph());
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
+  abs.initialize(true);
 
   max_part_weights.assign(context.partition.k, 400);
   max_part_weights[2] = 300;
-  SearchID search_id = qg.requestNewSearch(refiner);
+
+  BlockPair blocks { kInvalidPartition, kInvalidPartition };
+  size_t round = 0;
+  ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
+  SearchID search_id = qg.requestNewSearch(phg, refiner, blocks, round);
   Subhypergraph sub_hg = constructor.construct(search_id, qg, phg);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
@@ -160,13 +167,19 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
   FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
-  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
+  QuotientGraph qg(hg.initialNumEdges(), context);
+  ActiveBlockScheduler abs(context, qg.getGraph());
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
+  abs.initialize(true);
 
   max_part_weights.assign(context.partition.k, 800);
   max_part_weights[2] = 500;
-  SearchID search_id = qg.requestNewSearch(refiner);
+
+  BlockPair blocks { kInvalidPartition, kInvalidPartition };
+  size_t round = 0;
+  ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
+  SearchID search_id = qg.requestNewSearch(phg, refiner, blocks, round);
   Subhypergraph sub_hg = constructor.construct(search_id, qg, phg);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
@@ -176,20 +189,28 @@ TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
   ProblemConstruction<TypeTraits> constructor(
     hg.initialNumNodes(), hg.initialNumEdges(), context);
   FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
-  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
+  QuotientGraph qg(hg.initialNumEdges(), context);
+  ActiveBlockScheduler abs(context, qg.getGraph());
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
+  abs.initialize(true);
 
   max_part_weights.assign(context.partition.k, 400);
 
   Subhypergraph sub_hg_1;
   Subhypergraph sub_hg_2;
   executeConcurrent([&] {
-    SearchID search_id = qg.requestNewSearch(refiner);
-     sub_hg_1 = constructor.construct(search_id, qg, phg);
+    BlockPair blocks { kInvalidPartition, kInvalidPartition };
+    size_t round = 0;
+    ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
+    SearchID search_id = qg.requestNewSearch(phg, refiner, blocks, round);
+    sub_hg_1 = constructor.construct(search_id, qg, phg);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1, search_id, qg);
   }, [&] {
-    SearchID search_id = qg.requestNewSearch(refiner);
+    BlockPair blocks { kInvalidPartition, kInvalidPartition };
+    size_t round = 0;
+    ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
+    SearchID search_id = qg.requestNewSearch(phg, refiner, blocks, round);
     sub_hg_2 = constructor.construct(search_id, qg, phg);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2, search_id, qg);
   });
