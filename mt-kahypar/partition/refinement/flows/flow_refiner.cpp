@@ -130,6 +130,9 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
     _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
             flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
 
+    if (_deterministic) {
+      _sequential_hfc.setSeed(_context.partition.seed);
+    }
     _sequential_hfc.reset();
     _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
     result = _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
@@ -139,6 +142,9 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
     _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
             flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
 
+    if (_deterministic) {
+      _parallel_hfc.setSeed(_context.partition.seed);
+    }
     _parallel_hfc.reset();
     _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
     result = _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
@@ -158,10 +164,10 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
   const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
   if ( sequential ) {
     flow_problem = _sequential_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, _deterministic);
   } else {
     flow_problem = _parallel_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, _deterministic);
   }
 
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
