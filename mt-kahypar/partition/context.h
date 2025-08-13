@@ -207,7 +207,6 @@ struct FlowParameters {
   HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
   bool find_most_balanced_cut = false;
   bool determine_distance_from_cut = false;
-  double parallel_searches_multiplier = 1.0;
   size_t num_parallel_searches = 0;
   size_t max_bfs_distance = 0;
   double min_relative_improvement_per_round = 0.0;
