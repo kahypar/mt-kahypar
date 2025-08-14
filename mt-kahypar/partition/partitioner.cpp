@@ -56,8 +56,9 @@ namespace mt_kahypar {
       context.partition.k = target_graph->numBlocks();
     }
 
-    context.partition.large_hyperedge_size_threshold = std::max(hypergraph.initialNumNodes() *
-                                                                context.partition.large_hyperedge_size_threshold_factor, 100.0);
+    context.partition.large_hyperedge_size_threshold =
+      std::max(static_cast<HypernodeID>(hypergraph.initialNumNodes() * context.partition.large_hyperedge_size_threshold_factor),
+               context.partition.smallest_large_he_size_threshold);
     context.sanityCheck(target_graph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());

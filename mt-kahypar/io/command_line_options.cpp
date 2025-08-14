@@ -140,7 +140,7 @@ namespace mt_kahypar {
             ("maxnet-ignore",
              po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name(
                      "<uint64_t>")->default_value(1000),
-             "Hyperedges larger than this threshold are ignored during partitioning.")
+             "Hyperedges larger than this threshold are partially ignored during partitioning.")
             ("show-detailed-timings",
              po::value<bool>(&context.partition.show_detailed_timings)->value_name("<bool>")->default_value(false),
              "If true, shows detailed subtimings of each multilevel phase at the end of the partitioning process.")
