@@ -157,10 +157,18 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
 
   const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
   if ( sequential ) {
-    flow_problem = _sequential_construction.constructFlowHypergraph(
+    if ( _sequential_construction == nullptr ) {
+      _sequential_construction = std::make_unique<SequentialConstruction<GraphAndGainTypes>>(
+        _num_hyperedges, _flow_hg, _sequential_hfc, _context);
+    }
+    flow_problem = _sequential_construction->constructFlowHypergraph(
       phg, sub_hg, _block_0, _block_1, _whfc_to_node);
   } else {
-    flow_problem = _parallel_construction.constructFlowHypergraph(
+    if ( _parallel_construction == nullptr ) {
+      _parallel_construction = std::make_unique<ParallelConstruction<GraphAndGainTypes>>(
+        _num_hyperedges, _flow_hg, _parallel_hfc, _context);
+    }
+    flow_problem = _parallel_construction->constructFlowHypergraph(
       phg, sub_hg, _block_0, _block_1, _whfc_to_node);
   }
 
