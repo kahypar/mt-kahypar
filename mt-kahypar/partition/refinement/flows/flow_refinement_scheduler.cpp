@@ -219,6 +219,10 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::runFlowSearch(Partit
   auto start = std::chrono::high_resolution_clock::now();
   if ( sub_hg.numNodes() > 0 ) {
     auto partitioned_hg = utils::partitioned_hg_const_cast(phg);
+
+    if (_refiner[refiner_idx] == nullptr) {
+      _refiner[refiner_idx] = constructFlowRefiner();
+    }
     _refiner[refiner_idx]->initialize(partitioned_hg);
     _refiner[refiner_idx]->updateTimeLimit(time_limit);
     MoveSequence sequence = _refiner[refiner_idx]->refine(partitioned_hg, sub_hg, start);
@@ -364,13 +368,6 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
     _part_weights[i] = phg.partWeight(i);
     _max_part_weights[i] = std::max(
       phg.partWeight(i), _context.partition.max_part_weights[i]);
-  }
-
-  // Initialize Refiners
-  for (auto& refiner: _refiner) {
-    if ( refiner == nullptr ) {
-      refiner = constructFlowRefiner();
-    }
   }
 
   // Initialize Quotient Graph and Scheduler

@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <tbb/concurrent_vector.h>
 
 #include "WHFC/algorithm/hyperflowcutter.h"
@@ -57,14 +59,15 @@ class FlowRefiner final : public IFlowRefiner {
                        const Context& context) :
     _phg(nullptr),
     _context(context),
+    _num_hyperedges(num_hyperedges),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
     _sequential_hfc(_flow_hg, context.partition.seed),
     _parallel_hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(num_hyperedges, _flow_hg, _sequential_hfc, context),
-    _parallel_construction(num_hyperedges, _flow_hg, _parallel_hfc, context) {
+    _sequential_construction(nullptr),
+    _parallel_construction(nullptr) {
       _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _sequential_hfc.timer.active = false;
       _sequential_hfc.forceSequential(true);
@@ -111,6 +114,7 @@ class FlowRefiner final : public IFlowRefiner {
   const Context& _context;
   using IFlowRefiner::_time_limit;
 
+  HyperedgeID _num_hyperedges;
   PartitionID _block_0;
   PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
@@ -118,7 +122,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction<GraphAndGainTypes> _sequential_construction;
-  ParallelConstruction<GraphAndGainTypes> _parallel_construction;
+  std::unique_ptr<SequentialConstruction<GraphAndGainTypes>> _sequential_construction;
+  std::unique_ptr<ParallelConstruction<GraphAndGainTypes>> _parallel_construction;
 };
 }  // namespace mt_kahypar
