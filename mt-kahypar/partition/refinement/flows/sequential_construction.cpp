@@ -37,6 +37,11 @@ namespace mt_kahypar {
 template<typename GraphAndGainTypes>
 whfc::Hyperedge SequentialConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add_if_not_contained(
   const whfc::Hyperedge he, const size_t he_hash, const vec<whfc::Node>& pins) {
+  if constexpr (PartitionedHypergraph::is_graph) {
+    // there can't be identical nets for graphs
+    return whfc::invalidHyperedge;
+  }
+
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
     // There exists already some hyperedges with the same hash

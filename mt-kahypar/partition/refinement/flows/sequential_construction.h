@@ -80,8 +80,10 @@ class SequentialConstruction {
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(1) {
-      _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
-        context.refinement.flows.num_parallel_searches));
+      if constexpr (!PartitionedHypergraph::is_graph) {
+        _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
+          std::max(UL(8), 2 * context.refinement.flows.num_parallel_searches)));
+      }
     }
 
     /**

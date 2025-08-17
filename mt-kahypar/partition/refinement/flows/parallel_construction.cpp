@@ -40,9 +40,15 @@ template<typename GraphAndGainTypes>
 typename ParallelConstruction<GraphAndGainTypes>::TmpHyperedge
 ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const size_t he_hash,
                                                                         const vec<whfc::Node>& pins) {
+  if constexpr (PartitionedHypergraph::is_graph) {
+    // there can't be identical nets for graphs
+    return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
+  }
+
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) == _threshold ) {
     // There exists already some hyperedges with the same hash
+    _hash_buckets[bucket_idx].lock.lock();
     for ( const ThresholdHyperedge& tmp : _hash_buckets[bucket_idx].identical_nets ) {
       // Check if there is some hyperedge equal to he
       const TmpHyperedge& tmp_e = tmp.e;
@@ -57,28 +63,33 @@ ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const
           }
         }
         if ( is_identical ) {
+          _hash_buckets[bucket_idx].lock.unlock();
           return tmp_e;
         }
       }
     }
+    _hash_buckets[bucket_idx].lock.unlock();
   }
   return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
 template<typename GraphAndGainTypes>
 void ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
-  const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
-  uint32_t expected = __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED);
-  uint32_t desired = _threshold - 1;
-  while ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) < _threshold ) {
-    if ( expected < desired &&
-        __atomic_compare_exchange(&_hash_buckets[bucket_idx].threshold,
-          &expected, &desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
-      _hash_buckets[bucket_idx].identical_nets.clear();
-      __atomic_store_n(&_hash_buckets[bucket_idx].threshold, _threshold, __ATOMIC_RELAXED);
-    }
+  if constexpr (PartitionedHypergraph::is_graph) {
+    // there can't be identical nets for graphs
+    return;
   }
-  _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
+
+  const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
+  HashBucket& bucket = _hash_buckets[bucket_idx];
+  bucket.lock.lock();
+  const uint32_t current = __atomic_load_n(&bucket.threshold, __ATOMIC_RELAXED);
+  if (current < _threshold) {
+      bucket.identical_nets.clear();
+      __atomic_store_n(&bucket.threshold, _threshold, __ATOMIC_RELAXED);
+  }
+  bucket.identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
+  bucket.lock.unlock();
 }
 
 template<typename GraphAndGainTypes>

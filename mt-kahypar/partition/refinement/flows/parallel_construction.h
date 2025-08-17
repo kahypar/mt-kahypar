@@ -32,6 +32,7 @@
 #include "WHFC/algorithm/hyperflowcutter.h"
 #include "WHFC/algorithm/parallel_push_relabel.h"
 
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/concurrent_flat_map.h"
@@ -74,8 +75,7 @@ class ParallelConstruction {
       const uint32_t threshold;
     };
 
-    using IdenticalNetVector = tbb::concurrent_vector<
-      ThresholdHyperedge, parallel::zero_allocator<ThresholdHyperedge>>;
+    using IdenticalNetVector = vec<ThresholdHyperedge>;
 
     struct HashBucket {
       HashBucket() :
@@ -84,6 +84,7 @@ class ParallelConstruction {
 
       IdenticalNetVector identical_nets;
       uint32_t threshold;
+      SpinLock lock;
     };
 
    public:
@@ -92,9 +93,11 @@ class ParallelConstruction {
                                           const Context& context) :
       _flow_hg(flow_hg),
       _hash_buckets(),
-      _threshold(2) {
-      _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
-        context.refinement.flows.num_parallel_searches));
+      _threshold(1) {
+      if constexpr (!PartitionedHypergraph::is_graph) {
+        _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
+          std::max(UL(8), 2 * context.refinement.flows.num_parallel_searches)));
+      }
     }
 
     TmpHyperedge get(const size_t he_hash,
@@ -103,7 +106,7 @@ class ParallelConstruction {
     void add(const TmpHyperedge& tmp_he);
 
     void reset() {
-      _threshold += 2;
+      _threshold++;
     }
 
    private:
