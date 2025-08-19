@@ -29,8 +29,8 @@
 #include <chrono>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -369,8 +369,7 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
   // Initialize Refiners
   for (auto& refiner: _refiner) {
     if ( refiner == nullptr ) {
-      refiner =  FlowRefinementFactory::getInstance().createObject(
-        _context.refinement.flows.algorithm, _num_hyperedges, _context);
+      refiner = constructFlowRefiner();
     }
   }
 
@@ -401,6 +400,11 @@ void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK
     _quotient_graph.changeNumberOfBlocks(_current_k);
     _constructor.changeNumberOfBlocks(_current_k);
   }
+}
+
+template<typename GraphAndGainTypes>
+std::unique_ptr<IFlowRefiner> FlowRefinementScheduler<GraphAndGainTypes>::constructFlowRefiner() {
+  return std::make_unique<FlowRefiner<GraphAndGainTypes>>(_num_hyperedges, _context);
 }
 
 namespace {
