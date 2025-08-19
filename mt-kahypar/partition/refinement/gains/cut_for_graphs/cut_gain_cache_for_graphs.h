@@ -91,9 +91,10 @@ class GraphCutGainCache {
     return _is_initialized;
   }
 
-  void reset(const bool run_parallel = true) {
+  void reset(HypernodeID num_nodes, PartitionID k, bool run_parallel = true) {
     if ( _is_initialized ) {
-      _gain_cache.assign(_gain_cache.size(),  CAtomic<HyperedgeWeight>(0), run_parallel);
+      ASSERT(num_nodes * k <= _gain_cache.size());
+      _gain_cache.assign(num_nodes * k, CAtomic<HyperedgeWeight>(0), run_parallel);
     }
     _is_initialized = false;
   }

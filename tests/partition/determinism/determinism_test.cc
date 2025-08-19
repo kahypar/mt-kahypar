@@ -174,7 +174,7 @@ public:
       for (HypernodeID u : hypergraph.nodes()) {
         partitioned_hypergraph.setNodePart(u, initial_partition[u]);
       }
-      gain_cache.reset();
+      gain_cache.reset(partitioned_hypergraph.initialNumNodes(), partitioned_hypergraph.k());
       gain_cache.initializeGainCache(partitioned_hypergraph);
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
       auto rebalancer = std::make_unique<DeterministicRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>(hypergraph.initialNumNodes(), context, gain_cache);

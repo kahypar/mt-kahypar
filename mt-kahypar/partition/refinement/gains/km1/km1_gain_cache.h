@@ -100,7 +100,7 @@ class Km1GainCache {
     return _is_initialized;
   }
 
-  void reset(const bool run_parallel = true) {
+  void reset(HypernodeID /*num_nodes*/, PartitionID /*k*/, const bool run_parallel = true) {
     unused(run_parallel);
     _is_initialized = false;
   }

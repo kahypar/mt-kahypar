@@ -89,7 +89,7 @@ namespace mt_kahypar {
       // data structure for the current level.
       partitioned_hg.extractPartIDs(_block_ids);
       partitioned_hg.resetData();
-      GainCachePtr::resetGainCache(_gain_cache);
+      GainCachePtr::resetGainCache(_gain_cache, num_nodes_on_previous_level, partitioned_hg.k());
 
       // Assign nodes of current level to their corresponding representative of the previous level
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {

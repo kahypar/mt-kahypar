@@ -244,7 +244,7 @@ TYPED_TEST(MultiTryFMTest, ChangesTheNumberOfBlocks) {
 
   objective_before = metrics::quality(phg_with_new_k, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg_new_k = utils::partitioned_hg_cast(phg_with_new_k);
-  this->gain_cache.reset();
+  this->gain_cache.reset(phg_with_new_k.initialNumNodes(), phg_with_new_k.k());
   this->refiner->initialize(phg_new_k);
   this->rebalancer->initialize(phg_new_k);
   this->refiner->refine(phg_new_k, {}, this->metrics, std::numeric_limits<double>::max());

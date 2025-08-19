@@ -160,9 +160,9 @@ class GainCachePtr {
     }
   }
 
-  static void resetGainCache(gain_cache_t gain_cache) {
+  static void resetGainCache(gain_cache_t gain_cache, HypernodeID num_nodes, PartitionID k) {
     if (gain_cache.type != GainPolicy::none) {
-      applyWithConcreteGainCache([&](auto& gc) { gc.reset(); }, gain_cache);
+      applyWithConcreteGainCache([&](auto& gc) { gc.reset(num_nodes, k); }, gain_cache);
     }
   }
 
