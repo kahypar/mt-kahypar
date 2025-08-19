@@ -110,13 +110,4 @@ class FlowRefinerMock final : public IFlowRefiner {
   RefineFunc _refine_func;
 };
 
-#define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
-  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
-    id,                                                                                         \
-    [](const HyperedgeID num_hyperedges, const Context& context) -> IFlowRefiner* {             \
-    return new refiner(num_hyperedges, context);                                                \
-  })
-
-REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock, 1);
-
 }  // namespace mt_kahypar
