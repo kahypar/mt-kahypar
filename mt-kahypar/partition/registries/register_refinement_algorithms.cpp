@@ -42,7 +42,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/flows/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
