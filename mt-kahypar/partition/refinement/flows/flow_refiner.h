@@ -57,7 +57,6 @@ class FlowRefiner final : public IFlowRefiner {
                        const Context& context) :
     _phg(nullptr),
     _context(context),
-    _num_available_threads(0),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
@@ -108,21 +107,12 @@ class FlowRefiner final : public IFlowRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
-    return 2;
-  }
-
-  void setNumThreadsForSearchImpl(const size_t num_threads) override {
-    _num_available_threads = num_threads;
-  }
-
   const PartitionedHypergraph* _phg;
   const Context& _context;
   using IFlowRefiner::_time_limit;
-  size_t _num_available_threads;
 
-  mutable PartitionID _block_0;
-  mutable PartitionID _block_1;
+  PartitionID _block_0;
+  PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
   whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
