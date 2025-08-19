@@ -109,8 +109,7 @@ TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
   refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(0, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(3));
@@ -125,8 +124,7 @@ TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) 
   refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(0, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(1));
@@ -143,8 +141,7 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
   refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(0, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::WORSEN_SOLUTION_QUALITY);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(0, phg.partID(0));
@@ -159,8 +156,7 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
   refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(0, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(1, phg.partID(4));
@@ -179,14 +175,12 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
   MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
-    improvement_1 = refiner.applyMoves(
-      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_1);
+    improvement_1 = refiner.applyMoves(0, sequence_1);
     ASSERT_EQ(sequence_1.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_1, sequence_1.expected_improvement);
     ASSERT_EQ(1, phg.partID(3));
   }, [&] {
-    improvement_2 = refiner.applyMoves(
-      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_2);
+    improvement_2 = refiner.applyMoves(0, sequence_2);
     ASSERT_EQ(sequence_2.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_2, sequence_2.expected_improvement);
     ASSERT_EQ(0, phg.partID(5));
@@ -206,11 +200,9 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBala
   MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
-    improvement_1 = refiner.applyMoves(
-      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_1);
+    improvement_1 = refiner.applyMoves(0, sequence_1);
   }, [&] {
-    improvement_2 = refiner.applyMoves(
-      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_2);
+    improvement_2 = refiner.applyMoves(0, sequence_2);
   });
 
   ASSERT_TRUE(sequence_1.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT ||

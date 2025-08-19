@@ -26,7 +26,10 @@
 
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
 
+#include <chrono>
+
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -35,8 +38,83 @@
 
 namespace mt_kahypar {
 
-template<typename GraphAndGainTypes>
-void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_stats() {
+class TimeLimitTracker {
+ public:
+  TimeLimitTracker():
+    lock(),
+    num_refinements(0),
+    average_running_time(0.0) { }
+
+  double timeLimit(const Context& context) const {
+    return shouldSetTimeLimit(context) ?
+      std::max(context.refinement.flows.time_limit_factor *
+        average_running_time, 0.1) : std::numeric_limits<double>::max();
+  }
+
+  bool shouldSetTimeLimit(const Context& context) const {
+    return num_refinements > static_cast<size_t>(context.partition.k) &&
+      context.refinement.flows.time_limit_factor > 1.0;
+  }
+
+  void reportRunningTime(double running_time, bool reaches_time_limit) {
+    if ( !reaches_time_limit ) {
+      lock.lock();
+      average_running_time = (running_time + num_refinements *
+        average_running_time) / static_cast<double>(num_refinements + 1);
+      ++num_refinements;
+      lock.unlock();
+    }
+  }
+
+ private:
+  SpinLock lock;
+  size_t num_refinements;
+  double average_running_time;
+};
+
+
+namespace {
+
+  static constexpr size_t PROGRESS_BAR_SIZE = 50;
+
+  template<typename F>
+  std::string progress_bar(const size_t value, const size_t max, const F& f) {
+    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
+    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
+    std::stringstream pbar_str;
+    pbar_str << "|"
+             << f(percentage) << std::string(ticks, '|') << END
+             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
+             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
+    return pbar_str.str();
+  }
+}
+
+RefinementStats::RefinementStats(utils::Stats& stats) :
+  _stats(stats),
+  num_refinements(0),
+  num_improvements(0),
+  num_time_limits(0),
+  correct_expected_improvement(0),
+  zero_gain_improvement(0),
+  failed_updates_due_to_conflicting_moves(0),
+  failed_updates_due_to_conflicting_moves_without_rollback(0),
+  failed_updates_due_to_balance_constraint(0),
+  total_improvement(0) { }
+
+void RefinementStats::reset() {
+  num_refinements.store(0);
+  num_improvements.store(0);
+  num_time_limits.store(0);
+  correct_expected_improvement.store(0);
+  zero_gain_improvement.store(0);
+  failed_updates_due_to_conflicting_moves.store(0);
+  failed_updates_due_to_conflicting_moves_without_rollback.store(0);
+  failed_updates_due_to_balance_constraint.store(0);
+  total_improvement.store(0);
+}
+
+void RefinementStats::update_global_stats() {
   _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
   _stats.update_stat("num_flow_improvement",
@@ -57,61 +135,188 @@ void FlowRefinementScheduler<GraphAndGainTypes>::RefinementStats::update_global_
     total_improvement.load(std::memory_order_relaxed));
 }
 
+std::ostream & operator<< (std::ostream& str, const RefinementStats& stats) {
+  str << "\n";
+  str << "Total Improvement                   = " << stats.total_improvement << "\n";
+  str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
+  str << "+ No Improvements                   = "
+      << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
+  str << "+ Number of Improvements            = "
+      << progress_bar(stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
+  str << "  + Correct Expected Improvements   = "
+      << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
+  str << "  + Incorrect Expected Improvements = "
+      << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
+  str << "  + Zero-Gain Improvements          = "
+      << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
+          [&](const double) { return WHITE; }) << "\n";
+  str << "+ Failed due to Balance Constraint  = "
+      << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Failed due to Conflicting Moves   = "
+      << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Time Limits                       = "
+      << progress_bar(stats.num_time_limits, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
+  str << "---------------------------------------------------------------";
+  return str;
+}
+
+std::string blocksToString(const BlockPair& blocks) {
+  return "(" + std::to_string(blocks.i) + "," + std::to_string(blocks.j) + ")";
+}
+
 template<typename GraphAndGainTypes>
-bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(
-                mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                const parallel::scalable_vector<HypernodeID>&,
-                Metrics& best_metrics,
-                const double)  {
+FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                                                                    const HyperedgeID num_hyperedges,
+                                                                    const Context& context,
+                                                                    GainCache& gain_cache) :
+  _phg(nullptr),
+  _context(context),
+  _gain_cache(gain_cache),
+  _current_k(context.partition.k),
+  _num_hyperedges(num_hyperedges),
+  _quotient_graph(num_hyperedges, context),
+  _active_block_scheduler(context, _quotient_graph),
+  _refiner(),
+  _constructor(num_hypernodes, num_hyperedges, context),
+  _was_moved(num_hypernodes, uint8_t(false)),
+  _part_weights_lock(),
+  _part_weights(context.partition.k, 0),
+  _max_part_weights(context.partition.k, 0),
+  _stats(utils::Utilities::instance().getStats(context.utility_id)),
+  _apply_moves_lock() {
+    for ( size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i ) {
+      _refiner.emplace_back(nullptr);
+    }
+  }
+
+template<typename GraphAndGainTypes>
+FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                                                                    const HyperedgeID num_hyperedges,
+                                                                    const Context& context,
+                                                                    gain_cache_t gain_cache) :
+  FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
+    GainCachePtr::cast<GainCache>(gain_cache)) { }
+
+template<typename GraphAndGainTypes>
+template<typename F>
+HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::runFlowSearch(PartitionedHypergraph& phg,
+                                                                          utils::Timer& timer,
+                                                                          size_t refiner_idx,
+                                                                          const Subhypergraph& sub_hg,
+                                                                          uint32_t search_id,
+                                                                          double time_limit,
+                                                                          F report_running_time) {
+  HyperedgeWeight delta = 0;
+  bool reaches_time_limit = false;
+
+  auto start = std::chrono::high_resolution_clock::now();
+  if ( sub_hg.numNodes() > 0 ) {
+    auto partitioned_hg = utils::partitioned_hg_const_cast(phg);
+    _refiner[refiner_idx]->initialize(partitioned_hg);
+    _refiner[refiner_idx]->updateTimeLimit(time_limit);
+    MoveSequence sequence = _refiner[refiner_idx]->refine(partitioned_hg, sub_hg, start);
+
+    // apply moves and update stats
+    if ( !sequence.moves.empty() ) {
+      timer.start_timer("apply_moves", "Apply Moves", true);
+      delta = applyMoves(search_id, sequence);
+      timer.stop_timer("apply_moves");
+    } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
+      reaches_time_limit = true;
+      ++_stats.num_time_limits;
+      DBG << RED << "Search" << search_id << "reaches the time limit" << END;
+    }
+    ++_stats.num_refinements;
+  }
+  double time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
+
+  report_running_time(time, reaches_time_limit);
+  return delta;
+}
+
+template<typename GraphAndGainTypes>
+bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                            const parallel::scalable_vector<HypernodeID>&,
+                                                            Metrics& best_metrics,
+                                                            const double)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   ASSERT(_phg == &phg);
-  _quotient_graph.setObjective(best_metrics.quality);
+  _active_block_scheduler.setObjective(best_metrics.quality);
 
+  TimeLimitTracker tracker;
   std::atomic<HyperedgeWeight> overall_delta(0);
+  std::atomic_uint32_t search_id_counter(0);
+
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-  tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( i < std::max(UL(1), _quotient_graph.numActiveBlockPairs()) ) {
-      SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
-      if ( search_id != QuotientGraph<TypeTraits>::INVALID_SEARCH_ID ) {
-        DBG << "Start search" << search_id
-            << "( Blocks =" << blocksOfSearch(search_id)
-            << ", Refiner =" << i << ")";
-        timer.start_timer("region_growing", "Grow Region", true);
-        const Subhypergraph sub_hg =
-          _constructor.construct(search_id, _quotient_graph, phg);
-        _quotient_graph.finalizeConstruction(search_id);
-        timer.stop_timer("region_growing");
+  tbb::parallel_for(UL(0), _context.refinement.flows.num_parallel_searches, [&](const size_t refiner_idx) {
+    while ( refiner_idx < _active_block_scheduler.numRemainingBlocks() ) {
+      // fetch next block pair from active block scheduler
+      BlockPair blocks;
+      size_t round = 0;
+      bool success = _active_block_scheduler.popBlockPairFromQueue(blocks, round);
 
-        HyperedgeWeight delta = 0;
-        bool improved_solution = false;
-        if ( sub_hg.numNodes() > 0 ) {
-          ++_stats.num_refinements;
-          MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
+      if (success) {
+        success = _quotient_graph.edge(blocks).acquire();
+        if (success) {
+          uint32_t search_id = search_id_counter.fetch_add(1, std::memory_order_relaxed);
 
-          if ( !sequence.moves.empty() ) {
-            timer.start_timer("apply_moves", "Apply Moves", true);
-            delta = applyMoves(search_id, sequence);
-            overall_delta -= delta;
-            improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
-            timer.stop_timer("apply_moves");
-          } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
-            ++_stats.num_time_limits;
-            DBG << RED << "Search" << search_id << "reaches the time limit ( Time Limit ="
-                << _refiner.timeLimit() << "s )" << END;
+          DBG << "Start search" << search_id
+              << "( Blocks =" << blocksToString(blocks)
+              << ", Refiner =" << refiner_idx << ")";
+
+          timer.start_timer("region_growing", "Grow Region", true);
+          const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg);
+          timer.stop_timer("region_growing");
+
+          _quotient_graph.edge(blocks).release();
+
+          // run the actual flow computation
+          HyperedgeWeight delta = runFlowSearch(phg, timer, refiner_idx, sub_hg, search_id, tracker.timeLimit(_context),
+            [&](double time, bool reaches_time_limit) {
+              tracker.reportRunningTime(time, reaches_time_limit);
+            });
+
+          if ( delta > 0 ) {
+            _quotient_graph.edge(blocks).num_improvements_found++;
+            _quotient_graph.edge(blocks).total_improvement += delta;
           }
+          overall_delta.fetch_sub(delta, std::memory_order_relaxed);
+
+          DBG << "End search" << search_id
+              << "( Blocks =" << blocksToString(blocks)
+              << ", Refiner =" << refiner_idx
+              << ", Running Time =" << time << ")";
+
+          // in case the block pair becomes active, we reinsert it into the queue
+          _active_block_scheduler.finalizeSearch(blocks, round, std::max(delta, 0));
+
+          // set time limit if required
+          if ( tracker.shouldSetTimeLimit(_context) ) {
+            double time_limit = tracker.timeLimit(_context);
+            for ( size_t idx = 0; idx < _refiner.size(); ++idx ) {
+              if (_refiner[idx] != nullptr) {
+                _refiner[idx]->updateTimeLimit(time_limit);
+              }
+            }
+          }
+        } else {
+          _active_block_scheduler.finalizeSearch(blocks, round, 0);
         }
-        _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
-        _refiner.finalizeSearch(search_id);
-        DBG << "End search" << search_id
-            << "( Blocks =" << blocksOfSearch(search_id)
-            << ", Refiner =" << i
-            << ", Running Time =" << _refiner.runningTime(search_id) << ")";
-      } else {
+      }
+
+      if (!success) {
+        // terminate thread since there is nothing more to do for it
         break;
       }
     }
-    _refiner.terminateRefiner();
-    DBG << RED << "Refiner" << i << "terminates!" << END;
+    DBG << RED << "Refiner" << refiner_idx << "terminates!" << END;
   });
 
   DBG << _stats;
@@ -161,16 +366,25 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
       phg.partWeight(i), _context.partition.max_part_weights[i]);
   }
 
+  // Initialize Refiners
+  for (auto& refiner: _refiner) {
+    if ( refiner == nullptr ) {
+      refiner =  FlowRefinementFactory::getInstance().createObject(
+        _context.refinement.flows.algorithm, _num_hyperedges, _context);
+    }
+  }
+
+  // Initialize Quotient Graph and Scheduler
   _stats.reset();
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   timer.start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
   _quotient_graph.initialize(phg);
+  _active_block_scheduler.initialize(_quotient_graph.isInputHypergraph());
   timer.stop_timer("initialize_quotient_graph");
 
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
-  DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
+  DBG << "Initial Active Block Pairs =" << _active_block_scheduler.numRemainingBlocks()
       << ", Initial Num Threads =" << max_parallism;
-  _refiner.initialize(max_parallism);
 }
 
 template<typename GraphAndGainTypes>
@@ -190,11 +404,6 @@ void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK
 }
 
 namespace {
-
-struct NewCutHyperedge {
-  HyperedgeID he;
-  PartitionID block;
-};
 
 template<typename PartitionedHypergraph, typename GainCache, typename F>
 bool changeNodePart(PartitionedHypergraph& phg,
@@ -223,7 +432,7 @@ void applyMoveSequence(PartitionedHypergraph& phg,
                        const F& objective_delta,
                        const bool gain_cache_update,
                        vec<uint8_t>& was_moved,
-                       vec<NewCutHyperedge>& new_cut_hes) {
+                       vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes) {
   for ( const Move& move : sequence.moves ) {
     ASSERT(move.from == phg.partID(move.node));
     if ( move.from != move.to ) {
@@ -233,8 +442,8 @@ void applyMoveSequence(PartitionedHypergraph& phg,
       // If move increases the pin count of some hyperedges in block 'move.to' to one 1
       // we set the corresponding block here.
       int i = new_cut_hes.size() - 1;
-      while ( i >= 0 && new_cut_hes[i].block == kInvalidPartition ) {
-        new_cut_hes[i].block = move.to;
+      while ( i >= 0 && new_cut_hes[i].second == kInvalidPartition ) {
+        new_cut_hes[i].second = move.to;
         --i;
       }
     }
@@ -256,19 +465,11 @@ void revertMoveSequence(PartitionedHypergraph& phg,
   }
 }
 
-template<typename TypeTraits>
-void addCutHyperedgesToQuotientGraph(QuotientGraph<TypeTraits>& quotient_graph,
-                                     const vec<NewCutHyperedge>& new_cut_hes) {
-  for ( const NewCutHyperedge& new_cut_he : new_cut_hes ) {
-    ASSERT(new_cut_he.block != kInvalidPartition);
-    quotient_graph.addNewCutHyperedge(new_cut_he.he, new_cut_he.block);
-  }
-}
-
 } // namespace
 
 template<typename GraphAndGainTypes>
-HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const SearchID search_id, MoveSequence& sequence) {
+HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uint32_t search_id,
+                                                                       MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -288,14 +489,14 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
   }
 
   HyperedgeWeight improvement = 0;
-  vec<NewCutHyperedge> new_cut_hes;
+  vec<std::pair<HyperedgeID, PartitionID>> new_cut_hes;
   auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
     improvement -= AttributedGains::gain(sync_update);
 
     // Collect hyperedges with new blocks in its connectivity set
     if ( sync_update.pin_count_in_to_part_after == 1 ) {
       // the corresponding block will be set in applyMoveSequence(...) function
-      new_cut_hes.emplace_back(NewCutHyperedge { sync_update.he, kInvalidPartition });
+      new_cut_hes.emplace_back(sync_update.he, kInvalidPartition);
     }
   };
 
@@ -350,7 +551,7 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
   _apply_moves_lock.unlock();
 
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
-    addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
+    _quotient_graph.addNewCutHyperedges(*_phg, new_cut_hes);
     _stats.total_improvement += improvement;
   }
 
@@ -358,9 +559,12 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const Sea
 }
 
 template<typename GraphAndGainTypes>
-typename FlowRefinementScheduler<GraphAndGainTypes>::PartWeightUpdateResult
-FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
-                                                          const bool rollback) {
+const vec<HypernodeWeight>& FlowRefinementScheduler<GraphAndGainTypes>::partWeights() const {
+  return _part_weights;
+}
+
+template<typename GraphAndGainTypes>
+PartWeightUpdateResult FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;
   _part_weights_lock.lock();

@@ -30,7 +30,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/flows/flow_common.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
@@ -127,8 +127,8 @@ class ProblemConstruction {
   ProblemConstruction & operator= (const ProblemConstruction &) = delete;
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
-  Subhypergraph construct(const SearchID search_id,
-                          QuotientGraph<TypeTraits>& quotient_graph,
+  Subhypergraph construct(const BlockPair& blocks,
+                          QuotientGraph& quotient_graph,
                           const PartitionedHypergraph& phg);
 
   void changeNumberOfBlocks(const PartitionID new_k);
