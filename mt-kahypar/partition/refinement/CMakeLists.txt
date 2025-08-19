@@ -12,7 +12,7 @@ set(RefinementSources
         deterministic/deterministic_jet_refiner.cpp
         flows/refiner_adapter.cpp
         flows/problem_construction.cpp
-        flows/scheduler.cpp
+        flows/flow_refinement_scheduler.cpp
         flows/quotient_graph.cpp
         flows/flow_refiner.cpp
         flows/sequential_construction.cpp
