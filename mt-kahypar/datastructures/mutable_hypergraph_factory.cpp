@@ -52,7 +52,7 @@ namespace mt_kahypar::ds {
     hypergraph._total_degree = 0;
     hypergraph._max_edge_size = 0;
 
-    // TODO is this equivalent to stable_construction ?
+    //TODO is this equivalent to stable_construction ?
 
 
     // Create Hypernode adjacency structure
@@ -87,7 +87,7 @@ namespace mt_kahypar::ds {
 
     return hypergraph;
 
-    ASSERT(edge_vector.size() == num_hyperedges);
+//    ASSERT(edge_vector.size() == num_hyperedges);
 
     // Compute number of pins per hyperedge and number
     // of incident nets per vertex
