@@ -510,9 +510,12 @@ TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
 
     TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedgesAndDeletedElements) {
       hypergraph.disableHyperedge(3);
-      size_t hn = hypergraph.addHypernode({1}, 1);
 
+      size_t hn = hypergraph.addHypernode({1}, 1);
       hypergraph.deleteHypernode(hn);
+
+      size_t he = hypergraph.addHyperedge({1, 2}, 1);
+      hypergraph.deleteHyperedge(he);
 
       parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 0, 1, 1, 2, 3};
       MutableHypergraph c_hypergraph = hypergraph.contract(c_mapping);

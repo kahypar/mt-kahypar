@@ -1085,8 +1085,20 @@ namespace mt_kahypar {
               ASSERT(!hypernode(u).is_deleted(), "Hypernode" << u << "is deleted");
               _num_hypernodes--;
               _total_weight -= hypernode(u).weight();
+              bool recompute_max_edge_size = false;
               for (const HyperedgeID& e : incident_nets_of(u)) {
+                if (hyperedge(e).size() == _max_edge_size) {
+                  recompute_max_edge_size = true;
+                }
                 deletePin(e, u);
+              }
+              if (recompute_max_edge_size) {
+                _max_edge_size = 0;
+                for (const Hyperedge& he : _hyperedges) {
+                  if (!he.isDisabled() && !he.is_deleted()) {
+                    _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), he.size());
+                  }
+                }
               }
               hypernode(u).mark_deleted();
             }
@@ -1099,7 +1111,9 @@ namespace mt_kahypar {
              */
             HyperedgeID addHyperedge(const std::vector<HypernodeID>& pins,
                                      const HyperedgeWeight weight = 1) {
-              Hyperedge hyperedge(pins, weight);
+              Hyperedge hyperedge;
+              hyperedge.enable();
+              hyperedge.setWeight(weight);
               //insert new hyperedge in front of sentinel
               _hyperedges.insert(_hyperedges.end() - 1, hyperedge);
               ++_num_hyperedges;
@@ -1118,8 +1132,17 @@ namespace mt_kahypar {
               ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
               ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
               _num_hyperedges--;
+              bool recompute_max_edge_size = hyperedge(he).size() == _max_edge_size;
               for (const HypernodeID& pin : hyperedge(he).pins()) {
                 deletePin(he, pin);
+              }
+              if (recompute_max_edge_size) {
+                _max_edge_size = 0;
+                for (const Hyperedge& he : _hyperedges) {
+                  if (!he.isDisabled() && !he.is_deleted()) {
+                    _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), he.size());
+                  }
+                }
               }
               hyperedge(he).mark_deleted();
             }
