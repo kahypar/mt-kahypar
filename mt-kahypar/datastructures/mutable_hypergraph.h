@@ -190,6 +190,7 @@ namespace mt_kahypar {
                       std::remove(_incident_nets.begin() + firstEntry(),
                                   _incident_nets.begin() + firstInvalidEntry(), net),
                       _incident_nets.begin() + firstInvalidEntry());
+                  --_size;
                 }
 
                 // ! activate net
@@ -371,6 +372,7 @@ namespace mt_kahypar {
                       std::remove(_incidence_array.begin() + firstEntry(),
                                   _incidence_array.begin() + firstInvalidEntry(), pin),
                       _incidence_array.begin() + firstInvalidEntry());
+                  --_size;
                 }
 
                 // ! activate pin
@@ -1017,10 +1019,12 @@ namespace mt_kahypar {
             MutableHypergraph copy() const;
 
             // ! Convert to static hypergraph
-            StaticHypergraph toStaticHypergraph();
+            StaticHypergraph toStaticHypergraph(std::vector<HypernodeID>* old_to_new_hn,
+                                                std::vector<HyperedgeID>* old_to_new_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
 
             // ! Convert StaticHypergraph to MutableHypergraph
-            MutableHypergraph fromStaticHypergraph(const StaticHypergraph& static_hg);
+            MutableHypergraph fromStaticHypergraph(const StaticHypergraph& static_hg, std::vector<HypernodeID>* old_to_new_hn,
+                                                   std::vector<HyperedgeID>* old_to_new_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
 
             // ! Reset internal data structure
             void reset() { }
@@ -1059,13 +1063,32 @@ namespace mt_kahypar {
              * \param hypernode The hypernode to be added
              */
             HypernodeID addHypernode(const std::vector<HyperedgeID>& incident_nets, const HypernodeWeight weight = 1) {
-              Hypernode hypernode(incident_nets, weight);
-              _hypernodes.push_back(hypernode);
+              Hypernode hypernode({}, weight);
+              //insert new hypernode in front of sentinel
+              _hypernodes.insert(_hypernodes.end() - 1, hypernode);
               _community_ids.push_back(0);
               ++_num_hypernodes;
               _total_weight += hypernode.weight();
-              _total_degree += hypernode.size();
+              for (const HyperedgeID& e : incident_nets) {
+                addPin(e, _num_hypernodes - 1);
+              }
               return _num_hypernodes - 1;
+            }
+
+            /*!
+             * Deletes a hypernode from the hypergraph. This includes the removal of all its adjacancies
+              * from the hyperedges and the incident nets.
+              * \param u The hypernode to be deleted
+              */
+            void deleteHypernode(const HypernodeID u) {
+              ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+              ASSERT(!hypernode(u).is_deleted(), "Hypernode" << u << "is deleted");
+              _num_hypernodes--;
+              _total_weight -= hypernode(u).weight();
+              for (const HyperedgeID& e : incident_nets_of(u)) {
+                deletePin(e, u);
+              }
+              hypernode(u).mark_deleted();
             }
 
             /*!
@@ -1077,11 +1100,28 @@ namespace mt_kahypar {
             HyperedgeID addHyperedge(const std::vector<HypernodeID>& pins,
                                      const HyperedgeWeight weight = 1) {
               Hyperedge hyperedge(pins, weight);
-              _hyperedges.push_back(hyperedge);
+              //insert new hyperedge in front of sentinel
+              _hyperedges.insert(_hyperedges.end() - 1, hyperedge);
               ++_num_hyperedges;
               _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), hyperedge.size());
-              _num_pins += hyperedge.size();
+              for (const HypernodeID& pin : pins) {
+                addPin(_num_hyperedges - 1, pin);
+              }
               return _num_hyperedges - 1;
+            }
+
+            /*!
+             * Removes a hyperedge from the hypergraph
+             * \param he The hyperedge to be removed
+             */
+            void deleteHyperedge(const HyperedgeID he) {
+              ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+              ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
+              _num_hyperedges--;
+              for (const HypernodeID& pin : hyperedge(he).pins()) {
+                deletePin(he, pin);
+              }
+              hyperedge(he).mark_deleted();
             }
 
             /*!
@@ -1091,7 +1131,7 @@ namespace mt_kahypar {
              * \param he The hyperedge to which the pin should be added
              * \param pin The pin to be added
              */
-            void connectHyperedgeToHypernode(const HyperedgeID he, const HypernodeID pin) {
+            void addPin(const HyperedgeID he, const HypernodeID pin) {
               ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
               ASSERT(!hypernode(pin).isDisabled(), "Hypernode" << pin << "is disabled");
               ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
@@ -1103,23 +1143,6 @@ namespace mt_kahypar {
               _total_degree += 1;
               hypernode(pin).addNet(he);
             }
-
-            /*!
-             * Removes a hyperedge from the hypergraph
-             * \param he The hyperedge to be removed
-             */
-            void deleteHyperedge(const HyperedgeID he) {
-              ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
-              ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
-              _num_hyperedges--;
-              _num_pins -= hyperedge(he).size();
-              _total_degree -= hyperedge(he).size();
-              for (const HypernodeID& pin : hyperedge(he).pins()) {
-                deletePin(he, pin);
-              }
-              hyperedge(he).mark_deleted();
-            }
-
             /*!
              * Deletes a pin from a hyperedge and removes the hyperedge from the incident nets of the hypernode.
              * This function assumes that the hyperedge and the hypernode are enabled.
@@ -1135,24 +1158,6 @@ namespace mt_kahypar {
               _total_degree -= 1;
               hypernode(pin).deleteNet(he);
               hyperedge(he).deletePin(pin);
-            }
-
-            /*!
-             * Deletes a hypernode from the hypergraph. This includes the removal of all its adjacancies
-              * from the hyperedges and the incident nets.
-              * \param u The hypernode to be deleted
-              */
-            void deleteHypernode(const HypernodeID u) {
-              ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-              ASSERT(!hypernode(u).is_deleted(), "Hypernode" << u << "is deleted");
-              _num_hypernodes--;
-              _total_weight -= hypernode(u).weight();
-              _total_degree -= hypernode(u).size();
-              _removed_degree_zero_hn_weight += hypernode(u).weight();
-              for (const HyperedgeID& e : incident_nets_of(u)) {
-                deletePin(e, u);
-              }
-              removeHypernode(u);
             }
 
         private:
