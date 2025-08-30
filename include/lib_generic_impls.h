@@ -47,11 +47,13 @@ namespace lib {
   using StaticGraph = typename StaticGraphTypeTraits::Hypergraph;
   using DynamicGraph = typename DynamicGraphTypeTraits::Hypergraph;
   using StaticHypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+  using MutableHypergraph = typename MutableHypergraphTypeTraits::Hypergraph;
   using DynamicHypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
 
   using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedGraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
   using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using MutablePartitionedHypergraph = typename MutableHypergraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
 
@@ -67,6 +69,8 @@ ReturnT switch_hg(mt_kahypar_hypergraph_t hg, Func f) {
       return f(utils::cast<DynamicGraph>(hg));
     case STATIC_HYPERGRAPH:
       return f(utils::cast<StaticHypergraph>(hg));
+    case MUTABLE_HYPERGRAPH:
+      return f(utils::cast<MutableHypergraph>(hg));
     case DYNAMIC_HYPERGRAPH:
       return f(utils::cast<DynamicHypergraph>(hg));
     case NULLPTR_HYPERGRAPH: break;
@@ -85,6 +89,7 @@ ReturnT switch_graph(mt_kahypar_hypergraph_t hg, Func f) {
     case DYNAMIC_GRAPH:
       return f(utils::cast<DynamicGraph>(hg));
     case STATIC_HYPERGRAPH:
+    case MUTABLE_HYPERGRAPH:
     case DYNAMIC_HYPERGRAPH:
     case NULLPTR_HYPERGRAPH:
       break;
@@ -104,6 +109,8 @@ ReturnT switch_phg(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
       return f(utils::cast<DynamicPartitionedGraph>(phg));
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       return f(utils::cast<StaticPartitionedHypergraph>(phg));
+    case MUTABLE_HYPERGRAPH_PARTITIONING:
+      return f(utils::cast<MutablePartitionedHypergraph>(phg));
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
       return f(utils::cast<DynamicPartitionedHypergraph>(phg));
     case LARGE_K_PARTITIONING:
