@@ -22,6 +22,14 @@ namespace mt_kahypar::ds {
         bool valid = false;
     };
 
+    struct StaticHypergraphMapping {
+        StaticHypergraph hypergraph;
+
+        // Reverse mappings: from compact StaticHypergraph IDs back to original IDs
+        std::vector<HypernodeID> new_to_old_hn;
+        std::vector<HyperedgeID> new_to_old_he;
+    };
+
     /*!
      * Contracts a given community structure. All vertices with the same label
      * are collapsed into the same vertex. The resulting single-pin and parallel
@@ -35,11 +43,16 @@ namespace mt_kahypar::ds {
 
       ASSERT(communities.size() == _num_hypernodes);
 
-      StaticHypergraph static_hg = toStaticHypergraph();
+      std::vector<HypernodeID> static_to_mut_hn;
+      std::vector<HyperedgeID> static_to_mut_he;
+      std::vector<HypernodeID> deleted_hn;
+      std::vector<HyperedgeID> deleted_he;
+
+      StaticHypergraph static_hg = toStaticHypergraph(&static_to_mut_hn, &static_to_mut_he, &deleted_hn, &deleted_he);
 
       StaticHypergraph contracted_static_hg = static_hg.contract(communities, deterministic);
 
-      MutableHypergraph contracted_hg = fromStaticHypergraph(contracted_static_hg);
+      MutableHypergraph contracted_hg = fromStaticHypergraph(contracted_static_hg, &static_to_mut_hn, &static_to_mut_he, &deleted_hn, &deleted_he);
 
       return contracted_hg;
     }
@@ -100,7 +113,8 @@ namespace mt_kahypar::ds {
       return hypergraph;
     }
 
-    StaticHypergraph MutableHypergraph::toStaticHypergraph() {
+    StaticHypergraph MutableHypergraph::toStaticHypergraph(std::vector<HypernodeID>* static_to_mut_hn,
+                                                           std::vector<HyperedgeID>* static_to_mut_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he) {
       StaticHypergraph hypergraph;
 
       hypergraph._num_hypernodes = _num_hypernodes;
@@ -117,10 +131,22 @@ namespace mt_kahypar::ds {
 
       // create incidence array and incident nets
       hypergraph._incidence_array.resize(_num_pins);
-      hypergraph._hyperedges.resize(_num_hyperedges);
+      hypergraph._hyperedges.resize(_num_hyperedges + 1);
       size_t incidence_array_pos = 0;
 
+      // resize mapping vectors
+      static_to_mut_he->resize(_hyperedges.size());
+      size_t mutable_he_index = -1;
+      size_t static_he_index = -1;
+
       for (HyperedgeID he : edges()) {
+        ++mutable_he_index;
+        if (_hyperedges[he].is_deleted()) {
+          deleted_he->push_back(mutable_he_index);
+          continue;
+        }
+        ++static_he_index;
+        static_to_mut_he->at(static_he_index) = mutable_he_index;
         auto hyperedge_test = StaticHypergraph::Hyperedge();
         hypergraph._hyperedges[he] = hyperedge_test;
         if (!hyperedge(he).isDisabled()) {
@@ -136,10 +162,21 @@ namespace mt_kahypar::ds {
       }
 
       hypergraph._incident_nets.resize(_total_degree);
-      hypergraph._hypernodes.resize(_num_hypernodes);
+      hypergraph._hypernodes.resize(_num_hypernodes + 1);
       size_t incident_nets_pos = 0;
 
+      static_to_mut_hn->resize(_hypernodes.size());
+      size_t mutable_hn_index = -1;
+      size_t static_hn_index = -1;
+
       for (HypernodeID hn : nodes()) {
+        ++mutable_hn_index;
+        if (_hypernodes[hn].is_deleted()) {
+          deleted_hn->push_back(mutable_hn_index);
+          continue;
+        }
+        ++static_hn_index;
+        static_to_mut_hn->at(static_hn_index) = mutable_hn_index;
         hypergraph._hypernodes[hn] = StaticHypergraph::Hypernode();
         if (nodeIsEnabled(hn)) {
           hypergraph._hypernodes[hn].enable();
@@ -152,10 +189,15 @@ namespace mt_kahypar::ds {
         }
       }
 
+      // TODO Add sentinels ?
+      hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
+      hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
+
       return hypergraph;
     }
 
-    MutableHypergraph MutableHypergraph::fromStaticHypergraph(const StaticHypergraph &static_hg) {
+    MutableHypergraph MutableHypergraph::fromStaticHypergraph(const StaticHypergraph &static_hg, std::vector<HypernodeID>* static_to_mut_hn,
+                                                              std::vector<HyperedgeID>* static_to_mut_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he) {
       MutableHypergraph hypergraph;
 
       hypergraph._num_hypernodes = static_hg._num_hypernodes;
@@ -168,29 +210,47 @@ namespace mt_kahypar::ds {
       hypergraph._total_weight = static_hg._total_weight;
 
       hypergraph._hypernodes.resize(static_hg._num_hypernodes);
+
       for (HypernodeID hn : static_hg.nodes()) {
         const StaticHypergraph::Hypernode& node = static_hg.hypernode(hn);
-        hypergraph._hypernodes[hn] = MutableHypergraph::Hypernode(static_hg.nodeIsEnabled(hn));
+        const size_t mutable_hn_index = static_to_mut_hn->at(hn);
+        hypergraph._hypernodes[mutable_hn_index] = MutableHypergraph::Hypernode(static_hg.nodeIsEnabled(hn));
         for (HyperedgeID he : static_hg.incidentEdges(hn)) {
-          hypergraph._hypernodes[hn].addNet(he);
+          hypergraph._hypernodes[mutable_hn_index].addNet(static_to_mut_he->at(he));
         }
-        hypergraph._hypernodes[hn].setWeight(node.weight());
+        hypergraph._hypernodes[mutable_hn_index].setWeight(node.weight());
+      }
+
+      for (HypernodeID hn : *deleted_hn) {
+        hypergraph._hypernodes[hn] = MutableHypergraph::Hypernode();
+        hypergraph._hypernodes[hn].mark_deleted();
       }
 
       hypergraph._hyperedges.resize(static_hg._num_hyperedges);
       for (HyperedgeID he : static_hg.edges()) {
         const StaticHypergraph::Hyperedge& edge = static_hg.hyperedge(he);
-        hypergraph._hyperedges[he] = MutableHypergraph::Hyperedge();
-        hypergraph._hyperedges[he].enable();
-        hypergraph._hyperedges[he].setWeight(edge.weight());
+        const size_t mutable_he_index = static_to_mut_he->at(he);
+        hypergraph._hyperedges[mutable_he_index] = MutableHypergraph::Hyperedge();
+        hypergraph._hyperedges[mutable_he_index].enable();
+        hypergraph._hyperedges[mutable_he_index].setWeight(edge.weight());
         for (HypernodeID hn : static_hg.pins(he)) {
-          hypergraph._hyperedges[he].addPin(hn);
+          hypergraph._hyperedges[mutable_he_index].addPin(hn);
         }
         if (!static_hg.edgeIsEnabled(he)) {
-          hypergraph._hyperedges[he].disable();
+          hypergraph._hyperedges[mutable_he_index].disable();
         }
       }
+
+      for (HyperedgeID he : *deleted_he) {
+        hypergraph._hyperedges[he] = MutableHypergraph::Hyperedge();
+        hypergraph._hyperedges[he].mark_deleted();
+      }
+
       hypergraph._community_ids = static_hg._community_ids;
+
+      // Add sentinels
+      hypergraph._hypernodes.push_back(MutableHypergraph::Hypernode(static_cast<size_t>(hypergraph._total_degree)));
+      hypergraph._hyperedges.push_back(MutableHypergraph::Hyperedge(hypergraph._num_pins));
 
       return hypergraph;
     }

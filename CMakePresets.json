@@ -91,5 +91,12 @@
                 "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
             }
         }
+    ],
+    "buildPresets": [
+        {
+            "name": "minimal-dev-debug",
+            "configurePreset": "minimal-dev-debug",
+            "jobs": 4
+        }
     ]
 }
