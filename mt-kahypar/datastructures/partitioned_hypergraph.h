@@ -452,15 +452,28 @@ class PartitionedHypergraph {
   void restoreLargeEdge(const HyperedgeID& he) {
     _hg->restoreLargeEdge(he);
 
+    tbb::enumerable_thread_specific<vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
+
     // Recalculate pin count in parts
-    const size_t incidence_array_start = _hg->hyperedge(he).firstEntry();
-    const size_t incidence_array_end = _hg->hyperedge(he).firstInvalidEntry();
-    tbb::enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
-    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
-      const HypernodeID pin = _hg->_incidence_array[pos];
-      const PartitionID block = partID(pin);
-      ++ets_pin_count_in_part.local()[block];
-    });
+    if ( std::is_same_v<Hypergraph, MutableHypergraph> ) {
+      for ( HypernodeID pin : pins(he) ) {
+        const PartitionID block = partID(pin);
+        ++ets_pin_count_in_part.local()[block];
+      }
+    } else {
+      //TODO This is a workaround for the fact that we cannot compile this with MutableHypergraph
+//      const size_t incidence_array_start = _hg->hyperedge(he).firstEntry();
+//      const size_t incidence_array_end = _hg->hyperedge(he).firstInvalidEntry();
+//      tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+//          const HypernodeID pin = _hg->_incidence_array[pos];
+//          const PartitionID block = partID(pin);
+//          ++ets_pin_count_in_part.local()[block];
+//      });
+      for ( HypernodeID pin : pins(he) ) {
+        const PartitionID block = partID(pin);
+        ++ets_pin_count_in_part.local()[block];
+      }
+    }
 
     // Aggregate local pin count for each block
     for ( PartitionID block = 0; block < _k; ++block ) {

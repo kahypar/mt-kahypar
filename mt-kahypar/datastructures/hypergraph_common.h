@@ -139,6 +139,7 @@ class TargetGraph;
 namespace ds {
 class StaticGraph;
 class StaticHypergraph;
+class MutableHypergraph;
 class DynamicGraph;
 class DynamicHypergraph;
 class ConnectivityInfo;
@@ -153,6 +154,11 @@ struct PartitionedHypergraphType {
 template<>
 struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
+};
+
+template<>
+struct PartitionedHypergraphType<ds::MutableHypergraph, ds::ConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = MUTABLE_HYPERGRAPH_PARTITIONING;
 };
 
 template<>

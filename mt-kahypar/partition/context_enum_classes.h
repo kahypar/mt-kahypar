@@ -59,6 +59,7 @@ enum class PresetType : int8_t {
   large_k,
   default_preset,
   quality,
+  mutable_preset,
   highest_quality,
   UNDEFINED
 };

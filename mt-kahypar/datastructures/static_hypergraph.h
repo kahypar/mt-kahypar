@@ -887,6 +887,7 @@ class StaticHypergraph {
   template <typename Hypergraph,
             typename ConnectivityInformation>
   friend class PartitionedHypergraph;
+  friend class MutableHypergraph;
 
   // ####################### Hypernode Information #######################
 
