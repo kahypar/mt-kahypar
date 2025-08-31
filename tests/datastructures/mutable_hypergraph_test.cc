@@ -507,54 +507,6 @@ TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
     { {0, 1}, {1, 3} });
 }
 
-
-    TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedgesAndDeletedElements) {
-      hypergraph.disableHyperedge(3);
-
-      size_t hn = hypergraph.addHypernode({1}, 1);
-      hypergraph.deleteHypernode(hn);
-
-      size_t he = hypergraph.addHyperedge({1, 2}, 1);
-      hypergraph.deleteHyperedge(he);
-
-      parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 0, 1, 1, 2, 3};
-      MutableHypergraph c_hypergraph = hypergraph.contract(c_mapping);
-
-      // Verify Mapping
-      ASSERT_EQ(0, c_mapping[0]);
-      ASSERT_EQ(0, c_mapping[1]);
-      ASSERT_EQ(0, c_mapping[2]);
-      ASSERT_EQ(1, c_mapping[3]);
-      ASSERT_EQ(1, c_mapping[4]);
-      ASSERT_EQ(2, c_mapping[5]);
-      ASSERT_EQ(3, c_mapping[6]);
-
-      // Verify Stats
-      ASSERT_EQ(4, c_hypergraph.initialNumNodes());
-      ASSERT_EQ(2, c_hypergraph.initialNumEdges());
-      ASSERT_EQ(4, c_hypergraph.initialNumPins());
-      ASSERT_EQ(7, c_hypergraph.totalWeight());
-      ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
-
-      // Verify Vertex Weights
-      ASSERT_EQ(3, c_hypergraph.nodeWeight(0));
-      ASSERT_EQ(2, c_hypergraph.nodeWeight(1));
-      ASSERT_EQ(1, c_hypergraph.nodeWeight(2));
-      ASSERT_EQ(1, c_hypergraph.nodeWeight(3));
-
-      // Verify Hyperedge Weights
-      ASSERT_EQ(1, c_hypergraph.edgeWeight(0));
-      ASSERT_EQ(1, c_hypergraph.edgeWeight(1));
-
-      // Verify Hypergraph Structure
-      verifyIncidentNets(c_hypergraph, 0, { 0 });
-      verifyIncidentNets(c_hypergraph, 1, { 0, 1 });
-      verifyIncidentNets(c_hypergraph, 2, { });
-      verifyIncidentNets(c_hypergraph, 3, { 1 });
-      verifyPins(c_hypergraph, { 0, 1 },
-                 { {0, 1}, {1, 3} });
-    }
-
 TEST_F(AMutableHypergraph, ContractCommunitiesIfCommunityInformationAreAvailable) {
   assignCommunityIds();
   parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 1, 2, 2, 3, 3};
@@ -566,6 +518,128 @@ TEST_F(AMutableHypergraph, ContractCommunitiesIfCommunityInformationAreAvailable
   ASSERT_EQ(1, c_hypergraph.communityID(2));
   ASSERT_EQ(2, c_hypergraph.communityID(3));
 
+}
+
+
+TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedgesInvariantAddDelete) {
+  hypergraph.disableHyperedge(3);
+
+
+  size_t hn = hypergraph.addHypernode({1}, 1);
+
+  hypergraph.addPin(0, hn);
+  hypergraph.deletePin(1, hn);
+
+  hypergraph.deleteHypernode(hn);
+
+
+  size_t he = hypergraph.addHyperedge({1, 2}, 1);
+
+  hypergraph.addPin(he, 0);
+  hypergraph.deletePin(he, 1);
+
+  hypergraph.deleteHyperedge(he);
+
+  parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 0, 1, 1, 2, 3};
+  MutableHypergraph c_hypergraph = hypergraph.contract(c_mapping);
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[0]);
+  ASSERT_EQ(0, c_mapping[1]);
+  ASSERT_EQ(0, c_mapping[2]);
+  ASSERT_EQ(1, c_mapping[3]);
+  ASSERT_EQ(1, c_mapping[4]);
+  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(3, c_mapping[6]);
+
+  // Verify Stats
+  ASSERT_EQ(4, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(2, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(4, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(0));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(3));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(1));
+
+  // Verify Hypergraph Structure
+  verifyIncidentNets(c_hypergraph, 0, { 0 });
+  verifyIncidentNets(c_hypergraph, 1, { 0, 1 });
+  verifyIncidentNets(c_hypergraph, 2, { });
+  verifyIncidentNets(c_hypergraph, 3, { 1 });
+  verifyPins(c_hypergraph, { 0, 1 },
+             { {0, 1}, {1, 3} });
+}
+
+TEST_F(AMutableHypergraph, ContractsCommunitiesWithDisabledHyperedgesAndDeletedReAddElements) {
+  hypergraph.disableHyperedge(3);
+
+  //Add and delete some elements (creates holes in the id space)
+  HypernodeID hn = hypergraph.addHypernode({1}, 1);
+  hypergraph.addPin(0, hn);
+  hypergraph.deletePin(1, hn);
+  hypergraph.deleteHypernode(hn);
+  HyperedgeID he = hypergraph.addHyperedge({1, 2}, 1);
+  hypergraph.addPin(he, 0);
+  hypergraph.deletePin(he, 1);
+  hypergraph.deleteHyperedge(he);
+
+  // Now, delete and re-add some elements (ids change but behavior should be invariant to that in some sense)
+  hypergraph.deleteHypernode(0);
+  HypernodeID new_hn = hypergraph.addHypernode({}, 1);
+  hypergraph.addPin(0, new_hn);
+  hypergraph.addPin(1, 8);
+
+  hypergraph.deleteHyperedge(0);
+  HyperedgeID new_he = hypergraph.addHyperedge({new_hn, 1}, 1);
+  (void) new_he;
+
+  // Contract ...
+  parallel::scalable_vector<HypernodeID> c_mapping = {kInvalidHypernode, 0, 0, 1, 1, 2, 3, kInvalidHypernode, 0};
+  MutableHypergraph c_hypergraph = hypergraph.contract(c_mapping);
+
+  // Verify Mapping
+//  ASSERT_EQ(0, c_mapping[0]);
+  ASSERT_EQ(0, c_mapping[1]);
+  ASSERT_EQ(0, c_mapping[2]);
+  ASSERT_EQ(1, c_mapping[3]);
+  ASSERT_EQ(1, c_mapping[4]);
+  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(3, c_mapping[6]);
+//  ASSERT_EQ(0, c_mapping[7]);
+  ASSERT_EQ(0, c_mapping[8]);
+
+  // Verify Stats
+  ASSERT_EQ(4, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(2, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(4, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(0));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(3));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(1));
+
+  // Verify Hypergraph Structure
+  verifyIncidentNets(c_hypergraph, 0, { 0 });
+  verifyIncidentNets(c_hypergraph, 1, { 0, 1 });
+  verifyIncidentNets(c_hypergraph, 2, { });
+  verifyIncidentNets(c_hypergraph, 3, { 1 });
+  verifyPins(c_hypergraph, { 0, 1 },
+             { {0, 1}, {1, 3} });
 }
 
 

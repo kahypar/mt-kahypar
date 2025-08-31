@@ -473,7 +473,7 @@ namespace mt_kahypar {
                         _id(id),
                         _max_id(max_id),
                         _element(start_element) {
-                  if (_id != _max_id && _element->isDisabled()) {
+                  if (_id != _max_id && (_element->isDisabled() || _element->is_deleted())) {
                     operator++ ();
                   }
                 }
@@ -489,7 +489,7 @@ namespace mt_kahypar {
                   do {
                     ++_id;
                     ++_element;
-                  } while (_id < _max_id && _element->isDisabled());
+                  } while (_id < _max_id && (_element->isDisabled() || _element->is_deleted()));
                   return *this;
                 }
 
@@ -906,6 +906,18 @@ namespace mt_kahypar {
              */
             MutableHypergraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
 
+
+            /*!
+             * Contracts a given community structure. All vertices with the same label
+             * are collapsed into the same vertex. The resulting single-pin and parallel
+             * hyperedges are removed from the contracted graph. The function returns
+             * the contracted hypergraph and a mapping which specifies a mapping from
+             * community label (given in 'communities') to a vertex in the coarse hypergraph.
+             *
+             * \param communities Community structure that should be contracted
+             */
+            MutableHypergraph contract_transform(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
+
             bool registerContraction(const HypernodeID, const HypernodeID) {
               throw UnsupportedOperationException(
                       "registerContraction(u, v) is not supported in static hypergraph");
@@ -1019,12 +1031,19 @@ namespace mt_kahypar {
             MutableHypergraph copy() const;
 
             // ! Convert to static hypergraph
-            StaticHypergraph toStaticHypergraph(std::vector<HypernodeID>* old_to_new_hn,
-                                                std::vector<HyperedgeID>* old_to_new_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
+            StaticHypergraph toStaticHypergraph(std::vector<HypernodeID>* static_to_mut_hn,
+                                                std::vector<HyperedgeID>* static_to_mut_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
 
             // ! Convert StaticHypergraph to MutableHypergraph
-            MutableHypergraph fromStaticHypergraph(const StaticHypergraph& static_hg, std::vector<HypernodeID>* old_to_new_hn,
-                                                   std::vector<HyperedgeID>* old_to_new_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
+            MutableHypergraph fromStaticHypergraph(const StaticHypergraph& static_hg, std::vector<HypernodeID>* static_to_mut_hn,
+                                                   std::vector<HyperedgeID>* static_to_mut_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
+
+            // ! Convert to static community
+            parallel::scalable_vector<HypernodeID> toStaticCommunity(parallel::scalable_vector<HypernodeID>* mutable_communities);
+
+            // ! Convert from static community
+            void updateFromStaticCommunity(const parallel::scalable_vector<HypernodeID>& static_communities, parallel::scalable_vector<HypernodeID>* mutable_communities,
+                                                              std::vector<HypernodeID>* static_to_mut_hn);
 
             // ! Reset internal data structure
             void reset() { }
@@ -1069,10 +1088,11 @@ namespace mt_kahypar {
               _community_ids.push_back(0);
               ++_num_hypernodes;
               _total_weight += hypernode.weight();
+              HypernodeID new_hn_id = _hypernodes.size() - 2;
               for (const HyperedgeID& e : incident_nets) {
-                addPin(e, _num_hypernodes - 1);
+                addPin(e, new_hn_id);
               }
-              return _num_hypernodes - 1;
+              return new_hn_id;
             }
 
             /*!
@@ -1118,10 +1138,11 @@ namespace mt_kahypar {
               _hyperedges.insert(_hyperedges.end() - 1, hyperedge);
               ++_num_hyperedges;
               _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), hyperedge.size());
+              HyperedgeID new_he_id = _hyperedges.size() - 2;
               for (const HypernodeID& pin : pins) {
-                addPin(_num_hyperedges - 1, pin);
+                addPin(new_he_id, pin);
               }
-              return _num_hyperedges - 1;
+              return new_he_id;
             }
 
             /*!
@@ -1195,7 +1216,7 @@ namespace mt_kahypar {
 
             // ! Accessor for hypernode-related information
             MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
-              ASSERT(u <= _num_hypernodes, "Hypernode" << u << "does not exist");
+              ASSERT(u <= _hypernodes.size(), "Hypernode" << u << "does not exist");
               return _hypernodes[u];
             }
 
@@ -1215,7 +1236,7 @@ namespace mt_kahypar {
 
             // ! Accessor for hyperedge-related information
             MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
-              ASSERT(e <= _num_hyperedges, "Hyperedge" << e << "does not exist");
+              ASSERT(e <= _hyperedges.size(), "Hyperedge" << e << "does not exist");
               return _hyperedges[e];
             }
 
