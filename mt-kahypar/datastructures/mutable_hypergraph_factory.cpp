@@ -75,6 +75,7 @@ namespace mt_kahypar::ds {
     for (HypernodeID i = 0; i < num_hypernodes; ++i) {
       hypergraph._hypernodes[i] = MutableHypergraph::Hypernode(incident_nets[i], hypernode_weight ? hypernode_weight[i] : 1);
       hypergraph._total_degree += hypergraph._hypernodes[i].size();
+      //TODO total weight?
     }
 
     hypergraph._community_ids.resize(num_hypernodes, 0);
