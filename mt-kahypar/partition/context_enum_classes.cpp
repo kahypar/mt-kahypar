@@ -92,8 +92,10 @@ namespace mt_kahypar {
   std::ostream& operator<< (std::ostream& os, const ContextType& type) {
     if (type == ContextType::main) {
       return os << "main";
-    } else {
+    } else if (type == ContextType::initial_partitioning) {
       return os << "ip";
+    } else {
+      return os << "evo";
     }
     return os << static_cast<uint8_t>(type);
   }
@@ -285,6 +287,56 @@ namespace mt_kahypar {
           // omit default case to trigger compiler warning for missing cases
       }
       return os << static_cast<uint8_t>(policy);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const EvoReplaceStrategy& replace) {
+    switch (replace) {
+      case EvoReplaceStrategy::worst: return os << "worst";
+      case EvoReplaceStrategy::diverse: return os << "diverse";
+      case EvoReplaceStrategy::strong_diverse: return os << "strong_diverse";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(replace);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const EvoCombineStrategy& combine) {
+    switch (combine) {
+      case EvoCombineStrategy::basic: return os << "basic";
+      case EvoCombineStrategy::edge_frequency: return os << "edge_frequency";
+      case EvoCombineStrategy::UNDEFINED: return os << "-";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(combine);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const EvoMutateStrategy& mutation) {
+    switch (mutation) {
+      case EvoMutateStrategy::new_initial_partitioning_vcycle:
+        return os << "new_initial_partitioning_vcycle";
+      case EvoMutateStrategy::vcycle: return os << "vcycle";
+      case EvoMutateStrategy::UNDEFINED:  return os << "-";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(mutation);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const EvoDecision& decision) {
+    switch (decision) {
+      case EvoDecision::normal:  return os << "normal";
+      case EvoDecision::mutation:  return os << "mutation";
+      case EvoDecision::combine:  return os << "combine";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(decision);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const RatingPartitionPolicy& policy) {
+    switch (policy) {
+      case RatingPartitionPolicy::normal: return os << "normal";
+      case RatingPartitionPolicy::evolutionary: return os << "evolutionary";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(policy);
   }
 
   Mode modeFromString(const std::string& mode) {
@@ -521,5 +573,18 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + policy);
     return SteinerTreeFlowValuePolicy::UNDEFINED;
+  }
+
+
+  EvoReplaceStrategy EvoReplaceStrategyFromString(const std::string& type) {
+    if (type == "worst") {
+      return EvoReplaceStrategy::worst;
+    } else if (type == "diverse") {
+      return EvoReplaceStrategy::diverse;
+    } else if (type == "strong_diverse") {
+      return EvoReplaceStrategy::strong_diverse;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return EvoReplaceStrategy::worst;
   }
 }

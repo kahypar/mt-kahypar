@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/evolutionary/action.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
@@ -106,6 +107,7 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
+  RatingPartitionPolicy partition_policy = RatingPartitionPolicy::normal;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
@@ -297,6 +299,22 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+struct EvolutionaryParameters {
+  size_t population_size;
+  float mutation_chance;
+  EvoReplaceStrategy replace_strategy;
+  mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
+  int diversify_interval;  // -1 disables diversification
+  bool dynamic_population_size;
+  double dynamic_population_amount_of_time;
+  mutable int iteration;
+  mutable std::chrono::milliseconds time_elapsed;
+  std::string history_file;
+  int kway_combine;
+};
+
+std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params);
+
 class Context {
  public:
   PartitioningParameters partition { };
@@ -306,11 +324,13 @@ class Context {
   RefinementParameters refinement { };
   MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
+  EvolutionaryParameters evolutionary { };
   ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
   size_t utility_id = std::numeric_limits<size_t>::max();
+  bool partition_evolutionary = false;
 
   Context(const bool register_utilities = true) {
     if ( register_utilities ) {

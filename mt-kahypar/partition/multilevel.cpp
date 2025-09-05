@@ -203,6 +203,108 @@ namespace {
 
     return partitioned_hg;
   }
+
+  template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph evolution_multilevel_partitioning(
+    typename TypeTraits::Hypergraph& hypergraph,
+    const Context& context,
+    const TargetGraph* target_graph,
+    const bool is_vcycle,
+    const std::unordered_map<PartitionID, int>& comm_to_block) {
+    //disableTimerAndStats(context);
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    PartitionedHypergraph partitioned_hg;
+
+    // ################## COARSENING ##################
+    mt_kahypar::io::printCoarseningBanner(context);
+
+    const bool nlevel = context.isNLevelPartitioning();
+    UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
+
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    {
+      std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
+        context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
+        context, uncoarsening::to_pointer(uncoarseningData));
+      coarsener->coarsen();
+
+      if (context.partition.verbose_output) {
+        mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
+        mt_kahypar::io::printHypergraphInfo(
+          utils::cast<Hypergraph>(coarsestHypergraph), context,
+          "Coarsened Hypergraph", context.partition.show_memory_consumption);
+      }
+    }
+
+    // ################## INITIAL PARTITIONING ##################
+    io::printInitialPartitioningBanner(context);
+    PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
+
+    { 
+      // When performing a V-cycle, we store the block IDs
+      // of the input hypergraph as community IDs
+      const Hypergraph& hypergraph = phg.hypergraph();
+      phg.doParallelForAllNodes([&](const HypernodeID hn) {
+        const PartitionID part_id = comm_to_block.at(hypergraph.communityID(hn));
+        ASSERT(part_id != kInvalidPartition && part_id < context.partition.k);
+        ASSERT(phg.partID(hn) == kInvalidPartition);
+        phg.setOnlyNodePart(hn, part_id);
+      });
+      phg.initializePartition();
+
+      #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+      if ( context.partition.objective == Objective::steiner_tree ) {
+        phg.setTargetGraph(target_graph);
+        timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
+        // Try to improve current mapping
+        InitialMapping<TypeTraits>::mapToTargetGraph(
+          phg, *target_graph, context);
+        timer.stop_timer("one_to_one_mapping");
+      }
+      #endif
+    }
+
+    ASSERT([&] {
+      bool success = true;
+      if ( phg.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : phg.nodes() ) {
+          if ( phg.isFixed(hn) && phg.fixedVertexBlock(hn) != phg.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << phg.fixedVertexBlock(hn)
+                << ", but is assigned to block" << phg.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
+
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      phg.setTargetGraph(target_graph);
+    }
+    io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
+    if ( context.partition.verbose_output && !is_vcycle ) {
+      utils::Utilities::instance().getInitialPartitioningStats(
+        context.utility_id).printInitialPartitioningStats();
+    }
+
+    // ################## UNCOARSENING ##################
+    io::printLocalSearchBanner(context);
+    std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    if (uncoarseningData.nlevel) {
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
+    } else {
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
+    }
+    partitioned_hg = uncoarsener->uncoarsen();
+
+    io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
+
+    //enableTimerAndStats(context);
+    return partitioned_hg;
+  }
 }
 
 template<typename TypeTraits>
@@ -265,6 +367,42 @@ void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
   }
 }
 
+template<typename TypeTraits>
+void Multilevel<TypeTraits>::evolutionPartitionVCycle(Hypergraph& hypergraph,
+                                             PartitionedHypergraph& partitioned_hg,
+                                             const Context& context,
+                                             const std::unordered_map<PartitionID, int>& comm_to_block,
+                                             const TargetGraph* target_graph) {
+
+  //disableTimerAndStats(context);
+  // Reset memory pool
+  hypergraph.reset();
+  parallel::MemoryPool::instance().reset();
+  parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+  if ( context.isNLevelPartitioning() ) {
+    // Workaround: reset() function of hypergraph reinserts all removed hyperedges again.
+    LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
+    large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
+  }
+
+  /*vec<PartitionID> old_part{static_cast<int>(hypergraph.initialNumNodes())}; 
+  for ( const HypernodeID& hn : hypergraph.nodes() ) { 
+      //old_part[hn] = hypergraph.communityID(hn);
+      old_part[hn] = partitioned_hg.partID(hn);
+  }*/
+  // The block IDs of the current partition are stored as community IDs.
+  // This way coarsening does not contract nodes that do not belong to same block
+  // of the input partition. For initial partitioning, we use the community IDs of
+  // smallest hypergraph as initial partition.
+  /*hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    hypergraph.setCommunityID(hn, partitioned_hg.partID(hn));
+  });*/
+
+  // Perform V-cycle
+  partitioned_hg = evolution_multilevel_partitioning<TypeTraits>(
+    hypergraph, context, target_graph, true /* V-cycle flag */, comm_to_block); 
+}
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Multilevel)
 
 }
