@@ -81,29 +81,18 @@ namespace mt_kahypar {
 
                 Hypernode() :
                         _incident_nets(),
-                        _begin(0),
                         _size(0),
                         _weight(1),
                         _valid(false) { }
 
                 Hypernode(const bool valid) :
                         _incident_nets(),
-                        _begin(0),
                         _size(0),
                         _weight(1),
                         _valid(valid) { }
 
-                // Sentinel Constructor
-                Hypernode(const size_t begin) :
-                        _incident_nets(begin),
-                        _begin(begin),
-                        _size(0),
-                        _weight(1),
-                        _valid(false) { }
-
                 Hypernode(const std::vector<HyperedgeID>& incident_nets, const HypernodeWeight weight) :
                         _incident_nets(incident_nets),
-                        _begin(0),
                         _size(incident_nets.size()),
                         _weight(weight),
                         _valid(true) { }
@@ -123,24 +112,8 @@ namespace mt_kahypar {
                 }
 
                 // ! Returns the index of the first element in _incident_nets
-                size_t firstEntry() const {
-                  return _begin;
-                }
-
-                // ! returns a pointer to the first element in _incident_nets
-                const HyperedgeID* firstEntryPtr() const {
-                  return _incident_nets.data() + firstEntry();
-                }
-
-                // ! Sets the index of the first element in _incident_nets to begin
-                void setFirstEntry(size_t begin) {
-                  ASSERT(!isDisabled());
-                  _begin = begin;
-                }
-
-                // ! Returns the index of the first element in _incident_nets
                 size_t firstInvalidEntry() const {
-                  return _begin + _size;
+                  return _size;
                 }
 
                 size_t size() const {
@@ -164,7 +137,7 @@ namespace mt_kahypar {
 
                 void mark_deleted() {
                   _deleted = true;
-                  //TODO maybe also set _valid to false?
+                  _valid = false;
                 }
 
                 bool is_deleted() const {
@@ -174,23 +147,23 @@ namespace mt_kahypar {
                 // ! Returns a range to loop over the incident nets of hypernode u.
                 IteratorRange<std::vector<HypernodeID>::const_iterator> incidentEdges(const size_t pos = 0) const {
                   return IteratorRange<IncidentNetsIterator>(
-                          _incident_nets.cbegin() + firstEntry() + pos,
+                          _incident_nets.cbegin() + pos,
                           _incident_nets.cbegin() + firstInvalidEntry());
                 }
 
                 // ! Adds a net to the hypernode
                 void addNet(const HyperedgeID net) {
-                  _incident_nets.insert(_incident_nets.begin() + firstInvalidEntry(), net);
+                  //swap with first invalid entry
+                  _incident_nets.push_back(net);
+                  std::swap(_incident_nets[_incident_nets.size() - 1],
+                            _incident_nets[firstInvalidEntry()]);
                   ++_size;
                 }
 
                 // ! Deletes a net from the hypernode
                 void deleteNet(const HyperedgeID net) {
-                  _incident_nets.erase(
-                      std::remove(_incident_nets.begin() + firstEntry(),
-                                  _incident_nets.begin() + firstInvalidEntry(), net),
-                      _incident_nets.begin() + firstInvalidEntry());
-                  --_size;
+                  // swap with last valid entry
+                  deactivateNet(net);
                 }
 
                 // ! activate net
@@ -198,12 +171,11 @@ namespace mt_kahypar {
                   using std::swap;
 
                   size_t incident_nets_pos = firstInvalidEntry();
-                  for ( ; incident_nets_pos > firstEntry(); --incident_nets_pos ) {
+                  for ( ; incident_nets_pos > 0; --incident_nets_pos ) {
                     if ( _incident_nets[incident_nets_pos - 1] == e ) {
                       break;
                     }
                   }
-                  ASSERT(incident_nets_pos >= firstEntry());
                   swap(_incident_nets[incident_nets_pos], _incident_nets[firstInvalidEntry() - 1]);
                   _size = _size + 1;
                 }
@@ -212,7 +184,7 @@ namespace mt_kahypar {
                 void deactivateNet(const HyperedgeID e) {
                   using std::swap;
 
-                  size_t incident_nets_pos = firstEntry();
+                  size_t incident_nets_pos = 0;
                   for ( ; incident_nets_pos < firstInvalidEntry(); ++incident_nets_pos ) {
                     if ( _incident_nets[incident_nets_pos] == e ) {
                       break;
@@ -226,8 +198,6 @@ namespace mt_kahypar {
             private:
                 // ! incident_nets
                 std::vector<HyperedgeID> _incident_nets;
-                // ! Index of the first element in _incident_nets
-                size_t _begin;
                 // ! Number of incident nets
                 size_t _size;
                 // ! Hypernode weight
@@ -248,22 +218,18 @@ namespace mt_kahypar {
 
                 Hyperedge() :
                         _incidence_array(),
-                        _begin(0),
                         _size(0),
                         _weight(1),
                         _valid(false) { }
 
-                // Sentinel Constructor
-                Hyperedge(const size_t begin) :
-                        _incidence_array(begin),
-                        _begin(begin),
+                Hyperedge(const bool valid) :
+                        _incidence_array(),
                         _size(0),
                         _weight(1),
-                        _valid(false) { }
+                        _valid(valid) { }
 
                 Hyperedge(const std::vector<HypernodeID>& incidence_array, const HyperedgeWeight weight) :
                         _incidence_array(incidence_array),
-                        _begin(0),
                         _size(incidence_array.size()),
                         _weight(weight),
                         _valid(true) { }
@@ -271,7 +237,6 @@ namespace mt_kahypar {
                 Hyperedge(const parallel::scalable_vector<HypernodeID>& incidence_array,
                           const HyperedgeWeight weight) :
                         _incidence_array(incidence_array.begin(), incidence_array.end()),
-                        _begin(0),
                         _size(incidence_array.size()),
                         _weight(weight),
                         _valid(true) { }
@@ -293,24 +258,8 @@ namespace mt_kahypar {
                 }
 
                 // ! Returns the index of the first element in _incidence_array
-                size_t firstEntry() const {
-                  return _begin;
-                }
-
-                // ! returns a pointer to the first element in _incidence_array
-                const HypernodeID* firstEntryPtr() const {
-                  return _incidence_array.data() + firstEntry();
-                }
-
-                // ! Sets the index of the first element in _incidence_array to begin
-//                void setFirstEntry(size_t begin) {
-//                  ASSERT(!isDisabled());
-//                  _begin = begin;
-//                }
-
-                // ! Returns the index of the first element in _incidence_array
                 size_t firstInvalidEntry() const {
-                  return _begin + _size;
+                  return _size;
                 }
 
                 size_t size() const {
@@ -333,16 +282,9 @@ namespace mt_kahypar {
                   _weight = weight;
                 }
 
-                bool operator== (const Hyperedge& rhs) const {
-                  return _begin == rhs._begin && _size == rhs._size && _weight == rhs._weight;
-                }
-
-                bool operator!= (const Hyperedge& rhs) const {
-                  return _begin != rhs._begin || _size != rhs._size || _weight != rhs._weight;
-                }
-
                 void mark_deleted() {
                   _deleted = true;
+                  _valid = false;
                 }
 
                 bool is_deleted() const {
@@ -352,49 +294,24 @@ namespace mt_kahypar {
                 // ! Returns a range to loop over the incident nets of the hyperedge
                 IteratorRange<std::vector<HypernodeID>::const_iterator> pins() const {
                   return IteratorRange<IncidenceIterator>(
-                          _incidence_array.cbegin() + firstEntry(),
+                          _incidence_array.cbegin(),
                           _incidence_array.cbegin() + firstInvalidEntry());
                 }
 
                 //adds a pin to the hyperedge
                 void addPin(const HypernodeID pin) {
-                  if (firstInvalidEntry() >= _incidence_array.size()) {
-                    _incidence_array.push_back(pin);
-                  } else {
-                    _incidence_array.insert(_incidence_array.begin() + firstInvalidEntry(), pin);
-                  }
+                  //swap with first invalid entry
+                  _incidence_array.push_back(pin);
+                  std::swap(_incidence_array[_incidence_array.size() - 1],
+                            _incidence_array[firstInvalidEntry()]);
                   ++_size;
                 }
 
                 // ! Deletes a pin from the hyperedge
                 void deletePin(const HypernodeID pin) {
-                  _incidence_array.erase(
-                      std::remove(_incidence_array.begin() + firstEntry(),
-                                  _incidence_array.begin() + firstInvalidEntry(), pin),
-                      _incidence_array.begin() + firstInvalidEntry());
-                  --_size;
-                }
-
-                // ! activate pin
-                void activatePin(const HypernodeID pin) {
+                  // swap with last valid entry
                   using std::swap;
-
-                  size_t incidence_array_pos = firstInvalidEntry();
-                  for ( ; incidence_array_pos > firstEntry(); --incidence_array_pos ) {
-                    if ( _incidence_array[incidence_array_pos - 1] == pin ) {
-                      break;
-                    }
-                  }
-                  ASSERT(incidence_array_pos >= firstEntry());
-                  swap(_incidence_array[incidence_array_pos], _incidence_array[firstInvalidEntry() - 1]);
-                  _size = _size + 1;
-                }
-
-                // ! deactivate pin
-                void deactivatePin(const HypernodeID pin) {
-                  using std::swap;
-
-                  size_t incidence_array_pos = firstEntry();
+                  size_t incidence_array_pos = 0;
                   for ( ; incidence_array_pos < firstInvalidEntry(); ++incidence_array_pos ) {
                     if ( _incidence_array[incidence_array_pos] == pin ) {
                       break;
@@ -402,25 +319,12 @@ namespace mt_kahypar {
                   }
                   ASSERT(incidence_array_pos < firstInvalidEntry());
                   swap(_incidence_array[incidence_array_pos], _incidence_array[firstInvalidEntry() - 1]);
-                  _size = _size - 1;
-                }
-
-                // ! map pin to a new pin
-                void mapPin(const HypernodeID old_pin, const HypernodeID new_pin) {
-                  for (size_t pos = firstEntry(); pos < firstInvalidEntry(); ++pos) {
-                    if (_incidence_array[pos] == old_pin) {
-                      _incidence_array[pos] = new_pin;
-                      return;
-                    }
-                  }
-                  ASSERT(false, "Pin " << old_pin << " not found in hyperedge " << _begin);
+                  --_size;
                 }
 
             private:
                 // ! incidence_array
                 std::vector<HypernodeID> _incidence_array;
-                // ! Index of the first element in _incidence_array
-                size_t _begin;
                 // ! Number of pins
                 size_t _size;
                 // ! hyperedge weight
@@ -652,7 +556,7 @@ namespace mt_kahypar {
 
             // ! Initial number of hypernodes
             HypernodeID initialNumNodes() const {
-              return _num_hypernodes;
+              return _hypernodes.size();
             }
 
             // ! Number of removed hypernodes
@@ -667,7 +571,7 @@ namespace mt_kahypar {
 
             // ! Initial number of hyperedges
             HyperedgeID initialNumEdges() const {
-              return _num_hyperedges;
+              return _hyperedges.size();
             }
 
             // ! Number of removed hyperedges
@@ -1038,6 +942,8 @@ namespace mt_kahypar {
             MutableHypergraph fromStaticHypergraph(const StaticHypergraph& static_hg, std::vector<HypernodeID>* static_to_mut_hn,
                                                    std::vector<HyperedgeID>* static_to_mut_he, std::vector<HypernodeID>* deleted_hn, std::vector<HyperedgeID>* deleted_he);
 
+            MutableHypergraph fromStaticHypergraphSimple(const StaticHypergraph& static_hg);
+
             // ! Convert to static community
             parallel::scalable_vector<HypernodeID> toStaticCommunity(parallel::scalable_vector<HypernodeID>* mutable_communities);
 
@@ -1083,12 +989,11 @@ namespace mt_kahypar {
              */
             HypernodeID addHypernode(const std::vector<HyperedgeID>& incident_nets, const HypernodeWeight weight = 1) {
               Hypernode hypernode({}, weight);
-              //insert new hypernode in front of sentinel
-              _hypernodes.insert(_hypernodes.end() - 1, hypernode);
+              HypernodeID new_hn_id = _hypernodes.size();
+              _hypernodes.push_back(hypernode);
               _community_ids.push_back(0);
               ++_num_hypernodes;
               _total_weight += hypernode.weight();
-              HypernodeID new_hn_id = _hypernodes.size() - 2;
               for (const HyperedgeID& e : incident_nets) {
                 addPin(e, new_hn_id);
               }
@@ -1110,7 +1015,9 @@ namespace mt_kahypar {
                 if (hyperedge(e).size() == _max_edge_size) {
                   recompute_max_edge_size = true;
                 }
-                deletePin(e, u);
+                hyperedge(e).deletePin(u);
+                --_num_pins;
+                --_total_degree;
               }
               if (recompute_max_edge_size) {
                 _max_edge_size = 0;
@@ -1131,14 +1038,12 @@ namespace mt_kahypar {
              */
             HyperedgeID addHyperedge(const std::vector<HypernodeID>& pins,
                                      const HyperedgeWeight weight = 1) {
-              Hyperedge hyperedge;
-              hyperedge.enable();
+              Hyperedge hyperedge(true);
               hyperedge.setWeight(weight);
-              //insert new hyperedge in front of sentinel
-              _hyperedges.insert(_hyperedges.end() - 1, hyperedge);
+              HyperedgeID new_he_id = _hyperedges.size();
+              _hyperedges.push_back(hyperedge);
               ++_num_hyperedges;
               _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), hyperedge.size());
-              HyperedgeID new_he_id = _hyperedges.size() - 2;
               for (const HypernodeID& pin : pins) {
                 addPin(new_he_id, pin);
               }
@@ -1155,7 +1060,9 @@ namespace mt_kahypar {
               _num_hyperedges--;
               bool recompute_max_edge_size = hyperedge(he).size() == _max_edge_size;
               for (const HypernodeID& pin : hyperedge(he).pins()) {
-                deletePin(he, pin);
+                --_num_pins;
+                --_total_degree;
+                hypernode(pin).deleteNet(he);
               }
               if (recompute_max_edge_size) {
                 _max_edge_size = 0;
@@ -1183,8 +1090,8 @@ namespace mt_kahypar {
               // Add pin to the hyperedge
               hyperedge(he).addPin(pin);
               ++_num_pins;
+              ++_total_degree;
               _max_edge_size = std::max(static_cast<size_t>(_max_edge_size), hyperedge(he).size());
-              _total_degree += 1;
               hypernode(pin).addNet(he);
             }
             /*!
@@ -1199,7 +1106,7 @@ namespace mt_kahypar {
               ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
               ASSERT(!hypernode(pin).is_deleted(), "Hypernode" << pin << "is deleted");
               --_num_pins;
-              _total_degree -= 1;
+              --_total_degree;
               hypernode(pin).deleteNet(he);
               hyperedge(he).deletePin(pin);
             }
