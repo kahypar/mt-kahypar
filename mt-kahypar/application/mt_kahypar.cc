@@ -100,6 +100,11 @@ int main(int argc, char* argv[]) {
     parallel::activate_interleaved_membind_policy();
   }
 
+  //Branch into dynamic behavior if preset is mutable
+  if ( context.partition.preset_type == PresetType::mutable_preset ) {
+//    return dyn::partition(context);
+  }
+
   // Read Hypergraph
   utils::Timer& timer =
     utils::Utilities::instance().getTimer(context.utility_id);
