@@ -24,6 +24,7 @@
 #include <limits>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 #include "mt-kahypar/partition/evolutionary/individual.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -41,6 +42,7 @@ class Population {
     _individuals() { }
 
   inline size_t insert(Individual&& individual, const Context& context) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
     DBG << context.evolutionary.replace_strategy;
     switch (context.evolutionary.replace_strategy) {
       case EvoReplaceStrategy::worst:
@@ -171,6 +173,53 @@ class Population {
     return _individuals[pos];
   }
 
+  // Thread-safe accessors
+  inline size_t randomIndividualSafe() {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
+  }
+
+  inline const Individual& individualAtSafe(const size_t pos) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return _individuals[pos];
+  }
+
+  inline std::vector<PartitionID> partitionCopySafe(const size_t pos) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return _individuals[pos].partition(); // returns copy
+  }
+
+  inline HyperedgeWeight bestFitnessSafe() {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    HyperedgeWeight best_fitness = _individuals[0].fitness();
+    for (size_t i = 1; i < _individuals.size(); ++i) {
+      const HyperedgeWeight result = _individuals[i].fitness();
+      if (result < best_fitness) {
+        best_fitness = result;
+      }
+    }
+    return best_fitness;
+  }
+
+  inline HyperedgeWeight fitnessAtSafe(const size_t pos) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return _individuals[pos].fitness();
+  }
+
+  inline size_t bestSafe() {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    size_t best_position = 0;
+    HyperedgeWeight best_fitness = _individuals[0].fitness();
+    for (size_t i = 1; i < _individuals.size(); ++i) {
+      const HyperedgeWeight result = _individuals[i].fitness();
+      if (result < best_fitness) {
+        best_position = i;
+        best_fitness = result;
+      }
+    }
+    return best_position;
+  }
+
   inline Individuals listOfBest(const size_t& amount) const {
     std::vector<std::pair<HyperedgeWeight, size_t> > sorting;
     for (size_t i = 0; i < _individuals.size(); ++i) {
@@ -224,10 +273,6 @@ class Population {
     }
     DBG << V(output_diff.size());
     return output_diff.size();
-  }
-
-  std::lock_guard<std::mutex> getLock() {
-    return std::lock_guard<std::mutex>(_population_mutex);
   }
 
  private:

@@ -48,6 +48,12 @@ class Partitioner {
   static void partitionVCycle(PartitionedHypergraph& partitioned_hg,
                               Context& context,
                               TargetGraph* target_graph = nullptr);
+
+  protected: 
+    static void configurePreprocessing(const Hypergraph& hypergraph, Context& context);
+    static void setupContext(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
+    static void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
+
 };
 
 }  // namespace mt_kahypar

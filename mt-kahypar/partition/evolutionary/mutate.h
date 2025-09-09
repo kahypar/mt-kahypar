@@ -30,6 +30,7 @@ namespace mt_kahypar {
 namespace mutate {
 static constexpr bool debug = false;
 
+template<typename Hypergraph>
 Individual vCycleWithNewInitialPartitioning(Hypergraph& hg, const Individual& in,
                                             const Context& context) {
   const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -56,8 +57,9 @@ Individual vCycleWithNewInitialPartitioning(Hypergraph& hg, const Individual& in
   io::serializer::serializeEvolutionary(temporary_context, hg);
   return Individual(hg, context);
 }
-
+template<typename Hypergraph>
 Individual vCycle(Hypergraph& hg, const Individual& in,
+                  const Context& context) {
                   const Context& context) {
   const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   hg.reset();
