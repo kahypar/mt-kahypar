@@ -34,6 +34,7 @@ namespace mt_kahypar {
 namespace combine {
 static constexpr bool debug = false;
 
+template<typename Hypergraph>
 Individual partitions(Hypergraph& hg,
                       const Parents& parents,
                       Context& context) {
@@ -81,7 +82,8 @@ Individual partitions(Hypergraph& hg,
   return Individual(hg, context);
 }
 
-
+template<typename Hypergraph>
+Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
 Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
   Context temporary_context(context);
 
@@ -95,7 +97,8 @@ Individual usingTournamentSelection(Hypergraph& hg, const Context& context, cons
 
   return combine::partitions(hg, parents, temporary_context);
 }
-
+template<typename Hypergraph>
+Individual edgeFrequency(Hypergraph& hg, const Context& context, const Population& population) {
 
 Individual edgeFrequency(Hypergraph& hg, const Context& context, const Population& population) {
   const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

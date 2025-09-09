@@ -223,6 +223,7 @@ namespace {
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("coarsening", "Coarsening");
     {
       std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
         context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
@@ -236,11 +237,12 @@ namespace {
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
     }
+    timer.stop_timer("coarsening");
 
     // ################## INITIAL PARTITIONING ##################
     io::printInitialPartitioningBanner(context);
+    timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
-
     { 
       // When performing a V-cycle, we store the block IDs
       // of the input hypergraph as community IDs

@@ -9,13 +9,16 @@ namespace mt_kahypar {
 class TargetGraph;
 
 template<typename TypeTraits>
-class EvoPartitioner {
+class EvoPartitioner : public Partitioner<TypeTraits> {
 
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    using Partitioner<TypeTraits>::configurePreprocessing;
+    using Partitioner<TypeTraits>::setupContext;
+    using Partitioner<TypeTraits>::preprocess;
 
     public:
-    static PartitionedHypergraph partition(const Hypergraph& hypergraph,
+    static PartitionedHypergraph partition(Hypergraph& hypergraph,
                                            Context& context,
                                            TargetGraph* target_graph = nullptr);
     static std::string generateInitialPopulation(const Hypergraph& hg,

@@ -321,6 +321,7 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
     Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 
@@ -464,6 +465,22 @@ namespace mt_kahypar {
       }
       return success;
     }(), "Some fixed vertices are not assigned to their corresponding block");
+  }
+
+  // Add missing static member definitions that forward to the free functions
+  template<typename TypeTraits>
+  void Partitioner<TypeTraits>::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
+    ::mt_kahypar::configurePreprocessing(hypergraph, context);
+  }
+
+  template<typename TypeTraits>
+  void Partitioner<TypeTraits>::setupContext(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+    ::mt_kahypar::setupContext(hypergraph, context, target_graph);
+  }
+
+  template<typename TypeTraits>
+  void Partitioner<TypeTraits>::preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+    ::mt_kahypar::preprocess(hypergraph, context, target_graph);
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Partitioner)
