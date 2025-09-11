@@ -357,12 +357,14 @@ namespace mt_kahypar::ds {
       hypergraph._hyperedges.resize(_hyperedges.size());
       for (HyperedgeID he : edges()) {
         hypergraph._hyperedges[he] = Hyperedge();
-        if (!_hyperedges[he].isDisabled()) {
-          hypergraph._hyperedges[he].enable();
-        }
+        hypergraph._hyperedges[he].enable();
         hypergraph._hyperedges[he].setWeight(_hyperedges[he].weight());
-        for (const HypernodeID hn : _hyperedges[he].pins()) {
+        for (const HypernodeID hn : _hyperedges[he].pins())
+        {
           hypergraph._hyperedges[he].addPin(hn);
+        }
+        if (_hyperedges[he].isDisabled()) {
+          hypergraph._hyperedges[he].disable();
         }
         if (_hyperedges[he].is_deleted()){
           hypergraph._hyperedges[he].mark_deleted();
@@ -499,6 +501,7 @@ namespace mt_kahypar::ds {
 
       hypergraph._hypernodes.resize(static_hg._num_hypernodes + deleted_hn->size());
 
+      // TODO reserve instead of single pushes
       for (HypernodeID hn : static_hg.nodes()) {
         const StaticHypergraph::Hypernode& node = static_hg.hypernode(hn);
         const size_t mutable_hn_index = static_to_mut_hn->at(hn);
