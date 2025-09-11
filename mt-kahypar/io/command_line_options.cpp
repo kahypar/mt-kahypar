@@ -820,6 +820,69 @@ namespace mt_kahypar {
     return shared_memory_options;
   }
 
+    po::options_description createDynamicOptionsDescription(Context& context,
+                                                          const int num_columns) {
+    po::options_description dynamic_options("Dynamic Options", num_columns);
+    dynamic_options.add_options()
+            ("d-changes-file",
+                      po::value(&context.dynamic.changes_file)->value_name("<string>"),
+                        "File containing the changes to be processed");
+    dynamic_options.add_options()
+            ("d-strategy",
+                    po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
+              "Strategy for dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-max-changes",
+                    po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
+             "Maximum number of changes to be processed (defaults to all changes)");
+    dynamic_options.add_options()
+            ("d-step-size-pct",
+                    po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
+    "Percentage of the changes to be processed in each step");
+    dynamic_options.add_options()
+            ("d-result-folder",
+             po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
+             "Folder to store the data generated during the dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-output-file-suffix",
+                    po::value<std::string>(&context.dynamic.output_file_suffix)->value_name("<string>"),
+    "Custom file name ending to be used for dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-logging-step-size-pct",
+             po::value<double>(&context.dynamic.logging_step_size_pct)->value_name("<double>"),
+             "Frequency of logging 0.001 -> 1000 entries");
+    dynamic_options.add_options()
+            ("d-server",
+             po::value<bool>(&context.dynamic.server)->value_name("<bool>"),
+             "If true, then the partitioner is started in server mode");
+    dynamic_options.add_options()
+            ("d-sb-threshold",
+              po::value<size_t>(&context.dynamic.small_blocks_threshold)->value_name("<size_t>"),
+              "Threshold for the small blocks strategie");
+    dynamic_options.add_options()
+            ("d-setup-moves-count",
+              po::value<size_t>(&context.dynamic.setup_moves_count)->value_name("<size_t>"),
+      "Number of moves to be performed prior to the strategy");
+    dynamic_options.add_options()
+            ("d-vcycle-algorithm",
+              po::value<std::string>(&context.dynamic.vcycle_algorithm)->value_name("<string>"),
+      "Algorithm to be used for the v-cycle");
+    dynamic_options.add_options()
+            ("d-vcycle-num",
+              po::value<size_t>(&context.dynamic.vcycle_num)->value_name("<size_t>"),
+      "Number of v-cycles to be performed");
+    dynamic_options.add_options()
+            ("d-version",
+              po::value<size_t>(&context.dynamic.version)->value_name("<size_t>"),
+      "Version of the dynamic partitioning");
+    dynamic_options.add_options()
+            ("d-stop-vcycle",
+              po::value<size_t>(&context.dynamic.stop_vcycle_at_pct)->value_name("<size_t>"),
+      "Stop the v-cycle at this percentage of the changes");
+    return dynamic_options;
+  }
+
+
 
   po::options_description getIniOptionsDescription(Context& context) {
     const int num_columns = 80;
@@ -839,6 +902,8 @@ namespace mt_kahypar {
             createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
+    po::options_description dynamic_options =
+            createDynamicOptionsDescription(context, num_columns);
 
     po::options_description ini_line_options;
     ini_line_options.add(general_options)
@@ -848,7 +913,8 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
-            .add(shared_memory_options);
+            .add(shared_memory_options)
+            .add(dynamic_options);
 
     return ini_line_options;
   }
@@ -900,6 +966,9 @@ namespace mt_kahypar {
             createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
+    po::options_description dynamic_options =
+            createDynamicOptionsDescription(context, num_columns);
+
 
     po::options_description cmd_line_options;
     cmd_line_options
@@ -912,7 +981,8 @@ namespace mt_kahypar {
             .add(refinement_options)
             .add(flow_options)
             .add(mapping_options)
-            .add(shared_memory_options);
+            .add(shared_memory_options)
+            .add(dynamic_options);
 
     po::variables_map cmd_vm;
     po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);

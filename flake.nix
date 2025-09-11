@@ -35,6 +35,7 @@
             fmt
             hwloc
             python3
+            lld
           ];
 
           NIX_ENFORCE_NO_NATIVE=false;

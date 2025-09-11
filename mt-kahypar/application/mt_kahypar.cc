@@ -28,6 +28,7 @@
 #include <iostream>
 #include <chrono>
 
+#include "mt-kahypar/dynamic/dynamic_partitioner.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -102,7 +103,7 @@ int main(int argc, char* argv[]) {
 
   //Branch into dynamic behavior if preset is mutable
   if ( context.partition.preset_type == PresetType::mutable_preset ) {
-//    return dyn::partition(context);
+    return dyn::partition(context);
   }
 
   // Read Hypergraph
@@ -137,6 +138,11 @@ int main(int argc, char* argv[]) {
   // Initialize Memory Pool and Algorithm/Policy Registries
   register_memory_pool(hypergraph, context);
   register_algorithms_and_policies();
+
+  //print full context and hypergraph
+  io::printContext(context);
+  io::printHypergraphInfo<ds::MutableHypergraph>(static_cast<ds::MutableHypergraph&>(utils::cast<ds::MutableHypergraph>(hypergraph)),
+    context, "Input Hypergraph", context.partition.show_memory_consumption);
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

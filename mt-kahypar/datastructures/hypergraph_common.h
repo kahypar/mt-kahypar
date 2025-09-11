@@ -147,6 +147,7 @@ struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
 template<>
 struct PartitionedHypergraphType<ds::MutableHypergraph, ds::ConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = MUTABLE_HYPERGRAPH_PARTITIONING;
+  // static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
 };
 
 template<>

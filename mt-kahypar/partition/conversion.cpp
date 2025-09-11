@@ -88,8 +88,6 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
     } else if ( preset == PresetType::large_k ) {
       return LARGE_K_PARTITIONING;
-    } else if ( preset == PresetType::mutable_preset ) {
-      return MUTABLE_HYPERGRAPH_PARTITIONING;
     }
   }
   return NULLPTR_PARTITION;

@@ -295,6 +295,50 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+struct DynamicParameters {
+  std::string vcycle_algorithm = "kway_fm";
+  size_t vcycle_num = 1;
+
+  std::string changes_file = "";
+  std::string strategy = "";
+  size_t max_changes = -1;
+  double step_size_pct = 0.01;
+  std::string output_file_suffix = "";
+  size_t version = 0;
+
+  // not included in the output file ending
+  std::string result_folder = "";
+  bool server = false;
+  size_t setup_moves_count = 0;
+  size_t small_blocks_threshold = 5;
+
+  // not a parameter
+  std::string output_path = "";
+  // logging values
+  double logging_step_size_pct = 0.001;
+  size_t stop_vcycle_at_pct = 100;
+
+  //local FM Round
+  HyperedgeWeight incremental_km1 = 0;
+  std::vector<Move> moves;
+
+
+  // generate file endings
+  [[nodiscard]] std::string getOutputFileName() const {
+    std::string file_name = "v" + std::to_string(version) + "_";
+    file_name += strategy + "_";
+    file_name += std::to_string(max_changes) + "_";
+    file_name += vcycle_algorithm + "_";
+    file_name += std::to_string(vcycle_num) + "_";
+    // round to 2 decimal places
+    file_name += std::to_string((int)(step_size_pct * 100)) + "_";
+    file_name += output_file_suffix;
+    return file_name;
+  }
+};
+
+std::ostream & operator<< (std::ostream& str, const DynamicParameters& params);
+
 class Context {
  public:
   PartitioningParameters partition { };
@@ -304,6 +348,7 @@ class Context {
   RefinementParameters refinement { };
   MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
+  DynamicParameters dynamic { };
   ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";

@@ -10,7 +10,7 @@
             "name": "minimal",
             "displayName": "Minimal config to reduce compile time",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_BUILD_TYPE": "Debug",
                 "KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS": "ON",
                 "KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS": "ON",
                 "KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES": "OFF",
@@ -104,7 +104,7 @@
         {
             "name": "minimal-dev-debug",
             "configurePreset": "minimal-dev-debug",
-            "jobs": 4
+            "jobs": 10
         }
     ]
 }

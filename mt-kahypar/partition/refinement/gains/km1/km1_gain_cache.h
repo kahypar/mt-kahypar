@@ -113,11 +113,11 @@ class Km1GainCache {
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
 
-  template<typename PartitionedHypergraph>
-  void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
-                                       const HypernodeID&) {
-    // Do nothing
-  }
+  // template<typename PartitionedHypergraph>
+  // void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
+  //                                      const HypernodeID&) {
+  //   // Do nothing
+  // }
 
   // ! Returns whether the block is adjacent to the node
   bool blockIsAdjacent(const HypernodeID, const PartitionID) const {
@@ -273,6 +273,13 @@ class Km1GainCache {
     return true;
   }
 
+  // ! Initializes the benefit and penalty terms for a node u
+  template<typename PartitionedHypergraph>
+//    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                       const HypernodeID u,
+                                       vec<Gain>& benefit_aggregator);
+
  private:
   friend class DeltaKm1GainCache;
 
@@ -297,12 +304,12 @@ class Km1GainCache {
     }
   }
 
-  // ! Initializes the benefit and penalty terms for a node u
-  template<typename PartitionedHypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
-                                       const HypernodeID u,
-                                       vec<Gain>& benefit_aggregator);
+  // // ! Initializes the benefit and penalty terms for a node u
+  // template<typename PartitionedHypergraph>
+  // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  // void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+  //                                      const HypernodeID u,
+  //                                      vec<Gain>& benefit_aggregator);
 
   bool nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
     if ( p == kInvalidPartition || p >= _k ) {
