@@ -46,3 +46,4 @@ python/tests/unittest
 python/tests/*.so
 python/examples/*.so
 compile_commands.json
+output.csv
