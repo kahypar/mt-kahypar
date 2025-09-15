@@ -16,8 +16,6 @@
 #include <string>
 #include <tbb/task_arena.h>
 #include <csignal>
-#include <Windows.h>
-#include <DbgHelp.h>  // MSVC
 
 namespace mt_kahypar {
 
@@ -45,13 +43,11 @@ namespace mt_kahypar {
         // ################## PREPROCESSING ##################
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         timer.start_timer("preprocessing", "Preprocessing");
-        /*DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
         preprocess(hypergraph, context, target_graph);
-        sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);*/
+        //sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
         timer.stop_timer("preprocessing");
-
-        
 
         // ################## EVOLUTIONARY PARTITIONING ##################
         LOG << "DEBUG: Calling generateInitialPopulation...";
@@ -98,9 +94,8 @@ namespace mt_kahypar {
 
         // ################## POSTPROCESSING ##################
         timer.start_timer("postprocessing", "Postprocessing");
-        /*large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
-        degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
-        forceFixedVertexAssignment(partitioned_hypergraph, context);*/
+        large_he_remover.restoreLargeHyperedges(final_partition);
+        degree_zero_hn_remover.restoreDegreeZeroHypernodes(final_partition);
         timer.stop_timer("postprocessing");
 
         #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
@@ -109,7 +104,7 @@ namespace mt_kahypar {
             context.partition.objective = Objective::steiner_tree;
             timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
             InitialMapping<TypeTraits>::mapToTargetGraph(
-                partitioned_hypergraph, *target_graph, context);
+                final_partition, *target_graph, context);
             timer.stop_timer("one_to_one_mapping");
             }
         #endif
