@@ -230,6 +230,11 @@ public:
     }
   }
 
+  void setEdgeMetadata(vec<EdgeMetadata>&& metadata) {
+    ALWAYS_ASSERT(_edge_metadata.empty());
+    _edge_metadata = std::move(metadata);
+  }
+
   // Multilevel Data
   vec<Level<TypeTraits>> hierarchy;
 

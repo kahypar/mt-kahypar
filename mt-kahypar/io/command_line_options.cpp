@@ -356,6 +356,10 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
                      "<double>")->default_value(0.25),
              "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
+            ("c-guiding-by-integrated-model",
+             po::value<bool>(&context.coarsening.rating.guiding_by_integrated_model)->value_name(
+                     "<double>")->default_value(false),
+             "If true, use the integrated model to perform guided coarsening.")
             ("c-guided-edge-scaling",
              po::value<std::string>()->notifier(
                      [&](const std::string& ge_scaling) {
