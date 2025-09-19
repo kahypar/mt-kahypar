@@ -54,6 +54,7 @@ set(ToolsDatastructureSources
       dynamic_graph.cpp
       dynamic_graph_factory.cpp
       dynamic_adjacency_array.cpp
-      fixed_vertex_support.cpp)
+      fixed_vertex_support.cpp
+      graph.cpp)
 
 target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsDatastructureSources})
