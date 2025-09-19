@@ -69,9 +69,10 @@ namespace mt_kahypar::community_detection {
       // Prolong Clustering
       for (const auto& [comm, modularity]: coarse_communities) {
         ds::Clustering communities(own_communities);  // yes, this is an intentional copy
+        const auto& clustering = comm;
         tbb::parallel_for(UL(0), fine_graph.numNodes(), [&](const NodeID u) {
           ASSERT(communities[u] < static_cast<PartitionID>(comm.size()));
-          communities[u] = comm[communities[u]];
+          communities[u] = clustering[communities[u]];
         });
         result.emplace_back(std::move(communities), modularity);
       }
