@@ -45,8 +45,8 @@ namespace mt_kahypar {
         timer.start_timer("preprocessing", "Preprocessing");
         DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
         LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-        preprocess(hypergraph, context, target_graph);
-        //sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+        Partitioner<TypeTraits>::preprocess(hypergraph, context, target_graph);
+        EvoPartitioner<TypeTraits>::sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
         timer.stop_timer("preprocessing");
 
         // ################## EVOLUTIONARY PARTITIONING ##################
@@ -96,6 +96,7 @@ namespace mt_kahypar {
         timer.start_timer("postprocessing", "Postprocessing");
         large_he_remover.restoreLargeHyperedges(final_partition);
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(final_partition);
+        //forceFixedVertexAssignment(partitioned_hypergraph, context);
         timer.stop_timer("postprocessing");
 
         #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
@@ -104,7 +105,7 @@ namespace mt_kahypar {
             context.partition.objective = Objective::steiner_tree;
             timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
             InitialMapping<TypeTraits>::mapToTargetGraph(
-                final_partition, *target_graph, context);
+                 final_partition, *target_graph, context);
             timer.stop_timer("one_to_one_mapping");
             }
         #endif
@@ -151,6 +152,7 @@ namespace mt_kahypar {
         LOG << "DEBUG: Initial population target size =" << context.evolutionary.population_size;
         int best = std::numeric_limits<HyperedgeWeight>::max();
         int iteration = 0;
+
         while (population.size() < context.evolutionary.population_size &&
             time_elapsed <= duration) {
             LOG << "DEBUG: Initial pop loop - Iteration" << iteration << ", Pop size:" << population.size();
@@ -463,8 +465,6 @@ namespace mt_kahypar {
         context.evolutionary.iteration += total_iterations.load();
         context.partition.verbose_output = true;
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations" << "\n";
-        LOG << "    " << (total_iterations.load() - total_mutations.load() - total_combinations.load())
-            << " Initial Population members" << "\n";
         LOG << "    " << total_mutations.load() << " Mutations" << "\n";
         LOG << "    " << total_combinations.load() << " Combinations" << "\n";
 
