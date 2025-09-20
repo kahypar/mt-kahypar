@@ -28,6 +28,8 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 
 namespace mt_kahypar {
 
@@ -53,6 +55,11 @@ class Partitioner {
     static void configurePreprocessing(const Hypergraph& hypergraph, Context& context);
     static void setupContext(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
     static void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
+    static void sanitize(
+    Hypergraph& hypergraph,
+    Context& context,
+    DegreeZeroHypernodeRemover<TypeTraits>& degree_zero_hn_remover,
+    LargeHyperedgeRemover<TypeTraits>& large_he_remover);
 
 };
 

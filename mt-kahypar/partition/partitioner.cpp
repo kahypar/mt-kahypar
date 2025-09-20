@@ -472,5 +472,14 @@ namespace mt_kahypar {
     ::mt_kahypar::preprocess(hypergraph, context, target_graph);
   }
 
+  template<typename TypeTraits>
+  void Partitioner<TypeTraits>::sanitize(
+      Hypergraph& hypergraph,
+      Context& context,
+      DegreeZeroHypernodeRemover<TypeTraits>& degree_zero_hn_remover,
+      LargeHyperedgeRemover<TypeTraits>& large_he_remover) {
+    ::mt_kahypar::sanitize<TypeTraits>(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+  }
+
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Partitioner)
 }
