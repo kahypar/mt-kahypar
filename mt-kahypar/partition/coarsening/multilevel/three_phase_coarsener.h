@@ -240,7 +240,9 @@ class ThreePhaseCoarsener : public ICoarsener,
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
-    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
+    bool propagate_metadata = !_uncoarseningData.coarsestEdgeMetadata().empty()
+                              && static_cast<size_t>(_pass_nr) + 1 < _context.coarsening.rating.guided_coarsening_levels;
+    _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start, propagate_metadata);
     _timer.stop_timer("contraction");
 
     ++_pass_nr;
