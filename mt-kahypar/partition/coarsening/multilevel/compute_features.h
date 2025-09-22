@@ -24,15 +24,60 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "compute_ml_results.h"
+#pragma once
 
-#include "mt-kahypar/partition/coarsening/multilevel/compute_features.h"
+#include <cstdint>
+
+#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
-void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata) {
-  auto [global_features, n1_features] = computeFeatures(graph, context);
-  metadata.resize(graph.initialNumEdges());
-}
+template<typename T>
+struct Statistic {
+  double avg = 0.0;
+  double sd = 0.0;
+  double skew = 0.0;
+  double entropy = 0.0;
+  T min = 0;
+  T q1 = 0;
+  T med = 0;
+  T q3 = 0;
+  T max = 0;
+};
+
+struct GlobalFeatures {
+  uint32_t n = 0;
+  uint32_t m = 0;
+  double irregularity = 0.0;
+  uint32_t exp_median_degree = 0;
+  Statistic<uint32_t> degree_stats;
+  uint32_t n_communities_0 = 0;
+  uint32_t n_communities_1 = 0;
+  uint32_t n_communities_2 = 0;
+  double modularity_0 = 0.0;
+  double modularity_1 = 0.0;
+  double modularity_2 = 0.0;
+};
+
+struct N1Features {
+  uint32_t degree = 0;
+  double degree_quantile = 0;
+  Statistic<uint32_t> degree_stats;
+  uint32_t to_n1_edges = 0;
+  uint32_t to_n2_edges = 0;
+  uint32_t d1_nodes = 0;
+  double modularity = 0;
+  double max_modularity = 0;
+  uint32_t max_modularity_size = 0;
+  double min_contracted_degree = 0;
+  uint32_t min_contracted_degree_size = 0;
+  double clustering_coefficient = 0;
+  double chi_squared_degree_deviation = 0;
+};
+
+std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::StaticGraph& graph, const Context& context);
 
 }  // namespace mt_kahypar
