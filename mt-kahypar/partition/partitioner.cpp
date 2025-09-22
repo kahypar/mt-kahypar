@@ -249,7 +249,7 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
-  void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+  std::vector<std::pair<ds::Clustering, double>> preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
@@ -257,12 +257,13 @@ namespace mt_kahypar {
     if ( context.preprocessing.use_community_detection ) {
       timer.start_timer("detect_graph_structure", "Detect Graph Structure");
       is_graph = isGraph(hypergraph);
-      if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
-        use_community_detection = !isMeshGraph(hypergraph);
-      }
+      // if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
+      //   use_community_detection = !isMeshGraph(hypergraph);
+      // }
       timer.stop_timer("detect_graph_structure");
     }
 
+    std::vector<std::pair<ds::Clustering, double>> community_stack;
     if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
@@ -275,9 +276,10 @@ namespace mt_kahypar {
       }
       timer.stop_timer("construct_graph");
       timer.start_timer("perform_community_detection", "Perform Community Detection");
-      ds::Clustering communities = community_detection::run_parallel_louvain(graph, context).back().first;
+      community_stack = community_detection::run_parallel_louvain(graph, context);
+      ds::Clustering& communities = community_stack.back().first;
       graph.restrictClusteringToHypernodes(hypergraph, communities);
-      hypergraph.setCommunityIDs(std::move(communities));
+      hypergraph.setCommunityIDs(ds::Clustering(communities));  // intentional copy
       timer.stop_timer("perform_community_detection");
       timer.stop_timer("community_detection");
 
@@ -289,6 +291,8 @@ namespace mt_kahypar {
     precomputeSteinerTrees(hypergraph, target_graph, context);
 
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+    return community_stack;
   }
 
   template<typename PartitionedHypergraph>
@@ -343,7 +347,8 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, target_graph);
+    auto community_stack = preprocess(hypergraph, context, target_graph);
+    context.preprocessing.community_stack = &community_stack;
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 

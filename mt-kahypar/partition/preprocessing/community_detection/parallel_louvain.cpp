@@ -36,7 +36,8 @@ namespace mt_kahypar::community_detection {
   template<typename Hypergraph>
   std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph<Hypergraph>& fine_graph,
                                                                                ParallelLocalMovingModularity<Hypergraph>& mlv,
-                                                                               const Context& context) {
+                                                                               const Context& context,
+                                                                               int depth) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("local_moving", "Local Moving");
     ds::Clustering own_communities(fine_graph.numNodes());
@@ -61,12 +62,15 @@ namespace mt_kahypar::community_detection {
         contribution -= factor * coarse_graph.nodeVolume(node) * coarse_graph.nodeVolume(node);
         new_modularity += factor * contribution;
       }
-      result.emplace_back(own_communities, new_modularity);
 
       // Recurse on contracted graph
-      auto coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context);
+      auto coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context, depth + 1);
 
       timer.start_timer("project", "Project");
+      if (coarse_communities.size() < 4) {
+        result.emplace_back(own_communities, new_modularity);
+      }
+
       // Prolong Clustering
       for (const auto& [comm, modularity]: coarse_communities) {
         ds::Clustering communities(own_communities);  // yes, this is an intentional copy
@@ -93,7 +97,7 @@ namespace mt_kahypar::community_detection {
   }
 
   namespace {
-  #define LOCAL_MOVING(X) std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph<X>&, ParallelLocalMovingModularity<X>&, const Context&)
+  #define LOCAL_MOVING(X) std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph<X>&, ParallelLocalMovingModularity<X>&, const Context&, int depth)
   #define PARALLEL_LOUVAIN(X) std::vector<std::pair<ds::Clustering, double>> run_parallel_louvain(Graph<X>&, const Context&, bool)
   }
 
