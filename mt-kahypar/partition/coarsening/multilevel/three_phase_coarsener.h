@@ -147,7 +147,9 @@ class ThreePhaseCoarsener : public ICoarsener,
     // initialization of various things
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
                                      cluster_ids, _rater, _clustering_data, _num_nodes_tracker);
-    if (_uncoarseningData.coarsestEdgeMetadata().empty() && _context.coarsening.rating.guiding_by_integrated_model) {
+    if (_uncoarseningData.coarsestEdgeMetadata().empty()
+        && _context.coarsening.rating.guiding_by_integrated_model
+        && _context.type == ContextType::main) {
       ALWAYS_ASSERT(_pass_nr == 0);
       if constexpr (std::is_same_v<Hypergraph, ds::StaticGraph>) {
         tbb::parallel_invoke([&] {
@@ -155,7 +157,7 @@ class ThreePhaseCoarsener : public ICoarsener,
           }, [&] {
             vec<EdgeMetadata> metadata;
             metadata.resize(current_hg.initialNumNodes(), 0);
-            computeEdgeMetadataFromModel(current_hg, metadata);
+            computeEdgeMetadataFromModel(current_hg, _context, metadata);
             _uncoarseningData.setEdgeMetadata(std::move(metadata));
           }
         );
