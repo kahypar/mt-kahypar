@@ -30,6 +30,6 @@
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
-  void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, vec<EdgeMetadata>& metadata);
+  void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata);
 
 }  // namespace mt_kahypar
