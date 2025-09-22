@@ -36,6 +36,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -152,51 +153,66 @@ double scaledEntropyFromOccurenceCounts(const ds::DynamicSparseMap<int32_t, int3
 // }
 
 template <typename Container>
-double scaledEntropy(const Container& distribution, ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer) {
-  // TODO: optimize this by exploiting sortedness
-  occurenceBuffer.clear();
-  for (auto value : IteratorRange(distribution.cbegin(), distribution.cend())) {
-    occurenceBuffer[value]++;
+double scaledEntropy(const Container& distribution, ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, bool parallel) {
+  // TODO: optimize this by exploiting sortedness? ==> doesn't seem to result in a speedup
+  if (parallel) {
+    tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
+    tbb::parallel_for(UL(0), distribution.size(), [&](size_t i) {
+      auto value = distribution[i];
+      localOccurenceBuffer.local()[value]++;
+    });
+
+    occurenceBuffer.clear();
+    for (const ds::DynamicSparseMap<int32_t, int32_t>& buffer: localOccurenceBuffer) {
+      for (auto& element : buffer) {
+        occurenceBuffer[element.key] += element.value;
+      }
+    }
+  } else {
+    occurenceBuffer.clear();
+    for (auto value : IteratorRange(distribution.cbegin(), distribution.cend())) {
+      occurenceBuffer[value]++;
+    }
   }
   return scaledEntropyFromOccurenceCounts(occurenceBuffer, distribution.size());
 }
 
 template <typename Container, typename T>
-Statistic<T> createStats(Container& vec, bool parallel, ds::DynamicSparseMap<int32_t, int32_t>& buffer) {
+Statistic<T> createStats(Container& data, bool parallel, ds::DynamicSparseMap<int32_t, int32_t>& buffer) {
   Statistic<T> stats;
-  if (!vec.empty()) {
+  if (!data.empty()) {
     double avg = 0;
     double stdev = 0;
     double skew = 0;
     if (parallel) {
-      tbb::parallel_sort(vec.begin(), vec.end());
-      avg = parallel_avg(vec, vec.size());
-      stdev = parallel_stdev(vec, avg, vec.size());
-      skew = parallel_skew(vec, avg, stdev, vec.size());
-      for (auto val: vec) {
+      parallel::scalable_sort(data, std::less<>());
+      avg = parallel_avg(data, data.size());
+      stdev = parallel_stdev(data, avg, data.size());
+      skew = parallel_skew(data, avg, stdev, data.size());
+    } else {
+      std::sort(data.begin(), data.end());
+      for (auto val: data) {
         avg += val;
       }
-      avg = avg / static_cast<double>(vec.size());
-      for (auto val: vec) {
+      avg = avg / static_cast<double>(data.size());
+      for (auto val: data) {
         stdev += (val - avg) * (val - avg);
         skew += (val - avg) * (val - avg) * (val - avg);
       }
-      stdev = std::sqrt(stdev / static_cast<double>(vec.size()));
-      skew = stdev == 0 ? 0.0 : skew / (static_cast<double>(vec.size()) * std::pow(stdev, 3));
-    } else {
-      std::sort(vec.begin(), vec.end());
+      stdev = std::sqrt(stdev / static_cast<double>(data.size()));
+      skew = stdev == 0 ? 0.0 : skew / (static_cast<double>(data.size()) * std::pow(stdev, 3));
     }
 
-    const auto quartiles = firstAndThirdQuartile(vec);
-    stats.min = vec[0];
+    const auto quartiles = firstAndThirdQuartile(data);
+    stats.min = data[0];
     stats.q1 = quartiles.first;
-    stats.med = median(vec);
+    stats.med = median(data);
     stats.q3 = quartiles.second;
-    stats.max = vec.back();
+    stats.max = data.back();
     stats.avg = avg;
     stats.sd = stdev;
     stats.skew = skew;
-    stats.entropy = scaledEntropy(vec, buffer);
+    stats.entropy = scaledEntropy(data, buffer, parallel);
   }
   return stats;
 }
@@ -250,7 +266,7 @@ std::tuple<double, double, uint64_t> maxModularitySubset(const ds::StaticGraph& 
 
 void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, HypernodeID node,
                      const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees,
-                     ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, std::vector<uint32_t>& degreeBuffer) {
+                     ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, vec<uint32_t>& degreeBuffer) {
   HypernodeID num_nodes = graph.nodeDegree(node);
   result.degree = num_nodes;
   size_t lower = std::lower_bound(global_degrees.cbegin(), global_degrees.cend(), result.degree) - global_degrees.cbegin();  // always < n
@@ -264,7 +280,7 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
     HypernodeID curr_node = graph.edgeTarget(edge);
     degreeBuffer.push_back(graph.nodeDegree(curr_node));
   }
-  result.degree_stats = createStats<std::vector<uint32_t>, uint32_t>(degreeBuffer, degreeBuffer.size() >= 20000, occurenceBuffer);
+  result.degree_stats = createStats<vec<uint32_t>, uint32_t>(degreeBuffer, degreeBuffer.size() >= 20000, occurenceBuffer);
   double chi_sq = 0.0;
   for (uint32_t d: degreeBuffer) {
     chi_sq += (static_cast<double>(d) - global.degree_stats.avg) * (static_cast<double>(d) - global.degree_stats.avg) / global.degree_stats.avg;
@@ -286,9 +302,10 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
 
 void computeCheapN1Features(const ds::StaticGraph& graph, ds::Array<N1Features>& n1_features, const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees) {
   tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
-  tbb::enumerable_thread_specific<std::vector<uint32_t>> localDegreeBuffer;
+  tbb::enumerable_thread_specific<vec<uint32_t>> localDegreeBuffer;
   graph.doParallelForAllNodes([&](const HypernodeID hn) {
     ASSERT(hn < n1_features.size());
+    n1_features[hn] = N1Features{};
     cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local());
   });
 }
@@ -402,15 +419,14 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
+  timer.start_timer("features", "Compute Features");
+
   timer.start_timer("features_initialize", "Features Initialize Data");
-  tbb::parallel_invoke([&]{
-    n1_features.resize(graph.initialNumNodes());
-  }, [&]{
-    node_degrees.resize(graph.initialNumNodes());
-    graph.doParallelForAllNodes([&](const HypernodeID& node) {
-      node_degrees[node] = graph.nodeDegree(node);
-      ASSERT(graph.nodeWeight(node) == 1);
-    });
+  n1_features.resizeNoAssign(graph.initialNumNodes());  // cheap since no writes are performed
+  node_degrees.resize(graph.initialNumNodes());
+  graph.doParallelForAllNodes([&](const HypernodeID& node) {
+    node_degrees[node] = graph.nodeDegree(node);
+    ASSERT(graph.nodeWeight(node) == 1);
   });
   timer.stop_timer("features_initialize");
 
@@ -426,6 +442,8 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
   // note: this may only be called after `computeCheapN1Features`
   computeExpensiveN1Features(graph, n1_features);
   timer.stop_timer("features_expensive");
+
+  timer.stop_timer("features");
 
   return {global_features, std::move(n1_features)};
 }
