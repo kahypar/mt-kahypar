@@ -26,13 +26,22 @@
 
 #include "compute_ml_results.h"
 
+#include <tbb/parallel_invoke.h>
+
 #include "mt-kahypar/partition/coarsening/multilevel/compute_features.h"
 
 namespace mt_kahypar {
 
 void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata) {
-  auto [global_features, n1_features] = computeFeatures(graph, context);
-  metadata.resize(graph.initialNumEdges());
+  GlobalFeatures global_features;
+  ds::Array<N1Features> n1_features;
+
+  tbb::parallel_invoke([&] {
+      std::tie(global_features, n1_features) = computeFeatures(graph, context);
+    }, [&] {
+      metadata.resize(graph.initialNumEdges());
+    }
+  );
 }
 
 }  // namespace mt_kahypar
