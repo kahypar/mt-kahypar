@@ -26,6 +26,8 @@
 
 #include "compute_features.h"
 
+#include <array>
+
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
@@ -217,6 +219,23 @@ Statistic<T> createStats(Container& data, bool parallel, ds::DynamicSparseMap<in
   return stats;
 }
 
+double degreeQuantile(const ds::Array<uint32_t>& global_degrees, HypernodeID degree) {
+  size_t lower = std::lower_bound(global_degrees.cbegin(), global_degrees.cend(), degree) - global_degrees.cbegin();  // always < n
+  size_t upper = std::upper_bound(global_degrees.cbegin(), global_degrees.cend(), degree) - global_degrees.cbegin();  // always >= 1
+  return (static_cast<double>(lower + upper)) / (2 * static_cast<double>(global_degrees.size()) - 1);
+}
+
+constexpr size_t QUANTILE_CACHE_SIZE = 200;
+
+std::array<float, QUANTILE_CACHE_SIZE> precomputeQuantiles(const ds::Array<uint32_t>& global_degrees) {
+  std::array<float, QUANTILE_CACHE_SIZE> result;
+  for (size_t i = 0; i < result.size(); ++i) {
+    result[i] = degreeQuantile(global_degrees, i);
+  }
+  return result;
+}
+
+
 // modularity, max_modularity, n_removed
 std::tuple<double, double, uint64_t> maxModularitySubset(const ds::StaticGraph& graph, uint64_t internal_edges, uint64_t all_edges,
                                                          FastResetArray& membership, const std::vector<HypernodeID>& node_list) {
@@ -266,12 +285,11 @@ std::tuple<double, double, uint64_t> maxModularitySubset(const ds::StaticGraph& 
 
 void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, HypernodeID node,
                      const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees,
-                     ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, vec<uint32_t>& degreeBuffer) {
+                     ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, vec<uint32_t>& degreeBuffer,
+                     const std::array<float, QUANTILE_CACHE_SIZE>& quantileCache) {
   HypernodeID num_nodes = graph.nodeDegree(node);
   result.degree = num_nodes;
-  size_t lower = std::lower_bound(global_degrees.cbegin(), global_degrees.cend(), result.degree) - global_degrees.cbegin();  // always < n
-  size_t upper = std::upper_bound(global_degrees.cbegin(), global_degrees.cend(), result.degree) - global_degrees.cbegin();  // always >= 1
-  result.degree_quantile = (static_cast<double>(lower + upper)) / (2 * static_cast<double>(global_degrees.size()) - 1);
+  result.degree_quantile = result.degree < quantileCache.size() ? quantileCache[result.degree] : degreeQuantile(global_degrees, result.degree);
 
   // compute degree stats
   degreeBuffer.clear();
@@ -300,13 +318,14 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
   result.min_contracted_degree_size = node_weight;
 }
 
-void computeCheapN1Features(const ds::StaticGraph& graph, ds::Array<N1Features>& n1_features, const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees) {
+void computeCheapN1Features(const ds::StaticGraph& graph, ds::Array<N1Features>& n1_features, const GlobalFeatures& global,
+                            const ds::Array<uint32_t>& global_degrees, const std::array<float, QUANTILE_CACHE_SIZE>& quantileCache) {
   tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
   tbb::enumerable_thread_specific<vec<uint32_t>> localDegreeBuffer;
   graph.doParallelForAllNodes([&](const HypernodeID hn) {
     ASSERT(hn < n1_features.size());
     n1_features[hn] = N1Features{};
-    cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local());
+    cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local(), quantileCache);
   });
 }
 
@@ -429,7 +448,8 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
   timer.stop_timer("features_global");
 
   timer.start_timer("features_cheap", "Compute Cheap Features");
-  computeCheapN1Features(graph, n1_features, global_features, node_degrees);
+  auto quantileCache = precomputeQuantiles(node_degrees);
+  computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache);
   timer.stop_timer("features_cheap");
 
   timer.start_timer("features_expensive", "Compute Expensive Features");
