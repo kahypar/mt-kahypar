@@ -32,12 +32,12 @@
 
 namespace mt_kahypar::community_detection {
   template<typename Hypergraph>
-  std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph<Hypergraph>& fine_graph,
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> local_moving_contract_recurse(Graph<Hypergraph>& fine_graph,
                                                ParallelLocalMovingModularity<Hypergraph>& mlv,
                                                const Context& context,
                                                int depth = 0);
   template<typename Hypergraph>
-  std::vector<std::pair<ds::Clustering, double>> run_parallel_louvain(Graph<Hypergraph>& graph,
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> run_parallel_louvain(Graph<Hypergraph>& graph,
                                       const Context& context,
                                       bool disable_randomization = false);
 }

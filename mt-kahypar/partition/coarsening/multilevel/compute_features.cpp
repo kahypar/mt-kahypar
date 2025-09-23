@@ -360,7 +360,7 @@ void computeExpensiveN1Features(const ds::StaticGraph& graph, ds::Array<N1Featur
 }
 
 std::tuple<GlobalFeatures, bool> computeGlobalFeatures(const ds::StaticGraph& graph, ds::Array<uint32_t>& node_degrees,
-                                                       const std::vector<std::pair<ds::Clustering, double>>& community_stack) {
+                                                       const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* comm_ptr) {
   GlobalFeatures features;
   ds::DynamicSparseMap<int32_t, int32_t> occurence_buffer;
 
@@ -385,30 +385,24 @@ std::tuple<GlobalFeatures, bool> computeGlobalFeatures(const ds::StaticGraph& gr
   }
 
   // modularity features
-  // ds::DynamicSparseMap<PartitionID, uint32_t> comm_set;
-  // auto modularity_features = [&](size_t i) {
-  //   const auto& [clustering, modularity] = community_stack.at(community_stack.size() - i - 1);
-  //   comm_set.clear();
-  //   for (PartitionID c: clustering) {
-  //     comm_set[c] = 0;
-  //   }
-  //   uint64_t n_comms = 0;
-  //   for (auto _: comm_set) {
-  //     n_comms++;
-  //   }
-  //   return std::make_pair(n_comms, modularity);
-  // };
-
   bool skip_comm_1 = false;
-  // std::tie(features.n_communities_0, features.modularity_0) = modularity_features(0);
-  // std::tie(features.n_communities_1, features.modularity_1) = modularity_features(1);
-  // std::tie(features.n_communities_2, features.modularity_2) = modularity_features(2);
-  // if (community_stack.size() > 3 && features.n_communities_1 < 2 * features.n_communities_0) {
-  //   // small hack to get more meaningful features
-  //   std::tie(features.n_communities_1, features.modularity_1) = modularity_features(2);
-  //   std::tie(features.n_communities_2, features.modularity_2) = modularity_features(3);
-  //   skip_comm_1 = true;
-  // }
+  if (comm_ptr != nullptr) {
+    const auto& community_stack = *comm_ptr;
+    auto modularity_features = [&](size_t i) {
+      const auto& [_c, comm_count, modularity] = community_stack.at(community_stack.size() - i - 1);
+      return std::make_pair(comm_count, modularity);
+    };
+
+    std::tie(features.n_communities_0, features.modularity_0) = modularity_features(0);
+    std::tie(features.n_communities_1, features.modularity_1) = modularity_features(1);
+    std::tie(features.n_communities_2, features.modularity_2) = modularity_features(2);
+    if (community_stack.size() > 3 && features.n_communities_1 < 2 * features.n_communities_0) {
+      // small hack to get more meaningful features
+      std::tie(features.n_communities_1, features.modularity_1) = std::tie(features.n_communities_2, features.modularity_2);
+      std::tie(features.n_communities_2, features.modularity_2) = modularity_features(3);
+      skip_comm_1 = true;
+    }
+  }
 
   return {features, skip_comm_1};
 }
@@ -431,7 +425,7 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
   timer.stop_timer("features_initialize");
 
   timer.start_timer("features_global", "Compute Global Features");
-  auto [global_features, skip_comm_1] = computeGlobalFeatures(graph, node_degrees, {});  // TODO: communities
+  auto [global_features, skip_comm_1] = computeGlobalFeatures(graph, node_degrees, context.preprocessing.community_stack);
   timer.stop_timer("features_global");
 
   timer.start_timer("features_cheap", "Compute Cheap Features");

@@ -249,7 +249,7 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
-  std::vector<std::pair<ds::Clustering, double>> preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
@@ -263,7 +263,7 @@ namespace mt_kahypar {
       timer.stop_timer("detect_graph_structure");
     }
 
-    std::vector<std::pair<ds::Clustering, double>> community_stack;
+    std::vector<std::tuple<ds::Clustering, HypernodeID, double>> community_stack;
     if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
@@ -277,7 +277,7 @@ namespace mt_kahypar {
       timer.stop_timer("construct_graph");
       timer.start_timer("perform_community_detection", "Perform Community Detection");
       community_stack = community_detection::run_parallel_louvain(graph, context);
-      ds::Clustering& communities = community_stack.back().first;
+      ds::Clustering& communities = std::get<0>(community_stack.back());
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(ds::Clustering(communities));  // intentional copy
       timer.stop_timer("perform_community_detection");
