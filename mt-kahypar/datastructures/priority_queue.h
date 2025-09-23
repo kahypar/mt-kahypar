@@ -50,7 +50,7 @@ public:
   explicit Heap(PosT* positions, size_t positions_size) :
     comp(),
     heap(),
-    positions(positions),
+    positions(positions, positions + positions_size),
     positions_size(positions_size) { }
 
   IdT top() const {
@@ -133,6 +133,11 @@ public:
   }
 
   void insertOrAdjustKey(const IdT e, const KeyT newKey) {
+    if (static_cast<size_t>(e) >= positions_size)
+    {
+      positions.resize(e + 1);
+      positions_size = positions.size();
+    }
     if (contains(e)) {
       adjustKey(e, newKey);
     } else {
@@ -171,7 +176,7 @@ public:
 
   void setHandle(PosT* pos, size_t pos_size) {
     clear();
-    positions = pos;
+    positions = vec<PosT>(pos, pos + pos_size);
     positions_size = pos_size;
   }
 
@@ -304,7 +309,7 @@ protected:
   Comparator comp;                // comp(heap[parent(pos)].key, heap[pos].key) returns true if the element at pos should move upward --> comp = std::less for MaxHeaps
                                   // similarly comp(heap[child(pos)].key, heap[pos].key) returns false if the element at pos should move downward
   vec<HeapElement> heap;
-  PosT* positions;
+  vec<PosT> positions;
   size_t positions_size;
 };
 
