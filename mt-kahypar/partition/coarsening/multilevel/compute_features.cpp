@@ -420,6 +420,8 @@ std::tuple<GlobalFeatures, bool> computeGlobalFeatures(const ds::StaticGraph& gr
   bool skip_comm_1 = false;
   if (comm_ptr != nullptr) {
     const auto& community_stack = *comm_ptr;
+    ALWAYS_ASSERT(community_stack.size() >= 3);
+
     auto modularity_features = [&](size_t i) {
       const auto& [_c, comm_count, modularity] = community_stack.at(community_stack.size() - i - 1);
       return std::make_pair(comm_count, modularity);
