@@ -3,7 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2023 Nikolai Maas <nikolai.maas@kit.edu>
+ * Copyright (C) 2025 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,25 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "compute_ml_results.h"
+#pragma once
 
-#include <tbb/parallel_invoke.h>
-
-#include "mt-kahypar/partition/coarsening/multilevel/compute_features.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
-
-void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata) {
-  GlobalFeatures global_features;
-  ds::Array<N1Features> n1_features;
-  bool skip_comm_1;
-
-  tbb::parallel_invoke([&] {
-      std::tie(global_features, n1_features, skip_comm_1) = computeFeatures(graph, context);
-    }, [&] {
-      metadata.resize(graph.initialNumEdges());
-    }
-  );
-}
+  void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata);
 
 }  // namespace mt_kahypar

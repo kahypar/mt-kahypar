@@ -2,8 +2,8 @@ set(MultilevelCoarseningSources
         multilevel/deterministic_multilevel_coarsener.cpp
         multilevel/multilevel_uncoarsener.cpp
         multilevel/concurrent_clustering_data.cpp
-        multilevel/compute_ml_results.cpp
-        multilevel/compute_features.cpp)
+        multilevel/ml/compute_ml_results.cpp
+        multilevel/ml/compute_features.cpp)
 
 set(NLevelCoarseningSources
         nlevel/nlevel_uncoarsener.cpp)
