@@ -35,9 +35,10 @@ namespace mt_kahypar {
 void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& context, vec<EdgeMetadata>& metadata) {
   GlobalFeatures global_features;
   ds::Array<N1Features> n1_features;
+  bool skip_comm_1;
 
   tbb::parallel_invoke([&] {
-      std::tie(global_features, n1_features) = computeFeatures(graph, context);
+      std::tie(global_features, n1_features, skip_comm_1) = computeFeatures(graph, context);
     }, [&] {
       metadata.resize(graph.initialNumEdges());
     }

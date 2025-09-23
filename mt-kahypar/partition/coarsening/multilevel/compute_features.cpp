@@ -301,6 +301,7 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
                      const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache) {
   HypernodeID num_nodes = graph.nodeDegree(node);
   result.degree = num_nodes;
+  result.inverse_degree = num_nodes <= 1 ? 1.0 : 1.0 / static_cast<double>(num_nodes - 1);
   result.degree_quantile = result.degree < quantileCache.size() ? quantileCache[result.degree] : degreeQuantile(global_degrees, result.degree);
 
   // compute degree stats
@@ -441,7 +442,7 @@ std::tuple<GlobalFeatures, bool> computeGlobalFeatures(const ds::StaticGraph& gr
   return {features, skip_comm_1};
 }
 
-std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::StaticGraph& graph, const Context& context) {
+std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds::StaticGraph& graph, const Context& context) {
   ds::Array<N1Features> n1_features;
   ds::Array<uint32_t> node_degrees;
 
@@ -475,7 +476,7 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
 
   timer.stop_timer("features");
 
-  return {global_features, std::move(n1_features)};
+  return {global_features, std::move(n1_features), skip_comm_1};
 }
 
 }  // namespace mt_kahypar
