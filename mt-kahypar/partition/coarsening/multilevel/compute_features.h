@@ -37,10 +37,10 @@ namespace mt_kahypar {
 
 template<typename T>
 struct Statistic {
-  double avg = 0.0;
-  double sd = 0.0;
-  double skew = 0.0;
-  double entropy = 0.0;
+  float avg = 0.0;
+  float sd = 0.0;
+  float skew = 0.0;
+  float entropy = 0.0;
   T min = 0;
   T q1 = 0;
   T med = 0;
@@ -64,18 +64,18 @@ struct GlobalFeatures {
 
 struct N1Features {
   uint32_t degree = 0;
-  double degree_quantile = 0;
+  float degree_quantile = 0;
   Statistic<uint32_t> degree_stats;
   uint32_t to_n1_edges = 0;
   uint32_t to_n2_edges = 0;
   uint32_t d1_nodes = 0;
-  double modularity = 0;
-  double max_modularity = 0;
+  float modularity = 0;
+  float max_modularity = 0;
   uint32_t max_modularity_size = 0;
-  double min_contracted_degree = 0;
+  float min_contracted_degree = 0;
   uint32_t min_contracted_degree_size = 0;
-  double clustering_coefficient = 0;
-  double chi_squared_degree_deviation = 0;
+  float clustering_coefficient = 0;
+  float chi_squared_degree_deviation = 0;
 };
 
 std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::StaticGraph& graph, const Context& context);
