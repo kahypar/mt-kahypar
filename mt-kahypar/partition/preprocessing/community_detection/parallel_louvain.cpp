@@ -76,7 +76,7 @@ namespace mt_kahypar::community_detection {
         ds::Clustering communities(own_communities);  // yes, this is an intentional copy
         const auto& clustering = comm;
         tbb::parallel_for(UL(0), fine_graph.numNodes(), [&](const NodeID u) {
-          ASSERT(communities[u] < static_cast<PartitionID>(comm.size()));
+          ASSERT(communities[u] < static_cast<PartitionID>(clustering.size()));
           communities[u] = clustering[communities[u]];
         });
         result.emplace_back(std::move(communities), num_comms, modularity);
