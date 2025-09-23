@@ -27,5 +27,9 @@
 #pragma once
 
 extern "C" {
-    void predict(float *in, int n, float *out);
+    float* precompute_params();
+
+    void free_params(float *params_row);
+
+    void predict(float *in, float *params_row, int n, float *out);
 }
