@@ -64,6 +64,7 @@ struct GlobalFeatures {
 
 struct N1Features {
   uint32_t degree = 0;
+  float inverse_degree = 0;
   float degree_quantile = 0;
   Statistic<uint32_t> degree_stats;
   uint32_t to_n1_edges = 0;
@@ -78,6 +79,39 @@ struct N1Features {
   float chi_squared_degree_deviation = 0;
 };
 
-std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::StaticGraph& graph, const Context& context);
+struct EdgeFeatures {
+  float strawman_similarity = 0;
+  bool comm_0_equal = false;
+  bool comm_1_equal = false;
+  bool comm_2_equal = false;
+};
+
+std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds::StaticGraph& graph, const Context& context);
+
+inline EdgeFeatures computeEdgeFeatures(const ds::StaticGraph& graph, const Context& context, HypernodeID u, const N1Features& u_f, HypernodeID v, const N1Features& v_f, bool skip_comm_1) {
+  EdgeFeatures result;
+  result.strawman_similarity = (u_f.inverse_degree == 1.0 || v_f.inverse_degree == 1.0) ? 1.0 : u_f.inverse_degree * v_f.inverse_degree;
+
+  auto comm_ptr = context.preprocessing.community_stack;
+  if (comm_ptr != nullptr) {
+    auto community_stack = *comm_ptr;
+
+    auto equal_communities = [&](size_t i) {
+      ASSERT(community_stack.size() - i - 1 < community_stack.size());
+      const auto& [clustering, _, _m] = community_stack[community_stack.size() - i - 1];
+      return clustering[u] == clustering[v];
+    };
+
+    result.comm_0_equal = equal_communities(0);
+    if (skip_comm_1) {
+      result.comm_1_equal = equal_communities(2);
+      result.comm_2_equal = equal_communities(3);
+    } else {
+      result.comm_1_equal = equal_communities(1);
+      result.comm_2_equal = equal_communities(2);
+    }
+  }
+  return result;
+}
 
 }  // namespace mt_kahypar
