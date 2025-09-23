@@ -37,7 +37,7 @@
 
 #include "include/mtkahypartypes.h"
 
-#include "mt-kahypar/partition/coarsening/multilevel/compute_ml_results.h"
+#include "mt-kahypar/partition/coarsening/multilevel/ml/compute_ml_results.h"
 #include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
