@@ -50,6 +50,8 @@
 namespace mt_kahypar {
 using FastResetArray = kahypar::ds::FastResetFlagArray<>;
 
+constexpr size_t CACHE_SIZE = 200;
+
 template<typename Container>
 double parallel_skew(const Container& data, const double avg, const double stdev, const size_t n) {
     if (stdev == 0) {
@@ -125,23 +127,26 @@ std::pair<double, double> firstAndThirdQuartile(const Container& vec) {
   }
 }
 
-double scaledEntropyFromOccurenceCounts(const ds::DynamicSparseMap<int32_t, int32_t>& occurence, size_t total) {
-  // collect and sort summands
-  std::vector<double> summands;
-  for (auto& element : occurence) {
-      double p_x = (double)element.value / (double)total;
-      double summand = p_x * log2(p_x);
-      // double summand = (pair.second * log2(pair.second) - pair.second * log2(total)) / total;
-      summands.push_back(summand);
-  }
-  std::sort(summands.begin(), summands.end(), [] (double a, double b) { return abs(a) < abs(b); });
-  // calculate entropy
+double ilog2(size_t value, const std::array<double, CACHE_SIZE>& logCache) {
+  return value < logCache.size() ? logCache[value] : log2(value);
+}
+
+double scaledEntropyFromOccurenceCounts(const ds::DynamicSparseMap<int32_t, int32_t>& occurence, size_t total,
+                                        const std::array<double, CACHE_SIZE>& logCache) {
   double entropy = 0;
-  for (double summand : summands) {
-      entropy -= summand;
+  size_t count = 0;
+  const double factor = 1.0 / static_cast<double>(total);
+  const double sub = ilog2(total, logCache);
+  for (auto& element : occurence) {
+    double log_p_x = ilog2(element.value, logCache) - sub;
+    double summand = factor * static_cast<double>(element.value) * log_p_x;
+    entropy -= summand;
+    count++;
   }
+
   // scale by log of number of categories
-  return log2(summands.size()) == 0 ? 0 : (double)entropy / log2(summands.size());
+  double scaling = ilog2(count, logCache);
+  return scaling == 0 ? 0 : (double)entropy / scaling;
 }
 
 // double scaledEntropy(const std::vector<double>& distribution) {
@@ -155,7 +160,8 @@ double scaledEntropyFromOccurenceCounts(const ds::DynamicSparseMap<int32_t, int3
 // }
 
 template <typename Container>
-double scaledEntropy(const Container& distribution, ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, bool parallel) {
+double scaledEntropy(const Container& distribution, ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, bool parallel,
+                     const std::array<double, CACHE_SIZE>& logCache) {
   // TODO: optimize this by exploiting sortedness? ==> doesn't seem to result in a speedup
   if (parallel) {
     tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
@@ -176,11 +182,11 @@ double scaledEntropy(const Container& distribution, ds::DynamicSparseMap<int32_t
       occurenceBuffer[value]++;
     }
   }
-  return scaledEntropyFromOccurenceCounts(occurenceBuffer, distribution.size());
+  return scaledEntropyFromOccurenceCounts(occurenceBuffer, distribution.size(), logCache);
 }
 
 template <typename Container, typename T>
-Statistic<T> createStats(Container& data, bool parallel, ds::DynamicSparseMap<int32_t, int32_t>& buffer) {
+Statistic<T> createStats(Container& data, bool parallel, ds::DynamicSparseMap<int32_t, int32_t>& buffer, const std::array<double, CACHE_SIZE>& logCache) {
   Statistic<T> stats;
   if (!data.empty()) {
     double avg = 0;
@@ -214,7 +220,7 @@ Statistic<T> createStats(Container& data, bool parallel, ds::DynamicSparseMap<in
     stats.avg = avg;
     stats.sd = stdev;
     stats.skew = skew;
-    stats.entropy = scaledEntropy(data, buffer, parallel);
+    stats.entropy = scaledEntropy(data, buffer, parallel, logCache);
   }
   return stats;
 }
@@ -225,10 +231,16 @@ double degreeQuantile(const ds::Array<uint32_t>& global_degrees, HypernodeID deg
   return (static_cast<double>(lower + upper)) / (2 * static_cast<double>(global_degrees.size()) - 1);
 }
 
-constexpr size_t QUANTILE_CACHE_SIZE = 200;
+std::array<double, CACHE_SIZE> precomputeLogs() {
+  std::array<double, CACHE_SIZE> result;
+  for (size_t i = 0; i < result.size(); ++i) {
+    result[i] = log2(static_cast<double>(i));
+  }
+  return result;
+}
 
-std::array<float, QUANTILE_CACHE_SIZE> precomputeQuantiles(const ds::Array<uint32_t>& global_degrees) {
-  std::array<float, QUANTILE_CACHE_SIZE> result;
+std::array<float, CACHE_SIZE> precomputeQuantiles(const ds::Array<uint32_t>& global_degrees) {
+  std::array<float, CACHE_SIZE> result;
   for (size_t i = 0; i < result.size(); ++i) {
     result[i] = degreeQuantile(global_degrees, i);
   }
@@ -286,7 +298,7 @@ std::tuple<double, double, uint64_t> maxModularitySubset(const ds::StaticGraph& 
 void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, HypernodeID node,
                      const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees,
                      ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, vec<uint32_t>& degreeBuffer,
-                     const std::array<float, QUANTILE_CACHE_SIZE>& quantileCache) {
+                     const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache) {
   HypernodeID num_nodes = graph.nodeDegree(node);
   result.degree = num_nodes;
   result.degree_quantile = result.degree < quantileCache.size() ? quantileCache[result.degree] : degreeQuantile(global_degrees, result.degree);
@@ -298,7 +310,7 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
     HypernodeID curr_node = graph.edgeTarget(edge);
     degreeBuffer.push_back(graph.nodeDegree(curr_node));
   }
-  result.degree_stats = createStats<vec<uint32_t>, uint32_t>(degreeBuffer, degreeBuffer.size() >= 20000, occurenceBuffer);
+  result.degree_stats = createStats<vec<uint32_t>, uint32_t>(degreeBuffer, degreeBuffer.size() >= 20000, occurenceBuffer, logCache);
   double chi_sq = 0.0;
   for (uint32_t d: degreeBuffer) {
     chi_sq += (static_cast<double>(d) - global.degree_stats.avg) * (static_cast<double>(d) - global.degree_stats.avg) / global.degree_stats.avg;
@@ -319,13 +331,13 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
 }
 
 void computeCheapN1Features(const ds::StaticGraph& graph, ds::Array<N1Features>& n1_features, const GlobalFeatures& global,
-                            const ds::Array<uint32_t>& global_degrees, const std::array<float, QUANTILE_CACHE_SIZE>& quantileCache) {
+                            const ds::Array<uint32_t>& global_degrees, const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache) {
   tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
   tbb::enumerable_thread_specific<vec<uint32_t>> localDegreeBuffer;
   graph.doParallelForAllNodes([&](const HypernodeID hn) {
     ASSERT(hn < n1_features.size());
     n1_features[hn] = N1Features{};
-    cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local(), quantileCache);
+    cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local(), quantileCache, logCache);
   });
 }
 
@@ -379,14 +391,15 @@ void computeExpensiveN1Features(const ds::StaticGraph& graph, ds::Array<N1Featur
 }
 
 std::tuple<GlobalFeatures, bool> computeGlobalFeatures(const ds::StaticGraph& graph, ds::Array<uint32_t>& node_degrees,
-                                                       const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* comm_ptr) {
+                                                       const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* comm_ptr,
+                                                       const std::array<double, CACHE_SIZE>& logCache) {
   GlobalFeatures features;
   ds::DynamicSparseMap<int32_t, int32_t> occurence_buffer;
 
   HypernodeID num_nodes = graph.initialNumNodes();
   HyperedgeID num_edges = ds::StaticGraph::is_graph ? graph.initialNumEdges() / 2 : graph.initialNumEdges();
   ALWAYS_ASSERT(num_nodes == node_degrees.size());
-  Statistic<uint32_t> degree_stats = createStats<ds::Array<uint32_t>, uint32_t>(node_degrees, true, occurence_buffer);
+  Statistic<uint32_t> degree_stats = createStats<ds::Array<uint32_t>, uint32_t>(node_degrees, true, occurence_buffer, logCache);
   features.n = num_nodes;
   features.m = num_edges;
   features.degree_stats = degree_stats;
@@ -444,12 +457,13 @@ std::pair<GlobalFeatures, ds::Array<N1Features>> computeFeatures(const ds::Stati
   timer.stop_timer("features_initialize");
 
   timer.start_timer("features_global", "Compute Global Features");
-  auto [global_features, skip_comm_1] = computeGlobalFeatures(graph, node_degrees, context.preprocessing.community_stack);
+  auto logCache = precomputeLogs();
+  auto [global_features, skip_comm_1] = computeGlobalFeatures(graph, node_degrees, context.preprocessing.community_stack, logCache);
   timer.stop_timer("features_global");
 
   timer.start_timer("features_cheap", "Compute Cheap Features");
   auto quantileCache = precomputeQuantiles(node_degrees);
-  computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache);
+  computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache, logCache);
   timer.stop_timer("features_cheap");
 
   timer.start_timer("features_expensive", "Compute Expensive Features");
