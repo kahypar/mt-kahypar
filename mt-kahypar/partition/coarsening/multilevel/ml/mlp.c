@@ -197,10 +197,8 @@ void column_to_row_matrix(const float *in, float *out, int n, int m)
     }
 }
 
-void predict(float *in, int n, float *out)
-{
+float* precompute_params() {
     int offsets_W[] = {0, 1584, 3152, 3680};
-    int offsets_B[] = {1536, 3120, 3664, 3696};
 
     float *params_row = (float*)aligned_alloc(32, sizeof(float) * 3697);
     for (int i = 0; i < 3697; i++)
@@ -209,6 +207,18 @@ void predict(float *in, int n, float *out)
     column_to_row_matrix(params + offsets_W[0], params_row + offsets_W[0], 32, 48);
     column_to_row_matrix(params + offsets_W[1], params_row + offsets_W[1], 48, 32);
     column_to_row_matrix(params + offsets_W[2], params_row + offsets_W[2], 32, 16);
+
+    return params_row;
+}
+
+void free_params(float *params_row) {
+    free(params_row);
+}
+
+void predict(float *in, float *params_row, int n, float *out)
+{
+    int offsets_W[] = {0, 1584, 3152, 3680};
+    int offsets_B[] = {1536, 3120, 3664, 3696};
 
     for (int i = 0; i < n; i += 2)
     {
@@ -223,7 +233,4 @@ void predict(float *in, int n, float *out)
         kernel_32_16(in + i * 32, params_row + offsets_W[2], params_row + offsets_B[2], out + i * 16);
     }
     kernel_16_1(out, params_row + offsets_W[3], params_row + offsets_B[3], out, n);
-
-    free(params_row);
 }
-
