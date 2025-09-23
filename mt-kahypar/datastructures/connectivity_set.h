@@ -100,6 +100,14 @@ public:
         he * _num_blocks_per_hyperedge, _num_blocks_per_hyperedge * BITS_PER_BLOCK));
   }
 
+  void addEdge(const HyperedgeID he) {
+    ENABLE_ASSERTIONS(++_num_hyperedges;);
+    const size_t required_size = static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge;
+    for (size_t i = _bits.size(); i < required_size; ++i) {
+      _bits.push_back(0);
+    }
+  }
+
   void add(const HyperedgeID he, const PartitionID p) {
     toggle(he, p);
   }

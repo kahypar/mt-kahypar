@@ -155,6 +155,16 @@ class PinCountInPart {
     return (_pin_count_in_part[value_pos] & mask) >> bit_pos;
   }
 
+  void addEdge(const HyperedgeID he) {
+    ASSERT(he == _num_hyperedges);
+    _num_hyperedges++;
+    // resize all underlying data structures
+    const size_t required_size = _num_hyperedges * _values_per_hyperedge;
+    for ( size_t i = _pin_count_in_part.size(); i < required_size; ++i ) {
+      _pin_count_in_part.push_back(0);
+    }
+  }
+
   // ! Sets the pin count of the hyperedge in the corresponding block to value
   inline void setPinCountInPart(const HyperedgeID he,
                                 const PartitionID id,

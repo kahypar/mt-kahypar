@@ -150,6 +150,7 @@ class Array {
 
   // Type Traits
   using value_type      = T;
+  static_assert(!std::is_same_v<T, bool>);
   using size_type       = size_t;
   using reference       = T&;
   using const_reference = const T&;
@@ -160,7 +161,7 @@ class Array {
     _group(""),
     _key(""),
     _size(0),
-    _data(nullptr),
+    _data(),
     _underlying_data(nullptr) { }
 
   Array(const size_type size,
@@ -168,7 +169,7 @@ class Array {
     _group(""),
     _key(""),
     _size(0),
-    _data(nullptr),
+    _data(),
     _underlying_data(nullptr) {
     resize(size, init_value);
   }
@@ -181,7 +182,7 @@ class Array {
     _group(""),
     _key(""),
     _size(size),
-    _data(nullptr),
+    _data(),
     _underlying_data(nullptr) {
     resize(group, key, size, zero_initialize, assign_parallel);
   }
@@ -196,7 +197,7 @@ class Array {
     _data(std::move(other._data)),
     _underlying_data(std::move(other._underlying_data)) {
     other._size = 0;
-    other._data = nullptr;
+    other._data.clear();
     other._underlying_data = nullptr;
   }
 
@@ -207,14 +208,13 @@ class Array {
     _data = std::move(other._data);
     _underlying_data = std::move(other._underlying_data);
     other._size = 0;
-    other._data = nullptr;
+    other._data.clear();
     other._underlying_data = nullptr;
     return *this;
   }
 
   ~Array() {
-    if ( !_data && _underlying_data && !_group.empty() && !_key.empty() ) {
-      // Memory was allocated from memory pool
+    if ( _data.empty() && _underlying_data && !_group.empty() && !_key.empty() ) {      // Memory was allocated from memory pool
       // => Release Memory
       parallel::MemoryPool::instance().release_mem_chunk(_group, _key);
     }
@@ -299,16 +299,25 @@ class Array {
   void resize(const size_type size,
               const value_type init_value = value_type(),
               const bool assign_parallel = true) {
-    if ( _data || _underlying_data ) {
-      throw SystemException("Memory of vector already allocated");
+    if ( !_data.empty() || _underlying_data ) {
+      _data.resize(size);
+      _underlying_data = _data.data();
+      _size = size;
+      assign(size, init_value, assign_parallel);
+      return;
+      // throw SystemException("Memory of vector already allocated");
     }
     allocate_data(size);
     assign(size, init_value, assign_parallel);
   }
 
   void resizeNoAssign(const size_type size) {
-    if ( _data || _underlying_data ) {
-      throw SystemException("Memory of vector already allocated");
+    if ( !_data.empty() || _underlying_data ) {
+      // throw SystemException("Memory of vector already allocated");
+      _data.resize(size);
+      _underlying_data = _data.data();
+      _size = size;
+      return;
     }
     allocate_data(size);
   }
@@ -371,18 +380,38 @@ class Array {
     }
   }
 
+  void push_back(const value_type& value) {
+    _data.push_back(value);
+    _underlying_data = _data.data();
+    ++_size;
+  }
+
+  void emplace_back(const value_type& value)
+  {
+    _data.emplace_back(value);
+    _underlying_data = _data.data();
+    ++_size;
+  }
+
+  void emplace_back()
+  {
+    _size++;
+    _data.emplace_back();
+    _underlying_data = _data.data();
+  }
+
  private:
   void allocate_data(const size_type size) {
-    _data = parallel::make_unique<value_type>(size);
-    _underlying_data = _data.get();
+    _data = std::vector<value_type>(size);
+    _underlying_data = _data.data();
     _size = size;
   }
 
   std::string _group;
   std::string _key;
   size_type _size;
-  parallel::tbb_unique_ptr<value_type> _data;
   value_type* _underlying_data;
+  std::vector<value_type> _data;
 };
 
 
