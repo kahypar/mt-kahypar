@@ -61,7 +61,7 @@ namespace mt_kahypar::dyn {
           if (log_step_size != 0 && i % log_step_size != 0) {
             continue;
           }
-          log_km1_live(i, max_changes, context, hypergraph_p, duration_sum);
+          log_km1_live(i+1, max_changes, context, hypergraph_p, duration_sum);
         }
 
         strategy->printAdditionalFinalStats();

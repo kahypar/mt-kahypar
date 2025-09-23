@@ -838,11 +838,11 @@ class DoNothingMemoryPool {
   DoNothingMemoryPool() { }
 };
 
-#ifdef MT_KAHYPAR_LIBRARY_MODE
+// #ifdef MT_KAHYPAR_LIBRARY_MODE
 using MemoryPool = DoNothingMemoryPool;
-#else
-using MemoryPool = MemoryPoolT;
-#endif
+// #else
+// using MemoryPool = MemoryPoolT;
+// #endif
 
 }  // namespace parallel
 }  // namespace mt_kahypar

@@ -882,6 +882,7 @@ class PartitionedHypergraph {
     bool success = true;
 
     for (HyperedgeID e : edges()) {
+      if (!edgeIsEnabled(e)) continue;
       PartitionID expected_connectivity = 0;
       for (PartitionID i = 0; i < k(); ++i) {
         const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
@@ -903,6 +904,7 @@ class PartitionedHypergraph {
 
     if ( gain_cache.isInitialized() ) {
       for (HypernodeID u : nodes()) {
+        if (!nodeIsEnabled(u)) continue;
         const PartitionID block_of_u = partID(u);
         if ( gain_cache.penaltyTerm(u, block_of_u) !=
              gain_cache.recomputePenaltyTerm(*this, u) ) {
@@ -1208,6 +1210,29 @@ class PartitionedHypergraph {
       } );
     }
     _k = 0;
+  }
+
+  void addNode(const HypernodeID& new_hn, const PartitionID part) {
+    ASSERT(hypergraph().nodeIsEnabled(new_hn));
+    _part_ids.push_back(part);
+    _part_weights[part].fetch_add(hypergraph().nodeWeight(initialNumNodes()), std::memory_order_relaxed);
+    _pin_count_update_ownership.emplace_back();
+    _input_num_nodes++;
+    // _con_info.addNode(new_hn);
+    for ( const HyperedgeID& he : incidentEdges(new_hn) ) {
+      incrementPinCountOfBlock(he, part);
+    }
+  }
+
+  void addEdge(const HyperedgeID& new_he) {
+    ASSERT(hypergraph().edgeIsEnabled(new_he));
+    _pin_count_update_ownership.emplace_back();
+    _con_info.addEdge(new_he);
+    _input_num_edges++;
+    for ( const HypernodeID& pin : pins(new_he) ) {
+      const PartitionID part = partID(pin);
+      incrementPinCountOfBlock(new_he, part);
+    }
   }
 
  private:

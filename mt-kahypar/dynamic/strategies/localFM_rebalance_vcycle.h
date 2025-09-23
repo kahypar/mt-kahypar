@@ -119,7 +119,11 @@ namespace mt_kahypar::dyn {
           for (const auto& block_connectivity : block_connectivities) {
             if (partitioned_hypergraph_m.partWeight(std::get<1>(block_connectivity)) + hypergraph_m.nodeWeight(hn) <
                 context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
-              partitioned_hypergraph_m.setNodePart(hn, std::get<1>(block_connectivity));
+              // partitioned_hypergraph_m.setNodePart(hn, std::get<1>(block_connectivity));
+              partitioned_hypergraph_m.addNode(hn, std::get<1>(block_connectivity));
+              // add node to gain cache and rebalancer
+              ASSERT(_gain_cache.type == GainPolicy::km1);
+              GainCachePtr::cast<Km1GainCache>(_gain_cache).addNode(hn);
               return std::get<1>(block_connectivity);
             }
           }
@@ -253,16 +257,34 @@ namespace mt_kahypar::dyn {
 
           //reset pin counts of added edges
           for (const HyperedgeID& he : change.added_edges) {
-            context.dynamic.incremental_km1 -= std::max(partitioned_hypergraph_m.connectivity(he) - 1, 0) * partitioned_hypergraph_m.edgeWeight(he);
-            for (PartitionID p = 0; p < context.partition.k; ++p) {
-              while(partitioned_hypergraph_m.pinCountInPart(he, p) > 0) {
-                partitioned_hypergraph_m.decrementPinCountOfBlockWrapper(he, p);
+            partitioned_hypergraph_m.addEdge(he);
+            // context.dynamic.incremental_km1 -= std::max(partitioned_hypergraph_m.connectivity(he) - 1, 0) * partitioned_hypergraph_m.edgeWeight(he);
+            // for (PartitionID p = 0; p < context.partition.k; ++p) {
+            //   while(partitioned_hypergraph_m.pinCountInPart(he, p) > 0) {
+            //     partitioned_hypergraph_m.decrementPinCountOfBlockWrapper(he, p);
+            //   }
+            // }
+            // for (const HypernodeID& hn : hypergraph_m.pins(he)) {
+            //   partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(he, partitioned_hypergraph_m.partID(hn));
+            // }
+            // context.dynamic.incremental_km1 += std::max(partitioned_hypergraph_m.connectivity(he) - 1, 0) * partitioned_hypergraph_m.edgeWeight(he);
+          }
+
+          for (const PinChange& pin_change : change.added_pins) {
+            local_fm_nodes.push_back(pin_change.node);
+            partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(pin_change.edge, partitioned_hypergraph_m.partID(pin_change.node));
+            gain_cache_nodes.push_back(pin_change.node);
+            for (const HypernodeID& hn : hypergraph_m.pins(pin_change.edge)) {
+              if (hn != pin_change.node) {
+                gain_cache_nodes.push_back(hn);
+                local_fm_nodes.push_back(hn);
               }
             }
-            for (const HypernodeID& hn : hypergraph_m.pins(he)) {
-              partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(he, partitioned_hypergraph_m.partID(hn));
+            //increment km1 if pin is single pin in partition for this edge after addition
+            if (partitioned_hypergraph_m.pinCountInPart(pin_change.edge, partitioned_hypergraph_m.partID(pin_change.node)) == 1)
+            {
+              context.dynamic.incremental_km1 += partitioned_hypergraph_m.edgeWeight(pin_change.edge);
             }
-            context.dynamic.incremental_km1 += std::max(partitioned_hypergraph_m.connectivity(he) - 1, 0) * partitioned_hypergraph_m.edgeWeight(he);
           }
 
           //remove duplicates

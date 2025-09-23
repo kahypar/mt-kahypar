@@ -76,6 +76,12 @@ class ConnectivityInfo {
     return *this;
   }
 
+  void addEdge(const HyperedgeID he)
+  {
+    _con_set.addEdge(he);
+    _pin_counts.addEdge(he);
+  }
+
   // ################## Connectivity Set ##################
 
   inline void addBlock(const HyperedgeID he, const PartitionID p) {
@@ -302,6 +308,10 @@ class SparseConnectivityInfo {
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     _pin_counts.memoryConsumption(parent);
+  }
+
+  void addEdge(const HyperedgeID he) {
+    _pin_counts.addEdge(he);
   }
 
  private:

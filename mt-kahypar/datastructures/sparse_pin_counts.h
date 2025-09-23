@@ -433,6 +433,20 @@ class SparsePinCounts {
     return size_of_pin_counts_per_he * num_hyperedges;
   }
 
+  void addEdge(const HyperedgeID he)
+  {
+    _num_hyperedges++;
+    // resize all underlying data structures
+    const size_t required_size = _size_of_pin_counts_per_he * _num_hyperedges;
+    if ( required_size > _pin_count_in_part.size() ) {
+      _pin_count_in_part.resize("Refinement", "pin_count_in_part",
+        required_size, true, true);
+      _pin_count_ptr = _pin_count_in_part.data();
+    }
+    _ext_pin_count_list.resize(_num_hyperedges);
+    init_pin_count_of_hyperedge(he);
+  }
+
  private:
   inline void init_pin_count_of_hyperedge(const HyperedgeID& he) {
     PinCountHeader* head = header(he);

@@ -280,7 +280,19 @@ class Km1GainCache {
                                        const HypernodeID u,
                                        vec<Gain>& benefit_aggregator);
 
- private:
+  void addNode(const HypernodeID u) {
+    // _gain_cache.resize(
+    //   "Refinement", "gain_cache", (u + 1) * size_t(_k + 1), true);
+    for (PartitionID k = 0; k <= _k; ++k) {
+      _gain_cache.emplace_back();
+    }
+    for (PartitionID p = 0; p < _k; ++p) {
+      _gain_cache[benefit_index(u, p)].store(0, std::memory_order_relaxed);
+    }
+    _gain_cache[penalty_index(u)].store(0, std::memory_order_relaxed);
+  }
+
+private:
   friend class DeltaKm1GainCache;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
