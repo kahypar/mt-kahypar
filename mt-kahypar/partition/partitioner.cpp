@@ -348,6 +348,9 @@ namespace mt_kahypar {
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
     auto community_stack = preprocess(hypergraph, context, target_graph);
+    while (community_stack.size() < 3) {
+      community_stack.insert(community_stack.begin(), community_stack.front());
+    }
     context.preprocessing.community_stack = &community_stack;
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
