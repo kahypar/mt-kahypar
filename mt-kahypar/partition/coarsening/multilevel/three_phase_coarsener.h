@@ -188,7 +188,7 @@ class ThreePhaseCoarsener : public ICoarsener,
         DBG << "  - Guided subround: " << V(curr_threshold);
         cc.guiding_treshold = curr_threshold;
         cc.hierarchy_contraction_limit = target_contraction_size;
-        coarseningRound("first_lp_round_guided", "First LP round + guided",
+        coarseningRound("first_lp_round", "First LP round",
                         current_hg, _lp_clustering, _similarity_policy, cc);
       }
     }

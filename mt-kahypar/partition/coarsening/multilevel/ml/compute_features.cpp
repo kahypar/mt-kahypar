@@ -450,16 +450,14 @@ std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds
 
   timer.start_timer("features", "Compute Features");
 
-  timer.start_timer("features_initialize", "Features Initialize Data");
+  timer.start_timer("features_global", "Compute Global Features");
   n1_features.resizeNoAssign(graph.initialNumNodes());  // cheap since no writes are performed
   node_degrees.resize(graph.initialNumNodes());
   graph.doParallelForAllNodes([&](const HypernodeID& node) {
     node_degrees[node] = graph.nodeDegree(node);
     ASSERT(graph.nodeWeight(node) == 1);
   });
-  timer.stop_timer("features_initialize");
 
-  timer.start_timer("features_global", "Compute Global Features");
   auto logCache = precomputeLogs();
   auto [global_features, skip_comm_1] = computeGlobalFeatures(graph, node_degrees, context.preprocessing.community_stack, logCache);
   timer.stop_timer("features_global");
