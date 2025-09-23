@@ -47,3 +47,4 @@ python/tests/*.so
 python/examples/*.so
 compile_commands.json
 output.csv
+output_evo.csv
