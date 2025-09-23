@@ -478,7 +478,7 @@ bool float_eq(double left, double right) {
 
 
 std::tuple<GlobalFeatures, std::vector<uint64_t>, bool> computeGlobalFeatures(const StaticGraph& graph,
-    std::vector<std::pair<ds::Clustering, double>>& community_stack) {
+    std::vector<std::tuple<ds::Clustering, HypernodeID, double>>& community_stack) {
   GlobalFeatures features;
 
   std::vector<uint64_t> hn_degrees;
@@ -510,7 +510,7 @@ std::tuple<GlobalFeatures, std::vector<uint64_t>, bool> computeGlobalFeatures(co
   // modularity features
   ds::DynamicSparseMap<PartitionID, uint32_t> comm_set;
   auto modularity_features = [&](size_t i) {
-    const auto& [clustering, modularity] = community_stack.at(community_stack.size() - i - 1);
+    const auto& [clustering, _n, modularity] = community_stack.at(community_stack.size() - i - 1);
     comm_set.clear();
     for (PartitionID c: clustering) {
       comm_set[c] = 0;
@@ -748,7 +748,7 @@ std::vector<std::tuple<HypernodeID, N1Features, N2Features>> computeNodeFeatures
 }
 
 std::vector<std::tuple<HypernodeID, HypernodeID, EdgeFeatures>> computeEdgeFeatures(const StaticGraph& graph, const GlobalFeatures& global, const std::vector<uint64_t>& global_degrees,
-                                                                                    const std::vector<std::pair<ds::Clustering, double>>& community_stack, bool skip_comm_1) {
+                                                                                    const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>& community_stack, bool skip_comm_1) {
   tbb::enumerable_thread_specific<std::vector<std::tuple<HypernodeID, HypernodeID, EdgeFeatures>>> result_list;
   tbb::enumerable_thread_specific<NeighborhoodComputation> base_neighborhood(graph.initialNumNodes());
   tbb::enumerable_thread_specific<NeighborhoodComputation> result_neighborhood(graph.initialNumNodes());
@@ -801,7 +801,7 @@ std::vector<std::tuple<HypernodeID, HypernodeID, EdgeFeatures>> computeEdgeFeatu
 
       // community detection
       auto equal_communities = [&](size_t i) {
-        const auto& [clustering, _] = community_stack.at(community_stack.size() - i - 1);
+        const auto& [clustering, _, _skip] = community_stack.at(community_stack.size() - i - 1);
         return clustering[u] == clustering[v];
       };
       result.comm_0_equal = equal_communities(0);
