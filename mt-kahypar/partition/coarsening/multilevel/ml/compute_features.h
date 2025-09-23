@@ -94,7 +94,7 @@ inline EdgeFeatures computeEdgeFeatures(const ds::StaticGraph& /*graph*/, const 
 
   auto comm_ptr = context.preprocessing.community_stack;
   if (comm_ptr != nullptr) {
-    auto community_stack = *comm_ptr;
+    const auto& community_stack = *comm_ptr;
 
     auto equal_communities = [&](size_t i) {
       ASSERT(community_stack.size() - i - 1 < community_stack.size());
