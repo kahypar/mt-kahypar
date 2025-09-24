@@ -57,7 +57,7 @@ struct MapFeaturesForEdgeImpl;
 
 template<typename MAPPER, typename... TAIL, size_t DEPTH>
 struct MapFeaturesForEdgeImpl<kahypar::meta::Typelist<MAPPER, TAIL...>, DEPTH> {
-  static void map_features(const GlobalFeatures& global, const N1Features& n1_features_0, const N1Features& n1_features_1, const EdgeFeatures& edge_features, float* __restrict__ output) {
+  static void map_features(const GlobalFeatures& global, const N1Features& n1_features_0, const N1Features& n1_features_1, const EdgeFeatures& edge_features, float* output) {
     *output = MAPPER::map(global, n1_features_0, n1_features_1, edge_features);
     ++output;
     MapFeaturesForEdgeImpl<kahypar::meta::Typelist<TAIL...>, DEPTH + 1>::map_features(global, n1_features_0, n1_features_1, edge_features, output);
@@ -79,8 +79,7 @@ void predictEdgesImpl(const ds::StaticGraph& graph, const Context& context,
                       const GlobalFeatures& global, const ds::Array<N1Features>& n1_features, bool skip_comm_1,
                       HyperedgeID first_edge, HyperedgeID n,
                       float *params_row, InOutPredictionBuffer& buffer, vec<EdgeMetadata>& metadata) {
-  float* in = buffer.input_buffer;
-
+  float* data = buffer.input_buffer;
   for (HyperedgeID he = first_edge; he < first_edge + n; ++he) {
     ASSERT(graph.edgeIsEnabled(he));
 
@@ -95,22 +94,24 @@ void predictEdgesImpl(const ds::StaticGraph& graph, const Context& context,
       std::swap(u_f, v_f);
     }
     EdgeFeatures edge = computeEdgeFeatures(graph, context, u, *u_f, v, *v_f, skip_comm_1);
-    MapFeaturesForEdge::map_features(global, *u_f, *v_f, edge, in);
+    MapFeaturesForEdge::map_features(global, *u_f, *v_f, edge, data);
 
     static_assert(MEANS.size() == STDEVS.size() && MEANS.size() == 32);
     for (size_t i = 0; i < MEANS.size(); ++i) {
-      float val = in[i];
-      in[i] = (val - MEANS[i]) / STDEVS[i];
+      float val = data[i];
+      data[i] = (val - MEANS[i]) / STDEVS[i];
     }
 
-    in += 32;
+    data += 32;
   }
 
+  float* in = buffer.input_buffer;
   float* out = buffer.output_buffer;
   ASSERT(is_aligned(in, 32) && is_aligned(out, 32));
   predict(in, params_row, n, out);
 
   for (HyperedgeID offset = 0; offset < n; ++offset) {
+    ASSERT(out[offset] >= 0 && out[offset] <= 1, V(out[offset]));
     metadata[first_edge + offset] = out[offset];
   }
 }
