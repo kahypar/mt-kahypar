@@ -49,8 +49,6 @@ struct InOutPredictionBuffer {
   float output_buffer alignas(32) [(EDGE_CHUNK_SIZE + 4) * 48];
 };
 
-using BufferPtr = std::unique_ptr<InOutPredictionBuffer>;
-
 
 template<typename T, size_t DEPTH>
 struct MapFeaturesForEdgeImpl;
@@ -72,6 +70,9 @@ struct MapFeaturesForEdgeImpl<kahypar::meta::Typelist<>, DEPTH> {
 };
 
 using MapFeaturesForEdge = MapFeaturesForEdgeImpl<features::OrderedFeatures, 0>;
+using BufferPtr = std::unique_ptr<InOutPredictionBuffer>;
+using features::MEANS;
+using features::STDEVS;
 
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
