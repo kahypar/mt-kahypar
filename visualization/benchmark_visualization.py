@@ -6,11 +6,16 @@ import pandas as pd
 import math
 import numpy as np
 import os
+from enum import Enum
 
 BASELINE_TIME = .3
 normalize_time = lambda n: n / BASELINE_TIME
 
-def parse_benchamark_input(input_file):
+class Mode(Enum):
+    DEFAULT = "default"
+    EVO = "evo"
+
+def parse_benchamark_input(input_file, mode: Mode):
     lowest_value = math.inf
     seed_index = 0
     with open(input_file, 'r', encoding='ascii') as file:
@@ -18,6 +23,7 @@ def parse_benchamark_input(input_file):
         seed_count = lines.count('###') + 1
         all_seeds_results = [[] for _ in range(seed_count)]
         start_time = datetime.strptime(lines[1][:-3], "%H:%M:%S.%f")
+        last_time = datetime.strptime(lines[1][:-3], "%H:%M:%S.%f")
         print(f"Start Time: {start_time} run {seed_index}")
         seed_results = [[], []]
         max_results = 0
@@ -34,13 +40,21 @@ def parse_benchamark_input(input_file):
                 continue
             elif ',' not in line:
                 start_time = datetime.strptime(line[:-3], "%H:%M:%S.%f")
+                last_time = datetime.strptime(line[:-3], "%H:%M:%S.%f")
                 print('-'*20)
                 print(f"Start Time: {start_time} run {seed_index}")
                 continue
             timestamp, method, traget_value = line.split(', ')
             traget_value = int(traget_value)
             time = datetime.strptime(timestamp[:-3], "%H:%M:%S.%f")
-            delta = (time - start_time).total_seconds()
+            delta = None
+            if mode == Mode.DEFAULT:
+                delta = (time - start_time).total_seconds()
+            elif mode == Mode.EVO:
+                delta = (time - last_time).total_seconds()
+                last_time = time
+            else:
+                print("Not implemented")
             if(traget_value < lowest_value):
                 lowest_value = traget_value
                 seed_results[0] +=  [normalize_time(delta)]
@@ -49,13 +63,6 @@ def parse_benchamark_input(input_file):
                 results += 1
                 max_results = max(results, max_results)
         all_seeds_results[-1] = seed_results
-        # all_seeds_results = [
-        #     [[0.1, 1.69, 2.8], [42, 38, 27]],
-        #     [[0.11, 1.98], [43, 40]],
-        #     [[0.098, 2.0, 2.1], [41, 35, 33]]
-        # ]
-        # max_results = 3
-        # seed_count = 3
         first_result = [(max(res[0][0] for res in all_seeds_results), np.mean([res[1][0] for res in all_seeds_results]))]
         result_array = first_result + [(math.inf,0) for i in range(sum(len(j[0])for j in all_seeds_results)-seed_count)] 
         print('Done')
@@ -95,7 +102,7 @@ def create_plot(datasets, title, xlabel, ylabel, output_file, scientific=False):
         plt.plot(times, values, marker='o', label=label)
     
     plt.xscale('log')
-    plt.yscale('log')
+    # plt.yscale('log')
     
     ax = plt.gca()
     
@@ -122,12 +129,12 @@ def create_plot(datasets, title, xlabel, ylabel, output_file, scientific=False):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Use relative paths for input files (assuming they're in the same directory)
-result1 = parse_benchamark_input('output_evo.csv')
-result2 = parse_benchamark_input('output.csv')
+result1 = parse_benchamark_input('output.csv', mode=Mode.DEFAULT)
+result2 = parse_benchamark_input('output_evo.csv', mode=Mode.EVO)
 datasets = [(result1, "Evolutionary"), (result2, "Baseline")]
 
 # Save output file in the same directory as the script
 output_path = os.path.join(script_dir, "comparison.png")
-create_plot(datasets, "Benchmark Comparison", "Time (t_n)", "Value", output_path, scientific=True)
+create_plot(datasets, "Benchmark Comparison", "Time (t_n)", "Value", output_path, scientific=False)
 
 print(f"Plot saved to: {output_path}")
