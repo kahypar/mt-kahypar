@@ -803,6 +803,7 @@ class StaticHypergraph {
       const HypernodeID pin = _incidence_array[pos];
       removeIncidentEdgeFromHypernode(he, pin);
     });
+    ++_num_removed_hyperedges;
     disableHyperedge(he);
   }
 
