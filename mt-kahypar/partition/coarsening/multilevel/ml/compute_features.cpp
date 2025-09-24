@@ -39,6 +39,7 @@
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/scalable_sort.h"
+#include "mt-kahypar/partition/coarsening/multilevel/ml/feature_definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -467,10 +468,12 @@ std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds
   computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache, logCache);
   timer.stop_timer("features_cheap");
 
-  timer.start_timer("features_expensive", "Compute Expensive Features");
-  // note: this may only be called after `computeCheapN1Features`
-  computeExpensiveN1Features(graph, n1_features);
-  timer.stop_timer("features_expensive");
+  if constexpr (features::needs_expensive_features) {
+    timer.start_timer("features_expensive", "Compute Expensive Features");
+    // note: this may only be called after `computeCheapN1Features`
+    computeExpensiveN1Features(graph, n1_features);
+    timer.stop_timer("features_expensive");
+  }
 
   timer.stop_timer("features");
 
