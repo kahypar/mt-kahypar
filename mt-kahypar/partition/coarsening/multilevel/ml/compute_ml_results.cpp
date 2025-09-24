@@ -42,7 +42,7 @@ namespace mt_kahypar {
 #define is_aligned(POINTER, BYTE_COUNT) \
     (((uintptr_t)(const void *)(POINTER)) % (BYTE_COUNT) == 0)
 
-constexpr size_t EDGE_CHUNK_SIZE = 1024;
+constexpr size_t EDGE_CHUNK_SIZE = 256;
 
 struct InOutPredictionBuffer {
   float input_buffer alignas(32) [(EDGE_CHUNK_SIZE + 4) * 48];
@@ -142,14 +142,14 @@ void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& c
     }
   );
 
-  tbb::enumerable_thread_specific<BufferPtr> in_out_buffers([]{
-    return BufferPtr(new InOutPredictionBuffer());
-  });
-  float* params_row = precompute_params();
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   timer.start_timer("inference", "Model Inference");
 
+  tbb::enumerable_thread_specific<BufferPtr> in_out_buffers([]{
+    return BufferPtr(new InOutPredictionBuffer());
+  });
+  float* params_row = precompute_params();
   size_t n_chunks = (graph.initialNumEdges() + EDGE_CHUNK_SIZE - 1) / EDGE_CHUNK_SIZE;
   tbb::parallel_for(UL(0), n_chunks, [&](size_t chunk_id) {
     HyperedgeID first_edge = chunk_id * EDGE_CHUNK_SIZE;
@@ -161,9 +161,9 @@ void computeEdgeMetadataFromModel(const ds::StaticGraph& graph, const Context& c
       predictEdgesDynamicSize(graph, context, global_features, n1_features, skip_comm_1, first_edge, n, params_row, buffer, metadata);
     }
   });
+  free_params(params_row);
 
   timer.stop_timer("inference");
-  free_params(params_row);
 }
 
 }  // namespace mt_kahypar
