@@ -372,9 +372,7 @@ namespace mt_kahypar::io {
             // Remove duplicated pins
             __atomic_fetch_add(&res.num_hes_with_duplicated_pins, 1, __ATOMIC_RELAXED);
             __atomic_fetch_add(&res.num_duplicated_pins, hyperedge.size() - j, __ATOMIC_RELAXED);
-            for ( size_t i = j; i < hyperedge.size(); ++i ) {
-              hyperedge.pop_back();
-            }
+            hyperedge.resize(j);
           }
 
           ASSERT(hyperedge.size() >= 2);
