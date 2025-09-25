@@ -410,8 +410,8 @@ class Array {
   std::string _group;
   std::string _key;
   size_type _size;
-  value_type* _underlying_data;
   std::vector<value_type> _data;
+  value_type* _underlying_data;
 };
 
 

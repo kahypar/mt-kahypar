@@ -5,8 +5,7 @@
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
-
-    int partition(Context& context) {
+  inline int partition(Context& context) {
 
 
       context.partition.instance_type = InstanceType::hypergraph;

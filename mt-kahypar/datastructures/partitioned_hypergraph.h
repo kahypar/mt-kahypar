@@ -304,7 +304,7 @@ class PartitionedHypergraph {
   }
 
   // ! Checks the connectivity set of a hyperedge
-  bool checkConnectivitySet(const HyperedgeID e, size_t k) const {
+  bool checkConnectivitySet(const HyperedgeID e, PartitionID k) const {
     PartitionID expected_connectivity = 0;
     bool success = true;
     for (PartitionID i = 0; i < k; ++i) {
