@@ -16,6 +16,9 @@ namespace mt_kahypar::dyn {
         static void activate_nodes(ds::MutableHypergraph &hypergraph, Context &context, const Change &change) {
           for (const HypernodeID &hn: change.added_nodes) {
           HypernodeID new_hn = hypergraph.addHypernode({}, 1);
+          (void) new_hn;
+          (void) hn;
+          (void) context;
           ASSERT(new_hn == hn);
           ASSERT(context.partition.use_individual_part_weights == false);
           ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
@@ -38,8 +41,10 @@ namespace mt_kahypar::dyn {
           }
         }
         static void deactivate_nodes(ds::MutableHypergraph &hypergraph, Context &context, const Change &change) {
+          (void) context;
           for (const HypernodeID &hn: change.removed_nodes) {
             hypergraph.deleteHypernode(hn);
+            (void) hn;
             ASSERT(context.partition.use_individual_part_weights == false);
             ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
                     hypergraph.totalWeight()
@@ -65,6 +70,8 @@ namespace mt_kahypar::dyn {
           (void) context;
           for (const HyperedgeID &he: change.added_edges) {
               HyperedgeID new_he = hypergraph.addHyperedge({}, 1);
+              (void) he;
+              (void) new_he;
               ASSERT(he == new_he);
           }
         }

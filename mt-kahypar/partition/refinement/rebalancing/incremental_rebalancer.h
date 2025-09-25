@@ -300,7 +300,7 @@ private:
         ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> push;
         ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> pull;
 
-        BlockQueues(uint32_t * push_positions, size_t positions_size):
+        BlockQueues(uint32_t *, size_t positions_size):
         push(positions_size), pull(positions_size) {}
     };
 

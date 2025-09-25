@@ -156,6 +156,7 @@ class PinCountInPart {
   }
 
   void addEdge(const HyperedgeID he) {
+    (void) he;
     ASSERT(he == _num_hyperedges);
     _num_hyperedges++;
     // resize all underlying data structures

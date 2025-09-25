@@ -70,14 +70,14 @@ namespace mt_kahypar::ds {
       }
 
       // Auxiliary buffers - reused during multilevel hierarchy to prevent expensive allocations
-      std::vector<size_t>& mapping = _tmp_contraction_buffer->mapping;
-      std::vector<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
-      std::vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
-              _tmp_contraction_buffer->tmp_num_incident_nets;
-      std::vector<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
-              _tmp_contraction_buffer->hn_weights;
+      // std::vector<size_t>& mapping = _tmp_contraction_buffer->mapping;
+      // std::vector<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
+      // std::vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
+      //         _tmp_contraction_buffer->tmp_num_incident_nets;
+      // std::vector<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
+      //         _tmp_contraction_buffer->hn_weights;
       std::vector<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
-      std::vector<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
+      // std::vector<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
       std::vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
       ASSERT(static_cast<size_t>(_num_hypernodes) <= mapping.size());

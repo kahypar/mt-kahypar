@@ -320,7 +320,7 @@ struct DynamicParameters {
 
   //local FM Round
   HyperedgeWeight incremental_km1 = 0;
-  std::vector<Move> moves;
+  std::vector<Move> moves{};
 
 
   // generate file endings
@@ -331,7 +331,7 @@ struct DynamicParameters {
     file_name += vcycle_algorithm + "_";
     file_name += std::to_string(vcycle_num) + "_";
     // round to 2 decimal places
-    file_name += std::to_string((int)(step_size_pct * 100)) + "_";
+    file_name += std::to_string(static_cast<int>(step_size_pct * 100)) + "_";
     file_name += output_file_suffix;
     return file_name;
   }

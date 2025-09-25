@@ -7,8 +7,7 @@
 #include "dynamic_strategy.h"
 
 namespace mt_kahypar::dyn {
-
-    void generateFileName(Context& context) {
+  inline void generateFileName(Context& context) {
       context.dynamic.output_path = context.dynamic.result_folder;
       // add folder for graph name
       context.dynamic.output_path += context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of("/\\") + 1);
@@ -28,9 +27,9 @@ namespace mt_kahypar::dyn {
       std::cout << "Output file: " << context.dynamic.output_path << std::endl;
     }
 
-    void print_progress_bar(size_t i, size_t total, size_t km1, double imbalance) {
+  inline void print_progress_bar(size_t i, size_t total, size_t km1, double imbalance) {
       // clear the line
-      std::cout << "\r\e[K" << std::flush;
+      std::cout << "\r\033[K" << std::flush;
       std::string output = "";
       output += "km1: " + std::to_string(km1) + ", imb: " + std::to_string(imbalance);
       output += "    [";
@@ -47,7 +46,7 @@ namespace mt_kahypar::dyn {
       std::cout.flush();
     }
 
-    std::vector<HypernodeID> parseIDs(const std::string& line) {
+  inline std::vector<HypernodeID> parseIDs(const std::string& line) {
       std::vector<HypernodeID> ids;
       std::stringstream ss(line);
       int id;
@@ -57,7 +56,7 @@ namespace mt_kahypar::dyn {
       return ids;
     }
 
-    std::vector<PinChange> parsePins(const std::string& line) {
+    inline std::vector<PinChange> parsePins(const std::string& line) {
       std::vector<PinChange> pins;
       std::stringstream ss(line);
       std::string token;
@@ -76,7 +75,7 @@ namespace mt_kahypar::dyn {
       return pins;
     }
 
-    std::string getNextNonCommentLine(std::ifstream& file) {
+    inline std::string getNextNonCommentLine(std::ifstream& file) {
       std::string line;
       while (std::getline(file, line)) {
         if (line[0] != '/') {
@@ -95,7 +94,7 @@ namespace mt_kahypar::dyn {
     // removed_nodes_id1 removed_nodes_id2, ...
     // removed_edges_id1 removed_edges_id2, ...
     // (removed_pins1.hypernode,removed_pins1.hyperedge) (removed_pins2.hypernode,removed_pins2.hyperedge), ...
-    std::vector<Change> parseChanges(const std::string& filename) {
+    inline std::vector<Change> parseChanges(const std::string& filename) {
       std::vector<Change> changes;
       std::ifstream file(filename);
       if (!file.is_open()) {
@@ -173,12 +172,14 @@ namespace mt_kahypar::dyn {
       file.close();
     }
 
-    void generateErrorFile(Context& context, DynamicStrategy* strategy, std::exception& e) {
+    inline void generateErrorFile(Context& context, DynamicStrategy* strategy, std::exception& e) {
+      (void) strategy;
       std::string filename = context.dynamic.output_path;
       std::ofstream file(filename + ".error");
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
+      file << "Dynamic strategy: " << context.dynamic.strategy << std::endl;
       file << "Error: " << e.what() << std::endl;
 
       file.close();

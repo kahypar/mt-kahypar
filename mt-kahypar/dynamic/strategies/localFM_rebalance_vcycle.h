@@ -47,10 +47,11 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_m
-        void local_fm(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, vec<PartitionID> empty_blocks) {
-
-          mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
-                  partitioned_hypergraph_m);
+        void local_fm(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
+          (void) change;
+          (void) empty_blocks;
+          // mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
+          //         partitioned_hypergraph_m);
 
           //update gain cache for all changed nodes
           for (const HypernodeID &hn: gain_cache_nodes) {
@@ -296,8 +297,8 @@ namespace mt_kahypar::dyn {
           local_fm(local_fm_nodes, gain_cache_nodes, change, empty_blocks);
 
           if (changed_weight > context.dynamic.step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) {
-            mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
-                    partitioned_hypergraph_m);
+            // mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
+            //         partitioned_hypergraph_m);
 
             HyperedgeWeight prior_km1 = 0;
             if (!context.dynamic.server) {
