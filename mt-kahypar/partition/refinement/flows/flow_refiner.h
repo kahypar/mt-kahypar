@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <tbb/concurrent_vector.h>
 
 #include "WHFC/algorithm/hyperflowcutter.h"
@@ -57,15 +59,15 @@ class FlowRefiner final : public IFlowRefiner {
                        const Context& context) :
     _phg(nullptr),
     _context(context),
-    _num_available_threads(0),
+    _num_hyperedges(num_hyperedges),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
     _sequential_hfc(_flow_hg, context.partition.seed),
     _parallel_hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(num_hyperedges, _flow_hg, _sequential_hfc, context),
-    _parallel_construction(num_hyperedges, _flow_hg, _parallel_hfc, context) {
+    _sequential_construction(nullptr),
+    _parallel_construction(nullptr) {
       _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _sequential_hfc.timer.active = false;
       _sequential_hfc.forceSequential(true);
@@ -108,27 +110,19 @@ class FlowRefiner final : public IFlowRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
-    return 2;
-  }
-
-  void setNumThreadsForSearchImpl(const size_t num_threads) override {
-    _num_available_threads = num_threads;
-  }
-
   const PartitionedHypergraph* _phg;
   const Context& _context;
   using IFlowRefiner::_time_limit;
-  size_t _num_available_threads;
 
-  mutable PartitionID _block_0;
-  mutable PartitionID _block_1;
+  HyperedgeID _num_hyperedges;
+  PartitionID _block_0;
+  PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
   whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction<GraphAndGainTypes> _sequential_construction;
-  ParallelConstruction<GraphAndGainTypes> _parallel_construction;
+  std::unique_ptr<SequentialConstruction<GraphAndGainTypes>> _sequential_construction;
+  std::unique_ptr<ParallelConstruction<GraphAndGainTypes>> _parallel_construction;
 };
 }  // namespace mt_kahypar
