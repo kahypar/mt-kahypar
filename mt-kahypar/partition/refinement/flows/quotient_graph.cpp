@@ -37,9 +37,9 @@
 
 namespace mt_kahypar {
 
-void QuotientGraphEdge::add_hyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
+void QuotientGraphEdge::addHyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
   cut_hes.push_back(he);
-  cut_he_weight += weight;
+  cut_he_weight.fetch_add(weight, std::memory_order_relaxed);
 }
 
 void QuotientGraphEdge::reset() {
@@ -78,7 +78,7 @@ void QuotientGraph::addNewCutHyperedges(const PartitionedHypergraph& phg, const 
     for ( const PartitionID& other_block : phg.connectivitySet(he) ) {
       if ( other_block != block ) {
         _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
-          .add_hyperedge(he, phg.edgeWeight(he));
+          .addHyperedge(he, phg.edgeWeight(he));
       }
     }
   }
@@ -101,7 +101,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
     for ( const PartitionID i : phg.connectivitySet(he) ) {
       for ( const PartitionID j : phg.connectivitySet(he) ) {
         if ( i < j ) {
-          _quotient_graph[i][j].add_hyperedge(he, edge_weight);
+          _quotient_graph[i][j].addHyperedge(he, edge_weight);
         }
       }
     }

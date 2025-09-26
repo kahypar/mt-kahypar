@@ -61,9 +61,17 @@ struct QuotientGraphEdge {
     total_improvement(0) { }
 
   // ! Adds a cut hyperedge to this quotient graph edge
-  void add_hyperedge(const HyperedgeID he, const HyperedgeWeight weight);
+  void addHyperedge(const HyperedgeID he, const HyperedgeWeight weight);
 
   void reset();
+
+  // ! Positive sign means improvement
+  void reportImprovement(const HyperedgeWeight delta) {
+    if (delta > 0) {
+      num_improvements_found.fetch_add(1, std::memory_order_relaxed);
+      total_improvement.fetch_add(delta, std::memory_order_relaxed);
+    }
+  }
 
   // ! Returns true, if quotient graph edge is acquired by a search
   bool isAcquired() const {
@@ -99,6 +107,18 @@ struct QuotientGraphEdge {
     bool expected = true;
     bool desired = false;
     return is_in_queue.compare_exchange_strong(expected, desired);
+  }
+
+  HyperedgeWeight cutHEWeight() const {
+    return cut_he_weight.load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight numImprovementsFound() const {
+    return num_improvements_found.load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight totalImprovement() const {
+    return total_improvement.load(std::memory_order_relaxed);
   }
 
   // ! Block pair this quotient graph edge represents
