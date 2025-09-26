@@ -37,9 +37,9 @@
 
 namespace mt_kahypar {
 
-void QuotientGraphEdge::add_hyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
+void QuotientGraphEdge::addHyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
   cut_hes.push_back(he);
-  cut_he_weight += weight;
+  cut_he_weight.fetch_add(weight, std::memory_order_relaxed);
 }
 
 void QuotientGraphEdge::reset() {
@@ -64,22 +64,20 @@ QuotientGraph::QuotientGraph(const HyperedgeID num_hyperedges, const Context& co
 }
 
 template<typename PartitionedHypergraph>
-void QuotientGraph::addNewCutHyperedges(const PartitionedHypergraph& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes) {
-  for ( const auto& [he, block] : new_cut_hes ) {
-    ASSERT(block != kInvalidPartition);
-    // assertion might not hold due to race condition between flow computations
-    // ASSERT(phg.pinCountInPart(he, block) > 0);
+void QuotientGraph::addNewCutHyperedge(const PartitionedHypergraph& phg, HyperedgeID he, PartitionID block) {
+  ASSERT(block != kInvalidPartition);
+  // assertion might not hold due to race condition between flow computations
+  // ASSERT(phg.pinCountInPart(he, block) > 0);
 
-    // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'.
-    // Note, hyperedges might be added twice to a block pair or might be wrongly added
-    // to a block pair (due to races). This should not be a problem in practice since
-    // adding new hyperedges is rare, the BFS deduplicates the hyperedges anyways and
-    // additional edges only increase the size of the flow problem.
-    for ( const PartitionID& other_block : phg.connectivitySet(he) ) {
-      if ( other_block != block ) {
-        _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
-          .add_hyperedge(he, phg.edgeWeight(he));
-      }
+  // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'.
+  // Note, hyperedges might be added twice to a block pair or might be wrongly added
+  // to a block pair (due to races). This should not be a problem in practice since
+  // adding new hyperedges is rare, the BFS deduplicates the hyperedges anyways and
+  // additional edges only increase the size of the flow problem.
+  for ( const PartitionID& other_block : phg.connectivitySet(he) ) {
+    if ( other_block != block ) {
+      _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
+        .addHyperedge(he, phg.edgeWeight(he));
     }
   }
 }
@@ -101,7 +99,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
     for ( const PartitionID i : phg.connectivitySet(he) ) {
       for ( const PartitionID j : phg.connectivitySet(he) ) {
         if ( i < j ) {
-          _quotient_graph[i][j].add_hyperedge(he, edge_weight);
+          _quotient_graph[i][j].addHyperedge(he, edge_weight);
         }
       }
     }
@@ -130,7 +128,7 @@ bool QuotientGraph::isInputHypergraph() const {
 
 
 namespace {
-#define ADD_NEW_CUT_HYPEREDGE(X) void QuotientGraph::addNewCutHyperedges(const X& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes)
+#define ADD_NEW_CUT_HYPEREDGE(X) void QuotientGraph::addNewCutHyperedge(const X& phg, HyperedgeID he, PartitionID block)
 #define INITIALIZE(X) void QuotientGraph::initialize(const X& phg)
 }
 

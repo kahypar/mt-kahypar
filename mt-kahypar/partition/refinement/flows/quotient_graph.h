@@ -61,9 +61,17 @@ struct QuotientGraphEdge {
     total_improvement(0) { }
 
   // ! Adds a cut hyperedge to this quotient graph edge
-  void add_hyperedge(const HyperedgeID he, const HyperedgeWeight weight);
+  void addHyperedge(const HyperedgeID he, const HyperedgeWeight weight);
 
   void reset();
+
+  // ! Positive sign means improvement
+  void reportImprovement(const HyperedgeWeight delta) {
+    if (delta > 0) {
+      num_improvements_found.fetch_add(1, std::memory_order_relaxed);
+      total_improvement.fetch_add(delta, std::memory_order_relaxed);
+    }
+  }
 
   // ! Returns true, if quotient graph edge is acquired by a search
   bool isAcquired() const {
@@ -94,11 +102,23 @@ struct QuotientGraphEdge {
     return is_in_queue.compare_exchange_strong(expected, desired);
   }
 
-  // ! Marks quotient graph edge as nnot in queue
+  // ! Marks quotient graph edge as not in queue
   bool markAsNotInQueue() {
     bool expected = true;
     bool desired = false;
     return is_in_queue.compare_exchange_strong(expected, desired);
+  }
+
+  HyperedgeWeight weightOfCutHyperedges() const {
+    return cut_he_weight.load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight numImprovementsFound() const {
+    return num_improvements_found.load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight totalImprovement() const {
+    return total_improvement.load(std::memory_order_relaxed);
   }
 
   // ! Block pair this quotient graph edge represents
@@ -147,13 +167,13 @@ public:
   }
 
   /**
-   * Notifies the quotient graph that hyperedge he contains
-   * a new block, which was previously not contained. The thread
-   * that increases the pin count of hyperedge he in the corresponding
-   * block to 1 is responsible to call this function.
+   * Notifies the quotient graph that hyperedge he contains a new
+   * block, which was previously not contained. Might be called directly
+   * by the thread that increases the pin count of the hyperedges to 1,
+   * or in bulk after multiple flow computations are processed.
    */
   template<typename PartitionedHypergraph>
-  void addNewCutHyperedges(const PartitionedHypergraph& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes);
+  void addNewCutHyperedge(const PartitionedHypergraph& phg, HyperedgeID he, PartitionID block);
 
   // ! Initializes the quotient graph. This includes to find
   // ! all cut hyperedges between all block pairs
