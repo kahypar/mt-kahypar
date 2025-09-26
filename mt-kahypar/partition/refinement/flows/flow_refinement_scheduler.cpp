@@ -286,11 +286,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             [&](double time, bool reaches_time_limit) {
               tracker.reportRunningTime(time, reaches_time_limit);
             });
-
-          if ( delta > 0 ) {
-            _quotient_graph.edge(blocks).num_improvements_found++;
-            _quotient_graph.edge(blocks).total_improvement += delta;
-          }
+          _quotient_graph.edge(blocks).reportImprovement(delta);
           overall_delta.fetch_sub(delta, std::memory_order_relaxed);
 
           DBG << "End search" << search_id
@@ -552,7 +548,9 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
   _apply_moves_lock.unlock();
 
   if ( sequence.state == MoveSequenceState::SUCCESS ) {
-    _quotient_graph.addNewCutHyperedges(*_phg, new_cut_hes);
+    for ( const auto& [he, block] : new_cut_hes ) {
+      _quotient_graph.addNewCutHyperedge(*_phg, he, block);
+    }
     _stats.total_improvement += improvement;
   }
 
