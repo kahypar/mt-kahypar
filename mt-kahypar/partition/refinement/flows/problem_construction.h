@@ -129,7 +129,8 @@ class ProblemConstruction {
 
   Subhypergraph construct(const BlockPair& blocks,
                           QuotientGraph& quotient_graph,
-                          const PartitionedHypergraph& phg);
+                          const PartitionedHypergraph& phg,
+                          bool deterministic);
 
   void changeNumberOfBlocks(const PartitionID new_k);
 
