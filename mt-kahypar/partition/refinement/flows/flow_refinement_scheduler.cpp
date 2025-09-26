@@ -276,7 +276,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
               << ", Refiner =" << refiner_idx << ")";
 
           timer.start_timer("region_growing", "Grow Region", true);
-          const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg);
+          const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg, /*deterministic=*/false);
           timer.stop_timer("region_growing");
 
           _quotient_graph.edge(blocks).release();
