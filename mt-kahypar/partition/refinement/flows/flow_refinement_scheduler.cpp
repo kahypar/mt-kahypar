@@ -397,7 +397,8 @@ void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK
 
 template<typename GraphAndGainTypes>
 std::unique_ptr<IFlowRefiner> FlowRefinementScheduler<GraphAndGainTypes>::constructFlowRefiner() {
-  return std::make_unique<FlowRefiner<GraphAndGainTypes>>(_num_hyperedges, _context);
+  return std::make_unique<FlowRefiner<GraphAndGainTypes>>(
+    _num_hyperedges, _context, false /*deterministic*/);
 }
 
 namespace {
