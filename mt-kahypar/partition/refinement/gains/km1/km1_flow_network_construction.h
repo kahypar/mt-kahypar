@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "mt-kahypar/datastructures/flow_network_edge_parameters.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context.h"
 
@@ -37,51 +38,13 @@ namespace mt_kahypar {
  * is relevant for optimizing the objective function.
  */
 struct Km1FlowNetworkConstruction {
-  // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
-  static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
-                                  const Context&,
-                                  const HyperedgeID he,
-                                  const PartitionID,
-                                  const PartitionID) {
-    return phg.edgeWeight(he);
-  }
-
-  // ! If true, then hyperedge is not relevant and can be dropped.
-  template<typename PartitionedHypergraph>
-  static bool dropHyperedge(const PartitionedHypergraph&,
-                            const HyperedgeID,
-                            const PartitionID,
-                            const PartitionID) {
-    return false;
-  }
-
-  // ! If true, then hyperedge is connected to source.
-  template<typename PartitionedHypergraph>
-  static bool connectToSource(const PartitionedHypergraph&,
-                              const HyperedgeID,
-                              const PartitionID,
-                              const PartitionID) {
-    return false;
-  }
-
-  // ! If true, then hyperedge is connected to sink.
-  template<typename PartitionedHypergraph>
-  static bool connectToSink(const PartitionedHypergraph&,
-                            const HyperedgeID,
-                            const PartitionID,
-                            const PartitionID) {
-    return false;
-  }
-
-  // ! If true, then hyperedge is considered as cut edge and its
-  // ! weight is added to the total cut
-  template<typename PartitionedHypergraph>
-  static bool isCut(const PartitionedHypergraph&,
-                    const HyperedgeID,
-                    const PartitionID,
-                    const PartitionID) {
-    return false;
+  static FlowNetworkEdgeParameters getParameters(const PartitionedHypergraph& phg,
+                                                 const Context&,
+                                                 const HyperedgeID he,
+                                                 const PartitionID,
+                                                 const PartitionID) {
+    return FlowNetworkEdgeParameters(phg.edgeWeight(he));
   }
 };
 

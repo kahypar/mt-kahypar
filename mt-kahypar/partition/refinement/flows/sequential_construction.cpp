@@ -28,6 +28,7 @@
 
 #include "kahypar-resources/utils/math.h"
 
+#include "mt-kahypar/datastructures/flow_network_edge_parameters.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -176,63 +177,63 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const Pa
   // Add hyperedge to flow network and configure source and sink
   whfc::Hyperedge current_he(0);
   for ( const HyperedgeID& he : sub_hg.hes ) {
-    if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
-      size_t he_hash = 0;
-      _tmp_pins.clear();
-      const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
-      _flow_hg.startHyperedge(whfc::Flow(he_weight));
-      bool connectToSource = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
-      bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
-      if ( ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) ||
-             FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
-        flow_problem.total_cut += he_weight;
-      }
-      for ( const HypernodeID& pin : phg.pins(he) ) {
-        if ( _node_to_whfc.contains(pin) ) {
-          push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
-        } else {
-          const PartitionID pin_block = phg.partID(pin);
-          connectToSource |= pin_block == block_0;
-          connectToSink |= pin_block == block_1;
-        }
-      }
+    FlowNetworkEdgeParameters parameters =
+      FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
+    ASSERT(parameters.capacity >= 0);
 
-      const bool empty_hyperedge = _tmp_pins.size() == 0;
-      const bool connected_to_source_and_sink = connectToSource && connectToSink;
-      if ( connected_to_source_and_sink || empty_hyperedge ) {
-        // Hyperedge is connected to source and sink which means we can not remove it
-        // from the cut with the current flow problem => remove he from flow problem
-        _flow_hg.removeCurrentHyperedge();
-        flow_problem.non_removable_cut += connected_to_source_and_sink ? he_weight : 0;
+    // this check removes any edges that can't affect the global objective
+    if (parameters.capacity == 0) continue;
+
+    size_t he_hash = 0;
+    _tmp_pins.clear();
+    _flow_hg.startHyperedge(whfc::Flow(parameters.capacity));
+    if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
+      flow_problem.total_cut += parameters.capacity;
+    }
+    for ( const HypernodeID& pin : phg.pins(he) ) {
+      if ( _node_to_whfc.contains(pin) ) {
+        push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
       } else {
+        const PartitionID pin_block = phg.partID(pin);
+        parameters.connect_to_source |= pin_block == block_0;
+        parameters.connect_to_sink |= pin_block == block_1;
+      }
+    }
 
-        if ( connectToSource ) {
-          push_into_tmp_pins(flow_problem.source, he_hash, true);
-        } else if ( connectToSink ) {
-          push_into_tmp_pins(flow_problem.sink, he_hash, true);
-        }
+    const bool empty_hyperedge = _tmp_pins.size() == 0;
+    const bool connected_to_source_and_sink = parameters.connect_to_source && parameters.connect_to_sink;
+    if ( connected_to_source_and_sink || empty_hyperedge ) {
+      // Hyperedge is connected to source and sink which means we can not remove it
+      // from the cut with the current flow problem => remove he from flow problem
+      _flow_hg.removeCurrentHyperedge();
+      flow_problem.non_removable_cut += connected_to_source_and_sink ? parameters.capacity : 0;
+    } else {
+      if ( parameters.connect_to_source ) {
+        push_into_tmp_pins(flow_problem.source, he_hash, true);
+      } else if ( parameters.connect_to_sink ) {
+        push_into_tmp_pins(flow_problem.sink, he_hash, true);
+      }
 
-        // Sort pins for identical net detection
-        std::sort( _tmp_pins.begin() +
-                 ( _tmp_pins[0] == flow_problem.source ||
-                   _tmp_pins[0] == flow_problem.sink), _tmp_pins.end());
+      // Sort pins for identical net detection
+      std::sort( _tmp_pins.begin() +
+                ( _tmp_pins[0] == flow_problem.source ||
+                  _tmp_pins[0] == flow_problem.sink), _tmp_pins.end());
 
-        if ( _tmp_pins.size() > 1 ) {
-          whfc::Hyperedge identical_net =
-            _identical_nets.add_if_not_contained(current_he, he_hash, _tmp_pins);
-          if ( identical_net == whfc::invalidHyperedge ) {
-            for ( const whfc::Node& pin : _tmp_pins ) {
-              _flow_hg.addPin(pin);
-            }
-            if ( _context.refinement.flows.determine_distance_from_cut &&
-                 phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
-              _cut_hes.push_back(current_he);
-            }
-            ++current_he;
-          } else {
-            // Current hyperedge is identical to an already added
-            _flow_hg.capacity(identical_net) += he_weight;
+      if ( _tmp_pins.size() > 1 ) {
+        whfc::Hyperedge identical_net =
+          _identical_nets.add_if_not_contained(current_he, he_hash, _tmp_pins);
+        if ( identical_net == whfc::invalidHyperedge ) {
+          for ( const whfc::Node& pin : _tmp_pins ) {
+            _flow_hg.addPin(pin);
           }
+          if ( _context.refinement.flows.determine_distance_from_cut &&
+                phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
+            _cut_hes.push_back(current_he);
+          }
+          ++current_he;
+        } else {
+          // Current hyperedge is identical to an already added
+          _flow_hg.capacity(identical_net) += parameters.capacity;
         }
       }
     }
@@ -306,36 +307,36 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
     HyperedgeID last_he = _pins[start_idx].e;
     HypernodeID pin_count_in_block_0 = 0;
     HypernodeID pin_count_in_block_1 = 0;
+
     auto add_hyperedge = [&](const size_t end_idx) {
       ASSERT(start_idx < end_idx);
       _tmp_pins.clear();
       const HyperedgeID he = sub_hg.hes[last_he];
-      if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
-        const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
+      FlowNetworkEdgeParameters parameters =
+        FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
+
+      if ( parameters.capacity > 0 ) {
         const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
         const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
-        bool connect_to_source = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
-        bool connect_to_sink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
-        connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
-        connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
-        if ( ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) ||
-               FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
-          flow_problem.total_cut += he_weight;
+        parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
+        parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
+        if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
+          flow_problem.total_cut += parameters.capacity;
         }
 
-        _flow_hg.startHyperedge(whfc::Flow(he_weight));
-        if ( connect_to_source && connect_to_sink ) {
+        _flow_hg.startHyperedge(whfc::Flow(parameters.capacity));
+        if ( parameters.connect_to_source && parameters.connect_to_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          flow_problem.non_removable_cut += he_weight;
+          flow_problem.non_removable_cut += parameters.capacity;
           _flow_hg.removeCurrentHyperedge();
         } else {
           // Add hyperedge to flow network and configure source and sink
           size_t hash = 0;
-          if ( connect_to_source ) {
+          if ( parameters.connect_to_source ) {
             _tmp_pins.push_back(flow_problem.source);
             hash += kahypar::math::hash(flow_problem.source);
-          } else if ( connect_to_sink ) {
+          } else if ( parameters.connect_to_sink ) {
             _tmp_pins.push_back(flow_problem.sink);
             hash += kahypar::math::hash(flow_problem.sink);
           }
@@ -358,12 +359,13 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
               ++current_he;
             } else {
               // Current hyperedge is identical to an already added
-              _flow_hg.capacity(identical_net) += he_weight;
+              _flow_hg.capacity(identical_net) += parameters.capacity;
             }
           }
         }
       }
     };
+
     for ( size_t i = 0; i < _pins.size(); ++i ) {
       if ( last_he != _pins[i].e ) {
         add_hyperedge(i);
