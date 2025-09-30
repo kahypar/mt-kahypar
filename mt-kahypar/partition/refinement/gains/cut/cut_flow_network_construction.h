@@ -37,51 +37,18 @@ namespace mt_kahypar {
  * is relevant for optimizing the objective function.
  */
 struct CutFlowNetworkConstruction {
-  // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
-  static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
-                                  const Context&,
-                                  const HyperedgeID he,
-                                  const PartitionID,
-                                  const PartitionID) {
-    return phg.edgeWeight(he);
-  }
-
-  // ! If true, then hyperedge is not relevant and can be dropped.
-  template<typename PartitionedHypergraph>
-  static bool dropHyperedge(const PartitionedHypergraph& phg,
-                            const HyperedgeID he,
-                            const PartitionID block_0,
-                            const PartitionID block_1) {
-    return phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he);
-  }
-
-  // ! If true, then hyperedge is connected to source.
-  template<typename PartitionedHypergraph>
-  static bool connectToSource(const PartitionedHypergraph&,
-                              const HyperedgeID,
-                              const PartitionID,
-                              const PartitionID) {
-    return false;
-  }
-
-  // ! If true, then hyperedge is connected to sink.
-  template<typename PartitionedHypergraph>
-  static bool connectToSink(const PartitionedHypergraph&,
-                            const HyperedgeID,
-                            const PartitionID,
-                            const PartitionID) {
-    return false;
-  }
-
-  // ! If true, then hyperedge is considered as cut edge and its
-  // ! weight is added to the total cut
-  template<typename PartitionedHypergraph>
-  static bool isCut(const PartitionedHypergraph&,
-                    const HyperedgeID,
-                    const PartitionID,
-                    const PartitionID) {
-    return false;
+  static FlowNetworkEdgeParameters getParameters(const PartitionedHypergraph& phg,
+                                                 const Context&,
+                                                 const HyperedgeID he,
+                                                 const PartitionID block_0,
+                                                 const PartitionID block_1) {
+    if (phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he)) {
+      // hyperedge is not relevant and can be dropped
+      return FlowNetworkEdgeParameters();
+    } else {
+      return FlowNetworkEdgeParameters(phg.edgeWeight(he));
+    }
   }
 };
 

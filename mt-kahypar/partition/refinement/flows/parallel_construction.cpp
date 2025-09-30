@@ -229,15 +229,14 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
     vec<whfc::Node>& tmp_pins = _tmp_pins.local();
     for ( size_t i = start; i < end; ++i ) {
       const HyperedgeID he = sub_hg.hes[i];
-      if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
+      FlowNetworkEdgeParameters parameters =
+        FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
+
+      if ( parameters.capacity > 0 ) {
         tmp_pins.clear();
         size_t he_hash = 0;
-        bool connectToSource = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
-        bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
-        const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
-        if ( ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) ||
-               FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
-          __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
+        if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
+          __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
         }
         for ( const HypernodeID& pin : phg.pins(he) ) {
           whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
@@ -245,21 +244,21 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
             push_into_tmp_pins(tmp_pins, *whfc_pin, he_hash, false);
           } else {
             const PartitionID pin_block = phg.partID(pin);
-            connectToSource |= pin_block == block_0;
-            connectToSink |= pin_block == block_1;
+            parameters.connect_to_source |= pin_block == block_0;
+            parameters.connect_to_sink |= pin_block == block_1;
           }
         }
 
         const bool empty_hyperedge = tmp_pins.size() == 0;
-        const bool connected_to_source_and_sink = connectToSource && connectToSink;
+        const bool connected_to_source_and_sink = parameters.connect_to_source && parameters.connect_to_sink;
         if ( connected_to_source_and_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          __atomic_fetch_add(&flow_problem.non_removable_cut, he_weight, __ATOMIC_RELAXED);
+          __atomic_fetch_add(&flow_problem.non_removable_cut, parameters.capacity, __ATOMIC_RELAXED);
         } else if ( !empty_hyperedge ) {
-          if ( connectToSource ) {
+          if ( parameters.connect_to_source ) {
             push_into_tmp_pins(tmp_pins, flow_problem.source, he_hash, true);
-          } else if ( connectToSink ) {
+          } else if ( parameters.connect_to_sink ) {
             push_into_tmp_pins(tmp_pins, flow_problem.sink, he_hash, true);
           }
 
@@ -281,11 +280,12 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
                   phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
                 _cut_hes.push_back(tmp_e);
               }
-              _flow_hg.finishHyperedge(tmp_e.e, he_weight, idx, pin_start, pin_end);
+              _flow_hg.finishHyperedge(tmp_e.e, parameters.capacity, idx, pin_start, pin_end);
               _identical_nets.add(tmp_e);
             } else {
               // Current hyperedge is identical to an already added
-              __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e), he_weight, __ATOMIC_RELAXED);
+              __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e),
+                                 parameters.capacity, __ATOMIC_RELAXED);
             }
           }
         }
@@ -406,34 +406,34 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
       last_he = pins_of_bucket[start_idx].e;
       HypernodeID pin_count_in_block_0 = 0;
       HypernodeID pin_count_in_block_1 = 0;
+
       auto add_hyperedge = [&](const size_t end_idx) {
         ASSERT(start_idx < end_idx);
         tmp_pins.clear();
         const HyperedgeID he = sub_hg.hes[last_he];
-        if ( !FlowNetworkConstruction::dropHyperedge(phg, he, block_0, block_1) ) {
-          const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
+        FlowNetworkEdgeParameters parameters =
+          FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
+
+        if ( parameters.capacity > 0 ) {
           const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
           const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
-          bool connect_to_source = FlowNetworkConstruction::connectToSource(phg, he, block_0, block_1);
-          bool connect_to_sink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
-          connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
-          connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
-          if ( ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) ||
-                 FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
-            __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
+          parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
+          parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
+          if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
+            __atomic_fetch_add(&flow_problem.total_cut, parameters.capacity, __ATOMIC_RELAXED);
           }
 
-          if ( connect_to_source && connect_to_sink ) {
+          if ( parameters.connect_to_source && parameters.connect_to_sink ) {
             // Hyperedge is connected to source and sink which means we can not remove it
             // from the cut with the current flow problem => remove he from flow problem
-            __atomic_fetch_add(&flow_problem.non_removable_cut, he_weight, __ATOMIC_RELAXED);
+            __atomic_fetch_add(&flow_problem.non_removable_cut, parameters.capacity, __ATOMIC_RELAXED);
           } else {
             // Add hyperedge to flow network and configure source and sink
             size_t hash = 0;
-            if ( connect_to_source ) {
+            if ( parameters.connect_to_source ) {
               tmp_pins.push_back(flow_problem.source);
               hash += kahypar::math::hash(flow_problem.source);
-            } else if ( connect_to_sink ) {
+            } else if ( parameters.connect_to_sink ) {
               tmp_pins.push_back(flow_problem.sink);
               hash += kahypar::math::hash(flow_problem.sink);
             }
@@ -455,16 +455,18 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
                     actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
                   _cut_hes.push_back(tmp_e);
                 }
-                _flow_hg.finishHyperedge(tmp_e.e, he_weight, idx, pin_start, pin_end);
+                _flow_hg.finishHyperedge(tmp_e.e, parameters.capacity, idx, pin_start, pin_end);
                 _identical_nets.add(tmp_e);
               } else {
                 // Current hyperedge is identical to an already added
-                __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e), he_weight, __ATOMIC_RELAXED);
+                __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e),
+                                   parameters.capacity, __ATOMIC_RELAXED);
               }
             }
           }
         }
       };
+
       for ( size_t i = 0; i < pins_of_bucket.size(); ++i ) {
         if ( last_he != pins_of_bucket[i].e ) {
           add_hyperedge(i);

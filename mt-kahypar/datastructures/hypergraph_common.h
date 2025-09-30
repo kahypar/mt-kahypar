@@ -115,6 +115,17 @@ struct Move {
   }
 };
 
+struct FlowNetworkEdgeParameters {
+  FlowNetworkEdgeParameters() = default;
+  FlowNetworkEdgeParameters(HyperedgeWeight capacity):
+    capacity(capacity) {}
+
+  HyperedgeWeight capacity = 0;
+  bool connect_to_source = false;
+  bool connect_to_sink = false;
+  bool is_cut = false;
+};
+
 struct Memento {
   HypernodeID u; // representative
   HypernodeID v; // contraction partner
