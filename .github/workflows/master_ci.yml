@@ -2,8 +2,8 @@ name: Mt-KaHyPar Master CI
 
 on:
   push:
-    branches:
-      - master
+    branches-ignore:
+      - x
   pull_request:
     branches:
       - master
@@ -155,7 +155,8 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
+          # use RELWITHDEBINFO preset so that assertions are enabled
+          cmake .. --preset=dev -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DKAHYPAR_CI_BUILD=ON
           make -j4 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
