@@ -172,6 +172,9 @@ namespace mt_kahypar {
              "(https://github.com/bingmann/sqlplottools)")
             ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>")->default_value(false),
              "Summarize results in CSV format")
+            ("enable-benchmark",
+            po::value<bool>(&context.partition.enable_benchmark_mode)->value_name("<bool>")->default_value(false),
+            "Enables benchmark mode with additional timing and statistics output")
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
              "An algorithm name to print into the summarized output (csv or sqlplottools). ")
@@ -815,7 +818,7 @@ namespace mt_kahypar {
                        context.evolutionary.replace_strategy = EvoReplaceStrategyFromString(strategy);
                      }),
              "Replacement strategy")
-            ("evo-diversify-interval",
+             ("evo-diversify-interval",
              po::value<int>(&context.evolutionary.diversify_interval)->value_name("<int>")->default_value(-1),
              "The Frequency in which diversfication should be performed\n"
              "(default: -1)(-1 disables)")
@@ -826,6 +829,9 @@ namespace mt_kahypar {
              ("evo-history-file",
               po::value<std::string>(&context.evolutionary.history_file)->value_name("<string>"),
               "Output file for evolution history")
+             ("evo-diff-matrix-file",
+              po::value<std::string>(&context.evolutionary.diff_matrix_file)->value_name("<string>"),
+              "Output file for evolution difference matrix")
              ("evo-kway",
              po::value<int>(&context.evolutionary.kway_combine)->value_name("<int>")->default_value(2),
              "How many individsuals to combine for the combine step\n");

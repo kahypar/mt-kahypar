@@ -48,4 +48,4 @@ python/examples/*.so
 compile_commands.json
 output.csv
 output_evo.csv
-visualization/comparison.png
+visualization/*.png

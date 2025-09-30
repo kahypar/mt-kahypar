@@ -60,6 +60,7 @@ class Population {
   inline size_t forceInsert(Individual&& individual, const size_t position) {
     DBG << V(position) << V(individual.fitness());
     _individuals[position] = std::move(individual);
+
     return position;
   }
   inline size_t forceInsertSaveBest(Individual&& individual, const size_t position) {
@@ -275,6 +276,53 @@ class Population {
     return output_diff.size();
   }
 
+  inline std::string toString(const std::vector<size_t>& values) const {
+    if (values.empty()) {
+        return "";
+    }
+    
+    std::string result;
+    for (size_t i = 0; i < values.size(); ++i) {
+        result += std::to_string(values[i]);
+        if (i < values.size() - 1) {
+            result += ",";
+        }
+    }
+    return result;
+}
+  
+  inline std::string updateDiffMatrix() {
+    std::lock_guard<std::mutex> guard(_diff_mutex);
+    
+    // should theoretically only happen once at init
+    _diff_matrix.resize(_individuals.size());
+    for (size_t i = 0; i < _diff_matrix.size(); ++i) {
+      _diff_matrix[i].resize(_individuals.size());
+    }
+
+    for (size_t i = 0; i < _individuals.size(); ++i) {
+      for (size_t j = 0; j < _individuals.size(); ++j) {
+        if (i == j) {
+          _diff_matrix[i][j] = 0;
+        } else if (i < j) {
+          const size_t diff = difference(_individuals[i], j, false);
+          _diff_matrix[i][j] = diff;
+          _diff_matrix[j][i] = diff;
+        }
+      }
+    }
+
+    std::string matrix_string;
+    // return matrix as String 
+    for (size_t i = 0; i < _diff_matrix.size(); i++) {
+      std::string row = toString(_diff_matrix[i]);
+      matrix_string += row + "\n";
+    }
+    // add separator between each matrix
+    matrix_string += "---\n";
+    return matrix_string;
+  }
+
  private:
   inline size_t replaceDiverse(Individual&& individual, const bool strong_set) {
     size_t max_similarity = std::numeric_limits<size_t>::max();
@@ -300,6 +348,8 @@ class Population {
 
   std::mutex _population_mutex;
   std::vector<Individual> _individuals;
+  std::vector<std::vector<size_t>> _diff_matrix;
+  std::mutex _diff_mutex;
 };
 std::ostream& operator<< (std::ostream& os, const Population& population);
 }  // namespace mt_kahypar
