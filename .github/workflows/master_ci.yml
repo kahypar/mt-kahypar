@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev ${{ matrix.compiler.install_cmd }}
 
       - name: Install Mt-KaHyPar
         env:
@@ -119,7 +119,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
       - name: Install Mt-KaHyPar Integration Tests
         run: |
@@ -148,7 +148,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
@@ -157,6 +157,29 @@ jobs:
           cd build
           # use RELWITHDEBINFO preset so that assertions are enabled
           cmake .. --preset=dev -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DKAHYPAR_CI_BUILD=ON
+          make -j4 mtkahypar_interface_test
+
+  mt_kahypar_c_interface_tests_64bit:
+    name: C Interface Tests with 64 bit IDs
+    runs-on: ubuntu-24.04
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+
+      - name: Run Mt-KaHyPar C Library Interface Tests 64 bit
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          # use RELWITHDEBINFO preset so that assertions are enabled
+          cmake .. --preset=dev -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DKAHYPAR_USE_64_BIT_IDS=ON -DKAHYPAR_CI_BUILD=ON
           make -j4 mtkahypar_interface_test
 
   mt_kahypar_python_interface_tests:
@@ -171,7 +194,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
@@ -239,7 +262,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install tbb boost hwloc lcov gcovr
+          brew install tbb boost hwloc
 
       - name: Install Mt-KaHyPar Multilevel Tests
         run: |
