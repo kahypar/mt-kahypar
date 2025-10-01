@@ -67,8 +67,14 @@ template<typename PartitionedHypergraph>
 void QuotientGraph::addNewCutHyperedges(const PartitionedHypergraph& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes) {
   for ( const auto& [he, block] : new_cut_hes ) {
     ASSERT(block != kInvalidPartition);
-    ASSERT(phg.pinCountInPart(he, block) > 0);
-    // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
+    // assertion might not hold due to race condition between flow computations
+    // ASSERT(phg.pinCountInPart(he, block) > 0);
+
+    // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'.
+    // Note, hyperedges might be added twice to a block pair or might be wrongly added
+    // to a block pair (due to races). This should not be a problem in practice since
+    // adding new hyperedges is rare, the BFS deduplicates the hyperedges anyways and
+    // additional edges only increase the size of the flow problem.
     for ( const PartitionID& other_block : phg.connectivitySet(he) ) {
       if ( other_block != block ) {
         _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
