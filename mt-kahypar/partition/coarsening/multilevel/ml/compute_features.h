@@ -90,7 +90,7 @@ std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds
 
 inline EdgeFeatures computeEdgeFeatures(const ds::StaticGraph& /*graph*/, const Context& context, HypernodeID u, const N1Features& u_f, HypernodeID v, const N1Features& v_f, bool skip_comm_1) {
   EdgeFeatures result;
-  result.strawman_similarity = (u_f.inverse_degree == 1.0 || v_f.inverse_degree == 1.0) ? 1.0 : u_f.inverse_degree * v_f.inverse_degree;
+  result.strawman_similarity = (u_f.degree == 1 || v_f.degree == 1) ? 1.0 : u_f.inverse_degree * v_f.inverse_degree;
 
   auto comm_ptr = context.preprocessing.community_stack;
   if (comm_ptr != nullptr) {
