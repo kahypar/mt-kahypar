@@ -460,6 +460,7 @@ HyperedgeID SteinerTreeGainCache::incrementIncidentEdges(const HypernodeID u, co
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].add_fetch(1, std::memory_order_relaxed);
   if ( incident_count_after == 1 ) {
+    // TODO: seems to be racy
     ASSERT(!_adjacent_blocks.contains(u, to));
     _gain_cache[benefit_index(u, to)].store(0, std::memory_order_relaxed);
     _adjacent_blocks.add(u, to);
