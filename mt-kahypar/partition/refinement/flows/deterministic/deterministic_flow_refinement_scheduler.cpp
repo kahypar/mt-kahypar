@@ -47,6 +47,7 @@ DeterministicFlowRefinementScheduler<GraphAndGainTypes>::DeterministicFlowRefine
   _refiner(),
   _constructor(num_hypernodes, num_hyperedges, context),
   _was_moved(num_hypernodes,  static_cast<uint8_t>(false)) {
+  ASSERT(_context.refinement.flows.num_parallel_searches > 0);
   for (size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i) {
     _refiner.emplace_back(nullptr);
   }

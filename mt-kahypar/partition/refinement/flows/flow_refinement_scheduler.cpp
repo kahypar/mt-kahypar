@@ -191,6 +191,7 @@ FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const Hypern
   _max_part_weights(context.partition.k, 0),
   _stats(utils::Utilities::instance().getStats(context.utility_id)),
   _apply_moves_lock() {
+    ASSERT(_context.refinement.flows.num_parallel_searches > 0);
     for ( size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i ) {
       _refiner.emplace_back(nullptr);
     }
