@@ -30,6 +30,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
@@ -62,6 +63,7 @@ class AFlowRefinementScheduler : public Test {
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.max_bfs_distance = 2;
+    context.refinement.flows.num_parallel_searches = 1;
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -223,8 +225,15 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBala
   verifyPartWeights(refiner.partWeights(), { 3, 4 });
 }
 
-class AFlowRefinementEndToEnd : public Test {
 
+template <typename FlowRefiner>
+struct TestConfig {
+  using FlowRefinerT = FlowRefiner;
+};
+
+template<typename TestConfig>
+class AFlowRefinementEndToEnd : public Test {
+  using FlowRefiner = typename TestConfig::FlowRefinerT;
   using GainCalculator = Km1GainComputation;
 
  public:
@@ -243,6 +252,7 @@ class AFlowRefinementEndToEnd : public Test {
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.max_bfs_distance = 2;
+    context.refinement.flows.num_parallel_searches = 1;
 
     // Read hypergraph
     hg = io::readInputFile<Hypergraph>(
@@ -300,6 +310,10 @@ class AFlowRefinementEndToEnd : public Test {
     utils::Utilities::instance().getStats(context.utility_id).clear();
   }
 
+  FlowRefiner createRefiner(Km1GainCache& gain_cache) {
+    return FlowRefiner(hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
+  }
+
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
@@ -307,11 +321,18 @@ class AFlowRefinementEndToEnd : public Test {
   std::unique_ptr<GainCalculator> mover;
 };
 
-TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
+
+typedef ::testing::Types<TestConfig<FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>,
+                         TestConfig<DeterministicFlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>> TestConfigs;
+
+TYPED_TEST_SUITE(AFlowRefinementEndToEnd, TestConfigs);
+
+TYPED_TEST(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
+  const Context& context = this->context;
+  PartitionedHypergraph& phg = this->phg;
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> scheduler(
-    hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
+  auto refiner = this->createRefiner(gain_cache);
 
   Metrics metrics;
   metrics.quality = metrics::quality(phg, context);
@@ -322,8 +343,8 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   }
 
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
-  scheduler.initialize(partitioned_hg);
-  scheduler.refine(partitioned_hg, {}, metrics, 0.0);
+  refiner.initialize(partitioned_hg);
+  refiner.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
     LOG << "Final Solution km1 =" << metrics.quality;
@@ -342,12 +363,13 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   }
 }
 
-TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
+TYPED_TEST(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   const bool debug = false;
+  const Context& context = this->context;
+  PartitionedHypergraph& phg = this->phg;
   FlowRefinerMockControl::instance().max_num_blocks = 4;
   Km1GainCache gain_cache;
-  FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> scheduler(
-    hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
+  auto refiner = this->createRefiner(gain_cache);
 
   Metrics metrics;
   metrics.quality = metrics::quality(phg, context);
@@ -358,8 +380,8 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   }
 
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
-  scheduler.initialize(partitioned_hg);
-  scheduler.refine(partitioned_hg, {}, metrics, 0.0);
+  refiner.initialize(partitioned_hg);
+  refiner.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
     LOG << "Final Solution km1 =" << metrics.quality;
