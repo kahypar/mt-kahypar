@@ -167,13 +167,13 @@ public:
   }
 
   /**
-   * Notifies the quotient graph that hyperedge he contains
-   * a new block, which was previously not contained. The thread
-   * that increases the pin count of hyperedge he in the corresponding
-   * block to 1 is responsible to call this function.
+   * Notifies the quotient graph that hyperedge he contains a new
+   * block, which was previously not contained. Might be called directly
+   * by the thread that increases the pin count of the hyperedges to 1,
+   * or in bulk after multiple flow computations are processed.
    */
   template<typename PartitionedHypergraph>
-  void addNewCutHyperedges(const PartitionedHypergraph& phg, const vec<std::pair<HyperedgeID, PartitionID>>& new_cut_hes);
+  void addNewCutHyperedge(const PartitionedHypergraph& phg, HyperedgeID he, PartitionID block);
 
   // ! Initializes the quotient graph. This includes to find
   // ! all cut hyperedges between all block pairs
