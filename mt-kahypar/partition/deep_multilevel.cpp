@@ -39,7 +39,9 @@
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_uncoarsener.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
+#endif
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -827,8 +829,10 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
   if (uncoarseningData.nlevel) {
+    #ifndef KAHYPAR_MINIMAL_COMPILATION
     uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
       hypergraph, context, uncoarseningData, nullptr);
+    #endif
   } else {
     uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
       hypergraph, context, uncoarseningData, nullptr);

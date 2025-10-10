@@ -32,7 +32,10 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
+
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/deep_multilevel.h"
+#endif
 
 using ::testing::Test;
 
@@ -109,6 +112,9 @@ class AInitialPartitionerTest : public Test {
     context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
     context.initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
+    // Rebalancer
+    context.refinement.rebalancing.algorithm = RebalancingAlgorithm::do_nothing;
+
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
       "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
@@ -133,7 +139,9 @@ class AInitialPartitionerTest : public Test {
       case Mode::recursive_bipartitioning:
         RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context); break;
       case Mode::deep_multilevel:
+        #ifndef KAHYPAR_MINIMAL_COMPILATION
         DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context); break;
+        #endif
       case Mode::direct:
       case Mode::UNDEFINED:
         ERR("Undefined initial partitioning algorithm.");
@@ -148,15 +156,20 @@ class AInitialPartitionerTest : public Test {
 template <typename Config>
 size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance().num_cpus();
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
+typedef ::testing::Types<
+#ifndef KAHYPAR_MINIMAL_COMPILATION
+                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
+#endif
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
+#ifndef KAHYPAR_MINIMAL_COMPILATION
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
+#endif
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
                          ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;

@@ -32,27 +32,38 @@
 #include "include/mtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
+#endif
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#endif
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
+#endif
 
 namespace mt_kahypar {
 
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 using StaticPartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
 using DynamicPartitionedGraph = ds::PartitionedGraph<ds::DynamicGraph>;
+#endif
 using StaticPartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::ConnectivityInfo>;
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 using DynamicPartitionedHypergraph = ds::PartitionedHypergraph<ds::DynamicHypergraph, ds::ConnectivityInfo>;
+#endif
 using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::SparseConnectivityInfo>;
 
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 struct StaticGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticGraph;
   using PartitionedHypergraph = StaticPartitionedGraph;
@@ -62,16 +73,19 @@ struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicGraph;
   using PartitionedHypergraph = DynamicPartitionedGraph;
 };
+#endif
 
 struct StaticHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
   using PartitionedHypergraph = StaticPartitionedHypergraph;
 };
 
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicHypergraph;
   using PartitionedHypergraph = DynamicPartitionedHypergraph;
 };
+#endif
 
 struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
