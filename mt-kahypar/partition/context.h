@@ -100,6 +100,13 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::heavy_edge;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+  DegreeSimilarityPolicy degree_similarity_policy = DegreeSimilarityPolicy::UNDEFINED;
+
+  // Similarity policy
+  uint32_t incident_weight_scaling_constant = 1;
+  double preserve_nodes_scaling_factor = 0.5;
+  double preserve_nodes_relative_weight_limit = 0.001;
+  double acceptance_limit_bound = 0.25;
 };
 
 struct CoarseningParameters {

@@ -58,7 +58,8 @@ using ThreePhaseCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                 kahypar::meta::Typelist<TypeTraitsList,
                                                                                                         RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
-                                                                                                        AcceptancePolicies> >;
+                                                                                                        AcceptancePolicies,
+                                                                                                        DegreeSimilarityPolicies> >;
 
 using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
                                                                                    ICoarsener,
@@ -109,7 +110,9 @@ void register_coarsening_algorithms() {
                                 ThreadSafePolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                   context.coarsening.rating.heavy_node_penalty_policy),
                                 ThreadSafePolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
-                                  context.coarsening.rating.acceptance_policy));
+                                  context.coarsening.rating.acceptance_policy),
+                                ThreadSafePolicyRegistry<DegreeSimilarityPolicy>::getInstance().getPolicy(
+                                  context.coarsening.rating.degree_similarity_policy));
 
   #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,

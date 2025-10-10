@@ -545,6 +545,13 @@ namespace mt_kahypar {
       #endif
       "- best_prefer_unmatched"
     )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-rating-degree-similarity-policy", [&](const std::string& s) {
+        context.coarsening.rating.degree_similarity_policy = degreeSimilarityFromString(s);
+      },
+      "Policy that determines which contractions between low and high degree nodes are accepted:\n"
+      "- preserve_rebalancing_nodes"
+    )->capture_default_str();
     app.add_option(
       "--c-vertex-degree-sampling-threshold",
       context.coarsening.vertex_degree_sampling_threshold,
@@ -576,6 +583,26 @@ namespace mt_kahypar {
       "--c-two-hop-degree-threshold",
       context.coarsening.two_hop_degree_threshold,
       "If set, then vertices with more neighbors than the provided threshold are ignored during two-hop coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-incident-weight-scaling",
+      context.coarsening.rating.incident_weight_scaling_constant,
+      "Scales how incident weight is computed when determining similarity thresholds."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-preserve-nodes-scaling-factor",
+      context.coarsening.rating.preserve_nodes_scaling_factor,
+      "Scales the similarity threshold for rejecting contractions (lower = more accepting)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-preserve-nodes-relative-weight-limit",
+      context.coarsening.rating.preserve_nodes_relative_weight_limit,
+      "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-acceptance-limit-bound",
+      context.coarsening.rating.acceptance_limit_bound,
+      "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted)."
     )->capture_default_str();
   }
 
