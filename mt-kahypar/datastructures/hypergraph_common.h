@@ -59,6 +59,13 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
+// node weights
+using Dimension = mt_kahypar::weight::Dimension;
+using HNWeightScalar = mt_kahypar::weight::HNWeightScalar;
+using HNWeightRef = mt_kahypar::weight::HNWeightRef;
+using HNWeightConstRef = mt_kahypar::weight::HNWeightConstRef;
+using HNWeightAtomicCRef = mt_kahypar::weight::HNWeightAtomicCRef;
+
 using ArcWeight = double;
 
 struct Arc {

@@ -11,7 +11,8 @@ target_sources(mtkahypar_tests PRIVATE
         sparse_map_test.cc
         pin_count_in_part_test.cc
         static_bitset_test.cc
-        fixed_vertex_support_test.cc)
+        fixed_vertex_support_test.cc
+        hypernode_weight_test.cc)
 
 if ( KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES )
   target_sources(mtkahypar_tests PRIVATE
