@@ -91,6 +91,7 @@ option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact runnin
 
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
+option(KAHYPAR_USE_64_BIT_WEIGHTS "Enables 64-bit vertex and hyperedge weights." OFF)
 option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`, or `/arch:AVX` for `MSVC`" OFF)
@@ -210,6 +211,10 @@ endif(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 if(KAHYPAR_USE_64_BIT_IDS)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_64_BIT_IDS)
 endif(KAHYPAR_USE_64_BIT_IDS)
+
+if(KAHYPAR_USE_64_BIT_WEIGHTS)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_64_BIT_WEIGHTS)
+endif(KAHYPAR_USE_64_BIT_WEIGHTS)
 
 if(KAHYPAR_ENABLE_THREAD_PINNING)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_THREAD_PINNING)
