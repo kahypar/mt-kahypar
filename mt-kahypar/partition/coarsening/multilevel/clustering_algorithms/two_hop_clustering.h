@@ -68,9 +68,10 @@ class TwoHopClustering {
   TwoHopClustering & operator= (const TwoHopClustering &) = delete;
   TwoHopClustering & operator= (TwoHopClustering &&) = delete;
 
-  template<typename Hypergraph>
+  template<typename Hypergraph, typename DegreeSimilarityPolicy>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
+                         const DegreeSimilarityPolicy& similarity_policy,
                          ClusteringContext<Hypergraph>& cc,
                          bool has_fixed_vertices) {
     _favorite_clusters.clearParallel();
@@ -132,13 +133,20 @@ class TwoHopClustering {
 
     auto bucket_comparator = [&](const MatchingEntry& lhs, const MatchingEntry& rhs) {
       if (lhs.key == rhs.key) {
-        return hg.communityID(lhs.hn) < hg.communityID(rhs.hn);
-      } else {
-        return lhs.key < rhs.key;
-      }
+        const PartitionID community_lhs = hg.communityID(lhs.hn);
+        const PartitionID community_rhs = hg.communityID(rhs.hn);
+        return community_lhs < community_rhs ||
+          (community_lhs == community_rhs && similarity_policy.weightRatioForNode(hg, lhs.hn)
+          < similarity_policy.weightRatioForNode(hg, rhs.hn));
+        } else {
+          return lhs.key < rhs.key;
+        }
     };
-    auto accept_community = [&](const HypernodeID u, const HypernodeID v) {
-      return cc.may_ignore_communities || (hg.communityID(u) == hg.communityID(v));
+    auto accept_contraction = [&](const HypernodeID u, const HypernodeID v) {  // TODO: lazy evalution
+      bool accept_community = cc.may_ignore_communities || (hg.communityID(u) == hg.communityID(v));
+      bool accept_similarity = similarity_policy.acceptContraction(hg, _context, u, v);
+      // Note: cluster weight and fixed vertices are checked by `matchVertices`
+      return accept_community && accept_similarity;
     };
 
     // match nodes that have the same favorite cluster
@@ -150,7 +158,7 @@ class TwoHopClustering {
       for (size_t i = 0; i + 1 < bucket.size() && cc.shouldContinue(); ++i) {
         HypernodeID num_matches = 0;
         for (size_t j = i + 1; j < i + max_size && j < bucket.size() && cc.shouldContinue()
-             && bucket[i].key == bucket[j].key && accept_community(bucket[i].hn, bucket[j].hn); ++j) {
+             && bucket[i].key == bucket[j].key && accept_contraction(bucket[i].hn, bucket[j].hn); ++j) {
           ASSERT((j > i + 1 || cc.vertexIsUnmatched(bucket[i].hn)) && cc.vertexIsUnmatched(bucket[j].hn));
           // Note: cluster weight and fixed vertices are checked by `matchVertices`
           bool success = cc.matchVertices(hg, bucket[i].hn, bucket[j].hn, has_fixed_vertices);

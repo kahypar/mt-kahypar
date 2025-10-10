@@ -181,6 +181,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(acceptance_policy);
   }
 
+  std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy) {
+    switch (ds_policy) {
+      case DegreeSimilarityPolicy::preserve_rebalancing_nodes: return os << "preserve_rebalancing_nodes";
+      case DegreeSimilarityPolicy::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(ds_policy);
+  }
+
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
@@ -402,6 +411,13 @@ namespace mt_kahypar {
     }
     #endif
     throw InvalidParameterException("No valid acceptance criterion for rating.");
+  }
+
+  DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds) {
+    if (ds == "preserve_rebalancing_nodes") {
+      return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
+    }
+    throw InvalidParameterException("No valid degree similarity policy for rating.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
