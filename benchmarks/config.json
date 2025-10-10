@@ -1,0 +1,11 @@
+{
+  "name": "test",
+  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "TEST"} ],
+  "threads": [8],
+  "k": [2, 8, 32],
+  "epsilon": 0.03,
+  "seeds": [1, 2],
+  "objective": "km1",
+  "timelimit": 5,
+  "graph_instance_folder": "C:\\Users\\Kantfan\\Bachelor_Arbeit\\mt-kahypar\\mt-kahypar\\benchmarks\\instances"
+}

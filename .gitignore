@@ -50,3 +50,11 @@ compile_commands.json
 output.csv
 output_evo.csv
 visualization/*.png
+benchmarks/env.sh
+benchmarks/[0-9]*-[0-9]*-[0-9]*_*/
+benchmarks/*.txt
+benchmarks/*.csv
+benchmarks/*.header.csv
+benchmarks/instances
+__pycache__/
+*.results

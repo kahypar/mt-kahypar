@@ -17,7 +17,6 @@ _result_values = {
 }
 _results_initialized = False
 
---partition-evolutionary=true --time-limit=10
 
 def get_args():
   parser = argparse.ArgumentParser()
@@ -33,12 +32,13 @@ def get_args():
   parser.add_argument("--args", type=str, default = "")
   parser.add_argument("--header", type=str, default = "")
   parser.add_argument("--tag", action="store_true")
-  parser.add_argument("--mode", type=str, default = "multilevel", choices=["multilevel", "evo"])
   print(parser.parse_args())
   return parser.parse_args()
 
 def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
-  args_list = shlex.split(args.args)
+  # Remove --evo marker if present (it's not a Mt-KaHyPar argument)
+  cleaned_args = args.args.replace('--evo', '').strip()
+  args_list = shlex.split(cleaned_args) if cleaned_args else []
 
   for arg_key in default_args:
     assert ("--" in arg_key) and not ("=" in arg_key), f"Invalid default argument: {arg_key}"
@@ -103,9 +103,25 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
               metrics[key] = float(m.group(1))
       return metrics
   
+  if mt_kahypar_proc.returncode == 0:
+    metrics = _extract_objectives(out)
+    required = {'km1', 'cut', 'soed', 'imbalance', 'time'}
+    assert required.issubset(metrics.keys()), "No complete Objectives block found!"
+    return metrics, True
+  elif mt_kahypar_proc.returncode == -signal.SIGTERM:
+    _result_values["timeout"] = "yes"
+    return {}, False
+  else:
+    _result_values["failed"] = "yes"
+    if err and print_fail_msg:
+      print(err, file=sys.stderr)
+  return {}, False
+  
 
 def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
-  args_list = shlex.split(args.args)
+  # Remove --evo marker if present (it's not a Mt-KaHyPar argument)
+  cleaned_args = args.args.replace('--evo', '').strip()
+  args_list = shlex.split(cleaned_args) if cleaned_args else []
 
   for arg_key in default_args:
     assert ("--" in arg_key) and not ("=" in arg_key), f"Invalid default argument: {arg_key}"
@@ -118,6 +134,9 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
     if args.graph.endswith(".metis") or args.graph.endswith(".graph"):
       args_list.append("--instance-type=graph")
       args_list.append("--input-file-format=metis")
+
+  evo_result_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) + ".csv"
+  evo_diff_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) + "_diff.csv"
 
   # Run Mt-KaHyPar
   cmd = [mt_kahypar,
@@ -133,6 +152,8 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
          "--show-detailed-timing=true",
          "--partition-evolutionary=true",
          "--time-limit=" + str(args.timelimit),
+         "evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file,
+         "evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
          *args_list]
   if args.partition_folder != "":
     cmd.extend(["--write-partition-file=true"])
@@ -146,8 +167,10 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   signal.signal(signal.SIGINT, kill_proc)
   signal.signal(signal.SIGTERM, kill_proc)
 
-  t = Timer(args.timelimit, kill_proc)
-  t.start()
+  evo_time_buffer = 10
+
+  t = Timer(args.timelimit + evo_time_buffer, kill_proc)
+  t.start()     
   out, err = mt_kahypar_proc.communicate()
   t.cancel()
 
@@ -250,15 +273,31 @@ if __name__ == "__main__":
   if args.name != "":
     algorithm = args.name
 
+  evo = False
+
+  # determine args evo flag
+  if args.args is not None and "--evo" in args.args:
+    evo = True
+
   # run Mt-KaHyPar
-  match(args.mode):
-    case "evo":
-      result, success = run_mtkahypar_evo()
-    case "multilevel":
-      result, success = run_mtkahypar_multilevel()
-    case _:
-      print(f"Unknown mode {args.mode}.", file=sys.stderr)
-      exit(1)
+  result, success = {}, False
+
+  if evo:
+    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
+  else:
+    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
   if success:
     parse(result)
-  result, success = run_mtkahypar(EXECUTABLE,
+  print_result(algorithm, args)
+
+  # match(evo):
+  #   case True:
+  #     result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
+  #   case False:
+  #     result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
+  #   case _:
+  #     print(f"Unknown mode {args.mode}.", file=sys.stderr)
+  #     exit(1)
+  # if success:
+  #   parse(result)
+  # print_result(algorithm, args)
