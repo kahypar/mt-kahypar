@@ -54,8 +54,11 @@ using HyperedgeID = uint32_t;
 // louvain graph
 using NodeID = uint32_t;
 #endif
-using HypernodeWeight = int32_t;
+#if KAHYPAR_USE_64_BIT_WEIGHTS
+using HyperedgeWeight = int64_t;
+#else
 using HyperedgeWeight = int32_t;
+#endif
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 

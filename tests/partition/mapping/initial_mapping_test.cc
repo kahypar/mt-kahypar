@@ -76,8 +76,12 @@ class InitialMappingTest : public Test {
   }
 
   void constructFromValues(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
-                           const vec<vec<HypernodeID>>& edge_vector, const vec<HypernodeWeight> hypernode_weight = {}) {
-    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, edge_vector, nullptr, hypernode_weight.empty() ? nullptr : hypernode_weight.data());
+                           const vec<vec<HypernodeID>>& edge_vector, const vec<HNWeightScalar> hypernode_weight = {}) {
+    HypernodeWeightArray weights(hypernode_weight.size(), 1, 0, false);
+    for (size_t i = 0; i < hypernode_weight.size(); ++i) {
+      weights[i].at(0) = hypernode_weight[i];
+    }
+    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, 1, edge_vector, nullptr, weights.empty() ? nullptr : &weights);
   }
 
   void setup() {
@@ -95,7 +99,7 @@ class InitialMappingTest : public Test {
         3, 2, 1, 1,
         3, 2, 1 };
     target_graph = std::make_unique<TargetGraph>(
-      ds::StaticGraphFactory::construct(8, 10,
+      ds::StaticGraphFactory::construct(8, 10, 1,
         { { 0, 1 }, { 1, 2 }, { 2, 3 },
           { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
           { 4, 5 }, { 5, 6 }, { 6, 7 } },
@@ -144,7 +148,7 @@ TYPED_TEST(InitialMappingTest, FindsImprovementsWithFixedVertices) {
   this->constructFromValues(8, 2, { {0, 4, 5}, {2, 3, 7} });
   this->setup();
 
-  ds::FixedVertexSupport fixed_vertices(8, 8);
+  ds::FixedVertexSupport fixed_vertices(8, 1, 8);
   fixed_vertices.fixToBlock(this->hypergraph, 0, 0);
   fixed_vertices.fixToBlock(this->hypergraph, 3, 3);
   this->hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
@@ -166,7 +170,7 @@ TYPED_TEST(InitialMappingTest, WorksWithAllVerticesFixed) {
   this->constructFromValues(8, 2, { {0, 4, 5}, {2, 3, 7} });
   this->setup();
 
-  ds::FixedVertexSupport fixed_vertices(8, 8);
+  ds::FixedVertexSupport fixed_vertices(8, 1, 8);
   for (HypernodeID hn = 0; hn < 8; ++hn) {
     fixed_vertices.fixToBlock(this->hypergraph, hn, hn);
   }
@@ -191,7 +195,16 @@ TYPED_TEST(InitialMappingTest, WorksWithAllVerticesFixed) {
 TYPED_TEST(InitialMappingTest, FindsImprovementsWithIndividualBlockWeights) {
   this->constructFromValues(8, 2, { {0, 4, 5}, {2, 3, 7} }, { 1, 2, 3, 1, 2, 3, 1, 2 });
   this->context.partition.use_individual_part_weights = true;
-  this->context.partition.max_part_weights = { 2, 4, 4, 1, 4, 4, 4, 2 };
+  HypernodeWeightArray part_weights(8, 1, 0, false);
+  part_weights[0].at(0) = 2;
+  part_weights[1].at(0) = 4;
+  part_weights[2].at(0) = 4;
+  part_weights[3].at(0) = 1;
+  part_weights[4].at(0) = 4;
+  part_weights[5].at(0) = 4;
+  part_weights[6].at(0) = 4;
+  part_weights[7].at(0) = 2;
+  this->context.partition.max_part_weights = std::move(part_weights);
   this->setup();
 
   for (HypernodeID hn = 0; hn < 8; ++hn) {
