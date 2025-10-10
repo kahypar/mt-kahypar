@@ -47,21 +47,23 @@ class SingleRoundLP {
   SingleRoundLP(const HypernodeID /*num_nodes*/, const Context& context):
     _context(context) { }
 
-  template<typename Hypergraph>
+  template<typename Hypergraph, typename DegreeSimilarityPolicy>
   void performClustering(const Hypergraph& hg,
                          const parallel::scalable_vector<HypernodeID>& node_mapping,
+                         const DegreeSimilarityPolicy& similarity_policy,
                          ClusteringContext<Hypergraph>& cc,
                          bool has_fixed_vertices) {
     if (has_fixed_vertices) {
-      performClusteringImpl<true>(hg, node_mapping, cc);
+      performClusteringImpl<true>(hg, node_mapping, similarity_policy, cc);
     } else {
-      performClusteringImpl<false>(hg, node_mapping, cc);
+      performClusteringImpl<false>(hg, node_mapping, similarity_policy, cc);
     }
   }
 
-  template<bool has_fixed_vertices, typename Hypergraph>
+  template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
   void performClusteringImpl(const Hypergraph& hg,
                              const parallel::scalable_vector<HypernodeID>& node_mapping,
+                             const DegreeSimilarityPolicy& similarity_policy,
                              ClusteringContext<Hypergraph>& cc) {
     // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
@@ -72,7 +74,7 @@ class SingleRoundLP {
       //  2.) Vertex hn is not matched before
       if (hg.nodeIsEnabled(hn) && cc.shouldContinue() && cc.vertexIsUnmatched(hn)) {
         const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>(
-                                hg, hn, has_fixed_vertices);
+                                hg, hn, similarity_policy, has_fixed_vertices);
         if (rating.target != kInvalidHypernode) {
           cc.matchVertices(hg, hn, rating.target, has_fixed_vertices);
         }

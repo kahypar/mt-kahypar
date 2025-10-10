@@ -137,6 +137,11 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class DegreeSimilarityPolicy : uint8_t {
+  preserve_rebalancing_nodes,
+  UNDEFINED
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_fm = 0,
   greedy_global_fm = 1,
@@ -220,6 +225,8 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
 
+std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy);
+
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
@@ -255,6 +262,8 @@ CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 
 AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
+
+DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds);
 
 RatingFunction ratingFunctionFromString(const std::string& function);
 

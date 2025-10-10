@@ -308,6 +308,14 @@ namespace mt_kahypar {
              "- best\n"
              #endif
              "- best_prefer_unmatched")
+            ("c-rating-degree-similarity-policy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& ds) {
+                       context.coarsening.rating.degree_similarity_policy =
+                               degreeSimilarityFromString(ds);
+                     })->default_value("preserve_rebalancing_nodes"),
+             "Policy that determines which contractions between low and high degree nodes are accepted:\n"
+             "- preserve_rebalancing_nodes")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
@@ -331,7 +339,23 @@ namespace mt_kahypar {
             ("c-two-hop-degree-threshold",
              po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
                      "<size_t>")->default_value(100),
-             "If set, then vertices with more adjacent pins than the provided threshold are ignored during two-hop coarsening.");
+             "If set, then vertices with more adjacent pins than the provided threshold are ignored during two-hop coarsening.")
+            ("c-sim-incident-weight-scaling",
+             po::value<uint32_t>(&context.coarsening.rating.incident_weight_scaling_constant)->value_name(
+                     "<int>")->default_value(1),
+             "Scales how incident weight is computed when determining similarity thresholds.")
+            ("c-sim-preserve-nodes-scaling-factor",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_scaling_factor)->value_name(
+                     "<double>")->default_value(0.5),
+             "Scales the similarity threshold for rejecting contractions (lower = more accepting).")
+            ("c-sim-preserve-nodes-relative-weight-limit",
+             po::value<double>(&context.coarsening.rating.preserve_nodes_relative_weight_limit)->value_name(
+                     "<double>")->default_value(0.001),
+             "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster.")
+            ("c-sim-acceptance-limit-bound",
+             po::value<double>(&context.coarsening.rating.acceptance_limit_bound)->value_name(
+                     "<double>")->default_value(0.25),
+             "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).");
     return options;
   }
 

@@ -45,6 +45,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_degree_similarity_policy.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -123,6 +124,8 @@ class MultilevelCoarsener : public ICoarsener,
     parallel::scalable_vector<HypernodeID> cluster_ids;
     const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes());
+    similarity_policy.initialize(current_hg, _context);
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data);
     cc.initializeCoarseningPass(current_hg, _context);
@@ -140,7 +143,7 @@ class MultilevelCoarsener : public ICoarsener,
     if ( _enable_randomization ) {
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
-    _clustering_algo.performClustering(current_hg, _current_vertices, cc, current_hg.hasFixedVertices());
+    _clustering_algo.performClustering(current_hg, _current_vertices, similarity_policy, cc, current_hg.hasFixedVertices());
     const HypernodeID num_hns_after_pass = cc.finalNumNodes();
     _progress_bar += (num_hns_before_pass - num_hns_after_pass);
 

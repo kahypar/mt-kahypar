@@ -46,6 +46,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_degree_similarity_policy.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/progress_bar.h"
@@ -58,7 +59,8 @@ namespace mt_kahypar {
 template <class TypeTraits = Mandatory,
           class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = NoWeightPenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched>
+          class AcceptancePolicy = BestRatingPreferringUnmatched,
+          class SimilarityPolicy = PreserveRebalancingNodesPolicy>
 class ThreePhaseCoarsener : public ICoarsener,
                             private MultilevelCoarsenerBase<TypeTraits> {
  private:
@@ -84,6 +86,8 @@ class ThreePhaseCoarsener : public ICoarsener,
          uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
     _lp_clustering(_hg.initialNumNodes(), context),
     _two_hop_clustering(_hg.initialNumNodes(), context),
+    _similarity_policy(_hg.initialNumNodes()),
+    _always_accept_policy(_hg.initialNumNodes()),
     _rater(_hg.initialNumNodes(), _hg.maxEdgeSize(), context),
     _clustering_data(_hg.initialNumNodes(), context),
     _initial_num_nodes(_hg.initialNumNodes()),
@@ -139,18 +143,24 @@ class ThreePhaseCoarsener : public ICoarsener,
                                      _rater, _clustering_data);
     cc.may_ignore_communities = shouldIgnoreCommunities(hierarchy_contraction_limit);
     cc.initializeCoarseningPass(current_hg, _context);
+    _timer.start_timer("init_similarity", "Initialize Similarity Data");
+    _similarity_policy.initialize(current_hg, _context);
+    _timer.stop_timer("init_similarity");
+    _always_accept_policy.initialize(current_hg, _context);
 
     // TODO: degree zero nodes?!
     // Phase 1: LP clustering, but forbid contraction of low degree nodes onto high degree nodes
     HypernodeID current_num_nodes = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    coarseningRound("first_lp_clustering", "First LP Clustering", current_hg, _lp_clustering, cc);
+    coarseningRound("first_lp_clustering", "First LP Clustering",
+                    current_hg, _lp_clustering, _similarity_policy, cc);
     _progress_bar += (current_num_nodes - cc.finalNumNodes());
     current_num_nodes = cc.currentNumNodes();
 
     // Phase 2: Two-hop clustering for low degree nodes
     if (current_num_nodes > hierarchy_contraction_limit) {
       DBG << "Start Two-Hop Coarsening: " << V(current_num_nodes) << V(hierarchy_contraction_limit);
-      coarseningRound("first_two_hop_clustering", "First Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
+      coarseningRound("first_two_hop_clustering", "First Two-Hop Clustering",
+                      current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
     }
@@ -167,13 +177,15 @@ class ThreePhaseCoarsener : public ICoarsener,
       }
 
       DBG << "Start Second LP round: " << V(cc.currentNumNodes()) << V(target_contraction_size);
-      coarseningRound("second_lp_clustering", "Second LP Clustering", current_hg, _lp_clustering, cc);
+      coarseningRound("second_lp_clustering", "Second LP Clustering",
+                      current_hg, _lp_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
     }
     if (current_num_nodes > target_contraction_size) {
       DBG << "Start Second Two-Hop Coarsening: " << V(cc.currentNumNodes()) << V(target_contraction_size);
-      coarseningRound("second_two_hop_clustering", "Second Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
+      coarseningRound("second_two_hop_clustering", "Second Two-Hop Clustering",
+                      current_hg, _two_hop_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
     }
@@ -193,12 +205,10 @@ class ThreePhaseCoarsener : public ICoarsener,
     return true;
   }
 
-  template<typename ClusteringAlgo>
-  HypernodeID coarseningRound(const char* timer_key,
-                              const char* timer_name,
-                              const Hypergraph& current_hg,
-                              ClusteringAlgo& algo,
-                              ClusteringContext<Hypergraph>& cc) {
+  template<typename ClusteringAlgo, typename CurrentSimilarityPolicy>
+  HypernodeID coarseningRound(const char* timer_key, const char* timer_name,
+                              const Hypergraph& current_hg, ClusteringAlgo& algo,
+                              const CurrentSimilarityPolicy& similarity, ClusteringContext<Hypergraph>& cc) {
     _timer.start_timer(timer_key, timer_name);
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.start_timer(timer_key + std::string("_level_") + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
@@ -207,7 +217,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     if ( _enable_randomization ) {
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
-    algo.performClustering(current_hg, _current_vertices, cc, current_hg.hasFixedVertices());
+    algo.performClustering(current_hg, _current_vertices, similarity, cc, current_hg.hasFixedVertices());
 
     if ( _context.partition.show_detailed_clustering_timings ) {
       _timer.stop_timer(timer_key + std::string("_level_") + std::to_string(_pass_nr));
@@ -262,6 +272,8 @@ class ThreePhaseCoarsener : public ICoarsener,
 
   LPClustering _lp_clustering;
   TwoHopClustering _two_hop_clustering;
+  SimilarityPolicy _similarity_policy;
+  AlwaysAcceptPolicy _always_accept_policy;
   MultilevelVertexPairRater _rater;
   ConcurrentClusteringData _clustering_data;
   HypernodeID _initial_num_nodes;

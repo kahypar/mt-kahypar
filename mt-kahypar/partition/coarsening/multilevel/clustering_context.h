@@ -108,15 +108,17 @@ struct ClusteringContext {
     rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
   }
 
-  template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy>
+  template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy, typename DegreeSimilarityPolicy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  Rating rate(const Hypergraph& current_hg, const HypernodeID u, bool has_fixed_vertices) {
+  Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy, bool has_fixed_vertices) {
     if (has_fixed_vertices) {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, true>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight, may_ignore_communities);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
+                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
     } else {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, false>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight, may_ignore_communities);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
+                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
     }
   }
 
