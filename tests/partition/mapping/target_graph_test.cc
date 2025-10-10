@@ -69,7 +69,7 @@ class ATargetGraph : public Test {
         1, 2, 2, 2,
         1, 1, 2 };
     graph = std::make_unique<TargetGraph>(
-      ds::StaticGraphFactory::construct(16, 24,
+      ds::StaticGraphFactory::construct(16, 24, 1,
         { { 0, 1 }, { 1, 2 }, { 2, 3 },
           { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
           { 4, 5 }, { 5, 6 }, { 6, 7 },
