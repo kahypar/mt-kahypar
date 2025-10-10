@@ -141,9 +141,9 @@ class ThreePhaseCoarsener : public ICoarsener,
     cc.initializeCoarseningPass(current_hg, _context);
 
     // TODO: degree zero nodes?!
-    // Step 1: standard label propagation clustering
+    // Phase 1: LP clustering, but forbid contraction of low degree nodes onto high degree nodes
     HypernodeID current_num_nodes = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    coarseningRound("lp_clustering", "LP Clustering", current_hg, _lp_clustering, cc);
+    coarseningRound("first_lp_clustering", "First LP Clustering", current_hg, _lp_clustering, cc);
     _progress_bar += (current_num_nodes - cc.finalNumNodes());
     current_num_nodes = cc.currentNumNodes();
 
@@ -153,19 +153,36 @@ class ThreePhaseCoarsener : public ICoarsener,
       if (!_context.coarsening.two_hop_full_shrinkage) {
         cc.hierarchy_contraction_limit = target_contraction_limit;
       }
-      coarseningRound("two_hop_clustering", "Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
+      coarseningRound("first_two_hop_clustering", "First Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
     }
 
     if (_context.coarsening.two_hop_contract_communities && (current_num_nodes > target_contraction_limit || _pass_nr > 0)) {
       // If the size is still too large, the reason could be that there are too many communities.
-      // We initialize the community count, so the next round can decide to ignore communities
-      // (delayed initialization since it is not completely free)
+      // (delayed initialization of community count since it is not completely free)
       initializeCommunityCount(current_hg);
     }
 
-    DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
+    // Phase 3: LP and two-hop coarsening with all contractions allowed (and contracting size 1 communities)
+    cc.hierarchy_contraction_limit = target_contraction_limit;
+    if (_context.coarsening.two_hop_contract_communities && shouldIgnoreCommunities(target_contraction_limit)) {
+      cc.may_ignore_communities = true;
+    }
+    if (current_num_nodes > target_contraction_limit) {
+      DBG << "Start Second LP round: " << V(cc.currentNumNodes()) << V(target_contraction_limit);
+      coarseningRound("second_lp_clustering", "Second LP Clustering", current_hg, _lp_clustering, cc);
+      _progress_bar += (current_num_nodes - cc.finalNumNodes());
+      current_num_nodes = cc.currentNumNodes();
+    }
+    if (current_num_nodes > target_contraction_limit && cc.may_ignore_communities) {
+      DBG << "Start Second Two-Hop Coarsening: " << V(cc.currentNumNodes()) << V(target_contraction_limit);
+      coarseningRound("second_two_hop_clustering", "Second Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
+      _progress_bar += (current_num_nodes - cc.finalNumNodes());
+      current_num_nodes = cc.currentNumNodes();
+    }
+
+    DBG << V(current_num_nodes) << V(target_contraction_limit) << V(hierarchy_contraction_limit);
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {
       return false;
