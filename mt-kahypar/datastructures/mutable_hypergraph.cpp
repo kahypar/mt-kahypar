@@ -80,12 +80,7 @@ namespace mt_kahypar::ds {
       // std::vector<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
       std::vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
-      ASSERT(static_cast<size_t>(_num_hypernodes) <= mapping.size());
-      ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_hypernodes.size());
-      ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_num_incident_nets.size());
-      ASSERT(static_cast<size_t>(_num_hypernodes) <= hn_weights.size());
       ASSERT(static_cast<size_t>(_num_hyperedges) <= tmp_hyperedges.size());
-      ASSERT(static_cast<size_t>(_num_hyperedges) <= he_sizes.size());
       ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
 
       // #################### STAGE 1 ####################

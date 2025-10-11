@@ -186,6 +186,13 @@ public:
     gain_cache.deltaGainUpdate(phg, sync_update);
   }
 
+  void resizeToHypernode(const HypernodeID u) {
+    for ( VertexPriorityQueue& pq : vertexPQs ) {
+      pq.resize(u);
+    }
+    sharedData.targetPart.resize(u, kInvalidPartition);
+  }
+
 private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updatePQs() {
