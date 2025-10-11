@@ -147,6 +147,7 @@ namespace mt_kahypar::dyn {
       size_t km1 = metrics::quality(hypergraph, context);
       double imbalance = metrics::imbalance(hypergraph, context);
 
+      // TODO only open file once maybe in memory and only write at end
       std::string filename = context.dynamic.output_path;
       std::ofstream file(filename, std::ios_base::app);
       if (!file.is_open()) {

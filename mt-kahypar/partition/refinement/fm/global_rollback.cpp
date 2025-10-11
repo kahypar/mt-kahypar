@@ -155,11 +155,11 @@ namespace mt_kahypar {
   };
 
   template<typename GraphAndGainTypes>
-  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(
+  std::tuple<HyperedgeWeight, size_t> GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
-    if (numMoves == 0) return 0;
+    if (numMoves == 0) return std::make_tuple(0, 0);
 
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
@@ -188,7 +188,7 @@ namespace mt_kahypar {
     sharedData.moveTracker.reset();
 
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    return b.gain;
+    return std::make_tuple(b.gain, b.best_index);
   }
 
   template<typename GraphAndGainTypes>
@@ -392,7 +392,7 @@ namespace mt_kahypar {
   }
 
   template<typename GraphAndGainTypes>
-  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(
+  std::tuple<HyperedgeWeight, size_t> GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(
     PartitionedHypergraph& phg,
     FMSharedData& sharedData,
     const vec<HypernodeWeight>&,
@@ -460,7 +460,7 @@ namespace mt_kahypar {
 
     tracker.reset();
 
-    return best_gain;
+    return std::make_tuple(best_gain, best_index);
   }
 
 
