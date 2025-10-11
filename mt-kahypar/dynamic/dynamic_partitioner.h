@@ -41,6 +41,9 @@ namespace mt_kahypar::dyn {
 
       initOutputFile(context);
 
+      LocalFMRound localFM_round = LocalFMRound();
+      context.dynamic.local_fm_round = &localFM_round;
+
       try {
 
         std::cout << "Processing " << max_changes << " changes" << std::endl;

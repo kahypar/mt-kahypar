@@ -191,6 +191,13 @@ public:
     return heap.capacity() * sizeof(HeapElement);
   }
 
+  void resize(size_t new_size)
+  {
+    ASSERT(new_size >= size());
+    heap.reserve(new_size);
+    positions_size = std::max(positions_size, new_size);
+    positions.resize(positions_size, invalid_position);
+  }
 
 protected:
 

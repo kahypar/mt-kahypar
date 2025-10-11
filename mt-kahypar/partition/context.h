@@ -295,6 +295,10 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+struct LocalFMRound {
+    std::vector<Move> moves;
+};
+
 struct DynamicParameters {
   std::string vcycle_algorithm = "kway_fm";
   size_t vcycle_num = 1;
@@ -320,7 +324,7 @@ struct DynamicParameters {
 
   //local FM Round
   HyperedgeWeight incremental_km1 = 0;
-  std::vector<Move> moves{};
+  LocalFMRound* local_fm_round = nullptr;
 
 
   // generate file endings

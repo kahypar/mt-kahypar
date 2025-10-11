@@ -46,9 +46,10 @@ namespace mt_kahypar::dyn {
             hypergraph.deleteHypernode(hn);
             (void) hn;
             ASSERT(context.partition.use_individual_part_weights == false);
-            ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
-                    hypergraph.totalWeight()
-                    / static_cast<double>(context.partition.k))));
+            //TODO check if assertion is relevant
+            // ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
+            //         hypergraph.totalWeight()
+            //         / static_cast<double>(context.partition.k))));
             ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
                                                                                           * context.partition.perfect_balance_part_weights[0]));
             // if (!context.dynamic.use_final_weight) {

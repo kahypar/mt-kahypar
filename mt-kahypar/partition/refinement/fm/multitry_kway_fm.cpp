@@ -101,6 +101,8 @@ namespace mt_kahypar {
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
+    size_t final_best_index = 0;
+
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
@@ -166,7 +168,8 @@ namespace mt_kahypar {
       }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, max_part_weights);
+      auto [improvement, best_index] = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, max_part_weights);
+      final_best_index = best_index;
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement,
@@ -218,6 +221,18 @@ namespace mt_kahypar {
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.quality == metrics::quality(phg, context),
            V(metrics.quality) << V(metrics::quality(phg, context)));
+
+    if (context.dynamic.local_fm_round != nullptr)
+    {
+      context.dynamic.local_fm_round->moves.clear();
+      for (MoveID i = 0; i < final_best_index; ++i)
+      {
+        const Move &m = sharedData.moveTracker.moveOrder[i];
+        if (m.isValid()) {
+          context.dynamic.local_fm_round->moves.push_back(m);
+        }
+      }
+    }
 
     return overall_improvement > 0;
   }

@@ -58,7 +58,7 @@ public:
     }
   }
 
-  HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
+  std::tuple<HyperedgeWeight, size_t> revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
                                      const vec<HypernodeWeight>& partWeights,
                                      const std::vector<HypernodeWeight>& maxPartWeights) {
@@ -69,7 +69,7 @@ public:
     }
   }
 
-  HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
+  std::tuple<HyperedgeWeight, size_t> revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
                                              const vec<HypernodeWeight>& partWeights,
                                              const std::vector<HypernodeWeight>& maxPartWeights);
@@ -85,7 +85,7 @@ public:
                                                      const HyperedgeID& he);
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
-  HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
+  std::tuple<HyperedgeWeight, size_t> revertToBestPrefixSequential(PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
                                                const vec<HypernodeWeight>&,
                                                const std::vector<HypernodeWeight>& maxPartWeights);
