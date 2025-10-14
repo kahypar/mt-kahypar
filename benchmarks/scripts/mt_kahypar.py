@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import subprocess
 import argparse
 import sys
@@ -32,7 +33,6 @@ def get_args():
   parser.add_argument("--args", type=str, default = "")
   parser.add_argument("--header", type=str, default = "")
   parser.add_argument("--tag", action="store_true")
-  print(parser.parse_args())
   return parser.parse_args()
 
 def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
@@ -51,6 +51,9 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
     if args.graph.endswith(".metis") or args.graph.endswith(".graph"):
       args_list.append("--instance-type=graph")
       args_list.append("--input-file-format=metis")
+
+  #DEBUG PRINT
+  #print("DEBUG: Additional Mt-KaHyPar arguments: " + str(args_list), file=sys.stderr)
 
   # Run Mt-KaHyPar
   cmd = [mt_kahypar,
@@ -91,6 +94,10 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
         'time':      r'^\s*Partitioning Time\s*=\s*([0-9.]+)\s*s'
       }
       metrics = {}
+      
+      # DEBUG TEXT
+      #print("DEBUG: Mt-KaHyPar output:\n" + text, file=sys.stderr)
+      
       for line in text.splitlines():
         for key, pat in patterns.items():
           if key in metrics:
@@ -106,6 +113,7 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
   if mt_kahypar_proc.returncode == 0:
     metrics = _extract_objectives(out)
     required = {'km1', 'cut', 'soed', 'imbalance', 'time'}
+    
     assert required.issubset(metrics.keys()), "No complete Objectives block found!"
     return metrics, True
   elif mt_kahypar_proc.returncode == -signal.SIGTERM:
@@ -122,6 +130,9 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   # Remove --evo marker if present (it's not a Mt-KaHyPar argument)
   cleaned_args = args.args.replace('--evo', '').strip()
   args_list = shlex.split(cleaned_args) if cleaned_args else []
+  
+  #DEBUG PRINT
+  #print("DEBUG: Additional Mt-KaHyPar arguments: " + str(args_list), file=sys.stderr)
 
   for arg_key in default_args:
     assert ("--" in arg_key) and not ("=" in arg_key), f"Invalid default argument: {arg_key}"
@@ -135,8 +146,8 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
       args_list.append("--instance-type=graph")
       args_list.append("--input-file-format=metis")
 
-  evo_result_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) + ".csv"
-  evo_diff_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) + "_diff.csv"
+  evo_result_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) + ".timelimit" + str(args.timelimit) + ".csv"
+  evo_diff_file = "/" + ntpath.basename(args.graph) + ".k" + str(args.k) + ".epsilon" + str(args.epsilon) + ".seed" + str(args.seed) +  ".timelimit" + str(args.timelimit) + "_diff.csv"
 
   # Run Mt-KaHyPar
   cmd = [mt_kahypar,
@@ -145,19 +156,21 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
          "-e" + str(args.epsilon),
          "--seed=" + str(args.seed),
          "-o" + str(args.objective),
-         "-mdirect",
          "--s-num-threads=" + str(args.threads),
          "--verbose=false",
          "--sp-process=true",
-         "--show-detailed-timing=true",
          "--partition-evolutionary=true",
          "--time-limit=" + str(args.timelimit),
-         "evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file,
-         "evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
+         "--evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file,
+         "--evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
          *args_list]
+
+  #print("DEBUG: COMMAND: " + " ".join(cmd), file=sys.stderr)
+
   if args.partition_folder != "":
     cmd.extend(["--write-partition-file=true"])
     cmd.extend(["--partition-output-folder=" + args.partition_folder])
+    
   mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 
   # handle early interrupt cases where the Mt-KaHyPar process should be killed
@@ -275,17 +288,22 @@ if __name__ == "__main__":
 
   evo = False
 
+  #print(f"DEBUG; CALL WITH ARGS: {args}", file=sys.stderr)
+
   # determine args evo flag
-  if args.args is not None and "--evo" in args.args:
+  if args.args is not None and "evo" in args.args:
     evo = True
 
   # run Mt-KaHyPar
   result, success = {}, False
 
   if evo:
-    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
+    #print("DEBUG: Running Mt-KaHyPar in evolutionary mode.", file=sys.stderr)
+    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset-type": "default"}, detect_instance_type=True)
   else:
-    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset": "default"}, detect_instance_type=True)
+    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset-type": "default"}, detect_instance_type=True)
+  
+  set_results()
   if success:
     parse(result)
   print_result(algorithm, args)

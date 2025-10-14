@@ -10,14 +10,14 @@ import re
 
 from partitioner_mapping import partitioner_mapping
 
-partitioner_script_folder = os.environ.get("PARTITIONER_SCRIPT_FOLDER").replace('\\', '/')
+partitioner_script_folder = os.environ.get("PARTITIONER_SCRIPT_FOLDER")
 
 print("Using partitioner scripts from: " + str(partitioner_script_folder))
 
 assert (partitioner_script_folder != None), "check env.sh"
 
 def get_all_hypergraph_instances(dir):
-  return [dir + "\\" + hg for hg in os.listdir(dir) if hg.endswith('.hgr') or hg.endswith('.hmetis') or hg.endswith('.graph')]
+  return [dir + "/" + hg for hg in os.listdir(dir) if hg.endswith('.hgr') or hg.endswith('.hmetis') or hg.endswith('.graph')]
 
 def partitioner_header(result_dir):
   return str(os.path.abspath(result_dir)).removesuffix("_results") + ".header.csv"
@@ -81,8 +81,8 @@ def partitioner_call(is_serial, partitioner, instance, threads, k, epsilon, seed
     call += f' | {{ line=$(cat); echo "{tag},$line"; }}'  # bash snippet which prepends to stdin
   return call
 
-def partitioner_dump(result_dir, instance, threads, k, seed):
-  return os.path.abspath(result_dir) + "/" + ntpath.basename(instance) + "." + str(threads) + "." + str(k) + "." + str(seed) + ".results"
+def partitioner_dump(result_dir, instance, threads, k, seed, timelimit):
+  return os.path.abspath(result_dir) + "/" + ntpath.basename(instance) + "." + str(threads) + "." + str(k) + "." + str(seed) + "." + str(timelimit) + ".results"
 
 ### MAIN SCRIPT ###
 if __name__ == "__main__":
@@ -114,6 +114,11 @@ if __name__ == "__main__":
     write_partition_file = config["write_partition_file"] if "write_partition_file" in config else False
     dynamic_header = config["dynamic_header"] if "dynamic_header" in config else True
     
+    repetition_compare_benchmark = False
+    if config["repetitions"] is not None and len(config["repetitions"]) > 1:
+        repetition_compare_benchmark = True
+        assert len(config["repetitions"]) == len(config["timelimit"]), "If repetitions are specified, the number of repetitions must be equal to the number of threads"
+
     # Setup experiments
     try:
         for partitioner_config in config["config"]:
@@ -151,15 +156,29 @@ if __name__ == "__main__":
             partitioner_calls = []
             for instance, tag in get_all_benchmark_instances(partitioner, config).items():
                 for k in config["k"]:
-                    for threads in config["threads"]:
+                    for threads in config["threads"]:  
+                      if not repetition_compare_benchmark:
                         if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
-                            continue
+                              continue
                         call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag)
                         header = None
                         if write_partition_file:
                             call += " --partition_folder=" + os.path.abspath(result_dir)
                         call += " >> " + partitioner_dump(result_dir, instance, threads, k, seed)
                         partitioner_calls.append(call)
+                      else:
+                        # execute timelimit[i] with repetitions[i]
+                        for i, repetitions in enumerate(config["repetitions"]):
+                            timelimit = config["timelimit"][i]
+                            if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
+                                continue
+                            for r in range(repetitions):
+                                call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag)
+                                header = None
+                                if write_partition_file:
+                                    call += " --partition_folder=" + os.path.abspath(result_dir)
+                                call += " >> " + partitioner_dump(result_dir, instance, threads, k, seed, timelimit)
+                                partitioner_calls.append(call)
 
             # Write partitioner calls to workload file
             with open(experiment_dir + "/" + algorithm_file + "_workload.txt", "a") as partitioner_workload_file:
