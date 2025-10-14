@@ -57,9 +57,10 @@ with open(args.benchmark) as json_experiment:
 
     i = 0
     for partitioner_call in lines:
-      #print("DEBUG: Running command: " + partitioner_call + "\n")
+      #print("BEFORE PARTITIONER CALL")
       printProgressBar(i, num_lines, prefix = "Progress:", suffix = "Completed")
       os.system(partitioner_call)
+      #print("AFTER PARTITIONER CALL")
       i = i + 1
     printProgressBar(num_lines, num_lines, prefix = "Progress:", suffix = "Completed")
 
@@ -76,7 +77,7 @@ with open(args.benchmark) as json_experiment:
       if os.path.exists(header_file):
         os.system("cat \"" + header_file + "\" >> " + result_file)
       else:
-        os.system("echo 'algorithm,graph,timeout,seed,k,epsilon,num_threads,imbalance,totalPartitionTime,objective,km1,cut,failed' >> " + result_file)
+        os.system("echo 'algorithm,graph,timeout,seed,k,epsilon,num_threads,imbalance,totalPartitionTime,objective,km1,cut,failed, soed' >> " + result_file)
       os.system("cat " + experiment_dir + "/" + algorithm_name + "_results/* >> " + result_file)
 
 

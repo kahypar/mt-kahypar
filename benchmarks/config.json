@@ -1,11 +1,12 @@
 {
   "name": "test",
-  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "TEST"} ],
+  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "evo --enable-benchmark=true"} ],
   "threads": [8],
-  "k": [2, 8, 32],
+  "k": [8, 32],
   "epsilon": 0.03,
-  "seeds": [1, 2],
+  "seeds": [1],
   "objective": "km1",
-  "timelimit": 5,
-  "graph_instance_folder": "C:\\Users\\Kantfan\\Bachelor_Arbeit\\mt-kahypar\\mt-kahypar\\benchmarks\\instances"
+  "timelimit": [15, 5],
+  "repetitions": [1, 3],
+  "graph_instance_folder": "./benchmarks/instances"
 }
