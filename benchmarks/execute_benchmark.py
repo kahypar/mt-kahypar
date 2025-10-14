@@ -55,14 +55,19 @@ with open(args.benchmark) as json_experiment:
       os.system("rm " + experiment_dir + "/" + algorithm_name + "_results/*")
 
 
-    i = 0
-    for partitioner_call in lines:
-      #print("BEFORE PARTITIONER CALL")
-      printProgressBar(i, num_lines, prefix = "Progress:", suffix = "Completed")
-      os.system(partitioner_call)
-      #print("AFTER PARTITIONER CALL")
-      i = i + 1
-    printProgressBar(num_lines, num_lines, prefix = "Progress:", suffix = "Completed")
+    # GNU parallel calls
+    os.system(f"parallel --jobs 0 --memfree 1G --bar :::: {workload_file}")
+    
+
+    # previous sequential logic
+    # i = 0
+    # for partitioner_call in lines:
+    #   #print("BEFORE PARTITIONER CALL")
+    #   printProgressBar(i, num_lines, prefix = "Progress:", suffix = "Completed")
+    #   os.system(partitioner_call)
+    #   #print("AFTER PARTITIONER CALL")
+    #   i = i + 1
+    # printProgressBar(num_lines, num_lines, prefix = "Progress:", suffix = "Completed")
 
     for partitioner_config in config['config']:
       partitioner = partitioner_config["partitioner"]
