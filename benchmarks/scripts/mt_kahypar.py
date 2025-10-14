@@ -180,7 +180,7 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   signal.signal(signal.SIGINT, kill_proc)
   signal.signal(signal.SIGTERM, kill_proc)
 
-  evo_time_buffer = 10
+  evo_time_buffer = 10000
 
   t = Timer(args.timelimit + evo_time_buffer, kill_proc)
   t.start()     
