@@ -127,8 +127,12 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
   
 
 def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
-  # Remove --evo marker if present (it's not a Mt-KaHyPar argument)
+  # Remove --evo marker and history-info if present (not Mt-KaHyPar arguments)
   cleaned_args = args.args.replace('--evo', '').strip()
+  include_history = False
+  if "history-info" in cleaned_args:
+    include_history = True
+    cleaned_args = cleaned_args.replace('history-info', '').strip()
   args_list = shlex.split(cleaned_args) if cleaned_args else []
   
   #DEBUG PRINT
@@ -161,8 +165,8 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
          "--sp-process=true",
          "--partition-evolutionary=true",
          "--time-limit=" + str(args.timelimit),
-         "--evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file,
-         "--evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
+         #"--evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file,
+         #"--evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
          *args_list]
 
   #print("DEBUG: COMMAND: " + " ".join(cmd), file=sys.stderr)
@@ -170,6 +174,11 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   if args.partition_folder != "":
     cmd.extend(["--write-partition-file=true"])
     cmd.extend(["--partition-output-folder=" + args.partition_folder])
+    
+  if include_history and os.environ.get("EVO_RESULT_FOLDER") is not None:
+    cmd.extend(["--evo-history-file=" + os.environ.get("EVO_RESULT_FOLDER") + evo_result_file])
+  if include_history and os.environ.get("EVO_DIFF_FOLDER") is not None:
+    cmd.extend(["--evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file])
     
   mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 

@@ -1,7 +1,7 @@
 {
   "name": "test",
   "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "evo --enable-benchmark=true"} ],
-  "threads": [8],
+  "threads": [1],
   "k": [8, 32],
   "epsilon": 0.03,
   "seeds": [1],
