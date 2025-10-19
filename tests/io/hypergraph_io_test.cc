@@ -149,6 +149,19 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
   ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
 }
 
+TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraphWithDuplicatedPins) {
+  this->readHypergraph("../tests/instances/unweighted_hypergraph_duplicated_pins.hgr", FileFormat::hMetis);
+
+  // Verify Incident Nets
+  this->verifyIncidentNets(
+    { { 0, 1 }, { 1 }, { 0, 3 }, { 1, 2 },
+      {1, 2}, { 3 }, { 2, 3 } });
+
+  // Verify Pins
+  this->verifyPins({ { 0, 2 }, { 0, 1, 3, 4 },
+    { 3, 4, 6 }, { 2, 5, 6 } });
+}
+
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
   this->readHypergraph("../tests/instances/hypergraph_with_edge_weights.hgr", FileFormat::hMetis);
 

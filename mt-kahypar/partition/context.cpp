@@ -204,7 +204,6 @@ namespace mt_kahypar {
       out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
       out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
       out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
-      out << "    Parallel Searches Multiplier:     " << params.parallel_searches_multiplier << std::endl;
       out << "    Number of Parallel Searches:      " << params.num_parallel_searches << std::endl;
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Min Rel. Improvement Per Round:   " << params.min_relative_improvement_per_round << std::endl;
@@ -527,13 +526,12 @@ namespace mt_kahypar {
 
   void Context::setupThreadsPerFlowSearch() {
     if ( refinement.flows.algorithm == FlowAlgorithm::flow_cutter ) {
-      // = min(t, min(tau * k, k * (k - 1) / 2))
+      // = min{t, k, k * (k - 1) / 2}
       // t = number of threads
       // k * (k - 1) / 2 = maximum number of edges in the quotient graph
-      refinement.flows.num_parallel_searches = partition.k == 2 ? 1 :
-        std::min(shared_memory.num_threads, std::min(std::max(UL(1), static_cast<size_t>(
-          refinement.flows.parallel_searches_multiplier * partition.k)),
-            static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
+      refinement.flows.num_parallel_searches = std::min(shared_memory.num_threads,
+        std::min(static_cast<size_t>(partition.k),
+          static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
     }
   }
 

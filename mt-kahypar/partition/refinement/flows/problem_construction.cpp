@@ -100,13 +100,13 @@ namespace {
 }
 
 template<typename TypeTraits>
-Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_id,
-                                                         QuotientGraph<TypeTraits>& quotient_graph,
+Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks,
+                                                         QuotientGraph& quotient_graph,
                                                          const PartitionedHypergraph& phg) {
   Subhypergraph sub_hg;
   BFSData& bfs = _local_bfs.local();
   bfs.reset();
-  bfs.blocks = quotient_graph.getBlockPair(search_id);
+  bfs.blocks = blocks;
   sub_hg.block_0 = bfs.blocks.i;
   sub_hg.block_1 = bfs.blocks.j;
   sub_hg.weight_of_block_0 = 0;
@@ -122,10 +122,15 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
   // We initialize the BFS with all cut hyperedges running
   // between the involved block associated with the search
   bfs.clearQueue();
-  quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
-    bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
-      max_weight_block_0, max_weight_block_1);
-  });
+  auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
+  std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
+  for ( size_t i = 0; i < cut_hes.size(); ++i ) {
+    const HyperedgeID he = cut_hes[i];
+    if ( phg.pinCountInPart(he, blocks.i) > 0 && phg.pinCountInPart(he, blocks.j) > 0 ) {
+      bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
+        max_weight_block_0, max_weight_block_1);
+    }
+  }
   bfs.swap_with_next_queue();
 
   // BFS
@@ -166,7 +171,7 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
       bfs.swap_with_next_queue();
     }
   }
-  DBG << "Search ID:" << search_id << "-" << sub_hg;
+  DBG << V(blocks.i) << V(blocks.j) << "-" << sub_hg;
 
   // Check if all touched hyperedges are contained in subhypergraph
   ASSERT([&]() {

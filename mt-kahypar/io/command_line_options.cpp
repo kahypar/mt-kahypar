@@ -629,10 +629,6 @@ namespace mt_kahypar {
              "Flow Algorithms:\n"
              "- do_nothing\n"
              "- flow_cutter")
-            ((initial_partitioning ? "i-r-flow-parallel-search-multiplier" : "r-flow-parallel-search-multiplier"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.parallel_searches_multiplier :
-                      &context.refinement.flows.parallel_searches_multiplier))->value_name("<double>"),
-             "Active block scheduling starts min(num_threads, mult * k) parallel searches")
             ((initial_partitioning ? "i-r-flow-max-bfs-distance" : "r-flow-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),

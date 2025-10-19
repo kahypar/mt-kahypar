@@ -641,7 +641,7 @@ class StaticHypergraph {
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+  HyperedgeWeight edgeWeight(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     return hyperedge(e).weight();
   }
@@ -803,6 +803,7 @@ class StaticHypergraph {
       const HypernodeID pin = _incidence_array[pos];
       removeIncidentEdgeFromHypernode(he, pin);
     });
+    ++_num_removed_hyperedges;
     disableHyperedge(he);
   }
 

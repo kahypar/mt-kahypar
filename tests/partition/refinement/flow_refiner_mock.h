@@ -65,13 +65,11 @@ class FlowRefinerMockControl {
 
  private:
   explicit FlowRefinerMockControl() :
-    max_num_blocks(2),
     refine_func(NOOP_REFINE_FUNC) { }
 
  public:
 
   void reset() {
-    max_num_blocks = 2;
     refine_func = NOOP_REFINE_FUNC;
   }
 
@@ -84,7 +82,6 @@ class FlowRefinerMock final : public IFlowRefiner {
  public:
   explicit FlowRefinerMock(const HyperedgeID,
                            const Context& context) :
-    _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
     _refine_func(FlowRefinerMockControl::instance().refine_func) {
       unused(context);
@@ -109,26 +106,8 @@ class FlowRefinerMock final : public IFlowRefiner {
     return _refine_func(phg, sub_hg, _num_threads);
   }
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
-    return _max_num_blocks;
-  }
-
-  void setNumThreadsForSearchImpl(const size_t num_threads) override {
-    _num_threads = num_threads;
-  }
-
-  const PartitionID _max_num_blocks;
   size_t _num_threads;
   RefineFunc _refine_func;
 };
-
-#define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
-  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
-    id,                                                                                         \
-    [](const HyperedgeID num_hyperedges, const Context& context) -> IFlowRefiner* {             \
-    return new refiner(num_hyperedges, context);                                                \
-  })
-
-REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock, 1);
 
 }  // namespace mt_kahypar
