@@ -231,6 +231,7 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   else:
     # DEBUG PRINT
     print(f"DEBUG: Mt-KaHyPar failed with return code {mt_kahypar_proc.returncode}", file=sys.stderr)
+    print(f"DEBUG: Mt-KaHyPar stderr output:\n{err}", file=sys.stderr)
     _result_values["failed"] = "yes"
     if err and print_fail_msg:
       print(err, file=sys.stderr)
