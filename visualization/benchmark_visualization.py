@@ -18,6 +18,25 @@ class Mode(Enum):
     DEFAULT = "default"
     EVO = "evo"
 
+class BenchmarkParams(Enum):
+    ALGORITHM = "algorithm"
+    GRAPH = "graph"
+    SEED = "seed"
+    K = "k"
+    EPSILON = "epsilon"
+
+class ResultParams(Enum):
+    IMBALANCE = "imbalance"
+    TIME = "totalPartitionTime"
+    KM1 = "km1"
+    CUT = "cut"
+    FAILED = "failed"
+
+class BenchmarkResult:
+    def __init__(self, params: BenchmarkParams, results: ResultParams):
+        self.params = params
+        self.results = results
+
 # Color map for difference matrix
 DIFF_CMAP = LinearSegmentedColormap.from_list(
     "diff_red_green",
@@ -127,6 +146,13 @@ def parse_benchamark_input(input_file, mode: Mode):
 
     return result_array
     
+
+def parse_runs_list_csv(input_file: str):
+    """
+    Parses a CSV file containing multiple runs.
+    """
+
+
 
 def parse_diff_matrices(diff_file: str, seed_id: int = 0):
     """

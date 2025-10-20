@@ -156,6 +156,11 @@ namespace mt_kahypar {
                 std::string improvement = checkAndLogNewBest(fitness, "Initial", now);
                 if (!improvement.empty()) {
                     history += improvement;
+                    std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+                    std::string diff_matrix = population.updateDiffMatrix();
+                    // DEBUG PRINT
+                    LOG << "DEBUG: Initial population diff matrix:\n" << diff_matrix;
+                    diff_matrix_history += diff_matrix;
                 }
             }
 
@@ -330,8 +335,8 @@ namespace mt_kahypar {
         }
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && !ret.empty()) {
-            std::string diff_matrix = population.updateDiffMatrix();
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            std::string diff_matrix = population.updateDiffMatrix();
             diff_matrix_history += diff_matrix;
         }
         return ret;
@@ -398,11 +403,10 @@ namespace mt_kahypar {
         //     }
         // }
         population.insert(std::move(individual), context);
-        if (context.partition.enable_benchmark_mode && !ret.empty()) {
-            population.updateDiffMatrix();
+        if (context.partition.enable_benchmark_mode && !ret.empty()) {;
             // TODO: append diff_history
-            std::string diff_matrix = population.updateDiffMatrix();
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            std::string diff_matrix = population.updateDiffMatrix();
             diff_matrix_history += diff_matrix;
         }
 

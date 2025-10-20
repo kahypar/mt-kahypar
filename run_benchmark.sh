@@ -1,6 +1,8 @@
 #!/bin/bash
 // filepath: run_benchmark.sh
 
+source benchmarks/env.sh
+
 # Check if config file is provided
 if [ -z "$1" ]; then
     echo "Usage: $0 <config.json>"

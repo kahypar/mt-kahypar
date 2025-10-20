@@ -182,6 +182,7 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
     
   mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 
+  
   # handle early interrupt cases where the Mt-KaHyPar process should be killed
   def kill_proc(*args):
     os.killpg(os.getpgid(mt_kahypar_proc.pid), signal.SIGTERM)
@@ -223,9 +224,13 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
     assert required.issubset(metrics.keys()), "No complete Objectives block found!"
     return metrics, True
   elif mt_kahypar_proc.returncode == -signal.SIGTERM:
+    # DEBUG PRINT
+    print(f"DEBUG: Mt-KaHyPar timed out after {args.timelimit} seconds", file=sys.stderr)
     _result_values["timeout"] = "yes"
     return {}, False
   else:
+    # DEBUG PRINT
+    print(f"DEBUG: Mt-KaHyPar failed with return code {mt_kahypar_proc.returncode}", file=sys.stderr)
     _result_values["failed"] = "yes"
     if err and print_fail_msg:
       print(err, file=sys.stderr)
@@ -308,13 +313,15 @@ if __name__ == "__main__":
 
   if evo:
     #print("DEBUG: Running Mt-KaHyPar in evolutionary mode.", file=sys.stderr)
-    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset-type": "default"}, detect_instance_type=True)
+    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset-type": "quality"}, detect_instance_type=True)
   else:
-    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset-type": "default"}, detect_instance_type=True)
+    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset-type": "quality"}, detect_instance_type=True)
   
   set_results()
   if success:
     parse(result)
+  else:
+    print(f"DEBUG: Mt-KaHyPar failed with result: {result}", file=sys.stderr)
   print_result(algorithm, args)
 
   # match(evo):
