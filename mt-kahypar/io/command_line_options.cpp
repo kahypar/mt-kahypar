@@ -801,12 +801,12 @@ namespace mt_kahypar {
              "Use memetic algorithm for partitioning")
             ("evo-population-size",
              po::value<size_t>(&context.evolutionary.population_size)->value_name("<size_t>")->default_value(10),
-             "Size of the population for the evolution\n")
+             "Size of the population for the evolution")
             ("evo-dynamic-population-size",
             po::value<bool>(&context.evolutionary.dynamic_population_size)->value_name("<bool>")->default_value(false),
-            "Use dynamic population siez for the evolution")
+            "Use dynamic population size for the evolution")
             ("evo-dynamic-population-time",
-             po::value<double>(&context.evolutionary.dynamic_population_amount_of_time)->value_name("<double>"),
+             po::value<double>(&context.evolutionary.dynamic_population_amount_of_time)->value_name("<double>")->default_value(0.15),
              "Time to generate the population, when dynamic population is enabled")
             ("evo-replacement-strategy",
              po::value<std::string>()->value_name("<string>")->notifier(

@@ -1,6 +1,6 @@
 {
   "name": "test",
-  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "evo --enable-benchmark=true"} ],
+  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "evo_flag history-info --enable-benchmark=true --evo-replacement-strategy=diverse --evo-dynamic-population-size=true"} ],
   "threads": [1],
   "k": [8, 32],
   "epsilon": 0.03,

@@ -46,13 +46,14 @@ namespace mt_kahypar {
         global_best_time_ = std::chrono::milliseconds(0);
         }
 
+        // DISABLED -- Individuals have incorrect indexing after preprocessing
         // ################## PREPROCESSING ##################
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         timer.start_timer("preprocessing", "Preprocessing");
-        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
-        LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-        Partitioner<TypeTraits>::preprocess(hypergraph, context, target_graph);
-        EvoPartitioner<TypeTraits>::sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+        // DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        // LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
+        // Partitioner<TypeTraits>::preprocess(hypergraph, context, target_graph);
+        // EvoPartitioner<TypeTraits>::sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
         timer.stop_timer("preprocessing");
 
         // ################## EVOLUTIONARY PARTITIONING ##################
@@ -108,9 +109,9 @@ namespace mt_kahypar {
 
         // ################## POSTPROCESSING ##################
         timer.start_timer("postprocessing", "Postprocessing");
-        large_he_remover.restoreLargeHyperedges(final_partition);
-        degree_zero_hn_remover.restoreDegreeZeroHypernodes(final_partition);
-        //forceFixedVertexAssignment(partitioned_hypergraph, context);
+        // large_he_remover.restoreLargeHyperedges(final_partition);
+        // degree_zero_hn_remover.restoreDegreeZeroHypernodes(final_partition);
+        // forceFixedVertexAssignment(partitioned_hypergraph, context);
         timer.stop_timer("postprocessing");
 
         #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
@@ -156,11 +157,10 @@ namespace mt_kahypar {
                 std::string improvement = checkAndLogNewBest(fitness, "Initial", now);
                 if (!improvement.empty()) {
                     history += improvement;
-                    std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-                    std::string diff_matrix = population.updateDiffMatrix();
-                    // DEBUG PRINT
-                    LOG << "DEBUG: Initial population diff matrix:\n" << diff_matrix;
-                    diff_matrix_history += diff_matrix;
+                    // std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+                    // std::string diff_matrix = population.updateDiffMatrix();
+                    // LOG << "DEBUG: Initial population diff matrix:\n" << diff_matrix;
+                    // diff_matrix_history += diff_matrix;
                 }
             }
 
@@ -237,6 +237,9 @@ namespace mt_kahypar {
         }
         //LOG << "DEBUG: generateIndividual: Partitioner finished.";
 
+        // LOG << "DEBUG: Partitioned hg node count: " << partitioned_hypergraph.nodes().size();
+        // LOG << "DEBUG: Partitioned hg initial node count: " << partitioned_hypergraph.initialNumNodes();
+        // LOG << "DEBUG: Input hg node count: " << input_hg.nodes().size();
         Individual individual(partitioned_hypergraph, context);
         return population.addStartingIndividual(individual, context);
     } 
@@ -291,7 +294,7 @@ namespace mt_kahypar {
         std::vector<size_t> parents;
         size_t best = population.randomIndividualSafe(); // FIXED
         parents.push_back(best);
-        for (int x = 1; x < context.evolutionary.kway_combine; x ++) {
+        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
             size_t new_parent = population.randomIndividualSafe(); // FIXED
             parents.push_back(new_parent);
             if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) { // FIXED
@@ -306,8 +309,8 @@ namespace mt_kahypar {
 
         Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);  
-        for ( const HypernodeID& hn : hypergraph.nodes() ) { 
-            // FIXED: Use local copy instead of multiple unsafe population calls
+
+        for (const HypernodeID& hn : hypergraph.nodes()) {
             partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
             if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
                 comm_to_block[comms[hn]] = best_partition[hn];
@@ -317,7 +320,7 @@ namespace mt_kahypar {
         partitioned_hypergraph.initializePartition();
         hypergraph.setCommunityIDs(std::move(comms));
         if (context.partition.mode == Mode::direct) {
-            // V-cycle requires a context with initialized part weights
+            //V-cycle requires a context with initialized part weights
             Context vc_context(context);
             vc_context.setupPartWeights(hypergraph.totalWeight());
             Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
@@ -327,7 +330,6 @@ namespace mt_kahypar {
 
         Individual individual(partitioned_hypergraph, context);
         
-        //LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
         std::string ret = "";
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
@@ -404,7 +406,6 @@ namespace mt_kahypar {
         // }
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && !ret.empty()) {;
-            // TODO: append diff_history
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
             std::string diff_matrix = population.updateDiffMatrix();
             diff_matrix_history += diff_matrix;
