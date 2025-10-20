@@ -162,14 +162,14 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
         _num_hyperedges, _flow_hg, _sequential_hfc, _context);
     }
     flow_problem = _sequential_construction->constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
   } else {
     if ( _parallel_construction == nullptr ) {
       _parallel_construction = std::make_unique<ParallelConstruction<GraphAndGainTypes>>(
         _num_hyperedges, _flow_hg, _parallel_hfc, _context);
     }
     flow_problem = _parallel_construction->constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, false /*deterministic*/);
   }
 
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
