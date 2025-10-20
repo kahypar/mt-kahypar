@@ -67,14 +67,15 @@ whfc::Hyperedge SequentialConstruction<GraphAndGainTypes>::DynamicIdenticalNetDe
 
 template<typename GraphAndGainTypes>
 FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                            const Subhypergraph& sub_hg,
-                                                                            const PartitionID block_0,
-                                                                            const PartitionID block_1,
-                                                                            vec<HypernodeID>& whfc_to_node) {
+                                                                               const Subhypergraph& sub_hg,
+                                                                               const PartitionID block_0,
+                                                                               const PartitionID block_1,
+                                                                               vec<HypernodeID>& whfc_to_node,
+                                                                               const bool deterministic) {
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
   const bool default_construction = density >= 0.5 && avg_he_size <= 100;
-  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction);
+  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction, deterministic);
 }
 
 template<typename GraphAndGainTypes>
@@ -83,17 +84,22 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraphEx
                                                                                        const PartitionID block_0,
                                                                                        const PartitionID block_1,
                                                                                        vec<HypernodeID>& whfc_to_node,
-                                                                                       const bool default_construction) {
+                                                                                       const bool default_construction,
+                                                                                       const bool /*deterministic*/) {
   FlowProblem flow_problem;
-  if ( default_construction ) {
+
+  if ( PartitionedHypergraph::is_graph || default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
-    // they are contained in the flow problem. Algorithm could have overheads, if
-    // only a small portion of each hyperedge is contained in the flow hypergraph.
+    // they are contained in the flow problem.
     flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
-    // This is a construction algorithm optimized for hypergraphs with large hyperedges.
-    // Algorithm constructs a temporary pin list, therefore it could have overheads
-    // for hypergraphs with small hyperedges.
+    // The default construction algorithm always scans all hyperedges which
+    // intersect the sub-hypergraph. In case of large hyperedges, this is slow
+    // because it includes many pins outside of the flow problem.
+    // The algorithm used below avoids this by scanning the nodes and collecting
+    // the incident hyperedges. However, it requires an additional step to copy
+    // and sort the pins. Therefore it can have overheads for hypergraphs with
+    // small hyperedges.
     flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
 
@@ -248,6 +254,7 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
                                                                                   const PartitionID block_0,
                                                                                   const PartitionID block_1,
                                                                                   vec<HypernodeID>& whfc_to_node) {
+  ALWAYS_ASSERT(!PartitionedHypergraph::is_graph);
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
