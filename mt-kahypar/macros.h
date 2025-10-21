@@ -60,7 +60,7 @@
 #if (defined(__GNUC__) || defined(__clang__)) && defined(NDEBUG)
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
 #else
-#define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+#define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE inline
 #endif
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS

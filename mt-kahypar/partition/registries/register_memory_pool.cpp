@@ -41,8 +41,7 @@ namespace mt_kahypar {
   namespace {
     template<typename Hypergraph>
     size_t size_of_edge_sync() {
-      const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH;
-      if ( is_graph) {
+      if constexpr (Hypergraph::is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
       }
       return 0;
