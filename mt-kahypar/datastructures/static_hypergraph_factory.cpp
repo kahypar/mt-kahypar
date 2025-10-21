@@ -40,7 +40,8 @@ namespace mt_kahypar::ds {
           const HyperedgeID num_hyperedges,
           const HyperedgeVector& edge_vector,
           const HyperedgeWeight* hyperedge_weight,
-          const HypernodeWeight* hypernode_weight,
+          const HNWeightScalar* hypernode_weight,
+          const weight::Dimension dimension,
           const bool stable_construction_of_incident_edges) {
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;

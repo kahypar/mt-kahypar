@@ -33,8 +33,11 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/hypernode_weight_array.h"
+#include "mt-kahypar/datastructures/hypernode_weight_buffer.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -68,7 +71,6 @@ class StaticHypergraph {
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
-  using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
@@ -83,20 +85,17 @@ class StaticHypergraph {
     Hypernode() :
       _begin(0),
       _size(0),
-      _weight(1),
       _valid(false) { }
 
     Hypernode(const bool valid) :
       _begin(0),
       _size(0),
-      _weight(1),
       _valid(valid) { }
 
     // Sentinel Constructor
     Hypernode(const size_t begin) :
       _begin(begin),
       _size(0),
-      _weight(1),
       _valid(false) { }
 
     bool isDisabled() const {
@@ -139,22 +138,13 @@ class StaticHypergraph {
       _size = size;
     }
 
-    HyperedgeWeight weight() const {
-      return _weight;
-    }
-
-    void setWeight(HyperedgeWeight weight) {
-      ASSERT(!isDisabled());
-      _weight = weight;
-    }
-
    private:
     // ! Index of the first element in _incident_nets
     size_t _begin;
     // ! Number of incident nets
     size_t _size;
     // ! Hypernode weight
-    HypernodeWeight _weight;
+    // HypernodeWeight _weight;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -349,7 +339,8 @@ class StaticHypergraph {
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
-                                  const HyperedgeID num_pins) {
+                                  const HyperedgeID num_pins,
+                                  const weight::Dimension dimension) {
       tbb::parallel_invoke([&] {
         mapping.resize("Coarsening", "mapping", num_hypernodes);
       }, [&] {
@@ -359,7 +350,9 @@ class StaticHypergraph {
       }, [&] {
         tmp_num_incident_nets.resize("Coarsening", "tmp_num_incident_nets", num_hypernodes);
       }, [&] {
-        hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
+        // TODO: memory pool?!
+        // hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
+        hn_weights.resize(num_hypernodes, dimension);
       }, [&] {
         tmp_hyperedges.resize("Coarsening", "tmp_hyperedges", num_hyperedges);
       }, [&] {
@@ -375,7 +368,8 @@ class StaticHypergraph {
     Array<Hypernode> tmp_hypernodes;
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+
+    HypernodeWeightArray hn_weights;
     Array<Hyperedge> tmp_hyperedges;
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;
@@ -417,11 +411,13 @@ class StaticHypergraph {
     _total_degree(0),
     _total_weight(0),
     _hypernodes(),
+    _hypernode_weights(),
     _incident_nets(),
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
     _fixed_vertices(),
+    _weight_buffer(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -430,19 +426,21 @@ class StaticHypergraph {
   StaticHypergraph(StaticHypergraph&& other) :
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
-    _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
+    _removed_degree_zero_hn_weight(std::move(other._removed_degree_zero_hn_weight)),
     _num_hyperedges(other._num_hyperedges),
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
-    _total_weight(other._total_weight),
+    _total_weight(std::move(other._total_weight)),
     _hypernodes(std::move(other._hypernodes)),
+    _hypernode_weights(std::move(other._hypernode_weights)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _community_ids(std::move(other._community_ids)),
     _fixed_vertices(std::move(other._fixed_vertices)),
+    _weight_buffer(std::move(other._weight_buffer)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
@@ -451,20 +449,22 @@ class StaticHypergraph {
   StaticHypergraph & operator= (StaticHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
     _num_removed_hypernodes = other._num_removed_hypernodes;
-    _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
+    _removed_degree_zero_hn_weight = std::move(other._removed_degree_zero_hn_weight);
     _num_hyperedges = other._num_hyperedges;
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
-    _total_weight = other._total_weight;
+    _total_weight = std::move(other._total_weight);
     _hypernodes = std::move(other._hypernodes);
+    _hypernode_weights = std::move(other._hypernode_weights);
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _community_ids = std::move(other._community_ids);
     _fixed_vertices = std::move(other._fixed_vertices);
     _fixed_vertices.setHypergraph(this);
+    _weight_buffer = std::move(other._weight_buffer);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -491,7 +491,7 @@ class StaticHypergraph {
   }
 
   // ! Weight of removed degree zero vertics
-  HypernodeWeight weightOfRemovedDegreeZeroVertices() const {
+  HNWeightConstRef weightOfRemovedDegreeZeroVertices() const {
     return _removed_degree_zero_hn_weight;
   }
 
@@ -515,13 +515,18 @@ class StaticHypergraph {
     return _num_pins;
   }
 
+  // ! Vertex weight dimension
+  HypernodeID dimension() const {
+    return _hypernode_weights.dimension();
+  }
+
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _total_degree;
   }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
+  HNWeightConstRef totalWeight() const {
     return _total_weight;
   }
 
@@ -587,14 +592,16 @@ class StaticHypergraph {
     // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
-    return hypernode(u).weight();
+  HNWeightConstRef nodeWeight(const HypernodeID u) const {
+    ASSERT(u <= _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _hypernode_weights[u];
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+  template<typename R, REQUIRE_VALID_WEIGHT(R)>
+  void setNodeWeight(const HypernodeID u, const R& weight) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).setWeight(weight);
+    _hypernode_weights[u] = weight;
   }
 
   // ! Degree of a hypernode
@@ -627,7 +634,7 @@ class StaticHypergraph {
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
-    _removed_degree_zero_hn_weight += nodeWeight(u);
+    _removed_degree_zero_hn_weight.get() += nodeWeight(u);
     removeHypernode(u);
   }
 
@@ -635,7 +642,7 @@ class StaticHypergraph {
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    _removed_degree_zero_hn_weight -= nodeWeight(u);
+    _removed_degree_zero_hn_weight.get() -= nodeWeight(u);
   }
 
   // ####################### Hyperedge Information #######################
@@ -699,11 +706,11 @@ class StaticHypergraph {
     return _fixed_vertices.hasFixedVertices();
   }
 
-  HypernodeWeight totalFixedVertexWeight() const {
+  HNWeightAtomicCRef totalFixedVertexWeight() const {
     return _fixed_vertices.totalFixedVertexWeight();
   }
 
-  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  HNWeightAtomicCRef fixedVertexBlockWeight(const PartitionID block) const {
     return _fixed_vertices.fixedVertexBlockWeight(block);
   }
 
@@ -715,7 +722,7 @@ class StaticHypergraph {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
-  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  void setMaxFixedVertexBlockWeight(const HypernodeWeightArray& max_block_weights) {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
@@ -726,6 +733,12 @@ class StaticHypergraph {
   FixedVertexSupport<StaticHypergraph> copyOfFixedVertexSupport() const {
     return _fixed_vertices.copy();
   }
+
+  HypernodeWeightBuffer& getHypernodeWeightBuffer() {
+    return _weight_buffer;
+  }
+
+  // ####################### Hypernode Weight Buffer #######################
 
   // ####################### Contract / Uncontract #######################
 
@@ -747,7 +760,8 @@ class StaticHypergraph {
   }
 
   size_t contract(const HypernodeID,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+                  // TODO: needs other type
+                  const HNWeightScalar max_node_weight = std::numeric_limits<HNWeightScalar>::max()) {
     unused(max_node_weight);
     throw UnsupportedOperationException(
       "contract(v, max_node_weight) is not supported in static hypergraph");
@@ -970,7 +984,7 @@ class StaticHypergraph {
   void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
       _tmp_contraction_buffer = new TmpContractionBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins);
+        _num_hypernodes, _num_hyperedges, _num_pins, _hypernode_weights.dimension());
     }
   }
 
@@ -979,7 +993,7 @@ class StaticHypergraph {
   // ! Number of removed hypernodes
   HypernodeID _num_removed_hypernodes;
   // ! Number of removed degree zero hypernodes
-  HypernodeWeight _removed_degree_zero_hn_weight;
+  weight::AllocatedHNWeight _removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
@@ -991,10 +1005,12 @@ class StaticHypergraph {
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
-  HypernodeWeight _total_weight;
+  weight::AllocatedHNWeight _total_weight;
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;
+  // ! Hypernode weights
+  HypernodeWeightArray _hypernode_weights;
   // ! Pins of hyperedges
   IncidentNets _incident_nets;
   // ! Hyperedges
@@ -1007,6 +1023,9 @@ class StaticHypergraph {
 
   // ! Fixed Vertex Support
   FixedVertexSupport<StaticHypergraph> _fixed_vertices;
+
+  // ! Buffer for hypernode weight calculations
+  HypernodeWeightBuffer _weight_buffer;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
