@@ -35,6 +35,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/hypernode_weights.h"
 
 #ifndef KAHYPAR_DISABLE_HWLOC
   #include "mt-kahypar/parallel/hardware_topology.h"
@@ -66,7 +67,7 @@ using HyperedgeID = uint32_t;
 // louvain graph
 using NodeID = uint32_t;
 #endif
-using HypernodeWeight = int32_t;
+// using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;

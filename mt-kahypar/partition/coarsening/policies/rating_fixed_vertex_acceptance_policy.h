@@ -79,16 +79,20 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       return true;
     }
 
-    const HypernodeWeight max_allowed_fixed_vertex_block_weight =
-      (1.0 + context.partition.epsilon) * std::ceil(
-        static_cast<double>(fixed_vertices.totalFixedVertexWeight()) / context.partition.k );
+    const auto max_allowed_fixed_vertex_block_weight = weight::applyMapping(
+      fixed_vertices.totalFixedVertexWeight(),
+      [&](HNWeightScalar total_fixed_vertex_weight) {
+        return (1.0 + context.partition.epsilon) * std::ceil(
+          static_cast<double>(total_fixed_vertex_weight) /  context.partition.k );
+      });
     const PartitionID block_of_u = fixed_vertices.fixedVertexBlock(u);
     const PartitionID block_of_v = fixed_vertices.fixedVertexBlock(v);
     const PartitionID fixed_block = block_of_u == kInvalidPartition ? block_of_v : block_of_u;
     ASSERT(fixed_block != kInvalidPartition);
-    const HypernodeWeight fixed_vertex_block_weight_after =
-      ( block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : fixed_vertices.fixedVertexBlockWeight(fixed_block) ) +
-      ( block_of_u == kInvalidPartition ? fixed_vertices.fixedVertexBlockWeight(fixed_block) : hypergraph.nodeWeight(v) );
+
+    const auto fixed_vertex_block_weight_after =
+      ( block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u).load(std::memory_order_relaxed) : fixed_vertices.fixedVertexBlockWeight(fixed_block) ) +
+      ( block_of_u == kInvalidPartition ? fixed_vertices.fixedVertexBlockWeight(fixed_block) : hypergraph.nodeWeight(v).load(std::memory_order_relaxed) );
     return fixed_vertex_block_weight_after <=
       std::min(max_allowed_fixed_vertex_block_weight,
         context.partition.max_part_weights[fixed_block]);

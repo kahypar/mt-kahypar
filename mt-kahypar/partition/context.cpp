@@ -300,7 +300,7 @@ namespace mt_kahypar {
       refinement.refine_until_no_improvement;
   }
 
-  void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
+  void Context::setupPartWeights(HNWeightConstRef total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
@@ -343,7 +343,7 @@ namespace mt_kahypar {
     }
   }
 
-  void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
+  void Context::setupContractionLimit(HNWeightConstRef total_hypergraph_weight) {
     // Setup contraction limit
     if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
@@ -358,7 +358,7 @@ namespace mt_kahypar {
     setupMaximumAllowedNodeWeight(total_hypergraph_weight);
   }
 
-  void Context::setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
+  void Context::setupMaximumAllowedNodeWeight(HNWeightConstRef total_hypergraph_weight) {
     HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
     for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
       min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
