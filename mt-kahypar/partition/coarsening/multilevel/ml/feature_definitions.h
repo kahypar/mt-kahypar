@@ -56,7 +56,7 @@ namespace features {
                             N1<min_contracted_degree>,
                             N1<q1_degree>,
                             N0<med_degree>,
-                            N0<skew_degree>,
+                            skew_degree,
                             N0<to_n1_edges>,
                             N1<q3_degree>,
                             N1<degree>,
