@@ -69,14 +69,15 @@ Mt-KaHyPar requires:
 
  - A 64-bit Linux, MacOS, or Windows operating system.
  - A modern, C++17-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows.
- - The [cmake][cmake] build system (>= 3.21).
+ - The [cmake][cmake] build system (>= 3.26).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
    If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
    to the cmake command to download, extract, and build the necessary dependencies automatically.
  - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.5.0).
-   If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag (only available on Linux)
+   If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
    to the cmake command to download oneTBB and extract the necessary dependencies automatically.
- - The [Portable Hardware Locality][hwloc] library (hwloc)
+ - The [Portable Hardware Locality][hwloc] library (hwloc). This dependency is not strictly necessary,
+   you can add the `-DKAHYPAR_DISABLE_HWLOC=On` flag to remove it.
 
 ### Linux
 
