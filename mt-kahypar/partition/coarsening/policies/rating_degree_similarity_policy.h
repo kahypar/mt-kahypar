@@ -432,6 +432,6 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
 };
 
 
-using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy, GuidedCoarseningPolicy>;
+using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy, AlwaysAcceptPolicy, GuidedCoarseningPolicy>;
 
 }  // namespace mt_kahypar
