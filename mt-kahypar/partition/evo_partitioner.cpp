@@ -223,6 +223,12 @@ namespace mt_kahypar {
                 ip_context.partition.max_part_weights.clear();
         }
 
+        // PREPROCESSING
+        DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
+        LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
+        Partitioner<TypeTraits>::preprocess(hypergraph_copy, context, target_graph);
+        EvoPartitioner<TypeTraits>::sanitize(hypergraph_copy, context, degree_zero_hn_remover, large_he_remover);
+
         EvoPartitioner<TypeTraits>::PartitionedHypergraph partitioned_hypergraph;
         // PartitionedHypergraph partitioned_hypergraph =
         //     Partitioner<TypeTraits>::partition(hypergraph_copy, ip_context, target_graph);
@@ -237,9 +243,11 @@ namespace mt_kahypar {
         }
         //LOG << "DEBUG: generateIndividual: Partitioner finished.";
 
-        // LOG << "DEBUG: Partitioned hg node count: " << partitioned_hypergraph.nodes().size();
-        // LOG << "DEBUG: Partitioned hg initial node count: " << partitioned_hypergraph.initialNumNodes();
-        // LOG << "DEBUG: Input hg node count: " << input_hg.nodes().size();
+        // POSTPROCESSING
+        large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+        degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
+        //Partitioner<TypeTraits>::forceFixedVertexAssignment(partitioned_hypergraph, context);
+
         Individual individual(partitioned_hypergraph, context);
         return population.addStartingIndividual(individual, context);
     } 
