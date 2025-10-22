@@ -89,7 +89,7 @@ class GainComputationBase {
 
     PartitionID from = phg.partID(hn);
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
-    HypernodeWeight hn_weight = phg.nodeWeight(hn);
+    HNWeightConstRef hn_weight = phg.nodeWeight(hn);
     int cpu_id = THREAD_ID;
     utils::Randomize& rand = utils::Randomize::instance();
     auto test_and_apply = [&](const PartitionID to,
