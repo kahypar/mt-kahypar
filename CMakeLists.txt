@@ -279,7 +279,7 @@ endif(KAHYPAR_USE_GCOV)
 find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
 endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
@@ -458,6 +458,9 @@ if(KAHYPAR_DOWNLOAD_TBB)
     FetchContent_MakeAvailable(TBB)
   endblock()
 else()
+  if(KAHYPAR_STATIC_LINK_TBB)
+    message(WARNING "Static linking of TBB requires -DKAHYPAR_DOWNLOAD_TBB=On. Proceeding with dynamic linking.")
+  endif()
   # Find system TBB library
   find_package(TBB 2021.5 COMPONENTS tbb tbbmalloc)
   if(NOT TBB_FOUND)
@@ -473,6 +476,9 @@ target_link_libraries(MtKaHyPar-Include INTERFACE TBB::tbb TBB::tbbmalloc)
 
 # Find HWLOC Library
 if(NOT KAHYPAR_DISABLE_HWLOC)
+  if(KAHYPAR_STATIC_LINK_DEPENDENCIES)
+    message(WARNING "Static linking of hwloc is not supported. Consider using -DKAHYPAR_DISABLE_HWLOC=On to remove the dependency.")
+  endif()
   include(DetectHwloc)
   if(NOT TARGET HWLOC::hwloc)
     message(FATAL_ERROR "Hwloc library not found. Install hwloc on your system.")
