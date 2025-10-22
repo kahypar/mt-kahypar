@@ -80,6 +80,8 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
           << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
       }
     }
+  #else
+    unused(print_warnings);
   #endif
 
   // Initialize TBB task arenas on numa nodes
