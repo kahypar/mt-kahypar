@@ -155,11 +155,6 @@ def parse_runs_list_csv(input_file: str):
 
 
 def parse_diff_matrices(diff_file: str, seed_id: int = 0):
-    """
-    Returns an array of difference matrices (each a 2D list) for a given seed_id.
-    Matrices are separated by lines starting with ---.
-    Seeds are separated by lines starting with ###.
-    """
     seed_counter = 0
     matrices = []
     current = []
@@ -188,31 +183,12 @@ def parse_diff_matrices(diff_file: str, seed_id: int = 0):
     return matrices
 
 
-def plot_diff_matrix(diff_file: str,
-                     seed_id: int = 0,
-                     matrix_index: int | None = None,
-                     cmap = DIFF_CMAP,
-                     output_dir: str | None = None):
-    """
-    1) Saves a grid image containing all matrices for the given seed.
-    2) Saves a single image for the matrix at matrix_index (if provided).
-    3) Saves a line plot of average (off-diagonal) difference over time.
-    """
-    if output_dir is None:
-        output_dir = os.path.dirname(os.path.abspath(__file__))
-
-    matrices_raw = parse_diff_matrices(diff_file, seed_id=seed_id)
-    if not matrices_raw:
-        print(f"No diff matrices found for seed {seed_id} in {diff_file}")
-        return
-
-    matrices = [np.array(m) for m in matrices_raw]
+def plot_diff_matrices_grid(matrices: list, seed_id: int, output_dir: str, cmap = DIFF_CMAP):
     num = len(matrices)
-
-    # 1) Grid of all matrices using each matrix' local max for normalization
     cols = math.ceil(math.sqrt(num))
     rows = math.ceil(num / cols)
     plt.figure(figsize=(3 * cols, 3 * rows))
+    
     for i, m in enumerate(matrices):
         ax = plt.subplot(rows, cols, i + 1)
         local_max = int(m.max()) if m.size else 0
@@ -222,6 +198,7 @@ def plot_diff_matrix(diff_file: str,
         ax.set_title(f"M{i}", fontsize=8)
         ax.set_xticks([]); ax.set_yticks([])
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+    
     plt.suptitle(f"Seed {seed_id} Diff Matrices (local normalization)", y=0.995)
     plt.tight_layout(rect=[0,0,1,0.97])
     all_path = os.path.join(output_dir, f"diff_seed{seed_id}_all.png")
@@ -229,26 +206,25 @@ def plot_diff_matrix(diff_file: str,
     plt.close()
     print(f"Saved all matrices grid -> {all_path}")
 
-    # 2) Single matrix (local normalization so its own max is green)
-    if matrix_index is not None:
-        if 0 <= matrix_index < num:
-            m = matrices[matrix_index]
-            local_max = m.max()
-            if local_max == 0:
-                local_max = 1
-            plt.figure(figsize=(5, 4))
-            plt.imshow(m, cmap=cmap, vmin=0, vmax=local_max, interpolation='nearest')
-            plt.title(f"Seed {seed_id} Matrix {matrix_index} (Max={int(local_max)})")
-            plt.colorbar()
-            plt.tight_layout()
-            single_path = os.path.join(output_dir, f"diff_seed{seed_id}_matrix{matrix_index}.png")
-            plt.savefig(single_path, dpi=160)
-            plt.close()
-            print(f"Saved matrix {matrix_index} -> {single_path}")
-        else:
-            print(f"matrix_index {matrix_index} out of range (0..{num-1})")
 
-    # 3) Average off-diagonal over time
+def plot_single_diff_matrix(matrix: np.ndarray, seed_id: int, matrix_index: int, 
+                            output_dir: str, cmap = DIFF_CMAP):
+    local_max = matrix.max()
+    if local_max == 0:
+        local_max = 1
+    
+    plt.figure(figsize=(5, 4))
+    plt.imshow(matrix, cmap=cmap, vmin=0, vmax=local_max, interpolation='nearest')
+    plt.title(f"Seed {seed_id} Matrix {matrix_index} (Max={int(local_max)})")
+    plt.colorbar()
+    plt.tight_layout()
+    single_path = os.path.join(output_dir, f"diff_seed{seed_id}_matrix{matrix_index}.png")
+    plt.savefig(single_path, dpi=160)
+    plt.close()
+    print(f"Saved matrix {matrix_index} -> {single_path}")
+
+
+def plot_avg_diff_over_time(matrices: list, seed_id: int, output_dir: str):
     avgs = []
     for m in matrices:
         if m.size == 0:
@@ -257,6 +233,8 @@ def plot_diff_matrix(diff_file: str,
         mask = ~np.eye(m.shape[0], dtype=bool)
         off = m[mask]
         avgs.append(off.mean() if off.size else 0)
+    
+    num = len(matrices)
     plt.figure(figsize=(7, 4))
     plt.plot(range(num), avgs, marker='o', color="#b00000")
     plt.xlabel("Matrix index (time step)")
@@ -268,6 +246,36 @@ def plot_diff_matrix(diff_file: str,
     plt.savefig(avg_path, dpi=160)
     plt.close()
     print(f"Saved avg diff plot -> {avg_path}")
+
+
+def plot_diff_matrix(diff_file: str,
+                     seed_id: int = 0,
+                     matrix_index: int | None = None,
+                     cmap = DIFF_CMAP,
+                     output_dir: str | None = None):
+    if output_dir is None:
+        output_dir = os.path.dirname(os.path.abspath(__file__))
+
+    matrices_raw = parse_diff_matrices(diff_file, seed_id=seed_id)
+    if not matrices_raw:
+        print(f"No diff matrices found for seed {seed_id} in {diff_file}")
+        return
+
+    matrices = [np.array(m) for m in matrices_raw]
+    num = len(matrices)
+
+    # 1) Grid of all matrices
+    plot_diff_matrices_grid(matrices, seed_id, output_dir, cmap)
+
+    # 2) Single matrix (if requested)
+    if matrix_index is not None:
+        if 0 <= matrix_index < num:
+            plot_single_diff_matrix(matrices[matrix_index], seed_id, matrix_index, output_dir, cmap)
+        else:
+            print(f"matrix_index {matrix_index} out of range (0..{num-1})")
+
+    # 3) Average off-diagonal over time
+    plot_avg_diff_over_time(matrices, seed_id, output_dir)
     
 
 def create_plot(datasets, title, xlabel, ylabel, output_file, scientific=False):
