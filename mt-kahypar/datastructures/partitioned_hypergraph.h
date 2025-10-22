@@ -595,6 +595,7 @@ class PartitionedHypergraph {
     ASSERT(from != to);
     ASSERT(force_moving_fixed_vertices || !isFixed(u));
     const HNWeightConstRef wu = nodeWeight(u);
+    // TODO: might not be the most efficient implementation (vs. early return for add/sub)
     const auto to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;

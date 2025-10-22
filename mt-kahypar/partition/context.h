@@ -325,6 +325,8 @@ class Context {
     }
   }
 
+  weight::Dimension dimension() const;
+
   bool isNLevelPartitioning() const;
 
   bool forceGainCacheUpdates() const;

@@ -289,6 +289,10 @@ namespace mt_kahypar {
     return str;
   }
 
+  weight::Dimension Context::dimension() const {
+    return partition.max_part_weights.dimension();
+  }
+
   bool Context::isNLevelPartitioning() const {
     return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
       partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
