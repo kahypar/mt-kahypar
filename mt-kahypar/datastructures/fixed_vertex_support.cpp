@@ -90,7 +90,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
       _fixed_vertex_block_weights[fixed_vertex_block].add_fetch(
         delta_weight, std::memory_order_relaxed);
     if ( likely( block_weight_after <= _max_block_weights[fixed_vertex_block] ) ) {
-      _total_fixed_vertex_weight.fetch_add(delta_weight, std::memory_order_relaxed);
+      weight::eval(_total_fixed_vertex_weight.fetch_add(delta_weight, std::memory_order_relaxed));
       if ( u_becomes_fixed ) {
         ASSERT(isFixed(v));
         ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt == 0);
@@ -102,8 +102,8 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     } else {
       // The new fixed vertex block weight is larger than the maximum allowed bock weight
       // => revert block weight update and forbid contraction
-      _fixed_vertex_block_weights[fixed_vertex_block].sub_fetch(
-        delta_weight, std::memory_order_relaxed);
+      weight::eval(_fixed_vertex_block_weights[fixed_vertex_block].sub_fetch(
+        delta_weight, std::memory_order_relaxed));
       v_becomes_fixed = false;
       success = false;
     }
@@ -136,10 +136,10 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
         // u was not fixed before the contraction
         const PartitionID fixed_vertex_block_of_u = _fixed_vertex_data[u].block;
         const HNWeightConstRef weight_of_u = _fixed_vertex_hn_weights[u];
-        _fixed_vertex_block_weights[fixed_vertex_block_of_u].fetch_sub(
-          weight_of_u, std::memory_order_relaxed);
-        _total_fixed_vertex_weight.fetch_sub(
-          weight_of_u, std::memory_order_relaxed);
+        weight::eval(_fixed_vertex_block_weights[fixed_vertex_block_of_u].fetch_sub(
+          weight_of_u, std::memory_order_relaxed));
+        weight::eval(_total_fixed_vertex_weight.fetch_sub(
+          weight_of_u, std::memory_order_relaxed));
         // Make u a not fixed vertex again
         _fixed_vertex_data[u].block = kInvalidPartition;
       }
@@ -147,10 +147,10 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
       // v was not fixed before the contraction
       const PartitionID fixed_vertex_block_of_v = _fixed_vertex_data[v].block;
       const HNWeightConstRef weight_of_v = _fixed_vertex_hn_weights[v];
-      _fixed_vertex_block_weights[fixed_vertex_block_of_v].fetch_sub(
-        weight_of_v, std::memory_order_relaxed);
-      _total_fixed_vertex_weight.fetch_sub(
-        weight_of_v, std::memory_order_relaxed);
+      weight::eval(_fixed_vertex_block_weights[fixed_vertex_block_of_v].fetch_sub(
+        weight_of_v, std::memory_order_relaxed));
+      weight::eval(_total_fixed_vertex_weight.fetch_sub(
+        weight_of_v, std::memory_order_relaxed));
       // Make v a not fixed vertex again
       _fixed_vertex_data[v].block = kInvalidPartition;
     }

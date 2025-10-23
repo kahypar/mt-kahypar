@@ -572,7 +572,7 @@ class PartitionedHypergraph {
 
   void setNodePart(const HypernodeID u, PartitionID p) {
     setOnlyNodePart(u, p);
-    _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    weight::eval(_part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed));
     for (HyperedgeID he : incidentEdges(u)) {
       incrementPinCountOfBlock(he, p);
     }
@@ -599,7 +599,7 @@ class PartitionedHypergraph {
     const auto to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
-      _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+      weight::eval(_part_weights[from].fetch_sub(wu, std::memory_order_relaxed));
       report_success();
       SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
@@ -611,7 +611,7 @@ class PartitionedHypergraph {
       }
       return true;
     } else {
-      _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
+      weight::eval(_part_weights[to].fetch_sub(wu, std::memory_order_relaxed));
       return false;
     }
   }
@@ -994,8 +994,8 @@ class PartitionedHypergraph {
     });
 
     // Construct hypergraph
-    extracted_block.hg = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
-      edge_vector, hyperedge_weight.data(), hypernode_weight.data(), dimension(), stable_construction_of_incident_edges);
+    extracted_block.hg = HypergraphFactory::construct(num_hypernodes, num_hyperedges, dimension(),
+      edge_vector, hyperedge_weight.data(), &hypernode_weight, stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -1162,7 +1162,7 @@ class PartitionedHypergraph {
  private:
   void applyPartWeightUpdates(HypernodeWeightArray& part_weight_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
-      _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);
+      weight::eval(_part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed));
     }
   }
 

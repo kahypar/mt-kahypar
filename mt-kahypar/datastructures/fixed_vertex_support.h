@@ -58,7 +58,7 @@ class FixedVertexSupport {
     _num_nodes(0),
     _k(kInvalidPartition),
     _hg(nullptr),
-    _total_fixed_vertex_weight(0),
+    _total_fixed_vertex_weight(),
     _fixed_vertex_block_weights(),
     _max_block_weights(),
     _fixed_vertex_data() { }
@@ -99,8 +99,7 @@ class FixedVertexSupport {
   // ####################### Fixed Vertex Block Weights #######################
 
   bool hasFixedVertices() const {
-    // TODO
-    // return _total_fixed_vertex_weight.load(std::memory_order_relaxed) > 0;
+    return !weight::isZero(_total_fixed_vertex_weight.load(std::memory_order_relaxed));
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightAtomicCRef totalFixedVertexWeight() const {
@@ -127,10 +126,10 @@ class FixedVertexSupport {
       const HNWeightConstRef weight_of_hn = _hg->nodeWeight(hn);
       _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
       _fixed_vertex_hn_weights[hn] = weight_of_hn;
-      _fixed_vertex_block_weights[block].fetch_add(
-        weight_of_hn, std::memory_order_relaxed);
-      _total_fixed_vertex_weight.get().fetch_add(
-        weight_of_hn, std::memory_order_relaxed);
+      weight::eval(_fixed_vertex_block_weights[block].fetch_add(
+        weight_of_hn, std::memory_order_relaxed));
+      weight::eval(_total_fixed_vertex_weight.get().fetch_add(
+        weight_of_hn, std::memory_order_relaxed));
     } else {
       ASSERT(_fixed_vertex_data[hn].block == block,
         "Try to fix hypernode" << hn << "to block" << block

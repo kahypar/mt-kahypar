@@ -478,7 +478,14 @@ namespace mt_kahypar::ds {
       });
     };
 
-    tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
+    auto setup_hypernode_weights = [&] {
+      hypergraph._hypernode_weights.resize(num_hypernodes, dimension());
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
+        hypergraph._hypernode_weights[id] = tmp_hn_weights[id];
+      });
+    };
+
+    tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes, setup_hypernode_weights);
 
     if ( hasFixedVertices() ) {
       // Map fixed vertices to coarse hypergraph
@@ -592,6 +599,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(ID(0), _num_hypernodes, [this, &local_sum](const HypernodeID hn) {
       local_sum.local() += this->_hypernode_weights[hn];
     });
+    _total_weight = weight::broadcast(0, dimension());
     for (const auto& weight: local_sum) {
       _total_weight += weight;
     }

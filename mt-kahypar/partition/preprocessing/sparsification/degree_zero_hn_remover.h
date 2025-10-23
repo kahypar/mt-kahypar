@@ -74,8 +74,9 @@ class DegreeZeroHypernodeRemover {
     // Sort degree-zero vertices in decreasing order of their weight
     tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
       [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs)
-                || (hypergraph.nodeWeight(lhs) == hypergraph.nodeWeight(rhs) && lhs > rhs);
+        const HNWeightScalar lhs_weight = weight::sum(hypergraph.nodeWeight(lhs));
+        const HNWeightScalar rhs_weight = weight::sum(hypergraph.nodeWeight(rhs));
+        return lhs_weight > rhs_weight || (lhs_weight == rhs_weight && lhs > rhs);
       });
     // Sort blocks of partition in increasing order of their weight
     auto distance_to_max = [&](const PartitionID block) {
@@ -85,16 +86,17 @@ class DegreeZeroHypernodeRemover {
     std::iota(blocks.begin(), blocks.end(), 0);
     std::sort(blocks.begin(), blocks.end(),
       [&](const PartitionID& lhs, const PartitionID& rhs) {
-        return distance_to_max(lhs) < distance_to_max(rhs);
+        return weight::sum(distance_to_max(lhs)) < weight::sum(distance_to_max(rhs));
       });
 
     // Perform Bin-Packing
+    // TODO: multi-constraint
     for ( const HypernodeID& hn : _removed_hns ) {
       PartitionID to = blocks.front();
       hypergraph.restoreDegreeZeroHypernode(hn, to);
       PartitionID i = 0;
       while ( i + 1 < _context.partition.k &&
-              distance_to_max(blocks[i]) > distance_to_max(blocks[i + 1]) ) {
+              weight::sum(distance_to_max(blocks[i])) > weight::sum(distance_to_max(blocks[i + 1])) ) {
         std::swap(blocks[i], blocks[i + 1]);
         ++i;
       }

@@ -210,7 +210,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
   }
   if ( cluster_join_operation_allowed ) {
     cluster_ids[u] = rep;
-    _cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed);
+    weight::eval(_cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed));
     success = true;
   }
   return success;

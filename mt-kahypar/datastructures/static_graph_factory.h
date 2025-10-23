@@ -48,9 +48,10 @@ class StaticGraphFactory {
  public:
   static StaticGraph construct(const HypernodeID num_nodes,
                                const HyperedgeID num_edges,
+                               const Dimension dimension,
                                const HyperedgeVector& edge_vector,
                                const HyperedgeWeight* edge_weight = nullptr,
-                               const HypernodeWeight* node_weight = nullptr,
+                               HypernodeWeightArray* node_weight = nullptr,
                                const bool stable_construction_of_incident_edges = false);
 
   // ! Provides a more performant construction method by using continuous space for the edges
@@ -58,9 +59,10 @@ class StaticGraphFactory {
   // ! No backwards edges allowed, i.e. each edge is unique
   static StaticGraph construct_from_graph_edges(const HypernodeID num_nodes,
                                                 const HyperedgeID num_edges,
+                                                const Dimension dimension,
                                                 const EdgeVector& edge_vector,
                                                 const HyperedgeWeight* edge_weight = nullptr,
-                                                const HypernodeWeight* node_weight = nullptr,
+                                                HypernodeWeightArray* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
