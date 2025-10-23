@@ -309,10 +309,22 @@ namespace mt_kahypar {
     const Dimension dimension = total_hypergraph_weight.dimension();
 
     if (partition.use_individual_part_weights) {
+      bool success = true;
+      if (partition.max_part_weights.dimension() != dimension) {
+        success = partition.max_part_weights.changeDimension(dimension);
+      }
+      if (success) {
+        success = static_cast<size_t>(partition.k) == partition.max_part_weights.size();
+      }
+      if (!success) {
+        throw InvalidInputException(
+          "Number of individual part weights does not match the expected number. "
+          "Expected number was: " + std::to_string(dimension * partition.k));
+      }
+
       weight::AllocatedHNWeight max_part_weights_sum(dimension, 0);
       std::vector<double> weight_fraction(dimension, 0);
 
-      ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       for (const auto& part_weight: partition.max_part_weights) {
         max_part_weights_sum += part_weight;
       }
@@ -320,12 +332,12 @@ namespace mt_kahypar {
         weight_fraction[d] = total_hypergraph_weight.at(d) / static_cast<double>(max_part_weights_sum.at(d));
       }
       HNWeightScalar perfect_part_weights_sum = 0;
-      partition.perfect_balance_part_weights.resize(partition.k, dimension);
+      partition.perfect_balance_part_weights.replaceWith(partition.k, dimension, 0, false);
       for (PartitionID part = 0; part < partition.k; ++part) {
         const HNWeightConstRef max_weight = partition.max_part_weights[part];
         for (size_t d = 0; d < dimension; ++d) {
           HNWeightScalar perfect_weight = std::ceil(weight_fraction[d] * max_weight.at(d));
-          partition.max_part_weights[part].set(d, perfect_weight);
+          partition.perfect_balance_part_weights[part].set(d, perfect_weight);
           perfect_part_weights_sum += perfect_weight;
         }
       }
@@ -343,7 +355,7 @@ namespace mt_kahypar {
                             / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
       }
     } else {
-      partition.perfect_balance_part_weights.resize(partition.k, dimension);
+      partition.perfect_balance_part_weights.replaceWith(partition.k, dimension, 0, false);
       partition.perfect_balance_part_weights[0] = weight::map(total_hypergraph_weight, [=](HNWeightScalar val) {
         return std::ceil(val / static_cast<double>(partition.k));
       });
@@ -351,7 +363,7 @@ namespace mt_kahypar {
         partition.perfect_balance_part_weights[part] =
                 partition.perfect_balance_part_weights[0];
       }
-      partition.max_part_weights.resize(partition.k, dimension);
+      partition.max_part_weights.replaceWith(partition.k, dimension, 0, false);
       partition.max_part_weights[0] = (1 + partition.epsilon)
                                       * partition.perfect_balance_part_weights[0];
       for (PartitionID part = 1; part != partition.k; ++part) {

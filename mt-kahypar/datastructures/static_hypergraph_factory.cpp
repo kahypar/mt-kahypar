@@ -38,10 +38,10 @@ namespace mt_kahypar::ds {
   StaticHypergraph StaticHypergraphFactory::construct(
           const HypernodeID num_hypernodes,
           const HyperedgeID num_hyperedges,
+          const Dimension dimension,
           const HyperedgeVector& edge_vector,
           const HyperedgeWeight* hyperedge_weight,
-          const HNWeightScalar* hypernode_weight,
-          const Dimension dimension,
+          HypernodeWeightArray* hypernode_weight,
           const bool stable_construction_of_incident_edges) {
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
@@ -130,25 +130,29 @@ namespace mt_kahypar::ds {
     };
 
     auto setup_hypernodes = [&] {
-      hypergraph._hypernode_weights.resize(num_hypernodes, dimension, 1);
       tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         StaticHypergraph::Hypernode& hypernode = hypergraph._hypernodes[pos];
         hypernode.enable();
         hypernode.setFirstEntry(incident_net_prefix_sum[pos]);
         hypernode.setSize(incident_net_prefix_sum.value(pos));
-        if ( hypernode_weight ) {
-          for (Dimension d = 0; d < dimension; ++d) {
-            hypergraph._hypernode_weights[pos].set(d, hypernode_weight[dimension * pos + d]);
-          }
-        }
       });
+    };
+
+    auto setup_hypernode_weights = [&] {
+      if ( hypernode_weight ) {
+        ASSERT(hypernode_weight->dimension() > 0);
+        hypergraph._hypernode_weights = std::move(*hypernode_weight);
+      } else {
+        ASSERT(dimension == 1);
+        hypergraph._hypernode_weights.resize(num_hypernodes, dimension, 1);
+      }
     };
 
     auto init_communities = [&] {
       hypergraph._community_ids.resize(num_hypernodes, 0);
     };
 
-    tbb::parallel_invoke(setup_hyperedges, setup_hypernodes, init_communities);
+    tbb::parallel_invoke(setup_hyperedges, setup_hypernodes, setup_hypernode_weights, init_communities);
 
     if (stable_construction_of_incident_edges) {
       // sort incident hyperedges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)

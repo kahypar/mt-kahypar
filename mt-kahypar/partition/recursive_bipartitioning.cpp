@@ -147,8 +147,8 @@ namespace rb {
       }
 
       b_context.partition.epsilon = summed_epsilon;
-      b_context.partition.perfect_balance_part_weights.resize(2, dimension);
-      b_context.partition.max_part_weights.resize(2, dimension);
+      b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
+      b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
       b_context.partition.perfect_balance_part_weights[0] = perfect_weight_p0;
       b_context.partition.perfect_balance_part_weights[1] = perfect_weight_p1;
       for (size_t d = 0; d < dimension; ++d) {
@@ -160,8 +160,8 @@ namespace rb {
     } else {
       b_context.partition.epsilon = info.computeAdaptiveEpsilon(weight::sum(total_weight), k);
 
-      b_context.partition.perfect_balance_part_weights.resize(2, dimension);
-      b_context.partition.max_part_weights.resize(2, dimension);
+      b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
+      b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
       for (size_t d = 0; d < dimension; ++d) {
         b_context.partition.perfect_balance_part_weights[0].set(d,
                 std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight.at(d))));

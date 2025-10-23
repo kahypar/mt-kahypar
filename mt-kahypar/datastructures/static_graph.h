@@ -453,7 +453,7 @@ class StaticGraph {
     _num_nodes(0),
     _num_removed_nodes(0),
     _num_edges(0),
-    _total_weight(0),
+    _total_weight(),
     _nodes(),
     _node_weights(),
     _edges(),
