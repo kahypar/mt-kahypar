@@ -41,6 +41,7 @@ namespace io {
   void readHypergraphFile(const std::string& filename,
                           HyperedgeID& num_hyperedges,
                           HypernodeID& num_hypernodes,
+                          Dimension& dimension,
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
                           vec<HyperedgeWeight>& hyperedges_weight,
@@ -50,6 +51,7 @@ namespace io {
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
+                     Dimension& dimension,
                      HyperedgeVector& hyperedges,
                      vec<HyperedgeWeight>& hyperedges_weight,
                      ds::HypernodeWeightArray& hypernodes_weight);
