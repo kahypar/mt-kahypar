@@ -33,17 +33,6 @@
 
 namespace mt_kahypar {
 
-  std::ostream & operator<< (std::ostream& os, const Type& type) {
-    switch (type) {
-      case Type::Unweighted: return os << "unweighted";
-      case Type::EdgeWeights: return os << "edge_weights";
-      case Type::NodeWeights: return os << "node_weights";
-      case Type::EdgeAndNodeWeights: return os << "edge_and_node_weights";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(type);
-  }
-
   std::ostream & operator<< (std::ostream& os, const FileFormat& format) {
     switch (format) {
       case FileFormat::hMetis: return os << "hMetis";
