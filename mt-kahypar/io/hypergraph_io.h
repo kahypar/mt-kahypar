@@ -30,6 +30,7 @@
 #include <string>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -43,7 +44,7 @@ namespace io {
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
                           vec<HyperedgeWeight>& hyperedges_weight,
-                          vec<HypernodeWeight>& hypernodes_weight,
+                          ds::HypernodeWeightArray& hypernodes_weight,
                           const bool remove_single_pin_hes = true);
 
   void readGraphFile(const std::string& filename,
@@ -51,7 +52,7 @@ namespace io {
                      HypernodeID& num_hypernodes,
                      HyperedgeVector& hyperedges,
                      vec<HyperedgeWeight>& hyperedges_weight,
-                     vec<HypernodeWeight>& hypernodes_weight);
+                     ds::HypernodeWeightArray& hypernodes_weight);
 
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);

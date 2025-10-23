@@ -79,7 +79,7 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       return true;
     }
 
-    const auto max_allowed_fixed_vertex_block_weight = weight::applyMapping(
+    const auto max_allowed_fixed_vertex_block_weight = weight::map(
       fixed_vertices.totalFixedVertexWeight(),
       [&](HNWeightScalar total_fixed_vertex_weight) {
         return (1.0 + context.partition.epsilon) * std::ceil(
@@ -94,7 +94,7 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       ( block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u).load(std::memory_order_relaxed) : fixed_vertices.fixedVertexBlockWeight(fixed_block) ) +
       ( block_of_u == kInvalidPartition ? fixed_vertices.fixedVertexBlockWeight(fixed_block) : hypergraph.nodeWeight(v).load(std::memory_order_relaxed) );
     return fixed_vertex_block_weight_after <=
-      std::min(max_allowed_fixed_vertex_block_weight,
+      weight::min(max_allowed_fixed_vertex_block_weight,
         context.partition.max_part_weights[fixed_block]);
   }
 };

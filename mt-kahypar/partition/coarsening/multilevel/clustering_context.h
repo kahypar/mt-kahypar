@@ -30,6 +30,7 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
+#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
@@ -53,7 +54,7 @@ struct ClusteringContext {
                              MultilevelVertexPairRater& rater,
                              ConcurrentClusteringData& clustering_data):
     hierarchy_contraction_limit(hierarchy_contraction_limit),
-    max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
+    max_allowed_node_weight(context.coarsening.max_allowed_node_weight.copy()),
     original_num_threads(context.shared_memory.original_num_threads),
     num_hns_before_pass(0),
     previous_num_nodes(0),
@@ -74,7 +75,7 @@ struct ClusteringContext {
   }
 
   // returns the weight of the cluster of this node
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeWeight clusterWeight(HypernodeID hn) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightConstRef clusterWeight(HypernodeID hn) const {
     HypernodeID cluster_id = clusterID(hn);
     ASSERT(cluster_id < clustering_data.clusterWeight().size());
     return clustering_data.clusterWeight()[cluster_id];
@@ -148,7 +149,7 @@ struct ClusteringContext {
   }
 
   HypernodeID hierarchy_contraction_limit;
-  HypernodeWeight max_allowed_node_weight;
+  weight::AllocatedHNWeight max_allowed_node_weight;
   size_t original_num_threads;
   bool may_ignore_communities = false;
   bool contract_aggressively = false;
