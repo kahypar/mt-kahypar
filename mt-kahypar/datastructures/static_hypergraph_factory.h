@@ -49,7 +49,7 @@ class StaticHypergraphFactory {
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
                                     const HNWeightScalar* hypernode_weight = nullptr,
-                                    const weight::Dimension dimension = 1,
+                                    const Dimension dimension = 1,
                                     const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {

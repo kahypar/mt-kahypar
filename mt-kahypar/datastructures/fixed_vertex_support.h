@@ -64,7 +64,7 @@ class FixedVertexSupport {
     _fixed_vertex_data() { }
 
   FixedVertexSupport(const HypernodeID num_nodes,
-                     const weight::Dimension dimension,
+                     const Dimension dimension,
                      const PartitionID k) :
     _num_nodes(num_nodes),
     _k(k),
@@ -126,7 +126,7 @@ class FixedVertexSupport {
            &expected, desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
       const HNWeightConstRef weight_of_hn = _hg->nodeWeight(hn);
       _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
-      _fixed_vertex_data[hn].fixed_vertex_weight = weight_of_hn;
+      _fixed_vertex_hn_weights[hn] = weight_of_hn;
       _fixed_vertex_block_weights[block].fetch_add(
         weight_of_hn, std::memory_order_relaxed);
       _total_fixed_vertex_weight.get().fetch_add(
@@ -185,6 +185,10 @@ class FixedVertexSupport {
     return ( 2 * sizeof(HNWeightScalar) * dimension) * _k +
       (sizeof(FixedVertexData) + sizeof(HNWeightScalar) * dimension) * _num_nodes +
       sizeof(HNWeightScalar) * dimension;
+  }
+
+  Dimension dimension() const {
+    return _total_fixed_vertex_weight.dimension();
   }
 
  private:

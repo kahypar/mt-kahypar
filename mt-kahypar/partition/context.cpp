@@ -62,7 +62,7 @@ namespace mt_kahypar {
     str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
     if ( params.use_individual_part_weights ) {
       str << "  Individual Part Weights:            ";
-      for ( const HypernodeWeight& w : params.max_part_weights ) {
+      for ( const auto& w : params.max_part_weights ) {
         str << w << " ";
       }
       str << std::endl;
@@ -289,7 +289,7 @@ namespace mt_kahypar {
     return str;
   }
 
-  weight::Dimension Context::dimension() const {
+  Dimension Context::dimension() const {
     return partition.max_part_weights.dimension();
   }
 
@@ -305,44 +305,57 @@ namespace mt_kahypar {
   }
 
   void Context::setupPartWeights(HNWeightConstRef total_hypergraph_weight) {
+    ASSERT(partition.k > 1);
+    const Dimension dimension = total_hypergraph_weight.dimension();
+
     if (partition.use_individual_part_weights) {
+      weight::AllocatedHNWeight max_part_weights_sum(dimension, 0);
+      std::vector<double> weight_fraction(dimension, 0);
+
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
-      const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
-                                                                   partition.max_part_weights.cend(), 0);
-      double weight_fraction = total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
-      HypernodeWeight perfect_part_weights_sum = 0;
-      partition.perfect_balance_part_weights.clear();
-      for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
-        const HypernodeWeight perfect_weight = ceil(weight_fraction * part_weight);
-        partition.perfect_balance_part_weights.push_back(perfect_weight);
-        perfect_part_weights_sum += perfect_weight;
+      for (const auto& part_weight: partition.max_part_weights) {
+        max_part_weights_sum += part_weight;
+      }
+      for (size_t d = 0; d < dimension; ++d) {
+        weight_fraction[d] = total_hypergraph_weight.at(d) / static_cast<double>(max_part_weights_sum.at(d));
+      }
+      HNWeightScalar perfect_part_weights_sum = 0;
+      partition.perfect_balance_part_weights.resize(partition.k, dimension);
+      for (PartitionID part = 0; part < partition.k; ++part) {
+        const HNWeightConstRef max_weight = partition.max_part_weights[part];
+        for (size_t d = 0; d < dimension; ++d) {
+          HNWeightScalar perfect_weight = std::ceil(weight_fraction[d] * max_weight.at(d));
+          partition.max_part_weights[part].set(d, perfect_weight);
+          perfect_part_weights_sum += perfect_weight;
+        }
       }
 
       if (max_part_weights_sum < total_hypergraph_weight) {
         throw InvalidInputException(
           "Sum of individual part weights is less than the total hypergraph weight. "
           "Finding a valid partition is not possible.\n"
-          "Total hypergraph weight: " + std::to_string(total_hypergraph_weight) + "\n"
-          "Sum of part weights:     " + std::to_string(max_part_weights_sum));
+          "Total hypergraph weight: " + weight::toString(total_hypergraph_weight) + "\n"
+          "Sum of part weights:     " + weight::toString(max_part_weights_sum));
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
-        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
+        partition.epsilon = std::min(0.99, weight::sum(max_part_weights_sum)
+                            / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
       }
     } else {
-      partition.perfect_balance_part_weights.clear();
-      partition.perfect_balance_part_weights.push_back(ceil(
-              total_hypergraph_weight
-              / static_cast<double>(partition.k)));
+      partition.perfect_balance_part_weights.resize(partition.k, dimension);
+      partition.perfect_balance_part_weights[0] = weight::map(total_hypergraph_weight, [=](HNWeightScalar val) {
+        return std::ceil(val / static_cast<double>(partition.k));
+      });
       for (PartitionID part = 1; part != partition.k; ++part) {
-        partition.perfect_balance_part_weights.push_back(
-                partition.perfect_balance_part_weights[0]);
+        partition.perfect_balance_part_weights[part] =
+                partition.perfect_balance_part_weights[0];
       }
-      partition.max_part_weights.clear();
-      partition.max_part_weights.push_back((1 + partition.epsilon)
-                                          * partition.perfect_balance_part_weights[0]);
+      partition.max_part_weights.resize(partition.k, dimension);
+      partition.max_part_weights[0] = (1 + partition.epsilon)
+                                      * partition.perfect_balance_part_weights[0];
       for (PartitionID part = 1; part != partition.k; ++part) {
-        partition.max_part_weights.push_back(partition.max_part_weights[0]);
+        partition.max_part_weights[part] = partition.max_part_weights[0];
       }
     }
   }
@@ -363,18 +376,20 @@ namespace mt_kahypar {
   }
 
   void Context::setupMaximumAllowedNodeWeight(HNWeightConstRef total_hypergraph_weight) {
-    HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
+    HNWeightConstRef min_block_weight = weight::newInvalid();
     for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
-      min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
+      HNWeightConstRef max_weight = partition.max_part_weights[part_id];
+      min_block_weight = (weight::isInvalid(min_block_weight) || max_weight < min_block_weight) ? max_weight : min_block_weight;
     }
 
     double hypernode_weight_fraction =
             coarsening.max_allowed_weight_multiplier
             / coarsening.contraction_limit;
+    coarsening.max_allowed_node_weight = weight::map(total_hypergraph_weight, [=](HNWeightScalar val) {
+      return std::ceil(hypernode_weight_fraction * static_cast<double>(val));
+    });
     coarsening.max_allowed_node_weight =
-            std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
-    coarsening.max_allowed_node_weight =
-            std::min(coarsening.max_allowed_node_weight, min_block_weight);
+            weight::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
   void Context::sanityCheck(const TargetGraph* target_graph) {

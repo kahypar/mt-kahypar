@@ -148,10 +148,11 @@ template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
   size_t num_empty_parts = 0;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+    // note: negation necessary for correctness in multi-dimensional case
+    if ( !(phg.partWeight(i) <= context.partition.max_part_weights[i]) ) {
       return false;
     }
-    if (phg.partWeight(i) == 0) {
+    if (weight::isZero(phg.partWeight(i))) {
       num_empty_parts++;
     }
   }
@@ -161,16 +162,17 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
 
 template<typename PartitionedHypergraph>
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+  // TODO: imbalance could be multi-dimensional ??
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
-  double max_balance = (hypergraph.partWeight(0) /
-                        static_cast<double>(context.partition.perfect_balance_part_weights[0]));
-
-  for (PartitionID i = 1; i < context.partition.k; ++i) {
-    const double balance_i =
-            (hypergraph.partWeight(i) /
-              static_cast<double>(context.partition.perfect_balance_part_weights[i]));
-    max_balance = std::max(max_balance, balance_i);
+  double max_balance = 0;
+  for (PartitionID i = 0; i < context.partition.k; ++i) {
+    for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+      const double curr_balance =
+              (hypergraph.partWeight(i).at(d) /
+                static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d)));
+      max_balance = std::max(max_balance, curr_balance);
+    }
   }
 
   return max_balance - 1.0;

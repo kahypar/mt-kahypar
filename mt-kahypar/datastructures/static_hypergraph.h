@@ -37,7 +37,6 @@
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/hypernode_weight_array.h"
-#include "mt-kahypar/datastructures/hypernode_weight_buffer.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -340,11 +339,14 @@ class StaticHypergraph {
     explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
                                   const HyperedgeID num_pins,
-                                  const weight::Dimension dimension) {
+                                  const Dimension dimension) {
       tbb::parallel_invoke([&] {
         mapping.resize("Coarsening", "mapping", num_hypernodes);
       }, [&] {
         tmp_hypernodes.resize("Coarsening", "tmp_hypernodes", num_hypernodes);
+      }, [&] {
+        // TODO: memory pool?!
+        tmp_hn_weights.resize(num_hypernodes, dimension);
       }, [&] {
         tmp_incident_nets.resize("Coarsening", "tmp_incident_nets", num_pins);
       }, [&] {
@@ -366,6 +368,7 @@ class StaticHypergraph {
 
     Array<size_t> mapping;
     Array<Hypernode> tmp_hypernodes;
+    HypernodeWeightArray tmp_hn_weights;
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
 
@@ -417,7 +420,6 @@ class StaticHypergraph {
     _incidence_array(),
     _community_ids(0),
     _fixed_vertices(),
-    _weight_buffer(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -440,7 +442,6 @@ class StaticHypergraph {
     _incidence_array(std::move(other._incidence_array)),
     _community_ids(std::move(other._community_ids)),
     _fixed_vertices(std::move(other._fixed_vertices)),
-    _weight_buffer(std::move(other._weight_buffer)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
@@ -464,7 +465,6 @@ class StaticHypergraph {
     _community_ids = std::move(other._community_ids);
     _fixed_vertices = std::move(other._fixed_vertices);
     _fixed_vertices.setHypergraph(this);
-    _weight_buffer = std::move(other._weight_buffer);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -634,7 +634,7 @@ class StaticHypergraph {
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
-    _removed_degree_zero_hn_weight.get() += nodeWeight(u);
+    _removed_degree_zero_hn_weight += nodeWeight(u);
     removeHypernode(u);
   }
 
@@ -642,7 +642,7 @@ class StaticHypergraph {
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    _removed_degree_zero_hn_weight.get() -= nodeWeight(u);
+    _removed_degree_zero_hn_weight -= nodeWeight(u);
   }
 
   // ####################### Hyperedge Information #######################
@@ -734,10 +734,6 @@ class StaticHypergraph {
     return _fixed_vertices.copy();
   }
 
-  HypernodeWeightBuffer& getHypernodeWeightBuffer() {
-    return _weight_buffer;
-  }
-
   // ####################### Hypernode Weight Buffer #######################
 
   // ####################### Contract / Uncontract #######################
@@ -760,8 +756,7 @@ class StaticHypergraph {
   }
 
   size_t contract(const HypernodeID,
-                  // TODO: needs other type
-                  const HNWeightScalar max_node_weight = std::numeric_limits<HNWeightScalar>::max()) {
+                  const HNWeightConstRef max_node_weight = weight::newInvalid()) {
     unused(max_node_weight);
     throw UnsupportedOperationException(
       "contract(v, max_node_weight) is not supported in static hypergraph");
@@ -984,7 +979,7 @@ class StaticHypergraph {
   void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
       _tmp_contraction_buffer = new TmpContractionBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins, _hypernode_weights.dimension());
+        _num_hypernodes, _num_hyperedges, _num_pins, dimension());
     }
   }
 
@@ -1023,9 +1018,6 @@ class StaticHypergraph {
 
   // ! Fixed Vertex Support
   FixedVertexSupport<StaticHypergraph> _fixed_vertices;
-
-  // ! Buffer for hypernode weight calculations
-  HypernodeWeightBuffer _weight_buffer;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

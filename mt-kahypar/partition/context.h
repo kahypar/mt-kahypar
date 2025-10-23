@@ -46,6 +46,7 @@ struct PartitioningParameters {
   InstanceType instance_type = InstanceType::UNDEFINED;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
+  // TODO: epsilon could be multi-dimensional ??
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -54,8 +55,8 @@ struct PartitioningParameters {
 
   int time_limit = 0;
   bool use_individual_part_weights = false;
-  ds::HypernodeWeightArray perfect_balance_part_weights;
-  ds::HypernodeWeightArray max_part_weights;
+  ds::CopyableHypernodeWeightArray perfect_balance_part_weights;
+  ds::CopyableHypernodeWeightArray max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();
@@ -134,7 +135,7 @@ struct CoarseningParameters {
   size_t two_hop_degree_threshold = 100;
 
   // Those will be determined dynamically
-  weight::AllocatedHNWeight max_allowed_node_weight = {};
+  weight::CopyableAllocatedHNWeight max_allowed_node_weight = {};
   HypernodeID contraction_limit = 0;
 };
 
@@ -325,7 +326,7 @@ class Context {
     }
   }
 
-  weight::Dimension dimension() const;
+  Dimension dimension() const;
 
   bool isNLevelPartitioning() const;
 
