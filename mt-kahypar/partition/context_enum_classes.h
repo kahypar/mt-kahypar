@@ -36,13 +36,6 @@
 
 namespace mt_kahypar {
 
-enum class Type : int8_t {
-  Unweighted = 0,
-  EdgeWeights = 1,
-  NodeWeights = 10,
-  EdgeAndNodeWeights = 11,
-};
-
 enum class FileFormat : int8_t {
   hMetis = 0,
   Metis = 1,
@@ -190,8 +183,6 @@ enum class SteinerTreeFlowValuePolicy : uint8_t {
   upper_bound,
   UNDEFINED
 };
-
-std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
