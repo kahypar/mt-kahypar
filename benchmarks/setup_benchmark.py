@@ -173,7 +173,7 @@ if __name__ == "__main__":
                             if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
                                 continue
                             for r in range(repetitions):
-                                call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag)
+                                call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed + r, objective, timelimit, config_file, algorithm_name, args, header, tag)
                                 header = None
                                 if write_partition_file:
                                     call += " --partition_folder=" + os.path.abspath(result_dir)
