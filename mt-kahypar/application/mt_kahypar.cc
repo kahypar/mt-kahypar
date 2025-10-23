@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<TargetGraph> target_graph;
   if ( context.partition.objective == Objective::steiner_tree ) {
     if ( context.mapping.target_graph_file != "" ) {
+      // TODO: proper error if graphs are not enabled
       target_graph = std::make_unique<TargetGraph>(
         io::readInputFile<ds::StaticGraph>(
           context.mapping.target_graph_file, FileFormat::Metis, true));
