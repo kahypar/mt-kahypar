@@ -39,17 +39,15 @@
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #endif
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
-#endif
 
 namespace mt_kahypar {
 
