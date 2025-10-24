@@ -1129,9 +1129,9 @@ class PartitionedHypergraph {
     tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
       const HypernodeID num_nodes = nodes_cnt[p];
       const HyperedgeID num_hyperedges = hes2block[p].size();
-      extracted_blocks[p].hg = HypergraphFactory::construct(num_nodes, num_hyperedges,
-        edge_vector[p], he_weight[p].data(), hn_weight[p].data(),
-        stable_construction_of_incident_edges);
+      extracted_blocks[p].hg = HypergraphFactory::construct(
+        num_nodes, num_hyperedges, dimension(), edge_vector[p], he_weight[p].data(),
+        &hn_weight[p], stable_construction_of_incident_edges);
     });
 
     // Set community ids
