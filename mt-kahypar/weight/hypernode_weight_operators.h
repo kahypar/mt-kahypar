@@ -239,7 +239,6 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator<=(const L& left, const R& right
   return is_le;
 }
 
-// TODO: check for bugs related to this
 template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator<(const L& left, const R& right) {
   ASSERT(left.dimension() == right.dimension());
