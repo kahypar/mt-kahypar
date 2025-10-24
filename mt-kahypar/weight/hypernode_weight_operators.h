@@ -186,7 +186,7 @@ MT_KAHYPAR_DEFINE_VALID_EXPRESSION_UNARY(DivExpr);
 
 template <typename L, REQUIRE_VALID_WEIGHT(L)>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto operator/(const L& left, HNWeightScalar divisor) {
-  return DivExpr<DEDUCE_TYPE(left.get())>{left, divisor};
+  return DivExpr<DEDUCE_TYPE(left.get())>{left.get(), divisor};
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator*=(HNWeightRef& weight, HNWeightScalar factor) {
