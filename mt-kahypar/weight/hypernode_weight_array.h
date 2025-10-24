@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/weight/hypernode_weight_base.h"
@@ -35,22 +37,30 @@ namespace weight {
 
 class HypernodeWeightArray {
 
+  template<bool is_const>
   class WeightArrayIterator {
    public:
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = HNWeightConstRef;
-    using reference = HNWeightConstRef;
-    using pointer = const HNWeightConstRef*;
+    using value_type = std::conditional_t<is_const, HNWeightConstRef, HNWeightRef>;
+    using reference = value_type;
+    using pointer = const value_type*;
     using difference_type = std::ptrdiff_t;
-
-    WeightArrayIterator() : _ptr(nullptr), _buffer() { }
 
     explicit WeightArrayIterator(HNWeightScalar* ptr, Dimension dimension) :
       _ptr(ptr), _buffer(ptr, dimension) { }
 
+    WeightArrayIterator(const WeightArrayIterator& other) :
+      _ptr(other._ptr), _buffer(weight::copy(other._buffer)) { }
+
+    WeightArrayIterator& operator=(const WeightArrayIterator& other) {
+        _ptr = other._ptr;
+        weight::replace(_buffer, weight::copy(other._buffer));
+        return *this;
+      }
+
     reference operator*() const {
       ASSERT(_ptr == _buffer.get_raw_data());
-      return _buffer;
+      return weight::copy(_buffer);
     }
 
     pointer operator->() const {
@@ -67,44 +77,44 @@ class HypernodeWeightArray {
     }
 
     WeightArrayIterator operator++(int) {
-      WeightArrayIterator tmp_it(_ptr, _buffer.dimension());
+      WeightArrayIterator tmp_it(*this);
       *this += 1;
       return tmp_it;
     }
 
     WeightArrayIterator operator--(int) {
-      WeightArrayIterator tmp_it(_ptr, _buffer.dimension());
+      WeightArrayIterator tmp_it(*this);
       *this -= 1;
       return tmp_it;
     }
 
     WeightArrayIterator operator+(const difference_type& n) const {
-      WeightArrayIterator tmp_it(_ptr, _buffer.dimension());
+      WeightArrayIterator tmp_it(*this);
       tmp_it += n;
       return tmp_it;
     }
 
     WeightArrayIterator& operator+=(const difference_type& n) {
       _ptr += n * _buffer.dimension();
-      _buffer = HNWeightConstRef(_ptr, _buffer.dimension());
+      _buffer.set_raw_data(_ptr, _buffer.dimension());
       return *this;
     }
 
     WeightArrayIterator operator-(const difference_type& n) const {
-      WeightArrayIterator tmp_it(_ptr, _buffer.dimension());
+      WeightArrayIterator tmp_it(*this);
       tmp_it -= n;
       return tmp_it;
     }
 
     WeightArrayIterator& operator-=(const difference_type& n) {
       _ptr -= n * _buffer.dimension();
-      _buffer = HNWeightConstRef(_ptr, _buffer.dimension());
+      _buffer.set_raw_data(_ptr, _buffer.dimension());
       return *this;
     }
 
     reference operator[](const difference_type& n) const {
       ASSERT(_ptr == _buffer.get_raw_data());
-      return HNWeightConstRef(_ptr + n * _buffer.dimension(), _buffer.dimension());
+      return reference(_ptr + n * _buffer.dimension(), _buffer.dimension());
     }
 
     bool operator==(const WeightArrayIterator& other) const {
@@ -141,7 +151,7 @@ class HypernodeWeightArray {
 
    private:
     HNWeightScalar* _ptr;
-    HNWeightConstRef _buffer;
+    reference _buffer;
   };
 
  public:
@@ -150,8 +160,8 @@ class HypernodeWeightArray {
   using size_type       = size_t;
   using reference       = HNWeightRef;
   using const_reference = HNWeightConstRef;
-  using iterator        = WeightArrayIterator;
-  using const_iterator  = const WeightArrayIterator;
+  using iterator        = WeightArrayIterator<false>;
+  using const_iterator  = WeightArrayIterator<true>;
 
   HypernodeWeightArray() :
     _data(),
@@ -160,9 +170,12 @@ class HypernodeWeightArray {
   // note: uses parallel assignment
   HypernodeWeightArray(const size_type size,
                        const Dimension dimension,
-                       const weight::HNWeightScalar init_value = 0) :
-    _data(size * dimension, init_value),
-    _dimension(dimension) { }
+                       const weight::HNWeightScalar init_value,
+                       bool parallel = true) :
+    _data(),
+    _dimension(0) {
+      resize(size, dimension, init_value, parallel);
+    }
 
   HypernodeWeightArray(const HypernodeWeightArray&) = delete;
   HypernodeWeightArray & operator= (const HypernodeWeightArray&) = delete;

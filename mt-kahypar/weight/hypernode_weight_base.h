@@ -160,6 +160,12 @@ class HNWeightRefBase {
     return _data;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void set_raw_data(HNWeightScalar* data, Dimension dimension) {
+    ENABLE_IF_DEBUG_WEIGHTS(decreaseRefCount(););
+    _data = data;
+    _dimension = dimension;
+  }
+
  protected:
   template<typename Other>
   friend class HNWeightRefBase;

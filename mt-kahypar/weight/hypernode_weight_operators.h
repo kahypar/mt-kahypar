@@ -342,6 +342,41 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto ternary(bool condition, const L& left, c
   return TernaryExpr<DEDUCE_TYPE(left.get()), DEDUCE_TYPE(right.get())>{condition, left.get(), right.get()};
 }
 
+template <typename Func>
+class [[nodiscard]] LazyExpr {
+  static_assert(std::is_trivially_copyable_v<Func>);
+
+ public:
+  explicit LazyExpr(Func&& func, Dimension dimension):
+    _func(std::forward<Func>(func)), _dimension(dimension) { }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightScalar at(Dimension i) const {
+    return _func().at(i);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Dimension dimension() const {
+    return _dimension;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE LazyExpr<Func> get() const {
+    return *this;
+  }
+
+ private:
+  Func _func;
+  Dimension _dimension;
+};
+
+template<typename Func>
+struct IsHypernodeweightExpression<LazyExpr<Func>> {
+  static constexpr bool value = true;
+};
+
+template <typename Func>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE LazyExpr<Func> lazy(Func&& func, Dimension dimension) {
+  return LazyExpr<Func>{std::forward<Func>(func), dimension};
+}
+
 
 // ##################  UNARY EXPRESSIONS  ##################
 
@@ -413,6 +448,16 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isInvalid(const Expr& expr) {
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightConstRef toNonAtomic(const HNWeightAtomicCRef& value) {
   return HNWeightConstRef(value.get_raw_data(), value.dimension());
+}
+
+template <typename Expr, REQUIRE_VALID_WEIGHT(Expr)>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Expr copy(const Expr& value) {
+  return Expr(value.get_raw_data(), value.dimension());
+}
+
+template <typename Other>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void replace(HNWeightRefBase<Other>& lhs, const HNWeightRefBase<Other>& value) {
+  lhs.set_raw_data(value.get_raw_data(), value.dimension());
 }
 
 
