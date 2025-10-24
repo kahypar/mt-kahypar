@@ -462,7 +462,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHyper
                                                                 const PartitionID from,
                                                                 const PartitionID to,
                                                                 const F& objective_delta) {
-    constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
+    const auto inf_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
     bool success;
     if (_gain_cache.isInitialized()) {
         success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
