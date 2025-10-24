@@ -33,14 +33,14 @@
 
 namespace mt_kahypar {
 
-using Dimension = mt_kahypar::weight::Dimension;
+using mt_kahypar::weight::Dimension;
 
-using HNWeightScalar = mt_kahypar::weight::HNWeightScalar;
-using HNWeightRef = mt_kahypar::weight::HNWeightRef;
-using HNWeightConstRef = mt_kahypar::weight::HNWeightConstRef;
-using HNWeightAtomicCRef = mt_kahypar::weight::HNWeightAtomicCRef;
-using AllocatedHNWeight = mt_kahypar::weight::AllocatedHNWeight;
+using mt_kahypar::weight::HNWeightScalar;
+using mt_kahypar::weight::HNWeightRef;
+using mt_kahypar::weight::HNWeightConstRef;
+using mt_kahypar::weight::HNWeightAtomicCRef;
+using mt_kahypar::weight::AllocatedHNWeight;
 
-using HypernodeWeightArray = mt_kahypar::weight::HypernodeWeightArray;
+using mt_kahypar::weight::HypernodeWeightArray;
 
 }  // namespace mt_kahypar

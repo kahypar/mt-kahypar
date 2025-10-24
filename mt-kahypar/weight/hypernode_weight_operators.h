@@ -307,6 +307,42 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto mapWithIndex(const L& left, Func&& func)
 }
 
 
+// ###################  TERNARY OPERATOR  ###################
+
+template <typename L, typename R>
+class [[nodiscard]] TernaryExpr {
+ public:
+  static_assert(is_hypernodeweight_expression<L> && is_hypernodeweight_expression<R>);
+
+  explicit TernaryExpr(bool condition, L&& left, R&& right): _condition(condition), _left(std::move(left)), _right(std::move(right)) {
+    ASSERT(left.dimension() == right.dimension());
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightScalar at(Dimension i) const {
+    return _condition ? _left.at(i) : _right.at(i);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Dimension dimension() const {
+    return _left.dimension();
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE TernaryExpr<L, R> get() const {
+    return *this;
+  }
+
+ private:
+  bool _condition;
+  L _left;
+  R _right;
+};
+MT_KAHYPAR_DEFINE_VALID_EXPRESSION_BINARY(TernaryExpr);
+
+template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto ternary(bool condition, const L& left, const R& right) {
+  return TernaryExpr<DEDUCE_TYPE(left.get()), DEDUCE_TYPE(right.get())>{condition, left.get(), right.get()};
+}
+
+
 // ##################  UNARY EXPRESSIONS  ##################
 
 template <typename Expr, REQUIRE_VALID_WEIGHT(Expr)>
