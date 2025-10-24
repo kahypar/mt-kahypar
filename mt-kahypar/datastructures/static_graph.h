@@ -404,7 +404,7 @@ class StaticGraph {
       }, [&] {
         // TODO: memory pool?!
         // node_weights.resize("Coarsening", "node_weights", num_nodes);
-        node_weights.resize(num_nodes, dimension);
+        node_weights.resize(num_nodes, dimension, 0, true);
       }, [&] {
         tmp_edges.resize("Coarsening", "tmp_edges", num_edges);
       }, [&] {
@@ -449,7 +449,7 @@ class StaticGraph {
   explicit StaticGraph() :
     _num_nodes(0),
     _num_removed_nodes(0),
-    _max_removed_degree_zero_hn_weight(0),
+    _max_removed_degree_zero_hn_weight(),
     _num_edges(0),
     _total_weight(),
     _max_weight(),
@@ -467,7 +467,7 @@ class StaticGraph {
   StaticGraph(StaticGraph&& other) :
     _num_nodes(other._num_nodes),
     _num_removed_nodes(other._num_removed_nodes),
-    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
+    _max_removed_degree_zero_hn_weight(std::move(other._max_removed_degree_zero_hn_weight)),
     _num_edges(other._num_edges),
     _total_weight(std::move(other._total_weight)),
     _max_weight(std::move(other._max_weight)),
@@ -485,7 +485,7 @@ class StaticGraph {
   StaticGraph & operator= (StaticGraph&& other) {
     _num_nodes = other._num_nodes;
     _num_removed_nodes = other._num_removed_nodes;
-    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
+    _max_removed_degree_zero_hn_weight = std::move(other._max_removed_degree_zero_hn_weight);
     _num_edges = other._num_edges;
     _total_weight = std::move(other._total_weight);
     _max_weight = std::move(other._max_weight);
@@ -522,7 +522,7 @@ class StaticGraph {
   }
 
   // ! Max weight of removed degree zero vertex
-  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+  HNWeightConstRef maxWeightOfRemovedDegreeZeroNode() const {
     return _max_removed_degree_zero_hn_weight;
   }
 
@@ -649,15 +649,18 @@ class StaticGraph {
     ASSERT(nodeDegree(u) == 0);
     node(u).disable();
     ++_num_removed_nodes;
-    _max_removed_degree_zero_hn_weight =
-      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    if (weight::isInvalid(_max_removed_degree_zero_hn_weight)) {
+      _max_removed_degree_zero_hn_weight = nodeWeight(u);
+    } else {
+      _max_removed_degree_zero_hn_weight = weight::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    }
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     node(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    _max_removed_degree_zero_hn_weight = 0;
+    _max_removed_degree_zero_hn_weight = weight::broadcast(0, dimension());
   }
 
   // ####################### Hyperedge Information #######################
@@ -964,7 +967,7 @@ class StaticGraph {
   // ! Number of removed nodes
   HypernodeID _num_removed_nodes;
   // ! Maximum weight of all removed degree zero nodes
-  HypernodeWeight _max_removed_degree_zero_hn_weight;
+  AllocatedHNWeight _max_removed_degree_zero_hn_weight;
   // ! Number of edges (note that each hyperedge is respresented as two graph edges)
   HyperedgeID _num_edges;
   // ! Total weight of the graph
