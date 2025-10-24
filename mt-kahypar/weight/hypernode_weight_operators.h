@@ -346,6 +346,11 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto ternary(bool condition, const L& left, c
 // ##################  UNARY EXPRESSIONS  ##################
 
 template <typename Expr, REQUIRE_VALID_WEIGHT(Expr)>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE auto operator-(const Expr& expr) {
+  return map(expr, [](HNWeightScalar val) { return -val; });
+}
+
+template <typename Expr, REQUIRE_VALID_WEIGHT(Expr)>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void eval(Expr&& expr) {
   for (Dimension i = 0; i < expr.dimension(); i++) {
     expr.at(i);
