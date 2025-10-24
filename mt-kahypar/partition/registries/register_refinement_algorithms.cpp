@@ -222,8 +222,8 @@ using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 kahypar::meta::PolicyBase& getGraphAndGainTypesPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
   switch ( partition_type ) {
     case MULTILEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(StaticHypergraphTypeTraits, gain_policy);
-    #ifndef KAHYPAR_MINIMAL_COMPILATION
     case MULTILEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(StaticGraphTypeTraits, gain_policy);
+    #ifndef KAHYPAR_MINIMAL_COMPILATION
     case N_LEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(DynamicHypergraphTypeTraits, gain_policy);
     case N_LEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(DynamicGraphTypeTraits, gain_policy);
     #endif
