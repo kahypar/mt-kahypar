@@ -324,7 +324,7 @@ class PartitionedHypergraph {
 
   // ! Weight of a vertex
   HNWeightConstRef nodeWeight(const HypernodeID u) const {
-    return _hg->nodeWeight(u);
+    return weight::toNonAtomic(_hg->nodeWeight(u));
   }
 
   // ! Sets the weight of a vertex

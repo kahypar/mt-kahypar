@@ -65,8 +65,7 @@ namespace mt_kahypar::ds {
     Array<HyperedgeID>& node_sizes = _tmp_contraction_buffer->node_sizes;
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>>& tmp_num_incident_edges =
             _tmp_contraction_buffer->tmp_num_incident_edges;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& node_weights =
-            _tmp_contraction_buffer->node_weights;
+    HypernodeWeightArray& node_weights = _tmp_contraction_buffer->node_weights;
     Array<TmpEdgeInformation>& tmp_edges = _tmp_contraction_buffer->tmp_edges;
     Array<HyperedgeID>& edge_id_mapping = _tmp_contraction_buffer->edge_id_mapping;
 
@@ -103,7 +102,7 @@ namespace mt_kahypar::ds {
 
       // Reset tmp contraction buffer
       if ( node < coarsened_num_nodes ) {
-        node_weights[node] = 0;
+        node_weights[node] = weight::broadcast(0, dimension());
         tmp_nodes[node] = Node(true);
         node_sizes[node] = 0;
         tmp_num_incident_edges[node] = 0;
@@ -121,10 +120,9 @@ namespace mt_kahypar::ds {
     doParallelForAllNodes([&](const HypernodeID& node) {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
       ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
-      // Weight vector is atomic => thread-safe
-      node_weights[coarse_node] += nodeWeight(node);
+      weight::eval(node_weights[coarse_node].fetch_add(nodeWeight(node), std::memory_order_relaxed));
       // Aggregate upper bound for number of incident nets of the contracted vertex
-      tmp_num_incident_edges[coarse_node] += nodeDegree(node);
+      tmp_num_incident_edges[coarse_node].fetch_add(nodeDegree(node), std::memory_order_relaxed);
     });
 
     // #################### STAGE 2 ####################
@@ -190,7 +188,6 @@ namespace mt_kahypar::ds {
         std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
         high_degree_vertices.push_back(coarse_node);
       }
-      tmp_nodes[coarse_node].setWeight(node_weights[coarse_node]);
       tmp_nodes[coarse_node].setFirstEntry(incident_edges_start);
     });
 
@@ -330,9 +327,13 @@ namespace mt_kahypar::ds {
         Node& node = hypergraph.node(coarse_node);
         node.enable();
         node.setFirstEntry(degree_mapping[coarse_node]);
-        node.setWeight(tmp_nodes[coarse_node].weight());
       });
       hypergraph._nodes.back() = Node(static_cast<size_t>(coarsened_num_edges));
+    }, [&] {
+      hypergraph._node_weights.resize(coarsened_num_nodes, dimension(), 0, true);
+      tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
+        hypergraph._node_weights[coarse_node] = node_weights[coarse_node];
+      });
     }, [&] {
       hypergraph._community_ids.resize(coarsened_num_nodes);
       doParallelForAllNodes([&](HypernodeID fine_node) {
@@ -354,7 +355,7 @@ namespace mt_kahypar::ds {
     if ( hasFixedVertices() ) {
       // Map fixed vertices to coarse graph
       FixedVertexSupport coarse_fixed_vertices(
-        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+        hypergraph.initialNumNodes(), dimension(), _fixed_vertices.numBlocks());
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
           coarse_fixed_vertices.fixToBlock(hypergraph, communities[hn], fixedVertexBlock(hn));
@@ -463,6 +464,8 @@ namespace mt_kahypar::ds {
       memcpy(hypergraph._nodes.data(), _nodes.data(),
              sizeof(Node) * _nodes.size());
     }, [&] {
+      hypergraph._node_weights = _node_weights.copy();
+    }, [&] {
       hypergraph._edges.resize(_edges.size());
       memcpy(hypergraph._edges.data(), _edges.data(),
              sizeof(Edge) * _edges.size());
@@ -492,6 +495,8 @@ namespace mt_kahypar::ds {
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
            sizeof(Node) * _nodes.size());
+
+    hypergraph._node_weights = _node_weights.copy();
 
     hypergraph._edges.resize(_edges.size());
     memcpy(hypergraph._edges.data(), _edges.data(),
