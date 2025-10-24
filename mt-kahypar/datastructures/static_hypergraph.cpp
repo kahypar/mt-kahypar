@@ -69,7 +69,6 @@ namespace mt_kahypar::ds {
     // Auxiliary buffers - reused during multilevel hierarchy to prevent expensive allocations
     Array<size_t>& mapping = _tmp_contraction_buffer->mapping;
     Array<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
-    HypernodeWeightArray& tmp_hn_weights = _tmp_contraction_buffer->tmp_hn_weights;
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
             _tmp_contraction_buffer->tmp_num_incident_nets;
@@ -130,10 +129,9 @@ namespace mt_kahypar::ds {
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
       ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
-      // Weight vector is atomic => thread-safe
-      hn_weights[coarse_hn] += nodeWeight(hn);
+      weight::eval(hn_weights[coarse_hn].fetch_add(nodeWeight(hn), std::memory_order_relaxed));
       // Aggregate upper bound for number of incident nets of the contracted vertex
-      tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
+      tmp_num_incident_nets[coarse_hn].fetch_add(nodeDegree(hn), std::memory_order_relaxed);
     });
 
     // #################### STAGE 2 ####################
@@ -246,7 +244,6 @@ namespace mt_kahypar::ds {
           std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
           high_degree_vertices.push_back(coarse_hn);
         }
-        tmp_hn_weights[coarse_hn] = hn_weights[coarse_hn];
         tmp_hypernodes[coarse_hn].setFirstEntry(incident_nets_start);
       });
 
@@ -481,7 +478,7 @@ namespace mt_kahypar::ds {
     auto setup_hypernode_weights = [&] {
       hypergraph._hypernode_weights.resize(num_hypernodes, dimension());
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
-        hypergraph._hypernode_weights[id] = tmp_hn_weights[id];
+        hypergraph._hypernode_weights[id] = hn_weights[id];
       });
     };
 

@@ -344,9 +344,6 @@ class StaticHypergraph {
       }, [&] {
         tmp_hypernodes.resize("Coarsening", "tmp_hypernodes", num_hypernodes);
       }, [&] {
-        // TODO: memory pool?!
-        tmp_hn_weights.resize(num_hypernodes, dimension);
-      }, [&] {
         tmp_incident_nets.resize("Coarsening", "tmp_incident_nets", num_pins);
       }, [&] {
         tmp_num_incident_nets.resize("Coarsening", "tmp_num_incident_nets", num_hypernodes);
@@ -367,7 +364,6 @@ class StaticHypergraph {
 
     Array<size_t> mapping;
     Array<Hypernode> tmp_hypernodes;
-    HypernodeWeightArray tmp_hn_weights;
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
 
