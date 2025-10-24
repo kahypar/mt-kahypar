@@ -82,7 +82,7 @@ namespace internal {
     #ifndef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     if ( type == N_LEVEL_HYPERGRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
       throw InvalidParameterException(
-        "Quality preset features are deactivated. Add -KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=ON "
+        "Quality preset features are deactivated. Add -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=ON "
         "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
