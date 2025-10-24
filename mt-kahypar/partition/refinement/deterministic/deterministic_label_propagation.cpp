@@ -179,7 +179,7 @@ namespace mt_kahypar {
   HypernodeWeightArray aggregatePartWeightDeltas(PartitionedHypergraph& phg, PartitionID current_k, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<HypernodeWeightArray>
-    ets_part_weight_diffs(current_k, 0);
+    ets_part_weight_diffs(current_k, phg.dimension(), 0, false);
     auto accum = [&](const tbb::blocked_range<size_t>& r) {
       auto& part_weights = ets_part_weight_diffs.local();
       for (size_t i = r.begin(); i < r.end(); ++i) {
@@ -188,7 +188,7 @@ namespace mt_kahypar {
       }
     };
     tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
-    HypernodeWeightArray res(current_k, 0);
+    HypernodeWeightArray res(current_k, phg.dimension(), 0);
     auto combine = [&](const HypernodeWeightArray& a) {
       for (size_t i = 0; i < res.size(); ++i) {
         res[i] += a[i];
@@ -210,10 +210,10 @@ namespace mt_kahypar {
     HypernodeWeightArray part_weights = aggregatePartWeightDeltas(phg, current_k, moves.getData(), num_moves);
     for (PartitionID i = 0; i < current_k; ++i) {
       part_weights[i] += phg.partWeight(i);
-      if (part_weights[i] > max_part_weights[i]) {
+      if (!(part_weights[i] <= max_part_weights[i])) {
         num_overloaded_blocks++;
       }
-      if (phg.partWeight(i) > max_part_weights[i]) {
+      if (!(phg.partWeight(i) <= max_part_weights[i])) {
         num_overloaded_before_round++;
       }
     }
@@ -234,7 +234,7 @@ namespace mt_kahypar {
 
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
-      if (part_weights[m.to] > max_part_weights[m.to]
+      if (!(part_weights[m.to] <= max_part_weights[m.to])
           && part_weights[m.from] + phg.nodeWeight(m.node) <= max_part_weights[m.from]) {
         revert_move(m);
       }
@@ -255,8 +255,8 @@ namespace mt_kahypar {
           num_extra_rounds++;
         }
         Move& m = moves[j - 1];
-        if (m.isValid() && part_weights[m.to] > max_part_weights[m.to]) {
-          if (part_weights[m.from] + phg.nodeWeight(m.node) > max_part_weights[m.from]
+        if (m.isValid() && !(part_weights[m.to] <= max_part_weights[m.to])) {
+          if (!(part_weights[m.from] + phg.nodeWeight(m.node) <= max_part_weights[m.from])
               && part_weights[m.from] <= max_part_weights[m.from]) {
             num_overloaded_blocks++;
           }
@@ -418,9 +418,13 @@ namespace mt_kahypar {
       ASSERT(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
       ASSERT(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
       ASSERT(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
-      const auto zero = weight::broadcast(0, cumulative_node_weights.dimension());
-      const auto a = weight::ternary(p1_ind == p1_invalid, zero, cumulative_node_weights[p1_ind]);
-      const auto b = weight::ternary(p2_ind == p2_invalid, zero, cumulative_node_weights[p2_ind]);
+      const Dimension dimension = cumulative_node_weights.dimension();
+      const auto a = weight::ternary(p1_ind == p1_invalid,
+        weight::broadcast(0, dimension),
+        weight::lazy([&]{ return cumulative_node_weights[p1_ind]; }, dimension));
+      const auto b = weight::ternary(p2_ind == p2_invalid,
+        weight::broadcast(0, dimension),
+        weight::lazy([&]{ return cumulative_node_weights[p2_ind]; }, dimension));
       return a - b;
     };
 
@@ -488,9 +492,19 @@ namespace mt_kahypar {
           HNWeightConstRef lb_p1, HNWeightConstRef ub_p2)
   {
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
-      const auto zero = weight::broadcast(0, cumulative_node_weights.dimension());
-      const auto a = weight::ternary(p1_ind == p1_inv, zero, cumulative_node_weights[p1_ind]);
-      const auto b = weight::ternary(p2_ind == p2_inv, zero, cumulative_node_weights[p2_ind]);
+      ASSERT(p1_ind == p1_inv || p1_ind < p1_end);
+      ASSERT(p1_ind >= p1_inv || p1_inv == (size_t(0) - 1));
+      ASSERT(p2_ind == p2_inv || p2_ind < p2_end);
+      ASSERT(p2_ind >= p2_inv || p2_inv == (size_t(0) - 1));
+      ASSERT(p1_ind == p1_inv || p1_ind < cumulative_node_weights.size());
+      ASSERT(p2_ind == p2_inv || p2_ind < cumulative_node_weights.size());
+      const Dimension dimension = cumulative_node_weights.dimension();
+      const auto a = weight::ternary(p1_ind == p1_inv,
+        weight::broadcast(0, dimension),
+        weight::lazy([&]{ return cumulative_node_weights[p1_ind]; }, dimension));
+      const auto b = weight::ternary(p2_ind == p2_inv,
+        weight::broadcast(0, dimension),
+        weight::lazy([&]{ return cumulative_node_weights[p2_ind]; }, dimension));
       return a - b;
     };
 
