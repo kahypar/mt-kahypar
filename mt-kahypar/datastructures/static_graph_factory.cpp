@@ -85,7 +85,7 @@ namespace mt_kahypar::ds {
       }
       edges[i] = std::make_pair(e[0], e[1]);
     });
-    return construct_from_graph_edges(num_nodes, num_edges, edges,
+    return construct_from_graph_edges(num_nodes, num_edges, dimension, edges,
       edge_weight, node_weight, stable_construction_of_incident_edges);
   }
 
@@ -167,17 +167,24 @@ namespace mt_kahypar::ds {
         StaticGraph::Node& node = graph._nodes[pos];
         node.enable();
         node.setFirstEntry(degree_prefix_sum[pos]);
-        if ( node_weight ) {
-          node.setWeight(node_weight[pos]);
-        }
       });
+    };
+
+    auto setup_node_weights = [&] {
+      if ( node_weight ) {
+        ASSERT(node_weight->dimension() > 0);
+        graph._node_weights = std::move(*node_weight);
+      } else {
+        ASSERT(dimension == 1);
+        graph._node_weights.resize(num_nodes, dimension, 1);
+      }
     };
 
     auto init_communities = [&] {
       graph._community_ids.resize(num_nodes, 0);
     };
 
-    tbb::parallel_invoke(setup_edges, setup_nodes, init_communities);
+    tbb::parallel_invoke(setup_edges, setup_nodes, setup_node_weights, init_communities);
 
     // Add Sentinel
     graph._nodes.back() = StaticGraph::Node(graph._edges.size());
