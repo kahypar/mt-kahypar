@@ -38,6 +38,7 @@
 #include "mt-kahypar/datastructures/synchronized_edge_update.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -79,10 +80,11 @@ class DeltaPartitionedHypergraph {
   DeltaPartitionedHypergraph(const Context& context) :
     _k(context.partition.k),
     _phg(nullptr),
-    _part_weights_delta(context.partition.k, 0),
+    _part_weights_delta(context.partition.k, context.dimension(), 0, false),
     _part_ids_delta(),
     _pins_in_part_delta(),
     _connectivity_set_delta(context.partition.k) {
+      ASSERT(context.dimension() > 0);
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
     }
@@ -140,7 +142,7 @@ class DeltaPartitionedHypergraph {
 
   // ####################### Hypernode Information #######################
 
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
+  HNWeightConstRef nodeWeight(const HypernodeID u) const {
     ASSERT(_phg);
     return _phg->nodeWeight(u);
   }
@@ -186,16 +188,16 @@ class DeltaPartitionedHypergraph {
   // ! Changes the block of hypernode u from 'from' to 'to'.
   // ! Move is successful, if it is not violating the balance
   // ! constraint specified by 'max_weight_to'.
-  template<typename DeltaFunc>
+  template<typename DeltaFunc, typename Weight, REQUIRE_VALID_WEIGHT(Weight)>
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const HypernodeWeight max_weight_to,
+                      const Weight& max_weight_to,
                       DeltaFunc&& delta_func) {
     ASSERT(_phg);
     assert(partID(u) == from);
     assert(from != to);
-    const HypernodeWeight wu = _phg->nodeWeight(u);
+    const HNWeightConstRef wu = _phg->nodeWeight(u);
     if ( partWeight(to) + wu <= max_weight_to ) {
       _part_ids_delta[u] = to;
       _part_weights_delta[to] += wu;
@@ -224,10 +226,11 @@ class DeltaPartitionedHypergraph {
   }
 
   // curry
+  template<typename Weight, REQUIRE_VALID_WEIGHT(Weight)>
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const HypernodeWeight max_weight_to) {
+                      const Weight& max_weight_to) {
     return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc());
   }
 
@@ -245,7 +248,7 @@ class DeltaPartitionedHypergraph {
   }
 
   // ! Returns the total weight of block p
-  HypernodeWeight partWeight(const PartitionID p) const {
+  auto partWeight(const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
     return _phg->partWeight(p) + _part_weights_delta[p];
@@ -278,7 +281,7 @@ class DeltaPartitionedHypergraph {
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
-    _part_weights_delta.assign(_k, 0);
+    _part_weights_delta.assign(_k, 0, false);
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
@@ -306,7 +309,7 @@ class DeltaPartitionedHypergraph {
 
   void changeNumberOfBlocks(const PartitionID new_k) {
     if ( new_k > _k ) {
-      _part_weights_delta.assign(new_k, 0);
+      _part_weights_delta.assign(new_k, 0, false);
     }
     _connectivity_set_delta.setNumberOfBlocks(new_k);
     _k = new_k;
@@ -317,7 +320,7 @@ class DeltaPartitionedHypergraph {
 
     utils::MemoryTreeNode* delta_phg_node = parent->addChild("Delta Partitioned Hypergraph");
     utils::MemoryTreeNode* part_weights_node = delta_phg_node->addChild("Delta Part Weights");
-    part_weights_node->updateSize(_part_weights_delta.capacity() * sizeof(HypernodeWeight));
+    part_weights_node->updateSize(_part_weights_delta.size() * _part_weights_delta.dimension() * sizeof(HNWeightScalar));
     utils::MemoryTreeNode* part_ids_node = delta_phg_node->addChild("Delta Part IDs");
     part_ids_node->updateSize(_part_ids_delta.size_in_bytes());
     utils::MemoryTreeNode* pins_in_part_node = delta_phg_node->addChild("Delta Pins In Part");
@@ -358,7 +361,7 @@ class DeltaPartitionedHypergraph {
   PartitionedHypergraph* _phg;
 
   // ! Delta for block weights
-  vec< HypernodeWeight > _part_weights_delta;
+  HypernodeWeightArray _part_weights_delta;
 
   // ! Stores for each locally moved node, its new block id
   DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
