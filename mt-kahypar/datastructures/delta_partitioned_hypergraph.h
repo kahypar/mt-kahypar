@@ -38,6 +38,7 @@
 #include "mt-kahypar/datastructures/synchronized_edge_update.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
