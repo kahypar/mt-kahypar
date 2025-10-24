@@ -27,11 +27,10 @@
 
 #pragma once
 
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -55,8 +54,8 @@ struct PartitioningParameters {
 
   int time_limit = 0;
   bool use_individual_part_weights = false;
-  ds::CopyableHypernodeWeightArray perfect_balance_part_weights;
-  ds::CopyableHypernodeWeightArray max_part_weights;
+  weight::CopyableHypernodeWeightArray perfect_balance_part_weights;
+  weight::CopyableHypernodeWeightArray max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();

@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 

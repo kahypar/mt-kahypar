@@ -38,6 +38,7 @@
 #include <limits>
 
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace po = boost::program_options;
 

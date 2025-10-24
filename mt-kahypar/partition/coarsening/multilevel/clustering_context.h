@@ -30,12 +30,12 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/multilevel/num_nodes_tracker.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -149,7 +149,7 @@ struct ClusteringContext {
   }
 
   HypernodeID hierarchy_contraction_limit;
-  weight::AllocatedHNWeight max_allowed_node_weight;
+  AllocatedHNWeight max_allowed_node_weight;
   size_t original_num_threads;
   bool may_ignore_communities = false;
   bool contract_aggressively = false;

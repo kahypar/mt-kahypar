@@ -45,6 +45,7 @@
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 #include "mt-kahypar/partition/metrics.h"
 
@@ -106,7 +107,7 @@ namespace rb {
     const PartitionID k1 = k / 2;
     ASSERT(k0 + k1 == context.partition.k);
     if ( context.partition.use_individual_part_weights ) {
-      weight::AllocatedHNWeight max_part_weights_sum(dimension, 0);
+      AllocatedHNWeight max_part_weights_sum(dimension, 0);
       std::vector<double> weight_fraction(dimension, 0);
 
       for (const auto& part_weight: context.partition.max_part_weights) {
@@ -117,13 +118,13 @@ namespace rb {
         ASSERT(weight_fraction[d] <= 1.0);
       }
 
-      weight::AllocatedHNWeight perfect_weight_p0(dimension, 0);
+      AllocatedHNWeight perfect_weight_p0(dimension, 0);
       for ( PartitionID i = 0; i < k0; ++i ) {
         for (size_t d = 0; d < dimension; ++d) {
           perfect_weight_p0.at(d) += ceil(weight_fraction[d] * context.partition.max_part_weights[i].at(d));
         }
       }
-      weight::AllocatedHNWeight perfect_weight_p1(dimension, 0);
+      AllocatedHNWeight perfect_weight_p1(dimension, 0);
       for ( PartitionID i = k0; i < k; ++i ) {
         for (size_t d = 0; d < dimension; ++d) {
           perfect_weight_p1.at(d) += ceil(weight_fraction[d] * context.partition.max_part_weights[i].at(d));

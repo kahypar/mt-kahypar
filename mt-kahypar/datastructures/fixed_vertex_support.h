@@ -28,11 +28,10 @@
 
 #include <atomic>
 
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -203,7 +202,7 @@ class FixedVertexSupport {
   const Hypergraph* _hg;
 
   // ! Total weight of all fixed vertices
-  weight::AllocatedHNWeight _total_fixed_vertex_weight;
+  AllocatedHNWeight _total_fixed_vertex_weight;
 
   // ! Weight of all vertices fixed to a block
   HypernodeWeightArray _fixed_vertex_block_weights;

@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 

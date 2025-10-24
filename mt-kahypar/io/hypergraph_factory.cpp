@@ -27,12 +27,12 @@
 #include "hypergraph_factory.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -45,7 +45,7 @@ mt_kahypar_hypergraph_t constructHypergraph(const HypernodeID& num_hypernodes,
                                             const Dimension& dimension,
                                             const HyperedgeVector& hyperedges,
                                             const HyperedgeWeight* hyperedge_weight,
-                                            ds::HypernodeWeightArray* hypernode_weight,
+                                            HypernodeWeightArray* hypernode_weight,
                                             const HypernodeID num_removed_single_pin_hes,
                                             const bool stable_construction) {
   Hypergraph* hypergraph = new Hypergraph();
@@ -66,7 +66,7 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
   HyperedgeID num_removed_single_pin_hyperedges = 0;
   HyperedgeVector hyperedges;
   vec<HyperedgeWeight> hyperedges_weight;
-  ds::HypernodeWeightArray hypernodes_weight;
+  HypernodeWeightArray hypernodes_weight;
   readHypergraphFile(filename, num_hyperedges, num_hypernodes, dimension,
                      num_removed_single_pin_hyperedges, hyperedges,
                      hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
@@ -114,7 +114,7 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   Dimension dimension = 0;
   HyperedgeVector edges;
   vec<HyperedgeWeight> edges_weight;
-  ds::HypernodeWeightArray nodes_weight;
+  HypernodeWeightArray nodes_weight;
   readGraphFile(filename, num_edges, num_vertices, dimension, edges, edges_weight, nodes_weight);
 
   switch ( type ) {

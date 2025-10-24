@@ -29,10 +29,10 @@
 
 #include <tbb/parallel_invoke.h>
 
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -84,7 +84,7 @@ class ConcurrentClusteringData {
     return _matching_state[u] == STATE(MatchingState::UNMATCHED);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const ds::HypernodeWeightArray& clusterWeight() const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const HypernodeWeightArray& clusterWeight() const {
     return _cluster_weight;
   }
 
@@ -129,7 +129,7 @@ class ConcurrentClusteringData {
 
   const Context& _context;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;
-  ds::HypernodeWeightArray _cluster_weight;
+  HypernodeWeightArray _cluster_weight;
   parallel::scalable_vector<AtomicID> _matching_partner;
 };
 

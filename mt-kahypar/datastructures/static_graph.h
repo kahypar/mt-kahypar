@@ -35,10 +35,8 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -46,6 +44,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -943,7 +942,7 @@ class StaticGraph {
   // ! Number of edges (note that each hyperedge is respresented as two graph edges)
   HyperedgeID _num_edges;
   // ! Total weight of the graph
-  weight::AllocatedHNWeight _total_weight;
+  AllocatedHNWeight _total_weight;
 
   // ! Nodes
   Array<Node> _nodes;

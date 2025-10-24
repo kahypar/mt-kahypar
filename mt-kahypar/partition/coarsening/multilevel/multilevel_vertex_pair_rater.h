@@ -37,10 +37,10 @@
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 #include "kahypar-resources/meta/mandatory.h"
 
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -115,7 +115,7 @@ class MultilevelVertexPairRater {
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
-                        const ds::HypernodeWeightArray& cluster_weight,
+                        const HypernodeWeightArray& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const HNWeightConstRef max_allowed_node_weight,
                         const bool may_ignore_communities) {
@@ -161,7 +161,7 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
-                        const ds::HypernodeWeightArray& cluster_weight,
+                        const HypernodeWeightArray& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                         const HNWeightConstRef max_allowed_node_weight,
                         const bool may_ignore_communities,

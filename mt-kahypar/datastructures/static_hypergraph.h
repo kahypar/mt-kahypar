@@ -33,10 +33,8 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -44,6 +42,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -988,7 +987,7 @@ class StaticHypergraph {
   // ! Number of removed hypernodes
   HypernodeID _num_removed_hypernodes;
   // ! Number of removed degree zero hypernodes
-  weight::AllocatedHNWeight _removed_degree_zero_hn_weight;
+  AllocatedHNWeight _removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
@@ -1000,7 +999,7 @@ class StaticHypergraph {
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
-  weight::AllocatedHNWeight _total_weight;
+  AllocatedHNWeight _total_weight;
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;

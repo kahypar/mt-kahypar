@@ -35,7 +35,6 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/datastructures/array.h"
-#include "mt-kahypar/datastructures/hypernode_weights.h"
 
 #ifndef KAHYPAR_DISABLE_HWLOC
   #include "mt-kahypar/parallel/hardware_topology.h"
@@ -71,13 +70,6 @@ using NodeID = uint32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
-
-// node weights
-using Dimension = mt_kahypar::weight::Dimension;
-using HNWeightScalar = mt_kahypar::weight::HNWeightScalar;
-using HNWeightRef = mt_kahypar::weight::HNWeightRef;
-using HNWeightConstRef = mt_kahypar::weight::HNWeightConstRef;
-using HNWeightAtomicCRef = mt_kahypar::weight::HNWeightAtomicCRef;
 
 using ArcWeight = double;
 

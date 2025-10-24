@@ -31,10 +31,10 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar::ds {

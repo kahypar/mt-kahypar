@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/weight/hypernode_weight_base.h"
+#include "mt-kahypar/weight/hypernode_weight_operators.h"
 
 namespace mt_kahypar {
 namespace weight {

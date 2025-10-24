@@ -35,7 +35,6 @@
 #include <tbb/parallel_reduce.h>
 #include <tbb/enumerable_thread_specific.h>
 
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -44,6 +43,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 #include "kahypar-resources/utils/math.h"
 
@@ -221,7 +221,7 @@ namespace mt_kahypar::io {
       part_sizes[hypergraph.partID(u)]++;
     }
     PartitionID min_block = kInvalidPartition;
-    weight::AllocatedHNWeight avg_part_weight(hypergraph.dimension(), 0);
+    AllocatedHNWeight avg_part_weight(hypergraph.dimension(), 0);
     HNWeightConstRef min_part_weight = weight::newInvalid();
     PartitionID max_block = kInvalidPartition;
     HNWeightConstRef max_part_weight = weight::newInvalid();

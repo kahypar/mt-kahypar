@@ -322,7 +322,7 @@ namespace mt_kahypar {
           "Expected number was: " + std::to_string(dimension * partition.k));
       }
 
-      weight::AllocatedHNWeight max_part_weights_sum(dimension, 0);
+      AllocatedHNWeight max_part_weights_sum(dimension, 0);
       std::vector<double> weight_fraction(dimension, 0);
 
       for (const auto& part_weight: partition.max_part_weights) {
