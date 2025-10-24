@@ -53,9 +53,7 @@ namespace mt_kahypar {
   void register_memory_pool(const mt_kahypar_hypergraph_t hypergraph,
                             const Context& context) {
     if ( hypergraph.type == STATIC_GRAPH ) {
-      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::StaticGraph>(hypergraph), context);
-      #endif
     } else if ( hypergraph.type == DYNAMIC_GRAPH ) {
       #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::DynamicGraph>(hypergraph), context);
