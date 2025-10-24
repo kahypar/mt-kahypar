@@ -33,6 +33,7 @@
 #include <tbb/parallel_scan.h>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -103,6 +104,77 @@ namespace mt_kahypar {
     }
 
     ParallelPrefixSumBody<InIt, OutIt, BinOp> body(first, d, neutral_element, f);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0, static_cast<size_t>(n)), body);
+  }
+
+
+  // special case for hypernode weight prefix sum
+  template<typename InIt, typename OutIt, typename BinOp>
+  struct ParallelHNWeightPrefixSumBody {
+    InIt first;
+    OutIt out;
+    AllocatedHNWeight sum;
+    BinOp& f;
+
+    ParallelHNWeightPrefixSumBody(InIt first, OutIt out, Dimension dimension, BinOp& f):
+      first(first),
+      out(out),
+      sum(dimension, 0),
+      f(f) { }
+
+    ParallelHNWeightPrefixSumBody(ParallelHNWeightPrefixSumBody& other, tbb::split) :
+      first(other.first),
+      out(other.out),
+      sum(other.sum.dimension(), 0),
+      f(other.f) { }
+
+    void operator()(const tbb::blocked_range<size_t>& r, tbb::pre_scan_tag ) {
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        sum = f(sum, *(first + i));
+      }
+    }
+
+    void operator()(const tbb::blocked_range<size_t>& r, tbb::final_scan_tag ) {
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        sum = f(sum, *(first + i));
+        *(out + i) = static_cast<HNWeightConstRef>(sum);
+      }
+    }
+
+    void reverse_join(ParallelHNWeightPrefixSumBody& other) {
+      sum = f(sum, other.sum);
+    }
+
+    void assign(ParallelHNWeightPrefixSumBody& other) {
+      sum = other.sum;
+    }
+
+  };
+
+  template <class InIt, class OutIt, class BinOp>
+  static void sequential_hnweight_prefix_sum(InIt first, InIt last, OutIt d, Dimension dimension, BinOp f) {
+    AllocatedHNWeight sum(dimension, 0);
+    while (first != last) {
+      sum = f(sum, *first);
+      *d = static_cast<HNWeightConstRef>(sum);
+      ++d;
+      ++first;
+    }
+  }
+
+  template <class InIt, class OutIt>
+  static void parallel_hnweight_prefix_sum(InIt first, InIt last, OutIt d, Dimension dimension) {
+
+    typename std::iterator_traits<InIt>::difference_type n = last - first;
+
+    auto add_fn = [](HNWeightConstRef lhs, HNWeightConstRef rhs) { return lhs + rhs; };
+
+    if (n < (1 << 16)) {
+      return sequential_hnweight_prefix_sum(first, last, d, dimension, add_fn);
+    }
+
+    ParallelHNWeightPrefixSumBody<InIt, OutIt, decltype(add_fn)> body(first, d, dimension, add_fn);
+    // TODO: simple_partitioner might be preferable here?
     tbb::parallel_scan(tbb::blocked_range<size_t>(0, static_cast<size_t>(n)), body);
   }
 
