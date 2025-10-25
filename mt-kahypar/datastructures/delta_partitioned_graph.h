@@ -138,6 +138,11 @@ class DeltaPartitionedGraph {
     return _pg->nodeDegree(u);
   }
 
+  HypernodeID initialNumNodes() const {
+    ASSERT(_pg);
+    return _pg->initialNumNodes();
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Target of an edge

@@ -80,6 +80,12 @@ namespace mt_kahypar::ds {
       // std::vector<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
       std::vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
+
+      if (static_cast<size_t>(_num_hyperedges) > tmp_hyperedges.size() || static_cast<size_t>(_num_hyperedges) > valid_hyperedges.size()) {
+        tmp_hyperedges.resize(_num_hyperedges);
+        valid_hyperedges.resize(_num_hyperedges);
+      }
+
       ASSERT(static_cast<size_t>(_num_hyperedges) <= tmp_hyperedges.size());
       ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
 

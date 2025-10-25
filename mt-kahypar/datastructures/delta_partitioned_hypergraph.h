@@ -120,7 +120,13 @@ class DeltaPartitionedHypergraph {
     return _phg->nodes();
   }
 
-  // ! Returns an iterator over the set of active edges of the hypergraph
+  // ! Returns the initial number of nodes in the hypergraph
+  HypernodeID initialNumNodes() const {
+    ASSERT(_phg);
+    return _phg->initialNumNodes();
+  }
+
+  // ! Returns an iterator over the set of active hyperedges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
     ASSERT(_phg);
     return _phg->edges();
