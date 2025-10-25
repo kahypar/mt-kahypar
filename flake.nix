@@ -26,6 +26,7 @@
             clang-tools 
             boost
             tbb_2022_0
+            linuxPackages_latest.perf
           ];
 
           buildInputs = with pkgs; [
