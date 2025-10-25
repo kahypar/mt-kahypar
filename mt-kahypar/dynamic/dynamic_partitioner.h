@@ -23,7 +23,7 @@ namespace mt_kahypar::dyn {
       register_memory_pool(hypergraph_t, context);
       register_algorithms_and_policies();
 
-      // Parse or generate changes
+      // Parse changes
       std::vector<Change> changes = parseChanges(context.dynamic.changes_file);
 
       std::cout << "Number of changes: " << changes.size() << std::endl;

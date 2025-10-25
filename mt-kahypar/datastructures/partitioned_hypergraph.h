@@ -1215,7 +1215,7 @@ class PartitionedHypergraph {
   void addNode(const HypernodeID& new_hn, const PartitionID part) {
     ASSERT(hypergraph().nodeIsEnabled(new_hn));
     _part_ids.push_back(part);
-    _part_weights[part].fetch_add(hypergraph().nodeWeight(initialNumNodes()), std::memory_order_relaxed);
+    _part_weights[part].fetch_add(hypergraph().nodeWeight(new_hn), std::memory_order_relaxed);
     _pin_count_update_ownership.emplace_back();
     _input_num_nodes++;
     // _con_info.addNode(new_hn);

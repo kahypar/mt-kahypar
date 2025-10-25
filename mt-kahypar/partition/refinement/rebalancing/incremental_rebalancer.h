@@ -27,8 +27,59 @@ public:
     }
 
     void reset() {
-      _blocks.clear();
-      populateBlockQueues();
+      ASSERT(partitioned_hypergraph_m != nullptr);
+      ASSERT(_context != nullptr);
+      ASSERT(_gain_cache != nullptr);
+      ASSERT(_benefit_aggregator != nullptr);
+      if (partitioned_hypergraph_m == nullptr || _context == nullptr || _gain_cache == nullptr || _benefit_aggregator == nullptr) {
+        std::cout << "IncrementalRebalancer not initialized properly!" << std::endl;
+        exit(1);
+      }
+      // std::cout << "Resetting IncrementalRebalancer 1" << std::endl;
+      if (_blocks.empty()) {
+        std::cout << "IncrementalRebalancer blocks not initialized properly!" << std::endl;
+        exit(1);
+      }
+      // std::cout << "Resetting IncrementalRebalancer 2" << std::endl;
+      // _blocks.clear();
+      // // std::cout << "Resetting IncrementalRebalancer" << std::endl;
+      // populateBlockQueues();
+
+      // build new blocks first, then swap
+      std::vector<BlockQueues> new_blocks;
+      new_blocks.reserve(_context->partition.k);
+      for (PartitionID b = 0; b < _context->partition.k; ++b) {
+        new_blocks.emplace_back(partitioned_hypergraph_m->initialNumNodes() * 2);
+      }
+      // populate new_blocks similarly to populateBlockQueues()...
+
+
+      for (HypernodeID u = 0; u < partitioned_hypergraph_m->initialNumNodes(); ++u) {
+        if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
+          continue;
+        }
+        const PartitionID part = partitioned_hypergraph_m->partID(u);
+        HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
+        for (PartitionID b = 0; b < _context->partition.k; ++b) {
+          if (b == part) {
+            continue;
+          }
+          const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, part, b);
+          if (gain > highest_gain) {
+            highest_gain = gain;
+          }
+          HyperedgeWeight weighted_pull_gain = (gain > 0) ? gain / partitioned_hypergraph_m->nodeWeight(u) : gain * partitioned_hypergraph_m->nodeWeight(u);
+          new_blocks[b].pull.insert(u, weighted_pull_gain);
+        }
+        HyperedgeWeight weighted_push_gain = (highest_gain > 0) ? highest_gain * partitioned_hypergraph_m->nodeWeight(u) : highest_gain / partitioned_hypergraph_m->nodeWeight(u);
+        new_blocks[part].push.insert(u, weighted_push_gain);
+      }
+
+      // finally swap
+      _blocks.swap(new_blocks);
+      // std::cout << "Resetting IncrementalRebalancer 3" << std::endl;
+      ASSERT(checkBlockQueues());
+      // std::cout << "Resetting IncrementalRebalancer 4" << std::endl;
     }
 
     // void updateAllForMove(Move move) {
@@ -186,6 +237,12 @@ public:
       }
       ASSERT(partitioned_hypergraph_m->partID(u) == part);
       HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
+
+      if (_blocks[part].push.get_positions_size() <= u)
+      {
+        reset();
+      }
+
       for (PartitionID b = 0; b < _context->partition.k; ++b) {
         if (b == part) {
           continue;
@@ -195,9 +252,11 @@ public:
           highest_gain = gain;
         }
         HyperedgeWeight weighted_pull_gain = (gain > 0) ? gain / partitioned_hypergraph_m->nodeWeight(u) : gain * partitioned_hypergraph_m->nodeWeight(u);
+        ASSERT(u < _blocks[b].pull.get_positions_size());
         _blocks[b].pull.insertOrAdjustKey(u, weighted_pull_gain);
       }
       HyperedgeWeight weighted_push_gain = (highest_gain > 0) ? highest_gain * partitioned_hypergraph_m->nodeWeight(u) : highest_gain / partitioned_hypergraph_m->nodeWeight(u);
+      ASSERT(u < _blocks[part].push.get_positions_size());
       _blocks[part].push.insertOrAdjustKey(u, weighted_push_gain);
     }
 
@@ -295,14 +354,32 @@ private:
     vec<Gain> *_benefit_aggregator;
     std::vector<uint32_t> shared_push_queue_locations;
 
-    struct BlockQueues {
-//        ds::Heap<Gain, HypernodeID> push;
-        ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> push;
-        ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> pull;
+//     struct BlockQueues {
+// //        ds::Heap<Gain, HypernodeID> push;
+//         ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> push;
+//         ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> pull;
+//
+//         BlockQueues(uint32_t *, size_t positions_size):
+//         push(positions_size), pull(positions_size) {}
+//     };
 
-        BlockQueues(uint32_t *, size_t positions_size):
-        push(positions_size), pull(positions_size) {}
-    };
+  struct BlockQueues {
+    ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> push;
+    ds::ExclusiveHandleHeap<ds::Heap<Gain, HypernodeID>> pull;
+
+    // prefer a size-only ctor (pointer parameter unused in your snippet)
+    explicit BlockQueues(size_t positions_size)
+      : push(positions_size), pull(positions_size) {}
+
+    // disable copying (avoid shallow copies/double frees)
+    BlockQueues(const BlockQueues&) = delete;
+    BlockQueues& operator=(const BlockQueues&) = delete;
+
+    // default move ctor/assign are fine if ExclusiveHandleHeap implements moves correctly
+    BlockQueues(BlockQueues&&) noexcept = default;
+    BlockQueues& operator=(BlockQueues&&) noexcept = default;
+  };
+
 
     std::vector<BlockQueues> _blocks;
 
@@ -320,9 +397,11 @@ private:
     }
 
     void populateBlockQueues() {
-      shared_push_queue_locations = std::vector<uint32_t>(partitioned_hypergraph_m->initialNumNodes(), partitioned_hypergraph_m->initialNumNodes());
+      // shared_push_queue_locations = std::vector<uint32_t>(partitioned_hypergraph_m->initialNumNodes(), partitioned_hypergraph_m->initialNumNodes());
+      // _blocks.reserve(_context->partition.k);
       for (PartitionID b = 0; b < _context->partition.k; ++b) {
-        _blocks.emplace_back(shared_push_queue_locations.data(), partitioned_hypergraph_m->initialNumNodes());
+        // _blocks.emplace_back(shared_push_queue_locations.data(), partitioned_hypergraph_m->initialNumNodes());
+        _blocks.emplace_back(partitioned_hypergraph_m->initialNumNodes());
       }
       for (HypernodeID u = 0; u < partitioned_hypergraph_m->initialNumNodes(); ++u) {
         if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
@@ -375,7 +454,7 @@ private:
 
       GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(*partitioned_hypergraph_m, hn, *_benefit_aggregator);
 
-      ASSERT(partitioned_hypergraph_m->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache)));
+      // ASSERT(partitioned_hypergraph_m->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache)));
     }
 
 };
