@@ -832,13 +832,9 @@ namespace mt_kahypar {
                     po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
               "Strategy for dynamic partitioning");
     dynamic_options.add_options()
-            ("d-max-changes",
-                    po::value<size_t>(&context.dynamic.max_changes)->value_name("<size_t>"),
-             "Maximum number of changes to be processed (defaults to all changes)");
-    dynamic_options.add_options()
             ("d-step-size-pct",
-                    po::value<double>(&context.dynamic.step_size_pct)->value_name("<double>"),
-    "Percentage of the changes to be processed in each step");
+                    po::value<double>(&context.dynamic.vcycle_step_size_pct)->value_name("<double>"),
+    "Percentage of weight change between each vcycle step");
     dynamic_options.add_options()
             ("d-result-folder",
              po::value<std::string>(&context.dynamic.result_folder)->value_name("<string>"),
@@ -858,7 +854,7 @@ namespace mt_kahypar {
     dynamic_options.add_options()
             ("d-sb-threshold",
               po::value<size_t>(&context.dynamic.small_blocks_threshold)->value_name("<size_t>"),
-              "Threshold for the small blocks strategie");
+              "Threshold for the small blocks feature");
     dynamic_options.add_options()
             ("d-setup-moves-count",
               po::value<size_t>(&context.dynamic.setup_moves_count)->value_name("<size_t>"),

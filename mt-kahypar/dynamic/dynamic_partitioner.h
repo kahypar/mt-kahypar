@@ -30,9 +30,6 @@ namespace mt_kahypar::dyn {
       DynamicStrategy::process_setup_changes(hypergraph_m, context, changes);
       changes.erase(changes.begin(), changes.begin() + context.dynamic.setup_moves_count);
 
-      // If the max_changes is not specified or is greater than the number of changes in the file, we process all the changes
-      size_t max_changes = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
-
       mt_kahypar::dyn::DynamicStrategy* strategy;
 
       if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
@@ -48,24 +45,24 @@ namespace mt_kahypar::dyn {
 
       try {
 
-        std::cout << "Processing " << max_changes << " changes" << std::endl;
+        std::cout << "Processing " << changes.size() << " changes" << std::endl;
 
         auto& hypergraph_p =  strategy->init();
 
-        size_t log_step_size = max_changes * context.dynamic.logging_step_size_pct;
+        size_t log_step_size = changes.size() * context.dynamic.logging_step_size_pct;
 
         auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
-        for (size_t i = 0; i < max_changes; ++i) {
+        for (size_t i = 0; i < changes.size(); ++i) {
           Change& change = changes[i];
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-          strategy->partition(change, max_changes);
+          strategy->partition(change, changes.size());
           auto duration = std::chrono::high_resolution_clock::now() - start;
           duration_sum += duration;
           if (log_step_size != 0 && i % log_step_size != 0) {
             continue;
           }
-          log_km1_live(i+1, max_changes, context, hypergraph_p, duration_sum);
+          log_km1_live(i+1, changes.size(), context, hypergraph_p, duration_sum);
         }
 
         strategy->printAdditionalFinalStats();

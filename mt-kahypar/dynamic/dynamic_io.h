@@ -24,7 +24,10 @@ namespace mt_kahypar::dyn {
       context.dynamic.output_path += ".csv";
       // reset file
       std::ofstream file(context.dynamic.output_path);
-      std::cout << "Output file: " << context.dynamic.output_path << std::endl;
+      if (!context.dynamic.server)
+      {
+        std::cout << "Output file: " << context.dynamic.output_path << std::endl;
+      }
     }
 
   inline void print_progress_bar(size_t i, size_t total, size_t km1, double imbalance) {
@@ -153,7 +156,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << i << ", " << km1 << ", " << imbalance << ", " << std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
+      file << i << ", " << km1 << ", " << imbalance << ", " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << std::endl;
       file.close();
 
       if (!context.dynamic.server) {

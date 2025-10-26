@@ -305,8 +305,7 @@ struct DynamicParameters {
 
   std::string changes_file = "";
   std::string strategy = "";
-  size_t max_changes = -1;
-  double step_size_pct = 0.01;
+  double vcycle_step_size_pct = 0.01;
   std::string output_file_suffix = "";
   size_t version = 0;
 
@@ -331,11 +330,10 @@ struct DynamicParameters {
   [[nodiscard]] std::string getOutputFileName() const {
     std::string file_name = "v" + std::to_string(version) + "_";
     file_name += strategy + "_";
-    file_name += std::to_string(max_changes) + "_";
     file_name += vcycle_algorithm + "_";
     file_name += std::to_string(vcycle_num) + "_";
     // round to 2 decimal places
-    file_name += std::to_string(static_cast<int>(step_size_pct * 100)) + "_";
+    file_name += std::to_string(static_cast<int>(vcycle_step_size_pct * 100)) + "_";
     file_name += output_file_suffix;
     return file_name;
   }
