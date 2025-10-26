@@ -26,7 +26,9 @@ namespace mt_kahypar::dyn {
       // Parse changes
       std::vector<Change> changes = parseChanges(context.dynamic.changes_file);
 
-      std::cout << "Number of changes: " << changes.size() << std::endl;
+      // Process and delete setup changes
+      DynamicStrategy::process_setup_changes(hypergraph_m, context, changes);
+      changes.erase(changes.begin(), changes.begin() + context.dynamic.setup_moves_count);
 
       // If the max_changes is not specified or is greater than the number of changes in the file, we process all the changes
       size_t max_changes = context.dynamic.max_changes == 0 ? changes.size() : std::min((size_t) context.dynamic.max_changes, changes.size());
