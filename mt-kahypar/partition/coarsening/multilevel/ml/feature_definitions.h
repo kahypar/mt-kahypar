@@ -36,7 +36,7 @@
 
 namespace mt_kahypar {
 namespace features {
-  static constexpr bool needs_expensive_features = true;
+  static constexpr bool needs_expensive_features = false;
 
   using OrderedFeatures = kahypar::meta::Typelist<
                             comm_1_equal,
