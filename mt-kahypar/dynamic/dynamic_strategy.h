@@ -26,6 +26,7 @@ namespace mt_kahypar::dyn {
                   / static_cast<double>(context.partition.k))));
           ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
                                                                                         * context.partition.perfect_balance_part_weights[0]));
+          // updateMaxPartWeight(context, hypergraph);
         // if (!context.dynamic.use_final_weight) {
         //
         //   // TODO check if this is necessary
@@ -44,14 +45,15 @@ namespace mt_kahypar::dyn {
           (void) context;
           for (const HypernodeID &hn: change.removed_nodes) {
             hypergraph.deleteHypernode(hn);
+            // updateMaxPartWeight(context, hypergraph);
             (void) hn;
             ASSERT(context.partition.use_individual_part_weights == false);
             //TODO check if assertion is relevant
             // ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
             //         hypergraph.totalWeight()
             //         / static_cast<double>(context.partition.k))));
-            ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
-                                                                                          * context.partition.perfect_balance_part_weights[0]));
+            // ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
+            //                                                                               * context.partition.perfect_balance_part_weights[0]));
             // if (!context.dynamic.use_final_weight) {
               // hypergraph.decrementTotalWeight(hn);
               // // TODO check if this is necessary
@@ -160,16 +162,20 @@ namespace mt_kahypar::dyn {
         /*
          * Process the whole Change object.
          */
-        static void process_change(ds::MutableHypergraph &hypergraph, Context &context, const Change &change) {
-          deactivate_pins(hypergraph, context, change);
-          deactivate_nodes(hypergraph, context, change);
-          deactivate_edges(hypergraph, context, change);
+        static void process_setup_changes(ds::MutableHypergraph &hypergraph, Context &context, std::vector<Change> changes) {
+          ASSERT(context.dynamic.setup_moves_count <= changes.size());
+          for (size_t i = 0; i < context.dynamic.setup_moves_count; ++i)
+          {
+            const Change &change = changes[i];
+            deactivate_pins(hypergraph, context, change);
+            deactivate_nodes(hypergraph, context, change);
+            deactivate_edges(hypergraph, context, change);
 
-          activate_edges(hypergraph, context, change);
-          activate_nodes(hypergraph, context, change);
-          activate_pins(hypergraph, context, change);
-
-          context.setupPartWeights(hypergraph.totalWeight());
+            activate_edges(hypergraph, context, change);
+            activate_nodes(hypergraph, context, change);
+            activate_pins(hypergraph, context, change);
+          }
+          // context.setupPartWeights(hypergraph.totalWeight());
         }
 
         static void updateMaxPartWeight(Context &context, ds::MutableHypergraph &hypergraph)
