@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -180,7 +181,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
 template<typename HyperGraph>
 void verifyBlockWeightsAndSizes(HyperGraph& hypergraph,
                                 const PartitionID k) {
-  std::vector<HypernodeWeight> block_weight(k, 0);
+  HypernodeWeightArray block_weight(k, 1, 0, false);
   for (const HypernodeID& hn : hypergraph.nodes()) {
     block_weight[hypergraph.partID(hn)] += hypergraph.nodeWeight(hn);
   }
