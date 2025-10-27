@@ -34,6 +34,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 #ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/deep_multilevel.h"
@@ -189,12 +190,12 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
 
   // Check that non of the blocks is empty
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(part_id), 0)
+    ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(part_id)))
       << "Block " << part_id << " is empty!";
   }
 
   // Check that part weights are correct
-  std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
+  HypernodeWeightArray part_weight(this->context.partition.k, 1, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
     ASSERT(part_id >= 0 && part_id < this->context.partition.k);

@@ -60,9 +60,9 @@ class HypergraphFixture : public Test {
   HypergraphFixture() :
     hypergraph(useGraphStructure ?
       HypergraphFactory::construct(
-        7 , 6, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true) :
+        7 , 6, 1, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true) :
       HypergraphFactory::construct(
-        7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
+        7 , 4, 1, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 
   template <typename K = decltype(identity)>
