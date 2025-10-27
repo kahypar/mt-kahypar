@@ -832,7 +832,7 @@ namespace mt_kahypar {
                     po::value<std::string>(&context.dynamic.strategy)->value_name("<string>"),
               "Strategy for dynamic partitioning");
     dynamic_options.add_options()
-            ("d-step-size-pct",
+            ("d-vcycle-step-size-pct",
                     po::value<double>(&context.dynamic.vcycle_step_size_pct)->value_name("<double>"),
     "Percentage of weight change between each vcycle step");
     dynamic_options.add_options()
