@@ -494,6 +494,12 @@ namespace mt_kahypar {
       }
     }
 
+    if (!MT_KAHYPAR_HAS_QUALITY_FEATURES &&
+        (refinement.flows.algorithm != FlowAlgorithm::do_nothing || initial_partitioning.refinement.flows.algorithm != FlowAlgorithm::do_nothing)) {
+      throw InvalidParameterException(
+        "Quality partitioning (flow-based refinement) is deactivated. Add -DKAHYPAR_ENABLE_QUALITY_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
+    }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
