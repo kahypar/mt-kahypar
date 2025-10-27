@@ -28,15 +28,18 @@
 
 #include <limits>
 
-#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/datastructures/priority_queue.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/parallel/work_stack.h"
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
+#include <tbb/task_group.h>
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
-#include <tbb/enumerable_thread_specific.h>
-#include <tbb/parallel_for.h>
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
+#include "mt-kahypar/parallel/work_stack.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
@@ -325,5 +328,48 @@ struct FMSharedData {
     refinementNodes.memoryConsumption(shared_fm_data_node);
   }
 };
+
+
+namespace utils {
+// compare cast.h
+template<typename LocalFM>
+localized_k_way_fm_t localized_fm_cast(tbb::enumerable_thread_specific<LocalFM>& local_fm) {
+  return localized_k_way_fm_t {
+    reinterpret_cast<localized_k_way_fm_s*>(&local_fm), LocalFM::PartitionedHypergraph::TYPE };
+}
+
+template<typename LocalFM>
+tbb::enumerable_thread_specific<LocalFM>& cast(localized_k_way_fm_t fm) {
+  if ( LocalFM::PartitionedHypergraph::TYPE != fm.type ) {
+    ERR("Cannot cast local FM [" << typeToString(fm.type) << " to "
+        << typeToString(LocalFM::PartitionedHypergraph::TYPE) << "]");
+  }
+  return *reinterpret_cast<tbb::enumerable_thread_specific<LocalFM>*>(fm.local_fm);
+}
+
+} // namespace utils
+
+template<typename FMStrategy>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+void findMovesWithConcreteStrategy(FMStrategy& strategy, FMSharedData& sharedData, localized_k_way_fm_t local_fm,
+                                   mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t num_tasks, size_t num_seeds, size_t round) {
+  using LocalFM = typename FMStrategy::LocalFM;
+  using PartitionedHypergraph = typename FMStrategy::PartitionedHypergraph;
+
+  tbb::enumerable_thread_specific<LocalFM>& ets_fm = utils::cast<LocalFM>(local_fm);
+  PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+  tbb::task_group tg;
+
+  auto task = [&](const size_t task_id) {
+    LocalFM& fm = ets_fm.local();
+    while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+          && strategy.dispatchedFindMoves(fm, phg, task_id, num_seeds, round)) { /* keep running*/ }
+    sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
+  };
+  for (size_t i = 0; i < num_tasks; ++i) {
+    tg.run(std::bind(task, i));
+  }
+  tg.wait();
+}
 
 }

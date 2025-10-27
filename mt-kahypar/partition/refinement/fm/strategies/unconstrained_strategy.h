@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/local_gain_cache_strategy.h"
@@ -71,8 +72,7 @@ class UnconstrainedStrategy: public IFMStrategy {
                              size_t num_tasks, size_t num_seeds, size_t round) final {
     initRound(round);
 
-    Base::findMovesWithConcreteStrategy<UnconstrainedStrategy>(
-              local_fm, phg, num_tasks, num_seeds, round);
+    findMovesWithConcreteStrategy(*this, sharedData, local_fm, phg, num_tasks, num_seeds, round);
   }
 
   virtual bool isUnconstrainedRoundImpl(size_t round) const final {

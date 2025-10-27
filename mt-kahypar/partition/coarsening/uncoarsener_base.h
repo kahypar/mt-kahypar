@@ -37,7 +37,6 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
-#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 

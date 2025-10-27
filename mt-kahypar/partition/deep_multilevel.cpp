@@ -44,6 +44,7 @@
 #endif
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/progress_bar.h"
