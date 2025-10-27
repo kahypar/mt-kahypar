@@ -26,7 +26,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/progress_bar.h"

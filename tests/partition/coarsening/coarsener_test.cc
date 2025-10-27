@@ -28,11 +28,11 @@
 
 #include "tests/definitions.h"
 #include "tests/partition/coarsening/coarsener_fixtures.h"
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
-#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_uncoarsener.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
-#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
 #endif
 #include "mt-kahypar/partition/coarsening/do_nothing_coarsener.h"
 
