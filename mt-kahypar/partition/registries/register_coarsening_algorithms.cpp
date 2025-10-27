@@ -36,9 +36,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel/nlevel_coarsener.h"
 #endif
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener.h"
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
-#endif
 #include "mt-kahypar/partition/coarsening/do_nothing_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
@@ -55,11 +53,9 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
 
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
                                                                                    ICoarsener,
                                                                                    kahypar::meta::Typelist<TypeTraitsList>>;
-#endif
 
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
@@ -110,12 +106,10 @@ void register_coarsening_algorithms() {
                                   context.coarsening.rating.acceptance_policy));
   #endif
 
-  #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
                                 DeterministicCoarsenerDispatcher,
                                 ThreadSafePolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                   context.partition.partition_type));
-  #endif
 
   REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::do_nothing_coarsener,
                                 DoNothingCoarsenerDispatcher,
