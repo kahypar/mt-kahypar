@@ -6,7 +6,6 @@ add_subdirectory(mapping)
 add_subdirectory(registries)
 
 set(PartitionSources
-        deep_multilevel.cpp
         partitioner.cpp
         partitioner_facade.cpp
         multilevel.cpp
@@ -17,7 +16,15 @@ set(PartitionSources
         recursive_bipartitioning.cpp
         )
 
+set(DeepMultilevelSources
+        deep_multilevel.cpp
+        )
+
 target_sources(MtKaHyPar-Sources INTERFACE ${PartitionSources})
+
+if (NOT KAHYPAR_MINIMAL_COMPILATION)
+  target_sources(MtKaHyPar-Sources INTERFACE ${DeepMultilevelSources})
+endif()
 
 set(PartitionToolsSources
         context.cpp

@@ -37,7 +37,9 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/deep_multilevel.h"
+#endif
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
@@ -355,7 +357,9 @@ namespace mt_kahypar {
       partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, target_graph);
     } else if (context.partition.mode == Mode::deep_multilevel) {
       ASSERT(context.partition.objective != Objective::steiner_tree);
+      #ifndef KAHYPAR_MINIMAL_COMPILATION
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
+      #endif
     } else {
       throw InvalidParameterException("Invalid partitioning mode!");
     }

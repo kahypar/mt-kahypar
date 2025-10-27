@@ -88,6 +88,7 @@ option(KAHYPAR_STATIC_LINK_DEPENDENCIES "In static build, also link dependencies
 option(KAHYPAR_STATIC_LINK_TBB "In static build, also link TBB statically. Note that this is not officially supported!" OFF)
 option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mtkahypar`." OFF)
 option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package." OFF)
+option(KAHYPAR_MINIMAL_COMPILATION "Only compile minimal set of files for a working multilevel partitioner." OFF)
 
 # dependencies
 option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
@@ -188,6 +189,10 @@ endif()
 #################################################################
 ## Options that translate into compile flags                   ##
 #################################################################
+
+if(KAHYPAR_MINIMAL_COMPILATION)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_MINIMAL_COMPILATION)
+endif(KAHYPAR_MINIMAL_COMPILATION)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_ASSERTIONS)

@@ -197,10 +197,14 @@ bool FixedVertexSupport<Hypergraph>::verifyClustering(const vec<HypernodeID>& cl
 
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+#endif
 
 template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticHypergraph>;
 template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticGraph>;
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicHypergraph>;
 template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicGraph>;
+#endif

@@ -41,9 +41,11 @@ namespace mt_kahypar {
   namespace {
     template<typename Hypergraph>
     size_t size_of_edge_sync() {
+      #ifndef KAHYPAR_MINIMAL_COMPILATION
       if constexpr (Hypergraph::is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
       }
+      #endif
       return 0;
     }
   }
@@ -51,13 +53,19 @@ namespace mt_kahypar {
   void register_memory_pool(const mt_kahypar_hypergraph_t hypergraph,
                             const Context& context) {
     if ( hypergraph.type == STATIC_GRAPH ) {
+      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::StaticGraph>(hypergraph), context);
+      #endif
     } else if ( hypergraph.type == DYNAMIC_GRAPH ) {
+      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::DynamicGraph>(hypergraph), context);
+      #endif
     } else if ( hypergraph.type == STATIC_HYPERGRAPH ) {
       register_memory_pool(utils::cast_const<ds::StaticHypergraph>(hypergraph), context);
     } else if ( hypergraph.type == DYNAMIC_HYPERGRAPH ) {
+      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::DynamicHypergraph>(hypergraph), context);
+      #endif
     }
   }
 

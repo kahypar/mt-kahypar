@@ -39,7 +39,6 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
-#include "mt-kahypar/partition/deep_multilevel.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
@@ -52,6 +51,11 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
+
+#ifndef KAHYPAR_MINIMAL_COMPILATION
+#include "mt-kahypar/partition/deep_multilevel.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
+#endif
 
 namespace mt_kahypar {
 
@@ -133,7 +137,9 @@ namespace {
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
         ASSERT(ip_context.partition.objective != Objective::steiner_tree);
         ip_context.partition.verbose_output = false;
+        #ifndef KAHYPAR_MINIMAL_COMPILATION
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
+        #endif
       } else {
         throw InvalidParameterException("Undefined initial partitioning algorithm");
       }
