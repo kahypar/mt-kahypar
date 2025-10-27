@@ -334,6 +334,7 @@ TEST_F(DeterminismTest, JetRefinementOnCoarseHypergraph) {
 }
 
 
+#ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
 TEST_F(DeterminismTest, FlowRefinement) {
   performRepeatedFlowRefinement();
 }
@@ -363,5 +364,6 @@ TEST_F(DeterminismTest, FlowRefinementOnCoarseHypergraph) {
     context.partition.k, hypergraph, parallel_tag_t());
   performRepeatedFlowRefinement();
 }
+#endif
 
 }  // namespace mt_kahypar
