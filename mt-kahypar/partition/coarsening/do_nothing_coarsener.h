@@ -32,7 +32,7 @@
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/utils/cast.h"
 
