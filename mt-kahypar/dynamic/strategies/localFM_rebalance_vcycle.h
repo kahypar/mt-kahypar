@@ -12,7 +12,6 @@ namespace mt_kahypar::dyn {
     class LocalFMRebalanceVCycleV4 : public DynamicStrategy {
 
     private:
-        ds::PartitionedHypergraph<ds::MutableHypergraph> partitioned_hypergraph_m;
         gain_cache_t _gain_cache;
         std::unique_ptr<IRefiner> _fm;
         std::unique_ptr<IRebalancer> _global_rebalancer;
@@ -178,8 +177,6 @@ namespace mt_kahypar::dyn {
         void partition(Change& change, size_t changes_size) override {
 
           change_count++;
-
-          ASSERT(false, "Assertions should not be enabled for performance measurements");
 
           parallel::scalable_vector<HypernodeID> local_fm_nodes;
           std::vector<HypernodeID> gain_cache_nodes;
