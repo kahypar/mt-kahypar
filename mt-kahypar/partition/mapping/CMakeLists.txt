@@ -13,4 +13,6 @@ else ()
   target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${MappingSources})
 endif()
 
-target_sources(MtKaHyPar-ToolsSources INTERFACE ${MappingSources})
+if(NOT KAHYPAR_MINIMAL_COMPILATION)
+  target_sources(MtKaHyPar-ToolsSources INTERFACE ${MappingSources})
+endif()
