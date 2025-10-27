@@ -193,11 +193,23 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator*=(HNWeightRef& weight, 
   return weight = factor * weight;
 }
 
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator*=(HNWeightRef&& weight, HNWeightScalar factor) {
+  return weight = factor * weight;
+}
+
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator*=(HNWeightRef& weight, double factor) {
   return weight = factor * weight;
 }
 
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator*=(HNWeightRef&& weight, double factor) {
+  return weight = factor * weight;
+}
+
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator/=(HNWeightRef& weight, HNWeightScalar divisor) {
+  return weight = weight / divisor;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator/=(HNWeightRef&& weight, HNWeightScalar divisor) {
   return weight = weight / divisor;
 }
 
