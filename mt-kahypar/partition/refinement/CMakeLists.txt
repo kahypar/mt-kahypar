@@ -1,6 +1,8 @@
 set(RefinementSources
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
+        deterministic/deterministic_label_propagation.cpp
+        deterministic/deterministic_jet_refiner.cpp
         )
 
 set(ExtendedRefinementSources
@@ -11,8 +13,6 @@ set(ExtendedRefinementSources
         rebalancing/simple_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/deterministic_rebalancer.cpp
-        deterministic/deterministic_label_propagation.cpp
-        deterministic/deterministic_jet_refiner.cpp
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
