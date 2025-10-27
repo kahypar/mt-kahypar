@@ -593,7 +593,7 @@ namespace mt_kahypar::ds {
   // ! Computes the total node weight of the hypergraph
   void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
     tbb::enumerable_thread_specific<AllocatedHNWeight> local_sum(dimension(), 0);
-    tbb::parallel_for(ID(0), _num_hypernodes, [this, &local_sum](const HypernodeID hn) {
+    doParallelForAllNodes([this, &local_sum](const HypernodeID hn) {
       local_sum.local() += this->_hypernode_weights[hn];
     });
     _total_weight = weight::broadcast(0, dimension());
