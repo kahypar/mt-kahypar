@@ -31,7 +31,7 @@
 #include "include/mtkahypartypes.h"
 
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
-#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
