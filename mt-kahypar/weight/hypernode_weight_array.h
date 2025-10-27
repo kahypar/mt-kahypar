@@ -270,7 +270,7 @@ class HypernodeWeightArray {
 
   void replaceWith(const size_type size,
                    const Dimension dimension,
-                   const weight::HNWeightScalar init_value = 0,
+                   const weight::HNWeightScalar init_value,
                    const bool assign_parallel = true) {
     HypernodeWeightArray new_array;
     new_array.resize(size, dimension, init_value, assign_parallel);
@@ -288,7 +288,7 @@ class HypernodeWeightArray {
   void assign(const size_type count,
               const weight::HNWeightScalar value = 0,
               const bool assign_parallel = true) {
-    ASSERT(_dimension == 0 || count <= size());
+    ASSERT(_dimension > 0 && count <= size());
     _data.assign(count * _dimension, value, assign_parallel);
   }
 
