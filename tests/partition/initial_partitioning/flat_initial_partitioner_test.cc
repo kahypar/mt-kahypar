@@ -106,7 +106,7 @@ class AFlatInitialPartitionerTest : public Test {
   void addFixedVertices(const double percentage,
                         const PartitionID default_block = kInvalidPartition) {
     ds::FixedVertexSupport<Hypergraph> fixed_vertices(
-      hypergraph.initialNumNodes(), context.partition.k);
+      hypergraph.initialNumNodes(), 1, context.partition.k);
     fixed_vertices.setHypergraph(&hypergraph);
 
     const int threshold = percentage * 1000;

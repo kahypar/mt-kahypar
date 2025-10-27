@@ -189,8 +189,8 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   dummy_context.partition.fixed_vertex_filename = "dummy.fix";
   dummy_context.partition.k = 0;
   dummy_context.partition.sp_process_output = true;
-  dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
-  dummy_context.partition.max_part_weights.assign(2, 0);
+  dummy_context.partition.perfect_balance_part_weights.replaceWith(2, 1, 0);
+  dummy_context.partition.max_part_weights.replaceWith(2, 1, 0);
   dummy_context.partition.objective = Objective::steiner_tree;
   dummy_context.mapping.target_graph_file = "dummy.graph";
   tests::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
@@ -216,8 +216,8 @@ TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
   tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.k = 2;
-  dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
-  dummy_context.partition.max_part_weights.assign(2, 0);
+  dummy_context.partition.perfect_balance_part_weights.replaceWith(2, 1, 0);
+  dummy_context.partition.max_part_weights.replaceWith(2, 1, 0);
   std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));
   ASSERT_EQ(std::count(body.begin(), body.end(), ','), std::count(header.begin(), header.end(), ','));
 }
