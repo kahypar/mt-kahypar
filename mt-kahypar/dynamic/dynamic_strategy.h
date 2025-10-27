@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mt-kahypar/partition/metrics.h>
-#include <mt-kahypar/dynamic_save/dynamic_datastructures.h>
+#include <mt-kahypar/dynamic/dynamic_datastructures.h>
 #include <mt-kahypar/partition/registries/register_memory_pool.h>
 #include <mt-kahypar/partition/partitioner_facade.h>
 #include <mt-kahypar/utils/cast.h>
