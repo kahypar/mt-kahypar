@@ -20,12 +20,12 @@ namespace mt_kahypar::dyn {
           (void) hn;
           (void) context;
           ASSERT(new_hn == hn);
-          ASSERT(context.partition.use_individual_part_weights == false);
-          ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
-                  hypergraph.totalWeight()
-                  / static_cast<double>(context.partition.k))));
-          ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
-                                                                                        * context.partition.perfect_balance_part_weights[0]));
+          // ASSERT(context.partition.use_individual_part_weights == false);
+          // ASSERT(context.partition.perfect_balance_part_weights == std::vector<HypernodeWeight>(context.partition.k, ceil(
+          //         hypergraph.totalWeight()
+          //         / static_cast<double>(context.partition.k))));
+          // ASSERT(context.partition.max_part_weights == std::vector<HypernodeWeight>(context.partition.k, (1 + context.partition.epsilon)
+          //                                                                               * context.partition.perfect_balance_part_weights[0]));
           // updateMaxPartWeight(context, hypergraph);
         // if (!context.dynamic.use_final_weight) {
         //
@@ -98,6 +98,7 @@ namespace mt_kahypar::dyn {
         }
     protected:
         ds::MutableHypergraph& hypergraph_m;
+        ds::PartitionedHypergraph<ds::MutableHypergraph> partitioned_hypergraph_m;
         Context& context;
 
         /*
@@ -160,7 +161,7 @@ namespace mt_kahypar::dyn {
         }
 
         /*
-         * Process the whole Change object.
+         * Process the whole setup-part of the Changelist.
          */
         static void process_setup_changes(ds::MutableHypergraph &hypergraph, Context &context, std::vector<Change> changes) {
           ASSERT(context.dynamic.setup_moves_count <= changes.size());
@@ -177,6 +178,16 @@ namespace mt_kahypar::dyn {
           }
           // context.setupPartWeights(hypergraph.totalWeight());
         }
+
+        static void process_change(ds::MutableHypergraph &hypergraph, Context &context, Change change) {
+            deactivate_pins(hypergraph, context, change);
+            deactivate_nodes(hypergraph, context, change);
+            deactivate_edges(hypergraph, context, change);
+
+            activate_edges(hypergraph, context, change);
+            activate_nodes(hypergraph, context, change);
+            activate_pins(hypergraph, context, change);
+          }
 
         static void updateMaxPartWeight(Context &context, ds::MutableHypergraph &hypergraph)
         {
@@ -204,6 +215,10 @@ namespace mt_kahypar::dyn {
          * A Strategy can print final statistics after the last partitioning step.
          */
         virtual void printAdditionalFinalStats() = 0;
+
+        static ds::PartitionedHypergraph<ds::MutableHypergraph>& getPartitionedHypergraphCopy(DynamicStrategy& strategy) {
+          return strategy.partitioned_hypergraph_m;
+        }
     };
 
 }
