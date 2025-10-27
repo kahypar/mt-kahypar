@@ -1,10 +1,13 @@
 set(RefinementSources
+        fm/sequential_twoway_fm_refiner.cpp
+        label_propagation/label_propagation_refiner.cpp
+        )
+
+set(ExtendedRefinementSources
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
-        fm/sequential_twoway_fm_refiner.cpp
-        label_propagation/label_propagation_refiner.cpp
         rebalancing/simple_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/deterministic_rebalancer.cpp
@@ -45,6 +48,10 @@ set(SteinerTreeGraphSources
 target_sources(MtKaHyPar-Sources INTERFACE ${RefinementSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${Km1Sources})
 target_sources(MtKaHyPar-Sources INTERFACE ${CutSources})
+
+if (NOT KAHYPAR_MINIMAL_COMPILATION)
+  target_sources(MtKaHyPar-Sources INTERFACE ${ExtendedRefinementSources})
+endif()
 
 if ( KAHYPAR_ENABLE_SOED_METRIC )
   target_sources(MtKaHyPar-Sources INTERFACE ${SoedSources})
