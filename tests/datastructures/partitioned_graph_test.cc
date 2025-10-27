@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -52,7 +53,7 @@ class APartitionedGraph : public Test {
   using Factory = typename Hypergraph::Factory;
 
   APartitionedGraph() :
-    hypergraph(Factory::construct(7 , 6,
+    hypergraph(Factory::construct(7 , 6, 1,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
     partitioned_hypergraph(3, hypergraph),
     gain_cache() {
@@ -157,17 +158,17 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 TYPED_TEST_SUITE(APartitionedGraph, tests::GraphTestTypeTraits);
 
 TYPED_TEST(APartitionedGraph, HasCorrectPartWeightAndSizes) {
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedGraph, HasCorrectPartWeightsIfOnlyOneThreadPerformsModifications) {
   ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(0, 0, 1));
 
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedGraph, PerformsConcurrentMovesWhereAllSucceed) {
@@ -181,9 +182,9 @@ TYPED_TEST(APartitionedGraph, PerformsConcurrentMovesWhereAllSucceed) {
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(4, 1, 2));
   });
 
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 
@@ -373,9 +374,9 @@ TYPED_TEST(APartitionedGraph, ComputesPartInfoCorrectlyIfNodePartsAreSetOnly) {
   this->partitioned_hypergraph.setOnlyNodePart(6, 2);
   this->partitioned_hypergraph.initializePartition();
 
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
@@ -402,22 +403,22 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
       deltas[0] += d;
       move_deltas[0].push_back(d);
     };
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 3, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 1, 2, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 0, 2, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 3, 1, 2, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 2, 0, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 2, 1, weight::broadcast(5, 1), []{}, delta_fun));
   }, [&] {
     auto delta_fun = [&](const SynchronizedEdgeUpdate& sync_update) {
       HyperedgeWeight d = CutAttributedGains::gain(sync_update);
       deltas[1] += d;
       move_deltas[1].push_back(d);
     };
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 5, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 6, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 0, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 0, 2, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 5, 2, 0, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 6, 2, 0, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 0, 0, 2, weight::broadcast(5, 1), []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, weight::broadcast(5, 1), []{}, delta_fun));
   });
 
   HyperedgeWeight delta = deltas[0] + deltas[1];
