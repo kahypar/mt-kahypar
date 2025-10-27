@@ -63,8 +63,12 @@ add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
-                           KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-                           KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+                           KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+                           KAHYPAR_ENABLE_QUALITY_FEATURES
+                           KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+                           KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+                           KAHYPAR_ENABLE_SOED_METRIC
+                           KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 # building shared libraries requires position independent code
 if(BUILD_SHARED_LIBS)
   set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -97,6 +101,7 @@ option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF
 
 # algorithm features for CLI build (note: the library always contains all non-experimental features)
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
+option(KAHYPAR_ENABLE_QUALITY_FEATURES "Enables (deterministic_)quality preset features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES "Enables highest quality preset features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
 option(KAHYPAR_ENABLE_SOED_METRIC "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." OFF)
@@ -222,7 +227,14 @@ if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
+if(KAHYPAR_ENABLE_QUALITY_FEATURES)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_QUALITY_FEATURES)
+endif(KAHYPAR_ENABLE_QUALITY_FEATURES)
+
 if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
+  if(NOT KAHYPAR_ENABLE_QUALITY_FEATURES)
+    message(WARNING "Highest quality features enabled; but highest_quality preset also requires quality features. Consider adding -DKAHYPAR_ENABLE_QUALITY_FEATURES=On")
+  endif()
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 endif(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
 

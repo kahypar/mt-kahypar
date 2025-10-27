@@ -10,6 +10,9 @@ set(RefinementSources
         rebalancing/repair_empty_blocks.cpp
         deterministic/deterministic_label_propagation.cpp
         deterministic/deterministic_jet_refiner.cpp
+)
+
+set(QualityRefinementSources
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
@@ -20,7 +23,7 @@ set(RefinementSources
         flows/flow_hypergraph_builder.cpp
         flows/deterministic/deterministic_flow_refinement_scheduler.cpp
         flows/deterministic/participation_scheduler.cpp
-        )
+)
 
 set(Km1Sources
         gains/km1/km1_gain_cache.cpp)
@@ -45,6 +48,10 @@ set(SteinerTreeGraphSources
 target_sources(MtKaHyPar-Sources INTERFACE ${RefinementSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${Km1Sources})
 target_sources(MtKaHyPar-Sources INTERFACE ${CutSources})
+
+if (KAHYPAR_ENABLE_QUALITY_FEATURES)
+  target_sources(MtKaHyPar-Sources INTERFACE ${QualityRefinementSources})
+endif()
 
 if ( KAHYPAR_ENABLE_SOED_METRIC )
   target_sources(MtKaHyPar-Sources INTERFACE ${SoedSources})
