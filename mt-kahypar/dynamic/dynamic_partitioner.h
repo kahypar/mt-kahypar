@@ -2,6 +2,7 @@
 
 #include "mt-kahypar/dynamic/dynamic_io.h"
 #include "mt-kahypar/dynamic/strategies/localFM_rebalance_vcycle.h"
+#include "mt-kahypar/dynamic/strategies/repartition.h"
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
@@ -34,6 +35,8 @@ namespace mt_kahypar::dyn {
 
       if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
         strategy = new LocalFMRebalanceVCycleV4(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "repartition") {
+        strategy = new Repartition(hypergraph_m, context);
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
@@ -62,7 +65,7 @@ namespace mt_kahypar::dyn {
           if (log_step_size != 0 && i % log_step_size != 0) {
             continue;
           }
-          log_km1_live(i+1, changes.size(), context, hypergraph_p, duration_sum);
+          log_km1_live(i+1, changes.size(), context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
         }
 
         strategy->printAdditionalFinalStats();
