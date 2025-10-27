@@ -25,10 +25,8 @@
  ******************************************************************************/
 
 #include "tests/definitions.h"
-#include "mt-kahypar/datastructures/allocated_hypernode_weight.h"
-#include "mt-kahypar/datastructures/hypernode_weights.h"
-#include "mt-kahypar/datastructures/hypernode_weight_array.h"
-#include "mt-kahypar/datastructures/hypernode_weight_buffer.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
+#include "mt-kahypar/weight/hypernode_weight_buffer.h"
 
 using ::testing::Test;
 
@@ -90,24 +88,24 @@ TEST_F(AHypernodeWeight, SimpleWeightArray) {
   HNWeightScalar chunk_3[3] = {7, 8, 9};
   HNWeightConstRef vec_3(chunk_3, 3);
 
-  HypernodeWeightArray array(3, 3);
-  ASSERT_TRUE(array[0].isZero());
-  ASSERT_TRUE(array[1].isZero());
-  ASSERT_TRUE(array[2].isZero());
+  HypernodeWeightArray array(3, 3, 0);
+  ASSERT_TRUE(weight::isZero(array[0]));
+  ASSERT_TRUE(weight::isZero(array[1]));
+  ASSERT_TRUE(weight::isZero(array[2]));
 
   array[0] = vec_1;
   array[1] = vec_2;
   array[2] = vec_3;
-  ASSERT_FALSE(array[0].isZero());
-  ASSERT_FALSE(array[1].isZero());
-  ASSERT_FALSE(array[2].isZero());
+  ASSERT_FALSE(weight::isZero(array[0]));
+  ASSERT_FALSE(weight::isZero(array[1]));
+  ASSERT_FALSE(weight::isZero(array[2]));
   ASSERT_EQ(array[0], vec_1);
   ASSERT_EQ(array[1], vec_2);
   ASSERT_EQ(array[2], vec_3);
 }
 
 TEST_F(AHypernodeWeight, SimpleWeightBuffer) {
-  ds::HypernodeWeightBuffer buffer(2);
+  weight::HypernodeWeightBuffer buffer(2);
 
   HNWeightRef first = weight::allocateAt(buffer, 0);
   first.set(0, 1);

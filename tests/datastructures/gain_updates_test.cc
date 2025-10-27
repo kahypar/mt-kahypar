@@ -76,7 +76,7 @@ TYPED_TEST(AGainUpdate, Example1) {
   }
 
   ASSERT_EQ(this->phg.partWeight(0), this->phg.partWeight(1));
-  ASSERT_EQ(this->phg.partWeight(0), 10);
+  ASSERT_EQ(this->phg.partWeight(0), weight::broadcast(10, 1));
 
   this->gain_cache.initializeGainCache(this->phg);
   ASSERT_EQ(this->gain_cache.gain(0, this->phg.partID(0), 1), -1);

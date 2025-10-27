@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 using ::testing::Eq;
@@ -72,7 +73,7 @@ class ACoarsener : public Test {
 
  public:
   ACoarsener() :
-    hypergraph(HypergraphFactory::construct(16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
+    hypergraph(HypergraphFactory::construct(16, 18, 1, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
                 { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
                 { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
                 { 12, 13 }, { 12, 13, 15 }, { 13, 14, 15 } }, nullptr, nullptr, true)),
@@ -93,7 +94,7 @@ class ACoarsener : public Test {
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
-    context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
+    context.coarsening.max_allowed_node_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), 1);
     context.coarsening.contraction_limit = 8;
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
