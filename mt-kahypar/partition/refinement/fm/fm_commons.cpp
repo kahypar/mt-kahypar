@@ -47,8 +47,8 @@ namespace mt_kahypar {
   }
 
   Gain UnconstrainedFMData::estimatePenaltyForImbalancedMove(PartitionID to,
-                                                             HypernodeWeight initial_imbalance,
-                                                             HypernodeWeight moved_weight) const {
+                                                             HNWeightScalar initial_imbalance,
+                                                             HNWeightScalar moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
     // TODO test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
@@ -75,6 +75,11 @@ namespace mt_kahypar {
             UnconstrainedFMData& data, const Context& context,
             const typename GraphAndGainTypes::PartitionedHypergraph& phg,
             const typename GraphAndGainTypes::GainCache& gain_cache) {
+    unused(data);
+    unused(context);
+    unused(phg);
+    unused(gain_cache);
+    #ifndef KAHYPAR_MINIMAL_COMPILATION  // TODO
     auto get_node_stats = [&](const HypernodeID hypernode) {
       // TODO(maas): we might want to save the total incident weight in the hypergraph data structure
       // at some point in the future
@@ -236,6 +241,9 @@ namespace mt_kahypar {
     }
 
     data.initialized = true;
+    #else
+    ALWAYS_ASSERT(false);
+    #endif
   }
 
   void UnconstrainedFMData::reset() {
