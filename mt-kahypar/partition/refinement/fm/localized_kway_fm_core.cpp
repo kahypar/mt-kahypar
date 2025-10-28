@@ -30,7 +30,9 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#endif
 
 namespace mt_kahypar {
 
@@ -262,8 +264,10 @@ namespace mt_kahypar {
 
   namespace {
   #define LOCALIZED_KWAY_FM(X) LocalizedKWayFM<X>;                                                      \
-    template bool LocalizedKWayFM<X>::findMoves(LocalUnconstrainedStrategy&,                            \
-                    typename LocalizedKWayFM<X>::PartitionedHypergraph&, size_t, size_t);               \
+    ENABLE_FULL_COMPILATION(                                                                            \
+      (template bool LocalizedKWayFM<X>::findMoves(LocalUnconstrainedStrategy&,                         \
+                      typename LocalizedKWayFM<X>::PartitionedHypergraph&, size_t, size_t));            \
+    )                                                                                                   \
     template bool LocalizedKWayFM<X>::findMoves(LocalGainCacheStrategy&,                                \
                     typename LocalizedKWayFM<X>::PartitionedHypergraph&, size_t, size_t)
   }
