@@ -102,6 +102,10 @@ class DeltaPartitionedHypergraph {
     _connectivity_set_delta.setConnectivitySet(&phg->getConnectivityInformation());
   }
 
+  Dimension dimension() const {
+    return _part_weights_delta.dimension();
+  }
+
   // ####################### Mapping ######################
 
   bool hasTargetGraph() const {

@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -51,7 +52,7 @@ namespace mt_kahypar {
    */
 
 class LocalUnconstrainedStrategy {
-  using VirtualWeightMap = ds::SparseMap<PartitionID, HypernodeWeight>;
+  using VirtualWeightMap = ds::SparseMap<PartitionID, HNWeightScalar>;
 
  public:
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -133,11 +134,14 @@ class LocalUnconstrainedStrategy {
 
       bool apply_move = (gain >= estimated_gain); // accept any gain that is at least as good
       if (apply_move && to != kInvalidPartition && penaltyFactor > 0) {
-        const HypernodeWeight wu = phg.nodeWeight(u);
-        const HypernodeWeight to_weight = phg.partWeight(to);
-        if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[to]) {
+        ASSERT(phg.dimension() == 1);
+        // TODO: does this really make sense? (seems to be some second gain recomputation)
+        const HNWeightScalar wu = phg.nodeWeight(u).at(0);
+        const HNWeightScalar to_weight = phg.partWeight(to).at(0);
+        const HNWeightScalar max_part_weight = context.partition.max_part_weights[to].at(0);
+        if (upperBound >= 1 && to_weight + wu > upperBound * max_part_weight) {
           apply_move = false;
-        } else if (to_weight + wu > context.partition.max_part_weights[to]) {
+        } else if (to_weight + wu > max_part_weight) {
           const Gain imbalance_penalty = estimatePenalty(to, to_weight, wu);
           if (imbalance_penalty != std::numeric_limits<Gain>::max()) {
             Gain new_gain = gain_cache.gain(u, from, to) - std::ceil(penaltyFactor * imbalance_penalty);
@@ -167,11 +171,12 @@ class LocalUnconstrainedStrategy {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void applyMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
     if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+      ASSERT(phg.dimension() == 1);
       // If a node is moved which is already in use for penalty estimation, we need to make
       // an adjustment so future estimations are not overly optimistic (since in reality, the
       // node is not available anymore). This is achieved by increasing the "virtual" weight of
       // the origin block, thus pessimizing future estimations
-      localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node);
+      localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node).at(0);
     }
   }
 
@@ -240,33 +245,36 @@ private:
   std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PartitionedHypergraph& phg,
                                                                  const GainCache& gain_cache,
                                                                  const HypernodeID u,
-                                                                 const PartitionID from) const {
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
+                                                                 const PartitionID from) {
+    const HNWeightConstRef wu = phg.nodeWeight(u);
+    const auto from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    HypernodeWeight best_to_weight = from_weight - wu;
+    bestTargetBlockWeight = from_weight - wu;
     for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
       if (i != from) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
-        const HypernodeWeight max_weight = context.partition.max_part_weights[i];
+        tmpHNWeight = phg.partWeight(i);
+        const HNWeightConstRef max_weight = context.partition.max_part_weights[i];
+        const bool is_imbalanced = !(tmpHNWeight + wu <= max_weight);
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if (upperBound >= 1 && to_weight + wu > upperBound * max_weight) {
+        if (upperBound >= 1 && !(tmpHNWeight + wu <= upperBound * max_weight)) {
           continue;
-        } else if (to_weight + wu > max_weight && benefit <= to_benefit) {
+        } else if (is_imbalanced && benefit <= to_benefit) {
           // don't take imbalanced move without improved gain
           continue;
-        } else if (to_weight + wu > max_weight && penaltyFactor > 0) {
-          const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
+        } else if (is_imbalanced && penaltyFactor > 0) {
+          ASSERT(phg.dimension() == 1);
+          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight.at(0), wu.at(0));
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
-        if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
+        // TODO: any better tie breaking option?
+        if ( benefit > to_benefit || ( benefit == to_benefit && tmpHNWeight < bestTargetBlockWeight ) ) {
           to_benefit = benefit;
           to = i;
-          best_to_weight = to_weight;
+          bestTargetBlockWeight = tmpHNWeight;
         }
       }
     }
@@ -282,21 +290,23 @@ private:
                                                       const GainCache& gain_cache,
                                                       HypernodeID u,
                                                       PartitionID from,
-                                                      std::array<PartitionID, 3> parts) const {
+                                                      std::array<PartitionID, 3> parts) {
     const PartitionID designatedTargetU = sharedData.targetPart[u];
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
+    const HNWeightConstRef wu = phg.nodeWeight(u);
+    const auto from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    HypernodeWeight best_to_weight = from_weight - wu;
+    bestTargetBlockWeight = from_weight - wu;
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
+        const HNWeightConstRef max_weight = context.partition.max_part_weights[i];
+        tmpHNWeight = phg.partWeight(i);
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[i]) {
+        if (upperBound >= 1 && !(tmpHNWeight + wu <= upperBound * max_weight)) {
           continue;
-        } else if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
-          const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
+        } else if (penaltyFactor > 0 && !(tmpHNWeight + wu <= max_weight)) {
+          ASSERT(phg.dimension() == 1);
+          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight.at(0), wu.at(0));
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             if (i == designatedTargetU) {
               // Edge case: the cached target block for u is overloaded (infinite penalty) and no longer valid.
@@ -309,10 +319,11 @@ private:
           }
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
-        if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
+        // TODO: any better tie breaking option?
+        if ( benefit > to_benefit || ( benefit == to_benefit && tmpHNWeight < bestTargetBlockWeight ) ) {
           to_benefit = benefit;
           to = i;
-          best_to_weight = to_weight;
+          bestTargetBlockWeight = tmpHNWeight;
         }
       }
     }
@@ -323,10 +334,11 @@ private:
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  Gain estimatePenalty(PartitionID to, HypernodeWeight to_weight, HypernodeWeight wu) const {
-    HypernodeWeight virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
+  Gain estimatePenalty(PartitionID to, HNWeightScalar to_weight, HNWeightScalar wu) const {
+    ASSERT(context.dimension() == 1);
+    HNWeightScalar virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
                                     + localVirtualWeightDelta.getOrDefault(to);
-    HypernodeWeight initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to];
+    HNWeightScalar initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to].at(0);
     return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initial_imbalance, wu);
   }
 
@@ -349,6 +361,10 @@ private:
 
   double penaltyFactor;
   double upperBound;
+
+  // ! Buffers for comparing the weight of target blocks
+  AllocatedHNWeight bestTargetBlockWeight;
+  AllocatedHNWeight tmpHNWeight;
 };
 
 }
