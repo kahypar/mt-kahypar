@@ -63,16 +63,16 @@ namespace mt_kahypar {
   }
 
   // helper function for rebalancing
-  std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
+  HypernodeWeightArray setupMaxPartWeights(const Context& context) {
     double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
     if (max_part_weight_scaling == 1.0) {
-      return context.partition.max_part_weights;
+      return context.partition.max_part_weights.copy();
     }
 
-    std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;
+    HypernodeWeightArray max_part_weights = context.partition.perfect_balance_part_weights.copy();
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
-        max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+        max_part_weights[i] = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), context.dimension());
       }
     } else {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -96,8 +96,8 @@ namespace mt_kahypar {
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     double current_time_limit = time_limit;
     tbb::task_group tg;
-    vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
-    std::vector<HypernodeWeight> max_part_weights = setupMaxPartWeights(context);
+    HypernodeWeightArray initialPartWeights(size_t(context.partition.k), phg.dimension(), 0);
+    HypernodeWeightArray max_part_weights = setupMaxPartWeights(context);
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
@@ -275,8 +275,8 @@ namespace mt_kahypar {
   template<typename GraphAndGainTypes>
   void MultiTryKWayFM<GraphAndGainTypes>::interleaveMoveSequenceWithRebalancingMoves(
                                                             const PartitionedHypergraph& phg,
-                                                            const vec<HypernodeWeight>& initialPartWeights,
-                                                            const std::vector<HypernodeWeight>& max_part_weights,
+                                                            const HypernodeWeightArray& initialPartWeights,
+                                                            const HypernodeWeightArray& max_part_weights,
                                                             vec<vec<Move>>& rebalancing_moves_by_part) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
@@ -321,12 +321,14 @@ namespace mt_kahypar {
     // NOTE: We re-insert invalid rebalancing moves to ensure the gain cache is updated correctly by the global rollback
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
     // the move sequence). We might replace it with a parallel implementation later.
-    vec<HypernodeWeight> current_part_weights = initialPartWeights;
+    HypernodeWeightArray current_part_weights = initialPartWeights.copy();
     vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
     MoveID next_move_index = 0;
 
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
-      if (current_part_weights[part] > max_part_weights[part]) {
+      if (phg.dimension() > 1) return;  // doesn't work for multiconstraint
+
+      if (current_part_weights[part].at(0) > max_part_weights[part].at(0)) {
         insertMovesToBalanceBlock(phg, part, max_part_weights, rebalancing_moves_by_part,
                                   next_move_index, current_part_weights, current_rebalancing_move_index);
       }
@@ -342,7 +344,7 @@ namespace mt_kahypar {
     for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
       const Move& m = move_order[move_id];
       if (m.isValid()) {
-        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        const HNWeightConstRef hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;
         tmp_move_order[next_move_index] = m;
@@ -384,11 +386,13 @@ namespace mt_kahypar {
   template<typename GraphAndGainTypes>
   void MultiTryKWayFM<GraphAndGainTypes>::insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
                                                                         const PartitionID block,
-                                                                        const std::vector<HypernodeWeight>& max_part_weights,
+                                                                        const HypernodeWeightArray& max_part_weights,
                                                                         const vec<vec<Move>>& rebalancing_moves_by_part,
                                                                         MoveID& next_move_index,
-                                                                        vec<HypernodeWeight>& current_part_weights,
+                                                                        HypernodeWeightArray& current_part_weights,
                                                                         vec<MoveID>& current_rebalancing_move_index) {
+    ALWAYS_ASSERT(phg.dimension() == 1);
+
     while (current_part_weights[block] > max_part_weights[block]
             && current_rebalancing_move_index[block] < rebalancing_moves_by_part[block].size()) {
       const MoveID move_index_for_block = current_rebalancing_move_index[block];
@@ -397,7 +401,7 @@ namespace mt_kahypar {
       tmp_move_order[next_move_index] = m;
       ++next_move_index;
       if (m.isValid()) {
-        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        const HNWeightConstRef hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;
 

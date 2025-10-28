@@ -34,6 +34,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/datastructures/synchronized_edge_update.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -45,38 +46,48 @@ namespace mt_kahypar {
     struct Prefix {
       Gain gain = 0;                           /** gain when using valid moves up to best_index */
       MoveID best_index = 0;                   /** local ID of first move to revert */
-      HypernodeWeight heaviest_weight =
-              std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
+      AllocatedHNWeight heaviest_weight;       /** weight of the heaviest part */
 
-      bool operator<(const Prefix& o) const {
-        return gain > o.gain ||
-               (gain == o.gain && std::tie(heaviest_weight, best_index) < std::tie(o.heaviest_weight, o.best_index));
+      void setToBest(const Prefix& o) {
+        setToBest(o.gain, o.best_index, o.heaviest_weight);
+      }
+
+      void setToBest(Gain other_gain, MoveID other_index, HNWeightConstRef other_weight) {
+        ASSERT(!weight::isInvalid(other_weight));
+        if (weight::isInvalid(heaviest_weight)
+            || other_gain > gain
+            // TODO: better tie break than sum of weights?
+            || (other_gain == gain && std::make_pair(weight::sum(other_weight), other_index) < std::make_pair(weight::sum(heaviest_weight), best_index))) {
+          gain = other_gain;
+          best_index = other_index;
+          heaviest_weight = other_weight;
+        }
       }
     };
     std::shared_ptr< tbb::enumerable_thread_specific<Prefix> > local_best;
 
     Gain gain_sum = 0;
 
-    vec<HypernodeWeight> part_weights;
-    const std::vector<HypernodeWeight>& max_part_weights;
+    HypernodeWeightArray part_weights;
+    const HypernodeWeightArray& max_part_weights;
 
     BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
             phg(b.phg),
             moves(b.moves),
             local_best(b.local_best),
             gain_sum(0),
-            part_weights(b.part_weights.size(), 0),
+            part_weights(b.part_weights.size(), b.part_weights.dimension(), 0),
             max_part_weights(b.max_part_weights) { }
 
 
     BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
                             const vec<Move>& moves,
-                            const vec<HypernodeWeight>& part_weights,
-                            const std::vector<HypernodeWeight>& max_part_weights) :
+                            const HypernodeWeightArray& part_weights,
+                            const HypernodeWeightArray& max_part_weights) :
             phg(phg),
             moves(moves),
             local_best(std::make_shared< tbb::enumerable_thread_specific<Prefix> >()),
-            part_weights(part_weights),
+            part_weights(part_weights.copy()),
             max_part_weights(max_part_weights)
     {
     }
@@ -105,7 +116,7 @@ namespace mt_kahypar {
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
       size_t overloaded = 0;
       for (size_t i = 0; i < part_weights.size(); ++i) {
-        if (part_weights[i] > max_part_weights[i]) {
+        if (!(part_weights[i] <= max_part_weights[i])) {
           overloaded++;
         }
       }
@@ -117,27 +128,26 @@ namespace mt_kahypar {
         if (m.isValid()) {  // skip locally reverted moves
           gain_sum += m.gain;
 
-          const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
+          const bool from_overloaded = !(part_weights[m.from] <= max_part_weights[m.from]);
           part_weights[m.from] -= phg.nodeWeight(m.node);
           if (from_overloaded && part_weights[m.from] <= max_part_weights[m.from]) {
             overloaded--;
           }
-          const bool to_overloaded = part_weights[m.to] > max_part_weights[m.to];
+          const bool to_overloaded = !(part_weights[m.to] <= max_part_weights[m.to]);
           part_weights[m.to] += phg.nodeWeight(m.node);
-          if (!to_overloaded && part_weights[m.to] > max_part_weights[m.to]) {
+          if (!to_overloaded && !(part_weights[m.to] <= max_part_weights[m.to])) {
             overloaded++;
           }
 
           if (overloaded == 0 && gain_sum >= current.gain) {
-            Prefix new_prefix = { gain_sum, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
-            current = std::min(current, new_prefix);
+            current.setToBest(gain_sum, i + 1, getMaxPartWeight(part_weights));
           }
         }
       }
 
       if (current.best_index != 0) {
         Prefix& lb = local_best->local();
-        lb = std::min(lb, current);
+        lb.setToBest(current);
       }
     }
 
@@ -145,19 +155,33 @@ namespace mt_kahypar {
       gain_sum = b.gain_sum;
     }
 
-    Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
-      Prefix res { 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
+    Prefix finalize(const HypernodeWeightArray& initial_part_weights) {
+      unused(initial_part_weights);
+      Prefix res;
       for (const Prefix& x : *local_best) {
-        res = std::min(res, x);
+        if (x.best_index != 0) {
+          res.setToBest(x);
+        }
       }
+      // note: returned part weight does not need to be correct
       return res;
+    }
+
+    static HNWeightConstRef getMaxPartWeight(const HypernodeWeightArray& part_weights) {
+      HNWeightConstRef result = part_weights[0];
+      for (size_t i = 1; i < part_weights.size(); ++i) {
+        if (weight::sum(part_weights[i]) > weight::sum(result)) {
+          result = part_weights[i];
+        }
+      }
+      return result;
     }
   };
 
   template<typename GraphAndGainTypes>
   HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
-          const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
+          const HypernodeWeightArray& partWeights, const HypernodeWeightArray& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
@@ -395,8 +419,8 @@ namespace mt_kahypar {
   HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(
     PartitionedHypergraph& phg,
     FMSharedData& sharedData,
-    const vec<HypernodeWeight>&,
-    const std::vector<HypernodeWeight>& maxPartWeights) {
+    const HypernodeWeightArray&,
+    const HypernodeWeightArray& maxPartWeights) {
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     const MoveID numMoves = tracker.numPerformedMoves();
@@ -412,7 +436,7 @@ namespace mt_kahypar {
 
     size_t overloaded = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > maxPartWeights[i]) {
+      if (!(phg.partWeight(i) <= maxPartWeights[i])) {
         overloaded++;
       }
     }
@@ -427,14 +451,14 @@ namespace mt_kahypar {
       const Move& m = move_order[localMoveID];
       if (!m.isValid()) continue;
 
-      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
-      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
+      const bool from_overloaded = !(phg.partWeight(m.from) <= maxPartWeights[m.from]);
+      const bool to_overloaded = !(phg.partWeight(m.to) <= maxPartWeights[m.to]);
       phg.changeNodePart(gain_cache, m.node, m.from, m.to,
-        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
+        weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension()), []{ }, attributed_gains);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
-      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
+      if (!to_overloaded && !(phg.partWeight(m.to) <= maxPartWeights[m.to])) {
         overloaded++;
       }
 
@@ -506,7 +530,7 @@ namespace mt_kahypar {
       // const HyperedgeWeight objective_before_move =
       //   metrics::quality(phg, context, false);
       phg.changeNodePart(gain_cache, m.node, m.from, m.to,
-        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
+        weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension()), []{ }, attributed_gains);
       // const HyperedgeWeight objective_after_move =
       //   metrics::quality(phg, context, false);
 

@@ -30,6 +30,7 @@
 #include <array>
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -50,6 +51,7 @@ namespace mt_kahypar {
    *
    */
 
+// TODO: specialize for dimension = 1 ??
 class LocalGainCacheStrategy {
 public:
 
@@ -205,21 +207,33 @@ private:
                                                                  const HypernodeID u,
                                                                  const PartitionID from,
                                                                  bool ignore_balance) {
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
+    const HNWeightConstRef wu = phg.nodeWeight(u);
+    const auto from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    HypernodeWeight best_to_weight = from_weight - wu;
+    bestTargetBlockWeight = from_weight - wu;
     for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
       if (i != from) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
-        if ( ( penalty > to_benefit || ( penalty == to_benefit && to_weight < best_to_weight ) ) &&
-             (ignore_balance || to_weight + wu <= context.partition.max_part_weights[i]) ) {
+        bool is_better = penalty > to_benefit;
+
+        // some case distinctions to avoid an unnecessary reassignment of a weight vector
+        if (is_better && ignore_balance) {
           to_benefit = penalty;
           to = i;
-          best_to_weight = to_weight;
+          bestTargetBlockWeight = phg.partWeight(i);
+        } else if (is_better || penalty == to_benefit) {
+          tmpHNWeight = phg.partWeight(i);
+          // TODO: any better tie breaking option?
+          if (is_better || tmpHNWeight < bestTargetBlockWeight) {
+            if (ignore_balance || tmpHNWeight + wu <= context.partition.max_part_weights[i]) {
+              to_benefit = penalty;
+              to = i;
+              bestTargetBlockWeight = tmpHNWeight;
+            }
+          }
         }
+
       }
     }
     const Gain gain = to != kInvalidPartition ? to_benefit - gain_cache.penaltyTerm(u, phg.partID(u))
@@ -235,19 +249,29 @@ private:
                                                       PartitionID from,
                                                       std::array<PartitionID, 3> parts) {
     // We ignore balance here to avoid recomputations that involve all blocks (see `updateGain` for details)
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
+    const HNWeightConstRef wu = phg.nodeWeight(u);
+    const auto from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    HypernodeWeight best_to_weight = from_weight - wu;
+    bestTargetBlockWeight = from_weight - wu;
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
-        if ( ( penalty > to_benefit || (penalty == to_benefit && to_weight < best_to_weight) ) ) {
+        bool is_better = penalty > to_benefit;
+
+        // some case distinctions to avoid an unnecessary reassignment of a weight vector
+        if (is_better) {
           to_benefit = penalty;
           to = i;
-          best_to_weight = to_weight;
+          bestTargetBlockWeight = phg.partWeight(i);
+        } else if (penalty == to_benefit) {
+          tmpHNWeight = phg.partWeight(i);
+          // TODO: any better tie breaking option?
+          if (tmpHNWeight < bestTargetBlockWeight) {
+            to_benefit = penalty;
+            to = i;
+            bestTargetBlockWeight = tmpHNWeight;
+          }
         }
       }
     }
@@ -269,6 +293,10 @@ protected:
   // ! in that block) touched by the current local search associated
   // ! with their gain values
   vec<VertexPriorityQueue>& vertexPQs;
+
+  // ! Buffers for comparing the weight of target blocks
+  AllocatedHNWeight bestTargetBlockWeight;
+  AllocatedHNWeight tmpHNWeight;
 };
 
 }

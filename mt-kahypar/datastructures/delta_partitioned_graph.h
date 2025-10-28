@@ -90,6 +90,10 @@ class DeltaPartitionedGraph {
     _pg = pg;
   }
 
+  Dimension dimension() const {
+    return _part_weights_delta.dimension();
+  }
+
   // ####################### Mapping ######################
 
   bool hasTargetGraph() const {

@@ -47,8 +47,8 @@ namespace mt_kahypar {
   }
 
   Gain UnconstrainedFMData::estimatePenaltyForImbalancedMove(PartitionID to,
-                                                             HypernodeWeight initial_imbalance,
-                                                             HypernodeWeight moved_weight) const {
+                                                             HNWeightScalar initial_imbalance,
+                                                             HNWeightScalar moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
     // TODO test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
@@ -75,6 +75,8 @@ namespace mt_kahypar {
             UnconstrainedFMData& data, const Context& context,
             const typename GraphAndGainTypes::PartitionedHypergraph& phg,
             const typename GraphAndGainTypes::GainCache& gain_cache) {
+    if (phg.dimension() > 1) return;  // penalties are not supported for larger dimensions
+
     auto get_node_stats = [&](const HypernodeID hypernode) {
       // TODO(maas): we might want to save the total incident weight in the hypergraph data structure
       // at some point in the future
@@ -88,11 +90,11 @@ namespace mt_kahypar {
     };
 
     const double bn_treshold = context.refinement.fm.treshold_border_node_inclusion;
-    tbb::enumerable_thread_specific<HypernodeWeight> local_considered_weight(0);
-    tbb::enumerable_thread_specific<HypernodeWeight> local_inserted_weight(0);
+    tbb::enumerable_thread_specific<HNWeightScalar> local_considered_weight(0);
+    tbb::enumerable_thread_specific<HNWeightScalar> local_inserted_weight(0);
     // collect nodes and fill buckets
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
-      const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+      const HNWeightScalar hn_weight = phg.nodeWeight(hn).at(0);
       if (hn_weight == 0) return;
 
       auto [internal_weight, total_incident_weight] = get_node_stats(hn);
@@ -126,19 +128,19 @@ namespace mt_kahypar {
       compute_prefix_sum_for_range(block * NUM_BUCKETS, (block + 1) * NUM_BUCKETS);
     }, tbb::static_partitioner());
 
-    const HypernodeWeight considered_weight = local_considered_weight.combine(std::plus<>());
-    const HypernodeWeight inserted_weight = local_inserted_weight.combine(std::plus<>());
+    const HNWeightScalar considered_weight = local_considered_weight.combine(std::plus<>());
+    const HNWeightScalar inserted_weight = local_inserted_weight.combine(std::plus<>());
     if (static_cast<double>(inserted_weight) / considered_weight < FALLBACK_TRESHOLD) {
       // Use fallback if fixed number of buckets per block is not sufficient:
       // For unweighted instances or instances with reasonable weight distribution this should almost never
       // be necessary. We use more expensive precomputations (hash maps instead of arrays) here in order to
       // keep memory overhead low and still get fast queries for estimating imbalance penalties.
-      using SparseMap = ds::DynamicSparseMap<uint64_t, HypernodeWeight>;
+      using SparseMap = ds::DynamicSparseMap<uint64_t, HNWeightScalar>;
 
       // collect nodes into local hashmaps
       tbb::enumerable_thread_specific<SparseMap> local_accumulator;
       phg.doParallelForAllNodes([&](const HypernodeID hn) {
-        const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+        const HNWeightScalar hn_weight = phg.nodeWeight(hn).at(0);
         if (hn_weight == 0) return;
 
         auto [internal_weight, total_incident_weight] = get_node_stats(hn);
@@ -166,13 +168,13 @@ namespace mt_kahypar {
           const uint32_t block = static_cast<uint32_t>(p);
 
           ASSERT(it == map.end() || keyToPair(it->key).first >= block);
-          HypernodeWeight total_weight = 0;
+          HNWeightScalar total_weight = 0;
           while (it < map.end() && keyToPair(it->key).first == block) {
             total_weight += it->value;
             ++it;
           }
           // scan backwards to find (approximately) an element with rank according to the fallback treshold
-          HypernodeWeight remaining_upper_weight = std::floor((1.0 - FALLBACK_TRESHOLD) * total_weight);
+          HNWeightScalar remaining_upper_weight = std::floor((1.0 - FALLBACK_TRESHOLD) * total_weight);
           auto backwards_it = it;
           while (total_weight > 0 && remaining_upper_weight >= (--backwards_it)->value) {
             ASSERT(keyToPair(backwards_it->key).first == block);
@@ -195,8 +197,8 @@ namespace mt_kahypar {
       auto& fallback_bucket_weights = data.fallback_bucket_weights;
       // resize vectors accordingly, set rank to zero if no fallback is required for this block
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID block) {
-        const HypernodeWeight handled_weight = bucket_weights[data.indexForBucket(block, NUM_BUCKETS - 1)];
-        const HypernodeWeight fallback_weight = weight_per_block[block];
+        const HNWeightScalar handled_weight = bucket_weights[data.indexForBucket(block, NUM_BUCKETS - 1)];
+        const HNWeightScalar fallback_weight = weight_per_block[block];
         if (static_cast<double>(handled_weight) / (handled_weight + fallback_weight) >= FALLBACK_TRESHOLD) {
           max_rank_per_block[block].store(0);
         } else {
