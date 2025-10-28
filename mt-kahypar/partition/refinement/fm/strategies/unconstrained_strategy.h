@@ -72,6 +72,7 @@ class UnconstrainedStrategy: public IFMStrategy {
   virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
                              size_t num_tasks, size_t num_seeds, size_t round) final {
     initRound(round);
+    ASSERT(context.dimension() == 1 || current_penalty <= 0, "Penalties are not supported for multiple weight constraints!");
 
     findMovesWithConcreteStrategy(*this, sharedData, local_fm, phg, num_tasks, num_seeds, round);
   }
