@@ -61,18 +61,20 @@ namespace mt_kahypar {
     }
   }
 
+  // TODO: this seems slow?
   template<typename Partition>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
-  heaviestPartAndWeight(const Partition& partition, const PartitionID k) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HNWeightConstRef>
+  heaviestPartAndWeight(const Partition& partition, const PartitionID k, AllocatedHNWeight& tmpWeight) {
     PartitionID p = kInvalidPartition;
-    HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
+    tmpWeight = weight::broadcast(std::numeric_limits<HNWeightScalar>::min(), partition.dimension());
     for (PartitionID i = 0; i < k; ++i) {
-      if (partition.partWeight(i) > w) {
-        w = partition.partWeight(i);
+      // TODO: doesn't make a lot of sense
+      if (weight::sum(partition.partWeight(i)) > weight::sum(tmpWeight)) {
+        tmpWeight = partition.partWeight(i);
         p = i;
       }
     }
-    return std::make_pair(p, w);
+    return std::make_pair(p, tmpWeight.get());
   }
 
   template<typename GraphAndGainTypes>
@@ -121,6 +123,7 @@ namespace mt_kahypar {
   }
 
 
+  // TODO: specialize for dimension = 1 ??
   template<typename GraphAndGainTypes>
   template<typename DispatchedFMStrategy>
   void LocalizedKWayFM<GraphAndGainTypes>::internalFindMoves(PartitionedHypergraph& phg,
@@ -130,9 +133,6 @@ namespace mt_kahypar {
 
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-
-    HypernodeWeight heaviestPartWeight = 0;
-    HypernodeWeight fromWeight = 0, toWeight = 0;
 
     while (!stopRule.searchShouldStop()
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
@@ -156,36 +156,42 @@ namespace mt_kahypar {
       edgesWithGainChanges.clear(); // clear before move. delta_func feeds nets of moved vertex.
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
-      const HypernodeWeight allowed_weight = DispatchedFMStrategy::is_unconstrained ? std::numeric_limits<HypernodeWeight>::max()
-                                             : context.partition.max_part_weights[move.to];
 
-      heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k).second;
-      fromWeight = deltaPhg.partWeight(move.from);
-      toWeight = deltaPhg.partWeight(move.to);
+      const HNWeightConstRef allowed_weight = context.partition.max_part_weights[move.to];
+      const HNWeightConstRef heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k, tmpHNWeight).second;
+      const auto toWeight = deltaPhg.partWeight(move.to);
       if (expect_improvement) {
         // since we will flush the move sequence, don't bother running it through the deltaPhg
         // this is intended to allow moving high deg nodes (blow up hash tables) if they give an improvement.
         // The nets affected by a gain cache update are collected when we apply this improvement on the
         // global partition (used to expand the localized search and update the gain values).
-        moved = toWeight + phg.nodeWeight(move.node) <= allowed_weight;
+        moved =  DispatchedFMStrategy::is_unconstrained || toWeight + phg.nodeWeight(move.node) <= allowed_weight;
       } else {
-        moved = deltaPhg.changeNodePart(move.node, move.from, move.to, allowed_weight,
-                                        [&](const SynchronizedEdgeUpdate& sync_update) {
+        auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
           if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
             edgesWithGainChanges.push_back(sync_update.he);
           }
           delta_gain_cache.deltaGainUpdate(deltaPhg, sync_update);
-        });
+        };
+        if constexpr (DispatchedFMStrategy::is_unconstrained) {
+          const auto inf_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
+          moved = deltaPhg.changeNodePart(move.node, move.from, move.to, inf_weight, objective_delta);
+        } else {
+          moved = deltaPhg.changeNodePart(move.node, move.from, move.to, allowed_weight, objective_delta);
+        }
         fm_strategy.applyMove(deltaPhg, delta_gain_cache, move);
       }
 
       if (moved) {
+        const auto fromWeight = deltaPhg.partWeight(move.from);
+
         estimatedImprovement += move.gain;
         localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
         bool improved_km1 = estimatedImprovement > bestImprovement;
         bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
                                                      && fromWeight == heaviestPartWeight
+                                                     // TODO: any better tie breaking?
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
         if (improved_km1 || improved_balance_less_equal_km1) {
           // Apply move sequence to global partition
@@ -193,7 +199,7 @@ namespace mt_kahypar {
             const Move& local_move = localMoves[i].first;
             phg.changeNodePart(
                     gain_cache, local_move.node, local_move.from, local_move.to,
-                    std::numeric_limits<HypernodeWeight>::max(),
+                    weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension()),
                     [&] { sharedData.moveTracker.insertMove(local_move); },
                     [&](const SynchronizedEdgeUpdate& ) {});
           }
