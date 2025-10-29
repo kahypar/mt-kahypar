@@ -791,7 +791,7 @@ class PartitionedHypergraph {
 
   // ! Only for testing
   void recomputePartWeights() {
-    ASSERT(_part_weights.size() == _k);
+    ASSERT(_part_weights.size() == static_cast<size_t>(_k));
     _part_weights.assign(_part_weights.size(), 0, false);
 
     for (HypernodeID u : nodes()) {
