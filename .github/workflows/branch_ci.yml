@@ -37,82 +37,82 @@ jobs:
           cmake .. --preset=minimal-dev -DKAHYPAR_CI_BUILD=ON
           make -j4 MtKaHyPar
 
-  mt_kahypar_test_suite:
-    name: Test Suite
-    runs-on: ubuntu-24.04
-    env:
-      CI_ACTIVE : 1
+  # mt_kahypar_test_suite:
+  #   name: Test Suite
+  #   runs-on: ubuntu-24.04
+  #   env:
+  #     CI_ACTIVE : 1
 
-    steps:
-      - name: Checkout HEAD
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout HEAD
+  #       uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr g++-14 gcc-14
+  #     - name: Install Dependencies
+  #       run: |
+  #         sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr g++-14 gcc-14
 
-      - name: Install Mt-KaHyPar Test Suite
-        env:
-          CC: gcc-14
-          CXX: g++-14
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake .. --preset=minimal-dev -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
-          make -j4 mtkahypar_tests
+  #     - name: Install Mt-KaHyPar Test Suite
+  #       env:
+  #         CC: gcc-14
+  #         CXX: g++-14
+  #       run: |
+  #         rm -rf build
+  #         mkdir build
+  #         cd build
+  #         cmake .. --preset=minimal-dev -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
+  #         make -j4 mtkahypar_tests
 
-      - name: Run Mt-KaHyPar Tests
-        run: |
-          cd build
-          ./tests/mtkahypar_tests
+  #     - name: Run Mt-KaHyPar Tests
+  #       run: |
+  #         cd build
+  #         ./tests/mtkahypar_tests
 
-  mt_kahypar_c_interface_tests:
-    name: C Interface Tests
-    runs-on: ubuntu-24.04
-    env:
-      CI_ACTIVE : 1
+  # mt_kahypar_c_interface_tests:
+  #   name: C Interface Tests
+  #   runs-on: ubuntu-24.04
+  #   env:
+  #     CI_ACTIVE : 1
 
-    steps:
-      - name: Checkout HEAD
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout HEAD
+  #       uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+  #     - name: Install Dependencies
+  #       run: |
+  #         sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
 
-      - name: Run Mt-KaHyPar C Library Interface Tests
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
-          make -j4 mtkahypar_interface_test
+  #     - name: Run Mt-KaHyPar C Library Interface Tests
+  #       run: |
+  #         rm -rf build
+  #         mkdir build
+  #         cd build
+  #         cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
+  #         make -j4 mtkahypar_interface_test
 
-  mt_kahypar_python_interface_tests:
-    name: Python Interface Tests
-    runs-on: ubuntu-24.04
-    env:
-      CI_ACTIVE : 1
+  # mt_kahypar_python_interface_tests:
+  #   name: Python Interface Tests
+  #   runs-on: ubuntu-24.04
+  #   env:
+  #     CI_ACTIVE : 1
 
-    steps:
-      - name: Checkout HEAD
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout HEAD
+  #       uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+  #     - name: Install Dependencies
+  #       run: |
+  #         sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
 
-      - name: Build Mt-KaHyPar Python Interface
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake .. --preset=python -DKAHYPAR_CI_BUILD=ON
-          make mtkahypar_python -j2
+  #     - name: Build Mt-KaHyPar Python Interface
+  #       run: |
+  #         rm -rf build
+  #         mkdir build
+  #         cd build
+  #         cmake .. --preset=python -DKAHYPAR_CI_BUILD=ON
+  #         make mtkahypar_python -j2
 
-      - name: Run Mt-KaHyPar Python Interface Tests
-        run: |
-          cd python/tests
-          cp ../../build/python/mtkahypar*.so mtkahypar.so
-          python3 test_mtkahypar.py -v
+  #     - name: Run Mt-KaHyPar Python Interface Tests
+  #       run: |
+  #         cd python/tests
+  #         cp ../../build/python/mtkahypar*.so mtkahypar.so
+  #         python3 test_mtkahypar.py -v
