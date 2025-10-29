@@ -317,7 +317,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
         ASSERT(first_rejected < nodes_in_too_heavy_clusters.size());
         ASSERT(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
         HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
-        if (target_weight_ref + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+        if (!(target_weight_ref + hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight)) {
           break;
         }
         if constexpr (has_fixed_vertices) {
