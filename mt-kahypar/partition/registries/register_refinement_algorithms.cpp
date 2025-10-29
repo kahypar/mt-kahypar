@@ -42,13 +42,14 @@
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+
+#include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 #endif
 
@@ -80,6 +81,11 @@ using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                       IFMStrategy,
                                       kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
+using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                   DeterministicRebalancer,
+                                   IRebalancer,
+                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
 #ifndef KAHYPAR_MINIMAL_COMPILATION
 
 using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
@@ -96,11 +102,6 @@ using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchF
                                 DeterministicFlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
-
-using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                   DeterministicRebalancer,
-                                   IRebalancer,
-                                   kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
 using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    SimpleRebalancer,
@@ -276,10 +277,10 @@ void register_refinement_algorithms() {
   #endif
   REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
-  #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::deterministic,
                                 DeterministicRebalancerDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                 SimpleRebalancerDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));

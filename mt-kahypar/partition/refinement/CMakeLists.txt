@@ -7,12 +7,12 @@ set(RefinementSources
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
+        rebalancing/deterministic_rebalancer.cpp
         )
 
 set(ExtendedRefinementSources
         rebalancing/simple_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
-        rebalancing/deterministic_rebalancer.cpp
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
