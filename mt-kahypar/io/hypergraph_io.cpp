@@ -222,15 +222,15 @@ namespace mt_kahypar::io {
       uint32_t format_num = read_number(mapped_file, pos, length);
       ASSERT(format_num / 100 == 0 || format_num / 100 == 1);
       has_multiple_constraints = (format_num / 100 == 1);
-      ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
-      has_vertex_weights = (format_num / 10 == 1);
+      ASSERT((format_num % 100) / 10 == 0 || (format_num % 100) / 10 == 1);
+      has_vertex_weights = ((format_num % 100) / 10 == 1);
       ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
       has_hyperedge_weights = (format_num % 10 == 1);
     }
 
     if (has_multiple_constraints) {
       dimension = read_number(mapped_file, pos, length);
-      ASSERT(dimension > 0);
+      ASSERT(dimension > 0, "Invalid input file: missing n_constraints");
     } else {
       ASSERT(is_line_ending(mapped_file, pos));
       dimension = 1;
@@ -491,15 +491,15 @@ namespace mt_kahypar::io {
       uint32_t format_num = read_number(mapped_file, pos, length);
       ASSERT(format_num / 100 == 0 || format_num / 100 == 1);
       has_multiple_constraints = (format_num / 100 == 1);
-      ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
-      has_vertex_weights = (format_num / 10 == 1);
+      ASSERT((format_num % 100) / 10 == 0 || (format_num % 100) / 10 == 1);
+      has_vertex_weights = ((format_num % 100) / 10 == 1);
       ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
       has_edge_weights = (format_num % 10 == 1);
     }
 
     if (has_multiple_constraints) {
       dimension = read_number(mapped_file, pos, length);
-      ASSERT(dimension > 0);
+      ASSERT(dimension > 0, "Invalid input file: missing n_constraints");
     } else {
       ASSERT(is_line_ending(mapped_file, pos));
       dimension = 1;
@@ -553,7 +553,9 @@ namespace mt_kahypar::io {
         // This is necessary because we can only calculate unique edge ids
         // efficiently if the edges are deduplicated.
         if ( has_vertex_weights ) {
-          read_number(mapped_file, pos, length);
+          for (Dimension d = 0; d < dimension; ++d) {
+            read_number(mapped_file, pos, length);
+          }
         }
         HyperedgeID vertex_degree = 0;
         while (!is_line_ending(mapped_file, pos) && pos < length) {
