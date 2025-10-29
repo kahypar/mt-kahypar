@@ -477,21 +477,21 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void replace(HNWeightRefBase<Other>& lhs, con
 
 template <typename R, REQUIRE_VALID_WEIGHT(R)>
 std::ostream& operator<<(std::ostream& os, const R& right) {
-  if (right.dimension() == 1) {
-    return os << right.at(0);
-  }
-
-  os << "[ ";
-  for (Dimension i = 0; i < right.dimension(); i++) {
-    os << std::to_string(right.at(i)) + " ";
-  }
-  return os << "]";
+  return os << toString(right);
 }
 
 template <typename Expr, REQUIRE_VALID_WEIGHT(Expr)>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::string toString(const Expr& expr) {
+std::string toString(const Expr& expr) {
+  if (expr.dimension() == 1) {
+    return std::to_string(expr.at(0));
+  }
+
   std::stringstream ss;
-  ss << expr;
+  ss << "[ ";
+  for (Dimension i = 0; i < expr.dimension(); i++) {
+    ss << std::to_string(expr.at(i)) + " ";
+  }
+  ss << "]";
   return ss.str();
 }
 
