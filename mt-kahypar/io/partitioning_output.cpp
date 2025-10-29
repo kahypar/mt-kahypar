@@ -245,14 +245,15 @@ namespace mt_kahypar::io {
     avg_part_weight /= context.partition.k;
 
     const uint8_t part_digits = hypergraph.dimension() == 1 ? kahypar::math::digits(max_part_weight.at(0))
-                                  : hypergraph.dimension() * (kahypar::math::digits(weight::sum(max_part_weight)) + 2) + 2;
+                                  : hypergraph.dimension() * (kahypar::math::digits(weight::sum(max_part_weight)) + 1) + 3;
     const uint8_t k_digits = kahypar::math::digits(context.partition.k);
+    const uint8_t n_digits = kahypar::math::digits(hypergraph.initialNumNodes());
     if ( context.partition.k <= 32 ) {
       for (PartitionID i = 0; i != context.partition.k; ++i) {
         const bool is_imbalanced = block_is_imbalanced(i);
         if ( is_imbalanced ) std::cout << RED;
         std::cout << "|block " << std::left  << std::setw(k_digits) << i
-                  << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
+                  << std::setw(1) << "| = "  << std::right << std::setw(n_digits) << part_sizes[i]
                   << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
                   << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
                   << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
@@ -274,7 +275,7 @@ namespace mt_kahypar::io {
           const bool is_imbalanced = block_is_imbalanced(i);
           if ( is_imbalanced ) {
             std::cout << RED << "|block " << std::left  << std::setw(k_digits) << i
-                      << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
+                      << std::setw(1) << "| = "  << std::right << std::setw(n_digits) << part_sizes[i]
                       << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
                       << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
                       << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
