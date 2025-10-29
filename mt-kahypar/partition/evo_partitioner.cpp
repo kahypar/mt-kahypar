@@ -527,6 +527,13 @@ namespace mt_kahypar {
         });
         timer.stop_timer("evolutionary");
 
+        // Update final diff matrix
+        {
+            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            std::string diff_matrix = population.updateDiffMatrix();
+            diff_matrix_history += diff_matrix;
+        }
+
         context.evolutionary.iteration += total_iterations.load();
         context.partition.verbose_output = true;
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations" << "\n";
