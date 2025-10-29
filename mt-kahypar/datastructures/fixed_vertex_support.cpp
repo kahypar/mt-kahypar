@@ -26,10 +26,44 @@
 
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 
+#include "mt-kahypar/datastructures/dynamic_graph.h"
+#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace ds {
+
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>::FixedVertexSupport() :
+  _num_nodes(0),
+  _k(kInvalidPartition),
+  _hg(nullptr),
+  _total_fixed_vertex_weight(0),
+  _fixed_vertex_block_weights(),
+  _max_block_weights(),
+  _fixed_vertex_data(),
+  _constraint_graph(nullptr) { }
+
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>::FixedVertexSupport(const HypernodeID num_nodes,
+                                                   const PartitionID k) :
+  _num_nodes(num_nodes),
+  _k(k),
+  _hg(nullptr),
+  _total_fixed_vertex_weight(0),
+  _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
+  _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
+  _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }),
+  _constraint_graph(nullptr) { }
+
+// the following definitions are necessary to avoid issues with the unique_ptr deleter
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>::FixedVertexSupport(FixedVertexSupport&&) = default;
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>& FixedVertexSupport<Hypergraph>::operator=(FixedVertexSupport<Hypergraph> &&) = default;
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>::~FixedVertexSupport() = default;
+
 
 template<typename Hypergraph>
 bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const HypernodeID v) {
@@ -154,6 +188,14 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
       _fixed_vertex_data[v].block = kInvalidPartition;
     }
   }
+}
+
+template<typename Hypergraph>
+void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
+  // TODO: build constraint graph, if necessary build node ID mapping or other additional data
+  _constraint_graph = std::make_unique<DynamicGraph>(
+    // TODO: replace placeholders with actual values
+    DynamicGraphFactory::construct_from_graph_edges(0, 0, {}, nullptr, nullptr, true));
 }
 
 } // namespace ds

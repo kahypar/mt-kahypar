@@ -40,6 +40,9 @@ namespace mt_kahypar {
     if ( params.fixed_vertex_filename != "" ) {
       str << "  Fixed Vertex File:                  " << params.fixed_vertex_filename << std::endl;
     }
+    if ( params.negative_constraints_filename != "" ) {
+      str << "  Negative Constraints File:          " << params.negative_constraints_filename << std::endl;
+    }
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }

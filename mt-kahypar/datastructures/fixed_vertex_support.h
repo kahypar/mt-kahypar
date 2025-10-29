@@ -27,6 +27,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -34,6 +35,9 @@
 
 namespace mt_kahypar {
 namespace ds {
+
+// forward declaration
+class DynamicGraph;
 
 template<class Hypergraph>
 class FixedVertexSupport {
@@ -52,30 +56,19 @@ class FixedVertexSupport {
   };
 
  public:
-  FixedVertexSupport() :
-    _num_nodes(0),
-    _k(kInvalidPartition),
-    _hg(nullptr),
-    _total_fixed_vertex_weight(0),
-    _fixed_vertex_block_weights(),
-    _max_block_weights(),
-    _fixed_vertex_data() { }
+  FixedVertexSupport();
 
   FixedVertexSupport(const HypernodeID num_nodes,
-                     const PartitionID k) :
-    _num_nodes(num_nodes),
-    _k(k),
-    _hg(nullptr),
-    _total_fixed_vertex_weight(0),
-    _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
-    _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
-    _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
+                     const PartitionID k);
 
   FixedVertexSupport(const FixedVertexSupport&) = delete;
   FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;
 
-  FixedVertexSupport(FixedVertexSupport&&) = default;
-  FixedVertexSupport & operator= (FixedVertexSupport &&) = default;
+  FixedVertexSupport(FixedVertexSupport&&);
+  FixedVertexSupport & operator= (FixedVertexSupport &&);
+
+  ~FixedVertexSupport();
+
 
   void setHypergraph(const Hypergraph* hg) {
     _hg = hg;
@@ -158,6 +151,14 @@ class FixedVertexSupport {
   // ! Uncontract v from u. This reverts the corresponding contraction operation of v onto u.
   void uncontract(const HypernodeID u, const HypernodeID v);
 
+  // ####################### Negative Constraints #######################
+
+  bool hasNegativeConstraints() const {
+    return _constraint_graph != nullptr;
+  }
+
+  void setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints);
+
   // ####################### Miscellaneous #######################
 
   FixedVertexSupport<Hypergraph> copy() const {
@@ -200,6 +201,11 @@ class FixedVertexSupport {
 
   // ! Fixed vertex block IDs of each node
   vec<FixedVertexData> _fixed_vertex_data;
+
+  // TODO: if necessary, add more members
+
+  // ! Graph that represents the negative constraints
+  std::unique_ptr<DynamicGraph> _constraint_graph;
 };
 
 }  // namespace ds

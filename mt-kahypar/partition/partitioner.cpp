@@ -318,6 +318,18 @@ namespace mt_kahypar {
     }
   }
 
+  template<typename PartitionedHypergraph>
+  void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
+                                      const Context& context) {
+    using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
+
+    if ( partitioned_hg.hasNegativeConstraints() ) {
+      const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
+      // TODO: Implement postprocessing. Maybe do the implementation in a separate
+      // file and only call it from here
+    }
+  }
+
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
     Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
@@ -380,6 +392,7 @@ namespace mt_kahypar {
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     forceFixedVertexAssignment(partitioned_hypergraph, context);
+    postprocessNegativeConstraints(partitioned_hypergraph, context);
     timer.stop_timer("postprocessing");
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC

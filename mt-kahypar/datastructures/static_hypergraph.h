@@ -699,6 +699,10 @@ class StaticHypergraph {
     return _fixed_vertices.hasFixedVertices();
   }
 
+  bool hasNegativeConstraints() const {
+    return _fixed_vertices.hasNegativeConstraints();
+  }
+
   HypernodeWeight totalFixedVertexWeight() const {
     return _fixed_vertices.totalFixedVertexWeight();
   }

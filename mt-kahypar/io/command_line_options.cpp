@@ -77,6 +77,9 @@ namespace mt_kahypar {
             ("fixed,f",
              po::value<std::string>(&context.partition.fixed_vertex_filename)->value_name("<string>"),
              "Fixed vertex filename")
+            ("negative-constraints,n",
+             po::value<std::string>(&context.partition.negative_constraints_filename)->value_name("<string>"),
+             "Negative constraints filename")
             ("write-partition-file",
              po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(false),
              "If true, then partition output file is generated")

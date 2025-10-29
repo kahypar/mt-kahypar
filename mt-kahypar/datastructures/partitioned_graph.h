@@ -853,12 +853,20 @@ private:
     return _hg->hasFixedVertices();
   }
 
+  bool hasNegativeConstraints() const {
+    return _hg->hasNegativeConstraints();
+  }
+
   bool isFixed(const HypernodeID hn) const {
     return _hg->isFixed(hn);
   }
 
   PartitionID fixedVertexBlock(const HypernodeID hn) const {
     return _hg->fixedVertexBlock(hn);
+  }
+
+  const FixedVertexSupport<Hypergraph>& fixedVertexSupport() const {
+    return _hg->fixedVertexSupport();
   }
 
   // ####################### Memory Consumption #######################

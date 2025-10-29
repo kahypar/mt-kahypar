@@ -24,6 +24,7 @@ set(NLevelGraphDatastructureSources
 
 target_sources(MtKaHyPar-Sources INTERFACE ${DatastructureSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelDatastructureSources})
+target_sources(MtKaHyPar-Sources INTERFACE ${NLevelGraphDatastructureSources})
 if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
       target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelGraphDatastructureSources})
 else()
@@ -33,11 +34,6 @@ if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
       target_sources(MtKaHyPar-Sources INTERFACE ${NLevelDatastructureSources})
 else()
       target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${NLevelDatastructureSources})
-endif()
-if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES AND KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
-      target_sources(MtKaHyPar-Sources INTERFACE ${NLevelGraphDatastructureSources})
-else()
-      target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${NLevelGraphDatastructureSources})
 endif()
 
 

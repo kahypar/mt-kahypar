@@ -260,6 +260,42 @@ void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
   }
 }
 
+template<typename Hypergraph>
+void addNegativeConstraints(Hypergraph& hypergraph,
+                            const vec<std::pair<HypernodeID, HypernodeID>>& constraints,
+                            const PartitionID k) {
+  ds::FixedVertexSupport<Hypergraph> fixed_vertex_support(
+    hypergraph.initialNumNodes(), k);
+  fixed_vertex_support.setHypergraph(&hypergraph);
+  fixed_vertex_support.setNegativeConstraints(constraints);
+  hypergraph.addFixedVertexSupport(std::move(fixed_vertex_support));
+}
+
+void addNegativeConstraintsFromFile(mt_kahypar_hypergraph_t hypergraph,
+                                    const std::string& filename,
+                                    const PartitionID k) {
+  vec<std::pair<HypernodeID, HypernodeID>> constraints;
+
+  // TODO: parse constraints from file
+
+  switch ( hypergraph.type ) {
+    case STATIC_HYPERGRAPH:
+      addNegativeConstraints(utils::cast<ds::StaticHypergraph>(hypergraph), constraints, k); break;
+    ENABLE_GRAPHS(case STATIC_GRAPH:
+      addNegativeConstraints(utils::cast<ds::StaticGraph>(hypergraph), constraints, k); break;
+    )
+    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH:
+      addNegativeConstraints(utils::cast<ds::DynamicHypergraph>(hypergraph), constraints, k); break;
+    )
+    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH:
+      addNegativeConstraints(utils::cast<ds::DynamicGraph>(hypergraph), constraints, k); break;
+    )
+    case NULLPTR_HYPERGRAPH:
+    default: break;
+  }
+}
+
+
 namespace {
   #define READ_INPUT_FILE(X) X readInputFile(const std::string& filename,       \
                                              const FileFormat& format,          \

@@ -129,6 +129,13 @@ int main(int argc, char* argv[]) {
     timer.stop_timer("read_fixed_vertices");
   }
 
+  if ( context.partition.negative_constraints_filename != "" ) {
+    timer.start_timer("read_negative_constraints", "Read Negative Constraints File");
+    io::addNegativeConstraintsFromFile(hypergraph,
+      context.partition.negative_constraints_filename, context.partition.k);
+    timer.stop_timer("read_negative_constraints");
+  }
+
   // Initialize Memory Pool and Algorithm/Policy Registries
   register_memory_pool(hypergraph, context);
   register_algorithms_and_policies();

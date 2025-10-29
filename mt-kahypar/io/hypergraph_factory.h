@@ -60,5 +60,9 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
 
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
 
+void addNegativeConstraintsFromFile(mt_kahypar_hypergraph_t hypergraph,
+                                    const std::string& filename,
+                                    const PartitionID k);
+
 }  // namespace io
 }  // namespace mt_kahypar
