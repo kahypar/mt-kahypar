@@ -88,7 +88,7 @@ TEST_F(AHypernodeWeight, SimpleWeightArray) {
   HNWeightScalar chunk_3[3] = {7, 8, 9};
   HNWeightConstRef vec_3(chunk_3, 3);
 
-  HypernodeWeightArray array(3, 3, 0);
+  HypernodeWeightArray array(3, 3, 0, false);
   ASSERT_TRUE(weight::isZero(array[0]));
   ASSERT_TRUE(weight::isZero(array[1]));
   ASSERT_TRUE(weight::isZero(array[2]));

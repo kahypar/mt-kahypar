@@ -191,8 +191,8 @@ namespace rb {
       rb_context.type = ContextType::initial_partitioning;
     }
 
-    rb_context.partition.perfect_balance_part_weights.assign(rb_context.partition.k, 0);
-    rb_context.partition.max_part_weights.assign(rb_context.partition.k, 0);
+    rb_context.partition.perfect_balance_part_weights.assign(rb_context.partition.k, 0, false);
+    rb_context.partition.max_part_weights.assign(rb_context.partition.k, 0, false);
     for ( PartitionID part_id = k0; part_id < k1; ++part_id ) {
       rb_context.partition.perfect_balance_part_weights[part_id - k0] =
               context.partition.perfect_balance_part_weights[part_id];

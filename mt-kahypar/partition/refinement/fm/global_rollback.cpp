@@ -76,7 +76,7 @@ namespace mt_kahypar {
             moves(b.moves),
             local_best(b.local_best),
             gain_sum(0),
-            part_weights(b.part_weights.size(), b.part_weights.dimension(), 0),
+            part_weights(b.part_weights.size(), b.part_weights.dimension(), 0, false),
             max_part_weights(b.max_part_weights) { }
 
 
