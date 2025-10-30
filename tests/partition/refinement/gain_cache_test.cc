@@ -83,7 +83,7 @@ class AGainCache : public Test {
 
     context.partition.k = k;
     context.type = ContextType::main;
-    context.partition.max_part_weights.replaceWith(k, 1, 100);  // just a random value
+    context.partition.max_part_weights.replaceWith(k, 1, 100, false);  // just a random value
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(

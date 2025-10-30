@@ -69,10 +69,10 @@ class FixedVertexSupport {
     _k(k),
     _hg(nullptr),
     _total_fixed_vertex_weight(dimension, 0),
-    _fixed_vertex_block_weights(k, dimension, 0 ),
-    _max_block_weights(k, dimension, std::numeric_limits<HNWeightScalar>::max()),
+    _fixed_vertex_block_weights(k, dimension, 0, false),
+    _max_block_weights(k, dimension, std::numeric_limits<HNWeightScalar>::max(), false),
     _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, SpinLock() }),
-    _fixed_vertex_hn_weights(num_nodes, dimension, 0) { }
+    _fixed_vertex_hn_weights(num_nodes, dimension, 0, false) { }
 
   FixedVertexSupport(const FixedVertexSupport&) = delete;
   FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;

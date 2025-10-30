@@ -171,7 +171,7 @@ bool FixedVertexSupport<Hypergraph>::verifyClustering(const vec<HypernodeID>& cl
     }
   }
 
-  HypernodeWeightArray expected_block_weights(_k, dimension(), 0);
+  HypernodeWeightArray expected_block_weights(_k, dimension(), 0, false);
   for ( const HypernodeID& hn : _hg->nodes() ) {
     if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
       if ( !isFixed(cluster_ids[hn]) ) {

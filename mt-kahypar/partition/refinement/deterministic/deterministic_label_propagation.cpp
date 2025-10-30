@@ -188,7 +188,7 @@ namespace mt_kahypar {
       }
     };
     tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
-    HypernodeWeightArray res(current_k, phg.dimension(), 0);
+    HypernodeWeightArray res(current_k, phg.dimension(), 0, true);
     auto combine = [&](const HypernodeWeightArray& a) {
       for (size_t i = 0; i < res.size(); ++i) {
         res[i] += a[i];

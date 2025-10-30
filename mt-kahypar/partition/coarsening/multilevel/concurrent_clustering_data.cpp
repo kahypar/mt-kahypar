@@ -165,7 +165,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
 template<typename Hypergraph>
 bool ConcurrentClusteringData::verifyClustering(const Hypergraph& current_hg,
                                                 const parallel::scalable_vector<HypernodeID>& cluster_ids) const {
-  HypernodeWeightArray expected_weights(current_hg.initialNumNodes(), current_hg.dimension(), 0);
+  HypernodeWeightArray expected_weights(current_hg.initialNumNodes(), current_hg.dimension(), 0, false);
   // Verify that clustering is correct
   for ( const HypernodeID& hn : current_hg.nodes() ) {
     const HypernodeID u = hn;
