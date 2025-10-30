@@ -40,7 +40,7 @@
 namespace mt_kahypar {
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
-static float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightConstRef current_imbalance) {
+static float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightConstRef current_imbalance, HNWeightConstRef max_part_weight) {
   float gain = gain_;
 
   if (wu.dimension() == 1) {
@@ -53,7 +53,7 @@ static float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightConstRef cur
     float relevant_weight_fraction = 0;
     for (Dimension d = 0; d < wu.dimension(); ++d) {
       if (current_imbalance.at(d) > 0) {
-        relevant_weight_fraction += wu.at(d) / static_cast<float>(current_imbalance.at(d));
+        relevant_weight_fraction += wu.at(d) / static_cast<float>(max_part_weight.at(d));
       }
     }
     if (gain > 0 && relevant_weight_fraction == 0) {
@@ -150,7 +150,9 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
     ASSERT(best_target == kInvalidPartition || (best_target >= 0 && best_target < _current_k));
   }
   tmp_scores.clear();
-  return { hn, best_target, transformGain(best_gain, hn_weight, _current_imbalance[phg.partID(hn)])};
+
+  PartitionID from = phg.partID(hn);
+  return { hn, best_target, transformGain(best_gain, hn_weight, _current_imbalance[from], _context.partition.max_part_weights[from])};
 }
 
 template <typename GraphAndGainTypes>
