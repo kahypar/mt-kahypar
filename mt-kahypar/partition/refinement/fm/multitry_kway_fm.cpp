@@ -326,7 +326,7 @@ namespace mt_kahypar {
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (phg.dimension() > 1) return;  // doesn't work for multiconstraint
 
-      if (current_part_weights[part] > max_part_weights[part]) {
+      if (current_part_weights[part].at(0) > max_part_weights[part].at(0)) {
         insertMovesToBalanceBlock(phg, part, max_part_weights, rebalancing_moves_by_part,
                                   next_move_index, current_part_weights, current_rebalancing_move_index);
       }

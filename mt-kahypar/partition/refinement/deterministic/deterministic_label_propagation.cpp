@@ -450,7 +450,7 @@ namespace mt_kahypar {
         // no need to search left range
         return findBestPrefixesRecursive(p1_mid + 1, p1_end, p2_match + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2) {
+      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2) {  // TODO: this doesn't quite work for multiconstraint
         // p1_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
@@ -471,7 +471,7 @@ namespace mt_kahypar {
         // no need to search left range
         return findBestPrefixesRecursive(p1_match + 1, p1_end, p2_mid + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1) {
+      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1) {  // TODO: this doesn't quite work for multiconstraint
         // p2_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_match, p2_begin, p2_mid, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }

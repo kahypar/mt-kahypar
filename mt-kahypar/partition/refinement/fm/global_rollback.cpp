@@ -436,7 +436,7 @@ namespace mt_kahypar {
 
     size_t overloaded = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > maxPartWeights[i]) {
+      if (!(phg.partWeight(i) <= maxPartWeights[i])) {
         overloaded++;
       }
     }

@@ -344,7 +344,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::handleNodeSwaps(const size_t 
     const HypernodeID u = permutation.at(pos);
     const HypernodeID v = propositions[u];
     if (u < v && u == propositions[v]) {
-      const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[v] ? u : v;
+      const HypernodeID target = weight::sum(opportunistic_cluster_weight[u]) > weight::sum(opportunistic_cluster_weight[v]) ? u : v;
       const HypernodeID source = target == u ? v : u;
       propositions[u] = target;
       propositions[v] = target;
