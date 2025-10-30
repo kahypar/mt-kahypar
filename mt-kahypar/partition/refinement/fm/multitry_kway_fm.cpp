@@ -96,7 +96,7 @@ namespace mt_kahypar {
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     double current_time_limit = time_limit;
     tbb::task_group tg;
-    HypernodeWeightArray initialPartWeights(size_t(context.partition.k), phg.dimension(), 0);
+    HypernodeWeightArray initialPartWeights(size_t(context.partition.k), phg.dimension(), 0, false);
     HypernodeWeightArray max_part_weights = setupMaxPartWeights(context);
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);

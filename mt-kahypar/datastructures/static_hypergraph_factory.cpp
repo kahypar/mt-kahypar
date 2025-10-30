@@ -144,7 +144,7 @@ namespace mt_kahypar::ds {
         hypergraph._hypernode_weights = std::move(*hypernode_weight);
       } else {
         ASSERT(dimension == 1);
-        hypergraph._hypernode_weights.resize(num_hypernodes, dimension, 1);
+        hypergraph._hypernode_weights.resize(num_hypernodes, dimension, 1, true);
       }
     };
 

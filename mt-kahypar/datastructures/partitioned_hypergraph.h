@@ -110,7 +110,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, hypergraph.dimension(), 0),
+    _part_weights(k, hypergraph.dimension(), 0, false),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _con_info(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
@@ -127,7 +127,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, hypergraph.dimension(), 0),
+    _part_weights(k, hypergraph.dimension(), 0, false),
     _part_ids(),
     _con_info(),
     _pin_count_update_ownership() {
@@ -974,7 +974,7 @@ class PartitionedHypergraph {
         }
       });
     }, [&] {
-      hypernode_weight.resize(num_hypernodes, dimension());
+      hypernode_weight.resize(num_hypernodes, dimension(), 0, true);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( partID(hn) == block ) {
           hypernode_weight[hn_mapping[hn]] = nodeWeight(hn);
@@ -1085,7 +1085,7 @@ class PartitionedHypergraph {
       }, [&] {
         he_weight[p].resize(num_edges);
       }, [&] {
-        hn_weight[p].resize(num_nodes, dimension());
+        hn_weight[p].resize(num_nodes, dimension(), 0, false);
       }, [&] {
         if ( already_cut ) {
           extracted_blocks[p].already_cut.resize(num_edges);
@@ -1168,7 +1168,7 @@ class PartitionedHypergraph {
 
   void initializeBlockWeights() {
     auto accumulate = [&](tbb::blocked_range<HypernodeID>& r) {
-      HypernodeWeightArray pws(_k, dimension(), 0);  // this is not enumerable_thread_specific because of the static partitioner
+      HypernodeWeightArray pws(_k, dimension(), 0, false);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if ( nodeIsEnabled(u) ) {
           const PartitionID pu = partID( u );

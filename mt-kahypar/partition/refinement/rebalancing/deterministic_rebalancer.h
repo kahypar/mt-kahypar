@@ -66,7 +66,7 @@ public:
         _num_imbalanced_parts(0),
         _moves(context.partition.k),
         _tmp_potential_moves(context.partition.k),
-        _current_imbalance(context.partition.k, context.dimension(), 0),
+        _current_imbalance(context.partition.k, context.dimension(), 0, false),
         _block_has_only_heavy_vertices(context.partition.k) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :

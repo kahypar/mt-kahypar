@@ -100,7 +100,7 @@ class DeterministicRebalancerTest : public Test {
 
   void constructFromValues(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
                            const vec<vec<HypernodeID>>& edge_vector, const vec<HNWeightScalar> hypernode_weight) {
-    HypernodeWeightArray node_weights(hypernode_weight.size(), 1, 0);
+    HypernodeWeightArray node_weights(hypernode_weight.size(), 1, 0, false);
     for (size_t i = 0; i < hypernode_weight.size(); ++i) {
       node_weights[i].set(0, hypernode_weight[i]);
     }

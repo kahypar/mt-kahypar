@@ -74,7 +74,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max());
+  context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max(), false);
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
 
@@ -102,8 +102,8 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(gain_cache.gain(5, 0, 1), 0);
   performMove({0, 1, 5, 0});
 
-  HypernodeWeightArray dummy_part_weights(k, 1, 0);
-  HypernodeWeightArray max_part_weights(k, 1, 6);
+  HypernodeWeightArray dummy_part_weights(k, 1, 0, false);
+  HypernodeWeightArray max_part_weights(k, 1, 6, false);
   grb.revertToBestPrefix(phg, sharedData, dummy_part_weights, max_part_weights);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
@@ -133,7 +133,7 @@ TEST(RollbackTests, GainRecalculation2) {
   Context context;
   context.partition.k = k;
   context.setupPartWeights(phg.totalWeight());
-  context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max());
+  context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max(), false);
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
   FMSharedData sharedData(hg.initialNumNodes(), false);

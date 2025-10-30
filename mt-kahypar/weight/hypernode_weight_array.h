@@ -171,7 +171,7 @@ class HypernodeWeightArray {
   HypernodeWeightArray(const size_type size,
                        const Dimension dimension,
                        const weight::HNWeightScalar init_value,
-                       bool parallel = true) :
+                       bool parallel) :
     _data(),
     _dimension(0) {
       resize(size, dimension, init_value, parallel);
@@ -275,8 +275,8 @@ class HypernodeWeightArray {
 
   void resize(const size_type size,
               const Dimension dimension,
-              const weight::HNWeightScalar init_value = 0,
-              const bool assign_parallel = true) {
+              const weight::HNWeightScalar init_value,
+              const bool assign_parallel) {
     _data.resize(size * dimension, init_value, assign_parallel);
     _dimension = dimension;
   }
@@ -284,7 +284,7 @@ class HypernodeWeightArray {
   void replaceWith(const size_type size,
                    const Dimension dimension,
                    const weight::HNWeightScalar init_value,
-                   const bool assign_parallel = true) {
+                   const bool assign_parallel) {
     HypernodeWeightArray new_array;
     new_array.resize(size, dimension, init_value, assign_parallel);
     *this = std::move(new_array);
@@ -299,8 +299,8 @@ class HypernodeWeightArray {
   }
 
   void assign(const size_type count,
-              const weight::HNWeightScalar value = 0,
-              const bool assign_parallel = true) {
+              const weight::HNWeightScalar value,
+              const bool assign_parallel) {
     ASSERT(_dimension > 0 && count <= size());
     _data.assign(count * _dimension, value, assign_parallel);
   }
@@ -331,8 +331,9 @@ class CopyableHypernodeWeightArray: public HypernodeWeightArray {
   // note: uses parallel assignment
   CopyableHypernodeWeightArray(const size_type size,
                                const Dimension dimension,
-                               const weight::HNWeightScalar init_value = 0) :
-    HypernodeWeightArray(size, dimension, init_value) { }
+                               const weight::HNWeightScalar init_value,
+                               bool parallel) :
+    HypernodeWeightArray(size, dimension, init_value, parallel) { }
 
   CopyableHypernodeWeightArray(const CopyableHypernodeWeightArray& other) : HypernodeWeightArray(other.copy()) { }
 

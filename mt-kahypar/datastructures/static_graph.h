@@ -406,7 +406,7 @@ class StaticGraph {
       }, [&] {
         // TODO: memory pool?!
         // node_weights.resize("Coarsening", "node_weights", num_nodes);
-        node_weights.resize(num_nodes, dimension);
+        node_weights.resize(num_nodes, dimension, 0, true);
       }, [&] {
         tmp_edges.resize("Coarsening", "tmp_edges", num_edges);
       }, [&] {

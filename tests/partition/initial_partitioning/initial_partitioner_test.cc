@@ -195,7 +195,7 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
   }
 
   // Check that part weights are correct
-  HypernodeWeightArray part_weight(this->context.partition.k, 1, 0);
+  HypernodeWeightArray part_weight(this->context.partition.k, 1, 0, false);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
     ASSERT(part_id >= 0 && part_id < this->context.partition.k);

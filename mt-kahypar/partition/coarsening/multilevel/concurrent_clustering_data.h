@@ -58,7 +58,7 @@ class ConcurrentClusteringData {
     tbb::parallel_invoke([&] {
       _matching_state.resize(initial_num_nodes);
     }, [&] {
-      _cluster_weight.resize(initial_num_nodes, context.dimension());
+      _cluster_weight.resize(initial_num_nodes, context.dimension(), 0, true);
     }, [&] {
       _matching_partner.resize(initial_num_nodes);
     });

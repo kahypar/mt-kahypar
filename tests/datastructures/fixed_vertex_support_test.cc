@@ -59,7 +59,7 @@ class AFixedVertexSupport : public Test {
 
   void verifyFixedVertices(const std::string& desc, const vec<PartitionID>& expected) {
     AllocatedHNWeight total_weight(1, 0);
-    HypernodeWeightArray block_weight(3, 1, 0);
+    HypernodeWeightArray block_weight(3, 1, 0, false);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       const bool is_fixed = expected[hn] != kInvalidPartition;
       ASSERT_EQ(is_fixed, fixed_vertices.isFixed(hn)) << V(hn) << " " << V(desc);
@@ -445,7 +445,7 @@ TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions2) {
 }
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight1) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(2, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   ASSERT_FALSE(fixed_vertices.contract(0, 1));
@@ -453,7 +453,7 @@ TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight1) {
 }
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight2) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(2, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   ASSERT_TRUE(fixed_vertices.contract(0, 2));
@@ -461,7 +461,7 @@ TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight2) {
 }
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight3) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(3, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   ASSERT_TRUE(fixed_vertices.contract(0, 1));
@@ -470,7 +470,7 @@ TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight3) {
 }
 
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight1) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(3, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   runParallel([&] { ASSERT_TRUE(fixed_vertices.contract(1, 2)); },
@@ -479,7 +479,7 @@ TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWei
 }
 
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight2) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(3, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   std::atomic<size_t> successful_contractions(0);
@@ -494,7 +494,7 @@ TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWei
 }
 
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight3) {
-  HypernodeWeightArray max_block_weight(3, 1, 1);
+  HypernodeWeightArray max_block_weight(3, 1, 1, false);
   max_block_weight[0] = weight::broadcast(3, 1);
   fixed_vertices.setMaxBlockWeight(max_block_weight);
   std::atomic<size_t> successful_contractions(0);

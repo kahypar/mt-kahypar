@@ -182,7 +182,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
 template<typename HyperGraph>
 void verifyBlockWeightsAndSizes(HyperGraph& hypergraph,
                                 const PartitionID k) {
-  HypernodeWeightArray block_weight(k, 1, 0);
+  HypernodeWeightArray block_weight(k, 1, 0, false);
   for (const HypernodeID& hn : hypergraph.nodes()) {
     block_weight[hypergraph.partID(hn)] += hypergraph.nodeWeight(hn);
   }

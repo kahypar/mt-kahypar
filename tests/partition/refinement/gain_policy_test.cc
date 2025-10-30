@@ -52,7 +52,7 @@ class AGainPolicy : public Test {
     context(),
     gain(nullptr) {
     context.partition.k = K;
-    context.partition.max_part_weights.replaceWith(K, 1, std::numeric_limits<HNWeightScalar>::max());
+    context.partition.max_part_weights.replaceWith(K, 1, std::numeric_limits<HNWeightScalar>::max(), false);
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
     hypergraph = PartitionedHypergraph(K, hg, parallel_tag_t());
   }

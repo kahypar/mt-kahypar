@@ -350,7 +350,7 @@ class StaticHypergraph {
       }, [&] {
         // TODO: memory pool?!
         // hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
-        hn_weights.resize(num_hypernodes, dimension);
+        hn_weights.resize(num_hypernodes, dimension, 0, true);
       }, [&] {
         tmp_hyperedges.resize("Coarsening", "tmp_hyperedges", num_hyperedges);
       }, [&] {

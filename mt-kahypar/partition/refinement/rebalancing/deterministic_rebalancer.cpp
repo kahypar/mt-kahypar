@@ -232,7 +232,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::resizeDataStructuresForCurrentK
     _gain_computation.changeNumberOfBlocks(_current_k);
     _moves.resize(_current_k);
     _tmp_potential_moves.resize(_current_k);
-    _current_imbalance.replaceWith(_current_k, dimension, 0);
+    _current_imbalance.replaceWith(_current_k, dimension, 0, false);
     _block_has_only_heavy_vertices.resize(_current_k);
   }
 }

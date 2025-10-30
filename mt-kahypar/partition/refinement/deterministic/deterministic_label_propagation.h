@@ -58,7 +58,7 @@ public:
                                                 const Context& context) :
       context(context),
       gain_computation(context, true /* disable_randomization */),
-      cumulative_node_weights(num_hypernodes, context.dimension(), 0),
+      cumulative_node_weights(num_hypernodes, context.dimension(), 0, true),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
       current_k(context.partition.k),

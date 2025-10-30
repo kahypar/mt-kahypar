@@ -328,7 +328,7 @@ namespace mt_kahypar::ds {
       });
       hypergraph._nodes.back() = Node(static_cast<size_t>(coarsened_num_edges));
     }, [&] {
-      hypergraph._node_weights.resize(coarsened_num_nodes, dimension());
+      hypergraph._node_weights.resize(coarsened_num_nodes, dimension(), 0, true);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
         hypergraph._node_weights[coarse_node] = node_weights[coarse_node];
       });

@@ -476,7 +476,7 @@ namespace mt_kahypar::ds {
     };
 
     auto setup_hypernode_weights = [&] {
-      hypergraph._hypernode_weights.resize(num_hypernodes, dimension());
+      hypergraph._hypernode_weights.resize(num_hypernodes, dimension(), 0, true);
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
         hypergraph._hypernode_weights[id] = hn_weights[id];
       });
