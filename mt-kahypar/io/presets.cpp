@@ -95,29 +95,17 @@ std::vector<option> load_default_preset() {
     // main -> initial_partitioning -> refinement -> flows
     create_option("i-r-flow-algo", "do_nothing"),
     // main -> refinement
-    #ifdef KAHYPAR_MINIMAL_COMPILATION
-      create_option("r-rebalancer-type", "do_nothing"),
-    #else
-      create_option("r-rebalancer-type", "advanced_rebalancer"),
-      create_option("r-refine-until-no-improvement", "false"),
-    #endif
+    create_option("r-rebalancer-type", "advanced_rebalancer"),
+    create_option("r-refine-until-no-improvement", "false"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
-    #ifdef KAHYPAR_MINIMAL_COMPILATION
-      create_option("r-lp-unconstrained", "false"),
-    #else
-      create_option("r-lp-unconstrained", "true"),
-    #endif
+    create_option("r-lp-unconstrained", "true"),
     create_option("r-lp-maximum-iterations", "5"),
     create_option("r-lp-rebalancing", "false"),
     create_option("r-lp-he-size-activation-threshold", "100"),
     create_option("r-lp-relative-improvement-threshold", "0.001"),
     // main -> refinement -> fm
-    #ifdef KAHYPAR_MINIMAL_COMPILATION
-        create_option("r-fm-type", "kway_fm"),
-    #else
-      create_option("r-fm-type", "unconstrained_fm"),
-    #endif
+    create_option("r-fm-type", "unconstrained_fm"),
     create_option("r-fm-multitry-rounds", "10"),
     create_option("r-fm-unconstrained-rounds", "8"),
     create_option("r-fm-rollback-parallel", "true"),
