@@ -276,8 +276,6 @@ namespace mt_kahypar {
                                                             const HypernodeWeightArray& initialPartWeights,
                                                             const HypernodeWeightArray& max_part_weights,
                                                             vec<vec<Move>>& rebalancing_moves_by_part) {
-    ALWAYS_ASSERT(phg.dimension() == 1);
-
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
@@ -326,6 +324,8 @@ namespace mt_kahypar {
     MoveID next_move_index = 0;
 
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
+      if (phg.dimension() > 1) return;  // doesn't work for multiconstraint
+
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalanceBlock(phg, part, max_part_weights, rebalancing_moves_by_part,
                                   next_move_index, current_part_weights, current_rebalancing_move_index);

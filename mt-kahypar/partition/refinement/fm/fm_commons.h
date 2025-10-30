@@ -40,6 +40,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/parallel/work_stack.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
