@@ -63,9 +63,9 @@ DeterministicMultilevelCoarsener<TypeTraits>::DeterministicMultilevelCoarsener(m
   tbb::parallel_invoke([&] {
     propositions.resize(_hg.initialNumNodes());
   }, [&] {
-    cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0);
+    cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0, true);
   }, [&] {
-    opportunistic_cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0);
+    opportunistic_cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0, true);
   }, [&] {
     nodes_in_too_heavy_clusters.adapt_capacity(_hg.initialNumNodes());
   }, [&] {
@@ -196,7 +196,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
   }
 
   HEAVY_COARSENING_ASSERT([&] {
-    HypernodeWeightArray cluster_weight_recalced(cluster_weight.size(), hg.dimension(), 0);
+    HypernodeWeightArray cluster_weight_recalced(cluster_weight.size(), hg.dimension(), 0, true);
     for (const HypernodeID hn : hg.nodes()) {
       const HypernodeID cluster = clusters[hn];
       cluster_weight_recalced[cluster] += hg.nodeWeight(hn);

@@ -176,7 +176,7 @@ namespace mt_kahypar::ds {
         graph._node_weights = std::move(*node_weight);
       } else {
         ASSERT(dimension == 1);
-        graph._node_weights.resize(num_nodes, dimension, 1);
+        graph._node_weights.resize(num_nodes, dimension, 1, true);
       }
     };
 

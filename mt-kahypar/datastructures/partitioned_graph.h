@@ -183,7 +183,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, hypergraph.dimension(), 0),
+    _part_weights(k, hypergraph.dimension(), 0, false),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _edge_sync_version(0),
@@ -207,7 +207,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, hypergraph.dimension(), 0),
+    _part_weights(k, hypergraph.dimension(), 0, false),
     _part_ids(),
     _edge_sync_version(0),
     _edge_sync(),
@@ -931,7 +931,7 @@ private:
         }
       });
     }, [&] {
-      node_weight.resize(num_nodes, dimension());
+      node_weight.resize(num_nodes, dimension(), 0, true);
       doParallelForAllNodes([&](const HypernodeID node) {
         if (partID(node) == block) {
           node_weight[node_mapping[node]] = nodeWeight(node);
@@ -1031,7 +1031,7 @@ private:
       }, [&] {
         edge_weight[p].resize(num_edges);
       }, [&] {
-        node_weight[p].resize(num_nodes, dimension());
+        node_weight[p].resize(num_nodes, dimension(), 0, false);
       }, [&] {
         if ( already_cut ) {
           // Extracted graph only contains non-cut edges
@@ -1154,7 +1154,7 @@ private:
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
       [&](tbb::blocked_range<HypernodeID>& r) {
         // this is not enumerable_thread_specific because of the static partitioner
-        HypernodeWeightArray part_weight_deltas(_k, dimension(), 0);
+        HypernodeWeightArray part_weight_deltas(_k, dimension(), 0, false);
         for (HypernodeID node = r.begin(); node < r.end(); ++node) {
           if (nodeIsEnabled(node)) {
             part_weight_deltas[partID(node)] += nodeWeight(node);

@@ -407,7 +407,7 @@ namespace mt_kahypar::io {
                             const bool has_hypernode_weights,
                             HypernodeWeightArray& hypernodes_weight) {
     if ( has_hypernode_weights ) {
-      hypernodes_weight.resize(num_hypernodes, dimension);
+      hypernodes_weight.resize(num_hypernodes, dimension, 0, true);
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
         ASSERT(pos > 0 && pos < length);
         ASSERT(mapped_file[pos - 1] == '\n');
@@ -600,7 +600,7 @@ namespace mt_kahypar::io {
       }
     }, [&] {
       if ( has_vertex_weights ) {
-        vertices_weight.resize(num_vertices, dimension);
+        vertices_weight.resize(num_vertices, dimension, 0, true);
       }
     });
 
