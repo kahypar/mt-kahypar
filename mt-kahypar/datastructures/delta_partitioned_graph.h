@@ -71,7 +71,7 @@ class DeltaPartitionedGraph {
   DeltaPartitionedGraph(const Context& context) :
     _k(context.partition.k),
     _pg(nullptr),
-    _part_weights_delta(context.partition.k, context.dimension(), 0),
+    _part_weights_delta(context.partition.k, context.dimension(), 0, false),
     _part_ids_delta(),
     _dummy_connectivity_set() {
       ASSERT(context.dimension() > 0);
@@ -290,7 +290,7 @@ class DeltaPartitionedGraph {
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
-    _part_weights_delta.assign(_k, _part_weights_delta.dimension(), 0);
+    _part_weights_delta.assign(_k, 0, false);
     // Constant Time
     _part_ids_delta.clear();
   }
@@ -312,7 +312,7 @@ class DeltaPartitionedGraph {
 
   void changeNumberOfBlocks(const PartitionID new_k) {
     if ( new_k > _k ) {
-      _part_weights_delta.assign(new_k, _part_weights_delta.dimension(), 0);
+      _part_weights_delta.assign(new_k, 0, false);
     }
     _k = new_k;
   }

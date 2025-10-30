@@ -80,7 +80,7 @@ class DeltaPartitionedHypergraph {
   DeltaPartitionedHypergraph(const Context& context) :
     _k(context.partition.k),
     _phg(nullptr),
-    _part_weights_delta(context.partition.k, context.dimension(), 0),
+    _part_weights_delta(context.partition.k, context.dimension(), 0, false),
     _part_ids_delta(),
     _pins_in_part_delta(),
     _connectivity_set_delta(context.partition.k) {
@@ -285,7 +285,7 @@ class DeltaPartitionedHypergraph {
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
-    _part_weights_delta.assign(_k, 0);
+    _part_weights_delta.assign(_k, 0, false);
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
@@ -313,7 +313,7 @@ class DeltaPartitionedHypergraph {
 
   void changeNumberOfBlocks(const PartitionID new_k) {
     if ( new_k > _k ) {
-      _part_weights_delta.assign(new_k, 0);
+      _part_weights_delta.assign(new_k, 0, false);
     }
     _connectivity_set_delta.setNumberOfBlocks(new_k);
     _k = new_k;
