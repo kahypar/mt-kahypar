@@ -29,6 +29,7 @@
 
 #include <string>
 
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
