@@ -167,7 +167,7 @@ namespace impl {
     bool checkCandidate(HypernodeID u, float& gain_in_pq) {
       if (!_node_state[u].tryLock()) return false;
       auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, _phg.partID(u));
-      if (true_gain >= gain_in_pq) {
+      if (to != kInvalidPartition && true_gain >= gain_in_pq) {
         next_move.node = u;
         next_move.to = to;
         next_move.from = _phg.partID(u);
@@ -338,6 +338,7 @@ namespace impl {
 
       while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
         const Move& m = next_move_finder.next_move;
+        ASSERT(m.to != kInvalidPartition);
         const PartitionID from = phg.partID(m.node);
         _node_state[m.node].markAsMovedAndUnlock();
 
