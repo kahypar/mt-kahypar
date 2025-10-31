@@ -28,6 +28,7 @@
 #include "partitioning_output.h"
 
 #include <vector>
+#include <sstream>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_invoke.h>
@@ -80,13 +81,35 @@ namespace mt_kahypar::io {
     void printHypergraphStats(const Statistic& he_size_stats,
                               const Statistic& he_weight_stats,
                               const Statistic& hn_deg_stats,
-                              const Statistic& hn_weight_stats) {
+                              const std::vector<Statistic>& hn_weight_stats) {
+      const size_t dimension = hn_weight_stats.size();
+
       // default double precision is 7
       const uint8_t double_width = 7;
       const uint8_t he_size_width = std::max(kahypar::math::digits(he_size_stats.max), double_width) + 4;
       const uint8_t he_weight_width = std::max(kahypar::math::digits(he_weight_stats.max), double_width) + 4;
       const uint8_t hn_deg_width = std::max(kahypar::math::digits(hn_deg_stats.max), double_width) + 4;
-      const uint8_t hn_weight_width = std::max(kahypar::math::digits(hn_weight_stats.max), double_width) + 4;
+
+      auto print_weights = [&](auto accessor_fn) {
+        static constexpr uint8_t reduced_precision = 4;
+
+        std::stringstream ss;
+        if (dimension == 1) {
+          ss << accessor_fn(hn_weight_stats[0]);
+        } else {
+          ss << "[ ";
+          for (Dimension d = 0; d < dimension; d++) {
+            const auto& stats = hn_weight_stats[d];
+            uint8_t double_width = (std::round(stats.avg) == stats.avg && std::round(stats.sd) == stats.sd) ?
+                                    1 : reduced_precision + 1;
+            uint8_t hn_weight_digits = std::max(kahypar::math::digits(stats.max), double_width);
+            ss << std::left << std::setw(hn_weight_digits + 2);
+            ss << std::setprecision(hn_weight_digits - 1) << accessor_fn(stats);
+          }
+          ss << "]";
+        }
+        return ss.str();
+      };
 
       LOG << "HE size" << std::right << std::setw(he_size_width + 10)
           << "HE weight" << std::right << std::setw(he_weight_width + 8)
@@ -95,31 +118,31 @@ namespace mt_kahypar::io {
       LOG << "| min=" << std::left << std::setw(he_size_width) << he_size_stats.min
           << " | min=" << std::left << std::setw(he_weight_width) << he_weight_stats.min
           << " | min=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.min
-          << " | min=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.min;
+          << " | min=" << std::left << print_weights([](const auto& stats) { return stats.min; });
       LOG << "| Q1 =" << std::left << std::setw(he_size_width) << he_size_stats.q1
           << " | Q1 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q1
           << " | Q1 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q1
-          << " | Q1 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q1;
+          << " | Q1 =" << std::left << print_weights([](const auto& stats) { return stats.q1; });
       LOG << "| med=" << std::left << std::setw(he_size_width) << he_size_stats.med
           << " | med=" << std::left << std::setw(he_weight_width) << he_weight_stats.med
           << " | med=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.med
-          << " | med=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.med;
+          << " | med=" << std::left << print_weights([](const auto& stats) { return stats.med; });
       LOG << "| Q3 =" << std::left << std::setw(he_size_width) << he_size_stats.q3
           << " | Q3 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q3
           << " | Q3 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q3
-          << " | Q3 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q3;
+          << " | Q3 =" << std::left << print_weights([](const auto& stats) { return stats.q3; });
       LOG << "| max=" << std::left << std::setw(he_size_width) << he_size_stats.max
           << " | max=" << std::left << std::setw(he_weight_width) << he_weight_stats.max
           << " | max=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.max
-          << " | max=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.max;
+          << " | max=" << std::left << print_weights([](const auto& stats) { return stats.max; });
       LOG << "| avg=" << std::left << std::setw(he_size_width) << he_size_stats.avg
           << " | avg=" << std::left << std::setw(he_weight_width) << he_weight_stats.avg
           << " | avg=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.avg
-          << " | avg=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.avg;
+          << " | avg=" << std::left << print_weights([](const auto& stats) { return stats.avg; });
       LOG << "| sd =" << std::left << std::setw(he_size_width) << he_size_stats.sd
           << " | sd =" << std::left << std::setw(he_weight_width) << he_weight_stats.sd
           << " | sd =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.sd
-          << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
+          << " | sd =" << std::left << print_weights([](const auto& stats) { return stats.sd; });
     }
 
   }  // namespace internal
@@ -132,8 +155,7 @@ namespace mt_kahypar::io {
     std::vector<HypernodeID> he_sizes;
     std::vector<HyperedgeWeight> he_weights;
     std::vector<HyperedgeID> hn_degrees;
-    // TODO: more sensible stats for HN weights
-    std::vector<HNWeightScalar> hn_weights;
+    std::vector<std::vector<HNWeightScalar>> hn_weights;
 
     tbb::parallel_invoke([&] {
       he_sizes.resize(hypergraph.initialNumEdges());
@@ -142,18 +164,21 @@ namespace mt_kahypar::io {
     }, [&] {
       hn_degrees.resize(hypergraph.initialNumNodes());
     }, [&] {
-      hn_weights.resize(hypergraph.initialNumNodes());
+      hn_weights.resize(hypergraph.dimension());
+      tbb::parallel_for(ID(0), hypergraph.dimension(), [&](Dimension d) {
+        hn_weights[d].resize(hypergraph.initialNumNodes());
+      });
     });
 
     HypernodeID num_hypernodes = hypergraph.initialNumNodes();
     const double avg_hn_degree = utils::avgHypernodeDegree(hypergraph);
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
       hn_degrees[hn] = hypergraph.nodeDegree(hn);
-      hn_weights[hn] = weight::sum(hypergraph.nodeWeight(hn));
+      for (Dimension d = 0; d < hypergraph.dimension(); d++) {
+        hn_weights[d][hn] = hypergraph.nodeWeight(hn).at(d);
+      }
     });
-    const double avg_hn_weight = utils::parallel_avg(hn_weights, num_hypernodes);
     const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
-    const double stdev_hn_weight = utils::parallel_stdev(hn_weights, avg_hn_weight, num_hypernodes);
 
     HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
     HypernodeID num_pins = hypergraph.initialNumPins();
@@ -180,8 +205,17 @@ namespace mt_kahypar::io {
     }, [&] {
       tbb::parallel_sort(hn_degrees.begin(), hn_degrees.end());
     }, [&] {
-      tbb::parallel_sort(hn_weights.begin(), hn_weights.end());
+      tbb::parallel_for(ID(0), hypergraph.dimension(), [&](Dimension d) {
+        tbb::parallel_sort(hn_weights[d].begin(), hn_weights[d].end());
+      });
     });
+
+    std::vector<internal::Statistic> weight_stats_per_dimension;
+    for (Dimension d = 0; d < hypergraph.dimension(); d++) {
+      const double avg_hn_weight = utils::parallel_avg(hn_weights[d], num_hypernodes);
+      const double stdev_hn_weight = utils::parallel_stdev(hn_weights[d], avg_hn_weight, num_hypernodes);
+      weight_stats_per_dimension.emplace_back(internal::createStats(hn_weights[d], avg_hn_weight, stdev_hn_weight));
+    }
 
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
@@ -194,7 +228,7 @@ namespace mt_kahypar::io {
             internal::createStats(he_sizes, avg_he_size, stdev_he_size),
             internal::createStats(he_weights, avg_he_weight, stdev_he_weight),
             internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
-            internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
+            weight_stats_per_dimension);
 
     if ( hypergraph.hasFixedVertices() ) {
       printFixedVertexPartWeights(hypergraph, context);
@@ -245,10 +279,23 @@ namespace mt_kahypar::io {
     }
     avg_part_weight /= context.partition.k;
 
-    const uint8_t part_digits = hypergraph.dimension() == 1 ? kahypar::math::digits(max_part_weight.at(0))
-                                  : hypergraph.dimension() * (kahypar::math::digits(weight::sum(max_part_weight)) + 1) + 3;
+    uint8_t part_digits = 0;
+    if (hypergraph.dimension() == 1) {
+      part_digits = kahypar::math::digits(max_part_weight.at(0));
+    } else {
+      for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+        uint8_t max_for_dimension = 0;
+        for (PartitionID i = 0; i < context.partition.k; ++i) {
+          max_for_dimension = std::max(max_for_dimension,
+            kahypar::math::digits(context.partition.max_part_weights[i].at(d)));
+        }
+        part_digits += (max_for_dimension + 1);
+      }
+      part_digits += 3;
+    }
+
     const uint8_t k_digits = kahypar::math::digits(context.partition.k);
-    const uint8_t n_digits = kahypar::math::digits(hypergraph.initialNumNodes());
+    const uint8_t n_digits = kahypar::math::digits(max_part_size);
     if ( context.partition.k <= 32 ) {
       for (PartitionID i = 0; i != context.partition.k; ++i) {
         const bool is_imbalanced = block_is_imbalanced(i);
