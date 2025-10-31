@@ -69,3 +69,6 @@ target_link_libraries(EvaluatePartition MtKaHyPar-BuildTools)
 
 add_executable(VerifyPartition verify_partition.cc)
 target_link_libraries(VerifyPartition MtKaHyPar-BuildTools)
+
+add_executable(ChangeWeights change_weights.cc)
+target_link_libraries(ChangeWeights MtKaHyPar-BuildTools)
