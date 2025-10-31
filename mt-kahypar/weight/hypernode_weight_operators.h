@@ -489,7 +489,7 @@ std::string toString(const Expr& expr) {
   std::stringstream ss;
   ss << "[ ";
   for (Dimension i = 0; i < expr.dimension(); i++) {
-    ss << std::to_string(expr.at(i)) + " ";
+    ss << expr.at(i) << " ";
   }
   ss << "]";
   return ss.str();
