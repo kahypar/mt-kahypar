@@ -46,11 +46,15 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_m
+        // dont inline
+        __attribute__((noinline))
         void local_fm(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
           (void) change;
           (void) empty_blocks;
           // mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph = utils::partitioned_hg_cast(
           //         partitioned_hypergraph_m);
+
+          HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
           //update gain cache for all changed nodes
           for (const HypernodeID &hn: gain_cache_nodes) {
@@ -60,13 +64,18 @@ namespace mt_kahypar::dyn {
             _rebalancer.insertOrUpdateNode(hn, partitioned_hypergraph_m.partID(hn));
           }
 
+          auto gain_cache_update_duration = std::chrono::high_resolution_clock::now() - start;
+          context.dynamic.gain_cache_update_duration_sum += gain_cache_update_duration;
+
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
 
           //pull into emptier blocks
           for (PartitionID p = 0; p < context.partition.k; ++p) {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
+            // std::cout << "Pulling into block " << p << " moved " << moved_nodes.size() << " nodes with gain " << gain << std::endl;
             context.dynamic.incremental_km1 -= gain;
+            context.dynamic.km1_gain_rebalance += gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
           }
 
@@ -77,15 +86,20 @@ namespace mt_kahypar::dyn {
           if (!metrics::isBalanced(partitioned_hypergraph_m, context)) {
             // use rebalancer to rebalance partitioned_hypergraph_m
             auto [gain, moved_nodes] = _rebalancer.rebalanceAndUpdateGainCache();
+            std::cout << "Rebalancing moved " << moved_nodes.size() << " nodes with gain " << gain << std::endl;
             context.dynamic.incremental_km1 -= gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
           }
+          ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
 
           if (local_fm_nodes.size() == 0) {
             return;
           }
+
+          auto rebalance_duration = std::chrono::high_resolution_clock::now() - start - gain_cache_update_duration;
+          context.dynamic.rebalance_duration_sum += rebalance_duration;
 
           ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
@@ -109,15 +123,22 @@ namespace mt_kahypar::dyn {
 
           _fm->refine(partitioned_hypergraph_t, local_fm_nodes, best_Metrics, std::numeric_limits<double>::max());
 
+          auto local_fm_duration = std::chrono::high_resolution_clock::now() - start - gain_cache_update_duration - rebalance_duration;
+          context.dynamic.localFM_duration_sum += local_fm_duration;
+
           for (Move move : context.dynamic.local_fm_round->moves) {
             if (move.to != partitioned_hypergraph_m.partID(move.node)) {
               continue;
             }
             _rebalancer.updateHeapsForMove(move);
             context.dynamic.incremental_km1 -= move.gain;
+            context.dynamic.km1_gain_localFM += move.gain;
           }
 
           _rebalancer.updateGainForMoves(context.dynamic.local_fm_round->moves);
+
+          auto rebalancer_duration = std::chrono::high_resolution_clock::now() - start - gain_cache_update_duration - rebalance_duration - local_fm_duration;
+          context.dynamic.rebalance_duration_sum += rebalancer_duration;
 
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
@@ -175,6 +196,8 @@ namespace mt_kahypar::dyn {
         }
 
         void partition(Change& change, size_t changes_size) override {
+
+          HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
           change_count++;
 
@@ -302,6 +325,9 @@ namespace mt_kahypar::dyn {
             }
           }
 
+          auto processing_duration_sum = std::chrono::high_resolution_clock::now() - start;
+          context.dynamic.processing_duration_sum += processing_duration_sum;
+
           //remove duplicates
           std::sort(gain_cache_nodes.begin(), gain_cache_nodes.end());
           gain_cache_nodes.erase(std::unique(gain_cache_nodes.begin(), gain_cache_nodes.end()), gain_cache_nodes.end());
@@ -316,12 +342,17 @@ namespace mt_kahypar::dyn {
                                                 [&](const HypernodeID& hn) { return !hypergraph_m.nodeIsEnabled(hn); }),
                                  gain_cache_nodes.end());
 
+          auto sorting_duration_sum = std::chrono::high_resolution_clock::now() - start - processing_duration_sum;
+          context.dynamic.sorting_duration_sum += sorting_duration_sum;
+
         // ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
         local_fm(local_fm_nodes, gain_cache_nodes, change, empty_blocks);
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
           if (changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) {
             // std::cout << "Starting v-cycle " << change_count << "/" << changes_size << " after processing " << changed_weight << " weight changes (" << (100.0 * changed_weight / prior_total_weight) << "% of total weight)" << std::endl;
+
+            HighResClockTimepoint vcycle_start = std::chrono::high_resolution_clock::now();
 
             HyperedgeWeight prior_km1 = 0;
             if (!context.dynamic.server) {
@@ -359,6 +390,8 @@ namespace mt_kahypar::dyn {
             GainCachePtr::resetGainCache(_gain_cache);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCache(partitioned_hypergraph_m);
 
+            context.dynamic.km1_gain_vcycle += prior_km1 - post_km1;
+
             if (!context.dynamic.server) {
               std::cout << std::endl << "Improvement: " << prior_km1 - post_km1 << std::endl;
             }
@@ -381,10 +414,13 @@ namespace mt_kahypar::dyn {
             _rebalancer.reset();
             updateMaxPartWeight(context, hypergraph_m);
             // std::cout << "Finished v-cycle " << change_count << "/" << changes_size << std::endl;
+            auto vcycle_duration = std::chrono::high_resolution_clock::now() - vcycle_start;
+            context.dynamic.vcycle_duration_sum += vcycle_duration;
           }
 
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
           ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
+
         }
 
         void printAdditionalFinalStats() override {

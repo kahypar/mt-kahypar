@@ -156,7 +156,19 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << i << ", " << km1 << ", " << imbalance << ", " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << std::endl;
+      //log format: change, km1, imbalance, time, km1_gain_vcycle, vcycle_duration_sum, km1_gain_rebalance, rebalance_duration_sum, km1_gain_localFM, localFM_duration_sum, processing_duration_sum, sorting_duration_sum, gain_cache_update_duration_sum,
+
+      file << i << ", " << km1 << ", " << imbalance << ", " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << ", "
+           << context.dynamic.km1_gain_vcycle << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.vcycle_duration_sum).count() << ", "
+           << context.dynamic.km1_gain_rebalance << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.rebalance_duration_sum).count() << ", "
+           << context.dynamic.km1_gain_localFM << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.localFM_duration_sum).count() << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.processing_duration_sum).count() << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.sorting_duration_sum).count() << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.gain_cache_update_duration_sum).count()
+           << std::endl;
       file.close();
 
       if (!context.dynamic.server) {
@@ -172,7 +184,7 @@ namespace mt_kahypar::dyn {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "change, km1, imbalance, time" << std::endl;
+      file << "change, km1, imbalance, time, km1_gain_vcycle, vcycle_duration_sum, km1_gain_rebalance, rebalance_duration_sum, km1_gain_localFM, localFM_duration_sum, processing_duration_sum, sorting_duration_sum, gain_cache_update_duration_sum" << std::endl;
       file.close();
     }
 

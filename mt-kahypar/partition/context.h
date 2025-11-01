@@ -325,6 +325,16 @@ struct DynamicParameters {
   HyperedgeWeight incremental_km1 = 0;
   LocalFMRound* local_fm_round = nullptr;
 
+  // statistics
+  size_t km1_gain_vcycle = 0;
+  std::chrono::high_resolution_clock::duration vcycle_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  size_t km1_gain_rebalance = 0;
+  std::chrono::high_resolution_clock::duration rebalance_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  size_t km1_gain_localFM = 0;
+  std::chrono::high_resolution_clock::duration localFM_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration processing_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration sorting_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration gain_cache_update_duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
   // generate file endings
   [[nodiscard]] std::string getOutputFileName() const {

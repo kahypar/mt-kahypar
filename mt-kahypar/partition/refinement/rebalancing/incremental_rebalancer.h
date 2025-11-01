@@ -27,23 +27,8 @@ public:
     }
 
     void reset() {
-      ASSERT(partitioned_hypergraph_m != nullptr);
-      ASSERT(_context != nullptr);
-      ASSERT(_gain_cache != nullptr);
-      ASSERT(_benefit_aggregator != nullptr);
-      if (partitioned_hypergraph_m == nullptr || _context == nullptr || _gain_cache == nullptr || _benefit_aggregator == nullptr) {
-        std::cout << "IncrementalRebalancer not initialized properly!" << std::endl;
-        exit(1);
-      }
-      // std::cout << "Resetting IncrementalRebalancer 1" << std::endl;
-      if (_blocks.empty()) {
-        std::cout << "IncrementalRebalancer blocks not initialized properly!" << std::endl;
-        exit(1);
-      }
-      // std::cout << "Resetting IncrementalRebalancer 2" << std::endl;
-      // _blocks.clear();
-      // // std::cout << "Resetting IncrementalRebalancer" << std::endl;
-      // populateBlockQueues();
+      ASSERT(!_blocks.empty());
+      ASSERT(partitioned_hypergraph_m != nullptr && _context != nullptr && _gain_cache != nullptr && _benefit_aggregator != nullptr);
 
       // build new blocks first, then swap
       std::vector<BlockQueues> new_blocks;
@@ -51,9 +36,8 @@ public:
       for (PartitionID b = 0; b < _context->partition.k; ++b) {
         new_blocks.emplace_back(partitioned_hypergraph_m->initialNumNodes() * 2);
       }
+
       // populate new_blocks similarly to populateBlockQueues()...
-
-
       for (HypernodeID u = 0; u < partitioned_hypergraph_m->initialNumNodes(); ++u) {
         if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
           continue;
@@ -77,21 +61,8 @@ public:
 
       // finally swap
       _blocks.swap(new_blocks);
-      // std::cout << "Resetting IncrementalRebalancer 3" << std::endl;
       ASSERT(checkBlockQueues());
-      // std::cout << "Resetting IncrementalRebalancer 4" << std::endl;
     }
-
-    // void updateAllForMove(Move move) {
-    //   if (!partitioned_hypergraph_m->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache)))
-    //   {
-    //     std::cout << "Gain cache is not valid" << std::endl;
-    //     exit(1);
-    //   }
-    //   _context->dynamic.incremental_km1 -= GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(move.node, move.from, move.to);
-    //   updateGainCacheForMove(move);
-    //   updateHeapsForMove(move);
-    // }
 
     std::tuple<HyperedgeWeight, std::vector<HypernodeID>> rebalanceAndUpdateGainCache() {
       HyperedgeWeight total_gain = 0;
@@ -113,13 +84,6 @@ public:
           _blocks[imbalanced_block].push.deleteTop();
 
           if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
-            continue;
-          }
-
-          //TODO: Why is this happening with mixed queries?
-          if (partitioned_hypergraph_m->partID(u) != imbalanced_block) {
-            std::cout << "Node " << u << " is not in block " << imbalanced_block << " but in " << partitioned_hypergraph_m->partID(u) << std::endl;
-            insertOrUpdateNode(u, partitioned_hypergraph_m->partID(u));
             continue;
           }
 
@@ -167,13 +131,6 @@ public:
         }
         PartitionID block_pull_source = partitioned_hypergraph_m->partID(u);
 
-        //TODO: Why is this happening with mixed queries?
-        //TODO: Because v_cycle changes are not reflected in the rebalancer
-        if (block_pull_source == block_pull_target) {
-          std::cout << "Node " << u << " is in block " << block_pull_source << " and should be moved to " << block_pull_target << std::endl;
-          insertOrUpdateNode(u, block_pull_target);
-          continue;
-        }
         ASSERT(block_pull_source != block_pull_target);
 
         HyperedgeWeight gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, block_pull_source, block_pull_target);
@@ -231,10 +188,6 @@ public:
     //if the node was deleted and reinserted, the queues are updated to prevent duplicate entries
     void insertOrUpdateNode(HypernodeID u, PartitionID part) {
       ASSERT(partitioned_hypergraph_m->nodeIsEnabled(u));
-      if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
-        //TODO Why is this happening with mixed queries?
-        return;
-      }
       ASSERT(partitioned_hypergraph_m->partID(u) == part);
       HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
 
@@ -428,6 +381,9 @@ private:
 
     void updateGainCacheForMove(Move move) {
 
+      size_t updated_gains = 0;
+      size_t updated_gains_2 = 0;
+
       HypernodeID hn = move.node;
       ds::MutableHypergraph& hypergraph = partitioned_hypergraph_m->hypergraph();
 
@@ -438,6 +394,7 @@ private:
           for (const HypernodeID& hn2 : hypergraph.pins(he)) {
             GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                     *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
+            updated_gains++;
             insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
           }
         } else if (nodes_in_removed_partition_post_removal == 1) {
@@ -445,6 +402,7 @@ private:
             if (hn2 != hn && partitioned_hypergraph_m->partID(hn2) == move.from) {
               GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                       *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
+              updated_gains_2++;
               insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
               break;
             }
@@ -453,6 +411,7 @@ private:
       }
 
       GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(*partitioned_hypergraph_m, hn, *_benefit_aggregator);
+      std::cout << "Updated gains for " << updated_gains << " nodes (case 1) and " << updated_gains_2 << " nodes (case 2) for move of node " << hn << " from block " << move.from << " to block " << move.to << std::endl;
 
       // ASSERT(partitioned_hypergraph_m->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache)));
     }
