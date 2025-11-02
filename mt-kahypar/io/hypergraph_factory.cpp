@@ -275,8 +275,8 @@ void addNegativeConstraintsFromFile(mt_kahypar_hypergraph_t hypergraph,
                                     const std::string& filename,
                                     const PartitionID k) {
   vec<std::pair<HypernodeID, HypernodeID>> constraints;
-
-  // TODO: parse constraints from file
+  // add checks when file format is set
+  io::readNegativeConstraintsFile(filename, constraints);
 
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:

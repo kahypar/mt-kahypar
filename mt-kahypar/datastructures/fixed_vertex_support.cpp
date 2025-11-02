@@ -190,12 +190,27 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
   }
 }
 
+HypernodeID getHypernodeCount(const vec<std::pair<HypernodeID, HypernodeID>>& node_vector) {
+  HypernodeID node_count = 0;
+  std::vector<bool> counted_nodes(node_vector.size() * 2, false);
+  for (const auto& node_pair : node_vector) {
+    if (!counted_nodes[node_pair.first]) {
+      counted_nodes[node_pair.first] = true;
+      node_count++;
+    }
+    if (!counted_nodes[node_pair.second]) {
+      counted_nodes[node_pair.second] = true;
+      node_count++;
+    }
+  }
+  return node_count;
+}
+
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
-  // TODO: build constraint graph, if necessary build node ID mapping or other additional data
+  HypernodeID num_nodes = getHypernodeCount(constraints);
   _constraint_graph = std::make_unique<DynamicGraph>(
-    // TODO: replace placeholders with actual values
-    DynamicGraphFactory::construct_from_graph_edges(0, 0, {}, nullptr, nullptr, true));
+    DynamicGraphFactory::construct_from_graph_edges(num_nodes, constraints.size(), constraints, nullptr, nullptr, true));
 }
 
 template<typename Hypergraph>

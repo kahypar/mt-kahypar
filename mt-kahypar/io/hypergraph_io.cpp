@@ -691,6 +691,17 @@ namespace mt_kahypar::io {
     readPartitionFileImpl(filename, num_nodes, [=]{ return partition; });
   }
 
+  void readNegativeConstraintsFile(const std::string& filename, vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
+    FileHandle handle = mmap_file(filename);
+    size_t pos = 0;
+    while (pos < handle.length) {
+      HypernodeID nodeOne = read_number(handle.mapped_file, pos, handle.length);
+      HypernodeID nodeTwo = read_number(handle.mapped_file, pos, handle.length);
+      constraints.push_back(std::make_pair(nodeOne,nodeTwo));
+    }
+    munmap_file(handle);
+  }
+
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
     if (filename.empty()) {
