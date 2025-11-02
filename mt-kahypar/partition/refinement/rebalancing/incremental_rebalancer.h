@@ -381,9 +381,6 @@ private:
 
     void updateGainCacheForMove(Move move) {
 
-      size_t updated_gains = 0;
-      size_t updated_gains_2 = 0;
-
       HypernodeID hn = move.node;
       ds::MutableHypergraph& hypergraph = partitioned_hypergraph_m->hypergraph();
 
@@ -394,7 +391,6 @@ private:
           for (const HypernodeID& hn2 : hypergraph.pins(he)) {
             GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                     *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
-            updated_gains++;
             insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
           }
         } else if (nodes_in_removed_partition_post_removal == 1) {
@@ -402,7 +398,6 @@ private:
             if (hn2 != hn && partitioned_hypergraph_m->partID(hn2) == move.from) {
               GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                       *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
-              updated_gains_2++;
               insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
               break;
             }
@@ -411,7 +406,6 @@ private:
       }
 
       GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(*partitioned_hypergraph_m, hn, *_benefit_aggregator);
-      std::cout << "Updated gains for " << updated_gains << " nodes (case 1) and " << updated_gains_2 << " nodes (case 2) for move of node " << hn << " from block " << move.from << " to block " << move.to << std::endl;
 
       // ASSERT(partitioned_hypergraph_m->checkTrackedPartitionInformation(GainCachePtr::cast<Km1GainCache>(*_gain_cache)));
     }

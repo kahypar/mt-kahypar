@@ -46,8 +46,6 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_m
-        // dont inline
-        __attribute__((noinline))
         void local_fm(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
           (void) change;
           (void) empty_blocks;
@@ -73,7 +71,6 @@ namespace mt_kahypar::dyn {
           //pull into emptier blocks
           for (PartitionID p = 0; p < context.partition.k; ++p) {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
-            // std::cout << "Pulling into block " << p << " moved " << moved_nodes.size() << " nodes with gain " << gain << std::endl;
             context.dynamic.incremental_km1 -= gain;
             context.dynamic.km1_gain_rebalance += gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
@@ -86,7 +83,6 @@ namespace mt_kahypar::dyn {
           if (!metrics::isBalanced(partitioned_hypergraph_m, context)) {
             // use rebalancer to rebalance partitioned_hypergraph_m
             auto [gain, moved_nodes] = _rebalancer.rebalanceAndUpdateGainCache();
-            std::cout << "Rebalancing moved " << moved_nodes.size() << " nodes with gain " << gain << std::endl;
             context.dynamic.incremental_km1 -= gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
           }
