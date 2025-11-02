@@ -350,10 +350,7 @@ namespace mt_kahypar::dyn {
 
             HighResClockTimepoint vcycle_start = std::chrono::high_resolution_clock::now();
 
-            HyperedgeWeight prior_km1 = 0;
-            if (!context.dynamic.server) {
-              prior_km1 = mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1);
-            }
+            HyperedgeWeight prior_km1 = context.dynamic.incremental_km1;
 
             //save partition of nodes
             std::vector<PartitionID> partition_of_nodes(hypergraph_m.initialNumNodes());
