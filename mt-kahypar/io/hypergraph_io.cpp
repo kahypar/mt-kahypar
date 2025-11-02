@@ -695,8 +695,9 @@ namespace mt_kahypar::io {
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
     while (pos < handle.length) {
-      HypernodeID nodeOne = read_number(handle.mapped_file, pos, handle.length);
-      HypernodeID nodeTwo = read_number(handle.mapped_file, pos, handle.length);
+      HypernodeID nodeOne = static_cast<uint32_t>(read_number(handle.mapped_file, pos, handle.length));
+      HypernodeID nodeTwo = static_cast<uint32_t>(read_number(handle.mapped_file, pos, handle.length));
+      do_line_ending(handle.mapped_file, pos);
       constraints.push_back(std::make_pair(nodeOne,nodeTwo));
     }
     munmap_file(handle);
