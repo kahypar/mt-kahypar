@@ -329,13 +329,14 @@ namespace mt_kahypar {
   void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
                                       const Context& context) {
     using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
-
+    // problem: this statement is never true!
     if ( partitioned_hg.hasNegativeConstraints() ) {
       gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
       std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
         context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
 
       const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
+      const DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph()
       // TODO: Implement postprocessing. Maybe do the implementation in a separate
       // file and only call it from here
 
@@ -346,12 +347,24 @@ namespace mt_kahypar {
       // rebalancer->refine(phg, {}, metrics, 0.0);
 
       GainCachePtr::deleteGainCache(gain_cache);
+      /**
+       * For each node in constraint graph -> get neighbors -> get all partitionIDs -> move node in different partition if nessesary
+       */
+      for ( const auto& node : constraint_graph.nodes()) {
+        
+      }
+      PartitionID id1 = partitioned_hg.partID(1);
+      PartitionID id2 = partitioned_hg.partID(2);
+      LOG << "Block node 1: " + std::to_string(id1);
+      LOG << "Block node 2: " + std::to_string(id2);
     }
+    else {LOG << "no negative constraints";}
   }
 
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
     Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+      LOG << "Negative constraints: " + std::to_string(hypergraph.hasNegativeConstraints());
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 

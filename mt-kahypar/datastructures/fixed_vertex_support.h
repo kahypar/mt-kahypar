@@ -159,6 +159,10 @@ class FixedVertexSupport {
 
   void setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints);
 
+  const DynamicGraph& getConstraintGraph() const {
+    return *_constraint_graph;
+  }
+
   // ####################### Miscellaneous #######################
 
   FixedVertexSupport<Hypergraph> copy() const;
