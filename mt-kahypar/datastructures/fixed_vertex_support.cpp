@@ -209,8 +209,9 @@ HypernodeID getHypernodeCount(const vec<std::pair<HypernodeID, HypernodeID>>& no
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
   HypernodeID num_nodes = getHypernodeCount(constraints);
+  vec<HyperedgeWeight> edge_weight(constraints.size(), HyperedgeWeight(1));
   _constraint_graph = std::make_unique<DynamicGraph>(
-    DynamicGraphFactory::construct_from_graph_edges(num_nodes, constraints.size(), constraints, nullptr, nullptr, true));
+    DynamicGraphFactory::construct_from_graph_edges(num_nodes, constraints.size(), constraints, edge_weight.data(), nullptr, true));
 }
 
 template<typename Hypergraph>
