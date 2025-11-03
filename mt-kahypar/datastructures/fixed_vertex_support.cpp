@@ -198,6 +198,22 @@ void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<
     DynamicGraphFactory::construct_from_graph_edges(0, 0, {}, nullptr, nullptr, true));
 }
 
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
+  FixedVertexSupport<Hypergraph> cpy;
+  cpy._num_nodes = _num_nodes;
+  cpy._k = _k;
+  cpy._hg = _hg;
+  cpy._total_fixed_vertex_weight = _total_fixed_vertex_weight;
+  cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights;
+  cpy._max_block_weights = _max_block_weights;
+  cpy._fixed_vertex_data = _fixed_vertex_data;
+  if (_constraint_graph != nullptr) {
+    cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
+  }
+  return cpy;
+}
+
 } // namespace ds
 } // namespace mt_kahypar
 

@@ -161,17 +161,7 @@ class FixedVertexSupport {
 
   // ####################### Miscellaneous #######################
 
-  FixedVertexSupport<Hypergraph> copy() const {
-    FixedVertexSupport<Hypergraph> cpy;
-    cpy._num_nodes = _num_nodes;
-    cpy._k = _k;
-    cpy._hg = _hg;
-    cpy._total_fixed_vertex_weight = _total_fixed_vertex_weight;
-    cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights;
-    cpy._max_block_weights = _max_block_weights;
-    cpy._fixed_vertex_data = _fixed_vertex_data;
-    return cpy;
-  }
+  FixedVertexSupport<Hypergraph> copy() const;
 
   size_t size_in_bytes() const {
     return ( sizeof(CAtomic<HypernodeWeight>) + sizeof(HypernodeWeight)) * _k +
