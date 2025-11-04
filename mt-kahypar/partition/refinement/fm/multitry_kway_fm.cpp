@@ -227,6 +227,8 @@ namespace mt_kahypar {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
+    const int total_num_threads = TBBInitializer::instance().total_number_of_threads();
+
     if ( refinement_nodes.empty() ) {
       // log(n) level case
       // iterate over all nodes and insert border nodes into task queue
@@ -239,7 +241,7 @@ namespace mt_kahypar {
           // our working queue for border nodes with which we initialize the localized
           // FM searches. For now, we do not know why this occurs but this prevents
           // the segmentation fault.
-          if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
+          if ( task_id >= 0 && task_id < total_num_threads ) {
             for (HypernodeID u = r.begin(); u < r.end(); ++u) {
               if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
                 sharedData.refinementNodes.safe_push(u, task_id);
@@ -252,7 +254,7 @@ namespace mt_kahypar {
       tbb::parallel_for(UL(0), refinement_nodes.size(), [&](const size_t i) {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
-        if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
+        if ( task_id >= 0 && task_id < total_num_threads ) {
           if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
             sharedData.refinementNodes.safe_push(u, task_id);
           }
