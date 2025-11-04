@@ -45,6 +45,7 @@
             export CC=${stdenv.cc}/bin/cc
             export CXX=${stdenv.cc}/bin/c++
             export CMAKE_PREFIX_PATH=${pkgs.tbb_2022_0.dev}:${pkgs.boost.dev}:$CMAKE_PREFIX_PATH
+            export LD_LIBRARY_PATH=${pkgs.boost}/lib:${pkgs.tbb_2022_0}/lib:$LD_LIBRARY_PATH
             echo "mt-kahypar dev shell ready."
           '';
         };
