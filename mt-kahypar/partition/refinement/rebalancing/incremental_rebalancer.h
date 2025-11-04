@@ -100,8 +100,10 @@ public:
           }
 
           Move move = {imbalanced_block, best_push_block, u, gain};
-          partitioned_hypergraph_m->changeNodePart(move.node, move.from, move.to);
-          updateGainCacheForMove(move);
+          // partitioned_hypergraph_m->changeNodePart(move.node, move.from, move.to);
+          // updateGainCacheForMove(move);
+          partitioned_hypergraph_m->changeNodePart(GainCachePtr::cast<Km1GainCache>(*_gain_cache), move.node, move.from, move.to);
+          GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(*partitioned_hypergraph_m, move.node, *_benefit_aggregator);
           updateHeapsForMove(move);
 
           moved_nodes.push_back(u);
@@ -150,8 +152,10 @@ public:
         }
 
         Move move = {block_pull_source, block_pull_target, u, gain};
-        partitioned_hypergraph_m->changeNodePart(move.node, move.from, move.to);
-        updateGainCacheForMove(move);
+        // partitioned_hypergraph_m->changeNodePart(move.node, move.from, move.to);
+        // updateGainCacheForMove(move);
+        partitioned_hypergraph_m->changeNodePart(GainCachePtr::cast<Km1GainCache>(*_gain_cache), move.node, move.from, move.to);
+        GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(*partitioned_hypergraph_m, move.node, *_benefit_aggregator);
         updateHeapsForMove(move);
 
         moved_nodes.push_back(u);

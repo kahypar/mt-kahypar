@@ -328,8 +328,10 @@ struct DynamicParameters {
   // statistics
   std::int64_t km1_gain_vcycle = 0;
   std::chrono::high_resolution_clock::duration vcycle_duration_sum = std::chrono::high_resolution_clock::duration::zero();
-  std::int64_t km1_gain_rebalance = 0;
-  std::chrono::high_resolution_clock::duration rebalance_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::int64_t km1_gain_rebalance_pull = 0;
+  std::chrono::high_resolution_clock::duration rebalance_duration_sum_pull = std::chrono::high_resolution_clock::duration::zero();
+  std::int64_t km1_gain_rebalance_push = 0;
+  std::chrono::high_resolution_clock::duration rebalance_duration_sum_push = std::chrono::high_resolution_clock::duration::zero();
   std::int64_t km1_gain_localFM = 0;
   std::chrono::high_resolution_clock::duration localFM_duration_sum = std::chrono::high_resolution_clock::duration::zero();
   std::chrono::high_resolution_clock::duration processing_duration_sum = std::chrono::high_resolution_clock::duration::zero();
