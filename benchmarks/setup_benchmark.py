@@ -163,11 +163,12 @@ if __name__ == "__main__":
                       if not repetition_compare_benchmark:
                         if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
                               continue
+                        timelimit = config["timelimit"][0]    
                         call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag, experiment_dir)
                         header = None
                         if write_partition_file:
                             call += " --partition_folder=" + os.path.abspath(result_dir)
-                        call += " >> " + partitioner_dump(result_dir, instance, threads, k, seed)
+                        call += " >> " + partitioner_dump(result_dir, instance, threads, k, seed, timelimit)
                         partitioner_calls.append(call)
                       else:
                         # execute timelimit[i] with repetitions[i]
