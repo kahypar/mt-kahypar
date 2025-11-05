@@ -325,17 +325,47 @@ namespace mt_kahypar {
     }
   }
 
+  void get_incident_nodes(const ds::DynamicGraph& graph, const HypernodeID& node, vec<HypernodeID>& incident_nodes) {
+    IteratorRange<ds::DynamicAdjacencyArray::const_iterator> incident_edges = graph.incidentEdges(node);
+    for ( const auto& edge_id : incident_edges) {
+      ds::DynamicAdjacencyArray::Edge edge = graph.edge(edge_id);
+      incident_nodes.push_back(edge.target);
+    }
+  }
+
+  PartitionID getFittingPartition(const PartitionID& current_partition, const vec<bool>& invalid_partitions) {
+    PartitionID new_partiton_id = PartitionID(current_partition);
+    PartitionID num_partitons = invalid_partitions.size();
+    while (invalid_partitions[new_partiton_id]) {
+      new_partiton_id++;
+      if (new_partiton_id >= num_partitons) {
+        new_partiton_id = PartitionID(0);
+      }
+      if(new_partiton_id == current_partition) {
+        throw std::invalid_argument("Each node_id can only have k - 1 partiton constraints!");
+      }
+    }
+    return new_partiton_id;
+  }
+
   template<typename PartitionedHypergraph>
   void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
                                       const Context& context) {
+    /**
+     * For each node in constraint graph 
+     * -> get neighbors
+     * -> get node_ids in the PartitionedHypergraph from the node_weights in the constraint graph
+     * -> get all partitionIDs 
+     * -> move node_id in different partition if nessesary
+     */
     using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
-    // problem: this statement is never true!
     if ( partitioned_hg.hasNegativeConstraints() ) {
       gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
       std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
         context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
 
       const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
+      const ds::DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph();
       const DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph()
       // TODO: Implement postprocessing. Maybe do the implementation in a separate
       // file and only call it from here
@@ -347,24 +377,38 @@ namespace mt_kahypar {
       // rebalancer->refine(phg, {}, metrics, 0.0);
 
       GainCachePtr::deleteGainCache(gain_cache);
-      /**
-       * For each node in constraint graph -> get neighbors -> get all partitionIDs -> move node in different partition if nessesary
-       */
       for ( const auto& node : constraint_graph.nodes()) {
-        
+        HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
+        PartitionID partition_id = partitioned_hg.partID(node_id);
+        vec<HypernodeID> id_incident_nodes;
+        vec<bool> invalid_partitions(partitioned_hg.k(), false);
+
+        get_incident_nodes(constraint_graph, node, id_incident_nodes);
+        for (HypernodeID incident_node : id_incident_nodes) {
+          PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+          invalid_partitions[incident_partition_id] = true;
+        }
+        PartitionID new_partition_id = getFittingPartition(partition_id, invalid_partitions);
+        bool move = new_partition_id != partition_id;
+        if (move) {
+          partitioned_hg.changeNodePart(node_id,
+                                        partition_id,
+                                        new_partition_id, 
+                                        HypernodeWeight(std::numeric_limits<int32_t>::max()),
+                                        [](auto&&...){},
+                                        [](auto&&...){});
+        }
+        LOG << "Node nr: " << node_id;
+        LOG << "Partition id: " << partition_id;
+        partition_id = partitioned_hg.partID(node_id);
+        LOG << (move? ("Moved to Partition:") : ("Stayed in same Partition:")) << partition_id;
       }
-      PartitionID id1 = partitioned_hg.partID(1);
-      PartitionID id2 = partitioned_hg.partID(2);
-      LOG << "Block node 1: " + std::to_string(id1);
-      LOG << "Block node 2: " + std::to_string(id2);
     }
-    else {LOG << "no negative constraints";}
   }
 
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
     Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
-      LOG << "Negative constraints: " + std::to_string(hypergraph.hasNegativeConstraints());
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 

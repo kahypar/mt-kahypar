@@ -190,28 +190,47 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
   }
 }
 
-HypernodeID getHypernodeCount(const vec<std::pair<HypernodeID, HypernodeID>>& node_vector) {
+vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pair<HypernodeID,HypernodeID>>& node_vector, 
+                                                          vec<HypernodeWeight>& node_weight, 
+                                                          HypernodeID& num_nodes) {
+  /**
+   * Transforms random nodeIDs to ongoing ids for and graph.
+   * Get Hypernode count and set the nodeWeights accordingly to the read nodeIDs
+   */
   HypernodeID node_count = 0;
-  std::vector<bool> counted_nodes(node_vector.size() * 2, false);
+  std::unordered_map<HypernodeID, HypernodeID> hypergraph_id_to_graph_id;
+  vec<std::pair<HypernodeID, HypernodeID>> new_node_vector;
+  new_node_vector.reserve(node_vector.size());
   for (const auto& node_pair : node_vector) {
-    if (!counted_nodes[node_pair.first]) {
-      counted_nodes[node_pair.first] = true;
+    auto [it1, inserted1] = hypergraph_id_to_graph_id.emplace(node_pair.first, node_count);
+    if (inserted1) {
+      node_weight.push_back(node_pair.first);
       node_count++;
     }
-    if (!counted_nodes[node_pair.second]) {
-      counted_nodes[node_pair.second] = true;
+    auto [it2, inserted2] = hypergraph_id_to_graph_id.emplace(node_pair.second, node_count);
+    if (inserted2) {
+      node_weight.push_back(node_pair.second);
       node_count++;
     }
+    new_node_vector.push_back(std::make_pair(it1->second, it2->second));
   }
-  return node_count;
+  num_nodes = node_count;
+  return new_node_vector;
 }
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
-  HypernodeID num_nodes = getHypernodeCount(constraints);
-  vec<HyperedgeWeight> edge_weight(constraints.size(), HyperedgeWeight(1));
+  vec<HypernodeWeight> node_weight;
+  HypernodeID num_nodes;
+  vec<std::pair<HypernodeID, HypernodeID>> transformed_constraints = trasform_node_vector(constraints, node_weight, num_nodes);
+  vec<HyperedgeWeight> edge_weight(transformed_constraints.size(), HyperedgeWeight(1));
   _constraint_graph = std::make_unique<DynamicGraph>(
-    DynamicGraphFactory::construct_from_graph_edges(num_nodes, constraints.size(), constraints, edge_weight.data(), nullptr, true));
+    DynamicGraphFactory::construct_from_graph_edges(num_nodes,
+                                                    transformed_constraints.size(), 
+                                                    transformed_constraints,
+                                                    edge_weight.data(),
+                                                    node_weight.data(),
+                                                    true));
 }
 
 template<typename Hypergraph>
