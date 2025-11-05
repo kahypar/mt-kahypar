@@ -1,0 +1,12 @@
+{
+  "name": "pop15",
+  "config": [ { "partitioner" : "Mt-KaHyPar", "name" : "Mt-KaHyPar-evo" , "args": "evo_flag history-info --enable-benchmark=true --evo-replacement-strategy=diverse --evo-kway=3 --evo-population-size=15"} ],
+  "threads": [1],
+  "k": [8, 32],
+  "epsilon": 0.03,
+  "seeds": [1],
+  "objective": "km1",
+  "timelimit": [15, 5],
+  "repetitions": [1, 3],
+  "graph_instance_folder": "./benchmarks/instances"
+}

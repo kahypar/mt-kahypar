@@ -61,7 +61,7 @@ def get_all_benchmark_instances(partitioner, config):
 
   assert False, f"No instances found for: {partitioner}"
 
-def partitioner_call(is_serial, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag):
+def partitioner_call(is_serial, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag, experiment_dir):
   if is_serial:
     call = serial_partitioner_call(partitioner, instance, k, epsilon, seed, objective, timelimit)
   else:
@@ -72,6 +72,9 @@ def partitioner_call(is_serial, partitioner, instance, threads, k, epsilon, seed
     call += " --name " + algorithm_name
   if args is not None:
     assert "'" not in args
+    if "history-info" in args:
+       # pass experiment directory for evo history info
+       call += f" --history " + experiment_dir
     call += f" --args '{args}'"
   if header is not None:
     call += f" --header '{header}'"
@@ -160,7 +163,7 @@ if __name__ == "__main__":
                       if not repetition_compare_benchmark:
                         if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
                               continue
-                        call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag)
+                        call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed, objective, timelimit, config_file, algorithm_name, args, header, tag, experiment_dir)
                         header = None
                         if write_partition_file:
                             call += " --partition_folder=" + os.path.abspath(result_dir)
@@ -173,11 +176,12 @@ if __name__ == "__main__":
                             if is_serial_partitioner and threads > 1 and len(config["threads"]) > 1:
                                 continue
                             for r in range(repetitions):
-                                call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, seed + r, objective, timelimit, config_file, algorithm_name, args, header, tag)
+                                real_seed = seed + r
+                                call = partitioner_call(is_serial_partitioner, partitioner, instance, threads, k, epsilon, real_seed, objective, timelimit, config_file, algorithm_name, args, header, tag, experiment_dir)
                                 header = None
                                 if write_partition_file:
                                     call += " --partition_folder=" + os.path.abspath(result_dir)
-                                call += " >> " + partitioner_dump(result_dir, instance, threads, k, seed, timelimit)
+                                call += " >> " + partitioner_dump(result_dir, instance, threads, k, real_seed, timelimit)
                                 partitioner_calls.append(call)
 
             # Write partitioner calls to workload file

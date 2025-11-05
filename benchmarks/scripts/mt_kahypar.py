@@ -31,6 +31,7 @@ def get_args():
   parser.add_argument("timelimit", type=int)
   parser.add_argument("--partition_folder", type=str, default = "")
   parser.add_argument("--name", type=str, default = "")
+  parser.add_argument("--history", type=str, default = "")
   parser.add_argument("--args", type=str, default = "")
   parser.add_argument("--header", type=str, default = "")
   parser.add_argument("--tag", action="store_true")
@@ -175,16 +176,22 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
          #"--evo-diff-matrix-file=" + os.environ.get("EVO_DIFF_FOLDER") + evo_diff_file,
          *args_list]
 
-  #print("DEBUG: COMMAND: " + " ".join(cmd), file=sys.stderr)
+  #print("DEBUG: args_list: " + str(args_list), file=sys.stderr)
 
   if args.partition_folder != "":
     cmd.extend(["--write-partition-file=true"])
     cmd.extend(["--partition-output-folder=" + args.partition_folder])
 
   if include_history:
-    evo_result_folder = os.environ.get("EVO_RESULT_FOLDER")
-    evo_diff_folder = os.environ.get("EVO_DIFF_FOLDER")
-    
+    # get experiment directory from args
+    experiment_dir = args.history
+    evo_result_folder = experiment_dir + "/evo_history"
+    evo_diff_folder = experiment_dir + "/evo_diff"
+
+    # Create directories if they don't exist
+    os.makedirs(evo_result_folder, exist_ok=True)
+    os.makedirs(evo_diff_folder, exist_ok=True)
+
     if evo_result_folder is not None:
       cmd.extend(["--evo-history-file=" + evo_result_folder + evo_result_file])
     if evo_diff_folder is not None:
