@@ -27,11 +27,14 @@
 
 #include "partitioner.h"
 
+#include <memory>
+
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
@@ -42,6 +45,10 @@
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/i_rebalancer.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -324,9 +331,21 @@ namespace mt_kahypar {
     using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
 
     if ( partitioned_hg.hasNegativeConstraints() ) {
+      gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
+      std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
+        context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
+
       const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
       // TODO: Implement postprocessing. Maybe do the implementation in a separate
       // file and only call it from here
+
+      // Rebalancer can be used as follows:
+      // Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
+      // mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
+      // rebalancer->initialize(phg);
+      // rebalancer->refine(phg, {}, metrics, 0.0);
+
+      GainCachePtr::deleteGainCache(gain_cache);
     }
   }
 
