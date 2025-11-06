@@ -433,6 +433,7 @@ namespace mt_kahypar {
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
     if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
+      // TODO: check is incorrect for multi-constraint ?!
       ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
                           << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
                   "Number of parts is not equal to k!",
