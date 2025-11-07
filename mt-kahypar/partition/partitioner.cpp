@@ -326,26 +326,28 @@ namespace mt_kahypar {
   }
 
   void get_incident_nodes(const ds::DynamicGraph& graph, const HypernodeID& node, vec<HypernodeID>& incident_nodes) {
-    IteratorRange<ds::DynamicAdjacencyArray::const_iterator> incident_edges = graph.incidentEdges(node);
-    for ( const auto& edge_id : incident_edges) {
-      ds::DynamicAdjacencyArray::Edge edge = graph.edge(edge_id);
-      incident_nodes.push_back(edge.target);
+    for ( const auto& edge_id : graph.incidentEdges(node)) {
+      incident_nodes.push_back(graph.edgeTarget(edge_id));
     }
   }
 
-  PartitionID getFittingPartition(const PartitionID& current_partition, const vec<bool>& invalid_partitions) {
-    PartitionID new_partiton_id = PartitionID(current_partition);
-    PartitionID num_partitons = invalid_partitions.size();
-    while (invalid_partitions[new_partiton_id]) {
-      new_partiton_id++;
-      if (new_partiton_id >= num_partitons) {
-        new_partiton_id = PartitionID(0);
-      }
-      if(new_partiton_id == current_partition) {
-        throw std::invalid_argument("Each node_id can only have k - 1 partiton constraints!");
+  template<typename PartitionedHypergraph>
+  PartitionID getLowestWeightPartition(PartitionedHypergraph& partitioned_hg, 
+                                  const HypernodeID& node_id, 
+                                  const vec<bool>& is_partition_invalid) {
+    PartitionID partition_id = partitioned_hg.partID(node_id);
+    assert(is_partition_invalid[partition_id]);
+    PartitionID num_partitons = is_partition_invalid.size();
+    HypernodeWeight min_weight = std::numeric_limits<HypernodeWeight>::max();
+
+    for (PartitionID partition = 0; partition < num_partitons; partition++) {
+      HypernodeWeight weight = partitioned_hg.partWeight(partition);
+      if(!is_partition_invalid[partition] && weight < min_weight){
+        min_weight = weight;
+        partition_id = partition;
       }
     }
-    return new_partiton_id;
+    return partition_id;
   }
 
   template<typename PartitionedHypergraph>
@@ -359,16 +361,13 @@ namespace mt_kahypar {
      * -> move node_id in different partition if nessesary
      */
     using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
-    if ( partitioned_hg.hasNegativeConstraints() ) {
+    if (partitioned_hg.hasNegativeConstraints()) {
       gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
       std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
         context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
 
       const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
       const ds::DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph();
-      const DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph()
-      // TODO: Implement postprocessing. Maybe do the implementation in a separate
-      // file and only call it from here
 
       // Rebalancer can be used as follows:
       // Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
@@ -376,33 +375,29 @@ namespace mt_kahypar {
       // rebalancer->initialize(phg);
       // rebalancer->refine(phg, {}, metrics, 0.0);
 
-      GainCachePtr::deleteGainCache(gain_cache);
       for ( const auto& node : constraint_graph.nodes()) {
         HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
         PartitionID partition_id = partitioned_hg.partID(node_id);
-        vec<HypernodeID> id_incident_nodes;
+        vec<HypernodeID> incident_nodes_id;
         vec<bool> invalid_partitions(partitioned_hg.k(), false);
 
-        get_incident_nodes(constraint_graph, node, id_incident_nodes);
-        for (HypernodeID incident_node : id_incident_nodes) {
+        get_incident_nodes(constraint_graph, node, incident_nodes_id);
+        for (HypernodeID incident_node : incident_nodes_id) {
           PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
           invalid_partitions[incident_partition_id] = true;
         }
-        PartitionID new_partition_id = getFittingPartition(partition_id, invalid_partitions);
-        bool move = new_partition_id != partition_id;
-        if (move) {
+        if (invalid_partitions[partition_id]) {
+          PartitionID new_partition_id = getLowestWeightPartition(partitioned_hg, node_id, invalid_partitions);
           partitioned_hg.changeNodePart(node_id,
                                         partition_id,
-                                        new_partition_id, 
-                                        HypernodeWeight(std::numeric_limits<int32_t>::max()),
-                                        [](auto&&...){},
-                                        [](auto&&...){});
+                                        new_partition_id);
         }
         LOG << "Node nr: " << node_id;
         LOG << "Partition id: " << partition_id;
-        partition_id = partitioned_hg.partID(node_id);
-        LOG << (move? ("Moved to Partition:") : ("Stayed in same Partition:")) << partition_id;
+        LOG << (invalid_partitions[partition_id]? ("Moved to Partition:") : ("Stayed in:")) << partitioned_hg.partID(node_id);
+        LOG << "";
       }
+      GainCachePtr::deleteGainCache(gain_cache);
     }
   }
 
