@@ -57,6 +57,7 @@ benchmarks/*.csv
 benchmarks/*.header.csv
 benchmarks/instances
 benchmarks/config.json
+benchmarks/configs/*
 visualization/__pycache__/
 __pycache__/
 *.results
