@@ -61,7 +61,11 @@ with open(args.benchmark) as json_experiment:
     os.system("rm " + evo_diff_folder + "/*")
 
     # GNU parallel calls
-    os.system(f"parallel --jobs 0 --memfree 1G --bar :::: {workload_file}")
+    # get phyical CPU core count
+    cpu_cores = os.cpu_count() // 2
+    max_threads_per_call = max(config["threads"])
+    print(f"Executing benchmark with {cpu_cores} physical CPU cores and max {max_threads_per_call} threads per partitioner call.")
+    os.system(f"parallel --jobs {cpu_cores // max_threads_per_call} --memfree 1G --bar :::: {workload_file}")
     
 
     # previous sequential logic
