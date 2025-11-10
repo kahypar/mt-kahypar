@@ -828,6 +828,9 @@ namespace mt_kahypar {
              ("evo-diff-matrix-file",
               po::value<std::string>(&context.evolutionary.diff_matrix_file)->value_name("<string>"),
               "Output file for evolution difference matrix")
+             ("evo-threads-per-worker",
+             po::value<size_t>(&context.evolutionary.num_threads_per_worker)->value_name("<size_t>")->default_value(0),
+             "Number of threads to use per evolutionary worker. 0 means automatic (roughly total_threads / 2 workers).")
              ("evo-kway",
              po::value<int>(&context.evolutionary.kway_combine)->value_name("<int>")->default_value(2),
              "How many individsuals to combine for the combine step\n");

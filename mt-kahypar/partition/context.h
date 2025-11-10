@@ -302,6 +302,7 @@ std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& para
 struct EvolutionaryParameters {
   size_t population_size;
   float mutation_chance;
+  size_t num_threads_per_worker = 0; // 0 means automatic
   EvoReplaceStrategy replace_strategy;
   mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
   int diversify_interval;  // -1 disables diversification
