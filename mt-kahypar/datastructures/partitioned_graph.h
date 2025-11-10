@@ -36,6 +36,7 @@
 
 #include "kahypar-resources/meta/mandatory.h"
 
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/bitset.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"

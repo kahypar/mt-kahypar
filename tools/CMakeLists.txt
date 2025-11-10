@@ -31,6 +31,9 @@ add_library(MtKaHyPar-BuildTools OBJECT "")
 target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources)
 target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
+add_executable(ConstraintGenerator constraint_generator.cc)
+target_link_libraries(ConstraintGenerator MtKaHyPar-BuildTools)
+
 add_executable(GraphToHgr graph_to_hgr.cc)
 target_link_libraries(GraphToHgr MtKaHyPar-BuildTools)
 
