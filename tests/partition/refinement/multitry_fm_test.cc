@@ -63,7 +63,7 @@ class MultiTryFMTest : public Test {
           gain_cache(),
           refiner(nullptr),
           metrics() {
-    TBBInitializer::instance(std::thread::hardware_concurrency());
+    TBBInitializer::initialize(std::thread::hardware_concurrency());
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;

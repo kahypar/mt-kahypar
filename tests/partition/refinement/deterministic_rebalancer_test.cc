@@ -64,7 +64,7 @@ class DeterministicRebalancerTest : public Test {
           partitioned_hypergraph(),
           context(),
           rebalancer(nullptr) {
-    TBBInitializer::instance(std::thread::hardware_concurrency());
+    TBBInitializer::initialize(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.05;
     context.partition.k = Config::K;

@@ -108,7 +108,7 @@ class APoolInitialPartitionerTest : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBInitializer::instance(HardwareTopology::instance().num_cpus());
+    TBBInitializer::initialize(HardwareTopology::instance().num_cpus());
   }
 
   Hypergraph hypergraph;

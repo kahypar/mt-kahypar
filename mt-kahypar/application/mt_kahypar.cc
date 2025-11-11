@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
   #endif
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  TBBInitializer::initialize(context.shared_memory.num_threads);
 
   #ifndef KAHYPAR_DISABLE_HWLOC
     // We set the membind policy to interleaved allocations in order to

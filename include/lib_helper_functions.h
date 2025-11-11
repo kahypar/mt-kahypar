@@ -85,7 +85,7 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
   #endif
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::instance(P);
+  TBBInitializer::initialize(P);
 
   #ifndef KAHYPAR_DISABLE_HWLOC
     if ( interleaved_allocations ) {

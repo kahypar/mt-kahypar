@@ -69,9 +69,12 @@ class TBBInitializer {
   TBBInitializer(TBBInitializer&&) = delete;
   TBBInitializer & operator= (TBBInitializer &&) = delete;
 
-  static TBBInitializer& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
-    static TBBInitializer instance(num_threads);
-    return instance;
+  static void initialize(const size_t num_threads) {
+    instanceImpl(num_threads);
+  }
+
+  static TBBInitializer& instance() {
+    return instanceImpl(0);
   }
 
   int total_number_of_threads() const {
@@ -110,6 +113,7 @@ class TBBInitializer {
     _global_observer(nullptr),
     _cpus(),
     _numa_node_to_cpu_id() {
+    ALWAYS_ASSERT(num_threads > 0);
     HwTopology& topology = HwTopology::instance();
     int num_numa_nodes = topology.num_numa_nodes();
     DBG << "Initialize TBB with" << num_threads << "threads";
@@ -144,6 +148,11 @@ class TBBInitializer {
     while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
       _numa_node_to_cpu_id.pop_back();
     }
+  }
+
+  static TBBInitializer& instanceImpl(const size_t num_threads) {
+    static TBBInitializer instance(num_threads);
+    return instance;
   }
 
   int _num_threads;
