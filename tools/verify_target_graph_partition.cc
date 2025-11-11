@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
   context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
   context.mapping.max_steiner_tree_size = 4;
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  TBBInitializer::initialize(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(
