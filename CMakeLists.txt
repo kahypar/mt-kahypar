@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 # define the project version
-set(MT_KAHYPAR_VERSION "1.5.1")
+set(MT_KAHYPAR_VERSION "1.5.3")
 string(SUBSTRING "${MT_KAHYPAR_VERSION}" 0 1 MT_KAHYPAR_SO_VERSION)
 set(MTKAHYPAR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
