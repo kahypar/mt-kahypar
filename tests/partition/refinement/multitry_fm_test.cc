@@ -265,7 +265,7 @@ TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
 
   // use a super-heavy edge to trigger the fallback case
   std::vector<HyperedgeWeight> he_weights{ 1, 10000 };
-  Hypergraph hg = HypergraphFactory::construct(4, 2, { {0, 1}, {2, 3} }, he_weights.data());
+  Hypergraph hg = HypergraphFactory::construct(4, 2, 1, { {0, 1}, {2, 3} }, he_weights.data());
   PartitionedHypergraph phg(2, hg);
   phg.setOnlyNodePart(0, 0);
   phg.setOnlyNodePart(1, 0);
