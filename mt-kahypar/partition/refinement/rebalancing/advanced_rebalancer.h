@@ -26,12 +26,15 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
+
 #include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -125,8 +128,12 @@ private:
   PartitionID _current_k;
   GainCalculator _gain;
 
+  std::pair<PartitionID, float> computeBestTargetBlock(const PartitionedHypergraph& phg, HypernodeID u, PartitionID from);
+
+  std::pair<PartitionID, float> bestOfThree(const PartitionedHypergraph& phg, HypernodeID u, PartitionID from, std::array<PartitionID, 3> parts);
 
   void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+
   std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 
   ds::Array<Move> _moves;
@@ -137,6 +144,10 @@ private:
   ds::Array<PosT> _pq_handles;
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
+
+  // ! Buffers for comparing the weight of target blocks
+  tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
+  tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
 };
 
 }  // namespace mt_kahypar
