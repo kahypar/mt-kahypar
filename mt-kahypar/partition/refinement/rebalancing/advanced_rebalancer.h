@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
+
 #include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -33,6 +35,7 @@
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/rebalancing/repair_empty_blocks.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -140,6 +143,10 @@ private:
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
   RepairEmptyBlocks<GraphAndGainTypes> _repair_empty_blocks;
+
+  // ! Buffers for comparing the weight of target blocks
+  tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
+  tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
 };
 
 }  // namespace mt_kahypar
