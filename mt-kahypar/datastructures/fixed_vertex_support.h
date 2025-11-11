@@ -163,6 +163,10 @@ class FixedVertexSupport {
     return *_constraint_graph;
   }
 
+  const HypernodeID getConstraintIdFromHypergraphId(const HypernodeID& node_id){
+    return _hypergraph_id_to_graph_id[node_id];
+  }
+
   // ####################### Miscellaneous #######################
 
   FixedVertexSupport<Hypergraph> copy() const;
@@ -200,6 +204,9 @@ class FixedVertexSupport {
 
   // ! Graph that represents the negative constraints
   std::unique_ptr<DynamicGraph> _constraint_graph;
+
+  // mapping from HypernodeIds of the partitioned Graph to HypernodeIds of the constraint Graph
+  std::unordered_map<HypernodeID, HypernodeID> _hypergraph_id_to_graph_id;
 };
 
 }  // namespace ds

@@ -369,19 +369,13 @@ namespace mt_kahypar {
       const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = partitioned_hg.fixedVertexSupport();
       const ds::DynamicGraph& constraint_graph = fixed_vertex_support.getConstraintGraph();
 
-      // Rebalancer can be used as follows:
-      // Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
-      // mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
-      // rebalancer->initialize(phg);
-      // rebalancer->refine(phg, {}, metrics, 0.0);
-
       for ( const auto& node : constraint_graph.nodes()) {
         HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
         PartitionID partition_id = partitioned_hg.partID(node_id);
         vec<HypernodeID> incident_nodes_id;
         vec<bool> invalid_partitions(partitioned_hg.k(), false);
 
-        get_incident_nodes(constraint_graph, node, incident_nodes_id);
+        constraint_graph.incident_nodes(node, incident_nodes_id);
         for (HypernodeID incident_node : incident_nodes_id) {
           PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
           invalid_partitions[incident_partition_id] = true;
@@ -397,6 +391,10 @@ namespace mt_kahypar {
         LOG << (invalid_partitions[partition_id]? ("Moved to Partition:") : ("Stayed in:")) << partitioned_hg.partID(node_id);
         LOG << "";
       }
+      Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
+      mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
+      rebalancer->initialize(phg);
+      rebalancer->refine(phg, {}, metrics, 0.0);
       GainCachePtr::deleteGainCache(gain_cache);
     }
   }

@@ -511,6 +511,12 @@ class DynamicGraph {
     return _adjacency_array.nodeDegree(u);
   }
 
+  void incident_nodes(const HypernodeID& node, vec<HypernodeID>& incident_nodes) const {
+    for ( const auto& edge_id : incidentEdges(node)) {
+      incident_nodes.push_back(edgeTarget(edge_id));
+    }
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();

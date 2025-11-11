@@ -190,7 +190,8 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
   }
 }
 
-vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pair<HypernodeID,HypernodeID>>& node_vector, 
+vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pair<HypernodeID,HypernodeID>>& node_vector,
+                                                          std::unordered_map<HypernodeID, HypernodeID>& hypergraph_id_to_graph_id,
                                                           vec<HypernodeWeight>& node_weight, 
                                                           HypernodeID& num_nodes) {
   /**
@@ -198,7 +199,6 @@ vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pai
    * Get Hypernode count and set the nodeWeights accordingly to the read nodeIDs
    */
   HypernodeID node_count = 0;
-  std::unordered_map<HypernodeID, HypernodeID> hypergraph_id_to_graph_id;
   vec<std::pair<HypernodeID, HypernodeID>> new_node_vector;
   new_node_vector.reserve(node_vector.size());
   for (const auto& node_pair : node_vector) {
@@ -222,7 +222,10 @@ template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
   vec<HypernodeWeight> node_weight;
   HypernodeID num_nodes;
-  vec<std::pair<HypernodeID, HypernodeID>> transformed_constraints = trasform_node_vector(constraints, node_weight, num_nodes);
+  vec<std::pair<HypernodeID, HypernodeID>> transformed_constraints = trasform_node_vector(constraints, 
+                                                                                          _hypergraph_id_to_graph_id,
+                                                                                          node_weight, 
+                                                                                          num_nodes);
   vec<HyperedgeWeight> edge_weight(transformed_constraints.size(), HyperedgeWeight(1));
   _constraint_graph = std::make_unique<DynamicGraph>(
     DynamicGraphFactory::construct_from_graph_edges(num_nodes,
