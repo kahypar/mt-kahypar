@@ -175,7 +175,6 @@ std::vector<option> load_quality_preset() {
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
     create_option("i-r-refine-until-no-improvement", "false"),
-    create_option("i-r-relative-improvement-threshold", "0.0"),
     // main -> initial_partitioning -> refinement -> label_propagation
     create_option("i-r-lp-type", "label_propagation"),
     create_option("i-r-lp-maximum-iterations", "5"),
@@ -195,8 +194,7 @@ std::vector<option> load_quality_preset() {
     create_option("i-r-flow-algo", "do_nothing"),
     // main -> refinement
     create_option("r-rebalancer-type", "advanced_rebalancer"),
-    create_option("r-refine-until-no-improvement", "true"),
-    create_option("r-relative-improvement-threshold", "0.0025"),
+    create_option("r-refine-until-no-improvement", "false"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
     create_option("r-lp-unconstrained", "true"),
