@@ -175,9 +175,12 @@ class SimpleTBBInitializer {
   SimpleTBBInitializer(SimpleTBBInitializer&&) = delete;
   SimpleTBBInitializer & operator= (SimpleTBBInitializer &&) = delete;
 
-  static SimpleTBBInitializer& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
-    static SimpleTBBInitializer instance(num_threads);
-    return instance;
+  static void initialize(const size_t num_threads) {
+    instanceImpl(num_threads);
+  }
+
+  static SimpleTBBInitializer& instance() {
+    return instanceImpl(0);
   }
 
   int num_used_numa_nodes() const {
@@ -194,6 +197,11 @@ class SimpleTBBInitializer {
   explicit SimpleTBBInitializer(const int num_threads) :
     _num_threads(num_threads),
     _gc(tbb::global_control::max_allowed_parallelism, num_threads) { }
+
+  static SimpleTBBInitializer& instanceImpl(const size_t num_threads) {
+    static SimpleTBBInitializer instance(num_threads);
+    return instance;
+  }
 
   int _num_threads;
   tbb::global_control _gc;
