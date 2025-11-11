@@ -163,9 +163,15 @@ class FixedVertexSupport {
     return *_constraint_graph;
   }
 
-  const HypernodeID getConstraintIdFromHypergraphId(const HypernodeID& node_id){
-    return _hypergraph_id_to_graph_id[node_id];
-  }
+  bool getConstraintIdFromHypergraphId(HypernodeID hypergraph_id, HypernodeID& constraint_id) const {
+    auto it = _hypergraph_id_to_graph_id.find(hypergraph_id);
+    if (it != _hypergraph_id_to_graph_id.end()) {
+        constraint_id = it->second;
+        return true;
+    } else {
+        return false;
+    }
+}
 
   // ####################### Miscellaneous #######################
 

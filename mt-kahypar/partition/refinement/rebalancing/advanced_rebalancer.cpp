@@ -48,8 +48,29 @@ namespace impl {
     return gain;
   }
 
+  template<typename PartitionedHypergraph>
+  bool moveValid(const PartitionedHypergraph& phg, const HypernodeID& node, const PartitionID& partition) {
+    if (!phg.hasNegativeConstraints()) {
+      return true;
+    }
+    const ds::DynamicGraph& constraint_graph = phg.fixedVertexSupport().getConstraintGraph();
+    HypernodeID node_id;
+    if (!phg.fixedVertexSupport().getConstraintIdFromHypergraphId(node, node_id)) {
+      return true; // node is not in constraint graph
+    }
+    vec<HypernodeID> incident_nodes;
+    constraint_graph.incident_nodes(node_id, incident_nodes);
+    for (HypernodeID neighbor : incident_nodes) {
+      if (phg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
+        LOG << "Move not possible: neighbor Node " << constraint_graph.nodeWeight(neighbor) << " is in Partition " << partition;
+        return false;
+      }
+    }
+    return true;
+  }
+
   template<typename PartitionedHypergraph, typename GainCache>
-  std::pair<PartitionID, float> computeBestTargetBlock(
+  std::pair<PartitionID, float> computeBestTargetBlock(//todo
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
           HypernodeID u, PartitionID from) {
     const HypernodeWeight wu = phg.nodeWeight(u);
@@ -63,14 +84,14 @@ namespace impl {
         HyperedgeWeight benefit;
         if (gain_cache.blockIsAdjacent(u, i)) {
           benefit = gain_cache.benefitTerm(u, i);
-        } else if (to != kInvalidPartition || to_weight + wu > context.partition.max_part_weights[i]) {
+        } else if (to != kInvalidPartition || to_weight + wu > context.partition.max_part_weights[i] || !moveValid(phg, u, i)) {
           // skip expensive gain recomputation
           continue;
         } else {
           benefit = gain_cache.recomputeBenefitTerm(phg, u, i);
         }
         if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
-            to_weight + wu <= context.partition.max_part_weights[i]) {
+            to_weight + wu <= context.partition.max_part_weights[i] && moveValid(phg, u, i)) {
           to_benefit = benefit;
           to = i;
           best_to_weight = to_weight;
@@ -99,7 +120,7 @@ namespace impl {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.blockIsAdjacent(u, i) ? gain_cache.benefitTerm(u, i) : gain_cache.recomputeBenefitTerm(phg, u, i);
         if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
-            to_weight + wu <= context.partition.max_part_weights[i]) {
+            to_weight + wu <= context.partition.max_part_weights[i] && moveValid(phg, u, i)) {
           to_benefit = benefit;
           to = i;
           best_to_weight = to_weight;
