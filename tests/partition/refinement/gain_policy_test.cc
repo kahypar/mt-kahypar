@@ -47,11 +47,11 @@ class AGainPolicy : public Test {
   using HypergraphFactory = typename Hypergraph::Factory;
 
   AGainPolicy() :
-    hg(HypergraphFactory::construct(7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
+    hg(HypergraphFactory::construct(7 , 4, 1, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     context(),
     gain(nullptr) {
     context.partition.k = K;
-    context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
+    context.partition.max_part_weights.replaceWith(K, 1, std::numeric_limits<HNWeightScalar>::max());
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
     hypergraph = PartitionedHypergraph(K, hg, parallel_tag_t());
   }
