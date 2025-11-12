@@ -163,7 +163,7 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [package_linux_x86, package_macos, build_sdist]  # package_linux_arm
+    needs: [package_linux_x86, package_linux_arm, package_macos_arm, package_macos_intel, build_sdist]
     runs-on: ubuntu-24.04
     environment: pypi
     permissions:
