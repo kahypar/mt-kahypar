@@ -27,11 +27,13 @@
 #include "compute_features.h"
 
 #include <array>
+#include <atomic>
 
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
+#include <tbb/concurrent_vector.h>
 
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
@@ -39,6 +41,7 @@
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/scalable_sort.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/coarsening/multilevel/ml/feature_definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -52,6 +55,26 @@ namespace mt_kahypar {
 using FastResetArray = kahypar::ds::FastResetFlagArray<>;
 
 constexpr size_t CACHE_SIZE = 200;
+
+struct SharedBuffer {
+  ds::DynamicSparseMap<int32_t, int32_t> occurenceBuffer;
+  vec<uint32_t> degreeBuffer;
+  parallel::IntegralAtomicWrapper<bool> lock;
+
+  bool try_lock() {
+    if (!lock.load(std::memory_order_relaxed)) {
+      bool expected = false;
+      if (lock.compare_exchange_strong(expected, true, std::memory_order_acquire)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void unlock() {
+    lock.store(false, std::memory_order_release);
+  }
+};
 
 template<typename Container>
 double parallel_skew(const Container& data, const double avg, const double stdev, const size_t n) {
@@ -299,7 +322,7 @@ std::tuple<double, double, uint64_t> maxModularitySubset(const ds::StaticGraph& 
 void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, HypernodeID node,
                      const GlobalFeatures& global, const ds::Array<uint32_t>& global_degrees,
                      ds::DynamicSparseMap<int32_t, int32_t>& occurenceBuffer, vec<uint32_t>& degreeBuffer,
-                     const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache) {
+                     const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache, bool parallel) {
   HypernodeID num_nodes = graph.nodeDegree(node);
   result.degree = num_nodes;
   result.inverse_degree = num_nodes <= 1 ? 1.0 : 1.0 / static_cast<double>(num_nodes - 1);
@@ -312,11 +335,12 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
     HypernodeID curr_node = graph.edgeTarget(edge);
     degreeBuffer.push_back(graph.nodeDegree(curr_node));
   }
-  result.degree_stats = createStats<vec<uint32_t>, uint32_t>(degreeBuffer, degreeBuffer.size() >= 20000, occurenceBuffer, logCache);
+  result.degree_stats = createStats<vec<uint32_t>, uint32_t>(degreeBuffer, parallel, occurenceBuffer, logCache);
   double chi_sq = 0.0;
   for (uint32_t d: degreeBuffer) {
-    chi_sq += (static_cast<double>(d) - global.degree_stats.avg) * (static_cast<double>(d) - global.degree_stats.avg) / global.degree_stats.avg;
+    chi_sq += (static_cast<double>(d) - global.degree_stats.avg) * (static_cast<double>(d) - global.degree_stats.avg);
   }
+  chi_sq /= global.degree_stats.avg;
   result.chi_squared_degree_deviation = chi_sq;
 
   // min contracted degree stats
@@ -333,14 +357,39 @@ void cheapN1Features(const ds::StaticGraph& graph, N1Features& result, Hypernode
 }
 
 void computeCheapN1Features(const ds::StaticGraph& graph, ds::Array<N1Features>& n1_features, const GlobalFeatures& global,
-                            const ds::Array<uint32_t>& global_degrees, const std::array<float, CACHE_SIZE>& quantileCache, const std::array<double, CACHE_SIZE>& logCache) {
+                            const ds::Array<uint32_t>& global_degrees, const std::array<float, CACHE_SIZE>& quantileCache,
+                            const std::array<double, CACHE_SIZE>& logCache, vec<SharedBuffer>& sharedBuffers) {
+  static constexpr size_t DEGREE_PARALLEL_THRESHOLD = 20000;
+
   tbb::enumerable_thread_specific<ds::DynamicSparseMap<int32_t, int32_t>> localOccurenceBuffer;
   tbb::enumerable_thread_specific<vec<uint32_t>> localDegreeBuffer;
+  tbb::concurrent_vector<HypernodeID> remaining_high_degree_nodes;
   graph.doParallelForAllNodes([&](const HypernodeID hn) {
     ASSERT(hn < n1_features.size());
     n1_features[hn] = N1Features{};
-    cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local(), quantileCache, logCache);
+    if (graph.nodeDegree(hn) >= DEGREE_PARALLEL_THRESHOLD) {
+      for (SharedBuffer& buffers: sharedBuffers) {
+        if (buffers.try_lock()) {
+          cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, buffers.occurenceBuffer, buffers.degreeBuffer, quantileCache, logCache, true);
+          buffers.unlock();
+        }
+      }
+      remaining_high_degree_nodes.push_back(hn);
+    } else {
+      cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, localOccurenceBuffer.local(), localDegreeBuffer.local(), quantileCache, logCache, false);
+    }
   });
+
+  // this is all a bit ugly but it works
+  if (remaining_high_degree_nodes.size() > 0) {
+    ds::DynamicSparseMap<int32_t, int32_t> occurenceBuffer;
+    vec<uint32_t> degreeBuffer;
+    for (HypernodeID hn: remaining_high_degree_nodes) {
+      ASSERT(hn < n1_features.size());
+      n1_features[hn] = N1Features{};
+      cheapN1Features(graph, n1_features[hn], hn, global, global_degrees, occurenceBuffer,degreeBuffer, quantileCache, logCache, true);
+    }
+  }
 }
 
 void expensiveN1Features(const ds::StaticGraph& graph, N1Features& result, HypernodeID node, FastResetArray& membership) {
@@ -465,7 +514,11 @@ std::tuple<GlobalFeatures, ds::Array<N1Features>, bool> computeFeatures(const ds
 
   timer.start_timer("features_cheap", "Compute Cheap Features");
   auto quantileCache = precomputeQuantiles(node_degrees);
-  computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache, logCache);
+  vec<SharedBuffer> sharedBuffers;
+  for (size_t i = 0; i < std::min(context.shared_memory.num_threads, UL(32)); ++i) {
+    sharedBuffers.emplace_back();
+  }
+  computeCheapN1Features(graph, n1_features, global_features, node_degrees, quantileCache, logCache, sharedBuffers);
   timer.stop_timer("features_cheap");
 
   if constexpr (features::needs_expensive_features) {
