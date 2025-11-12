@@ -714,7 +714,8 @@ namespace mt_kahypar {
             "  7.) greedy_round_robin_max_net (is executed)\n"
             "  8.) greedy_global_max_net      (is executed)\n"
             "  9.) greedy_sequential_max_net  (is NOT executed)\n"
-            "Note vector must exactly contain 9 values otherwise partitioner will exit with failure")
+            "  10.) streaming                 (is NOT executed)\n"
+            "Note vector must exactly contain 10 values otherwise partitioner will exit with failure")
             ("i-runs",
              po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
              "Number of runs for each bipartitioning algorithm.")

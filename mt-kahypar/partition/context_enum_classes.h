@@ -146,7 +146,8 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_max_net = 6,
   greedy_global_max_net = 7,
   greedy_sequential_max_net = 8,
-  UNDEFINED = 9
+  streaming = 9,
+  UNDEFINED = 10
 };
 
 enum class LabelPropagationAlgorithm : uint8_t {

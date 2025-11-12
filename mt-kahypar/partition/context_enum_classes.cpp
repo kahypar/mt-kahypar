@@ -212,6 +212,7 @@ namespace mt_kahypar {
       case InitialPartitioningAlgorithm::greedy_global_max_net: return os << "greedy_global_max_net";
       case InitialPartitioningAlgorithm::greedy_sequential_max_net: return os << "greedy_sequential_max_net";
       case InitialPartitioningAlgorithm::label_propagation: return os << "label_propagation";
+      case InitialPartitioningAlgorithm::streaming: return os << "streaming";
       case InitialPartitioningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -444,6 +445,8 @@ namespace mt_kahypar {
       return InitialPartitioningAlgorithm::greedy_sequential_max_net;
     } else if (algo == "label_propagation") {
       return InitialPartitioningAlgorithm::label_propagation;
+    } else if (algo == "streaming") {
+      return InitialPartitioningAlgorithm::streaming;
     }
     throw InvalidParameterException("Illegal option: " + algo);
     return InitialPartitioningAlgorithm::UNDEFINED;
