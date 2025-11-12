@@ -248,6 +248,7 @@ FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   cpy._fixed_vertex_data = _fixed_vertex_data;
   if (_constraint_graph != nullptr) {
     cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
+    cpy._hypergraph_id_to_graph_id = _hypergraph_id_to_graph_id;
   }
   return cpy;
 }

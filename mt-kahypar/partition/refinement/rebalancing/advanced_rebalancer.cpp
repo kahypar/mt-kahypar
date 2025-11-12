@@ -62,7 +62,6 @@ namespace impl {
     constraint_graph.incident_nodes(node_id, incident_nodes);
     for (HypernodeID neighbor : incident_nodes) {
       if (phg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
-        LOG << "Move not possible: neighbor Node " << constraint_graph.nodeWeight(neighbor) << " is in Partition " << partition;
         return false;
       }
     }

@@ -86,8 +86,6 @@ int main(int argc, char* argv[]) {
 
     constraints(out_stream, hyperedges, max_constraints_per_node, num_constraints);
 
-    out_stream << std::endl;
     out_stream.close();
-
     return 0;
 }
