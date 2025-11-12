@@ -70,6 +70,30 @@ jobs:
             exit 1
           fi
 
+  mt_kahypar_build_minimal_depencies:
+    name: Build With Minimal Dependencies
+    runs-on: ubuntu-24.04
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev
+
+      - name: Install Mt-KaHyPar
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DISABLE_HWLOC=ON -DKAHYPAR_DISABLE_GROWT=ON -DKAHYPAR_DISABLE_PARLAY=ON -DKAHYPAR_PYTHON=ON
+          make -j4 MtKaHyPar
+          make -j4 mtkahypar
+          make -j4 mtkahypar_python
+
   mt_kahypar_test_suite:
     name: Test Suite
     runs-on: ubuntu-22.04  # note: stay on 22.04 since lcov behaves weird on 24.04
