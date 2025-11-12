@@ -54,7 +54,7 @@ Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides ma
 Installing Mt-KaHyPar
 -----------
 
-For Linux (x86) and MacOS, the [Mt-KaHyPar Python package](https://pypi.org/project/mtkahypar/) can be installed via pip:
+For Linux and MacOS, the [Mt-KaHyPar Python package](https://pypi.org/project/mtkahypar/) can be installed via pip:
 
     pip install mtkahypar
 
@@ -180,8 +180,6 @@ Fixed vertices are nodes that are preassigned to particular block and are not al
 
     -f <path-to-fixed-vertex-file>
 
-Note that fixed vertices are only supported in our `default`, `quality`, and `highest_quality` configurations.
-
 ### Individual Target Block Weights
 
 Per default, Mt-KaHyPar enforces that the weight of each block must be smaller than the average block weight (weight of the hypergraph divided by the number of blocks) times (1 + ε). However, you can provide individual target block weights for each block via
@@ -209,11 +207,12 @@ There are several useful options that can provide you with additional insights d
 
 If you want to change other configuration parameters manually, please run `--help` for a detailed description of the different program options.
 
-Using Mt-KaHyPar as a library
+The C Library
 -----------
 
-We provide a simple C interface to use Mt-KaHyPar as a library, as well as a Python interface.
-On Linux or MacOS, the C library can be built and installed via
+We provide a simple C interface to use Mt-KaHyPar as a library.
+The C libary is available from the debian package provided with the latest release.
+Alternatively, the library can be installed via
 
 ```sh
 make install-mtkahypar  # use sudo (Linux & MacOS) or run shell as an administrator (Windows) to install system-wide
@@ -361,9 +360,11 @@ if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
 }
 ```
 
-### The Python Library Interface
+The Python Library
+-----------
 
-You can install the Python library interface via
+We provide a Python library for Mt-KaHyPar, which is available on pypi (see [installation](#installing-mt-kahypar)).
+Alternatively, the Python library can be installed via
 
 ```sh
 make mtkahypar_python
