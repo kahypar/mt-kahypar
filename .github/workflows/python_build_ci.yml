@@ -74,8 +74,8 @@ jobs:
   #         path: ./wheels/*.whl
 
 
-  package_macos:
-    name: Python Package MacOS
+  package_macos_arm:
+    name: Python Package MacOS Arm
 
     runs-on: macos-latest
     env:
@@ -92,7 +92,41 @@ jobs:
 
       - name: Build Python Wheels
         env:
-          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_MACOS: arm64
+          CIBW_BUILD: cp3*-macos*
+          # TBB doesn't compile on older MacOS than 10.13
+          MACOSX_DEPLOYMENT_TARGET: 10.13
+        run: |
+          # run cmake to create pyproject.toml from pyproject.toml.in
+          cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=$TBB_INSTALL_DIR -DKAHYPAR_DISABLE_HWLOC=On
+          rm -rf configure_python
+          pipx run cibuildwheel --output-dir wheels
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-macos
+          path: ./wheels/*.whl
+
+
+  package_macos_intel:
+    name: Python Package MacOS Intel
+
+    runs-on: macos-15-intel
+    env:
+      CI_ACTIVE : 1
+      TBB_INSTALL_DIR: /tmp/tbb_build
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+
+      - name: Install Dependencies
+        run: |
+          brew install tbb boost pipx
+
+      - name: Build Python Wheels
+        env:
+          CIBW_ARCHS_MACOS: x86_64
           CIBW_BUILD: cp3*-macos*
           # TBB doesn't compile on older MacOS than 10.13
           MACOSX_DEPLOYMENT_TARGET: 10.13
