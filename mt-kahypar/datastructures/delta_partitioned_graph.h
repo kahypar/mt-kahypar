@@ -54,8 +54,6 @@ template <typename PartitionedGraph = Mandatory,
           bool maintain_connectivity_set = false>
 class DeltaPartitionedGraph {
  private:
-  static constexpr size_t MAP_SIZE_LARGE = 16384;
-  static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
   static constexpr size_t MAP_SIZE_SMALL = 128;
 
   using HypernodeIterator = typename PartitionedGraph::HypernodeIterator;
