@@ -45,6 +45,7 @@
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 #include "mt-kahypar/partition/metrics.h"
 
@@ -57,8 +58,9 @@ struct OriginalHypergraphInfo {
   // imbalanced k-way partition when performing recursive bipartitioning. We therefore adaptively
   // adjust the allowed imbalance for each bipartition individually based on the adaptive imbalance
   // definition described in our papers.
-  double computeAdaptiveEpsilon(const HypernodeWeight current_hypergraph_weight,
+  double computeAdaptiveEpsilon(const HNWeightScalar current_hypergraph_weight,
                                 const PartitionID current_k) const {
+  // TODO: epsilon could be multi-dimensional ??
     if ( current_hypergraph_weight == 0 ) {
       return 0.0;
     } else {
@@ -71,7 +73,7 @@ struct OriginalHypergraphInfo {
     }
   }
 
-  const HypernodeWeight original_hypergraph_weight;
+  const HNWeightScalar original_hypergraph_weight;
   const PartitionID original_k;
   const double original_epsilon;
 };
@@ -98,25 +100,35 @@ namespace rb {
     }
 
     // Setup Part Weights
-    const HypernodeWeight total_weight = hypergraph.totalWeight();
+    const HNWeightConstRef total_weight = hypergraph.totalWeight();
+    const Dimension dimension = total_weight.dimension();
     const PartitionID k = context.partition.k;
     const PartitionID k0 = k / 2 + (k % 2 != 0 ? 1 : 0);
     const PartitionID k1 = k / 2;
     ASSERT(k0 + k1 == context.partition.k);
     if ( context.partition.use_individual_part_weights ) {
-      const HypernodeWeight max_part_weights_sum = std::accumulate(context.partition.max_part_weights.cbegin(),
-                                                                  context.partition.max_part_weights.cend(), 0);
-      const double weight_fraction = total_weight / static_cast<double>(max_part_weights_sum);
-      ASSERT(weight_fraction <= 1.0);
-      b_context.partition.perfect_balance_part_weights.clear();
-      b_context.partition.max_part_weights.clear();
-      HypernodeWeight perfect_weight_p0 = 0;
-      for ( PartitionID i = 0; i < k0; ++i ) {
-        perfect_weight_p0 += ceil(weight_fraction * context.partition.max_part_weights[i]);
+      AllocatedHNWeight max_part_weights_sum(dimension, 0);
+      std::vector<double> weight_fraction(dimension, 0);
+
+      for (const auto& part_weight: context.partition.max_part_weights) {
+        max_part_weights_sum += part_weight;
       }
-      HypernodeWeight perfect_weight_p1 = 0;
+      for (size_t d = 0; d < dimension; ++d) {
+        weight_fraction[d] = total_weight.at(d) / static_cast<double>(max_part_weights_sum.at(d));
+        ASSERT(weight_fraction[d] <= 1.0);
+      }
+
+      AllocatedHNWeight perfect_weight_p0(dimension, 0);
+      for ( PartitionID i = 0; i < k0; ++i ) {
+        for (size_t d = 0; d < dimension; ++d) {
+          perfect_weight_p0.at(d) += ceil(weight_fraction[d] * context.partition.max_part_weights[i].at(d));
+        }
+      }
+      AllocatedHNWeight perfect_weight_p1(dimension, 0);
       for ( PartitionID i = k0; i < k; ++i ) {
-        perfect_weight_p1 += ceil(weight_fraction * context.partition.max_part_weights[i]);
+        for (size_t d = 0; d < dimension; ++d) {
+          perfect_weight_p1.at(d) += ceil(weight_fraction[d] * context.partition.max_part_weights[i].at(d));
+        }
       }
       // In the case of individual part weights, the usual adaptive epsilon formula is not applicable because it
       // assumes equal part weights. However, by observing that ceil(current_weight / current_k) is the current
@@ -126,28 +138,41 @@ namespace rb {
       // Note that the sum of the perfect part weights might be unequal to the hypergraph weight due to rounding.
       // Thus, we need to use the former instead of using the hypergraph weight directly, as otherwise it could
       // happen that (1 + epsilon)perfect_part_weight > max_part_weight because of rounding issues.
-      const double base = max_part_weights_sum / static_cast<double>(perfect_weight_p0 + perfect_weight_p1);
-      b_context.partition.epsilon = total_weight == 0 ? 0 : std::min(0.99, std::max(std::pow(base, 1.0 /
-                                                                    ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
-      b_context.partition.perfect_balance_part_weights.push_back(perfect_weight_p0);
-      b_context.partition.perfect_balance_part_weights.push_back(perfect_weight_p1);
-      b_context.partition.max_part_weights.push_back(
-              round((1 + b_context.partition.epsilon) * perfect_weight_p0));
-      b_context.partition.max_part_weights.push_back(
-              round((1 + b_context.partition.epsilon) * perfect_weight_p1));
-    } else {
-      b_context.partition.epsilon = info.computeAdaptiveEpsilon(total_weight, k);
+      std::vector<double> epsilon_per_dimension(dimension, 0);
+      double summed_epsilon = 0;
+      for (size_t d = 0; d < dimension; ++d) {
+        const double base = max_part_weights_sum.at(d) / static_cast<double>((perfect_weight_p0 + perfect_weight_p1).at(d));
+        epsilon_per_dimension[d] = total_weight.at(d) == 0 ? 0 : std::clamp(
+                                     std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))), 0.0, 0.99);
+        summed_epsilon += epsilon_per_dimension[d];
+      }
 
-      b_context.partition.perfect_balance_part_weights.clear();
-      b_context.partition.max_part_weights.clear();
-      b_context.partition.perfect_balance_part_weights.push_back(
-              std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight)));
-      b_context.partition.perfect_balance_part_weights.push_back(
-              std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight)));
-      b_context.partition.max_part_weights.push_back(
-              (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[0]);
-      b_context.partition.max_part_weights.push_back(
-              (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[1]);
+      b_context.partition.epsilon = summed_epsilon;
+      b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
+      b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
+      b_context.partition.perfect_balance_part_weights[0] = perfect_weight_p0;
+      b_context.partition.perfect_balance_part_weights[1] = perfect_weight_p1;
+      for (size_t d = 0; d < dimension; ++d) {
+        b_context.partition.max_part_weights[0].set(d,
+                round((1 + epsilon_per_dimension[d]) * perfect_weight_p0.at(d)));
+        b_context.partition.max_part_weights[1].set(d,
+                round((1 + epsilon_per_dimension[d]) * perfect_weight_p1.at(d)));
+      }
+    } else {
+      b_context.partition.epsilon = info.computeAdaptiveEpsilon(weight::sum(total_weight), k);
+
+      b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
+      b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
+      for (size_t d = 0; d < dimension; ++d) {
+        b_context.partition.perfect_balance_part_weights[0].set(d,
+                std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight.at(d))));
+        b_context.partition.perfect_balance_part_weights[1].set(d,
+                std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight.at(d))));
+        b_context.partition.max_part_weights[0].set(d,
+                (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[0].at(d));
+        b_context.partition.max_part_weights[1].set(d,
+                (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[1].at(d));
+      }
     }
     b_context.setupContractionLimit(total_weight);
     b_context.setupThreadsPerFlowSearch();
@@ -185,7 +210,7 @@ namespace rb {
                                            const PartitionID k) {
     if ( hg.hasFixedVertices() ) {
       const PartitionID m = k / 2 + (k % 2);
-      ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2);
+      ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), hg.dimension(), 2);
       fixed_vertices.setHypergraph(&hg);
       hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( hg.isFixed(hn) ) {
@@ -208,7 +233,7 @@ namespace rb {
                                       const PartitionID k1) {
     if ( input_hg.hasFixedVertices() ) {
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(
-        extracted_hg.initialNumNodes(), k1 - k0);
+        extracted_hg.initialNumNodes(), extracted_hg.dimension(), k1 - k0);
       fixed_vertices.setHypergraph(&extracted_hg);
       input_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( input_hg.isFixed(hn) ) {
@@ -416,7 +441,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
   vec<uint8_t> already_cut(rb::usesAdaptiveWeightOfNonCutEdges(context) ?
     hypergraph.initialNumEdges() : 0, 0);
   rb::recursive_bipartitioning<TypeTraits>(hypergraph, rb_context, 0, rb_context.partition.k,
-    OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
+    OriginalHypergraphInfo { weight::sum(hypergraph.totalWeight()), rb_context.partition.k,
       rb_context.partition.epsilon }, already_cut);
 
   if (context.type == ContextType::main) {

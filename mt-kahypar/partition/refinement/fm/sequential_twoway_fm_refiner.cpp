@@ -127,7 +127,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
                                                   <= _context.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
                                                   (current_cut <= best_metrics.quality);
-      const bool move_is_feasible = ( _phg.partWeight(from) > 0) &&
+      const bool move_is_feasible = !weight::isZero(_phg.partWeight(from)) &&
                                     ( improved_cut_within_balance ||
                                       improved_balance_less_equal_cut );
       if ( move_is_feasible ) {

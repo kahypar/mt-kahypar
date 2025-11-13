@@ -72,8 +72,7 @@ namespace mt_kahypar::ds {
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
             _tmp_contraction_buffer->tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
-            _tmp_contraction_buffer->hn_weights;
+    HypernodeWeightArray& hn_weights = _tmp_contraction_buffer->hn_weights;
     Array<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
     Array<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
@@ -114,7 +113,7 @@ namespace mt_kahypar::ds {
 
       // Reset tmp contraction buffer
       if ( hn < num_hypernodes ) {
-        hn_weights[hn] = 0;
+        hn_weights[hn] = weight::broadcast(0, dimension());
         tmp_hypernodes[hn] = Hypernode(true);
         tmp_num_incident_nets[hn] = 0;
       }
@@ -130,10 +129,9 @@ namespace mt_kahypar::ds {
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
       ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
-      // Weight vector is atomic => thread-safe
-      hn_weights[coarse_hn] += nodeWeight(hn);
+      weight::eval(hn_weights[coarse_hn].fetch_add(nodeWeight(hn), std::memory_order_relaxed));
       // Aggregate upper bound for number of incident nets of the contracted vertex
-      tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
+      tmp_num_incident_nets[coarse_hn].fetch_add(nodeDegree(hn), std::memory_order_relaxed);
     });
 
     // #################### STAGE 2 ####################
@@ -246,7 +244,6 @@ namespace mt_kahypar::ds {
           std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
           high_degree_vertices.push_back(coarse_hn);
         }
-        tmp_hypernodes[coarse_hn].setWeight(hn_weights[coarse_hn]);
         tmp_hypernodes[coarse_hn].setFirstEntry(incident_nets_start);
       });
 
@@ -478,12 +475,19 @@ namespace mt_kahypar::ds {
       });
     };
 
-    tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
+    auto setup_hypernode_weights = [&] {
+      hypergraph._hypernode_weights.resize(num_hypernodes, dimension());
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
+        hypergraph._hypernode_weights[id] = hn_weights[id];
+      });
+    };
+
+    tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes, setup_hypernode_weights);
 
     if ( hasFixedVertices() ) {
       // Map fixed vertices to coarse hypergraph
       FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
-        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+        hypergraph.initialNumNodes(), dimension(), _fixed_vertices.numBlocks());
       coarse_fixed_vertices.setHypergraph(&hypergraph);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
@@ -493,7 +497,7 @@ namespace mt_kahypar::ds {
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 
-    hypergraph._total_weight = _total_weight;   // didn't lose any vertices
+    hypergraph._total_weight = _total_weight.copy();   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -511,12 +515,14 @@ namespace mt_kahypar::ds {
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
-    hypergraph._total_weight = _total_weight;
+    hypergraph._total_weight = _total_weight.copy();
 
     tbb::parallel_invoke([&] {
       hypergraph._hypernodes.resize(_hypernodes.size());
       memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
              sizeof(Hypernode) * _hypernodes.size());
+    }, [&] {
+      hypergraph._hypernode_weights = _hypernode_weights.copy();
     }, [&] {
       hypergraph._incident_nets.resize(_incident_nets.size());
       memcpy(hypergraph._incident_nets.data(), _incident_nets.data(),
@@ -548,11 +554,12 @@ namespace mt_kahypar::ds {
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
-    hypergraph._total_weight = _total_weight;
+    hypergraph._total_weight = _total_weight.copy();
 
     hypergraph._hypernodes.resize(_hypernodes.size());
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
            sizeof(Hypernode) * _hypernodes.size());
+    hypergraph._hypernode_weights = _hypernode_weights.copy();
     hypergraph._incident_nets.resize(_incident_nets.size());
     memcpy(hypergraph._incident_nets.data(), _incident_nets.data(),
            sizeof(HyperedgeID) * _incident_nets.size());
@@ -573,6 +580,7 @@ namespace mt_kahypar::ds {
   void StaticHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
+    parent->addChild("Hypernode Weights", sizeof(HNWeightScalar) * dimension() * _hypernode_weights.size());
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incident_nets.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
@@ -584,16 +592,14 @@ namespace mt_kahypar::ds {
 
   // ! Computes the total node weight of the hypergraph
   void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
-                                         [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-                                           HypernodeWeight weight = init;
-                                           for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-                                             if (nodeIsEnabled(hn)) {
-                                               weight += this->_hypernodes[hn].weight();
-                                             }
-                                           }
-                                           return weight;
-                                         }, std::plus<>());
+    tbb::enumerable_thread_specific<AllocatedHNWeight> local_sum(dimension(), 0);
+    doParallelForAllNodes([this, &local_sum](const HypernodeID hn) {
+      local_sum.local() += this->_hypernode_weights[hn];
+    });
+    _total_weight = weight::broadcast(0, dimension());
+    for (const auto& weight: local_sum) {
+      _total_weight += weight;
+    }
   }
 
 } // namespace
