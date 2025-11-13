@@ -908,6 +908,42 @@ namespace mt_kahypar {
       "- do_nothing"
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-any-progress": "--r-rebalancing-any-progress"),
+      (!initial_partitioning ? context.refinement.rebalancing.allow_any_progress :
+        context.initial_partitioning.refinement.rebalancing.allow_any_progress ),
+       "Multiconstraint: whether rebalancing moves that worsen imbalance in some dimension are allowed."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-multiple-moves": "--r-rebalancing-multiple-moves"),
+      (!initial_partitioning ? context.refinement.rebalancing.allow_multiple_moves :
+        context.initial_partitioning.refinement.rebalancing.allow_multiple_moves ),
+       "Multiconstraint: whether moving the same node multiple times is allowed for rebalancing."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-use-rollback": "--r-rebalancing-use-rollback"),
+      (!initial_partitioning ? context.refinement.rebalancing.use_rollback :
+        context.initial_partitioning.refinement.rebalancing.use_rollback ),
+       "Multiconstraint: whether to use a rollback."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-l1-rollback": "--r-rebalancing-l1-rollback"),
+      (!initial_partitioning ? context.refinement.rebalancing.l1_rollback :
+        context.initial_partitioning.refinement.rebalancing.l1_rollback ),
+       "Multiconstraint: whether using L1 metric for rollback."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-reduced-weight-fallback": "--r-rebalancing-reduced-weight-fallback"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_fallback :
+        context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback ),
+       "Multiconstraint: enable fallback strategy that runs a round with reduced max block weight."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-negative-progress-penalty": "--r-negative-progress-penalty"),
+      (!initial_partitioning ? context.refinement.rebalancing.negative_progress_penalty :
+        context.initial_partitioning.refinement.rebalancing.negative_progress_penalty ),
+       "Multiconstraint: penalty factor for negative progress."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-det-rebalancing-deadzone" : "--r-det-rebalancing-deadzone"),
       (!initial_partitioning ? context.refinement.rebalancing.det_relative_deadzone_size :
         context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size ),
