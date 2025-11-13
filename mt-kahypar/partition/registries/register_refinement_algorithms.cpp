@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 
 #ifndef KAHYPAR_MINIMAL_COMPILATION
@@ -47,8 +48,6 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 #endif
 
@@ -97,12 +96,12 @@ using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchF
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
+#endif
+
 using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      AdvancedRebalancer,
                                      IRebalancer,
                                      kahypar::meta::Typelist<GraphAndGainTypesList>>;
-
-#endif
 
 using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    DeterministicRebalancer,

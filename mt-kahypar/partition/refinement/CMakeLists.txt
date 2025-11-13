@@ -4,6 +4,7 @@ set(RefinementSources
         deterministic/deterministic_label_propagation.cpp
         deterministic/deterministic_jet_refiner.cpp
         rebalancing/deterministic_rebalancer.cpp
+        rebalancing/advanced_rebalancer.cpp
         rebalancing/repair_empty_blocks.cpp
         )
 
@@ -12,9 +13,6 @@ set(ExtendedRefinementSources
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
-        fm/sequential_twoway_fm_refiner.cpp
-        label_propagation/label_propagation_refiner.cpp
-        rebalancing/advanced_rebalancer.cpp
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
