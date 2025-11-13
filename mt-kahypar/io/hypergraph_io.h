@@ -30,7 +30,7 @@
 #include <string>
 #include <cstdint>
 
-#include "external_tools/growt/utils/hash/murmur2_hash.hpp"
+#include "growt/utils/hash/murmur2_hash.hpp"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
