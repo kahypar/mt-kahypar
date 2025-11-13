@@ -86,7 +86,7 @@ namespace impl {
       if (from_weight.at(d) > max_part_weight_from.at(d)) {
         relative_progress += wu.at(d) / static_cast<float>(total_weight.at(d));
       }
-      const auto overweight = new_to_weight.at(d) - max_part_weight_to.at(d);
+      const HNWeightScalar overweight = std::min(new_to_weight.at(d) - max_part_weight_to.at(d), wu.at(d));
       if (overweight > 0) {
         relative_progress -= overweight / static_cast<float>(total_weight.at(d));
         has_negative_progress = true;
@@ -145,7 +145,7 @@ namespace impl {
 
       PartitionID to = kInvalidPartition;
       HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-      float to_gain = std::numeric_limits<HyperedgeWeight>::min();
+      float to_gain = std::numeric_limits<float>::min();
       for (PartitionID i : range) {
         if (i != from && i != kInvalidPartition) {
           bool is_adjacent;
@@ -424,11 +424,17 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                              const HypernodeWeightArray& reduced_part_weights) {
+                                                                              const HypernodeWeightArray& reduced_part_weights,
+                                                                              size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    const bool any_progress = _context.refinement.rebalancing.allow_any_progress;
     int64_t attributed_gain = 0;
-    size_t global_move_id = 0;
     size_t num_overloaded_blocks = _overloaded_blocks.size();
+
+    AllocatedHNWeight inf_weight;
+    if (any_progress) {
+      inf_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
+    }
 
     auto task = [&](size_t task_id) {
       vec<HyperedgeID> edges_with_gain_changes;
@@ -457,7 +463,7 @@ namespace impl {
         size_t move_id = 0;
         bool moved = phg.changeNodePart(
                       _gain_cache, m.node, m.from, m.to,
-                      _context.partition.max_part_weights[m.to],
+                      any_progress ? inf_weight : _context.partition.max_part_weights[m.to],
                       [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
                       [&](const SynchronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
@@ -532,6 +538,7 @@ namespace impl {
           }
         }
 
+        ASSERT(m.isValid());
         _moves[move_id] = m;
       }
       __atomic_fetch_add(&attributed_gain, local_attributed_gain, __ATOMIC_RELAXED);
@@ -547,7 +554,8 @@ namespace impl {
   template <typename GraphAndGainTypes>
   std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyRebalancingRound(
       mt_kahypar_partitioned_hypergraph_t& hypergraph,
-      const HypernodeWeightArray& reduced_part_weights) {
+      const HypernodeWeightArray& reduced_part_weights,
+      size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     _overloaded_blocks.clear();
@@ -561,7 +569,7 @@ namespace impl {
 
     insertNodesInOverloadedBlocks(hypergraph, reduced_part_weights);
 
-    auto [attributed_gain, num_moves_performed] = findMoves(hypergraph, reduced_part_weights);
+    auto [attributed_gain, num_moves_performed] = findMoves(hypergraph, reduced_part_weights, global_move_id);
 
     phg.doParallelForAllNodes([&](HypernodeID u) {
       _node_state[u].reset();
@@ -577,7 +585,7 @@ namespace impl {
         num_overloaded_blocks++;
       }
     }
-    DBG << "Rebalancing round: gain =" << attributed_gain << " new imbalance =" << metrics::imbalance(phg, _context);
+    DBG << "Rebalancing round: moved" << num_moves_performed << "nodes; gain =" << attributed_gain << " new imbalance =" << metrics::imbalance(phg, _context);
 
     return {attributed_gain, num_moves_performed, num_overloaded_blocks};
   }
@@ -591,8 +599,9 @@ namespace impl {
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance;
 
+    size_t global_move_id = 0;
     auto [attributed_gain, num_moves_performed, num_overloaded_blocks] =
-      runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights);
+      runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id);
 
     if constexpr (GainCache::invalidates_entries) {
       tbb::parallel_for(UL(0), num_moves_performed, [&](const size_t i) {

@@ -125,9 +125,13 @@ private:
 
   void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph, const HypernodeWeightArray& reduced_part_weights);
 
-  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph, const HypernodeWeightArray& reduced_part_weights);
+  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                       const HypernodeWeightArray& reduced_part_weights,
+                                       size_t& global_move_id);
 
-  std::tuple<int64_t, size_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph, const HypernodeWeightArray& reduced_part_weights);
+  std::tuple<int64_t, size_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                const HypernodeWeightArray& reduced_part_weights,
+                                                                size_t& global_move_id);
 
   const Context& _context;
   GainCache& _gain_cache;
