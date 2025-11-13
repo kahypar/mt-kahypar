@@ -218,6 +218,8 @@ struct DeterministicRefinementParameters {
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
+  bool allow_any_progress = true;
+  bool use_rollback = true;
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;
   size_t det_max_rounds = 0;
