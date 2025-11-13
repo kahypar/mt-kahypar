@@ -123,18 +123,14 @@ private:
                               vec<Move>* moves_linear,
                               Metrics& best_metric);
 
+  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+
+  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;
-
-  std::pair<PartitionID, float> computeBestTargetBlock(const PartitionedHypergraph& phg, HypernodeID u, PartitionID from);
-
-  std::pair<PartitionID, float> bestOfThree(const PartitionedHypergraph& phg, HypernodeID u, PartitionID from, std::array<PartitionID, 3> parts);
-
-  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
-
-  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 
   ds::Array<Move> _moves;
   vec<rebalancer::GuardedPQ> _pqs;
