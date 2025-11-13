@@ -613,6 +613,21 @@ namespace mt_kahypar {
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
              "- do_nothing")
+            ((initial_partitioning ? "i-r-rebalancing-any-progress": "r-rebalancing-any-progress"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.allow_any_progress :
+                              &context.initial_partitioning.refinement.rebalancing.allow_any_progress))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether rebalancing moves that worsen imbalance in some dimension are allowed.")
+            ((initial_partitioning ? "i-r-rebalancing-reduced-weight-fallback": "r-rebalancing-reduced-weight-fallback"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_fallback :
+                              &context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: enable fallback strategy that runs a round with reduced max block weight.")
+            ((initial_partitioning ? "i-r-negative-progress-penalty": "r-negative-progress-penalty"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.negative_progress_penalty :
+                              &context.initial_partitioning.refinement.rebalancing.negative_progress_penalty))->value_name(
+                    "<double>")->default_value(1.0),
+             "Multiconstraint: penalty factor for negative progress.")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
                               &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(
