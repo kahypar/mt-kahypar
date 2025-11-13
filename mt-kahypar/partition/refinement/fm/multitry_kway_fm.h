@@ -98,7 +98,7 @@ class MultiTryKWayFM final : public IRefiner {
 
   bool isBalanced(const PartitionedHypergraph& phg, const HypernodeWeightArray& max_part_weights) {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > max_part_weights[i]) {
+      if (!(phg.partWeight(i) <= max_part_weights[i])) {
         return false;
       }
     }

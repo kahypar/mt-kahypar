@@ -66,7 +66,7 @@ namespace mt_kahypar {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HNWeightConstRef>
   heaviestPartAndWeight(const Partition& partition, const PartitionID k, AllocatedHNWeight& tmpWeight) {
     PartitionID p = kInvalidPartition;
-    tmpWeight = weight::broadcast(std::numeric_limits<HNWeightScalar>::min(), partition.dimension());
+    tmpWeight = weight::broadcast(0, partition.dimension());
     for (PartitionID i = 0; i < k; ++i) {
       // TODO: doesn't make a lot of sense
       if (weight::sum(partition.partWeight(i)) > weight::sum(tmpWeight)) {
