@@ -5,13 +5,13 @@ set(RefinementSources
         deterministic/deterministic_jet_refiner.cpp
         rebalancing/deterministic_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
-        )
-
-set(ExtendedRefinementSources
+        fm/global_rollback.cpp
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
-        fm/global_rollback.cpp
+        )
+
+set(ExtendedRefinementSources
         rebalancing/simple_rebalancer.cpp
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp

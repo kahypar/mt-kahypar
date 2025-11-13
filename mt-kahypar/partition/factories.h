@@ -32,9 +32,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
-#endif
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/thread_safe_abstract_factory.h"
 
@@ -57,9 +55,7 @@ using JetFactory = mt_kahypar::ThreadSafeFactory<JetAlgorithm,
 using FMFactory = mt_kahypar::ThreadSafeFactory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 using FMStrategyFactory = mt_kahypar::ThreadSafeFactory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
-#endif
 
 using FlowSchedulerFactory = mt_kahypar::ThreadSafeFactory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
