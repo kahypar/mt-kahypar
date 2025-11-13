@@ -235,6 +235,9 @@ std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParamet
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
+  bool allow_any_progress = true;
+  bool reduced_weight_fallback = true;
+  double negative_progress_penalty = 1.0;
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;
   size_t det_max_rounds = std::numeric_limits<size_t>::max();
