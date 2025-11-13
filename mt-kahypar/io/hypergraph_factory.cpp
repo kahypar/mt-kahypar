@@ -54,10 +54,51 @@ mt_kahypar_hypergraph_t constructHypergraph(const HypernodeID& num_hypernodes,
     reinterpret_cast<mt_kahypar_hypergraph_s*>(hypergraph), Hypergraph::TYPE };
 }
 
+mt_kahypar_hypergraph_t constructHypergraph(const mt_kahypar_hypergraph_type_t& type,
+                                            const HypernodeID& num_hypernodes,
+                                            const HyperedgeID& num_hyperedges,
+                                            const HyperedgeVector& hyperedges,
+                                            vec<HyperedgeWeight>& hyperedge_weight,
+                                            vec<HypernodeWeight>& hypernode_weight,
+                                            const HypernodeID num_removed_single_pin_hes,
+                                            const bool stable_construction) {
+  switch ( type ) {
+    case STATIC_HYPERGRAPH:
+      return constructHypergraph<ds::StaticHypergraph>(
+        num_hypernodes, num_hyperedges, hyperedges,
+        hyperedge_weight.data(), hypernode_weight.data(),
+        num_removed_single_pin_hes, stable_construction);
+    case STATIC_GRAPH:
+      ENABLE_GRAPHS(
+        return constructHypergraph<ds::StaticGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedge_weight.data(), hypernode_weight.data(),
+          num_removed_single_pin_hes, stable_construction);
+      )
+    case DYNAMIC_HYPERGRAPH:
+      ENABLE_HIGHEST_QUALITY(
+        return constructHypergraph<ds::DynamicHypergraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedge_weight.data(), hypernode_weight.data(),
+          num_removed_single_pin_hes, stable_construction);
+      )
+    case DYNAMIC_GRAPH:
+      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
+        return constructHypergraph<ds::DynamicGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedge_weight.data(), hypernode_weight.data(),
+          num_removed_single_pin_hes, stable_construction);
+      )
+    case NULLPTR_HYPERGRAPH:
+      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+  }
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+}
+
 mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
-                                        const mt_kahypar_hypergraph_type_t& type,
-                                        const bool stable_construction,
-                                        const bool remove_single_pin_hes) {
+                                       const mt_kahypar_hypergraph_type_t& type,
+                                       const bool stable_construction,
+                                       const bool remove_single_pin_hes) {
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
   HyperedgeID num_removed_single_pin_hyperedges = 0;
@@ -67,39 +108,9 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
   readHypergraphFile(filename, num_hyperedges, num_hypernodes,
                      num_removed_single_pin_hyperedges, hyperedges,
                      hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
-
-  switch ( type ) {
-    case STATIC_HYPERGRAPH:
-      return constructHypergraph<ds::StaticHypergraph>(
-        num_hypernodes, num_hyperedges, hyperedges,
-        hyperedges_weight.data(), hypernodes_weight.data(),
-        num_removed_single_pin_hyperedges, stable_construction);
-    case STATIC_GRAPH:
-      ENABLE_GRAPHS(
-        return constructHypergraph<ds::StaticGraph>(
-          num_hypernodes, num_hyperedges, hyperedges,
-          hyperedges_weight.data(), hypernodes_weight.data(),
-          num_removed_single_pin_hyperedges, stable_construction);
-      )
-    case DYNAMIC_HYPERGRAPH:
-      ENABLE_HIGHEST_QUALITY(
-        return constructHypergraph<ds::DynamicHypergraph>(
-          num_hypernodes, num_hyperedges, hyperedges,
-          hyperedges_weight.data(), hypernodes_weight.data(),
-          num_removed_single_pin_hyperedges, stable_construction);
-      )
-    case DYNAMIC_GRAPH:
-      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
-        return constructHypergraph<ds::DynamicGraph>(
-          num_hypernodes, num_hyperedges, hyperedges,
-          hyperedges_weight.data(), hypernodes_weight.data(),
-          num_removed_single_pin_hyperedges, stable_construction);
-      )
-    case NULLPTR_HYPERGRAPH:
-      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
-  }
-
-  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+  return constructHypergraph(type, num_hypernodes, num_hyperedges, hyperedges,
+                             hyperedges_weight, hypernodes_weight,
+                             num_removed_single_pin_hyperedges, stable_construction);
 }
 
 mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
@@ -111,32 +122,8 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   vec<HyperedgeWeight> edges_weight;
   vec<HypernodeWeight> nodes_weight;
   readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
-
-  switch ( type ) {
-    case STATIC_HYPERGRAPH:
-      return constructHypergraph<ds::StaticHypergraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    ENABLE_GRAPHS(case STATIC_GRAPH:
-      return constructHypergraph<ds::StaticGraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    )
-    ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH:
-      return constructHypergraph<ds::DynamicHypergraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    )
-    ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH:
-      return constructHypergraph<ds::DynamicGraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    )
-    case NULLPTR_HYPERGRAPH:
-      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
-    default:
-      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
-  }
+  return constructHypergraph(type, num_vertices, num_edges, edges,
+                             edges_weight, nodes_weight, 0, stable_construction);
 }
 
 } // namespace
