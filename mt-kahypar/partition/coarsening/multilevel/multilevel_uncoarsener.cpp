@@ -208,15 +208,21 @@ namespace mt_kahypar {
     }
 
     parallel::scalable_vector<HypernodeID> dummy;
-    bool improvement_found = true;
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
+
+    if ( _rebalancer && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
+      _rebalancer->initialize(phg);
+    }
+    if (!metrics::isBalanced(partitioned_hypergraph, _context)) {
+      _timer.start_timer("rebalance", "Rebalance");
+      _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
+      _timer.stop_timer("rebalance");
+    }
+
+    bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
       const HyperedgeWeight metric_before = _current_metrics.quality;
-
-      if ( _rebalancer && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
-        _rebalancer->initialize(phg);
-      }
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
