@@ -6,13 +6,13 @@ set(RefinementSources
         rebalancing/deterministic_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/repair_empty_blocks.cpp
-        )
-
-set(ExtendedRefinementSources
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
+        )
+
+set(ExtendedRefinementSources
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
