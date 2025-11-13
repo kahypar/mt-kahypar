@@ -42,10 +42,11 @@
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 
-#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
@@ -68,8 +69,6 @@ using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
-#ifndef KAHYPAR_MINIMAL_COMPILATION
-
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFM,
                             IRefiner,
@@ -86,6 +85,8 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
                                           UnconstrainedStrategy,
                                           IFMStrategy,
                                           kahypar::meta::Typelist<GraphAndGainTypesList>>;
+
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
@@ -247,24 +248,20 @@ void register_refinement_algorithms() {
                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
 
-  #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                 DefaultFMDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::unconstrained_fm,
                                 UnconstrainedFMDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-  #endif
   REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 3);
 
-  #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
                                   GainCacheFMStrategyDispatcher,
                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
   REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
                                   UnconstrainedFMStrategyDispatcher,
                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
-  #endif
 
   #ifndef KAHYPAR_MINIMAL_COMPILATION
   REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
