@@ -182,18 +182,16 @@ public:
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
+    Hypergraph contracted_hg;
+    vec<EdgeMetadata> contracted_md;
+    if constexpr (Hypergraph::is_graph && Hypergraph::is_static_hypergraph) {
+      contracted_hg = current_hg.contract(communities, deterministic, accumulate_metadata ? coarsestEdgeMetadata() : vec<EdgeMetadata>{}, &contracted_md);
+    } else {
+      ALWAYS_ASSERT(!accumulate_metadata);
+      contracted_hg = current_hg.contract(communities, deterministic);
+    }
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-
-    vec<EdgeMetadata> contracted_md;
-    if (accumulate_metadata) {
-      utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-      timer.start_timer("accumulate_metadata", "Accumulate Metadata");
-      contracted_md = accumulateMetadata(current_hg, contracted_hg, communities);
-      timer.stop_timer("accumulate_metadata");
-    }
-
     hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), std::move(contracted_md), elapsed_time);
   }
 
@@ -245,65 +243,6 @@ public:
   bool nlevel;
 
 private:
-  vec<EdgeMetadata> accumulateMetadata(const Hypergraph& current_hg, const Hypergraph& contracted_hg, const vec<HyperedgeID>& mapping) const {
-    const vec<EdgeMetadata>& old_md = coarsestEdgeMetadata();
-    if (old_md.empty()) return {};
-
-    vec<EdgeMetadata> new_md;
-    if constexpr (Hypergraph::is_graph) {
-      ds::ConcurrentBucketMap<std::tuple<HypernodeID, HypernodeID, EdgeMetadata>> accumulation_map;
-
-      tbb::parallel_invoke([&] {
-        new_md.resize(contracted_hg.initialNumEdges());
-      }, [&] {
-        // write the metadata into buckets
-        accumulation_map.reserve_for_estimated_number_of_insertions(contracted_hg.initialNumEdges() / 2);
-        current_hg.doParallelForAllEdges([&](HyperedgeID edge) {
-          uint32_t source = mapping[current_hg.edgeSource(edge)];
-          uint32_t target = mapping[current_hg.edgeTarget(edge)];
-          if (source < target) {
-            EdgeMetadata val = old_md[edge];
-            // only hash by source, this massively simplifies mapping the data to the edge afterwards
-            accumulation_map.insert(source, {source, target, val});
-            accumulation_map.insert(target, {target, source, val});
-          }
-        });
-      });
-
-      // accumulate the new metadata
-      tbb::parallel_for(UL(0), accumulation_map.numBuckets(), [&](const size_t bucket_id) {
-        auto& bucket = accumulation_map.getBucket(bucket_id);
-        std::sort(bucket.begin(), bucket.end(), [&](const auto& lhs, const auto& rhs) {
-          return std::tie(std::get<0>(lhs), std::get<1>(lhs)) < std::tie(std::get<0>(rhs), std::get<1>(rhs));
-        });
-
-        for (size_t i = 0; i < bucket.size();) {
-          auto [source, _t, _v] = bucket[i];
-          auto it = contracted_hg.incidentEdges(source).begin();
-
-          for (; i < bucket.size() && std::get<0>(bucket[i]) == source;) {
-            auto [first_source, first_target, first_value] = bucket[i];
-            EdgeMetadata summed_value = first_value;
-            ++i;
-
-            for (; i < bucket.size() && std::get<0>(bucket[i]) == first_source && std::get<1>(bucket[i]) == first_target; ++i) {
-              summed_value += std::get<2>(bucket[i]);
-            }
-
-            HyperedgeID edge = *it;
-            ASSERT(first_source == source);
-            ++it;
-            ASSERT(contracted_hg.edgeSource(edge) == first_source && contracted_hg.edgeTarget(edge) == first_target);
-            new_md[edge] = summed_value;
-          }
-        }
-      });
-      return new_md;
-    } else {
-      throw InvalidParameterException("Guided Coarsening only works with graph data structure!");
-    }
-  }
-
   Hypergraph& _hg;
   vec<EdgeMetadata> _edge_metadata;
   const Context& _context;

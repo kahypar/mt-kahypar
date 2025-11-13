@@ -148,6 +148,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
                                      cluster_ids, _rater, _clustering_data, _num_nodes_tracker);
     if (_uncoarseningData.coarsestEdgeMetadata().empty()
+        && static_cast<size_t>(_pass_nr) < _context.coarsening.rating.guided_coarsening_levels
         && _context.coarsening.rating.guiding_by_integrated_model
         && _context.type == ContextType::main) {
       ALWAYS_ASSERT(_pass_nr == 0);

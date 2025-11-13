@@ -54,6 +54,7 @@ template <typename Hypergraph>
 class PartitionedGraph;
 
 class StaticGraph {
+  using EdgeMetadata = float;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -352,14 +353,16 @@ class StaticGraph {
     TmpEdgeInformation() :
       _target(kInvalidHyperedge),
       _valid_or_weight(0),
-      _id(kInvalidHyperedge) {
+      _id(kInvalidHyperedge),
+      _metadata(std::numeric_limits<EdgeMetadata>::max()) {
     }
 
     // ! valid edge
-    TmpEdgeInformation(HyperedgeID target, HyperedgeWeight weight, HyperedgeID id) :
+    TmpEdgeInformation(HyperedgeID target, HyperedgeWeight weight, HyperedgeID id, EdgeMetadata metadata) :
       _target(target),
       _valid_or_weight(weight),
-      _id(id) {
+      _id(id),
+      _metadata(metadata) {
       ASSERT(isValid());
     }
 
@@ -377,6 +380,11 @@ class StaticGraph {
       return _valid_or_weight;
     }
 
+    EdgeMetadata getMetadata() const {
+      ASSERT(isValid());
+      return _metadata;
+    }
+
     HyperedgeID getID() const {
       ASSERT(isValid());
       return _id;
@@ -391,6 +399,11 @@ class StaticGraph {
       _valid_or_weight += weight;
     }
 
+    void addMetadata(EdgeMetadata metadata) {
+      ASSERT(isValid());
+      _metadata += metadata;
+    }
+
     void updateID(HyperedgeID id) {
       ASSERT(isValid());
       _id = std::min(_id, id);
@@ -399,6 +412,7 @@ class StaticGraph {
     HyperedgeID _target;
     HyperedgeWeight _valid_or_weight;
     HyperedgeID _id;
+    EdgeMetadata _metadata;
   };
 
   // ! Contains buffers that are needed during multilevel contractions.
@@ -766,7 +780,8 @@ class StaticGraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
+  StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false,
+                       const vec<EdgeMetadata>& metadata = {}, vec<EdgeMetadata>* new_md = nullptr);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw UnsupportedOperationException(

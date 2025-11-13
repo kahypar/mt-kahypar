@@ -50,7 +50,8 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/) {
+  StaticGraph StaticGraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool /*deterministic*/,
+                                    const vec<EdgeMetadata>& metadata, vec<EdgeMetadata>* new_md) {
     ASSERT(communities.size() == _num_nodes);
 
     if ( !_tmp_contraction_buffer ) {
@@ -144,6 +145,7 @@ namespace mt_kahypar::ds {
     });
 
     // Write the incident edges of each contracted vertex to the temporary edge array
+    const bool has_metadata = !metadata.empty();
     doParallelForAllNodes([&](const HypernodeID& node) {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
       const HyperedgeID node_degree = nodeDegree(node);
@@ -158,7 +160,7 @@ namespace mt_kahypar::ds {
         const HypernodeID target = map_to_coarse_graph(edge.target());
         const bool is_valid = target != coarse_node;
         if (is_valid) {
-          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), unique_id);
+          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), unique_id, has_metadata ? metadata[edges_pos + i] : 0);
         } else {
           tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation();
         }
@@ -296,6 +298,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke([&] {
       // Copy edges
+      new_md->resize(coarsened_num_edges, 0);
       edge_id_mapping.assign(_num_edges / 2, 0);
       hypergraph._edges.resizeNoAssign(coarsened_num_edges);
       hypergraph._unique_edge_ids.resizeNoAssign(coarsened_num_edges);
@@ -309,6 +312,7 @@ namespace mt_kahypar::ds {
           edge.setTarget(tmp_edge.getTarget());
           edge.setSource(coarse_node);
           edge.setWeight(tmp_edge.getWeight());
+          (*new_md)[edges_start + index] = tmp_edge.getMetadata();
           hypergraph._unique_edge_ids[edges_start + index] = tmp_edge.getID();
           ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
           edge_id_mapping[tmp_edge.getID()] = UL(1);
@@ -433,6 +437,7 @@ namespace mt_kahypar::ds {
       TmpEdgeInformation& next_edge = edge_start[tmp_edge_index];
       if (valid_edge.getTarget() == next_edge.getTarget()) {
         valid_edge.addWeight(next_edge.getWeight());
+        valid_edge.addMetadata(next_edge.getMetadata());
         valid_edge.updateID(next_edge.getID());
         next_edge.invalidate();
       } else {
