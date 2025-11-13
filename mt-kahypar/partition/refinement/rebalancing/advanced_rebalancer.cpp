@@ -30,23 +30,41 @@
 #include <optional>
 #include <random>
 
+#include <boost/range/irange.hpp>
+
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
 namespace impl {
 
-  float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightAtomicCRef from_weight, HNWeightConstRef max_part_weight) {
+  float transformGainFromProgress(Gain gain_, float progress, bool has_negative_progress, double negative_progress_penalty) {
     // here: positive gain means improvement
     float gain = gain_;
+    if (has_negative_progress) {
+      progress /= negative_progress_penalty;
+    }
+    if (gain > 0) {
+      gain *= progress;
+    } else if (gain < 0) {
+      gain /= progress;
+    }
+    return gain;
+  }
+
+  float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightAtomicCRef from_weight, HNWeightConstRef max_part_weight) {
+    // here: positive gain means improvement
     if (wu.dimension() == 1) {
+      float gain = gain_;
       if (gain > 0) {
         gain *= wu.at(0);
       } else if (gain < 0) {
         gain /= wu.at(0);
       }
+      return gain;
     } else {
       float relevant_weight_fraction = 0;
       for (Dimension d = 0; d < wu.dimension(); ++d) {
@@ -54,84 +72,140 @@ namespace impl {
           relevant_weight_fraction += wu.at(d) / static_cast<float>(max_part_weight.at(d));
         }
       }
-      if (gain > 0) {
-        gain *= relevant_weight_fraction;
-      } else if (gain < 0) {
-        gain /= relevant_weight_fraction;
+      return transformGainFromProgress(gain_, relevant_weight_fraction, false, 1.0);
+    }
+  }
+
+  std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeightConstRef from_weight, HNWeightConstRef max_part_weight_from,
+                                                HNWeightAtomicCRef to_weight, HNWeightConstRef max_part_weight_to, HNWeightConstRef total_weight) {
+    ASSERT(wu.dimension() > 1);
+    float relative_progress = 0;
+    const auto new_to_weight = wu + to_weight;
+    bool has_negative_progress = false;
+    for (Dimension d = 0; d < wu.dimension(); ++d) {
+      if (from_weight.at(d) > max_part_weight_from.at(d)) {
+        relative_progress += wu.at(d) / static_cast<float>(total_weight.at(d));
+      }
+      const auto overweight = new_to_weight.at(d) - max_part_weight_to.at(d);
+      if (overweight > 0) {
+        relative_progress -= overweight / static_cast<float>(total_weight.at(d));
+        has_negative_progress = true;
       }
     }
-    return gain;
+    return {relative_progress, has_negative_progress};
+  }
+
+  template<typename PartitionedHypergraph, typename GainCache, typename Range>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  std::pair<PartitionID, float> computeBestTargetBlockGeneric(
+          const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
+          HypernodeID u, PartitionID from, Range range,
+          const HypernodeWeightArray& reduced_part_weights, bool skip_non_adjacent,
+          AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight) {
+    const HNWeightConstRef wu = phg.nodeWeight(u);
+    const HNWeightAtomicCRef from_weight = phg.partWeight(from);
+    const bool any_progress = context.refinement.rebalancing.allow_any_progress;
+
+    if (!any_progress) {
+      // the normal case
+      PartitionID to = kInvalidPartition;
+      HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+      best_to_weight = from_weight - wu;
+      for (PartitionID i : range) {
+        if (i != from && i != kInvalidPartition) {
+          tmp_hn_weight = phg.partWeight(i);
+          HyperedgeWeight benefit;
+          if (gain_cache.blockIsAdjacent(u, i)) {
+            benefit = gain_cache.benefitTerm(u, i);
+          } else if (skip_non_adjacent && (to != kInvalidPartition || !(tmp_hn_weight + wu <= reduced_part_weights[i])) ) {
+            // skip expensive gain recomputation
+            continue;
+          } else {
+            benefit = gain_cache.recomputeBenefitTerm(phg, u, i);
+          }
+          // TODO: any better tie breaking option?
+          if ((benefit > to_benefit || (benefit == to_benefit && tmp_hn_weight < best_to_weight)) &&
+              tmp_hn_weight + wu <= reduced_part_weights[i]) {
+            to_benefit = benefit;
+            to = i;
+            best_to_weight = tmp_hn_weight;
+          }
+        }
+      }
+
+      if (to != kInvalidPartition) {
+        Gain gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
+        return std::make_pair(to, transformGain(gain, wu, phg.partWeight(from), reduced_part_weights[from]));
+      }
+    } else {
+      // here, we need to compare the gains with included weight instead fo simply the move gain
+      best_to_weight = phg.partWeight(from);  // abuse this for caching the current part weight
+      const HNWeightConstRef total_weight = phg.totalWeight();
+      const HNWeightConstRef max_from_weight = reduced_part_weights[from];
+
+      PartitionID to = kInvalidPartition;
+      HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
+      float to_gain = std::numeric_limits<HyperedgeWeight>::min();
+      for (PartitionID i : range) {
+        if (i != from && i != kInvalidPartition) {
+          bool is_adjacent;
+          if (skip_non_adjacent) {
+            is_adjacent = gain_cache.blockIsAdjacent(u, i);
+            if (!is_adjacent && to != kInvalidPartition) continue;  // skip expensive gain recomputation
+          }
+
+          auto [progress, negative_progress] = computeBalanceProgress(wu, best_to_weight, max_from_weight,
+                                                                      phg.partWeight(i), reduced_part_weights[i], total_weight);
+          if (progress > 0) {
+            if (!skip_non_adjacent) {
+              is_adjacent = gain_cache.blockIsAdjacent(u, i);
+            }
+            HyperedgeWeight benefit = is_adjacent ? gain_cache.benefitTerm(u, i) : gain_cache.recomputeBenefitTerm(phg, u, i);
+            float gain = transformGainFromProgress(benefit, progress, negative_progress,
+                                                   context.refinement.rebalancing.negative_progress_penalty);
+            if (gain > to_gain) {
+              to_gain = gain;
+              to_benefit = benefit;
+              to = i;
+            }
+          }
+        }
+      }
+
+      if (to != kInvalidPartition) {
+        Gain gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
+        best_to_weight = phg.partWeight(from);
+        auto [progress, negative_progress] = computeBalanceProgress(wu, best_to_weight, max_from_weight,
+                                                                    phg.partWeight(to), reduced_part_weights[to], total_weight);
+        return std::make_pair(to, transformGainFromProgress(gain, progress, negative_progress,
+                                                            context.refinement.rebalancing.negative_progress_penalty));
+      }
+    }
+    return std::make_pair(kInvalidPartition, std::numeric_limits<float>::min());
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
   std::pair<PartitionID, float> computeBestTargetBlock(
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
-          HypernodeID u, PartitionID from,
+          HypernodeID u, PartitionID from, const HypernodeWeightArray& reduced_part_weights,
           AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight) {
-    const HNWeightConstRef wu = phg.nodeWeight(u);
-    const HNWeightAtomicCRef from_weight = phg.partWeight(from);
-    PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (i != from) {
-        tmp_hn_weight = phg.partWeight(i);
-        HyperedgeWeight benefit;
-        if (gain_cache.blockIsAdjacent(u, i)) {
-          benefit = gain_cache.benefitTerm(u, i);
-        } else if (to != kInvalidPartition || !(tmp_hn_weight + wu <= context.partition.max_part_weights[i])) {
-          // skip expensive gain recomputation
-          continue;
-        } else {
-          benefit = gain_cache.recomputeBenefitTerm(phg, u, i);
-        }
-        // TODO: any better tie breaking option?
-        if ((benefit > to_benefit || (benefit == to_benefit && tmp_hn_weight < best_to_weight)) &&
-            tmp_hn_weight + wu <= context.partition.max_part_weights[i]) {
-          to_benefit = benefit;
-          to = i;
-          best_to_weight = tmp_hn_weight;
-        }
-      }
-    }
-
-    Gain gain = std::numeric_limits<Gain>::min();
-    if (to != kInvalidPartition) {
-      gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
-    }
-    return std::make_pair(to, transformGain(gain, wu, phg.partWeight(from), context.partition.max_part_weights[from]));
+    return computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, boost::irange<PartitionID>(0, context.partition.k),
+                                         reduced_part_weights, true, best_to_weight, tmp_hn_weight);
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
   std::pair<PartitionID, float> bestOfThree(
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
-          HypernodeID u, PartitionID from, std::array<PartitionID, 3> parts,
+          HypernodeID u, PartitionID from, std::array<PartitionID, 3> parts, const HypernodeWeightArray& reduced_part_weights,
           AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight) {
-    const HNWeightConstRef wu = phg.nodeWeight(u);
-    const HNWeightAtomicCRef from_weight = phg.partWeight(from);
-    PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-    best_to_weight = from_weight - wu;
-    for (PartitionID i : parts) {
-      if (i != from && i != kInvalidPartition) {
-        tmp_hn_weight = phg.partWeight(i);
-        const HyperedgeWeight benefit = gain_cache.blockIsAdjacent(u, i) ? gain_cache.benefitTerm(u, i) : gain_cache.recomputeBenefitTerm(phg, u, i);
-        // TODO: any better tie breaking option?
-        if ((benefit > to_benefit || (benefit == to_benefit && tmp_hn_weight < best_to_weight)) &&
-            tmp_hn_weight + wu <= context.partition.max_part_weights[i]) {
-          to_benefit = benefit;
-          to = i;
-          best_to_weight = tmp_hn_weight;
-        }
-      }
-    }
+    auto [to, gain] = computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, IteratorRange(parts.cbegin(), parts.cend()),
+                                                    reduced_part_weights, false, best_to_weight, tmp_hn_weight);
 
     if (to != kInvalidPartition) {
-      Gain gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
-      return std::make_pair(to, transformGain(gain, wu, phg.partWeight(from), context.partition.max_part_weights[from]));
+      return std::make_pair(to, gain);
     } else {
       // edge case: if u does not fit in any of the three considered blocks we need to check all blocks
-      return computeBestTargetBlock(phg, context, gain_cache, u, from, best_to_weight, tmp_hn_weight);
+      return computeBestTargetBlock(phg, context, gain_cache, u, from, reduced_part_weights, best_to_weight, tmp_hn_weight);
     }
   }
 
@@ -157,6 +231,7 @@ namespace impl {
     PartitionedHypergraph& _phg;
     GainCache& _gain_cache;
     const Context& _context;
+    const HypernodeWeightArray& _reduced_part_weights;
 
     vec<rebalancer::GuardedPQ>& _pqs;
     ds::Array<PartitionID>& _target_part;
@@ -165,11 +240,11 @@ namespace impl {
     AllocatedHNWeight& _tmp_hn_weight;
     AccessToken _token;
 
-    NextMoveFinder(int seed, const Context& context, PartitionedHypergraph& phg, GainCache& gain_cache,
-                   vec<rebalancer::GuardedPQ>& pqs,
+    NextMoveFinder(int seed, const Context& context, const HypernodeWeightArray& reduced_part_weights,
+                   PartitionedHypergraph& phg, GainCache& gain_cache, vec<rebalancer::GuardedPQ>& pqs,
                    ds::Array<PartitionID>& target_part, ds::Array<rebalancer::NodeState>& node_state,
                    AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight) :
-                   _phg(phg), _gain_cache(gain_cache), _context(context),
+                   _phg(phg), _gain_cache(gain_cache), _context(context), _reduced_part_weights(reduced_part_weights),
                    _pqs(pqs), _target_part(target_part), _node_state(node_state),
                    _best_to_weight(best_to_weight), _tmp_hn_weight(tmp_hn_weight), _token(seed, pqs.size()) { }
 
@@ -180,11 +255,11 @@ namespace impl {
       const PartitionID designatedTargetV = _target_part[v];
       if (_context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
         std::tie(newTarget, gain) = computeBestTargetBlock(_phg, _context, _gain_cache, v, _phg.partID(v),
-                                                           _best_to_weight, _tmp_hn_weight);
+                                                           _reduced_part_weights, _best_to_weight, _tmp_hn_weight);
       } else {
         std::tie(newTarget, gain) = bestOfThree(_phg, _context, _gain_cache,
                                                 v, _phg.partID(v), {designatedTargetV, move.from, move.to},
-                                                _best_to_weight, _tmp_hn_weight);
+                                                _reduced_part_weights, _best_to_weight, _tmp_hn_weight);
       }
       _target_part[v] = newTarget;
     }
@@ -192,7 +267,7 @@ namespace impl {
     bool checkCandidate(HypernodeID u, float& gain_in_pq) {
       if (!_node_state[u].tryLock()) return false;
       auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, _phg.partID(u),
-                                                    _best_to_weight, _tmp_hn_weight);
+                                                    _reduced_part_weights, _best_to_weight, _tmp_hn_weight);
       if (to != kInvalidPartition && true_gain >= gain_in_pq) {
         next_move.node = u;
         next_move.to = to;
@@ -291,7 +366,8 @@ namespace impl {
 
 
   template <typename GraphAndGainTypes>
-  void AdvancedRebalancer<GraphAndGainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  void AdvancedRebalancer<GraphAndGainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                            const HypernodeWeightArray& reduced_part_weights) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     // init PQs if not done before
@@ -314,11 +390,11 @@ namespace impl {
       const PartitionID b = phg.partID(u);
       if (!_is_overloaded[b] || phg.isFixed(u)) return;
 
-      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u),
+      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u), reduced_part_weights,
                                                          _best_target_block_weight.local(), _tmp_hn_weight.local());
-      ASSERT(target == kInvalidPartition ||
+      ASSERT(target == kInvalidPartition || _context.refinement.rebalancing.allow_any_progress ||
              gain == impl::transformGain(_gain_cache.recomputeBenefitTerm(phg, u, target) - _gain_cache.recomputePenaltyTerm(phg, u),
-                                         phg.nodeWeight(u), phg.partWeight(phg.partID(u)), _context.partition.max_part_weights[phg.partID(u)]),
+                                         phg.nodeWeight(u), phg.partWeight(phg.partID(u)), reduced_part_weights[phg.partID(u)]),
              "Gain cache is in invalid state!");
       if (target == kInvalidPartition) return;
 
@@ -347,7 +423,8 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                              const HypernodeWeightArray& reduced_part_weights) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     int64_t attributed_gain = 0;
     size_t global_move_id = 0;
@@ -362,7 +439,7 @@ namespace impl {
       const int seed = phg.initialNumNodes() + task_id;
 
       impl::NextMoveFinder<PartitionedHypergraph, GainCache> next_move_finder(
-        seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state,
+        seed, _context, reduced_part_weights, phg, _gain_cache, _pqs, _target_part, _node_state,
         _best_target_block_weight.local(), _tmp_hn_weight.local());
 
       while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
@@ -438,7 +515,7 @@ namespace impl {
                     } else {
                       new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, _target_part[v]) - _gain_cache.penaltyTerm(v, from);
                     }
-                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), _context.partition.max_part_weights[from]);
+                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), reduced_part_weights[from]);
                     pq.adjustKey(v, new_gain);
                   } else {
                     pq.remove(v);
@@ -468,12 +545,10 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                  vec<vec<Move>>* moves_by_part,
-                                                                  vec<Move>* moves_linear,
-                                                                  Metrics& best_metric) {
+  std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyRebalancingRound(
+      mt_kahypar_partitioned_hypergraph_t& hypergraph,
+      const HypernodeWeightArray& reduced_part_weights) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
 
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
@@ -484,9 +559,40 @@ namespace impl {
       }
     }
 
-    insertNodesInOverloadedBlocks(hypergraph);
+    insertNodesInOverloadedBlocks(hypergraph, reduced_part_weights);
 
-    auto [attributed_gain, num_moves_performed] = findMoves(hypergraph);
+    auto [attributed_gain, num_moves_performed] = findMoves(hypergraph, reduced_part_weights);
+
+    phg.doParallelForAllNodes([&](HypernodeID u) {
+      _node_state[u].reset();
+    });
+
+    for (auto& gpq : _pqs) {
+      gpq.pq.clear();
+    }
+
+    size_t num_overloaded_blocks = 0;
+    for (PartitionID b = 0; b < _context.partition.k; ++b) {
+      if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
+        num_overloaded_blocks++;
+      }
+    }
+    DBG << "Rebalancing round: gain =" << attributed_gain << " new imbalance =" << metrics::imbalance(phg, _context);
+
+    return {attributed_gain, num_moves_performed, num_overloaded_blocks};
+  }
+
+  template <typename GraphAndGainTypes>
+  bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                  vec<vec<Move>>* moves_by_part,
+                                                                  vec<Move>* moves_linear,
+                                                                  Metrics& best_metric) {
+    auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+    DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance;
+
+    auto [attributed_gain, num_moves_performed, num_overloaded_blocks] =
+      runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights);
 
     if constexpr (GainCache::invalidates_entries) {
       tbb::parallel_for(UL(0), num_moves_performed, [&](const size_t i) {
@@ -512,21 +618,6 @@ namespace impl {
 
     best_metric.quality += attributed_gain;
     best_metric.imbalance = metrics::imbalance(phg, _context);
-
-    size_t num_overloaded_blocks = 0;
-    for (PartitionID b = 0; b < _context.partition.k; ++b) {
-      if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
-        num_overloaded_blocks++;
-      }
-    }
-
-    phg.doParallelForAllNodes([&](HypernodeID u) {
-      _node_state[u].reset();
-    });
-
-    for (auto& gpq : _pqs) {
-      gpq.pq.clear();
-    }
 
     return num_overloaded_blocks == 0;
   }
