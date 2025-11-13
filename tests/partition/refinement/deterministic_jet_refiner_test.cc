@@ -24,6 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <thread>
+
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
@@ -159,7 +161,7 @@ public:
 };
 
 template <typename Config>
-size_t ADeterministicJetRefiner<Config>::num_threads = HardwareTopology::instance().num_cpus();
+size_t ADeterministicJetRefiner<Config>::num_threads = std::thread::hardware_concurrency();
 
 static constexpr double EPS = 0.05;
 
@@ -175,7 +177,7 @@ typedef ::testing::Types<
     TestConfig<8, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>
 > TestConfigs;
 
-TYPED_TEST_CASE(ADeterministicJetRefiner, TestConfigs);
+TYPED_TEST_SUITE(ADeterministicJetRefiner, TestConfigs);
 
 TYPED_TEST(ADeterministicJetRefiner, UpdatesImbalanceCorrectly) {
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);

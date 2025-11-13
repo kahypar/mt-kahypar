@@ -27,6 +27,7 @@
 #include "gmock/gmock.h"
 
 #include <atomic>
+#include <thread>
 
 #include <tbb/parallel_invoke.h>
 
@@ -108,7 +109,7 @@ class APoolInitialPartitionerTest : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBInitializer::initialize(HardwareTopology::instance().num_cpus());
+    TBBInitializer::initialize(std::thread::hardware_concurrency());
   }
 
   Hypergraph hypergraph;

@@ -119,7 +119,7 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes, 2>
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 2>)
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes COMMA 4>) > TestConfigs;
 
-TYPED_TEST_CASE(DeterministicRebalancerTest, TestConfigs);
+TYPED_TEST_SUITE(DeterministicRebalancerTest, TestConfigs);
 
 
 TYPED_TEST(DeterministicRebalancerTest, CanNotBeRebalanced) {
