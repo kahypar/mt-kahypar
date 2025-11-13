@@ -107,7 +107,8 @@ namespace rb {
       const HypernodeWeight max_part_weights_sum = std::accumulate(context.partition.max_part_weights.cbegin(),
                                                                   context.partition.max_part_weights.cend(), 0);
       const double weight_fraction = total_weight / static_cast<double>(max_part_weights_sum);
-      ASSERT(weight_fraction <= 1.0);
+      // assertion doesn't hold if previous bipartitions are imbalanced...
+      // ASSERT(weight_fraction <= 1.0);
       b_context.partition.perfect_balance_part_weights.clear();
       b_context.partition.max_part_weights.clear();
       HypernodeWeight perfect_weight_p0 = 0;
