@@ -633,6 +633,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.l1_rollback))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether using L1 metric for rollback.")
+            ((initial_partitioning ? "i-r-rebalancing-finalize-sequential": "r-rebalancing-finalize-sequential"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.finalize_sequential :
+                              &context.initial_partitioning.refinement.rebalancing.finalize_sequential))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether using L1 metric for rollback.")
             ((initial_partitioning ? "i-r-rebalancing-reduced-weight-fallback": "r-rebalancing-reduced-weight-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_fallback :
                               &context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback))->value_name(
