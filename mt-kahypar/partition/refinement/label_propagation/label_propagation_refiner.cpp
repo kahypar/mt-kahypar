@@ -102,7 +102,8 @@ namespace mt_kahypar {
     resizeDataStructuresForCurrentK();
     _gain.reset();
     _next_active.reset();
-    Gain old_quality = best_metrics.quality;
+    const Gain old_quality = best_metrics.quality;
+    const bool was_imbalanced = !best_metrics.imbalance.isValidPartition();
 
     // Initialize set of active vertices
     initializeActiveNodes(hypergraph, refinement_nodes);
@@ -118,7 +119,7 @@ namespace mt_kahypar {
 
     // Update metrics statistics
     Gain delta = old_quality - best_metrics.quality;
-    ASSERT(delta >= 0, "LP refiner worsen solution quality");
+    ASSERT(was_imbalanced || delta >= 0, "LP refiner worsened solution quality");
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", delta);
     return delta > 0;
   }
@@ -266,6 +267,7 @@ namespace mt_kahypar {
     // append to active nodes so they are included for gain cache updates and rollback
     _active_nodes.reserve(_active_nodes.size() + rebalance_moves.size());
     for (const Move& m: rebalance_moves) {
+      ASSERT(m.isValid());
       bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[m.node];
       if (old_part_unintialized || m.from == _old_part[m.node]) {
         size_t i = _active_nodes.size();
