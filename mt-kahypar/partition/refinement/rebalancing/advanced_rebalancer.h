@@ -125,13 +125,15 @@ private:
 
   void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph, const HypernodeWeightArray& reduced_part_weights);
 
-  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                       const HypernodeWeightArray& reduced_part_weights,
-                                       size_t& global_move_id);
+  int64_t findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                    const HypernodeWeightArray& reduced_part_weights,
+                    size_t& global_move_id);
 
-  std::tuple<int64_t, size_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                const HypernodeWeightArray& reduced_part_weights,
-                                                                size_t& global_move_id);
+  int64_t applyRollback(mt_kahypar_partitioned_hypergraph_t& hypergraph, const size_t old_move_id, size_t& global_move_id);
+
+  std::pair<int64_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                       const HypernodeWeightArray& reduced_part_weights,
+                                                       size_t& global_move_id);
 
   const Context& _context;
   GainCache& _gain_cache;
@@ -139,6 +141,7 @@ private:
   GainCalculator _gain;
 
   ds::Array<Move> _moves;
+  ds::Array<MoveID> _move_id_of_node;
   vec<rebalancer::GuardedPQ> _pqs;
   vec<PartitionID> _overloaded_blocks;
   vec<uint8_t> _is_overloaded;

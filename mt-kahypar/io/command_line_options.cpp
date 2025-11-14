@@ -618,6 +618,21 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.allow_any_progress))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether rebalancing moves that worsen imbalance in some dimension are allowed.")
+            ((initial_partitioning ? "i-r-rebalancing-multiple-moves": "r-rebalancing-multiple-moves"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.allow_multiple_moves :
+                              &context.initial_partitioning.refinement.rebalancing.allow_multiple_moves))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether moving the same node multiple times is allowed for rebalancing.")
+            ((initial_partitioning ? "i-r-rebalancing-use-rollback": "r-rebalancing-use-rollback"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_rollback :
+                              &context.initial_partitioning.refinement.rebalancing.use_rollback))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether to use a rollback.")
+            ((initial_partitioning ? "i-r-rebalancing-l1-rollback": "r-rebalancing-l1-rollback"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.l1_rollback :
+                              &context.initial_partitioning.refinement.rebalancing.l1_rollback))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether using L1 metric for rollback.")
             ((initial_partitioning ? "i-r-rebalancing-reduced-weight-fallback": "r-rebalancing-reduced-weight-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_fallback :
                               &context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback))->value_name(

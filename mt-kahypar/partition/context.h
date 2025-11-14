@@ -237,6 +237,9 @@ struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
   bool allow_any_progress = true;
   bool reduced_weight_fallback = true;
+  bool allow_multiple_moves = true;
+  bool use_rollback = true;
+  bool l1_rollback = true;
   double negative_progress_penalty = 1.0;
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;

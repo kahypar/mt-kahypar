@@ -702,6 +702,10 @@ class PartitionedHypergraph {
     return _part_weights[p].load(std::memory_order_relaxed);
   }
 
+  const HypernodeWeightArray& partWeights() const {
+    return _part_weights;
+  }
+
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
