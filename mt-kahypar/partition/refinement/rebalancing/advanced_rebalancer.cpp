@@ -312,7 +312,7 @@ namespace impl {
       }
     }
 
-    bool lockedModifyPQ(size_t best_id) {
+    bool lockedModifyPQ(size_t best_id, bool parallel) {
       auto& gpq = _pqs[best_id];
       auto& pq = gpq.pq;
 
@@ -333,7 +333,9 @@ namespace impl {
           gpq.updateKey();
         }
       }
-      gpq.lock.unlock();
+      if (parallel) {
+        gpq.lock.unlock();
+      }
       return success;
     }
 
@@ -353,7 +355,7 @@ namespace impl {
           _pqs[best_id].lock.unlock();
           continue;
         }
-        if (lockedModifyPQ(best_id)) return true;
+        if (lockedModifyPQ(best_id, true)) return true;
         // if you got a PQ but it fails because the node's gain was wrong or the node couldn't be locked
         // (success_func failed) then we still want to use the standard method
         i = 0;
@@ -381,12 +383,32 @@ namespace impl {
           best_pq.lock.unlock();
           continue;
         }
-        if (lockedModifyPQ(best_id)) return true;
+        if (lockedModifyPQ(best_id, true)) return true;
       }
     }
 
-    bool findNextMove() {
-      return tryPop();
+    bool tryPopSequential() {
+      while (true) {
+        float best_key = std::numeric_limits<float>::lowest();
+        int best_id = -1;
+        for (size_t i = 0; i < _pqs.size(); ++i) {
+          if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {
+            best_key = _pqs[i].top_key;
+            best_id = i;
+          }
+        }
+        if (best_id == -1) return false;
+        ASSERT(!_pqs[best_id].pq.empty());
+        if (lockedModifyPQ(best_id, false)) return true;
+      }
+    }
+
+    bool findNextMove(bool parallel) {
+      if (parallel) {
+        return tryPop();
+      } else {
+        return tryPopSequential();
+      }
     }
   };
 
@@ -465,7 +487,8 @@ namespace impl {
   template <typename GraphAndGainTypes>
   int64_t AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                            const HypernodeWeightArray& reduced_part_weights,
-                                                           size_t& global_move_id) {
+                                                           size_t& global_move_id,
+                                                           bool parallel) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool any_progress = _context.refinement.rebalancing.allow_any_progress;
     int64_t attributed_gain = 0;
@@ -488,7 +511,7 @@ namespace impl {
         seed, _context, reduced_part_weights, _weight_normalizer, phg, _gain_cache, _pqs, _target_part, _node_state,
         _best_target_block_weight.local(), _tmp_hn_weight.local());
 
-      while (std::atomic_ref(num_overloaded_blocks).load(std::memory_order_relaxed) > 0 && next_move_finder.findNextMove()) {
+      while (std::atomic_ref(num_overloaded_blocks).load(std::memory_order_relaxed) > 0 && next_move_finder.findNextMove(parallel)) {
         const Move& m = next_move_finder.next_move;
         ASSERT(m.to != kInvalidPartition);
         const PartitionID from = phg.partID(m.node);
@@ -591,9 +614,13 @@ namespace impl {
           .fetch_add(local_attributed_gain, std::memory_order::relaxed);
     };
 
-    tbb::task_group tg;
-    for (size_t i = 0; i < _context.shared_memory.num_threads; ++i) { tg.run(std::bind(task, i)); }
-    tg.wait();
+    if (parallel) {
+      tbb::task_group tg;
+      for (size_t i = 0; i < _context.shared_memory.num_threads; ++i) { tg.run(std::bind(task, i)); }
+      tg.wait();
+    } else {
+      task(0);
+    }
 
     return attributed_gain;
   }
@@ -653,7 +680,8 @@ namespace impl {
   std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyRebalancingRound(
       mt_kahypar_partitioned_hypergraph_t& hypergraph,
       const HypernodeWeightArray& reduced_part_weights,
-      size_t& global_move_id) {
+      size_t& global_move_id,
+      bool parallel) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     _overloaded_blocks.clear();
@@ -668,7 +696,7 @@ namespace impl {
     insertNodesInOverloadedBlocks(hypergraph, reduced_part_weights);
 
     const size_t old_id = global_move_id;
-    int64_t attributed_gain = findMoves(hypergraph, reduced_part_weights, global_move_id);
+    int64_t attributed_gain = findMoves(hypergraph, reduced_part_weights, global_move_id, parallel);
 
     if (_context.refinement.rebalancing.use_rollback) {
       attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
@@ -737,7 +765,7 @@ namespace impl {
       old_overweight = new_overweight;
       const size_t old_id = global_move_id;
       auto [attr_gain, n_overloaded] =
-        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id);
+        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, true);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
       new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
@@ -751,6 +779,17 @@ namespace impl {
              && new_overweight < old_overweight
              && global_move_id < phg.initialNumNodes());
     DBG << V(old_overweight) << V(new_overweight) << V(global_move_id) << V(moved_nodes);
+
+    if (_context.refinement.rebalancing.finalize_sequential && !moved_nodes) {
+      auto [attr_gain, n_overloaded] =
+        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, false);
+      attributed_gain += attr_gain;
+      num_overloaded_blocks = n_overloaded;
+      old_overweight = new_overweight;
+      new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      DBG << "sequential round:" << V(old_overweight) << V(new_overweight) << V(global_move_id);
+    }
+    return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
   }
 
   template <typename GraphAndGainTypes>
