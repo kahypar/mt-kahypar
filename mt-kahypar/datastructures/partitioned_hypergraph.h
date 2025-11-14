@@ -682,6 +682,16 @@ class PartitionedHypergraph {
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
+                      PartitionID to,
+                      const DeltaFunction& delta_func) {
+    return changeNodePart(gain_cache, u, from, to, MAX_WEIGHT, []{}, delta_func);
+  }
+
+  template<typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool changeNodePart(GainCache& gain_cache,
+                      const HypernodeID u,
+                      PartitionID from,
                       PartitionID to) {
     return changeNodePart(gain_cache, u, from, to, MAX_WEIGHT, []{}, NoOpDeltaFunc());
   }
