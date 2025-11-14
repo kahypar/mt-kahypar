@@ -127,13 +127,15 @@ private:
 
   int64_t findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                     const HypernodeWeightArray& reduced_part_weights,
-                    size_t& global_move_id);
+                    size_t& global_move_id,
+                    bool parallel);
 
   int64_t applyRollback(mt_kahypar_partitioned_hypergraph_t& hypergraph, const size_t old_move_id, size_t& global_move_id);
 
   std::pair<int64_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                        const HypernodeWeightArray& reduced_part_weights,
-                                                       size_t& global_move_id);
+                                                       size_t& global_move_id,
+                                                       bool parallel);
 
   const Context& _context;
   GainCache& _gain_cache;
