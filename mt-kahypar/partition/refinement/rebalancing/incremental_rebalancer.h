@@ -185,26 +185,72 @@ public:
         _blocks[move.to].pull.remove(u);
       }
 
-      insertOrUpdateNode(u, move.to);
+      // update pull queues for neighbours
+      for (HyperedgeID he : partitioned_hypergraph_m->hypergraph().incidentEdges(u)) {
+        ASSERT(partitioned_hypergraph_m->partID(u) == move.to);
+        if (partitioned_hypergraph_m->pinCountInPart(he, move.to) == 1) {
+          //all other nodes in the from block gain a benefit because u left their block
+          for (HypernodeID v : partitioned_hypergraph_m->hypergraph().pins(he)) {
+            if (v == u || !partitioned_hypergraph_m->nodeIsEnabled(v)) {
+              continue;
+            }
+            insertOrUpdateNode(v, partitioned_hypergraph_m->partID(v), move.to, partitioned_hypergraph_m->edgeWeight(he));
+          }
+        }
+        if (partitioned_hypergraph_m->pinCountInPart(he, move.from) == 1) {
+          //all other nodes in the to block lose a benefit because u joined their block
+          for (HypernodeID v : partitioned_hypergraph_m->hypergraph().pins(he)) {
+            if (v == u || !partitioned_hypergraph_m->nodeIsEnabled(v)) {
+              continue;
+            }
+            if (partitioned_hypergraph_m->partID(v) == move.from) {
+              insertOrUpdateNode(v);
+            }
+          }
+        }
+      }
+
+      insertOrUpdateNode(u, move.to, kInvalidPartition, 0);
+    }
+
+    void insertOrUpdateNode(const HyperedgeID u)
+    {
+      insertOrUpdateNode(u, partitioned_hypergraph_m->partID(u), kInvalidPartition, 0);
     }
 
     //insert node into new pull queues and push queue
     //if the node was deleted and reinserted, the queues are updated to prevent duplicate entries
-    void insertOrUpdateNode(HypernodeID u, PartitionID part) {
+    void insertOrUpdateNode(HypernodeID u, PartitionID from, PartitionID to, HyperedgeWeight delta) {
       ASSERT(partitioned_hypergraph_m->nodeIsEnabled(u));
-      ASSERT(partitioned_hypergraph_m->partID(u) == part);
+      ASSERT(partitioned_hypergraph_m->partID(u) == from);
       HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
 
-      if (_blocks[part].push.get_positions_size() <= u)
+      if (_blocks[from].push.get_positions_size() <= u)
       {
         reset();
       }
 
+      if (to != kInvalidPartition) {
+        ASSERT(partitioned_hypergraph_m->partID(u) != to);
+        ASSERT(_blocks[to].pull.get_positions_size() > u);
+        const auto old_pull_value = _blocks[to].pull.keyOf(u);
+        _blocks[to].pull.insertOrAdjustKey(u, delta + old_pull_value);
+        // TODO maybe push queues are not worth the effort
+        // ASSERT(partitioned_hypergraph_m->partID(u) == from);
+        // ASSERT(_blocks[from].push.get_positions_size() > u);
+        // if (_blocks[from].push.contains(u))
+        // {
+        //   const auto old_push_value = _blocks[from].push.keyOf(u);
+        //   _blocks[from].push.insertOrAdjustKey(u, delta + old_push_value);
+        return;
+        // }
+      }
+
       for (PartitionID b = 0; b < _context->partition.k; ++b) {
-        if (b == part) {
+        if (b == from) {
           continue;
         }
-        const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, part, b);
+        const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, from, b);
         if (gain > highest_gain) {
           highest_gain = gain;
         }
@@ -213,8 +259,8 @@ public:
         _blocks[b].pull.insertOrAdjustKey(u, weighted_pull_gain);
       }
       HyperedgeWeight weighted_push_gain = (highest_gain > 0) ? highest_gain * partitioned_hypergraph_m->nodeWeight(u) : highest_gain / partitioned_hypergraph_m->nodeWeight(u);
-      ASSERT(u < _blocks[part].push.get_positions_size());
-      _blocks[part].push.insertOrAdjustKey(u, weighted_push_gain);
+      ASSERT(u < _blocks[from].push.get_positions_size());
+      _blocks[from].push.insertOrAdjustKey(u, weighted_push_gain);
     }
 
     bool checkBlockQueues() {
@@ -252,13 +298,46 @@ public:
           }
           const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, partitioned_hypergraph_m->partID(u), b);
           const HyperedgeWeight weighted_gain = (gain > 0) ? gain / partitioned_hypergraph_m->nodeWeight(u) : gain * partitioned_hypergraph_m->nodeWeight(u);
-          if (weighted_gain != _blocks[b].pull.keyOf(u)) {
+          // TODO only check if gain is non-negative?
+          if (weighted_gain > _blocks[b].pull.keyOf(u)) {
             std::cout << "Pull queue gain for node " << u << " in block " << b << " does not match gain cache" << std::endl;
             std::cout << "Pull queue gain: " << _blocks[b].pull.keyOf(u) << " Gain cache: " << weighted_gain << std::endl;
             std::cout << "Gain: " << gain << std::endl;
             std::cout << "Node weight: " << partitioned_hypergraph_m->nodeWeight(u) << std::endl;
             return false;
           }
+        }
+      }
+      return true;
+    }
+
+    bool checkPushQueueGains() {
+      for (HypernodeID u = 0; u < partitioned_hypergraph_m->initialNumNodes(); ++u) {
+        if (!partitioned_hypergraph_m->nodeIsEnabled(u)) {
+          continue;
+        }
+        PartitionID b = partitioned_hypergraph_m->partID(u);
+        if (!_blocks[b].push.contains(u)) {
+          std::cout << "Push queue does not contain node " << u << " in block " << b << std::endl;
+          return false;
+        }
+        const Gain gain = [&]() {
+          HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
+          for (PartitionID other_b = 0; other_b < _context->partition.k; ++other_b) {
+            if (other_b == b) {
+              continue;
+            }
+            const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, b, other_b);
+            if (gain > highest_gain) {
+              highest_gain = gain;
+            }
+          }
+          return highest_gain;
+        }();
+        const HyperedgeWeight weighted_gain = (gain > 0) ? gain * partitioned_hypergraph_m->nodeWeight(u) : gain / partitioned_hypergraph_m->nodeWeight(u);
+        if (weighted_gain > _blocks[b].push.keyOf(u)) {
+          std::cout << "Push queue gain for node " << u << " in block " << b << " does not match gain cache" << std::endl;
+          return false;
         }
       }
       return true;
@@ -296,7 +375,7 @@ public:
           }
           if (nodes_in_removed_partition_post_removal <=1 || nodes_in_added_partition <= 2) {
             for (const HypernodeID& hn2 : hypergraph.pins(he)) {
-              insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
+              insertOrUpdateNode(hn2);
             }
           }
         }
@@ -395,14 +474,14 @@ private:
           for (const HypernodeID& hn2 : hypergraph.pins(he)) {
             GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                     *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
-            insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
+            insertOrUpdateNode(hn2);
           }
         } else if (nodes_in_removed_partition_post_removal == 1) {
           for (const HypernodeID &hn2: hypergraph.pins(he)) {
             if (hn2 != hn && partitioned_hypergraph_m->partID(hn2) == move.from) {
               GainCachePtr::cast<Km1GainCache>(*_gain_cache).initializeGainCacheEntryForNode(
                       *partitioned_hypergraph_m, hn2, *_benefit_aggregator);
-              insertOrUpdateNode(hn2, partitioned_hypergraph_m->partID(hn2));
+              insertOrUpdateNode(hn2);
               break;
             }
           }
