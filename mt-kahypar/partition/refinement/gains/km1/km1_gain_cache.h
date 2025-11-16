@@ -280,6 +280,28 @@ class Km1GainCache {
                                        const HypernodeID u,
                                        vec<Gain>& benefit_aggregator);
 
+  template<typename PartitionedHypergraph>
+  void changeBenefit(
+    const PartitionedHypergraph& partitioned_hg,
+    const HypernodeID u,
+    const HyperedgeWeight benefitDelta,
+    const PartitionID part
+    )
+  {
+    _gain_cache[benefit_index(u, part)].add_fetch(benefitDelta, std::memory_order_relaxed);
+  }
+
+  template<typename PartitionedHypergraph>
+  void changePenalty(
+    const PartitionedHypergraph& partitioned_hg,
+    const HypernodeID u,
+    const HyperedgeWeight penaltyDelta
+    )
+  {
+    _gain_cache[penalty_index(u)].add_fetch(penaltyDelta, std::memory_order_relaxed);
+  }
+
+
   void addNode(const HypernodeID u) {
     // _gain_cache.resize(
     //   "Refinement", "gain_cache", (u + 1) * size_t(_k + 1), true);
