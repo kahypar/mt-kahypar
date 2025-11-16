@@ -248,11 +248,8 @@ namespace mt_kahypar::dyn {
                 {
                   if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(hn))
                   {
-                    GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(
-                      partitioned_hypergraph_m, hn2,
-                      -hypergraph_m.edgeWeight(he));
-
-                  _rebalancer.insertOrUpdateNode(hn2);
+                    GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(hn2, -hypergraph_m.edgeWeight(he));
+                    _rebalancer.insertOrUpdateNode(hn2);
                   }
                   // if hn2 is in small block, add to local_fm_nodes
                   if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
@@ -268,11 +265,9 @@ namespace mt_kahypar::dyn {
               // reduce benefit for remaining nodes in other partitions because moving them to this partition will increase the cut
               for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
                 if (hn2 != hn) {
-                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(
-                    partitioned_hypergraph_m, hn2, -hypergraph_m.edgeWeight(he), partitioned_hypergraph_m.partID(hn));
-
+                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(hn2, -hypergraph_m.edgeWeight(he), partitioned_hypergraph_m.partID(hn));
                   // not necessary since it would only reduce gain
-                  _rebalancer.insertOrUpdateNode(hn2, partitioned_hypergraph_m.partID(hn2), partitioned_hypergraph_m.partID(hn), -hypergraph_m.edgeWeight(he));
+                  // _rebalancer.insertOrUpdateNode(hn2, partitioned_hypergraph_m.partID(hn2), partitioned_hypergraph_m.partID(hn), -hypergraph_m.edgeWeight(he));
                 }
               }
             }
@@ -367,8 +362,7 @@ namespace mt_kahypar::dyn {
             if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) == 1) {
               for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
                 if (hn2 != node) {
-                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(
-                          partitioned_hypergraph_m, hn2, edge_weight, part_id);
+                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(hn2, edge_weight, part_id);
                   _rebalancer.insertOrUpdateNode(hn2, partitioned_hypergraph_m.partID(hn2), part_id, edge_weight);
                   // if hn2 is in small block, add to local_fm_nodes
                   if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
@@ -385,8 +379,7 @@ namespace mt_kahypar::dyn {
                   // gain_cache_nodes.push_back(hn2);
                   if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(node))
                   {
-                    GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(
-                            partitioned_hypergraph_m, hn2, edge_weight);
+                    GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(hn2, edge_weight);
 
                   _rebalancer.insertOrUpdateNode(hn2);
                   }

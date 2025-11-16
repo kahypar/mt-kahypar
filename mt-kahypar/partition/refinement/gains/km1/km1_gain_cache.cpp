@@ -259,15 +259,6 @@ void Km1GainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& 
     benefit_aggregator[i] = 0;
   }
 }
-//
-// template<typename PartitionedHypergraph>
-//   void Km1GainCache::increaseBenefitOfNeighbourAfterPinAdd(
-//   const PartitionedHypergraph& partitioned_hg,
-//   const HypernodeID u,
-//   const HyperedgeID he
-//   ) {
-//   _gain_cache[benefit_index(u, he)].add_fetch(partitioned_hg.edgeWeight(he), std::memory_order_relaxed);
-// }
 
 namespace {
 #define KM1_INITIALIZE_GAIN_CACHE(X) void Km1GainCache::initializeGainCache(const X&)
