@@ -268,11 +268,11 @@ namespace mt_kahypar::io {
       avg_part_weight += hypergraph.partWeight(i);
       if ( weight::isInvalid(min_part_weight) || weight::sum(hypergraph.partWeight(i)) <  weight::sum(min_part_weight) ) {
         min_block = i;
-        min_part_weight = hypergraph.partWeight(i);
+        min_part_weight = weight::toNonAtomic(hypergraph.partWeight(i));
       }
       if ( weight::isInvalid(max_part_weight) || weight::sum(hypergraph.partWeight(i)) > weight::sum(max_part_weight) ) {
         max_block = i;
-        max_part_weight = hypergraph.partWeight(i);
+        max_part_weight = weight::toNonAtomic(hypergraph.partWeight(i));
       }
       max_part_size = std::max(max_part_size, part_sizes[i]);
       num_imbalanced_blocks += block_is_imbalanced(i);

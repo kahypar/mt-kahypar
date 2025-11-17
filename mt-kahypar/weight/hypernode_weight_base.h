@@ -312,6 +312,9 @@ MT_KAHYPAR_DEFINE_VALID_EXPRESSION(HNWeightAtomicCRef);
 
 // ####################  CONST REFERENCE  ####################
 
+// forward declaration
+class HNWeightRef;
+
 class HNWeightConstRef: public HNWeightRefBase<HNWeightConstRef> {
   using Base = HNWeightRefBase<HNWeightConstRef>;
 
@@ -326,13 +329,11 @@ class HNWeightConstRef: public HNWeightRefBase<HNWeightConstRef> {
   HNWeightConstRef& operator=(const HNWeightConstRef&) = default;
 
   // construction/assignment from non-const reference
-  template<typename Other>
-  HNWeightConstRef(const HNWeightRefBase<Other>& other): Base() {
+  HNWeightConstRef(const HNWeightRefBase<HNWeightRef>& other): Base() {
     assignOther(std::move(other));
   }
 
-  template<typename Other>
-  HNWeightConstRef& operator=(const HNWeightRefBase<Other>& other) {
+  HNWeightConstRef& operator=(const HNWeightRefBase<HNWeightRef>& other) {
     assignOther(other);
     return *this;
   };
