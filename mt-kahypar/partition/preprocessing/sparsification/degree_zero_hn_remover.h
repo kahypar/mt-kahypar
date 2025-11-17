@@ -81,13 +81,17 @@ class DegreeZeroHypernodeRemover {
       });
     // Sort blocks of partition in increasing order of their weight
     auto distance_to_max = [&](const PartitionID block) {
-      return hypergraph.partWeight(block) - _context.partition.max_part_weights[block];
+      if (!(hypergraph.partWeight(block) < _context.partition.max_part_weights[block])) {
+        return weight::sum(weight::max(hypergraph.partWeight(block) - _context.partition.max_part_weights[block],
+                           weight::broadcast(0, hypergraph.dimension())));
+      }
+      return weight::sum(hypergraph.partWeight(block) - _context.partition.max_part_weights[block]);
     };
     parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
     std::iota(blocks.begin(), blocks.end(), 0);
     std::sort(blocks.begin(), blocks.end(),
       [&](const PartitionID& lhs, const PartitionID& rhs) {
-        return weight::sum(distance_to_max(lhs)) < weight::sum(distance_to_max(rhs));
+        return distance_to_max(lhs) < distance_to_max(rhs);
       });
 
     // Perform Bin-Packing
@@ -97,7 +101,7 @@ class DegreeZeroHypernodeRemover {
       hypergraph.restoreDegreeZeroHypernode(hn, to);
       PartitionID i = 0;
       while ( i + 1 < _context.partition.k &&
-              weight::sum(distance_to_max(blocks[i])) > weight::sum(distance_to_max(blocks[i + 1])) ) {
+              distance_to_max(blocks[i]) > distance_to_max(blocks[i + 1]) ) {
         std::swap(blocks[i], blocks[i + 1]);
         ++i;
       }
