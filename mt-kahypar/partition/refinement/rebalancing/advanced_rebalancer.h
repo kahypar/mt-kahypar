@@ -29,6 +29,7 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -72,6 +73,12 @@ namespace rebalancer {
     void markAsMovable() { state = 1; }
 
     void reset() { state = 0; }
+  };
+
+  struct PotentialMove {
+    HypernodeID node;
+    PartitionID to;
+    float rating;
   };
 
 } // namespace rebalancer
@@ -140,6 +147,8 @@ private:
   std::tuple<int64_t, size_t, size_t> runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                          size_t& global_move_id);
 
+  int64_t runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
@@ -159,6 +168,9 @@ private:
   vec<float> _weight_normalizer;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
+
+  // ! fallback
+  vec<ds::StreamingVector<rebalancer::PotentialMove>> _tmp_potential_moves;
 };
 
 }  // namespace mt_kahypar

@@ -32,6 +32,7 @@
 
 #include <boost/range/irange.hpp>
 
+#include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/range.h"
@@ -815,6 +816,25 @@ namespace impl {
       max_weight_per_block[block] = _context.refinement.rebalancing.fallback_weight_threshold * _context.partition.max_part_weights[block];
     }
 
+    auto compute_best_target = [&](const PartitionID from, const HNWeightConstRef weight, const vec<uint8_t>& max_dimensions) {
+      PartitionID best_to_part = kInvalidPartition;
+      float best_rating = std::numeric_limits<float>::min();
+      for (PartitionID to = 0; to < _context.partition.k; ++to) {
+        if (from == to) continue;
+        if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_min_block_dimension[to * phg.dimension()])) continue;
+
+        const HNWeightConstRef to_weight = weight::toNonAtomic(phg.partWeight(to));
+        float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
+                                          &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
+        float rating = (impl::normalizedSum(to_weight, _weight_normalizer) - matchingBlockWeight) / matchingBlockWeight;
+        if (rating > best_rating) {
+          best_to_part = to;
+          best_rating = rating;
+        }
+      }
+      return std::make_pair(best_to_part, best_rating);
+    };
+
     // compute moves for nodes
     tbb::enumerable_thread_specific<vec<uint8_t>> local_max_dimensions(phg.dimension(), static_cast<bool>(false));
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -828,20 +848,7 @@ namespace impl {
         impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
         if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_max_block_dimension[from * phg.dimension()])) return;
 
-        PartitionID best_to_part = kInvalidPartition;
-        float best_rating = std::numeric_limits<float>::min();
-        for (PartitionID to = 0; to < _context.partition.k; ++to) {
-          if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_min_block_dimension[to * phg.dimension()])) continue;
-
-          const HNWeightConstRef to_weight = weight::toNonAtomic(phg.partWeight(to));
-          float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
-                                            &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
-          float rating = (impl::normalizedSum(to_weight, _weight_normalizer) - matchingBlockWeight) / matchingBlockWeight;
-          if (rating > best_rating) {
-            best_to_part = to;
-            best_rating = rating;
-          }
-        }
+        auto [best_to_part, best_rating] = compute_best_target(from, weight, max_dimensions);
         if (best_to_part != kInvalidPartition) {
           float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
                                             &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
@@ -851,7 +858,55 @@ namespace impl {
       }
     });
 
-    return 0;
+    vec<vec<rebalancer::PotentialMove>> moves(_context.partition.k, vec<rebalancer::PotentialMove>{});
+    ds::StreamingVector<rebalancer::PotentialMove> all_moves;
+    tbb::parallel_for(0, _current_k, [&](const PartitionID from) {
+      if (_tmp_potential_moves[from].size() > 0) {
+        moves[from] = _tmp_potential_moves[from].copy_parallel();
+
+        // sort the moves from each overweight part by rating
+        parallel::scalable_sort(moves[from], [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
+          return a.rating > b.rating;
+        });
+        AllocatedHNWeight from_weight;
+        from_weight = phg.partWeight(from);
+        for (size_t i = 0; i < moves.size() && !(from_weight <= _context.partition.max_part_weights[from]); ++i) {
+          from_weight -= phg.nodeWeight(moves[from][i].node);
+          all_moves.stream(moves[from][i]);
+        }
+      }
+    });
+    vec<rebalancer::PotentialMove> move_list = all_moves.copy_parallel();
+    parallel::scalable_sort(move_list, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
+      return a.rating > b.rating;
+    });
+    DBG << "Applying" << move_list.size() << "moves to break deadlock";
+
+    int64_t attributed_gain = 0;
+    for (const auto& m: move_list) {
+      const PartitionID from = phg.partID(m.node);
+      if (phg.partWeight(from) <= _context.partition.max_part_weights[from]) continue;
+
+      // recompute target
+      const HNWeightConstRef weight = phg.nodeWeight(m.node);
+      auto& max_dimensions = local_max_dimensions.local();
+      max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
+      impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
+      auto [best_to_part, _] = compute_best_target(from, weight, max_dimensions);
+      DBG << V(m.node) << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part));
+
+      int64_t gain = 0;
+      phg.changeNodePart(_gain_cache, m.node, from, best_to_part,
+        [&](const SynchronizedEdgeUpdate& sync_update) {
+          gain = AttributedGains::gain(sync_update);
+          attributed_gain += gain;
+        });
+      if (_move_id_of_node[m.node] == kInvalidMove) {
+        _move_id_of_node[m.node] = global_move_id;
+      }
+      _moves[global_move_id++] = Move{from, best_to_part, m.node, static_cast<Gain>(gain)};
+    }
+    return attributed_gain;
   }
 
   template <typename GraphAndGainTypes>
