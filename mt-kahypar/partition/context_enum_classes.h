@@ -215,7 +215,8 @@ enum class EvoMutateStrategy : uint8_t {
 enum class EvoDecision : uint8_t {
   normal,
   mutation,
-  combine
+  combine,
+  modified_combine
 };
 
 std::ostream & operator<< (std::ostream& os, const Type& type);

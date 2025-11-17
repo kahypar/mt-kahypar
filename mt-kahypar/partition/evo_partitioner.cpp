@@ -211,7 +211,7 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
+    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population, bool insert_into_population) {
         Hypergraph hypergraph_copy = input_hg.copy(parallel_tag_t{});
 
         //LOG << "DEBUG: generateIndividual: Calling standard partitioner...";
@@ -249,14 +249,22 @@ namespace mt_kahypar {
         //Partitioner<TypeTraits>::forceFixedVertexAssignment(partitioned_hypergraph, context);
 
         Individual individual(partitioned_hypergraph, context);
+        if (!insert_into_population) {
+            return std::move(individual);
+        }
         return population.addStartingIndividual(individual, context);
     } 
 
     template<typename TypeTraits>
     EvoDecision EvoPartitioner<TypeTraits>::decideNextMove(const Context& context) {
-        if (utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID) < context.evolutionary.mutation_chance) {
+        float rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
+  
+        if (rand_val < context.evolutionary.mutation_chance) {
             return EvoDecision::mutation;
+        } else if (context.evolutionary.enable_modified_combine) {
+            return EvoDecision::modified_combine;
         }
+        
         return EvoDecision::combine;
     }
 
@@ -266,6 +274,102 @@ namespace mt_kahypar {
             return EvoMutateStrategy::vcycle;
         }
         return EvoMutateStrategy::new_initial_partitioning_vcycle;
+    }
+
+    template<typename TypeTraits>
+    Context EvoPartitioner<TypeTraits>::modifyContext(const Context& context, ContextModifierParameters params) {
+        Context modifiedContext(context);
+        modifiedContext.partition.k = params.k;
+        modifiedContext.partition.epsilon = params.epsilon;
+        modifiedContext.partition.mode = params.recursive_bipartitioning ? Mode::recursive_bipartitioning : modifiedContext.partition.mode;
+        return modifiedContext;
+    }
+
+    template<typename TypeTraits>
+    vec<PartitionID> EvoPartitioner<TypeTraits>::combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions) {
+        vec<PartitionID> combined(parent_partitions[0].size());
+        std::unordered_map<std::string, int> tuple_to_block;
+        int current_community = 0;
+
+        for (int vertex = 0; vertex < combined.size(); vertex++) {
+            std::string partition_tuple;
+            for (size_t i = 0; i < parent_partitions.size(); ++i) {
+                partition_tuple += std::to_string(parent_partitions[i][vertex]) + ",";
+            }
+
+            if (tuple_to_block.find(partition_tuple) == tuple_to_block.end()) {
+                tuple_to_block[partition_tuple] = current_community++;
+            }
+
+            combined[vertex] = tuple_to_block[partition_tuple];
+        }
+
+        return combined;
+    }
+
+
+    template<typename TypeTraits>
+    std::string EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population) {
+        
+        LOG << "Calling performModifiedCombine";
+        
+        std::vector<std::vector<PartitionID>> parent_partitions;
+        size_t best = population.randomIndividualSafe(); 
+        
+        // generate new parent individual with modified context
+        Context modified_context = modifyContext(context, params);
+
+        LOG << "Calling generateIndividual";
+
+        const Individual& modified_parent = generateIndividual(input_hg, modified_context, target_graph, population, false);
+        
+        LOG << "generateIndividual finished.";
+
+        std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+        parent_partitions.push_back(best_partition);
+        parent_partitions.push_back(modified_parent.partition());
+
+        std::unordered_map<PartitionID, int> comm_to_block;
+        //Logging
+        LOG << "Calling performModifiedCombine with params (k, eps): " << params.k << ", " << params.epsilon;
+
+        vec<PartitionID> comms = combineModifiedPartitions(context, parent_partitions);
+
+        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph); 
+
+        for ( const HypernodeID& hn : hypergraph.nodes() ) {
+            partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
+            if ( comm_to_block.find(comms[hn]) == comm_to_block.end() ) {
+                comm_to_block[comms[hn]] = best_partition[hn];
+            }
+        }
+
+        partitioned_hypergraph.initializePartition();
+        hypergraph.setCommunityIDs(std::move(comms));
+        if (context.partition.mode == Mode::direct) {
+            //V-cycle requires a context with initialized part weights
+            Context vc_context(context);
+            vc_context.setupPartWeights(hypergraph.totalWeight());
+            Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+        } else {
+            throw InvalidParameterException("Invalid partitioning mode!");
+        }
+
+        Individual individual(partitioned_hypergraph, context);
+        
+        std::string ret = "";
+        if (context.partition.enable_benchmark_mode) {
+            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            ret = checkAndLogNewBest(individual.fitness(), "Combine", time);
+        }
+        population.insert(std::move(individual), context);
+        if (context.partition.enable_benchmark_mode && !ret.empty()) {
+            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            std::string diff_matrix = population.updateDiffMatrix();
+            diff_matrix_history += diff_matrix;
+        }
+        return ret;
     }
 
 
@@ -468,6 +572,26 @@ namespace mt_kahypar {
         std::atomic<int> total_combinations(0);
         std::atomic<int> total_iterations(0);
 
+        // Calculate ContextModifierParameters once before any workers start
+        ContextModifierParameters modified_combine_params;
+        if (context.evolutionary.enable_modified_combine) {
+            const double k_result = context.partition.k * context.evolutionary.modified_combine_k_multiplier;
+            ASSERT(k_result >= 1.0, "k multiplier result must be >= 1: " << k_result);
+            ASSERT(std::abs(k_result - std::round(k_result)) < 1e-10, 
+                "k multiplier must result in whole number: " << k_result);
+            
+            const PartitionID absolute_k = static_cast<PartitionID>(std::round(k_result));
+            const double absolute_epsilon = std::min(0.99, 
+                context.partition.epsilon * context.evolutionary.modified_combine_epsilon_multiplier);
+            
+            modified_combine_params = ContextModifierParameters{
+                .use_random_partitions = context.evolutionary.modified_combine_use_random_partitions,
+                .k = absolute_k,
+                .epsilon = absolute_epsilon,
+                .recursive_bipartitioning = context.evolutionary.modified_combine_recursive_bipartitioning
+            };
+        }
+
         timer.start_timer("evolutionary", "Evolutionary");
 
         LOG << "Starting evolutionary search with" << num_evo_workers << "workers, each using"
@@ -520,6 +644,17 @@ namespace mt_kahypar {
                         case EvoDecision::combine:
                             {
                                 std::string h = performCombine(hg_copy, evo_context, target_graph, population);
+                                if (!h.empty()) {
+                                    std::lock_guard<std::mutex> lock(_history_mutex);
+                                    history += h;
+                                }
+                                total_combinations++;
+                                total_iterations++;
+                                break;
+                            }
+                        case EvoDecision::modified_combine:
+                            {
+                                std::string h = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
                                 if (!h.empty()) {
                                     std::lock_guard<std::mutex> lock(_history_mutex);
                                     history += h;

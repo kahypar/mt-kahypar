@@ -833,7 +833,22 @@ namespace mt_kahypar {
              "Number of threads to use per evolutionary worker. 0 means automatic (roughly total_threads / 2 workers).")
              ("evo-kway",
              po::value<int>(&context.evolutionary.kway_combine)->value_name("<int>")->default_value(2),
-             "How many individsuals to combine for the combine step\n");
+             "How many individsuals to combine for the combine step\n")
+             ("evo-enable-modified-combine",
+             po::value<bool>(&context.evolutionary.enable_modified_combine)->value_name("<bool>")->default_value(false),
+             "Enable modified combine operator for evolutionary partitioning")
+             ("evo-modified-combine-k-multiplier",
+             po::value<double>(&context.evolutionary.modified_combine_k_multiplier)->value_name("<double>")->default_value(1),
+             "Factor to multiply base k for modified combine external parent")
+             ("evo-modified-combine-epsilon",
+             po::value<double>(&context.evolutionary.modified_combine_epsilon_multiplier)->value_name("<double>")->default_value(1),
+             "Epsilon value for modified combine external parent")
+             ("evo-modified-combine-recursive-bipartitioning",
+             po::value<bool>(&context.evolutionary.modified_combine_recursive_bipartitioning)->value_name("<bool>")->default_value(false),
+             "Use recursive bipartitioning mode for modified combine external parent")
+             ("evo-modified-combine-use-random-partitions",
+             po::value<bool>(&context.evolutionary.modified_combine_use_random_partitions)->value_name("<bool>")->default_value(false),
+             "Use random partitions for modified combine external parent");
     return options;
   }
 
