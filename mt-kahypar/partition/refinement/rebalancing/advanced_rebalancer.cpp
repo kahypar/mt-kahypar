@@ -40,6 +40,47 @@
 namespace mt_kahypar {
 
 namespace impl {
+  void getExtremalDimensions(HNWeightConstRef weight, const vec<float>& weight_normalizer, uint8_t* out_ptr, bool maximimize) {
+    float max_weight = maximimize ? 0 : 1;
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      float normalized_weight = weight_normalizer[d] * weight.at(d);
+      max_weight = maximimize ? std::max(max_weight, normalized_weight) : std::min(max_weight, normalized_weight);
+    }
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      float normalized_weight = weight_normalizer[d] * weight.at(d);
+      if (maximimize ? (normalized_weight >= max_weight) : (normalized_weight <= max_weight)) {
+        out_ptr[d] = static_cast<uint8_t>(true);
+      }
+    }
+  }
+
+  bool hasMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs) {
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      if (lhs[d] && rhs[d]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  float weightOfMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs, const vec<float>& weight_normalizer) {
+    float sum = 0;
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      if (lhs[d] && rhs[d] && sum == 0) {
+        sum += weight_normalizer[d] * weight.at(d);
+      }
+    }
+    return sum;
+  }
+
+  float normalizedSum(HNWeightConstRef weight, const vec<float>& weight_normalizer) {
+    float sum = 0;
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      sum += weight_normalizer[d] * weight.at(d);
+    }
+    return sum;
+  }
+
   double imbalance(const HypernodeWeightArray& part_weights, const Context& context) {
     double max_balance = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -752,6 +793,65 @@ namespace impl {
       DBG << "sequential round:" << V(old_overweight) << V(new_overweight) << V(global_move_id);
     }
     return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
+  }
+
+  template <typename GraphAndGainTypes>
+  int64_t AdvancedRebalancer<GraphAndGainTypes>::runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                     size_t& global_move_id) {
+    auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    _tmp_potential_moves.resize(_context.partition.k);
+
+    vec<uint8_t> is_max_block_dimension(_context.partition.k * phg.dimension(), static_cast<bool>(false));
+    vec<uint8_t> is_min_block_dimension(_context.partition.k * phg.dimension(), static_cast<bool>(false));
+    for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      const HNWeightConstRef block_weight = weight::toNonAtomic(phg.partWeight(block));
+      impl::getExtremalDimensions(block_weight, _weight_normalizer,
+                                  &is_max_block_dimension[block * phg.dimension()], true);
+      impl::getExtremalDimensions(block_weight, _weight_normalizer,
+                                  &is_min_block_dimension[block * phg.dimension()], false);
+    }
+    HypernodeWeightArray max_weight_per_block(_context.partition.k, phg.dimension(), 0, false);
+    for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      max_weight_per_block[block] = _context.refinement.rebalancing.fallback_weight_threshold * _context.partition.max_part_weights[block];
+    }
+
+    // compute moves for nodes
+    tbb::enumerable_thread_specific<vec<uint8_t>> local_max_dimensions(phg.dimension(), static_cast<bool>(false));
+    phg.doParallelForAllNodes([&](const HypernodeID hn) {
+      const PartitionID from = phg.partID(hn);
+      if (weight::toNonAtomic(phg.partWeight(from)) <= _context.partition.max_part_weights[from]) return;
+
+      const HNWeightConstRef weight = phg.nodeWeight(hn);
+      if (weight <= max_weight_per_block[from]) {
+        auto& max_dimensions = local_max_dimensions.local();
+        max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
+        impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
+        if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_max_block_dimension[from * phg.dimension()])) return;
+
+        PartitionID best_to_part = kInvalidPartition;
+        float best_rating = std::numeric_limits<float>::min();
+        for (PartitionID to = 0; to < _context.partition.k; ++to) {
+          if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_min_block_dimension[to * phg.dimension()])) continue;
+
+          const HNWeightConstRef to_weight = weight::toNonAtomic(phg.partWeight(to));
+          float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
+                                            &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
+          float rating = (impl::normalizedSum(to_weight, _weight_normalizer) - matchingBlockWeight) / matchingBlockWeight;
+          if (rating > best_rating) {
+            best_to_part = to;
+            best_rating = rating;
+          }
+        }
+        if (best_to_part != kInvalidPartition) {
+          float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
+                                            &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
+          best_rating *= matchingNodeWeight / (impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
+          _tmp_potential_moves[best_to_part].stream(rebalancer::PotentialMove{hn, best_to_part, best_rating});
+        }
+      }
+    });
+
+    return 0;
   }
 
   template <typename GraphAndGainTypes>
