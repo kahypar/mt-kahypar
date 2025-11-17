@@ -801,6 +801,9 @@ namespace impl {
                                                                      size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     _tmp_potential_moves.resize(_context.partition.k);
+    for (auto& moves: _tmp_potential_moves) {
+      moves.clear_sequential();
+    }
 
     vec<uint8_t> is_max_block_dimension(_context.partition.k * phg.dimension(), static_cast<bool>(false));
     vec<uint8_t> is_min_block_dimension(_context.partition.k * phg.dimension(), static_cast<bool>(false));
@@ -853,7 +856,7 @@ namespace impl {
           float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
                                             &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
           best_rating *= matchingNodeWeight / (impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
-          _tmp_potential_moves[best_to_part].stream(rebalancer::PotentialMove{hn, best_to_part, best_rating});
+          _tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, best_to_part, best_rating});
         }
       }
     });
@@ -862,17 +865,19 @@ namespace impl {
     ds::StreamingVector<rebalancer::PotentialMove> all_moves;
     tbb::parallel_for(0, _current_k, [&](const PartitionID from) {
       if (_tmp_potential_moves[from].size() > 0) {
-        moves[from] = _tmp_potential_moves[from].copy_parallel();
+        auto& moves_of_block = moves[from];
+        moves_of_block = _tmp_potential_moves[from].copy_parallel();
 
         // sort the moves from each overweight part by rating
-        parallel::scalable_sort(moves[from], [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
+        parallel::scalable_sort(moves_of_block, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
           return a.rating > b.rating;
         });
         AllocatedHNWeight from_weight;
         from_weight = phg.partWeight(from);
-        for (size_t i = 0; i < moves.size() && !(from_weight <= _context.partition.max_part_weights[from]); ++i) {
-          from_weight -= phg.nodeWeight(moves[from][i].node);
-          all_moves.stream(moves[from][i]);
+        for (size_t i = 0; i < moves_of_block.size() && !(from_weight <= _context.partition.max_part_weights[from]); ++i) {
+          ASSERT(phg.partID(moves_of_block[i].node) == from);
+          from_weight -= phg.nodeWeight(moves_of_block[i].node);
+          all_moves.stream(moves_of_block[i]);
         }
       }
     });
@@ -885,7 +890,7 @@ namespace impl {
     int64_t attributed_gain = 0;
     for (const auto& m: move_list) {
       const PartitionID from = phg.partID(m.node);
-      if (phg.partWeight(from) <= _context.partition.max_part_weights[from]) continue;
+      ASSERT(!(phg.partWeight(from) <= _context.partition.max_part_weights[from]));
 
       // recompute target
       const HNWeightConstRef weight = phg.nodeWeight(m.node);
@@ -893,7 +898,7 @@ namespace impl {
       max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
       impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
       auto [best_to_part, _] = compute_best_target(from, weight, max_dimensions);
-      DBG << V(m.node) << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part));
+      // DBG << V(m.node) << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part)) << V(m.to) << V(phg.partWeight(m.to));
 
       int64_t gain = 0;
       phg.changeNodePart(_gain_cache, m.node, from, best_to_part,
@@ -943,6 +948,14 @@ namespace impl {
           r_move.invalidate();
         }
       }
+    }
+
+    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
+      DBG << "Starting fallback...";
+      attributed_gain += runDeadlockFallback(hypergraph, global_move_id);
+      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id);
+      attributed_gain += attr_gain;
+      num_overloaded_blocks = n_overloaded;
     }
 
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
