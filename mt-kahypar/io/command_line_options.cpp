@@ -924,6 +924,58 @@ namespace mt_kahypar {
        "Multiconstraint: whether to use a rollback."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-use-deadlock-fallback": "--r-rebalancing-use-deadlock-fallback"),
+      (!initial_partitioning ? context.refinement.rebalancing.use_deadlock_fallback :
+        context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback ),
+       "Multiconstraint: whether to use a 'deadlock breaking' fallback if greedy rebalancing does not succeed."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-weight-treshold": "--r-rebalancing-fallback-weight-treshold"),
+      (!initial_partitioning ? context.refinement.rebalancing.fallback_weight_threshold :
+        context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold ),
+       "Multiconstraint: large node threshold for fallback (relative to max block weight)"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-node-count-treshold": "--r-rebalancing-fallback-node-count-treshold"),
+      (!initial_partitioning ? context.refinement.rebalancing.fallback_node_count_threshold :
+        context.initial_partitioning.refinement.rebalancing.fallback_node_count_threshold ),
+       "Multiconstraint: node count threshold for fallback if using the below_threshold policy (relative to max block weight)"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-node-priority-by-weight": "--r-rebalancing-fallback-node-priority-by-weight"),
+      (!initial_partitioning ? context.refinement.rebalancing.fallback_node_priority_by_weight :
+        context.initial_partitioning.refinement.rebalancing.fallback_node_priority_by_weight ),
+       "Multiconstraint: whether fallback node selection penalizes high node weight."
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-node-selection-policy" : "--r-rebalancing-fallback-node-selection-policy"),
+      [&, initial_partitioning](const std::string& s) {
+        if (initial_partitioning) {
+          context.initial_partitioning.refinement.rebalancing.fallback_node_selection = rbFallbackNodeSelectionPolicyFromString(s);
+        } else {
+          context.refinement.rebalancing.fallback_node_selection = rbFallbackNodeSelectionPolicyFromString(s);
+        }
+      },
+      "Multiconstraint: fallback node selection policy"
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-block-selection-policy" : "--r-rebalancing-fallback-block-selection-policy"),
+      [&, initial_partitioning](const std::string& s) {
+        if (initial_partitioning) {
+          context.initial_partitioning.refinement.rebalancing.fallback_block_selection = rbFallbackBlockSelectionPolicyFromString(s);
+        } else {
+          context.refinement.rebalancing.fallback_block_selection = rbFallbackBlockSelectionPolicyFromString(s);
+        }
+      },
+      "Multiconstraint: fallback block selection policy"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-fallback-rounds": "--r-rebalancing-fallback-rounds"),
+      (!initial_partitioning ? context.refinement.rebalancing.fallback_rounds :
+        context.initial_partitioning.refinement.rebalancing.fallback_rounds ),
+       "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds"
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-det-rebalancing-deadzone" : "--r-det-rebalancing-deadzone"),
       (!initial_partitioning ? context.refinement.rebalancing.det_relative_deadzone_size :
         context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size ),

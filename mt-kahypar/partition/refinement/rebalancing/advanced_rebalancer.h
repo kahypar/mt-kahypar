@@ -31,12 +31,14 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/rebalancing/fallback.h"
 #include "mt-kahypar/partition/refinement/rebalancing/repair_empty_blocks.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
@@ -146,6 +148,8 @@ private:
 
   std::tuple<size_t, size_t> runGreedyAlgorithm(PartitionedHypergraph& phg, int64_t& attributed_gain, size_t& global_move_id);
 
+  std::pair<int64_t, size_t> runDeadlockFallback(PartitionedHypergraph& phg, size_t& global_move_id);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
@@ -163,9 +167,12 @@ private:
   RepairEmptyBlocks<GraphAndGainTypes> _repair_empty_blocks;
 
   // ! For computing node weight related metrics
-  vec<float> _weight_normalizer;
+  vec<double> _weight_normalizer;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
+
+  // ! fallback
+  vec<ds::StreamingVector<rebalancer::PotentialMove>> _tmp_potential_moves;
 };
 
 }  // namespace mt_kahypar
