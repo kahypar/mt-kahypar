@@ -137,6 +137,9 @@ private:
                                                        size_t& global_move_id,
                                                        bool parallel);
 
+  std::tuple<int64_t, size_t, size_t> runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                         size_t& global_move_id);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
@@ -152,7 +155,8 @@ private:
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
 
-  // ! Buffers for comparing the weight of target blocks
+  // ! For computing node weight related metrics
+  vec<float> _weight_normalizer;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
 };
