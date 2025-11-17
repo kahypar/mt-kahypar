@@ -5,6 +5,7 @@ set(RefinementSources
         deterministic/deterministic_jet_refiner.cpp
         rebalancing/deterministic_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
+        rebalancing/fallback.cpp
         rebalancing/repair_empty_blocks.cpp
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
