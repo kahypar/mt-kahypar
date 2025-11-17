@@ -185,6 +185,25 @@ enum class SteinerTreeFlowValuePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class RbFallbackNodeCountPolicy : uint8_t {
+  only_one,
+  until_balanced,
+  below_threshold
+};
+
+enum class RbFallbackNodeSelectionPolicy : uint8_t {
+  by_internal_imbalance,
+  by_dot_product,
+  any_fitting_max_dimension
+};
+
+enum class RbFallbackBlockSelectionPolicy : uint8_t {
+  by_internal_imbalance,
+  by_dot_product,
+  by_progress,
+  any_fitting_min_dimension
+};
+
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const InstanceType& type);
@@ -229,6 +248,12 @@ std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo
 
 std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
 
+std::ostream & operator<< (std::ostream& os, const RbFallbackNodeCountPolicy& policy);
+
+std::ostream & operator<< (std::ostream& os, const RbFallbackNodeSelectionPolicy& policy);
+
+std::ostream & operator<< (std::ostream& os, const RbFallbackBlockSelectionPolicy& policy);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -264,5 +289,11 @@ RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
 OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type);
 
 SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
+
+RbFallbackNodeCountPolicy rbFallbackNodeCountPolicyFromString(const std::string& policy);
+
+RbFallbackNodeSelectionPolicy rbFallbackNodeSelectionPolicyFromString(const std::string& policy);
+
+RbFallbackBlockSelectionPolicy rbFallbackBlockSelectionPolicyFromString(const std::string& policy);
 
 }  // namesapce mt_kahypar

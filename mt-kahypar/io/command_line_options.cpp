@@ -634,8 +634,8 @@ namespace mt_kahypar {
                     "<bool>")->default_value(true),
              "Multiconstraint: whether using L1 metric for rollback.")
             ((initial_partitioning ? "i-r-rebalancing-finalize-sequential": "r-rebalancing-finalize-sequential"),
-            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.finalize_sequential :
-                              &context.initial_partitioning.refinement.rebalancing.finalize_sequential))->value_name(
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_deadlock_fallback :
+                              &context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback))->value_name(
                     "<bool>")->default_value(false),
              "Multiconstraint: whether using L1 metric for rollback.")
             ((initial_partitioning ? "i-r-rebalancing-reduced-weight-fallback": "r-rebalancing-reduced-weight-fallback"),
@@ -648,6 +648,16 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.negative_progress_penalty))->value_name(
                     "<double>")->default_value(1.0),
              "Multiconstraint: penalty factor for negative progress.")
+            ((initial_partitioning ? "i-r-rebalancing-use-deadlock-fallback": "r-rebalancing-use-deadlock-fallback"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_deadlock_fallback :
+                              &context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether to use a 'deadlock breaking' fallback if greedy rebalancing does not succeed.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-use-locking": "r-rebalancing-fallback-use-locking"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_use_locking :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_use_locking))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether to use locking for the 'deadlock breaking' fallback.")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
                               &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(

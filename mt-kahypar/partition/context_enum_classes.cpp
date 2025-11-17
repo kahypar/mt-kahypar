@@ -279,6 +279,18 @@ namespace mt_kahypar {
       return os << static_cast<uint8_t>(policy);
   }
 
+  std::ostream & operator<< (std::ostream& os, const RbFallbackNodeCountPolicy& policy) {
+    return os << static_cast<uint8_t>(policy);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const RbFallbackNodeSelectionPolicy& policy) {
+    return os << static_cast<uint8_t>(policy);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const RbFallbackBlockSelectionPolicy& policy) {
+    return os << static_cast<uint8_t>(policy);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb" || mode == "recursive_bipartitioning") {
       return Mode::recursive_bipartitioning;
@@ -519,5 +531,43 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + policy);
     return SteinerTreeFlowValuePolicy::UNDEFINED;
+  }
+
+  RbFallbackNodeCountPolicy rbFallbackNodeCountPolicyFromString(const std::string& policy) {
+    if (policy == "only_one") {
+      return RbFallbackNodeCountPolicy::only_one;
+    } else if (policy == "until_balanced") {
+      return RbFallbackNodeCountPolicy::until_balanced;
+    } else if (policy == "below_threshold") {
+      return RbFallbackNodeCountPolicy::below_threshold;
+    }
+    throw InvalidParameterException("Illegal option: " + policy);
+    return RbFallbackNodeCountPolicy::only_one;
+  }
+
+  RbFallbackNodeSelectionPolicy rbFallbackNodeSelectionPolicyFromString(const std::string& policy) {
+    if (policy == "by_internal_imbalance") {
+      return RbFallbackNodeSelectionPolicy::by_internal_imbalance;
+    } else if (policy == "by_dot_product") {
+      return RbFallbackNodeSelectionPolicy::by_dot_product;
+    } else if (policy == "any_fitting_max_dimension") {
+      return RbFallbackNodeSelectionPolicy::any_fitting_max_dimension;
+    }
+    throw InvalidParameterException("Illegal option: " + policy);
+    return RbFallbackNodeSelectionPolicy::by_internal_imbalance;
+  }
+
+  RbFallbackBlockSelectionPolicy rbFallbackBlockSelectionPolicyFromString(const std::string& policy) {
+    if (policy == "by_internal_imbalance") {
+      return RbFallbackBlockSelectionPolicy::by_internal_imbalance;
+    } else if (policy == "by_dot_product") {
+      return RbFallbackBlockSelectionPolicy::by_dot_product;
+    } else if (policy == "by_progress") {
+      return RbFallbackBlockSelectionPolicy::by_progress;
+    } else if (policy == "any_fitting_max_dimension") {
+      return RbFallbackBlockSelectionPolicy::any_fitting_min_dimension;
+    }
+    throw InvalidParameterException("Illegal option: " + policy);
+    return RbFallbackBlockSelectionPolicy::by_internal_imbalance;
   }
 }
