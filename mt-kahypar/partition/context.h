@@ -224,6 +224,22 @@ struct RebalancingParameters {
   bool l1_rollback = true;
   bool finalize_sequential = false;
   double negative_progress_penalty = 1.0;
+
+  // fallback for multiconstraint
+  bool use_deadlock_fallback = true;
+  bool fallback_use_locking = true;
+  bool fallback_full_locking = false;
+  double fallback_weight_threshold = 0.7;  // relative to max block weight
+  double fallback_node_count_threshold = 0.99;  // relative to max block weight
+  RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::until_balanced;
+  bool fallback_relative_node_priority = true;
+  bool fallback_node_priority_by_weight = true;
+  RbFallbackNodeSelectionPolicy fallback_node_selection = RbFallbackNodeSelectionPolicy::by_internal_imbalance;
+  bool fallback_relative_block_priority = false;
+  RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_progress;
+  size_t fallback_rounds = 1;
+
+  // deterministic rebalancer
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;
   size_t det_max_rounds = 0;
