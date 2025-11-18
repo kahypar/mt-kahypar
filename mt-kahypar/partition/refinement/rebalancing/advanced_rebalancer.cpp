@@ -461,7 +461,8 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   void AdvancedRebalancer<GraphAndGainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                            const HypernodeWeightArray& reduced_part_weights) {
+                                                                            const HypernodeWeightArray& reduced_part_weights,
+                                                                            const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     // init PQs if not done before
@@ -482,7 +483,7 @@ namespace impl {
     // insert nodes into PQs
     phg.doParallelForAllNodes([&](HypernodeID u) {
       const PartitionID b = phg.partID(u);
-      if (!_is_overloaded[b] || phg.isFixed(u)) return;
+      if (!_is_overloaded[b] || phg.isFixed(u) || (is_locked != nullptr && is_locked[u])) return;
 
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u), reduced_part_weights,
                                                          _best_target_block_weight.local(), _tmp_hn_weight.local(), _weight_normalizer);
@@ -709,6 +710,7 @@ namespace impl {
       mt_kahypar_partitioned_hypergraph_t& hypergraph,
       const HypernodeWeightArray& reduced_part_weights,
       size_t& global_move_id,
+      const uint8_t* is_locked,
       bool parallel) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
@@ -721,7 +723,7 @@ namespace impl {
       }
     }
 
-    insertNodesInOverloadedBlocks(hypergraph, reduced_part_weights);
+    insertNodesInOverloadedBlocks(hypergraph, reduced_part_weights, is_locked);
 
     const size_t old_id = global_move_id;
     int64_t attributed_gain = findMoves(hypergraph, reduced_part_weights, global_move_id, parallel);
@@ -757,7 +759,8 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                                                size_t& global_move_id) {
+                                                                                                size_t& global_move_id,
+                                                                                                const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     int64_t attributed_gain = 0;
@@ -770,7 +773,7 @@ namespace impl {
       old_overweight = new_overweight;
       const size_t old_id = global_move_id;
       auto [attr_gain, n_overloaded] =
-        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, true);
+        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, is_locked, true);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
       new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
@@ -778,6 +781,7 @@ namespace impl {
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
       }
+      is_locked = nullptr;
       ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
@@ -787,7 +791,7 @@ namespace impl {
 
     if (_context.refinement.rebalancing.finalize_sequential && !moved_nodes) {
       auto [attr_gain, n_overloaded] =
-        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, false);
+        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, is_locked, false);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
       old_overweight = new_overweight;
@@ -887,6 +891,9 @@ namespace impl {
     parallel::scalable_sort(move_list, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
       return a.rating > b.rating;
     });
+    if (_context.refinement.rebalancing.fallback_use_locking) {
+      _node_is_locked.assign(phg.initialNumNodes(), static_cast<uint8_t>(false), true);
+    }
     DBG << "Applying" << move_list.size() << "moves to break deadlock";
 
     ASSERT([&]{
@@ -924,6 +931,9 @@ namespace impl {
         _move_id_of_node[m.node] = global_move_id;
       }
       _moves[global_move_id++] = Move{from, best_to_part, m.node, static_cast<Gain>(gain)};
+      if (_context.refinement.rebalancing.fallback_use_locking) {
+        _node_is_locked[m.node] = static_cast<uint8_t>(true);
+      }
     }
     return attributed_gain;
   }
@@ -946,7 +956,7 @@ namespace impl {
     }
 
     size_t global_move_id = 0;
-    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id);
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, nullptr);
 
     if (_context.refinement.rebalancing.allow_multiple_moves
         && (moves_by_part != nullptr || moves_linear != nullptr)) {
@@ -967,7 +977,8 @@ namespace impl {
     if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
       DBG << "Starting fallback...";
       attributed_gain += runDeadlockFallback(hypergraph, global_move_id);
-      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id);
+      const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
+      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
     }
@@ -1018,7 +1029,8 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _target_part(num_nodes, kInvalidPartition),
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),
-        _node_state(num_nodes) { }
+        _node_state(num_nodes),
+        _node_is_locked(num_nodes) { }
 
 template <typename GraphAndGainTypes>
 AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(

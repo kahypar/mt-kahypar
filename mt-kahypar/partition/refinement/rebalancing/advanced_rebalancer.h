@@ -130,7 +130,9 @@ private:
                               vec<Move>* moves_linear,
                               Metrics& best_metric);
 
-  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph, const HypernodeWeightArray& reduced_part_weights);
+  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                     const HypernodeWeightArray& reduced_part_weights,
+                                     const uint8_t* is_locked);
 
   int64_t findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                     const HypernodeWeightArray& reduced_part_weights,
@@ -142,10 +144,12 @@ private:
   std::pair<int64_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                        const HypernodeWeightArray& reduced_part_weights,
                                                        size_t& global_move_id,
+                                                       const uint8_t* is_locked,
                                                        bool parallel);
 
   std::tuple<int64_t, size_t, size_t> runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                         size_t& global_move_id);
+                                                         size_t& global_move_id,
+                                                         const uint8_t* is_locked);
 
   int64_t runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
 
@@ -171,6 +175,7 @@ private:
 
   // ! fallback
   vec<ds::StreamingVector<rebalancer::PotentialMove>> _tmp_potential_moves;
+  ds::Array<uint8_t> _node_is_locked;
 };
 
 }  // namespace mt_kahypar
