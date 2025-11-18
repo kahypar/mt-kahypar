@@ -165,7 +165,7 @@ private:
   ds::Array<rebalancer::NodeState> _node_state;
 
   // ! For computing node weight related metrics
-  vec<float> _weight_normalizer;
+  vec<double> _weight_normalizer;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
 
