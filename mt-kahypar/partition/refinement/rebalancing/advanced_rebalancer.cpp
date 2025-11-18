@@ -29,6 +29,7 @@
 #include <array>
 #include <optional>
 #include <random>
+#include <set>
 
 #include <boost/range/irange.hpp>
 
