@@ -42,7 +42,10 @@ FixedVertexSupport<Hypergraph>::FixedVertexSupport() :
   _fixed_vertex_block_weights(),
   _max_block_weights(),
   _fixed_vertex_data(),
-  _constraint_graph(nullptr) { }
+  _constraint_graph(nullptr),
+  _hypergraph_id_to_graph_id(
+        std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(0)
+    ) { }
 
 template<typename Hypergraph>
 FixedVertexSupport<Hypergraph>::FixedVertexSupport(const HypernodeID num_nodes,
@@ -54,7 +57,10 @@ FixedVertexSupport<Hypergraph>::FixedVertexSupport(const HypernodeID num_nodes,
   _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
   _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
   _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }),
-  _constraint_graph(nullptr) { }
+  _constraint_graph(nullptr),
+  _hypergraph_id_to_graph_id(
+        std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(0)
+    ) { }
 
 // the following definitions are necessary to avoid issues with the unique_ptr deleter
 template<typename Hypergraph>
@@ -191,7 +197,7 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
 }
 
 vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pair<HypernodeID,HypernodeID>>& node_vector,
-                                                          std::unordered_map<HypernodeID, HypernodeID>& hypergraph_id_to_graph_id,
+                                                          std::unique_ptr<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>& hypergraph_id_to_graph_id,
                                                           vec<HypernodeWeight>& node_weight, 
                                                           HypernodeID& num_nodes) {
   /**
@@ -202,17 +208,18 @@ vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pai
   vec<std::pair<HypernodeID, HypernodeID>> new_node_vector;
   new_node_vector.reserve(node_vector.size());
   for (const auto& node_pair : node_vector) {
-    auto [it1, inserted1] = hypergraph_id_to_graph_id.emplace(node_pair.first, node_count);
-    if (inserted1) {
+    if (!hypergraph_id_to_graph_id->contains(node_pair.first)) {
+      hypergraph_id_to_graph_id->operator[](node_pair.first) = node_count;
       node_weight.push_back(node_pair.first);
       node_count++;
     }
-    auto [it2, inserted2] = hypergraph_id_to_graph_id.emplace(node_pair.second, node_count);
-    if (inserted2) {
+    if (!hypergraph_id_to_graph_id->contains(node_pair.second)) {
+      hypergraph_id_to_graph_id->operator[](node_pair.second) = node_count;
       node_weight.push_back(node_pair.second);
       node_count++;
     }
-    new_node_vector.push_back(std::make_pair(it1->second, it2->second));
+    new_node_vector.push_back(std::make_pair( hypergraph_id_to_graph_id->get(node_pair.first), 
+                                              hypergraph_id_to_graph_id->get(node_pair.second)));
   }
   num_nodes = node_count;
   return new_node_vector;
@@ -220,6 +227,7 @@ vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pai
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
+  _hypergraph_id_to_graph_id->setMaxSize(constraints.size() * 3);
   vec<HypernodeWeight> node_weight;
   HypernodeID num_nodes;
   vec<std::pair<HypernodeID, HypernodeID>> transformed_constraints = trasform_node_vector(constraints, 
@@ -248,7 +256,7 @@ FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   cpy._fixed_vertex_data = _fixed_vertex_data;
   if (_constraint_graph != nullptr) {
     cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
-    cpy._hypergraph_id_to_graph_id = _hypergraph_id_to_graph_id;
+    cpy._hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(_hypergraph_id_to_graph_id->copy());
   }
   return cpy;
 }

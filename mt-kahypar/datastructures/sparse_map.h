@@ -301,7 +301,7 @@ class FixedSizeSparseMap {
 
   FixedSizeSparseMap(const FixedSizeSparseMap&) = delete;
   FixedSizeSparseMap& operator= (const FixedSizeSparseMap& other) = delete;
-
+  
   FixedSizeSparseMap(FixedSizeSparseMap&& other) :
     _map_size(other._map_size),
     _initial_value(other._initial_value),
@@ -316,6 +316,27 @@ class FixedSizeSparseMap {
   }
 
   ~FixedSizeSparseMap() = default;
+
+  FixedSizeSparseMap<Key, Value> copy() const {
+    FixedSizeSparseMap result(_map_size, _initial_value);
+
+    result._size = _size;
+    result._timestamp = _timestamp;
+    if (_data) {
+        result._data = std::make_unique<uint8_t[]>(_map_size);
+        std::memcpy(result._data.get(), _data.get(), _map_size);
+    }
+    if (_sparse) {
+        result._sparse = new SparseElement[_map_size];
+        std::memcpy(result._sparse, _sparse, sizeof(SparseElement) * _map_size);
+    }
+    if (_dense) {
+        result._dense = new MapElement[_map_size];
+        std::memcpy(result._dense, _dense, sizeof(MapElement) * _map_size);
+    }
+
+    return result;
+  }
 
   size_t capacity() const {
     return _map_size;

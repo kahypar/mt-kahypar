@@ -29,6 +29,7 @@
 #include <atomic>
 #include <memory>
 
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -164,9 +165,8 @@ class FixedVertexSupport {
   }
 
   bool getConstraintIdFromHypergraphId(HypernodeID hypergraph_id, HypernodeID& constraint_id) const {
-    auto it = _hypergraph_id_to_graph_id.find(hypergraph_id);
-    if (it != _hypergraph_id_to_graph_id.end()) {
-        constraint_id = it->second;
+    if (_hypergraph_id_to_graph_id->contains(hypergraph_id)) {
+        constraint_id = _hypergraph_id_to_graph_id->get(hypergraph_id);
         return true;
     } else {
         return false;
@@ -212,7 +212,7 @@ class FixedVertexSupport {
   std::unique_ptr<DynamicGraph> _constraint_graph;
 
   // mapping from HypernodeIds of the partitioned Graph to HypernodeIds of the constraint Graph
-  std::unordered_map<HypernodeID, HypernodeID> _hypergraph_id_to_graph_id;
+  std::unique_ptr<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>> _hypergraph_id_to_graph_id;
 };
 
 }  // namespace ds
