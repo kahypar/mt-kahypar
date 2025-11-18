@@ -102,6 +102,7 @@ namespace mt_kahypar {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
+      const bool was_balanced_before = isBalanced(phg, max_part_weights);
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
       }
@@ -186,6 +187,7 @@ namespace mt_kahypar {
             << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
             << V(elapsed_time) << V(current_time_limit);
       }
+      ASSERT(!was_balanced_before || isBalanced(phg, max_part_weights));
 
       // Enforce a time limit (based on k and coarsening time).
       // Switch to more "light-weight" FM after reaching it the first time. Abort after second time.
