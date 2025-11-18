@@ -69,7 +69,7 @@ namespace impl {
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
-  std::pair<PartitionID, float> computeBestTargetBlock(//todo
+  std::pair<PartitionID, float> computeBestTargetBlock(
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
           HypernodeID u, PartitionID from) {
     const HypernodeWeight wu = phg.nodeWeight(u);

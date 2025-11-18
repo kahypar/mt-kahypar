@@ -332,22 +332,45 @@ namespace mt_kahypar {
   }
 
   template<typename PartitionedHypergraph>
-  PartitionID getLowestWeightPartition(PartitionedHypergraph& partitioned_hg, 
+  PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg,
+                                  const Context& context,
                                   const HypernodeID& node_id, 
-                                  const vec<bool>& is_partition_invalid) {
-    PartitionID partition_id = partitioned_hg.partID(node_id);
-    assert(is_partition_invalid[partition_id]);
-    PartitionID num_partitons = is_partition_invalid.size();
+                                  const vec<bool>& is_partition_invalid,
+                                  const gain_cache_t gain_cache) {
+    PartitionID best_partition = partitioned_hg.partID(node_id);
+    assert(is_partition_invalid[best_partition]);
+    const PartitionID num_partitons = is_partition_invalid.size();
+    const HypernodeWeight node_weight = partitioned_hg.nodeWeight(node_id);
+    HyperedgeWeight max_gain = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight min_weight = std::numeric_limits<HypernodeWeight>::max();
 
+    PartitionID fallback_partition = best_partition;
+    HypernodeWeight fallback_weight = std::numeric_limits<HypernodeWeight>::max();
+    Km1GainCache& concrete_gain_cache = GainCachePtr::cast<Km1GainCache>(gain_cache);
+    concrete_gain_cache.initializeGainCache(partitioned_hg);
+
     for (PartitionID partition = 0; partition < num_partitons; partition++) {
+      if (is_partition_invalid[partition]) continue;
+
+      HypernodeWeight max_weight = context.partition.max_part_weights[partition];
       HypernodeWeight weight = partitioned_hg.partWeight(partition);
-      if(!is_partition_invalid[partition] && weight < min_weight){
-        min_weight = weight;
-        partition_id = partition;
+      HyperedgeWeight gain = concrete_gain_cache.benefitTerm(node_id, partition);
+      if (weight < fallback_weight) {
+        fallback_weight = weight;
+        fallback_partition = partition;
+      }
+
+      if ((gain > max_gain || (gain == max_gain && weight < min_weight)) &&
+          weight + node_weight <= max_weight) {
+          max_gain = gain;
+          min_weight = weight;
+          best_partition = partition;
       }
     }
-    return partition_id;
+    if (max_gain == std::numeric_limits<HyperedgeWeight>::min()) {
+      return fallback_partition;
+    }
+    return best_partition;
   }
 
   template<typename PartitionedHypergraph>
@@ -381,7 +404,7 @@ namespace mt_kahypar {
           invalid_partitions[incident_partition_id] = true;
         }
         if (invalid_partitions[partition_id]) {
-          PartitionID new_partition_id = getLowestWeightPartition(partitioned_hg, node_id, invalid_partitions);
+          PartitionID new_partition_id = getLowestWeightPartition(partitioned_hg, context, node_id, invalid_partitions, gain_cache);
           partitioned_hg.changeNodePart(node_id,
                                         partition_id,
                                         new_partition_id);
@@ -396,6 +419,25 @@ namespace mt_kahypar {
       rebalancer->initialize(phg);
       rebalancer->refine(phg, {}, metrics, 0.0);
       GainCachePtr::deleteGainCache(gain_cache);
+
+      LOG << "";
+      LOG << "Verify balancing didnt destroy anything";
+      LOG << "";
+      LOG << "";
+
+      bool rebalanced_valid = true;
+      for (const auto& node : constraint_graph.nodes()) {
+        HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
+        PartitionID partition = partitioned_hg.partID(node_id);
+        vec<HypernodeID> incident_nodes;
+        constraint_graph.incident_nodes(node, incident_nodes);
+        for (HypernodeID neighbor : incident_nodes) {
+          if (partitioned_hg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
+            rebalanced_valid = false;
+          }
+        }
+      }
+      LOG << (rebalanced_valid? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
     }
   }
 
