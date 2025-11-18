@@ -41,7 +41,7 @@
 namespace mt_kahypar {
 
 namespace impl {
-  void getExtremalDimensions(HNWeightConstRef weight, const vec<float>& weight_normalizer, uint8_t* out_ptr, bool maximimize) {
+  void getExtremalDimensions(HNWeightConstRef weight, const vec<double>& weight_normalizer, uint8_t* out_ptr, bool maximimize) {
     float max_weight = maximimize ? 0 : 1;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       float normalized_weight = weight_normalizer[d] * weight.at(d);
@@ -64,20 +64,20 @@ namespace impl {
     return false;
   }
 
-  float weightOfMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs, const vec<float>& weight_normalizer) {
+  float weightOfMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs, const vec<double>& weight_normalizer) {
     float sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       if (lhs[d] && rhs[d] && sum == 0) {
-        sum += weight_normalizer[d] * weight.at(d);
+        sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
       }
     }
     return sum;
   }
 
-  float normalizedSum(HNWeightConstRef weight, const vec<float>& weight_normalizer) {
+  float normalizedSum(HNWeightConstRef weight, const vec<double>& weight_normalizer) {
     float sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
-      sum += weight_normalizer[d] * weight.at(d);
+      sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
     }
     return sum;
   }
@@ -96,13 +96,13 @@ namespace impl {
     return max_balance - 1.0;
   }
 
-  double imbalanceSum(const HypernodeWeightArray& part_weights, const Context& context, const vec<float>& weight_normalizer) {
+  double imbalanceSum(const HypernodeWeightArray& part_weights, const Context& context, const vec<double>& weight_normalizer) {
     double sum = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       for (Dimension d = 0; d < part_weights.dimension(); ++d) {
         HNWeightScalar diff = part_weights[i].at(d) - context.partition.max_part_weights[i].at(d);
         if (diff > 0) {
-          sum += weight_normalizer[d] * diff;
+          sum += weight_normalizer[d] * static_cast<double>(diff);
         }
       }
     }
@@ -145,7 +145,7 @@ namespace impl {
   }
 
   std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeightConstRef from_weight, HNWeightConstRef max_part_weight_from,
-                                                HNWeightAtomicCRef to_weight, HNWeightConstRef max_part_weight_to, const vec<float>& weight_normalizer) {
+                                                HNWeightAtomicCRef to_weight, HNWeightConstRef max_part_weight_to, const vec<double>& weight_normalizer) {
     ASSERT(wu.dimension() > 1);
     float relative_progress = 0;
     const auto new_to_weight = wu + to_weight;
@@ -171,7 +171,7 @@ namespace impl {
           HypernodeID u, PartitionID from, Range range,
           const HypernodeWeightArray& reduced_part_weights, bool skip_non_adjacent,
           AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight,
-          const vec<float>& weight_normalizer) {
+          const vec<double>& weight_normalizer) {
     const HNWeightConstRef wu = phg.nodeWeight(u);
     const HNWeightAtomicCRef from_weight = phg.partWeight(from);
     const bool any_progress = context.refinement.rebalancing.allow_any_progress;
@@ -257,7 +257,7 @@ namespace impl {
   std::pair<PartitionID, float> computeBestTargetBlock(
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
           HypernodeID u, PartitionID from, const HypernodeWeightArray& reduced_part_weights,
-          AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight, const vec<float>& weight_normalizer) {
+          AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight, const vec<double>& weight_normalizer) {
     return computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, boost::irange<PartitionID>(0, context.partition.k),
                                          reduced_part_weights, true, best_to_weight, tmp_hn_weight, weight_normalizer);
   }
@@ -266,7 +266,7 @@ namespace impl {
   std::pair<PartitionID, float> bestOfThree(
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
           HypernodeID u, PartitionID from, std::array<PartitionID, 3> parts, const HypernodeWeightArray& reduced_part_weights,
-          AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight, const vec<float>& weight_normalizer) {
+          AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight, const vec<double>& weight_normalizer) {
     auto [to, gain] = computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, IteratorRange(parts.cbegin(), parts.cend()),
                                                     reduced_part_weights, false, best_to_weight, tmp_hn_weight, weight_normalizer);
 
@@ -301,7 +301,7 @@ namespace impl {
     GainCache& _gain_cache;
     const Context& _context;
     const HypernodeWeightArray& _reduced_part_weights;
-    const vec<float>& _weight_normalizer;
+    const vec<double>& _weight_normalizer;
 
     vec<rebalancer::GuardedPQ>& _pqs;
     ds::Array<PartitionID>& _target_part;
@@ -310,7 +310,7 @@ namespace impl {
     AllocatedHNWeight& _tmp_hn_weight;
     AccessToken _token;
 
-    NextMoveFinder(int seed, const Context& context, const HypernodeWeightArray& reduced_part_weights, const vec<float>& weight_normalizer,
+    NextMoveFinder(int seed, const Context& context, const HypernodeWeightArray& reduced_part_weights, const vec<double>& weight_normalizer,
                    PartitionedHypergraph& phg, GainCache& gain_cache, vec<rebalancer::GuardedPQ>& pqs,
                    ds::Array<PartitionID>& target_part, ds::Array<rebalancer::NodeState>& node_state,
                    AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight) :
@@ -888,6 +888,18 @@ namespace impl {
       return a.rating > b.rating;
     });
     DBG << "Applying" << move_list.size() << "moves to break deadlock";
+
+    ASSERT([&]{
+      std::set<HypernodeID> move_set;
+      for (const auto& m: move_list) {
+        if (move_set.find(m.node) != move_set.end()) {
+          LOG << "Node" << m.node << "appears twice in move set!";
+          return false;
+        }
+        move_set.insert(m.node);
+      }
+      return true;
+    }());
 
     int64_t attributed_gain = 0;
     for (const auto& m: move_list) {
