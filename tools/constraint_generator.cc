@@ -15,7 +15,7 @@ namespace po = boost::program_options;
 
 constexpr double DEFAULT_CONSTRAINT_FRACTION = 0.15;
 
-void constraints(std::ofstream& out_stream, const io::HyperedgeVector& hyperedges, const PartitionID& max_constraints_per_node, const HypernodeID& num_constraints) {
+HypernodeID constraints(std::ofstream& out_stream, const io::HyperedgeVector& hyperedges, const PartitionID& max_constraints_per_node, const HypernodeID& num_constraints) {
     HypernodeID constraint_count = 0;
     std::unordered_map<HypernodeID, HypernodeID> constraint_per_node;
     for (io::Hyperedge edge : hyperedges) {
@@ -23,7 +23,7 @@ void constraints(std::ofstream& out_stream, const io::HyperedgeVector& hyperedge
             HypernodeID node = edge[i];
             for (HyperedgeID j = i + 1; j < edge.size(); j++) {
                 if (constraint_count >= num_constraints){
-                    return;
+                    return constraint_count;
                 }
                 if (constraint_per_node[node] >= max_constraints_per_node) {
                     break;
@@ -38,6 +38,7 @@ void constraints(std::ofstream& out_stream, const io::HyperedgeVector& hyperedge
             }
         }
     }
+    return constraint_count;
 }
 
 int main(int argc, char* argv[]) {
@@ -84,7 +85,9 @@ int main(int argc, char* argv[]) {
         num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
     }
 
-    constraints(out_stream, hyperedges, max_constraints_per_node, num_constraints);
+    LOG << "";
+    LOG << "Generated " << constraints(out_stream, hyperedges, max_constraints_per_node, num_constraints) << "constraints";
+    LOG << "";
 
     out_stream.close();
     return 0;
