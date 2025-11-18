@@ -151,8 +151,9 @@ namespace impl {
     const auto new_to_weight = wu + to_weight;
     bool has_negative_progress = false;
     for (Dimension d = 0; d < wu.dimension(); ++d) {
-      if (from_weight.at(d) > max_part_weight_from.at(d)) {
-        relative_progress += weight_normalizer[d] * wu.at(d);
+      const HNWeightScalar reduced_weight = std::min(from_weight.at(d) - max_part_weight_from.at(d), wu.at(d));
+      if (reduced_weight > 0) {
+        relative_progress += weight_normalizer[d] * reduced_weight;
       }
       const HNWeightScalar overweight = std::min(new_to_weight.at(d) - max_part_weight_to.at(d), wu.at(d));
       if (overweight > 0) {
