@@ -830,7 +830,8 @@ namespace impl {
         const HNWeightConstRef to_weight = weight::toNonAtomic(phg.partWeight(to));
         float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
                                           &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
-        float rating = (impl::normalizedSum(to_weight, _weight_normalizer) - matchingBlockWeight) / matchingBlockWeight;
+        float weight_sum = impl::normalizedSum(to_weight, _weight_normalizer);
+        float rating = (weight_sum - matchingBlockWeight) / (0.01 * weight_sum + matchingBlockWeight);
         if (rating > best_rating) {
           best_to_part = to;
           best_rating = rating;
@@ -856,7 +857,7 @@ namespace impl {
         if (best_to_part != kInvalidPartition) {
           float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
                                             &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
-          best_rating *= matchingNodeWeight / (impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
+          best_rating *= matchingNodeWeight / (1.01 * impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
           _tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, best_to_part, best_rating});
         }
       }
@@ -891,7 +892,7 @@ namespace impl {
     int64_t attributed_gain = 0;
     for (const auto& m: move_list) {
       const PartitionID from = phg.partID(m.node);
-      ASSERT(!(phg.partWeight(from) <= _context.partition.max_part_weights[from]));
+      if (phg.partWeight(from) <= _context.partition.max_part_weights[from]) continue;
 
       // recompute target
       const HNWeightConstRef weight = phg.nodeWeight(m.node);
