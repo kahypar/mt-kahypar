@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/rebalancing/fallback.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
@@ -73,12 +74,6 @@ namespace rebalancer {
     void markAsMovable() { state = 1; }
 
     void reset() { state = 0; }
-  };
-
-  struct PotentialMove {
-    HypernodeID node;
-    PartitionID to;
-    float rating;
   };
 
 } // namespace rebalancer
