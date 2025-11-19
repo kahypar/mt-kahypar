@@ -666,7 +666,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-rebalancing-fallback-weight-treshold": "r-rebalancing-fallback-weight-treshold"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_weight_threshold :
                               &context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold))->value_name(
-                    "<double>")->default_value(0.25),
+                    "<double>")->default_value(0.7),
              "Multiconstraint: large node threshold for fallback (relative to max block weight)")
             ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-treshold": "r-rebalancing-fallback-node-count-treshold"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_node_count_threshold :
@@ -716,7 +716,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-rebalancing-fallback-rounds": "r-rebalancing-fallback-rounds"),
             po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.fallback_rounds :
                               &context.initial_partitioning.refinement.rebalancing.fallback_rounds))->value_name(
-                    "<size_t>")->default_value(1),
+                    "<size_t>")->default_value(3),
             "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
