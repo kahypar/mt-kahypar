@@ -76,7 +76,7 @@ namespace impl {
   }
 
   template<typename HNWeightExpression>
-  float dotProduct(HNWeightConstRef weight, HNWeightExpression expr, const vec<double>& weight_normalizer) {
+  float dotProduct(HNWeightConstRef weight, const HNWeightExpression& expr, const vec<double>& weight_normalizer) {
     double sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       sum += weight_normalizer[d] * weight_normalizer[d]
@@ -85,7 +85,8 @@ namespace impl {
     return sum;
   }
 
-  float normalizedSum(HNWeightConstRef weight, const vec<double>& weight_normalizer) {
+  template<typename HNWeightExpression>
+  float normalizedSum(const HNWeightExpression& weight, const vec<double>& weight_normalizer) {
     double sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
@@ -931,6 +932,11 @@ namespace impl {
               break;
             }
           };
+          if (_context.refinement.rebalancing.fallback_node_priority_by_weight) {
+            const auto diff_to_block = weight::max(from_weight - _context.partition.max_part_weights[from], weight::broadcast(0, phg.dimension()));
+            float penalty = std::max(impl::normalizedSum(weight, _weight_normalizer), impl::normalizedSum(diff_to_block, _weight_normalizer));
+            rating /= penalty;
+          }
           if (_context.refinement.rebalancing.fallback_relative_node_priority) {
             rating *= node_rating;
           } else {

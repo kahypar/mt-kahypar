@@ -251,6 +251,7 @@ struct RebalancingParameters {
   double fallback_node_count_threshold = 0.99;  // relative to max block weight
   RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::only_one;
   bool fallback_relative_node_priority = false;
+  bool fallback_node_priority_by_weight = true;
   RbFallbackNodeSelectionPolicy fallback_node_selection = RbFallbackNodeSelectionPolicy::by_internal_imbalance;
   bool fallback_relative_block_priority = false;
   RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_internal_imbalance;
