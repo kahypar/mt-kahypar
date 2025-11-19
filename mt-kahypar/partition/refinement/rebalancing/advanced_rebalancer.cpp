@@ -919,8 +919,9 @@ namespace impl {
       auto& max_dimensions = local_max_dimensions.local();
       max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
       impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
-      auto [best_to_part, _] = compute_best_target(from, weight, max_dimensions);
       // DBG << V(m.node) << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part)) << V(m.to) << V(phg.partWeight(m.to));
+      auto [best_to_part, _] = compute_best_target(m.node, from, weight, max_dimensions);
+      if (best_to_part == kInvalidPartition) continue;
 
       int64_t gain = 0;
       phg.changeNodePart(_gain_cache, m.node, from, best_to_part,
