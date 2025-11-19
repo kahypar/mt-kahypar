@@ -871,7 +871,8 @@ namespace impl {
           case RbFallbackBlockSelectionPolicy::by_progress: {
             rating = impl::computeBalanceProgress(weight, weight::toNonAtomic(phg.partWeight(from)), _context.partition.max_part_weights[from],
                                                   to_weight.load(std::memory_order_relaxed), _context.partition.max_part_weights[to], _weight_normalizer).first;
-            rating += impl::normalizedSum(weight, _weight_normalizer);
+            float sum = impl::normalizedSum(weight, _weight_normalizer);
+            rating = (rating + sum) / sum;
             break;
           }
         };
