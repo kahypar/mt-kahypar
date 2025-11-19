@@ -792,7 +792,9 @@ namespace impl {
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
       }
-      is_locked = nullptr;
+      if (!_context.refinement.rebalancing.fallback_full_locking) {
+        is_locked = nullptr;
+      }
       ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0

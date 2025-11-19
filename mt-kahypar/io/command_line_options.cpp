@@ -658,6 +658,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.fallback_use_locking))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether to use locking for the 'deadlock breaking' fallback.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-full-locking": "r-rebalancing-fallback-full-locking"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_full_locking :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_full_locking))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether to use 'full' locking for the 'deadlock breaking' fallback.")
             ((initial_partitioning ? "i-r-rebalancing-fallback-weight-treshold": "r-rebalancing-fallback-weight-treshold"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_weight_threshold :
                               &context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold))->value_name(
