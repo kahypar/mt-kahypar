@@ -246,6 +246,7 @@ struct RebalancingParameters {
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
   bool fallback_use_locking = true;
+  bool fallback_full_locking = false;
   double fallback_weight_threshold = 0.25;  // relative to max block weight
   double fallback_node_count_threshold = 0.99;  // relative to max block weight
   RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::only_one;

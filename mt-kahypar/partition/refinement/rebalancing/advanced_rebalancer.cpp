@@ -66,7 +66,7 @@ namespace impl {
   }
 
   float weightOfMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs, const vec<double>& weight_normalizer) {
-    float sum = 0;
+    double sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       if (lhs[d] && rhs[d] && sum == 0) {
         sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
@@ -75,8 +75,18 @@ namespace impl {
     return sum;
   }
 
+  template<typename HNWeightExpression>
+  float dotProduct(HNWeightConstRef weight, HNWeightExpression expr, const vec<double>& weight_normalizer) {
+    double sum = 0;
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      sum += weight_normalizer[d] * weight_normalizer[d]
+             * static_cast<double>(weight.at(d))* static_cast<double>(expr.at(d));
+    }
+    return sum;
+  }
+
   float normalizedSum(HNWeightConstRef weight, const vec<double>& weight_normalizer) {
-    float sum = 0;
+    double sum = 0;
     for (Dimension d = 0; d < weight.dimension(); ++d) {
       sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
     }
@@ -782,7 +792,9 @@ namespace impl {
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
       }
-      is_locked = nullptr;
+      if (!_context.refinement.rebalancing.fallback_full_locking) {
+        is_locked = nullptr;
+      }
       ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
@@ -825,21 +837,64 @@ namespace impl {
       max_weight_per_block[block] = _context.refinement.rebalancing.fallback_weight_threshold * _context.partition.max_part_weights[block];
     }
 
-    auto compute_best_target = [&](const PartitionID from, const HNWeightConstRef weight, const vec<uint8_t>& max_dimensions) {
+    auto compute_best_target = [&](const HypernodeID hn, const PartitionID from, const HNWeightConstRef weight, const vec<uint8_t>& max_dimensions) {
       PartitionID best_to_part = kInvalidPartition;
       float best_rating = std::numeric_limits<float>::min();
+      HyperedgeWeight best_gain = std::numeric_limits<HyperedgeWeight>::min();
+      const HyperedgeWeight penalty_term = _gain_cache.penaltyTerm(hn, phg.partID(hn));
+      HyperedgeWeight adjacent_weight = 0;
+      if (_context.refinement.rebalancing.fallback_relative_block_priority) {
+        for (HyperedgeID he: phg.incidentEdges(hn)) {
+          adjacent_weight += phg.edgeWeight(he);
+        }
+      }
+
       for (PartitionID to = 0; to < _context.partition.k; ++to) {
         if (from == to) continue;
         if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_min_block_dimension[to * phg.dimension()])) continue;
 
+        float rating = 1.0;
         const HNWeightConstRef to_weight = weight::toNonAtomic(phg.partWeight(to));
-        float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
-                                          &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
-        float weight_sum = impl::normalizedSum(to_weight, _weight_normalizer);
-        float rating = (weight_sum - matchingBlockWeight) / (0.01 * weight_sum + matchingBlockWeight);
-        if (rating > best_rating) {
+        switch (_context.refinement.rebalancing.fallback_block_selection) {
+          case RbFallbackBlockSelectionPolicy::any_fitting_min_dimension: break;
+          case RbFallbackBlockSelectionPolicy::by_internal_imbalance: {
+            float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(),
+                                              &is_min_block_dimension[to * phg.dimension()], _weight_normalizer);
+            float weight_sum = impl::normalizedSum(to_weight, _weight_normalizer);
+            rating = (weight_sum - matchingBlockWeight) / (0.01 * weight_sum + matchingBlockWeight);
+            break;
+          }
+          case RbFallbackBlockSelectionPolicy::by_dot_product: {
+            rating = impl::dotProduct(weight, _context.partition.max_part_weights[to] - to_weight, _weight_normalizer);
+            break;
+          }
+          case RbFallbackBlockSelectionPolicy::by_progress: {
+            rating = impl::computeBalanceProgress(weight, weight::toNonAtomic(phg.partWeight(from)), _context.partition.max_part_weights[from],
+                                                  to_weight.load(std::memory_order_relaxed), _context.partition.max_part_weights[to], _weight_normalizer).first;
+            rating += impl::normalizedSum(weight, _weight_normalizer);
+            break;
+          }
+        };
+
+        HyperedgeWeight gain = 0;
+        if (_context.refinement.rebalancing.fallback_relative_block_priority || rating == best_rating) {
+          HyperedgeWeight benefit;
+          if (_gain_cache.blockIsAdjacent(hn, to)) {
+            benefit = _gain_cache.benefitTerm(hn, to);
+          } else {
+            benefit = _gain_cache.recomputeBenefitTerm(phg, hn, to);
+          }
+          gain = benefit - penalty_term;
+        }
+        if (_context.refinement.rebalancing.fallback_relative_block_priority) {
+          ASSERT(adjacent_weight + gain >= 0);
+          rating *= (2 * adjacent_weight + gain);
+        }
+        ASSERT(rating >= 0);
+        if (rating > best_rating || (rating == best_rating && gain > best_gain)) {
           best_to_part = to;
           best_rating = rating;
+          best_gain = gain;
         }
       }
       return std::make_pair(best_to_part, best_rating);
@@ -849,7 +904,8 @@ namespace impl {
     tbb::enumerable_thread_specific<vec<uint8_t>> local_max_dimensions(phg.dimension(), static_cast<bool>(false));
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       const PartitionID from = phg.partID(hn);
-      if (weight::toNonAtomic(phg.partWeight(from)) <= _context.partition.max_part_weights[from]) return;
+      const HNWeightConstRef from_weight = weight::toNonAtomic(phg.partWeight(from));
+      if (from_weight <= _context.partition.max_part_weights[from]) return;
 
       const HNWeightConstRef weight = phg.nodeWeight(hn);
       if (weight <= max_weight_per_block[from]) {
@@ -858,12 +914,28 @@ namespace impl {
         impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
         if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_max_block_dimension[from * phg.dimension()])) return;
 
-        auto [best_to_part, best_rating] = compute_best_target(from, weight, max_dimensions);
-        if (best_to_part != kInvalidPartition) {
-          float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
-                                            &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
-          best_rating *= matchingNodeWeight / (1.01 * impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
-          _tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, best_to_part, best_rating});
+        auto [to_part, rating] = compute_best_target(hn, from, weight, max_dimensions);
+        if (to_part != kInvalidPartition) {
+          float node_rating = 1.0;
+          switch (_context.refinement.rebalancing.fallback_node_selection) {
+            case RbFallbackNodeSelectionPolicy::any_fitting_max_dimension: break;
+            case RbFallbackNodeSelectionPolicy::by_internal_imbalance: {
+              float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(),
+                                                &is_max_block_dimension[from * phg.dimension()], _weight_normalizer);
+              node_rating = matchingNodeWeight / (1.01 * impl::normalizedSum(weight, _weight_normalizer) - matchingNodeWeight);
+              break;
+            }
+            case RbFallbackNodeSelectionPolicy::by_dot_product: {
+              node_rating = impl::dotProduct(weight, from_weight, _weight_normalizer);
+              break;
+            }
+          };
+          if (_context.refinement.rebalancing.fallback_relative_node_priority) {
+            rating *= node_rating;
+          } else {
+            rating = node_rating;
+          }
+          _tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, to_part, rating});
         }
       }
     });
@@ -879,12 +951,27 @@ namespace impl {
         parallel::scalable_sort(moves_of_block, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
           return a.rating > b.rating;
         });
+
+        // select prefix of moves that should be applied
         AllocatedHNWeight from_weight;
         from_weight = phg.partWeight(from);
-        for (size_t i = 0; i < moves_of_block.size() && !(from_weight <= _context.partition.max_part_weights[from]); ++i) {
-          ASSERT(phg.partID(moves_of_block[i].node) == from);
-          from_weight -= phg.nodeWeight(moves_of_block[i].node);
-          all_moves.stream(moves_of_block[i]);
+        auto should_stop = [&]() {
+          switch (_context.refinement.rebalancing.fallback_node_count) {
+            case RbFallbackNodeCountPolicy::only_one:
+              return true;
+            case RbFallbackNodeCountPolicy::until_balanced:
+              return from_weight <= _context.partition.max_part_weights[from];
+            case RbFallbackNodeCountPolicy::below_threshold:
+              return from_weight <= _context.refinement.rebalancing.fallback_node_count_threshold * _context.partition.max_part_weights[from];
+          };
+          return true;
+        };
+        for (const auto& m: moves_of_block) {
+          ASSERT(phg.partID(m.node) == from);
+          from_weight -= phg.nodeWeight(m.node);
+          all_moves.stream(m);
+
+          if (should_stop()) break;
         }
       }
     });
@@ -919,8 +1006,9 @@ namespace impl {
       auto& max_dimensions = local_max_dimensions.local();
       max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
       impl::getExtremalDimensions(weight, _weight_normalizer, max_dimensions.data(), true);
-      auto [best_to_part, _] = compute_best_target(from, weight, max_dimensions);
       // DBG << V(m.node) << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part)) << V(m.to) << V(phg.partWeight(m.to));
+      auto [best_to_part, _] = compute_best_target(m.node, from, weight, max_dimensions);
+      if (best_to_part == kInvalidPartition) continue;
 
       int64_t gain = 0;
       phg.changeNodePart(_gain_cache, m.node, from, best_to_part,
@@ -951,9 +1039,11 @@ namespace impl {
     if (_context.refinement.rebalancing.allow_multiple_moves) {
       _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
     }
+    // recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise
+    AllocatedHNWeight total_weight = phg.hypergraph().computeTotalNodeWeight(parallel_tag_t());
     _weight_normalizer.resize(phg.dimension(), 0);
     for (Dimension d = 0; d < phg.dimension(); ++d) {
-      _weight_normalizer[d] = 1 / static_cast<float>(phg.totalWeight().at(d));
+      _weight_normalizer[d] = 1 / static_cast<float>(total_weight.at(d));
     }
 
     size_t global_move_id = 0;

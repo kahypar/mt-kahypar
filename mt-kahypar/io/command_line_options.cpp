@@ -658,6 +658,61 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.fallback_use_locking))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether to use locking for the 'deadlock breaking' fallback.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-full-locking": "r-rebalancing-fallback-full-locking"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_full_locking :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_full_locking))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether to use 'full' locking for the 'deadlock breaking' fallback.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-weight-treshold": "r-rebalancing-fallback-weight-treshold"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_weight_threshold :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold))->value_name(
+                    "<double>")->default_value(0.25),
+             "Multiconstraint: large node threshold for fallback (relative to max block weight)")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-treshold": "r-rebalancing-fallback-node-count-treshold"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_node_count_threshold :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_node_count_threshold))->value_name(
+                    "<double>")->default_value(0.99),
+             "Multiconstraint: node count threshold for fallback if using the below_threshold policy (relative to max block weight)")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-policy" : "r-rebalancing-fallback-node-count-policy"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancing.fallback_node_count = rbFallbackNodeCountPolicyFromString(type);
+                       } else {
+                         context.refinement.rebalancing.fallback_node_count = rbFallbackNodeCountPolicyFromString(type);
+                       }
+                     })->default_value("until_balanced"),
+             "Multiconstraint: fallback node count policy")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-relative-node-priority": "r-rebalancing-fallback-relative-node-priority"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_relative_node_priority :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_relative_node_priority))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether fallback node selection includes gain, using the imbalance rating only as a penalty.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-node-selection-policy" : "r-rebalancing-fallback-node-selection-policy"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancing.fallback_node_selection = rbFallbackNodeSelectionPolicyFromString(type);
+                       } else {
+                         context.refinement.rebalancing.fallback_node_selection = rbFallbackNodeSelectionPolicyFromString(type);
+                       }
+                     }),
+             "Multiconstraint: fallback node selection policy")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-relative-block-priority": "r-rebalancing-fallback-relative-block-priority"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_relative_block_priority :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_relative_block_priority))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether fallback block selection includes gain, using the imbalance rating only as a penalty.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-block-selection-policy" : "r-rebalancing-fallback-block-selection-policy"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancing.fallback_block_selection = rbFallbackBlockSelectionPolicyFromString(type);
+                       } else {
+                         context.refinement.rebalancing.fallback_block_selection = rbFallbackBlockSelectionPolicyFromString(type);
+                       }
+                     }),
+             "Multiconstraint: fallback block selection policy")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
                               &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(
