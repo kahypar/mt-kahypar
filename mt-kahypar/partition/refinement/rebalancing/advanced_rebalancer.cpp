@@ -815,8 +815,8 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  int64_t AdvancedRebalancer<GraphAndGainTypes>::runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                     size_t& global_move_id) {
+  std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                                        size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     _tmp_potential_moves.resize(_context.partition.k);
     for (auto& moves: _tmp_potential_moves) {
@@ -997,6 +997,7 @@ namespace impl {
       return true;
     }());
 
+    const size_t old_id = global_move_id;
     int64_t attributed_gain = 0;
     for (const auto& m: move_list) {
       const PartitionID from = phg.partID(m.node);
@@ -1025,7 +1026,7 @@ namespace impl {
         _node_is_locked[m.node] = static_cast<uint8_t>(true);
       }
     }
-    return attributed_gain;
+    return {attributed_gain, global_move_id - old_id};
   }
 
   template <typename GraphAndGainTypes>
@@ -1053,11 +1054,17 @@ namespace impl {
     if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
       DBG << "Starting fallback...";
       const size_t old_id = global_move_id;
-      attributed_gain += runDeadlockFallback(hypergraph, global_move_id);
-      const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
-      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
-      attributed_gain += attr_gain;
-      num_overloaded_blocks = n_overloaded;
+      for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
+        auto [added_gain, n_moved] = runDeadlockFallback(hypergraph, global_move_id);
+        if (n_moved == 0) break;
+
+        attributed_gain += added_gain;
+        const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
+        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
+        attributed_gain += attr_gain;
+        num_overloaded_blocks = n_overloaded;
+      }
+
       if (_context.refinement.rebalancing.use_rollback) {
         const size_t last_id = global_move_id;
         attributed_gain += applyRollback(hypergraph, old_id, global_move_id);

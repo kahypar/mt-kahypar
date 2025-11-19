@@ -713,6 +713,11 @@ namespace mt_kahypar {
                        }
                      }),
              "Multiconstraint: fallback block selection policy")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-rounds": "r-rebalancing-fallback-rounds"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.fallback_rounds :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_rounds))->value_name(
+                    "<size_t>")->default_value(1),
+            "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
                               &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(
