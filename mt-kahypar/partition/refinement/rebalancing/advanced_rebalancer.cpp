@@ -1049,6 +1049,36 @@ namespace impl {
     size_t global_move_id = 0;
     auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, nullptr);
 
+    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
+      DBG << "Starting fallback...";
+      const size_t old_id = global_move_id;
+      attributed_gain += runDeadlockFallback(hypergraph, global_move_id);
+      const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
+      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
+      attributed_gain += attr_gain;
+      num_overloaded_blocks = n_overloaded;
+      if (_context.refinement.rebalancing.use_rollback) {
+        const size_t last_id = global_move_id;
+        attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+
+        if (global_move_id != last_id) {
+          if constexpr (GainCache::invalidates_entries) {
+            tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
+              ASSERT(_moves[i].node < phg.initialNumNodes());
+              _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+            });
+          }
+
+          num_overloaded_blocks = 0;
+          for (PartitionID b = 0; b < _context.partition.k; ++b) {
+            if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
+              num_overloaded_blocks++;
+            }
+          }
+        }
+      }
+    }
+
     if (_context.refinement.rebalancing.allow_multiple_moves
         && (moves_by_part != nullptr || moves_linear != nullptr)) {
       // deduplicate moves: callers are allowed to assume that each move is is unique in the move sequence
@@ -1063,15 +1093,6 @@ namespace impl {
           r_move.invalidate();
         }
       }
-    }
-
-    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
-      DBG << "Starting fallback...";
-      attributed_gain += runDeadlockFallback(hypergraph, global_move_id);
-      const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
-      auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
-      attributed_gain += attr_gain;
-      num_overloaded_blocks = n_overloaded;
     }
 
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
