@@ -151,7 +151,7 @@ private:
                                                          size_t& global_move_id,
                                                          const uint8_t* is_locked);
 
-  int64_t runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
+  std::pair<int64_t, size_t> runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
 
   const Context& _context;
   GainCache& _gain_cache;
