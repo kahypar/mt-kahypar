@@ -511,16 +511,22 @@ namespace mt_kahypar::ds {
     }
   }
 
-  // ! Computes the total node weight of the hypergraph
-  void StaticGraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
+  AllocatedHNWeight StaticGraph::computeTotalNodeWeight(parallel_tag_t) {
     tbb::enumerable_thread_specific<AllocatedHNWeight> local_sum(dimension(), 0);
     doParallelForAllNodes([this, &local_sum](const HypernodeID hn) {
       local_sum.local() += this->_node_weights[hn];
     });
-    _total_weight = weight::broadcast(0, dimension());
+    AllocatedHNWeight result;
+    result = weight::broadcast(0, dimension());
     for (const auto& weight: local_sum) {
-      _total_weight += weight;
+      result += weight;
     }
+    return result;
+  }
+
+  // ! Computes the total node weight of the hypergraph
+  void StaticGraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
+    _total_weight = computeTotalNodeWeight(parallel_tag_t());
   }
 
 } // namespace

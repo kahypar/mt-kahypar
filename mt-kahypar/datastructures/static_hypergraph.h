@@ -518,6 +518,9 @@ class StaticHypergraph {
   }
 
   // ! Computes the total node weight of the hypergraph
+  AllocatedHNWeight computeTotalNodeWeight(parallel_tag_t);
+
+  // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
 
   // ####################### Iterators #######################

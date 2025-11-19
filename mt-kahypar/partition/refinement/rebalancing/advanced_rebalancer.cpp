@@ -1037,9 +1037,11 @@ namespace impl {
     if (_context.refinement.rebalancing.allow_multiple_moves) {
       _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
     }
+    // recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise
+    AllocatedHNWeight total_weight = phg.hypergraph().computeTotalNodeWeight(parallel_tag_t());
     _weight_normalizer.resize(phg.dimension(), 0);
     for (Dimension d = 0; d < phg.dimension(); ++d) {
-      _weight_normalizer[d] = 1 / static_cast<float>(phg.totalWeight().at(d));
+      _weight_normalizer[d] = 1 / static_cast<float>(total_weight.at(d));
     }
 
     size_t global_move_id = 0;
