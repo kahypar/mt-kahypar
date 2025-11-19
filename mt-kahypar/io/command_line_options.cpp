@@ -688,6 +688,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.fallback_relative_node_priority))->value_name(
                     "<bool>")->default_value(false),
              "Multiconstraint: whether fallback node selection includes gain, using the imbalance rating only as a penalty.")
+            ((initial_partitioning ? "i-r-rebalancing-fallback-node-priority-by-weight": "r-rebalancing-fallback-node-priority-by-weight"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_node_priority_by_weight :
+                              &context.initial_partitioning.refinement.rebalancing.fallback_node_priority_by_weight))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether fallback node selection includes gain, using the imbalance rating only as a penalty.")
             ((initial_partitioning ? "i-r-rebalancing-fallback-node-selection-policy" : "r-rebalancing-fallback-node-selection-policy"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
