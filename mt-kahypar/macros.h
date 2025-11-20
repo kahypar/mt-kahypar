@@ -63,6 +63,12 @@
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE inline
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define MT_KAHYPAR_ATTRIBUTE_NO_INLINE __attribute__ ((noinline))
+#else
+#define MT_KAHYPAR_ATTRIBUTE_NO_INLINE
+#endif
+
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
 #define HEAVY_PREPROCESSING_ASSERT_1(cond) ASSERT(cond)
 #define HEAVY_PREPROCESSING_ASSERT_2(cond, msg) ASSERT(cond, msg)
