@@ -29,11 +29,20 @@
 #include "tests/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace io {
+
+AllocatedHNWeight newWeight(const std::vector<HNWeightScalar>& weight) {
+  AllocatedHNWeight result(weight.size(), 0);
+  for (size_t i = 0; i < weight.size(); ++i) {
+    result.at(i) = weight[i];
+  }
+  return result;
+}
 
 template<typename Hypergraph>
 class AnInputReader : public Test {
@@ -246,6 +255,34 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
   ASSERT_EQ(8, this->hypergraph.edgeWeight(3));
 }
 
+TYPED_TEST(AHypergraphReader, ReadsAMulticonstraintHypergraph) {
+  this->readHypergraph("../tests/instances/multiconstraint_hypergraph.hgr", FileFormat::hMetis);
+
+  // Verify Incident Nets
+  this->verifyIncidentNets(
+    { { 0, 1 }, { 1 }, { 0, 3 }, { 1, 2 },
+      {1, 2}, { 3 }, { 2, 3 } });
+
+  // Verify Pins
+  this->verifyPins({ { 0, 2 }, { 0, 1, 3, 4 },
+    { 3, 4, 6 }, { 2, 5, 6 } });
+
+  // Verify Node Weights
+  ASSERT_EQ(newWeight({5, 1}), this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(newWeight({8, 2}), this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(newWeight({2, 3}), this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(newWeight({3, 4}), this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(newWeight({4, 5}), this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(newWeight({9, 6}), this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(newWeight({8, 7}), this->hypergraph.nodeWeight(6));
+
+  // Verify Edge Weights
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
+}
+
 TYPED_TEST(AGraphReader, ReadsAMetisGraph) {
   this->readHypergraph("../tests/instances/unweighted_graph.graph", FileFormat::Metis);
 
@@ -354,6 +391,36 @@ TYPED_TEST(AGraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
   ASSERT_EQ(6, this->hypergraph.nodeWeight(5));
   ASSERT_EQ(2, this->hypergraph.nodeWeight(6));
   ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
+}
+
+TYPED_TEST(AGraphReader, ReadsAMulticonstraintMetisGraph) {
+  this->readHypergraph("../tests/instances/multiconstraint_graph.graph", FileFormat::Metis);
+
+  // Verify Neighbors
+  this->verifyNeighbors(
+    { { 1, 2, 4 },
+      { 0, 2, 3 },
+      { 0, 1, 3, 4 },
+      { 1, 2, 5, 6 },
+      { 0, 2, 5 },
+      { 3, 4, 6 },
+      { 3, 5 },
+      { } } );
+
+  // Verify Node Weights
+  ASSERT_EQ(newWeight({4, 1}), this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(newWeight({2, 2}), this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(newWeight({5, 3}), this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(newWeight({3, 4}), this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(newWeight({1, 5}), this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(newWeight({6, 6}), this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(newWeight({2, 7}), this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(newWeight({1, 8}), this->hypergraph.nodeWeight(7));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
 }
 
 }  // namespace io
