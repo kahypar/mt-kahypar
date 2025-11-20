@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 template<typename TypeTraits, template<typename> typename GainPolicyT>
@@ -168,7 +169,7 @@ class GreedyInitialPartitionerBase {
                      const PartitionID block,
                      const bool use_perfect_balanced_as_upper_bound) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    const HypernodeWeight upper_bound = use_perfect_balanced_as_upper_bound ?
+    const HNWeightConstRef upper_bound = use_perfect_balanced_as_upper_bound ?
       _context.partition.perfect_balance_part_weights[block] : _context.partition.max_part_weights[block];
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       upper_bound;

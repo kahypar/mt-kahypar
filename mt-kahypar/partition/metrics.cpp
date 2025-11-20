@@ -33,6 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -203,22 +204,23 @@ template<typename PartitionedHypergraph, typename Func>
 BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
                               const Context& context,
                               Func&& part_weight_fn,
-                              const std::vector<HypernodeWeight>& max_part_weights) {
+                              const HypernodeWeightArray& max_part_weights) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
   size_t num_empty_parts = 0;
-  HypernodeWeight min_empty_part_weight = std::numeric_limits<HypernodeWeight>::max();
+  HNWeightScalar min_empty_part_weight = std::numeric_limits<HypernodeWeight>::max();
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    const HypernodeWeight part_weight = part_weight_fn(i);
-    const double balance_i = (part_weight
-            / static_cast<double>(context.partition.perfect_balance_part_weights[i]));
-    max_balance = std::max(max_balance, balance_i);
-    if (part_weight > max_part_weights[i]) {
-      violates_balance = true;
+    const auto part_weight = part_weight_fn(i);
+    for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+      const double curr_balance = part_weight.at(d) / static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d));
+      max_balance = std::max(max_balance, curr_balance);
+      if (part_weight.at(d) > max_part_weights[i].at(d)) {
+        violates_balance = true;
+      }
     }
-    if (part_weight == 0) {
+    if (weight::isZero(part_weight)) {
       num_empty_parts++;
       min_empty_part_weight = std::min(min_empty_part_weight, max_part_weights[i]);
     }
@@ -244,7 +246,7 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context&
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const std::vector<HypernodeWeight>& max_part_weights) {
+                         const HypernodeWeightArray& max_part_weights) {
   return imbalance_impl(
     hypergraph,
     context,
@@ -255,8 +257,8 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const vec<HypernodeWeight>& part_weights,
-                         const std::vector<HypernodeWeight>& max_part_weights) {
+                         const HypernodeWeightArray& part_weights,
+                         const HypernodeWeightArray& max_part_weights) {
   ASSERT(part_weights.size() == (size_t)context.partition.k);
   return imbalance_impl(
     hypergraph,
@@ -287,11 +289,11 @@ namespace {
 #define IMBALANCE_1(X) BalanceMetrics imbalance(const X& hypergraph, const Context& context)
 #define IMBALANCE_2(X) BalanceMetrics imbalance(const X& hypergraph, \
                                                 const Context& context, \
-                                                const std::vector<HypernodeWeight>& max_part_weights)
+                                                const HypernodeWeightArray& max_part_weights)
 #define IMBALANCE_3(X) BalanceMetrics imbalance(const X& hypergraph, \
                                                 const Context& context, \
-                                                const vec<HypernodeWeight>& part_weights, \
-                                                const std::vector<HypernodeWeight>& max_part_weights)
+                                                const HypernodeWeightArray& part_weights, \
+                                                const HypernodeWeightArray& max_part_weights)
 #define APPROX_FACTOR(X) double approximationFactorForProcessMapping(const X& hypergraph, const Context& context)
 }
 

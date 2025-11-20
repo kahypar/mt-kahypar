@@ -31,6 +31,7 @@
 #include <limits>
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -53,6 +54,7 @@ std::ostream& operator<< (std::ostream& os, const BalanceMetrics& imbalance);
 struct Metrics {
   HyperedgeWeight quality;
   BalanceMetrics imbalance;
+  // TODO: multi-dimensional imbalance??
 
   bool isBetter(const Metrics& other) const;
 
@@ -86,13 +88,13 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context&
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const std::vector<HypernodeWeight>& max_part_weights);
+                         const HypernodeWeightArray& max_part_weights);
 
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const vec<HypernodeWeight>& part_weights,
-                         const std::vector<HypernodeWeight>& max_part_weights);
+                         const HypernodeWeightArray& part_weights,
+                         const HypernodeWeightArray& max_part_weights);
 
 template<typename PartitionedHypergraph>
 double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);

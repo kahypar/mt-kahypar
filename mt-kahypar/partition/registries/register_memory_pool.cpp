@@ -116,8 +116,8 @@ namespace mt_kahypar {
           pool.register_memory_chunk("Coarsening", "node_sizes", num_hypernodes, sizeof(HyperedgeID));
           pool.register_memory_chunk("Coarsening", "tmp_num_incident_edges",
                                      num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HyperedgeID>));
-          pool.register_memory_chunk("Coarsening", "node_weights",
-                                     num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+          // pool.register_memory_chunk("Coarsening", "node_weights",
+          //                            num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
           pool.register_memory_chunk("Coarsening", "tmp_edges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
           pool.register_memory_chunk("Coarsening", "edge_id_mapping", num_hyperedges / 2, sizeof(HyperedgeID));
         } else {
@@ -126,8 +126,8 @@ namespace mt_kahypar {
           pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
           pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
                                     num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-          pool.register_memory_chunk("Coarsening", "hn_weights",
-                                    num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+          // pool.register_memory_chunk("Coarsening", "hn_weights",
+          //                           num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
           pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
           pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
           pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));

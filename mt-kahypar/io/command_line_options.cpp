@@ -48,6 +48,7 @@
 #include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/io/version.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -244,12 +245,18 @@ namespace mt_kahypar {
       context.partition.fixed_vertex_filename,
       "Fixed vertex file: allows to pre-assign vertices to a block."
     )->check(CLI::ExistingFile);
+
+    std::vector<HNWeightScalar> input_weights;
     app.add_option(
       "--part-weights",
-      context.partition.max_part_weights,
+      input_weights,
       "Use the specified individual part weights instead of epsilon."
     )->transform([&](const auto& value) {
-      context.partition.use_individual_part_weights = true;
+        context.partition.max_part_weights.replaceWith(value.size(), 1, 0, false);
+        for (size_t i = 0; i < value.size(); ++i) {
+                context.partition.max_part_weights[i].set(0, value[i]);
+        }
+        context.partition.use_individual_part_weights = true;
       return value;
     })->check(CLI::PositiveNumber)->type_name("LIST[UINT]");
     app.add_flag(
