@@ -149,9 +149,14 @@ private:
 
   std::pair<int64_t, size_t> runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
 
+  std::tuple<int64_t, size_t, size_t> runGreedyAlgorithmWithFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                     size_t& global_move_id,
+                                                                     const uint8_t* is_locked);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
+  HypernodeID _top_level_num_nodes;
   GainCalculator _gain;
 
   ds::Array<Move> _moves;

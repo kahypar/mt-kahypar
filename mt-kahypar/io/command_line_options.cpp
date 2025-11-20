@@ -956,10 +956,34 @@ namespace mt_kahypar {
        "Multiconstraint: whether to use a 'deadlock breaking' fallback if greedy rebalancing does not succeed."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-deadlock-fallback-only-toplevel": "--r-rebalancing-deadlock-fallback-only-toplevel"),
+      (!initial_partitioning ? context.refinement.rebalancing.deadlock_fallback_only_toplevel :
+        context.initial_partitioning.refinement.rebalancing.deadlock_fallback_only_toplevel ),
+       "Multiconstraint: whether to use 'deadlock breaking' fallback only at top level."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-use-binpacking-fallback": "--r-rebalancing-use-binpacking-fallback"),
+      (!initial_partitioning ? context.refinement.rebalancing.use_binpacking_fallback :
+        context.initial_partitioning.refinement.rebalancing.use_binpacking_fallback ),
+       "Multiconstraint: whether to use a binpacking fallback if rebalancing does not succeed."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-binpacking-fallback-only-toplevel": "--r-rebalancing-binpacking-fallback-only-toplevel"),
+      (!initial_partitioning ? context.refinement.rebalancing.binpacking_fallback_only_toplevel :
+        context.initial_partitioning.refinement.rebalancing.binpacking_fallback_only_toplevel ),
+       "Multiconstraint: whether to use binpacking fallback only at top level."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-fallback-use-locking": "--r-rebalancing-fallback-use-locking"),
       (!initial_partitioning ? context.refinement.rebalancing.fallback_use_locking :
         context.initial_partitioning.refinement.rebalancing.fallback_use_locking ),
        "Multiconstraint: whether to use locking for the 'deadlock breaking' fallback."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-binpacking-use-locking": "--r-rebalancing-binpacking-use-locking"),
+      (!initial_partitioning ? context.refinement.rebalancing.binpacking_use_locking :
+        context.initial_partitioning.refinement.rebalancing.binpacking_use_locking ),
+       "Multiconstraint: whether to use locking for the binpacking fallback."
     )->capture_default_str();
     app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-fallback-full-locking": "--r-rebalancing-fallback-full-locking"),
@@ -968,16 +992,22 @@ namespace mt_kahypar {
        "Multiconstraint: whether to use 'full' locking for the 'deadlock breaking' fallback."
     )->capture_default_str();
     app.add_option(
-      (initial_partitioning ? "--i-r-rebalancing-fallback-weight-treshold": "--r-rebalancing-fallback-weight-treshold"),
+      (initial_partitioning ? "--i-r-rebalancing-fallback-weight-threshold": "--r-rebalancing-fallback-weight-threshold"),
       (!initial_partitioning ? context.refinement.rebalancing.fallback_weight_threshold :
         context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold ),
        "Multiconstraint: large node threshold for fallback (relative to max block weight)"
     )->capture_default_str();
     app.add_option(
-      (initial_partitioning ? "--i-r-rebalancing-fallback-node-count-treshold": "--r-rebalancing-fallback-node-count-treshold"),
+      (initial_partitioning ? "--i-r-rebalancing-fallback-node-count-threshold": "--r-rebalancing-fallback-node-count-threshold"),
       (!initial_partitioning ? context.refinement.rebalancing.fallback_node_count_threshold :
         context.initial_partitioning.refinement.rebalancing.fallback_node_count_threshold ),
        "Multiconstraint: node count threshold for fallback if using the below_threshold policy (relative to max block weight)"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-bin-packing-selection-threshold": "--r-rebalancing-bin-packing-selection-threshold"),
+      (!initial_partitioning ? context.refinement.rebalancing.bin_packing_selection_threshold :
+        context.initial_partitioning.refinement.rebalancing.bin_packing_selection_threshold ),
+       "Multiconstraint: node weight threshold for nodes that are selected in bin packing"
     )->capture_default_str();
     app.add_option_function<std::string>(
       (initial_partitioning ? "--i-r-rebalancing-fallback-node-count-policy" : "--r-rebalancing-fallback-node-count-policy"),
@@ -1035,6 +1065,12 @@ namespace mt_kahypar {
       (!initial_partitioning ? context.refinement.rebalancing.fallback_rounds :
         context.initial_partitioning.refinement.rebalancing.fallback_rounds ),
        "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-binpacking-tasks": "--r-rebalancing-binpacking-tasks"),
+      (!initial_partitioning ? context.refinement.rebalancing.bin_packing_tasks :
+        context.initial_partitioning.refinement.rebalancing.bin_packing_tasks ),
+       "Multiconstraint: number of jobs per binpacking algorithm for binpacking fallback"
     )->capture_default_str();
     app.add_option(
       (initial_partitioning ? "--i-r-det-rebalancing-deadzone" : "--r-det-rebalancing-deadzone"),

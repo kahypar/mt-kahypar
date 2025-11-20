@@ -227,10 +227,15 @@ struct RebalancingParameters {
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
+  bool deadlock_fallback_only_toplevel = false;
+  bool use_binpacking_fallback = false;
+  bool binpacking_fallback_only_toplevel = false;
   bool fallback_use_locking = true;
+  bool binpacking_use_locking = true;
   bool fallback_full_locking = false;
   double fallback_weight_threshold = 0.7;  // relative to max block weight
   double fallback_node_count_threshold = 0.99;  // relative to max block weight
+  double bin_packing_selection_threshold = 0.02;  // relative to max block weight
   RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::until_balanced;
   bool fallback_relative_node_priority = true;
   bool fallback_node_priority_by_weight = true;
@@ -238,6 +243,7 @@ struct RebalancingParameters {
   bool fallback_relative_block_priority = false;
   RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_progress;
   size_t fallback_rounds = 1;
+  size_t bin_packing_tasks = 10;
 
   // deterministic rebalancer
   double det_heavy_vertex_exclusion_factor = 1.5;

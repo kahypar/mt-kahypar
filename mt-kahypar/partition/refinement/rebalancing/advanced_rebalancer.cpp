@@ -37,7 +37,9 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/rebalancing/binpacking_fallback.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
 
 namespace mt_kahypar {
@@ -565,9 +567,6 @@ namespace impl {
     }
 
     int64_t attributed_gain = 0;
-    if (best_move_id < global_move_id) {
-      DBG << "Rolling back" << (global_move_id - best_move_id) << "moves";
-    }
     for (size_t i = global_move_id; i > best_move_id; --i) {
       const size_t move_id = i - 1;
       const Move& m = _moves[move_id];
@@ -579,6 +578,10 @@ namespace impl {
       if (_context.refinement.rebalancing.allow_multiple_moves && _move_id_of_node[m.node] == move_id) {
         _move_id_of_node[m.node] = kInvalidMove;
       }
+    }
+    if (best_move_id < global_move_id) {
+      float overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      DBG << "Rolling back" << (global_move_id - best_move_id) << "moves, overweight:" << overweight;
     }
     global_move_id = best_move_id;
     return attributed_gain;
@@ -714,32 +717,17 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                  vec<vec<Move>>* moves_by_part,
-                                                                  vec<Move>* moves_linear,
-                                                                  Metrics& best_metric) {
+  std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithmWithFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                                                            size_t& global_move_id,
+                                                                                                            const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
-    DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance << " initial cut =" << best_metric.quality;
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
-    if (_context.refinement.rebalancing.allow_multiple_moves) {
-      _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
-    }
-    // recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise
-    AllocatedHNWeight total_weight(phg.dimension(), 0);
-    for (PartitionID block = 0; block < _context.partition.k; ++block) {
-      total_weight += _context.partition.max_part_weights[block];
-    }
-    _weight_normalizer.resize(phg.dimension(), 0);
-    for (Dimension d = 0; d < phg.dimension(); ++d) {
-      _weight_normalizer[d] = 1 / static_cast<double>(total_weight.at(d));
-    }
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, is_locked);
 
-    size_t global_move_id = 0;
-    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, nullptr);
-
-    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
-      DBG << "Starting fallback...";
+    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
+        && (!_context.refinement.rebalancing.deadlock_fallback_only_toplevel || is_top_level)) {
+      DBG << YELLOW << "Starting deadlock fallback..." << END;
       const size_t old_id = global_move_id;
       for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
         auto [added_gain, n_moved] = runDeadlockFallback(hypergraph, global_move_id);
@@ -770,6 +758,109 @@ namespace impl {
               num_overloaded_blocks++;
             }
           }
+        }
+      }
+    }
+    return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
+  }
+
+  template <typename GraphAndGainTypes>
+  bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                  vec<vec<Move>>* moves_by_part,
+                                                                  vec<Move>* moves_linear,
+                                                                  Metrics& best_metric) {
+    auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+    DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance << " initial cut =" << best_metric.quality;
+
+    if (_context.refinement.rebalancing.allow_multiple_moves) {
+      _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
+    }
+    // recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise
+    AllocatedHNWeight total_weight(phg.dimension(), 0);
+    for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      total_weight += _context.partition.max_part_weights[block];
+    }
+    _weight_normalizer.resize(phg.dimension(), 0);
+    for (Dimension d = 0; d < phg.dimension(); ++d) {
+      _weight_normalizer[d] = 1 / static_cast<double>(total_weight.at(d));
+    }
+
+    size_t global_move_id = 0;
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, nullptr);
+
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
+    if (_context.refinement.rebalancing.use_binpacking_fallback && num_overloaded_blocks > 0
+        && (!_context.refinement.rebalancing.binpacking_fallback_only_toplevel || is_top_level)) {
+      DBG << YELLOW << "Starting binpacking fallback..." << END;
+      vec<bp::RebalancingNode> binpacking_nodes = bp::determineNodesForRebalancing(
+        phg, _context, _context.refinement.rebalancing.bin_packing_selection_threshold);
+      DBG << V(binpacking_nodes.size());
+
+      if (!binpacking_nodes.empty()) {
+        utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+        timer.start_timer("bin_packing", "Bin Packing");
+        bool success = bp::computeBinPacking(_context, binpacking_nodes, _weight_normalizer);
+        timer.stop_timer("bin_packing");
+
+        if (success) {
+          const size_t old_id = global_move_id;
+          if (_context.refinement.rebalancing.binpacking_use_locking) {
+            _node_is_locked.assign(phg.initialNumNodes(), static_cast<uint8_t>(false), true);
+          }
+
+          for (const auto& node: binpacking_nodes) {
+            ASSERT(phg.partID(node.id) == node.from && node.to != kInvalidPartition);
+            if (node.from == node.to) continue;
+
+            int64_t gain = 0;
+            phg.changeNodePart(_gain_cache, node.id, node.from, node.to,
+              [&](const SynchronizedEdgeUpdate& sync_update) {
+                gain += AttributedGains::gain(sync_update);
+              });
+            attributed_gain += gain;
+            if (_move_id_of_node[node.id] == kInvalidMove) {
+              _move_id_of_node[node.id] = global_move_id;
+            }
+            _moves[global_move_id++] = Move{node.from, node.to, node.id, static_cast<Gain>(gain)};
+            if (_context.refinement.rebalancing.binpacking_use_locking) {
+              _node_is_locked[node.id] = static_cast<uint8_t>(true);
+            }
+          }
+          if constexpr (GainCache::invalidates_entries) {
+            tbb::parallel_for(old_id, global_move_id, [&](const size_t i) {
+              ASSERT(_moves[i].node < phg.initialNumNodes());
+              _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+            });
+          }
+
+          const auto locks = _context.refinement.rebalancing.binpacking_use_locking ? _node_is_locked.data() : nullptr;
+          auto [attr_gain, n_overloaded, _] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, locks);
+          attributed_gain += attr_gain;
+          num_overloaded_blocks = n_overloaded;
+
+          if (_context.refinement.rebalancing.use_rollback) {
+            const size_t last_id = global_move_id;
+            attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+
+            if (global_move_id != last_id) {
+              if constexpr (GainCache::invalidates_entries) {
+                tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
+                  ASSERT(_moves[i].node < phg.initialNumNodes());
+                  _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+                });
+              }
+
+              num_overloaded_blocks = 0;
+              for (PartitionID b = 0; b < _context.partition.k; ++b) {
+                if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
+                  num_overloaded_blocks++;
+                }
+              }
+            }
+          }
+        } else if (_context.partition.enable_logging && is_top_level) {
+          WARNING("Could not find a balanced solution even via bin packing; instance might not be solvable with specified block weights.");
         }
       }
     }
@@ -830,6 +921,7 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _context(context),
         _gain_cache(gain_cache),
         _current_k(_context.partition.k),
+        _top_level_num_nodes(num_nodes),
         _gain(context),
         _moves(2 * num_nodes),
         _move_id_of_node(num_nodes),

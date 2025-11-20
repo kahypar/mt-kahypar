@@ -6,6 +6,7 @@ set(RefinementSources
         rebalancing/deterministic_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/fallback.cpp
+        rebalancing/binpacking_fallback.cpp
         rebalancing/repair_empty_blocks.cpp
         fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
