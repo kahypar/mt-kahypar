@@ -55,10 +55,10 @@ namespace mt_kahypar {
       const bool positive_gain = best_move.gain < 0;
       const bool zero_gain_move = (_context.refinement.label_propagation.rebalancing &&
                                     best_move.gain == 0 &&
-                                    hypergraph.partWeight(best_move.from) - 1 >
-                                    hypergraph.partWeight(best_move.to) + 1 &&
-                                    hypergraph.partWeight(best_move.to) <
-                                    _context.partition.perfect_balance_part_weights[best_move.to]);
+                                    hypergraph.partWeight(best_move.from) >=
+                                    hypergraph.partWeight(best_move.to) + weight::broadcast(2, hypergraph.dimension()) &&
+                                    weight::isStrictlySmaller(hypergraph.partWeight(best_move.to),
+                                      _context.partition.perfect_balance_part_weights[best_move.to]));
       const bool perform_move = positive_gain || zero_gain_move;
       if (best_move.from != best_move.to && perform_move) {
         PartitionID from = best_move.from;

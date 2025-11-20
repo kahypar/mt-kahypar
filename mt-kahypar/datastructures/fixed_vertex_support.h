@@ -31,6 +31,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -44,8 +45,6 @@ class FixedVertexSupport {
     PartitionID block;
     // ! Number of fixed vertices contracted onto this node
     HypernodeID fixed_vertex_contraction_cnt;
-    // ! Weight at the time it becomes fixed
-    HypernodeWeight fixed_vertex_weight;
     // ! Spin lock to syncronize contractions
     SpinLock sync;
   };
@@ -54,6 +53,7 @@ class FixedVertexSupport {
   FixedVertexSupport();
 
   FixedVertexSupport(const HypernodeID num_nodes,
+                     const Dimension dimension,
                      const PartitionID k);
 
   FixedVertexSupport(const FixedVertexSupport&) = delete;
@@ -62,7 +62,7 @@ class FixedVertexSupport {
   FixedVertexSupport(FixedVertexSupport&&) = default;
   FixedVertexSupport & operator= (FixedVertexSupport&&) = default;
 
-  void setMaxBlockWeight(const std::vector<HypernodeWeight>& max_block_weights);
+  void setMaxBlockWeight(const HypernodeWeightArray& max_block_weights);
 
   PartitionID numBlocks() const {
     return _k;
@@ -71,15 +71,15 @@ class FixedVertexSupport {
   // ####################### Fixed Vertex Block Weights #######################
 
   bool hasFixedVertices() const {
-    return _total_fixed_vertex_weight.load(std::memory_order_relaxed) > 0;
+    return !weight::isZero(_total_fixed_vertex_weight.load(std::memory_order_relaxed));
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeWeight totalFixedVertexWeight() const {
-    return _total_fixed_vertex_weight.load(std::memory_order_relaxed);
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightAtomicCRef totalFixedVertexWeight() const {
+    return _total_fixed_vertex_weight.get().load(std::memory_order_relaxed);
   }
 
   // ! Returns the weight of all fixed vertices assigned to the corresponding block
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightAtomicCRef fixedVertexBlockWeight(const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _k);
     return _fixed_vertex_block_weights[block].load(std::memory_order_relaxed);
   }
@@ -127,8 +127,15 @@ class FixedVertexSupport {
   FixedVertexSupport copy() const;
 
   size_t size_in_bytes() const {
-    return ( sizeof(CAtomic<HypernodeWeight>) + sizeof(HypernodeWeight)) * _k +
-      sizeof(FixedVertexData) * _num_nodes;
+    const auto dimension = _total_fixed_vertex_weight.dimension();
+    return ( 2 * sizeof(HNWeightScalar) * dimension) * _k +
+      (sizeof(FixedVertexData) + sizeof(HNWeightScalar) * dimension) * _num_nodes +
+      sizeof(HNWeightScalar) * dimension;
+      // TODO
+  }
+
+  Dimension dimension() const {
+    return _total_fixed_vertex_weight.dimension();
   }
 
  private:
@@ -142,16 +149,19 @@ class FixedVertexSupport {
   PartitionID _k;
 
   // ! Total weight of all fixed vertices
-  CAtomic<HypernodeWeight> _total_fixed_vertex_weight;
+  AllocatedHNWeight _total_fixed_vertex_weight;
 
   // ! Weight of all vertices fixed to a block
-  vec< CAtomic<HypernodeWeight> > _fixed_vertex_block_weights;
+  HypernodeWeightArray _fixed_vertex_block_weights;
 
   // ! Maximum allowed fixed vertex block weight
-  std::vector<HypernodeWeight> _max_block_weights;
+  HypernodeWeightArray _max_block_weights;
 
   // ! Fixed vertex block IDs of each node
   vec<FixedVertexData> _fixed_vertex_data;
+
+  // ! Fixed vertex weights of each node
+  HypernodeWeightArray _fixed_vertex_hn_weights;
 };
 
 }  // namespace ds

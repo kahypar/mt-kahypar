@@ -31,12 +31,14 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
 class NoWeightPenalty final : public kahypar::meta::PolicyBase {
  public:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight, const HypernodeWeight) {
+ template<typename WeightT, REQUIRE_VALID_WEIGHT(WeightT)>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static double penalty(const WeightT, const WeightT) {
     return 1;
   }
 };
@@ -44,15 +46,18 @@ class NoWeightPenalty final : public kahypar::meta::PolicyBase {
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 class MultiplicativePenalty final : public kahypar::meta::PolicyBase {
  public:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v) {
-    return weight_u * weight_v;
+  template<typename WeightT, REQUIRE_VALID_WEIGHT(WeightT)>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static double penalty(const WeightT weight_u, const WeightT weight_v) {
+    // doesn't really make sense for d > 1
+    return weight::sum(weight_u) * weight::sum(weight_v);
   }
 };
 
 class AdditivePenalty final : public kahypar::meta::PolicyBase {
  public:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v) {
-    return weight_u + weight_v;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static double penalty(const HNWeightConstRef weight_u, const HNWeightConstRef weight_v) {
+    // doesn't really make sense for d > 1
+    return weight::sum(weight_u + weight_v);
   }
 };
 

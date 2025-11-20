@@ -35,23 +35,27 @@ namespace ds {
 FixedVertexSupport::FixedVertexSupport() :
   _num_nodes(0),
   _k(kInvalidPartition),
-  _total_fixed_vertex_weight(0),
+  _total_fixed_vertex_weight(),
   _fixed_vertex_block_weights(),
   _max_block_weights(),
-  _fixed_vertex_data() { }
+  _fixed_vertex_data(),
+  _fixed_vertex_hn_weights() { }
 
-FixedVertexSupport::FixedVertexSupport(const HypernodeID num_nodes, const PartitionID k) :
+FixedVertexSupport::FixedVertexSupport(const HypernodeID num_nodes,
+                                       const Dimension dimension,
+                                       const PartitionID k) :
   _num_nodes(num_nodes),
   _k(k),
-  _total_fixed_vertex_weight(0),
-  _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
-  _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
-  _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
+  _total_fixed_vertex_weight(dimension, 0),
+  _fixed_vertex_block_weights(k, dimension, 0, false),
+  _max_block_weights(k, dimension, std::numeric_limits<HNWeightScalar>::max(), false),
+  _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, SpinLock() }),
+  _fixed_vertex_hn_weights(num_nodes, dimension, 0, false) { }
 
-void FixedVertexSupport::setMaxBlockWeight(const std::vector<HypernodeWeight>& max_block_weights) {
+void FixedVertexSupport::setMaxBlockWeight(const HypernodeWeightArray& max_block_weights) {
   if ( hasFixedVertices() ) {
     ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
-    _max_block_weights = max_block_weights;
+    _max_block_weights = max_block_weights.copy();
   }
 }
 
@@ -63,13 +67,13 @@ void FixedVertexSupport::fixToBlock(const Hypergraph& hg, const HypernodeID hn, 
   PartitionID desired = block;
   if (std::atomic_ref(_fixed_vertex_data[hn].block)
       .compare_exchange_strong(expected, desired, std::memory_order::acq_rel, std::memory_order::relaxed)) {
-    const HypernodeWeight weight_of_hn = hg.nodeWeight(hn);
+    const auto weight_of_hn = hg.nodeWeight(hn);
     _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
-    _fixed_vertex_data[hn].fixed_vertex_weight = weight_of_hn;
-    _fixed_vertex_block_weights[block].fetch_add(
-      weight_of_hn, std::memory_order_relaxed);
-    _total_fixed_vertex_weight.fetch_add(
-      weight_of_hn, std::memory_order_relaxed);
+    _fixed_vertex_hn_weights[hn] = weight_of_hn;
+    weight::eval(_fixed_vertex_block_weights[block].fetch_add(
+      weight_of_hn, std::memory_order_relaxed));
+    weight::eval(_total_fixed_vertex_weight.get().fetch_add(
+      weight_of_hn, std::memory_order_relaxed));
   } else {
     ASSERT(_fixed_vertex_data[hn].block == block,
       "Try to fix hypernode" << hn << "to block" << block
@@ -94,8 +98,8 @@ bool FixedVertexSupport::contractImpl(const Hypergraph& hg, const HypernodeID u,
   bool u_becomes_fixed = false;
   bool v_becomes_fixed = false;
   const bool is_fixed_v = isFixed(v);
-  const HypernodeWeight weight_of_u = hg.nodeWeight(u);
-  const HypernodeWeight weight_of_v = hg.nodeWeight(v);
+  const auto weight_of_u = hg.nodeWeight(u);
+  const auto weight_of_v = hg.nodeWeight(v);
   PartitionID fixed_vertex_block = kInvalidPartition;
   _fixed_vertex_data[u].sync.lock();
   // If we contract a node v onto another node u, all contractions onto v are completed
@@ -128,26 +132,27 @@ bool FixedVertexSupport::contractImpl(const Hypergraph& hg, const HypernodeID u,
     // Either u or v becomes a fixed vertex. Therefore, the fixed vertex block weight changes.
     // To guarantee that we find a feasible initial partition, we ensure that the new block weight
     // is smaller than the maximum allowed block weight.
-    const HypernodeWeight delta_weight =
+    const auto delta_weight =
       u_becomes_fixed * weight_of_u + v_becomes_fixed * weight_of_v;
-    const HypernodeWeight block_weight_after =
+    // TODO: double computation of delta_weight might not be optimal?
+    const auto block_weight_after =
       _fixed_vertex_block_weights[fixed_vertex_block].add_fetch(
         delta_weight, std::memory_order_relaxed);
     if ( likely( block_weight_after <= _max_block_weights[fixed_vertex_block] ) ) {
-      _total_fixed_vertex_weight.fetch_add(delta_weight, std::memory_order_relaxed);
+      weight::eval(_total_fixed_vertex_weight.fetch_add(delta_weight, std::memory_order_relaxed));
       if ( u_becomes_fixed ) {
         ASSERT(isFixed(v));
         ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt == 0);
         // Block weight update was successful => set fixed vertex block of u
         _fixed_vertex_data[u].block = fixedVertexBlock(v);
         _fixed_vertex_data[u].fixed_vertex_contraction_cnt = 1;
-        _fixed_vertex_data[u].fixed_vertex_weight = weight_of_u;
+        _fixed_vertex_hn_weights[u] = weight_of_u;
       }
     } else {
       // The new fixed vertex block weight is larger than the maximum allowed bock weight
       // => revert block weight update and forbid contraction
-      _fixed_vertex_block_weights[fixed_vertex_block].sub_fetch(
-        delta_weight, std::memory_order_relaxed);
+      weight::eval(_fixed_vertex_block_weights[fixed_vertex_block].sub_fetch(
+        delta_weight, std::memory_order_relaxed));
       v_becomes_fixed = false;
       success = false;
     }
@@ -159,7 +164,7 @@ bool FixedVertexSupport::contractImpl(const Hypergraph& hg, const HypernodeID u,
     // if v is contracted onto another node. We therefore can set the fixed vertex block of
     // v outside the lock
     _fixed_vertex_data[v].block = fixed_vertex_block;
-    _fixed_vertex_data[v].fixed_vertex_weight = weight_of_v;
+    _fixed_vertex_hn_weights[v] = weight_of_v;
   }
   return success;
 }
@@ -177,22 +182,22 @@ void FixedVertexSupport::uncontract(const HypernodeID u, const HypernodeID v) {
       if ( contraction_cnt_of_u_after == 0 ) {
         // u was not fixed before the contraction
         const PartitionID fixed_vertex_block_of_u = _fixed_vertex_data[u].block;
-        const HypernodeWeight weight_of_u = _fixed_vertex_data[u].fixed_vertex_weight;
-        _fixed_vertex_block_weights[fixed_vertex_block_of_u].fetch_sub(
-          weight_of_u, std::memory_order_relaxed);
-        _total_fixed_vertex_weight.fetch_sub(
-          weight_of_u, std::memory_order_relaxed);
+        const HNWeightConstRef weight_of_u = _fixed_vertex_hn_weights[u];
+        weight::eval(_fixed_vertex_block_weights[fixed_vertex_block_of_u].fetch_sub(
+          weight_of_u, std::memory_order_relaxed));
+        weight::eval(_total_fixed_vertex_weight.fetch_sub(
+          weight_of_u, std::memory_order_relaxed));
         // Make u a not fixed vertex again
         _fixed_vertex_data[u].block = kInvalidPartition;
       }
     } else {
       // v was not fixed before the contraction
       const PartitionID fixed_vertex_block_of_v = _fixed_vertex_data[v].block;
-      const HypernodeWeight weight_of_v = _fixed_vertex_data[v].fixed_vertex_weight;
-      _fixed_vertex_block_weights[fixed_vertex_block_of_v].fetch_sub(
-        weight_of_v, std::memory_order_relaxed);
-      _total_fixed_vertex_weight.fetch_sub(
-        weight_of_v, std::memory_order_relaxed);
+      const HNWeightConstRef weight_of_v = _fixed_vertex_hn_weights[v];
+      weight::eval(_fixed_vertex_block_weights[fixed_vertex_block_of_v].fetch_sub(
+        weight_of_v, std::memory_order_relaxed));
+      weight::eval(_total_fixed_vertex_weight.fetch_sub(
+        weight_of_v, std::memory_order_relaxed));
       // Make v a not fixed vertex again
       _fixed_vertex_data[v].block = kInvalidPartition;
     }
@@ -203,10 +208,11 @@ FixedVertexSupport FixedVertexSupport::copy() const {
   FixedVertexSupport cpy;
   cpy._num_nodes = _num_nodes;
   cpy._k = _k;
-  cpy._total_fixed_vertex_weight = _total_fixed_vertex_weight;
-  cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights;
-  cpy._max_block_weights = _max_block_weights;
+  cpy._total_fixed_vertex_weight = _total_fixed_vertex_weight.copy();
+  cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights.copy();
+  cpy._max_block_weights = _max_block_weights.copy();
   cpy._fixed_vertex_data = _fixed_vertex_data;
+  cpy._fixed_vertex_hn_weights = _fixed_vertex_hn_weights.copy();
   return cpy;
 }
 
@@ -224,7 +230,7 @@ bool FixedVertexSupport::verifyClustering(const Hypergraph& hg, const vec<Hypern
     }
   }
 
-  vec<HypernodeWeight> expected_block_weights(_k, 0);
+  HypernodeWeightArray expected_block_weights(_k, dimension(), 0, false);
   for ( const HypernodeID& hn : hg.nodes() ) {
     if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
       if ( !isFixed(cluster_ids[hn]) ) {
