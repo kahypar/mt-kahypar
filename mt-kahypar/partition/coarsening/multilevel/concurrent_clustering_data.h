@@ -32,6 +32,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -45,7 +46,6 @@ class ConcurrentClusteringData {
 
   #define STATE(X) static_cast<uint8_t>(X)
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using AtomicID = parallel::IntegralAtomicWrapper<HypernodeID>;
 
  public:
@@ -58,7 +58,7 @@ class ConcurrentClusteringData {
     tbb::parallel_invoke([&] {
       _matching_state.resize(initial_num_nodes);
     }, [&] {
-      _cluster_weight.resize(initial_num_nodes);
+      _cluster_weight.resize(initial_num_nodes, context.dimension());
     }, [&] {
       _matching_partner.resize(initial_num_nodes);
     });
@@ -70,7 +70,13 @@ class ConcurrentClusteringData {
   ConcurrentClusteringData & operator= (ConcurrentClusteringData &&) = delete;
 
   ~ConcurrentClusteringData() {
-    parallel::parallel_free(_matching_state, _cluster_weight, _matching_partner);
+    tbb::parallel_invoke([&] {
+      _matching_state = {};
+    }, [&] {
+      _cluster_weight = {};
+    }, [&] {
+      _matching_partner = {};
+    });
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool vertexIsUnmatched(const HypernodeID u) const {
@@ -78,7 +84,7 @@ class ConcurrentClusteringData {
     return _matching_state[u] == STATE(MatchingState::UNMATCHED);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const parallel::scalable_vector<AtomicWeight>& clusterWeight() const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const HypernodeWeightArray& clusterWeight() const {
     return _cluster_weight;
   }
 
@@ -123,7 +129,7 @@ class ConcurrentClusteringData {
 
   const Context& _context;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;
-  parallel::scalable_vector<AtomicWeight> _cluster_weight;
+  HypernodeWeightArray _cluster_weight;
   parallel::scalable_vector<AtomicID> _matching_partner;
 };
 

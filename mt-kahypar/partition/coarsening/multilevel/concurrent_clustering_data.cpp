@@ -90,8 +90,8 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
   // Indicates that u wants to join the cluster of v.
   // Will be important later for conflict resolution.
   bool success = false;
-  const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
-  HypernodeWeight weight_v = _cluster_weight[v].load(std::memory_order_relaxed);
+  const HNWeightConstRef weight_u = hypergraph.nodeWeight(u);
+  const HNWeightAtomicCRef weight_v = _cluster_weight[v].load(std::memory_order_relaxed);
   if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
     uint8_t expect_unmatched_u = STATE(MatchingState::UNMATCHED);
     if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress, std::memory_order_relaxed) ) {
@@ -165,7 +165,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
 template<typename Hypergraph>
 bool ConcurrentClusteringData::verifyClustering(const Hypergraph& current_hg,
                                                 const parallel::scalable_vector<HypernodeID>& cluster_ids) const {
-  parallel::scalable_vector<HypernodeWeight> expected_weights(current_hg.initialNumNodes());
+  HypernodeWeightArray expected_weights(current_hg.initialNumNodes(), current_hg.dimension(), 0);
   // Verify that clustering is correct
   for ( const HypernodeID& hn : current_hg.nodes() ) {
     const HypernodeID u = hn;
@@ -199,8 +199,8 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
                                            ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
   ASSERT(rep == cluster_ids[rep]);
   bool success = false;
-  const HypernodeWeight weight_of_u = hypergraph.nodeWeight(u);
-  const HypernodeWeight weight_of_rep = _cluster_weight[rep].load(std::memory_order_relaxed);
+  const HNWeightConstRef weight_of_u = hypergraph.nodeWeight(u);
+  const HNWeightAtomicCRef weight_of_rep = _cluster_weight[rep].load(std::memory_order_relaxed);
   bool cluster_join_operation_allowed =
     weight_of_u + weight_of_rep <= _context.coarsening.max_allowed_node_weight;
   if constexpr ( has_fixed_vertices ) {
@@ -210,7 +210,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
   }
   if ( cluster_join_operation_allowed ) {
     cluster_ids[u] = rep;
-    _cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed);
+    weight::eval(_cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed));
     success = true;
   }
   return success;

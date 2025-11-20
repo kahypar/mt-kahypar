@@ -44,6 +44,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -82,18 +83,15 @@ class StaticGraph {
 
     Node() :
       _begin(0),
-      _weight(1),
       _valid(false) { }
 
     explicit Node(const bool valid) :
       _begin(0),
-      _weight(1),
       _valid(valid) { }
 
     // Sentinel Constructor
     explicit Node(const size_t begin) :
       _begin(begin),
-      _weight(1),
       _valid(false) { }
 
     bool isDisabled() const {
@@ -121,20 +119,11 @@ class StaticGraph {
       _begin = begin;
     }
 
-    HypernodeWeight weight() const {
-      return _weight;
-    }
-
-    void setWeight(HypernodeWeight weight) {
-      ASSERT(!isDisabled());
-      _weight = weight;
-    }
-
    private:
     // ! Index of the first element in _edges
     HyperedgeID _begin;
     // ! Node weight
-    HypernodeWeight _weight;
+    // HypernodeWeight _weight;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -404,7 +393,8 @@ class StaticGraph {
   // ! hypergraph such that memory can be reused in consecutive contractions.
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_nodes,
-                                  const HyperedgeID num_edges) {
+                                  const HyperedgeID num_edges,
+                                  const Dimension dimension) {
       tbb::parallel_invoke([&] {
         mapping.resize("Coarsening", "mapping", num_nodes);
       }, [&] {
@@ -414,7 +404,9 @@ class StaticGraph {
       }, [&] {
         tmp_num_incident_edges.resize("Coarsening", "tmp_num_incident_edges", num_nodes);
       }, [&] {
-        node_weights.resize("Coarsening", "node_weights", num_nodes);
+        // TODO: memory pool?!
+        // node_weights.resize("Coarsening", "node_weights", num_nodes);
+        node_weights.resize(num_nodes, dimension);
       }, [&] {
         tmp_edges.resize("Coarsening", "tmp_edges", num_edges);
       }, [&] {
@@ -426,7 +418,7 @@ class StaticGraph {
     Array<Node> tmp_nodes;
     Array<HyperedgeID> node_sizes;
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
+    HypernodeWeightArray node_weights;
     Array<TmpEdgeInformation> tmp_edges;
     Array<HyperedgeID> edge_id_mapping;
   };
@@ -460,8 +452,9 @@ class StaticGraph {
     _num_nodes(0),
     _num_removed_nodes(0),
     _num_edges(0),
-    _total_weight(0),
+    _total_weight(),
     _nodes(),
+    _node_weights(),
     _edges(),
     _unique_edge_ids(),
     _community_ids(),
@@ -475,8 +468,9 @@ class StaticGraph {
     _num_nodes(other._num_nodes),
     _num_removed_nodes(other._num_removed_nodes),
     _num_edges(other._num_edges),
-    _total_weight(other._total_weight),
+    _total_weight(std::move(other._total_weight)),
     _nodes(std::move(other._nodes)),
+    _node_weights(std::move(other._node_weights)),
     _edges(std::move(other._edges)),
     _unique_edge_ids(std::move(other._unique_edge_ids)),
     _community_ids(std::move(other._community_ids)),
@@ -490,8 +484,9 @@ class StaticGraph {
     _num_nodes = other._num_nodes;
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
-    _total_weight = other._total_weight;
+    _total_weight = std::move(other._total_weight);
     _nodes = std::move(other._nodes);
+    _node_weights = std::move(other._node_weights);
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
     _community_ids = std::move(other._community_ids),
@@ -543,13 +538,18 @@ class StaticGraph {
     return _num_edges;
   }
 
+  // ! Vertex weight dimension
+  HypernodeID dimension() const {
+    return _node_weights.dimension();
+  }
+
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _num_edges;
   }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
+  HNWeightConstRef totalWeight() const {
     return _total_weight;
   }
 
@@ -610,13 +610,16 @@ class StaticGraph {
     // ####################### Node Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
-    return node(u).weight();
+  HNWeightConstRef nodeWeight(const HypernodeID u) const {
+    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    return _node_weights[u];
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    return node(u).setWeight(weight);
+  template<typename R, REQUIRE_VALID_WEIGHT(R)>
+  void setNodeWeight(const HypernodeID u, const R& weight) {
+    ASSERT(!node(u).isDisabled(), "Hypernode" << u << "is disabled");
+    _node_weights[u] = weight;
   }
 
   // ! Degree of a hypernode
@@ -725,11 +728,11 @@ class StaticGraph {
     return _fixed_vertices.hasFixedVertices();
   }
 
-  HypernodeWeight totalFixedVertexWeight() const {
+  HNWeightAtomicCRef totalFixedVertexWeight() const {
     return _fixed_vertices.totalFixedVertexWeight();
   }
 
-  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  HNWeightAtomicCRef fixedVertexBlockWeight(const PartitionID block) const {
     return _fixed_vertices.fixedVertexBlockWeight(block);
   }
 
@@ -741,7 +744,7 @@ class StaticGraph {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
-  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  void setMaxFixedVertexBlockWeight(const HypernodeWeightArray& max_block_weights) {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
@@ -773,7 +776,7 @@ class StaticGraph {
   }
 
   size_t contract(const HypernodeID,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+                  const HNWeightConstRef max_node_weight = weight::newInvalid()) {
     unused(max_node_weight);
     throw UnsupportedOperationException(
       "contract(v, max_node_weight) is not supported in static graph");
@@ -928,7 +931,7 @@ class StaticGraph {
   // ! Allocate the temporary contraction buffer
   void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
-      _tmp_contraction_buffer = new TmpContractionBuffer(_num_nodes, _num_edges);
+      _tmp_contraction_buffer = new TmpContractionBuffer(_num_nodes, _num_edges, dimension());
     }
   }
 
@@ -939,10 +942,12 @@ class StaticGraph {
   // ! Number of edges (note that each hyperedge is respresented as two graph edges)
   HyperedgeID _num_edges;
   // ! Total weight of the graph
-  HypernodeWeight _total_weight;
+  AllocatedHNWeight _total_weight;
 
   // ! Nodes
   Array<Node> _nodes;
+  // ! Node weights
+  HypernodeWeightArray _node_weights;
   // ! Edges
   Array<Edge> _edges;
   // ! Edges
