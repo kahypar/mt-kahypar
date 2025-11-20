@@ -653,11 +653,31 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether to use a 'deadlock breaking' fallback if greedy rebalancing does not succeed.")
+            ((initial_partitioning ? "i-r-rebalancing-deadlock-fallback-only-toplevel": "r-rebalancing-deadlock-fallback-only-toplevel"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.deadlock_fallback_only_toplevel :
+                              &context.initial_partitioning.refinement.rebalancing.deadlock_fallback_only_toplevel))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether to use 'deadlock breaking' fallback only at top level.")
+            ((initial_partitioning ? "i-r-rebalancing-use-binpacking-fallback": "r-rebalancing-use-binpacking-fallback"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_binpacking_fallback :
+                              &context.initial_partitioning.refinement.rebalancing.use_binpacking_fallback))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether to use a binpacking fallback if rebalancing does not succeed.")
+            ((initial_partitioning ? "i-r-rebalancing-binpacking-fallback-only-toplevel": "r-rebalancing-binpacking-fallback-only-toplevel"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.binpacking_fallback_only_toplevel :
+                              &context.initial_partitioning.refinement.rebalancing.binpacking_fallback_only_toplevel))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: whether to use binpacking fallback only at top level.")
             ((initial_partitioning ? "i-r-rebalancing-fallback-use-locking": "r-rebalancing-fallback-use-locking"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_use_locking :
                               &context.initial_partitioning.refinement.rebalancing.fallback_use_locking))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether to use locking for the 'deadlock breaking' fallback.")
+            ((initial_partitioning ? "i-r-rebalancing-binpacking-use-locking": "r-rebalancing-binpacking-use-locking"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.binpacking_use_locking :
+                              &context.initial_partitioning.refinement.rebalancing.binpacking_use_locking))->value_name(
+                    "<bool>")->default_value(true),
+             "Multiconstraint: whether to use locking for the binpacking fallback.")
             ((initial_partitioning ? "i-r-rebalancing-fallback-full-locking": "r-rebalancing-fallback-full-locking"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.fallback_full_locking :
                               &context.initial_partitioning.refinement.rebalancing.fallback_full_locking))->value_name(
