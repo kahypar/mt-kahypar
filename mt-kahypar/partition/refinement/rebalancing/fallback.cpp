@@ -26,12 +26,25 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/fallback.h"
 
+#include <set>
+
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
+
+namespace impl {
+  // factoring out this function seems to significantly improve compile time,
+  // probably because the calling function becomes overly complex if it is inlined
+  MT_KAHYPAR_ATTRIBUTE_NO_INLINE void scalableSortMoves(vec<rebalancer::PotentialMove>& moves) {
+    parallel::scalable_sort(moves, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
+      return a.rating > b.rating;
+    });
+  }
+}
+
 namespace rebalancer {
 
 static constexpr MoveID kInvalidMove = std::numeric_limits<MoveID>::max();
@@ -213,9 +226,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
       vec<rebalancer::PotentialMove> moves_of_block = tmp_potential_moves[from].copy_parallel();
 
       // sort the moves from each overweight part by rating
-      parallel::scalable_sort(moves_of_block, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
-        return a.rating > b.rating;
-      });
+      impl::scalableSortMoves(moves_of_block);
 
       // select prefix of moves that should be applied
       AllocatedHNWeight from_weight;
@@ -241,9 +252,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     }
   });
   vec<rebalancer::PotentialMove> move_list = all_moves.copy_parallel();
-  parallel::scalable_sort(move_list, [](const rebalancer::PotentialMove& a, const rebalancer::PotentialMove& b) {
-    return a.rating > b.rating;
-  });
+  impl::scalableSortMoves(move_list);
   // ASSERT(!move_list.empty());  --> weight threshold
   DBG << "Applying" << move_list.size() << "moves to break deadlock";
 
