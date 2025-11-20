@@ -70,20 +70,16 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
   }
 
   // compute the extremal dimensions and weight normalizers of all blocks, to speed up later calculations
+  vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(context);
   vec<uint8_t> is_max_block_dimension(context.partition.k * phg.dimension(), static_cast<bool>(false));
   vec<uint8_t> is_min_block_dimension(context.partition.k * phg.dimension(), static_cast<bool>(false));
-  vec<vec<double>> block_weight_normalizers(context.partition.k, vec<double>{});
   for (PartitionID block = 0; block < context.partition.k; ++block) {
-    vec<double> normalizer(phg.dimension(), 0);
-    for (Dimension d = 0; d < phg.dimension(); ++d) {
-      normalizer[d] = 1 / static_cast<double>(context.partition.max_part_weights[block].at(d));
-    }
+    const vec<double>& normalizer = block_weight_normalizers[block];
     const HNWeightConstRef block_weight = weight::toNonAtomic(phg.partWeight(block));
     impl::getExtremalDimensions(block_weight, normalizer,
                                 &is_max_block_dimension[block * phg.dimension()], true);
     impl::getExtremalDimensions(block_weight, normalizer,
                                 &is_min_block_dimension[block * phg.dimension()], false);
-    block_weight_normalizers[block] = std::move(normalizer);
   }
   // it can happen (due to degree 0 nodes or individual block weights) that some min dimension is not present for any block
   // ---> compute block with most fitting imbalance instead

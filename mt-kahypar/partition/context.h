@@ -245,7 +245,11 @@ struct RebalancingParameters {
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
+  bool deadlock_fallback_only_toplevel = false;
+  bool use_binpacking_fallback = true;
+  bool binpacking_fallback_only_toplevel = false;
   bool fallback_use_locking = true;
+  bool binpacking_use_locking = true;
   bool fallback_full_locking = false;
   double fallback_weight_threshold = 0.7;  // relative to max block weight
   double fallback_node_count_threshold = 0.99;  // relative to max block weight

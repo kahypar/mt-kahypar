@@ -167,5 +167,17 @@ inline std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeig
   return {relative_progress, has_negative_progress};
 }
 
+inline vec<vec<double>> computeBlockWeightNormalizers(const Context& context) {
+  vec<vec<double>> block_weight_normalizers(context.partition.k, vec<double>{});
+  for (PartitionID block = 0; block < context.partition.k; ++block) {
+    vec<double> normalizer(context.dimension(), 0);
+    for (Dimension d = 0; d < context.dimension(); ++d) {
+      normalizer[d] = 1 / static_cast<double>(context.partition.max_part_weights[block].at(d));
+    }
+    block_weight_normalizers[block] = std::move(normalizer);
+  }
+  return block_weight_normalizers;
+}
+
 } // namespace impl
 }  // namespace mt_kahypar
