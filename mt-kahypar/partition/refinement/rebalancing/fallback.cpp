@@ -287,9 +287,9 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     int64_t gain = 0;
     phg.changeNodePart(gain_cache, m.node, from, best_to_part,
       [&](const SynchronizedEdgeUpdate& sync_update) {
-        gain = AttributedGains::gain(sync_update);
-        attributed_gain += gain;
+        gain += AttributedGains::gain(sync_update);
       });
+    attributed_gain += gain;
     if (move_id_of_node[m.node] == kInvalidMove) {
       move_id_of_node[m.node] = global_move_id;
     }
@@ -297,6 +297,12 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     if (context.refinement.rebalancing.fallback_use_locking) {
       node_is_locked[m.node] = static_cast<uint8_t>(true);
     }
+  }
+  if constexpr (GainCache::invalidates_entries) {
+    tbb::parallel_for(old_id, global_move_id, [&](const size_t i) {
+      ASSERT(moves[i].node < phg.initialNumNodes());
+      gain_cache.recomputeInvalidTerms(phg, moves[i].node);
+    });
   }
   return {attributed_gain, global_move_id - old_id};
 }
