@@ -31,9 +31,10 @@
 #include <algorithm>
 #include <numeric>
 
-#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/parallel/thread_management.h"
+#include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -290,6 +291,12 @@ namespace mt_kahypar {
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
     return str;
+  }
+
+  Context::Context(const bool register_utilities) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
   }
 
   bool Context::isNLevelPartitioning() const {

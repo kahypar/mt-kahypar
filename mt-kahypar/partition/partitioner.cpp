@@ -46,6 +46,7 @@
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/utilities.h"
 
 
 namespace mt_kahypar {

@@ -29,7 +29,6 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -311,11 +310,7 @@ class Context {
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
   size_t utility_id = std::numeric_limits<size_t>::max();
 
-  Context(const bool register_utilities = true) {
-    if ( register_utilities ) {
-      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-    }
-  }
+  Context(const bool register_utilities = true);
 
   bool isNLevelPartitioning() const;
 

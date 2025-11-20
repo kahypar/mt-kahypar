@@ -43,6 +43,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 #include "kahypar-resources/utils/math.h"
 

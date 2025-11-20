@@ -44,6 +44,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/presets.h"
 

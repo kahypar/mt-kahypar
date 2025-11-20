@@ -28,7 +28,6 @@
 #include <iostream>
 #include <chrono>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -46,6 +45,7 @@
 #include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
+using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 int main(int argc, char* argv[]) {
 

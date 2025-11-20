@@ -45,6 +45,8 @@
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
+
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;

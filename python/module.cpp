@@ -55,6 +55,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/randomize.h"
 
 
 namespace py = pybind11;
