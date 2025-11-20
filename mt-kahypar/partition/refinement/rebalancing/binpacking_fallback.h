@@ -48,7 +48,7 @@ struct RebalancingNode {
 template<typename PartitionedHypergraph>
 vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context);
 
-bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes);
+bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, const vec<double>& weight_normalizer);
 
 }
 }  // namespace mt_kahypar
