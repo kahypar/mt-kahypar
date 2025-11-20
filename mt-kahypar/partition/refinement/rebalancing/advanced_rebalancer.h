@@ -150,6 +150,10 @@ private:
 
   std::pair<int64_t, size_t> runDeadlockFallback(PartitionedHypergraph& phg, size_t& global_move_id);
 
+  std::pair<size_t, size_t> runGreedyAlgorithmWithFallback(PartitionedHypergraph& phg,
+                                                           int64_t& attributed_gain,
+                                                           size_t& global_move_id);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
