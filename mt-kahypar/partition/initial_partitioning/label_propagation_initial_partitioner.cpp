@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -306,10 +307,10 @@ void LabelPropagationInitialPartitioner<TypeTraits>::assignVertexToBlockWithMini
                                                                                           const HypernodeID hn) {
   ASSERT(hypergraph.partID(hn) == kInvalidPartition);
   PartitionID minimum_weight_block = kInvalidPartition;
-  HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();
+  HNWeightConstRef minimum_weight = weight::newInvalid();
   for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-    const HypernodeWeight block_weight = hypergraph.partWeight(block);
-    if ( block_weight < minimum_weight ) {
+    const HNWeightConstRef block_weight = weight::toNonAtomic(hypergraph.partWeight(block));
+    if ( weight::isInvalid(minimum_weight) || block_weight < minimum_weight ) {
       minimum_weight = block_weight;
       minimum_weight_block = block;
     }

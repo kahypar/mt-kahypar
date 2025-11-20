@@ -40,6 +40,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -83,8 +84,6 @@ class MultilevelVertexPairRater {
     LARGE_RATING_MAP
   };
 
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
-
  public:
   using Rating = VertexPairRating;
 
@@ -116,9 +115,9 @@ class MultilevelVertexPairRater {
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
-                        const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const HypernodeWeightArray& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                        const HypernodeWeight max_allowed_node_weight,
+                        const HNWeightConstRef max_allowed_node_weight,
                         const bool may_ignore_communities) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
@@ -162,9 +161,9 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
-                        const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const HypernodeWeightArray& cluster_weight,
                         const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
-                        const HypernodeWeight max_allowed_node_weight,
+                        const HNWeightConstRef max_allowed_node_weight,
                         const bool may_ignore_communities,
                         const bool use_vertex_degree_sampling) {
 
@@ -175,7 +174,7 @@ class MultilevelVertexPairRater {
     }
 
     int cpu_id = THREAD_ID;
-    const HypernodeWeight weight_u = cluster_weight[u];
+    const HNWeightConstRef weight_u = cluster_weight[u];
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
@@ -183,12 +182,11 @@ class MultilevelVertexPairRater {
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
       const HypernodeID tmp_target = tmp_target_id;
-      const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
+      const HNWeightConstRef target_weight = cluster_weight[tmp_target_id];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
-        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
-        penalty = std::max(penalty, 1);
-        const RatingType tmp_rating = it->value / static_cast<double>(penalty);
+        const double penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
+        const RatingType tmp_rating = it->value / std::max(penalty, 1.0);
 
         bool accept_fixed_vertex_contraction = true;
         if constexpr ( has_fixed_vertices ) {

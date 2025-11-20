@@ -45,6 +45,7 @@
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -67,6 +68,7 @@ class PartitionedHypergraph {
   using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
   #define NOOP_NOTIFY_FUNC [] (const SynchronizedEdgeUpdate&) { }
   #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
+  #define MAX_WEIGHT weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), dimension())
 
   // Factory
   using HypergraphFactory = typename Hypergraph::Factory;
@@ -108,7 +110,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, hypergraph.dimension(), 0),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _con_info(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
@@ -125,7 +127,7 @@ class PartitionedHypergraph {
     _k(k),
     _hg(&hypergraph),
     _target_graph(nullptr),
-    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_weights(k, hypergraph.dimension(), 0),
     _part_ids(),
     _con_info(),
     _pin_count_update_ownership() {
@@ -160,7 +162,7 @@ class PartitionedHypergraph {
     }, [&] {
       _con_info.reset();
     }, [&] {
-      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+      _part_weights.assign(_part_weights.size(), 0, false);
     });
   }
 
@@ -210,13 +212,18 @@ class PartitionedHypergraph {
     return _hg->initialNumPins();
   }
 
+  // ! Vertex weight dimension
+  HypernodeID dimension() const {
+    return _hg->dimension();
+  }
+
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _hg->initialTotalVertexDegree();
   }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
+  HNWeightConstRef totalWeight() const {
     return _hg->totalWeight();
   }
 
@@ -306,16 +313,17 @@ class PartitionedHypergraph {
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
+  HNWeightConstRef nodeWeight(const HypernodeID u) const {
     return _hg->nodeWeight(u);
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+  template<typename R, REQUIRE_VALID_WEIGHT(R)>
+  void setNodeWeight(const HypernodeID u, const R& weight) {
     const PartitionID block = partID(u);
     if ( block != kInvalidPartition ) {
       ASSERT(block < _k);
-      const HypernodeWeight delta = weight - _hg->nodeWeight(u);
+      auto delta = weight - _hg->nodeWeight(u);
       _part_weights[block] += delta;
     }
     _hg->setNodeWeight(u, weight);
@@ -564,7 +572,7 @@ class PartitionedHypergraph {
 
   void setNodePart(const HypernodeID u, PartitionID p) {
     setOnlyNodePart(u, p);
-    _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    weight::eval(_part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed));
     for (HyperedgeID he : incidentEdges(u)) {
       incrementPinCountOfBlock(he, p);
     }
@@ -572,12 +580,12 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  template<typename SuccessFunc>
+  template<typename SuccessFunc, typename Weight, REQUIRE_VALID_WEIGHT(Weight)>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      HypernodeWeight max_weight_to,
+                      const Weight& max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func,
                       const NotificationFunc& notify_func = NOOP_NOTIFY_FUNC,
@@ -586,11 +594,12 @@ class PartitionedHypergraph {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     ASSERT(force_moving_fixed_vertices || !isFixed(u));
-    const HypernodeWeight wu = nodeWeight(u);
-    const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
+    const HNWeightConstRef wu = nodeWeight(u);
+    // TODO: might not be the most efficient implementation (vs. early return for add/sub)
+    const auto to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
-      _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+      weight::eval(_part_weights[from].fetch_sub(wu, std::memory_order_relaxed));
       report_success();
       SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
@@ -602,7 +611,7 @@ class PartitionedHypergraph {
       }
       return true;
     } else {
-      _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
+      weight::eval(_part_weights[to].fetch_sub(wu, std::memory_order_relaxed));
       return false;
     }
   }
@@ -614,16 +623,15 @@ class PartitionedHypergraph {
                             PartitionID to,
                             const bool force_moving_fixed_vertex = false) {
     return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
-        NOOP_FUNC, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
+      MAX_WEIGHT, []{}, NOOP_FUNC, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
   }
 
-  template<typename SuccessFunc>
+  template<typename SuccessFunc, typename Weight, REQUIRE_VALID_WEIGHT(Weight)>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePartNoSync(const HypernodeID u,
                             PartitionID from,
                             PartitionID to,
-                            HypernodeWeight max_weight_to,
+                            const Weight& max_weight_to,
                             SuccessFunc&& report_success) {
     return changeNodePart(u, from, to,
       max_weight_to, report_success, NOOP_FUNC, NOOP_NOTIFY_FUNC);
@@ -634,17 +642,16 @@ class PartitionedHypergraph {
                       PartitionID from,
                       PartitionID to,
                       const DeltaFunction& delta_func) {
-    return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, NOOP_NOTIFY_FUNC);
+    return changeNodePart(u, from, to, MAX_WEIGHT, []{}, delta_func, NOOP_NOTIFY_FUNC);
   }
 
-  template<typename GainCache, typename SuccessFunc>
+  template<typename GainCache, typename SuccessFunc, typename Weight, REQUIRE_VALID_WEIGHT(Weight)>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(GainCache& gain_cache,
                       const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      HypernodeWeight max_weight_to,
+                      const Weight& max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
     auto my_delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -667,9 +674,7 @@ class PartitionedHypergraph {
   bool changeNodePart(const HypernodeID u,
                             PartitionID from,
                             PartitionID to) {
-    return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{},
-        NOOP_FUNC, NOOP_NOTIFY_FUNC, false);
+    return changeNodePart(u, from, to, MAX_WEIGHT, []{}, NOOP_FUNC, NOOP_NOTIFY_FUNC, false);
   }
 
   template<typename GainCache>
@@ -678,12 +683,11 @@ class PartitionedHypergraph {
                       const HypernodeID u,
                       PartitionID from,
                       PartitionID to) {
-    return changeNodePart(gain_cache, u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
+    return changeNodePart(gain_cache, u, from, to, MAX_WEIGHT, []{}, NoOpDeltaFunc());
   }
 
   // ! Weight of a block
-  HypernodeWeight partWeight(const PartitionID p) const {
+  HNWeightAtomicCRef partWeight(const PartitionID p) const {
     ASSERT(p != kInvalidPartition && p < _k);
     return _part_weights[p].load(std::memory_order_relaxed);
   }
@@ -774,7 +778,7 @@ class PartitionedHypergraph {
   // ! Reset partition (not thread-safe)
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
-    for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    _part_weights.assign(_part_weights.size(), 0, false);
 
     // Reset pin count in part and connectivity set
     _con_info.reset(false);
@@ -787,9 +791,8 @@ class PartitionedHypergraph {
 
   // ! Only for testing
   void recomputePartWeights() {
-    for (PartitionID p = 0; p < _k; ++p) {
-      _part_weights[p].store(0);
-    }
+    ASSERT(_part_weights.size() == static_cast<size_t>(_k));
+    _part_weights.assign(_part_weights.size(), 0, false);
 
     for (HypernodeID u : nodes()) {
       _part_weights[ partID(u) ] += nodeWeight(u);
@@ -905,7 +908,7 @@ class PartitionedHypergraph {
     utils::MemoryTreeNode* connectivity_info_node = parent->addChild("Connectivity Information");
     _con_info.memoryConsumption(connectivity_info_node);
 
-    parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
+    parent->addChild("Part Weights", sizeof(HNWeightScalar) * dimension() * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
   }
@@ -953,7 +956,7 @@ class PartitionedHypergraph {
     using HyperedgeVector = vec<vec<HypernodeID>>;
     HyperedgeVector edge_vector;
     vec<HyperedgeWeight> hyperedge_weight;
-    vec<HypernodeWeight> hypernode_weight;
+    HypernodeWeightArray hypernode_weight;
     vec<uint8_t> extracted_already_cut;
     tbb::parallel_invoke([&] {
       edge_vector.resize(num_hyperedges);
@@ -971,7 +974,7 @@ class PartitionedHypergraph {
         }
       });
     }, [&] {
-      hypernode_weight.resize(num_hypernodes);
+      hypernode_weight.resize(num_hypernodes, dimension());
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( partID(hn) == block ) {
           hypernode_weight[hn_mapping[hn]] = nodeWeight(hn);
@@ -991,8 +994,8 @@ class PartitionedHypergraph {
     });
 
     // Construct hypergraph
-    extracted_block.hg = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
-      edge_vector, hyperedge_weight.data(), hypernode_weight.data(), stable_construction_of_incident_edges);
+    extracted_block.hg = HypergraphFactory::construct(num_hypernodes, num_hyperedges, dimension(),
+      edge_vector, hyperedge_weight.data(), &hypernode_weight, stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -1072,7 +1075,7 @@ class PartitionedHypergraph {
     vec<ExtractedBlock> extracted_blocks(k);
     vec<HyperedgeVector> edge_vector(k);
     vec<vec<HyperedgeWeight>> he_weight(k);
-    vec<vec<HypernodeWeight>> hn_weight(k);
+    vec<HypernodeWeightArray> hn_weight(k);
     // Allocate auxilliary graph data structures
     tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
       const HypernodeID num_nodes = nodes_cnt[p];
@@ -1082,7 +1085,7 @@ class PartitionedHypergraph {
       }, [&] {
         he_weight[p].resize(num_edges);
       }, [&] {
-        hn_weight[p].resize(num_nodes);
+        hn_weight[p].resize(num_nodes, dimension());
       }, [&] {
         if ( already_cut ) {
           extracted_blocks[p].already_cut.resize(num_edges);
@@ -1126,9 +1129,9 @@ class PartitionedHypergraph {
     tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
       const HypernodeID num_nodes = nodes_cnt[p];
       const HyperedgeID num_hyperedges = hes2block[p].size();
-      extracted_blocks[p].hg = HypergraphFactory::construct(num_nodes, num_hyperedges,
-        edge_vector[p], he_weight[p].data(), hn_weight[p].data(),
-        stable_construction_of_incident_edges);
+      extracted_blocks[p].hg = HypergraphFactory::construct(
+        num_nodes, num_hyperedges, dimension(), edge_vector[p], he_weight[p].data(),
+        &hn_weight[p], stable_construction_of_incident_edges);
     });
 
     // Set community ids
@@ -1157,19 +1160,19 @@ class PartitionedHypergraph {
   }
 
  private:
-  void applyPartWeightUpdates(vec<HypernodeWeight>& part_weight_deltas) {
+  void applyPartWeightUpdates(HypernodeWeightArray& part_weight_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
-      _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);
+      weight::eval(_part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed));
     }
   }
 
   void initializeBlockWeights() {
     auto accumulate = [&](tbb::blocked_range<HypernodeID>& r) {
-      vec<HypernodeWeight> pws(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
+      HypernodeWeightArray pws(_k, dimension(), 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if ( nodeIsEnabled(u) ) {
           const PartitionID pu = partID( u );
-          const HypernodeWeight wu = nodeWeight( u );
+          const HNWeightConstRef wu = nodeWeight( u );
           pws[pu] += wu;
         }
       }
@@ -1280,7 +1283,7 @@ class PartitionedHypergraph {
   const TargetGraph* _target_graph;
 
   // ! Weight and information for all blocks.
-  vec< CAtomic<HypernodeWeight> > _part_weights;
+  HypernodeWeightArray _part_weights;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;

@@ -33,6 +33,7 @@ namespace mt_kahypar {
 
 struct Metrics {
   HyperedgeWeight quality;
+  // TODO: multi-dimensional imbalance??
   double imbalance;
 };
 

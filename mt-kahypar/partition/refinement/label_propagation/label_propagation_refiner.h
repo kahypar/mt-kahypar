@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -125,14 +126,23 @@ class LabelPropagationRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
+  // TODO: move to cpp file
+  template<bool unconstrained>
+  auto determineMaxWeight(PartitionedHypergraph& phg, const PartitionID to) {
+    if constexpr (unconstrained) {
+      return weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
+    } else {
+      return _context.partition.max_part_weights[to];
+    }
+  }
+
   template<bool unconstrained, typename F>
   bool changeNodePart(PartitionedHypergraph& phg,
                       const HypernodeID hn,
                       const PartitionID from,
                       const PartitionID to,
                       const F& objective_delta) {
-    HypernodeWeight max_weight = unconstrained ? std::numeric_limits<HypernodeWeight>::max()
-                                                 : _context.partition.max_part_weights[to];
+    auto max_weight = determineMaxWeight<unconstrained>(phg, to);
     if ( _gain_cache.isInitialized() ) {
       return phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
     } else {

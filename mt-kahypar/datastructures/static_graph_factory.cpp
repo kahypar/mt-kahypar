@@ -68,9 +68,10 @@ namespace mt_kahypar::ds {
   StaticGraph StaticGraphFactory::construct(
           const HypernodeID num_nodes,
           const HyperedgeID num_edges,
+          const Dimension dimension,
           const HyperedgeVector& edge_vector,
           const HyperedgeWeight* edge_weight,
-          const HypernodeWeight* node_weight,
+          HypernodeWeightArray* node_weight,
           const bool stable_construction_of_incident_edges) {
     ASSERT(edge_vector.size() == num_edges);
 
@@ -91,9 +92,10 @@ namespace mt_kahypar::ds {
   StaticGraph StaticGraphFactory::construct_from_graph_edges(
           const HypernodeID num_nodes,
           const HyperedgeID num_edges,
+          const Dimension dimension,
           const EdgeVector& edge_vector,
           const HyperedgeWeight* edge_weight,
-          const HypernodeWeight* node_weight,
+          HypernodeWeightArray* node_weight,
           const bool stable_construction_of_incident_edges) {
     StaticGraph graph;
     graph._num_nodes = num_nodes;
