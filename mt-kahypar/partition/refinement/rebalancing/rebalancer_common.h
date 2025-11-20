@@ -85,6 +85,23 @@ float normalizedSum(const HNWeightExpression& weight, const vec<double>& weight_
   return sum;
 }
 
+inline float internalImbalanceByDim(HNWeightConstRef weight, const uint8_t* valid_dims, const vec<double>& weight_normalizer) {
+  float matching_weight = impl::weightOfMatchingDimension(weight, valid_dims, weight_normalizer);
+  float weight_sum = impl::normalizedSum(weight, weight_normalizer);
+  return (0.01 * weight_sum + matching_weight) / (1.01 * weight_sum - matching_weight);
+}
+
+template<typename HNWeightExpression>
+inline float internalImbalance(const HNWeightExpression& weight, const vec<double>& weight_normalizer) {
+  float max_weight = 0;
+  for (Dimension d = 0; d < weight.dimension(); ++d) {
+    max_weight = std::max(max_weight, static_cast<float>(weight_normalizer[d] * weight.at(d)));
+  }
+
+  float weight_sum = impl::normalizedSum(weight, weight_normalizer);
+  return (0.01 * weight_sum + max_weight) / (1.01 * weight_sum - max_weight);
+}
+
 inline double imbalance(const HypernodeWeightArray& part_weights, const Context& context) {
   double max_balance = 0;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -165,6 +182,18 @@ inline std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeig
     }
   }
   return {relative_progress, has_negative_progress};
+}
+
+inline vec<vec<double>> computeBlockWeightNormalizers(const Context& context) {
+  vec<vec<double>> block_weight_normalizers(context.partition.k, vec<double>{});
+  for (PartitionID block = 0; block < context.partition.k; ++block) {
+    vec<double> normalizer(context.dimension(), 0);
+    for (Dimension d = 0; d < context.dimension(); ++d) {
+      normalizer[d] = 1 / static_cast<double>(context.partition.max_part_weights[block].at(d));
+    }
+    block_weight_normalizers[block] = std::move(normalizer);
+  }
+  return block_weight_normalizers;
 }
 
 } // namespace impl
