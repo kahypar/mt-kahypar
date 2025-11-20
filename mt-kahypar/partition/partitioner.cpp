@@ -269,8 +269,7 @@ namespace mt_kahypar {
 
       timer.start_timer("community_detection", "Community Detection");
       timer.start_timer("construct_graph", "Construct Graph");
-      Graph<Hypergraph> graph(hypergraph,
-        context.preprocessing.community_detection.edge_weight_function, is_graph);
+      Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function, is_graph);
       if ( !context.preprocessing.community_detection.low_memory_contraction ) {
         graph.allocateContractionBuffers();
       }

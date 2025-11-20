@@ -221,7 +221,7 @@ TEST_F(DeterminismTest, Preprocessing) {
     edge_weight_type = LouvainEdgeWeight::uniform;
   }
 
-  Graph<Hypergraph> graph(hypergraph, edge_weight_type);
+  Graph graph(hypergraph, edge_weight_type);
   ds::Clustering first;
   for (size_t i = 0; i < num_repetitions; ++i) {
     ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);

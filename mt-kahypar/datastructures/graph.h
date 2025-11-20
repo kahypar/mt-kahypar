@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include <functional>
 #include <cmath>
 #include <boost/range/irange.hpp>
 
@@ -44,7 +43,6 @@ namespace ds {
 /*!
  * CSR Graph Data Structure
  */
-template<typename Hypergraph>
 class Graph {
 
   static constexpr bool debug = false;
@@ -70,7 +68,9 @@ class Graph {
   using AdjacenceIterator = typename ds::Array<Arc>::const_iterator;
 
  public:
+  template<typename Hypergraph>
   Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type, bool is_graph = false);
+
   Graph(Graph&& other);
   Graph& operator= (Graph&& other);
   ~Graph();
@@ -127,6 +127,7 @@ class Graph {
   }
 
   // ! Projects the clustering of the (likely bipartite star-expansion) graph to the hypergraph
+  template<typename Hypergraph>
   void restrictClusteringToHypernodes(const Hypergraph& hg, ds::Clustering& C) const {
     C.resize(hg.initialNumNodes());
   }
@@ -155,25 +156,17 @@ class Graph {
   /*!
    * Constructs a graph from a given hypergraph.
    */
-  template<typename F>
+  template<typename Hypergraph, typename F>
   void construct(const Hypergraph& hypergraph, const bool is_graph, const F& edge_weight_func);
 
-  template<typename F>
+  template<typename Hypergraph, typename F>
   void constructBipartiteGraph(const Hypergraph& hypergraph, F& edge_weight_func);
 
-  template<typename F>
+  template<typename Hypergraph, typename F>
   void constructGraph(const Hypergraph& hypergraph,
                       const F& edge_weight_func);
 
-  ArcWeight computeNodeVolume(const NodeID u) {
-    ASSERT(u < _num_nodes);
-    ArcWeight x = 0.0;
-    for (const Arc& arc : arcsOf(u)) {
-      x += arc.weight;
-    }
-    _node_volumes[u] = x;
-    return x;
-  }
+  ArcWeight computeNodeVolume(const NodeID u);
 
   // ! Number of nodes
   size_t _num_nodes;
@@ -198,7 +191,6 @@ class Graph {
 }  // namespace ds
 
 // expose
-template<typename Hypergraph>
-using Graph = ds::Graph<Hypergraph>;
+using Graph = ds::Graph;
 
 }  // namespace mt_kahypar
