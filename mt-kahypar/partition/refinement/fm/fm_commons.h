@@ -38,6 +38,7 @@
 #include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/parallel/work_stack.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -308,7 +309,7 @@ struct FMSharedData {
   FMSharedData(size_t numNodes) :
     FMSharedData(
       numNodes,
-      TBBInitializer::instance().total_number_of_threads())  { }
+      parallel::total_number_of_threads())  { }
 
   FMSharedData() :
     FMSharedData(0, 0) { }

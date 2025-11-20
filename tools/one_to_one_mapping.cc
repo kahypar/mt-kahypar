@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/datastructures/static_graph.h"
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
   context.mapping.large_he_threshold = 0.0;
 
   utils::Randomize::instance().setSeed(context.partition.seed);
-  TBBInitializer::initialize(context.shared_memory.num_threads);
+  parallel::initialize_tbb(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(

@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -64,7 +65,7 @@ class DeterministicRebalancerTest : public Test {
           partitioned_hypergraph(),
           context(),
           rebalancer(nullptr) {
-    TBBInitializer::initialize(std::thread::hardware_concurrency());
+    parallel::initialize_tbb(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.05;
     context.partition.k = Config::K;

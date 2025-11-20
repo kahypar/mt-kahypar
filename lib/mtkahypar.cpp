@@ -49,6 +49,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
 

@@ -33,6 +33,7 @@
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
@@ -71,8 +72,8 @@ namespace lib {
 
 void initialize(const size_t num_threads, const bool interleaved_allocations, const bool print_warnings) {
   size_t P = num_threads;
-  #ifndef KAHYPAR_DISABLE_HWLOC
-    size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+  if constexpr (parallel::provides_hardware_information) {
+    size_t num_available_cpus = parallel::num_hardware_cpus();
     if ( num_available_cpus < num_threads ) {
       P = num_available_cpus;
       if (print_warnings) {
@@ -80,24 +81,18 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
           << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
       }
     }
-  #else
-    unused(print_warnings);
-  #endif
+  }
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::initialize(P);
+  parallel::initialize_tbb(P);
 
-  #ifndef KAHYPAR_DISABLE_HWLOC
+  if constexpr (parallel::provides_hardware_information) {
     if ( interleaved_allocations ) {
       // We set the membind policy to interleaved allocations in order to
       // distribute allocations evenly across NUMA nodes
-      hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
-      parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-      hwloc_bitmap_free(cpuset);
+      parallel::activate_interleaved_membind_policy();
     }
-  #else
-    unused(interleaved_allocations);
-  #endif
+  }
 
   register_algorithms_and_policies();
 }
@@ -168,8 +163,8 @@ Context context_from_preset(PresetType preset) {
 }
 
 void prepare_context(Context& context) {
-  context.shared_memory.original_num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
-  context.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
+  context.shared_memory.original_num_threads = parallel::total_number_of_threads();
+  context.shared_memory.num_threads = parallel::total_number_of_threads();
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
 
   context.partition.perfect_balance_part_weights.clear();

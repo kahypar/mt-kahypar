@@ -33,7 +33,9 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
 
@@ -109,7 +111,7 @@ class APoolInitialPartitionerTest : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBInitializer::initialize(std::thread::hardware_concurrency());
+    parallel::initialize_tbb(std::thread::hardware_concurrency());
   }
 
   Hypergraph hypergraph;

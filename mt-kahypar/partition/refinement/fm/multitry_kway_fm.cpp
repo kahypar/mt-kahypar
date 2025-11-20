@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -130,7 +131,7 @@ namespace mt_kahypar {
       }
 
       timer.start_timer("find_moves", "Find Moves");
-      size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
+      size_t num_tasks = std::min(num_border_nodes, static_cast<size_t>(parallel::total_number_of_threads()));
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
                              num_tasks, num_seeds, round);
@@ -226,8 +227,7 @@ namespace mt_kahypar {
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
-
-    const int total_num_threads = TBBInitializer::instance().total_number_of_threads();
+    const int total_num_threads = parallel::total_number_of_threads();
 
     if ( refinement_nodes.empty() ) {
       // log(n) level case
