@@ -169,43 +169,42 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
     const HNWeightConstRef from_weight = weight::toNonAtomic(phg.partWeight(from));
-    if (from_weight <= context.partition.max_part_weights[from]) return;
-
     const HNWeightConstRef weight = phg.nodeWeight(hn);
-    if (weight <= max_weight_per_block[from]) {
-      auto& max_dimensions = local_max_dimensions.local();
-      max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
-      impl::getExtremalDimensions(weight, block_weight_normalizers[from], max_dimensions.data(), true);
-      if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_max_block_dimension[from * phg.dimension()])) return;
+    if (from_weight <= context.partition.max_part_weights[from]) return;
+    if (!(weight <= max_weight_per_block[from])) return;
 
-      auto [to_part, rating] = compute_best_target(hn, from, weight, max_dimensions, true);
-      ASSERT(to_part != kInvalidPartition);
+    auto& max_dimensions = local_max_dimensions.local();
+    max_dimensions.assign(phg.dimension(), static_cast<bool>(false));
+    impl::getExtremalDimensions(weight, block_weight_normalizers[from], max_dimensions.data(), true);
+    if (!impl::hasMatchingDimension(weight, max_dimensions.data(), &is_max_block_dimension[from * phg.dimension()])) return;
 
-      float node_rating = 1.0;
-      switch (context.refinement.rebalancing.fallback_node_selection) {
-        case RbFallbackNodeSelectionPolicy::any_fitting_max_dimension: break;
-        case RbFallbackNodeSelectionPolicy::by_internal_imbalance: {
-          float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(), block_weight_normalizers[from]);
-          node_rating = matchingNodeWeight / (1.01 * impl::normalizedSum(weight, block_weight_normalizers[from]) - matchingNodeWeight);
-          break;
-        }
-        case RbFallbackNodeSelectionPolicy::by_dot_product: {
-          node_rating = impl::dotProduct(weight, from_weight, block_weight_normalizers[from]);
-          break;
-        }
-      };
-      if (context.refinement.rebalancing.fallback_node_priority_by_weight) {
-        const auto diff_to_block = weight::max(from_weight - context.partition.max_part_weights[from], weight::broadcast(0, phg.dimension()));
-        float penalty = std::max(impl::normalizedSum(weight, block_weight_normalizers[from]), impl::normalizedSum(diff_to_block, block_weight_normalizers[from]));
-        rating /= penalty;
+    auto [to_part, rating] = compute_best_target(hn, from, weight, max_dimensions, true);
+    ASSERT(to_part != kInvalidPartition);
+
+    float node_rating = 1.0;
+    switch (context.refinement.rebalancing.fallback_node_selection) {
+      case RbFallbackNodeSelectionPolicy::any_fitting_max_dimension: break;
+      case RbFallbackNodeSelectionPolicy::by_internal_imbalance: {
+        float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(), block_weight_normalizers[from]);
+        node_rating = matchingNodeWeight / (1.01 * impl::normalizedSum(weight, block_weight_normalizers[from]) - matchingNodeWeight);
+        break;
       }
-      if (context.refinement.rebalancing.fallback_relative_node_priority) {
-        rating *= node_rating;
-      } else {
-        rating = node_rating;
+      case RbFallbackNodeSelectionPolicy::by_dot_product: {
+        node_rating = impl::dotProduct(weight, from_weight, block_weight_normalizers[from]);
+        break;
       }
-      tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, to_part, rating});
-  }
+    };
+    if (context.refinement.rebalancing.fallback_node_priority_by_weight) {
+      const auto diff_to_block = weight::max(from_weight - context.partition.max_part_weights[from], weight::broadcast(0, phg.dimension()));
+      float penalty = std::max(impl::normalizedSum(weight, block_weight_normalizers[from]), impl::normalizedSum(diff_to_block, block_weight_normalizers[from]));
+      rating /= penalty;
+    }
+    if (context.refinement.rebalancing.fallback_relative_node_priority) {
+      rating *= node_rating;
+    } else {
+      rating = node_rating;
+    }
+    tmp_potential_moves[from].stream(rebalancer::PotentialMove{hn, to_part, rating});
   });
 
   ds::StreamingVector<rebalancer::PotentialMove> all_moves;
