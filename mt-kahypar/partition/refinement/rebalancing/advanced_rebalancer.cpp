@@ -649,6 +649,48 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
+  std::pair<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithmWithFallback(PartitionedHypergraph& phg,
+                                                                                                  int64_t& attributed_gain,
+                                                                                                  size_t& global_move_id) {
+    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id);
+
+    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
+      DBG << YELLOW << "Starting deadlock fallback..." << END;
+      const size_t old_id = global_move_id;
+      for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
+        auto [added_gain, n_moved] = runDeadlockFallback(phg, global_move_id);
+        if (n_moved == 0) break;
+
+        attributed_gain += added_gain;
+        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id);
+        num_overloaded_blocks = n_overloaded;
+      }
+
+      if (_context.refinement.rebalancing.use_rollback) {
+        const size_t last_id = global_move_id;
+        attributed_gain += applyRollback(phg, old_id, global_move_id);
+
+        if (global_move_id != last_id) {
+          if constexpr (GainCache::invalidates_entries) {
+            tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
+              ASSERT(_moves[i].node < phg.initialNumNodes());
+              _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+            });
+          }
+
+          num_overloaded_blocks = 0;
+          for (PartitionID b = 0; b < _context.partition.k; ++b) {
+            if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
+              num_overloaded_blocks++;
+            }
+          }
+        }
+      }
+    }
+    return {num_overloaded_blocks, num_moves_first_round};
+  }
+
+  template <typename GraphAndGainTypes>
   bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                                   vec<vec<Move>>* moves_by_part,
                                                                   vec<Move>* moves_linear,
@@ -694,41 +736,7 @@ namespace impl {
       });
     }
 
-    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id);
-
-    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
-      DBG << "Starting fallback...";
-      const size_t old_id = global_move_id;
-      for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
-        auto [added_gain, n_moved] = runDeadlockFallback(phg, global_move_id);
-        if (n_moved == 0) break;
-
-        attributed_gain += added_gain;
-        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id);
-        num_overloaded_blocks = n_overloaded;
-      }
-
-      if (_context.refinement.rebalancing.use_rollback) {
-        const size_t last_id = global_move_id;
-        attributed_gain += applyRollback(phg, old_id, global_move_id);
-
-        if (global_move_id != last_id) {
-          if constexpr (GainCache::invalidates_entries) {
-            tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
-              ASSERT(_moves[i].node < phg.initialNumNodes());
-              _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
-            });
-          }
-
-          num_overloaded_blocks = 0;
-          for (PartitionID b = 0; b < _context.partition.k; ++b) {
-            if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
-              num_overloaded_blocks++;
-            }
-          }
-        }
-      }
-    }
+    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithmWithFallback(phg, attributed_gain, global_move_id);
 
     if (_context.refinement.rebalancing.allow_multiple_moves
         && (moves_by_part != nullptr || moves_linear != nullptr)) {
