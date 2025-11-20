@@ -7,6 +7,8 @@ set(RefinementSources
         label_propagation/label_propagation_refiner.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/repair_empty_blocks.cpp
+        rebalancing/fallback.cpp
+        rebalancing/binpacking_fallback.cpp
 )
 
 set(DeterministicRefinementSources
