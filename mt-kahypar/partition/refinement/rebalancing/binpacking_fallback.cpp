@@ -71,6 +71,14 @@ std::ostream& operator<< (std::ostream& os, const BPAlgorithm& algo) {
 }
 
 struct BPResult {
+  BPResult() = default;
+
+  BPResult(const BPResult&) = delete;
+  BPResult& operator=(const BPResult&) = delete;
+
+  BPResult(BPResult&&) = default;
+  BPResult& operator=(BPResult&&) = default;
+
   bool applyBetterResult(const Context& context,
                          const vec<RebalancingNode>& other_assignment,
                          double other_rating,
@@ -112,10 +120,10 @@ struct BPResult {
   }
 
   vec<RebalancingNode> assignment;
-  double balance_rating;
-  HyperedgeWeight estimated_quality_loss;
+  double balance_rating = 0;
+  HyperedgeWeight estimated_quality_loss = 0;
   BPAlgorithm algo = BPAlgorithm::UNDEFINED;
-  bool permuted;
+  bool permuted = false;
 };
 
 std::ostream& operator<< (std::ostream& os, const BPResult& result) {
@@ -146,6 +154,9 @@ struct BinPacker {
     }
   }
 
+  BinPacker(const BinPacker&) = delete;
+  BinPacker& operator=(const BinPacker&) = delete;
+
   Dimension dimension() const {
     return block_weights.dimension();
   }
@@ -163,10 +174,11 @@ struct BinPacker {
     return weight::isZero(block_weights[block]);
   }
 
-  bool fits(const RebalancingNode& node, PartitionID to) const {
+  bool fits(const RebalancingNode& node, PartitionID to, bool is_empty) const {
     ASSERT(target_bound > 0);
     ASSERT(to != kInvalidPartition && UL(to) < max_part_weights.size());
-    if (isEmpty(to)) {
+    if (is_empty) {
+      // TODO: individual part weights...
       return true;
     }
 
@@ -180,9 +192,20 @@ struct BinPacker {
     return true;
   }
 
+  bool fits(const RebalancingNode& node, PartitionID to) const {
+    return fits(node, to, isEmpty(to));
+  }
+
   bool assignNode(RebalancingNode& node, PartitionID to) {
     ASSERT(target_bound > 0);
     if (!fits(node, to)) return false;
+
+    assignFitting(node, to);
+    return true;
+  }
+
+  void assignFitting(RebalancingNode& node, PartitionID to) {
+    ASSERT(fits(node, to));
 
     const bool is_empty = isEmpty(to);
     block_weights[to] += node.weight;
@@ -196,25 +219,30 @@ struct BinPacker {
         }
       }
     }
-    return true;
   }
 
   template<typename F>
-  bool assignByComparator(RebalancingNode& node, F compare_fn) {
+  bool assignByRating(RebalancingNode& node, const F& rating_fn) {
     PartitionID best_block = kInvalidPartition;
-    BlockInfo best_info;
+    float best_rating = 0;
+    bool has_seen_empty = false;
     for (PartitionID block: block_order) {
-      // TODO: optimize by skipping irrelevant empty blocks
-      if (fits(node, block)) {
+      const bool is_empty = isEmpty(block);
+      if (is_empty && has_seen_empty && block != node.from) continue;
+      has_seen_empty = is_empty;
+
+      if (fits(node, block, is_empty)) {
         BlockInfo current_info{block, block_weights[block], max_part_weights[block], &block_weight_normalizers[block]};
-        if (best_block == kInvalidPartition || compare_fn(best_info, current_info)) {
+        float rating = rating_fn(current_info);
+        if (best_block == kInvalidPartition || rating < best_rating || (rating == best_rating && block == node.from)) {
           best_block = block;
-          best_info = current_info;
+          best_rating = rating;
         }
       }
     }
     if (best_block != kInvalidPartition) {
-      return assignNode(node, best_block);
+      assignFitting(node, best_block);
+      return true;
     } else {
       return false;
     }
@@ -237,10 +265,10 @@ double computeBalanceRating(const Context& context, const BinPacker& result) {
   return squares;
 }
 
-bool assignNextNode(BinPacker& packer, RebalancingNode& node, BPAlgorithm algo, utils::Randomize rand) {
+bool assignNextNode(BinPacker& packer, RebalancingNode& node, BPAlgorithm algo, utils::Randomize& rand) {
   if (algo == BPAlgorithm::random_fit) {
     const int cpu_id = THREAD_ID;
-    const size_t max_attempts = 2 * packer.block_order.size();
+    const size_t max_attempts = packer.block_order.size() + 1;
     for (size_t i = 0; i < max_attempts; ++i) {
       PartitionID to = rand.getRandomInt(0, packer.block_order.size() - 1, cpu_id);
       if (packer.assignNode(node, to)) return true;
@@ -251,49 +279,49 @@ bool assignNextNode(BinPacker& packer, RebalancingNode& node, BPAlgorithm algo, 
     if (packer.assignNode(node, node.from)) return true;
   }
 
-  return packer.assignByComparator(node, [&](const BlockInfo& best, const BlockInfo& current) {
-    const auto best_new_weight = best.current_weight + node.weight;
-    const auto current_new_weight = current.current_weight + node.weight;
-    double best_max = 0;
-    double current_max = 0;
-    if (algo == BPAlgorithm::best_fit || algo == BPAlgorithm::worst_fit) {
-      for (Dimension d = 0; d < node.weight.dimension(); ++d) {
-        best_max = std::max(best_max, best.weight_normalizer->at(d) * best_new_weight.at(d));
-        current_max = std::max(current_max, current.weight_normalizer->at(d) * current_new_weight.at(d));
-      }
-      ASSERT(best_max <= 1 && current_max <= 1);
+  const auto compute_max = [](const RebalancingNode& node, const BlockInfo& info) {
+    float max = 0;
+    for (Dimension d = 0; d < node.weight.dimension(); ++d) {
+      max = std::max(max, static_cast<float>(info.weight_normalizer->at(d)) * static_cast<float>(info.current_weight.at(d) + node.weight.at(d)));
     }
+    return max;
+  };
 
-    switch (algo) {
-      case BPAlgorithm::first_fit: return true;
-      case BPAlgorithm::old_block_or_best:  // fallthrough
-      case BPAlgorithm::best_fit:
-        return current_max < best_max || (current_max == best_max && current.id == node.from);
-      case BPAlgorithm::worst_fit:
-        return current_max > best_max || (current_max == best_max && current.id == node.from);
-      case BPAlgorithm::best_by_dot_product: {
+  switch (algo) {
+    // Note: small rating is good
+    case BPAlgorithm::first_fit:
+      return packer.assignByRating(node, [&](const BlockInfo&) {
+        return 1.0;
+      });
+    case BPAlgorithm::old_block_or_best:  // fallthrough
+    case BPAlgorithm::best_fit:
+      return packer.assignByRating(node, [&](const BlockInfo& current) {
+        return compute_max(node, current);
+      });
+    case BPAlgorithm::worst_fit:
+      return packer.assignByRating(node, [&](const BlockInfo& current) {
+        return -compute_max(node, current);
+      });
+    case BPAlgorithm::best_by_dot_product:
+      return packer.assignByRating(node, [&](const BlockInfo& current) {
         // TODO: better normalization?
-        float best_dot = impl::dotProduct(node.weight, best.max_weight - best.current_weight, *best.weight_normalizer);
-        float current_dot = impl::dotProduct(node.weight, current.max_weight - current.current_weight, *current.weight_normalizer);
-        return current_dot > best_dot || (current_dot == best_dot && current.id == node.from);
-      };
-      case BPAlgorithm::best_by_internal_imbalance: {
-        float best_imb = impl::internalImbalance(best_new_weight, *best.weight_normalizer);
-        float current_imb = impl::internalImbalance(current_new_weight, *current.weight_normalizer);
-        return current_imb < best_imb || (current_imb == best_imb && current.id == node.from);
-      }
-      case BPAlgorithm::random_fit: throw InvalidParameterException("invalid bin packing algorithm");
-      case BPAlgorithm::UNDEFINED: throw InvalidParameterException("invalid bin packing algorithm");
-        // omit default case to trigger compiler warning for missing cases
-    }
-    throw InvalidParameterException("invalid bin packing algorithm");
-  });
+        return -impl::dotProduct(node.weight, current.max_weight - current.current_weight, *current.weight_normalizer);
+      });
+    case BPAlgorithm::best_by_internal_imbalance:
+      return packer.assignByRating(node, [&](const BlockInfo& current) {
+        return impl::internalImbalance(node.weight + current.current_weight, *current.weight_normalizer);
+      });
+    case BPAlgorithm::random_fit: throw InvalidParameterException("invalid bin packing algorithm");
+    case BPAlgorithm::UNDEFINED: throw InvalidParameterException("invalid bin packing algorithm");
+      // omit default case to trigger compiler warning for missing cases
+  }
+  throw InvalidParameterException("invalid bin packing algorithm");
 }
 
 bool computePackingFromNodeOrder(BinPacker& packer, vec<RebalancingNode>& nodes, const vec<double>& weight_normalizer, BPAlgorithm algo, bool permute) {
   auto& randomize = utils::Randomize::instance();
   std::sort(nodes.begin(), nodes.end(), [&](const RebalancingNode& lhs, const RebalancingNode& rhs) {
-    return impl::normalizedSum(lhs.weight, weight_normalizer) > impl::normalizedSum(rhs.weight, weight_normalizer);
+    return lhs.normalized_weight > rhs.normalized_weight;
   });
 
   if (permute) {
@@ -396,6 +424,11 @@ vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, co
 bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, const vec<double>& weight_normalizer) {
   constexpr size_t max_search_steps = 8;
   ASSERT(!nodes.empty());
+
+  // precompute the normalized weights
+  tbb::parallel_for(UL(0), nodes.size(), [&](const size_t i) {
+    nodes[i].normalized_weight = impl::normalizedSum(nodes[i].weight, weight_normalizer);
+  });
 
   const vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(context);
   tbb::enumerable_thread_specific<BinPacker> local_packer(context, block_weight_normalizers);
