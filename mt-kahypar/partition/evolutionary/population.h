@@ -109,6 +109,7 @@ class Population {
     return _individuals.back();
   }
 
+
   inline size_t size() const {
     return _individuals.size();
   }

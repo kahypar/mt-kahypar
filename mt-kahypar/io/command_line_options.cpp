@@ -822,12 +822,25 @@ namespace mt_kahypar {
               po::value<float>(&context.evolutionary.mutation_chance)->value_name("<float>")->default_value(0.5),
               "The Chance of a mutation being selected as operation\n"
               "default: 0.5)")
+             ("evo-modified-combine-chance",
+              po::value<float>(&context.evolutionary.modified_combine_chance)->value_name("<float>")->default_value(1.0f / 3.0f),
+              "The Chance of using the modified combine operator\n"
+              "default: 1/3)")
              ("evo-history-file",
               po::value<std::string>(&context.evolutionary.history_file)->value_name("<string>"),
               "Output file for evolution history")
              ("evo-diff-matrix-file",
               po::value<std::string>(&context.evolutionary.diff_matrix_file)->value_name("<string>"),
               "Output file for evolution difference matrix")
+             ("evo-iteration-log-file",
+              po::value<std::string>(&context.evolutionary.iteration_log_file)->value_name("<string>"),
+              "Output file for evolution iteration log")
+             ("evo-enable-iteration-logging",
+             po::value<bool>(&context.evolutionary.enable_iteration_logging)->value_name("<bool>")->default_value(false),
+             "Enable iteration logging for evolutionary partitioning")
+             ("evo-iteration-log-limit",
+             po::value<size_t>(&context.evolutionary.iteration_log_limit)->value_name("<size_t>")->default_value(1000),
+             "Limit for iteration logging for evolutionary partitioning")
              ("evo-threads-per-worker",
              po::value<size_t>(&context.evolutionary.num_threads_per_worker)->value_name("<size_t>")->default_value(0),
              "Number of threads to use per evolutionary worker. 0 means automatic (roughly total_threads / 2 workers).")
@@ -1016,6 +1029,10 @@ namespace mt_kahypar {
 
       po::store(options, cmd_vm);
       po::notify(cmd_vm);
+    }
+
+    if (context.evolutionary.enable_modified_combine && cmd_vm.count("evo-modified-combine-chance") == 0) {
+      context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);

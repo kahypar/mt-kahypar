@@ -3,6 +3,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
 #include <mutex>
+#include <memory>
+#include <vector>
 
 namespace mt_kahypar {
 
@@ -49,8 +51,15 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::chrono::milliseconds global_best_time_;
     static std::string diff_matrix_history;
     static std::mutex diff_matrix_history_mutex;
+    static std::string iteration_log_history;
+    static std::mutex iteration_log_mutex;
+
+    static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
+    static const Individual& addThreadLocalTemporary(Individual&& individual);
+    static void clearThreadLocalTemporaries();
 
     static EvoDecision decideNextMove(const Context& context);
+    static vec<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
     static vec<PartitionID> combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions);

@@ -32,6 +32,7 @@ def get_args():
   parser.add_argument("--partition_folder", type=str, default = "")
   parser.add_argument("--name", type=str, default = "")
   parser.add_argument("--history", type=str, default = "")
+  parser.add_argument("--iteration_log_file", type=str, default = "")
   parser.add_argument("--args", type=str, default = "")
   parser.add_argument("--header", type=str, default = "")
   parser.add_argument("--tag", action="store_true")
@@ -132,9 +133,12 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   # Remove --evo marker and history-info if present (not Mt-KaHyPar arguments)
   cleaned_args = args.args.replace('evo_flag', '').strip()
   include_history = False
+  iteration_logging = False
   if "history-info" in cleaned_args:
     include_history = True
     cleaned_args = cleaned_args.replace('history-info', '').strip()
+  if "iteration-logging" in cleaned_args:
+    iteration_logging = True
   args_list = shlex.split(cleaned_args) if cleaned_args else []
   
   #DEBUG PRINT
@@ -158,6 +162,7 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
 
   evo_result_file = f"/{base_filename}{unique_suffix}.thread{thread_id}.history.csv"
   evo_diff_file = f"/{base_filename}{unique_suffix}.thread{thread_id}.diff.csv"
+  evo_iteration_log_file = f"/{base_filename}{unique_suffix}.thread{thread_id}.iteration_log.csv"
 
 
   # Run Mt-KaHyPar
@@ -187,16 +192,20 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
     experiment_dir = args.history
     evo_result_folder = experiment_dir + "/evo_history"
     evo_diff_folder = experiment_dir + "/evo_diff"
+    evo_iteration_log_folder = experiment_dir + "/evo_iteration_log"
 
     # Create directories if they don't exist
     os.makedirs(evo_result_folder, exist_ok=True)
     os.makedirs(evo_diff_folder, exist_ok=True)
-
+    os.makedirs(evo_iteration_log_folder, exist_ok=True)
+    
     if evo_result_folder is not None:
       cmd.extend(["--evo-history-file=" + evo_result_folder + evo_result_file])
     if evo_diff_folder is not None:
       cmd.extend(["--evo-diff-matrix-file=" + evo_diff_folder + evo_diff_file])
-    
+    if evo_iteration_log_folder is not None and iteration_logging:
+      cmd.extend(["--evo-iteration-log-file=" + evo_iteration_log_folder + evo_iteration_log_file])
+      
   mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
 
   

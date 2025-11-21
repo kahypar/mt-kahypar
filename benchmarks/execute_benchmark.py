@@ -54,12 +54,6 @@ with open(args.benchmark) as json_experiment:
       algorithm_name = "_".join(map(lambda x: x.lower(), re.split(r"[ \-]", algorithm_name)))
       os.system("rm " + experiment_dir + "/" + algorithm_name + "_results/*")
 
-    # Remove history files from previous runs
-    evo_result_folder = os.environ.get("EVO_RESULT_FOLDER")
-    evo_diff_folder = os.environ.get("EVO_DIFF_FOLDER")
-    os.system("rm " + evo_result_folder + "/*")
-    os.system("rm " + evo_diff_folder + "/*")
-
     # GNU parallel calls
     # get phyical CPU core count
     cpu_cores = os.cpu_count() // 2

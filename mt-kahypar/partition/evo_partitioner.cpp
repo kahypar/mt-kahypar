@@ -19,6 +19,17 @@
 namespace mt_kahypar {
 
     template<typename TypeTraits>
+    const Individual& EvoPartitioner<TypeTraits>::addThreadLocalTemporary(Individual&& individual) {
+        thread_local_temporaries_.push_back(std::make_unique<Individual>(std::move(individual)));
+        return *thread_local_temporaries_.back();
+    }
+
+    template<typename TypeTraits>
+    void EvoPartitioner<TypeTraits>::clearThreadLocalTemporaries() {
+        thread_local_temporaries_.clear();
+    }
+
+    template<typename TypeTraits>
     typename EvoPartitioner<TypeTraits>::PartitionedHypergraph EvoPartitioner<TypeTraits>::partition(
         Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
 
@@ -77,6 +88,35 @@ namespace mt_kahypar {
             std::ofstream out_stream(context.evolutionary.diff_matrix_file.c_str(),
                                    std::ios::out | std::ios::trunc);
             out_stream << diff_matrix_history;
+            out_stream.close();
+        }
+        if (context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode) {
+            std::ofstream out_stream(context.evolutionary.iteration_log_file.c_str(),
+                                   std::ios::out | std::ios::trunc);
+
+
+           auto line_count = std::count(iteration_log_history.begin(), iteration_log_history.end(), '\n');
+           size_t log_limit = context.evolutionary.iteration_log_limit;
+
+           // print every 1/line_countth line if limit is exceeded + last line
+            if (line_count > log_limit) {
+                    std::istringstream iss(iteration_log_history);
+                    std::string line;
+                    std::string limited_history;
+                    size_t current_line = 0;
+                    size_t step = line_count / log_limit;
+                    while (std::getline(iss, line)) {
+                        if (current_line % step == 0) {
+                            limited_history += line + "\n";
+                        }
+                        else if (current_line == line_count - 1) {
+                            limited_history += line + "\n";
+                        }
+                        ++current_line;
+                    }
+                    iteration_log_history = limited_history;
+            }
+            out_stream << iteration_log_history;
             out_stream.close();
         }
 
@@ -250,7 +290,7 @@ namespace mt_kahypar {
 
         Individual individual(partitioned_hypergraph, context);
         if (!insert_into_population) {
-            return std::move(individual);
+            return EvoPartitioner<TypeTraits>::addThreadLocalTemporary(std::move(individual));
         }
         return population.addStartingIndividual(individual, context);
     } 
@@ -259,10 +299,22 @@ namespace mt_kahypar {
     EvoDecision EvoPartitioner<TypeTraits>::decideNextMove(const Context& context) {
         float rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
   
-        if (rand_val < context.evolutionary.mutation_chance) {
-            return EvoDecision::mutation;
-        } else if (context.evolutionary.enable_modified_combine) {
-            return EvoDecision::modified_combine;
+        if (!context.evolutionary.enable_modified_combine) {
+            if ( rand_val < context.evolutionary.mutation_chance ) {
+                return EvoDecision::mutation;
+            } 
+            return EvoDecision::combine;
+        }
+        else {
+            if ( rand_val < context.evolutionary.mutation_chance) {
+                return EvoDecision::mutation;
+            } 
+            else if ( rand_val < context.evolutionary.mutation_chance + context.evolutionary.modified_combine_chance ) {
+                return EvoDecision::modified_combine;
+            }
+            else {
+                return EvoDecision::combine;
+            }
         }
         
         return EvoDecision::combine;
@@ -274,6 +326,39 @@ namespace mt_kahypar {
             return EvoMutateStrategy::vcycle;
         }
         return EvoMutateStrategy::new_initial_partitioning_vcycle;
+    }
+
+    template<typename TypeTraits>
+    vec<PartitionID> EvoPartitioner<TypeTraits>::createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context) {
+        vec<std::pair<HypernodeID, HypernodeDegree>> degrees;
+        Hypergraph hg = hypergraph.copy(parallel_tag_t{});
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hg);
+
+        for ( const HypernodeID& hn : hypergraph.nodes() ) {
+            degrees.push_back({hn, hypergraph.degree(hn)});
+        }
+        std::sort(degrees.begin(), degrees.end(),
+                  [](const std::pair<HypernodeID, HypernodeDegree>& a,
+                     const std::pair<HypernodeID, HypernodeDegree>& b) {
+                        return a.second > b.second;
+                  });
+
+        vec<PartitionID> partition(hg.initialNumNodes(), 0);
+        
+        // Split partition based on degree -- equisize blocks
+        size_t block_size = hg.initialNumNodes() / context.partition.k;
+        for ( size_t i = 0; i < degrees.size(); ++i ) {
+            PartitionID block = std::min(i / block_size, static_cast<PartitionID>(context.partition.k - 1));
+            partition[degrees[i].first] = block;
+            partitioned_hypergraph.setOnlyNodePart(degrees[i].first, block);
+        }
+        
+        // Iinitialize partition data structures
+        partitioned_hypergraph.initializePartition();
+
+        // Refinement and V-cycle to improve partitioning
+        
+
     }
 
     template<typename TypeTraits>
@@ -311,29 +396,26 @@ namespace mt_kahypar {
     template<typename TypeTraits>
     std::string EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population) {
         
-        LOG << "Calling performModifiedCombine";
-        
         std::vector<std::vector<PartitionID>> parent_partitions;
         size_t best = population.randomIndividualSafe(); 
         
         // generate new parent individual with modified context
         Context modified_context = modifyContext(context, params);
 
-        LOG << "Calling generateIndividual";
+        modified_context.setupPartWeights(input_hg.totalWeight());
 
         const Individual& modified_parent = generateIndividual(input_hg, modified_context, target_graph, population, false);
         
-        LOG << "generateIndividual finished.";
-
         std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
         parent_partitions.push_back(best_partition);
         parent_partitions.push_back(modified_parent.partition());
 
         std::unordered_map<PartitionID, int> comm_to_block;
-        //Logging
-        LOG << "Calling performModifiedCombine with params (k, eps): " << params.k << ", " << params.epsilon;
 
         vec<PartitionID> comms = combineModifiedPartitions(context, parent_partitions);
+
+        // release the temporary individual(s)
+        EvoPartitioner<TypeTraits>::clearThreadLocalTemporaries();
 
         Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph); 
@@ -361,7 +443,7 @@ namespace mt_kahypar {
         std::string ret = "";
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            ret = checkAndLogNewBest(individual.fitness(), "Combine", time);
+            ret = checkAndLogNewBest(individual.fitness(), "ModifiedCombine", time);
         }
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && !ret.empty()) {
@@ -570,6 +652,7 @@ namespace mt_kahypar {
         
         std::atomic<int> total_mutations(0);
         std::atomic<int> total_combinations(0);
+        std::atomic<int> total_modifiedCombinations(0);
         std::atomic<int> total_iterations(0);
 
         // Calculate ContextModifierParameters once before any workers start
@@ -597,6 +680,8 @@ namespace mt_kahypar {
         LOG << "Starting evolutionary search with" << num_evo_workers << "workers, each using"
             << num_multilevel_threads << "threads for multilevel partitioning.";
 
+        const bool km1_logging_enabled = context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode;
+        const size_t log_limit = std::max<size_t>(1, context.evolutionary.iteration_log_limit);
 
         // task arenas for each worker to ensure isolated thread pools
         std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
@@ -659,13 +744,25 @@ namespace mt_kahypar {
                                     std::lock_guard<std::mutex> lock(_history_mutex);
                                     history += h;
                                 }
-                                total_combinations++;
+                                total_modifiedCombinations++;
                                 total_iterations++;
                                 break;
                             }
                         default:
                             LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
                             std::exit(EXIT_FAILURE);
+                    }
+
+                    // Log current best KM1 after each iteration if enabled
+                    if ( km1_logging_enabled ) {
+                        // get current best KM1 from population
+                        size_t best_idx = population.bestSafe();
+                        auto current_km1 = population.individualAtSafe(best_idx).fitness();
+                        auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::high_resolution_clock::now().time_since_epoch()
+                                        ).count();
+                        std::lock_guard<std::mutex> lg(iteration_log_mutex);
+                        iteration_log_history += std::to_string(ts_ms) + "," + std::to_string(current_km1) + "\n";
                     }
                 }
             });
@@ -684,6 +781,9 @@ namespace mt_kahypar {
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations" << "\n";
         LOG << "    " << total_mutations.load() << " Mutations" << "\n";
         LOG << "    " << total_combinations.load() << " Combinations" << "\n";
+        if (context.evolutionary.enable_modified_combine) {
+            LOG << "    " << total_modifiedCombinations.load() << " Modified Combinations" << "\n";
+        }
 
         return history;
     }
@@ -724,5 +824,14 @@ std::string EvoPartitioner<TypeTraits>::diff_matrix_history = "";
 
 template<typename TypeTraits>
 std::mutex EvoPartitioner<TypeTraits>::diff_matrix_history_mutex;
+
+template<typename TypeTraits>
+std::string EvoPartitioner<TypeTraits>::iteration_log_history = "";
+template<typename TypeTraits>
+std::mutex EvoPartitioner<TypeTraits>::iteration_log_mutex;
+
+template<typename TypeTraits>
+thread_local std::vector<std::unique_ptr<Individual>> EvoPartitioner<TypeTraits>::thread_local_temporaries_;
+
 
 }  // namespace mt_kahypar
