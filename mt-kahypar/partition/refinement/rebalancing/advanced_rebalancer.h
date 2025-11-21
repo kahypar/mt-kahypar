@@ -87,7 +87,7 @@ private:
   using GainCalculator = typename GraphAndGainTypes::GainComputation;
   using AttributedGains = typename GraphAndGainTypes::AttributedGains;
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
 public:
