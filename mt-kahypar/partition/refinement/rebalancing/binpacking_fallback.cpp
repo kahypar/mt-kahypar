@@ -42,7 +42,7 @@
 namespace mt_kahypar {
 namespace bp {
 
-static constexpr bool debug = true;
+static constexpr bool debug = false;
 
 enum class BPAlgorithm: uint8_t {
   first_fit = 0,
