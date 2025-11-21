@@ -37,12 +37,13 @@ struct RebalancingNode {
   RebalancingNode() = default;
 
   RebalancingNode(HypernodeID id, HNWeightConstRef weight, PartitionID from):
-    id(id), weight(weight), from(from), to(kInvalidPartition) { }
+    id(id), weight(weight), from(from), to(kInvalidPartition), normalized_weight(-1) { }
 
   HypernodeID id = kInvalidHypernode;
   HNWeightConstRef weight;
   PartitionID from = kInvalidPartition;
   PartitionID to = kInvalidPartition;
+  float normalized_weight;
 };
 
 template<typename PartitionedHypergraph>
