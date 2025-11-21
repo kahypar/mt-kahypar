@@ -199,6 +199,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
         break;
       }
       case RbFallbackNodeSelectionPolicy::by_dot_product: {
+        // TODO: normalize by node weight?!
         node_rating = impl::dotProduct(weight, from_weight, block_weight_normalizers[from]);
         break;
       }
@@ -232,6 +233,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
           case RbFallbackNodeCountPolicy::only_one:
             return true;
           case RbFallbackNodeCountPolicy::until_balanced:
+            // TODO: probably not the optimal stopping condition, best to only check the max dimension
             return from_weight <= context.partition.max_part_weights[from];
           case RbFallbackNodeCountPolicy::below_threshold:
             return from_weight <= context.refinement.rebalancing.fallback_node_count_threshold * context.partition.max_part_weights[from];
