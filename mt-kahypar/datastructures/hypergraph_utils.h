@@ -83,6 +83,7 @@ void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, AllocatedHNWei
     max_weight = weight::max(max_weight, weight);
   }
 
+  // TODO: multi-constraint overflow and epsilon
   if (adder.error_flag) {
     throw InvalidInputException("total node weight overflows weight data type");
   }
