@@ -853,7 +853,7 @@ namespace mt_kahypar {
              ("evo-modified-combine-k-multiplier",
              po::value<double>(&context.evolutionary.modified_combine_k_multiplier)->value_name("<double>")->default_value(1),
              "Factor to multiply base k for modified combine external parent")
-             ("evo-modified-combine-epsilon",
+             ("evo-modified-combine-epsilon-multiplier",
              po::value<double>(&context.evolutionary.modified_combine_epsilon_multiplier)->value_name("<double>")->default_value(1),
              "Epsilon value for modified combine external parent")
              ("evo-modified-combine-recursive-bipartitioning",
@@ -861,7 +861,10 @@ namespace mt_kahypar {
              "Use recursive bipartitioning mode for modified combine external parent")
              ("evo-modified-combine-use-random-partitions",
              po::value<bool>(&context.evolutionary.modified_combine_use_random_partitions)->value_name("<bool>")->default_value(false),
-             "Use random partitions for modified combine external parent");
+             "Use random partitions for modified combine external parent")
+             ("evo-modified-combine-use-degree-sorted-partitions",
+             po::value<bool>(&context.evolutionary.modified_combine_use_degree_sorted_partitions)->value_name("<bool>")->default_value(false),
+             "Use degree sorted partitions for modified combine external parent");
     return options;
   }
 
@@ -1031,8 +1034,18 @@ namespace mt_kahypar {
       po::notify(cmd_vm);
     }
 
-    if (context.evolutionary.enable_modified_combine && cmd_vm.count("evo-modified-combine-chance") == 0) {
-      context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
+    if (context.evolutionary.enable_modified_combine) {
+      // Only override probabilities if the user did NOT explicitly provide
+      // --evo-modified-combine-chance
+      bool chance_provided_explicitly = false;
+      if (cmd_vm.count("evo-modified-combine-chance")) {
+        chance_provided_explicitly = !cmd_vm["evo-modified-combine-chance"].defaulted();
+      }
+      if (!chance_provided_explicitly) {
+        // set to 1/3 each
+        context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
+        context.evolutionary.mutation_chance = 1.0f / 3.0f;
+      }
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
