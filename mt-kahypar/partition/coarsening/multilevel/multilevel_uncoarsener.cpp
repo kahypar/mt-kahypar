@@ -214,7 +214,9 @@ namespace mt_kahypar {
       _rebalancer->initialize(phg);
     }
     if (!metrics::isBalanced(partitioned_hypergraph, _context)) {
+      _timer.start_timer("rebalance", "Rebalance");
       _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
+      _timer.stop_timer("rebalance");
     }
 
     bool improvement_found = true;

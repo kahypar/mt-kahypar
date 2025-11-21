@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/rebalancing/binpacking_fallback.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
@@ -773,7 +774,10 @@ namespace impl {
       DBG << V(binpacking_nodes.size());
 
       if (!binpacking_nodes.empty()) {
+        utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+        timer.start_timer("bin_packing", "Bin Packing");
         bool success = bp::computeBinPacking(_context, binpacking_nodes, _weight_normalizer);
+        timer.stop_timer("bin_packing");
 
         if (success) {
           const size_t old_id = global_move_id;
