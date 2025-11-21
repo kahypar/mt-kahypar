@@ -253,6 +253,7 @@ struct RebalancingParameters {
   bool fallback_full_locking = false;
   double fallback_weight_threshold = 0.7;  // relative to max block weight
   double fallback_node_count_threshold = 0.99;  // relative to max block weight
+  double bin_packing_selection_threshold = 0.02;  // relative to max block weight
   RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::only_one;
   bool fallback_relative_node_priority = false;
   bool fallback_node_priority_by_weight = true;
