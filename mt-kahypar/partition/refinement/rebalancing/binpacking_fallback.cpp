@@ -117,6 +117,7 @@ struct BPResult {
     balance_rating = 0;
     estimated_quality_loss = 0;
     algo = BPAlgorithm::UNDEFINED;
+    permuted = false;
   }
 
   vec<RebalancingNode> assignment;
@@ -389,8 +390,10 @@ bool computeManyPackings(const Context& context,
       overall_success.store(true, std::memory_order_relaxed);
     }
   });
-  for (const BPResult& result: local_best) {
-    best_result.applyBetterResult(context, result);
+  if (overall_success) {
+    for (const BPResult& result: local_best) {
+      best_result.applyBetterResult(context, result);
+    }
   }
   DBG << CYAN << "Best result: " << best_result << END;
   return overall_success;
@@ -398,11 +401,12 @@ bool computeManyPackings(const Context& context,
 
 template<typename PartitionedHypergraph>
 vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context) {
-  // TODO
-  constexpr double selection_factor = 0.02;
+  // TODO: perhaps this should depend on epsilon
+  const double selection_factor = context.refinement.rebalancing.bin_packing_selection_threshold;
   const vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(context);
+  const size_t max_count = phg.dimension() * std::ceil((1.0 + context.partition.epsilon) / selection_factor * context.partition.k);
 
-  ds::BufferedVector<RebalancingNode> result(std::ceil(1.0 / selection_factor * context.partition.k));
+  ds::BufferedVector<RebalancingNode> result(std::min(max_count, static_cast<size_t>(phg.initialNumNodes())));
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const HNWeightConstRef weight = phg.nodeWeight(hn);
     const PartitionID from = phg.partID(hn);
@@ -435,8 +439,6 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
   tbb::enumerable_thread_specific<BPResult> local_best;
   tbb::enumerable_thread_specific<vec<RebalancingNode>> local_nodes(nodes);
   BPResult global_best_result;
-  BPResult last_best_result;
-  BPResult current_best_result;
 
   double upper_bound = 2.0;  // make first step at 1.0, reducing special casing
   double lower_bound = 0;
@@ -445,7 +447,6 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
   for (size_t i = 0; i < max_search_steps; ++i) {
     const double current_bound = (upper_bound + lower_bound) / 2;
     const bool skip_single_packing = current_bound < best_bound && best_bound_was_multi_packed;
-    current_best_result.reset();
     DBG << "Binary search step: " << V(current_bound);
 
     bool success = false;
@@ -456,14 +457,14 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
       success = computeSinglePacking(current_packer, current_nodes, weight_normalizer, algo, current_bound);
       if (success) {
         const double balance_rating = computeBalanceRating(context, current_packer);
-        bool check = current_best_result.applyBetterResult(context, current_nodes, balance_rating, 0, algo, false);
+        bool check = global_best_result.applyBetterResult(context, current_nodes, balance_rating, 0, algo, false);
         ASSERT(check);
         best_bound_was_multi_packed = false;
       }
     }
     if (!success) {
       success = computeManyPackings(context, local_packer, local_best, local_nodes,
-                                    current_best_result, weight_normalizer, current_bound);
+                                    global_best_result, weight_normalizer, current_bound);
       if (success) {
         best_bound_was_multi_packed = true;
       }
@@ -472,8 +473,6 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
       ASSERT(current_bound < best_bound);
       best_bound = current_bound;
       upper_bound = current_bound;
-      global_best_result.applyBetterResult(context, current_best_result);
-      last_best_result = std::move(current_best_result);
     } else if (i == 0) {
       // we couldn't find a packing within the max part weight
       return false;
@@ -487,7 +486,6 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
     computeManyPackings(context, local_packer, local_best, local_nodes,
                         global_best_result, weight_normalizer, best_bound);
   }
-  DBG << "Last best result: " << last_best_result;
   DBG << CYAN << "Global best result: " << global_best_result << END;
 
   nodes = std::move(global_best_result.assignment);

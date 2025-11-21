@@ -683,16 +683,21 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.fallback_full_locking))->value_name(
                     "<bool>")->default_value(false),
              "Multiconstraint: whether to use 'full' locking for the 'deadlock breaking' fallback.")
-            ((initial_partitioning ? "i-r-rebalancing-fallback-weight-treshold": "r-rebalancing-fallback-weight-treshold"),
+            ((initial_partitioning ? "i-r-rebalancing-fallback-weight-threshold": "r-rebalancing-fallback-weight-threshold"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_weight_threshold :
                               &context.initial_partitioning.refinement.rebalancing.fallback_weight_threshold))->value_name(
                     "<double>")->default_value(0.7),
              "Multiconstraint: large node threshold for fallback (relative to max block weight)")
-            ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-treshold": "r-rebalancing-fallback-node-count-treshold"),
+            ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-threshold": "r-rebalancing-fallback-node-count-threshold"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.fallback_node_count_threshold :
                               &context.initial_partitioning.refinement.rebalancing.fallback_node_count_threshold))->value_name(
                     "<double>")->default_value(0.99),
              "Multiconstraint: node count threshold for fallback if using the below_threshold policy (relative to max block weight)")
+            ((initial_partitioning ? "i-r-rebalancing-bin-packing-selection-threshold": "r-rebalancing-bin-packing-selection-threshold"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.bin_packing_selection_threshold :
+                              &context.initial_partitioning.refinement.rebalancing.bin_packing_selection_threshold))->value_name(
+                    "<double>")->default_value(0.02),
+             "Multiconstraint: node weight threshold for nodes that are selected in bin packing")
             ((initial_partitioning ? "i-r-rebalancing-fallback-node-count-policy" : "r-rebalancing-fallback-node-count-policy"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
