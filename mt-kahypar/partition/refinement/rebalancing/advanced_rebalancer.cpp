@@ -771,67 +771,70 @@ namespace impl {
       DBG << YELLOW << "Starting binpacking fallback..." << END;
       vec<bp::RebalancingNode> binpacking_nodes = bp::determineNodesForRebalancing(phg, _context);
       DBG << V(binpacking_nodes.size());
-      bool success = bp::computeBinPacking(_context, binpacking_nodes, _weight_normalizer);
 
-      if (success) {
-        const size_t old_id = global_move_id;
-        if (_context.refinement.rebalancing.binpacking_use_locking) {
-          _node_is_locked.assign(phg.initialNumNodes(), static_cast<uint8_t>(false), true);
-        }
+      if (!binpacking_nodes.empty()) {
+        bool success = bp::computeBinPacking(_context, binpacking_nodes, _weight_normalizer);
 
-        for (const auto& node: binpacking_nodes) {
-          ASSERT(phg.partID(node.id) == node.from && node.to != kInvalidPartition);
-          if (node.from == node.to) continue;
-          DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
-
-          int64_t gain = 0;
-          phg.changeNodePart(_gain_cache, node.id, node.from, node.to,
-            [&](const SynchronizedEdgeUpdate& sync_update) {
-              gain += AttributedGains::gain(sync_update);
-            });
-          attributed_gain += gain;
-          if (_move_id_of_node[node.id] == kInvalidMove) {
-            _move_id_of_node[node.id] = global_move_id;
-          }
-          _moves[global_move_id++] = Move{node.from, node.to, node.id, static_cast<Gain>(gain)};
+        if (success) {
+          const size_t old_id = global_move_id;
           if (_context.refinement.rebalancing.binpacking_use_locking) {
-            _node_is_locked[node.id] = static_cast<uint8_t>(true);
+            _node_is_locked.assign(phg.initialNumNodes(), static_cast<uint8_t>(false), true);
           }
-        }
-        if constexpr (GainCache::invalidates_entries) {
-          tbb::parallel_for(old_id, global_move_id, [&](const size_t i) {
-            ASSERT(_moves[i].node < phg.initialNumNodes());
-            _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
-          });
-        }
 
-        const auto locks = _context.refinement.rebalancing.binpacking_use_locking ? _node_is_locked.data() : nullptr;
-        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, locks);
-        attributed_gain += attr_gain;
-        num_overloaded_blocks = n_overloaded;
+          for (const auto& node: binpacking_nodes) {
+            ASSERT(phg.partID(node.id) == node.from && node.to != kInvalidPartition);
+            if (node.from == node.to) continue;
+            DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
 
-        if (_context.refinement.rebalancing.use_rollback) {
-          const size_t last_id = global_move_id;
-          attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
-
-          if (global_move_id != last_id) {
-            if constexpr (GainCache::invalidates_entries) {
-              tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
-                ASSERT(_moves[i].node < phg.initialNumNodes());
-                _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+            int64_t gain = 0;
+            phg.changeNodePart(_gain_cache, node.id, node.from, node.to,
+              [&](const SynchronizedEdgeUpdate& sync_update) {
+                gain += AttributedGains::gain(sync_update);
               });
+            attributed_gain += gain;
+            if (_move_id_of_node[node.id] == kInvalidMove) {
+              _move_id_of_node[node.id] = global_move_id;
             }
+            _moves[global_move_id++] = Move{node.from, node.to, node.id, static_cast<Gain>(gain)};
+            if (_context.refinement.rebalancing.binpacking_use_locking) {
+              _node_is_locked[node.id] = static_cast<uint8_t>(true);
+            }
+          }
+          if constexpr (GainCache::invalidates_entries) {
+            tbb::parallel_for(old_id, global_move_id, [&](const size_t i) {
+              ASSERT(_moves[i].node < phg.initialNumNodes());
+              _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+            });
+          }
 
-            num_overloaded_blocks = 0;
-            for (PartitionID b = 0; b < _context.partition.k; ++b) {
-              if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
-                num_overloaded_blocks++;
+          const auto locks = _context.refinement.rebalancing.binpacking_use_locking ? _node_is_locked.data() : nullptr;
+          auto [attr_gain, n_overloaded, _] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, locks);
+          attributed_gain += attr_gain;
+          num_overloaded_blocks = n_overloaded;
+
+          if (_context.refinement.rebalancing.use_rollback) {
+            const size_t last_id = global_move_id;
+            attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+
+            if (global_move_id != last_id) {
+              if constexpr (GainCache::invalidates_entries) {
+                tbb::parallel_for(global_move_id, last_id, [&](const size_t i) {
+                  ASSERT(_moves[i].node < phg.initialNumNodes());
+                  _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
+                });
+              }
+
+              num_overloaded_blocks = 0;
+              for (PartitionID b = 0; b < _context.partition.k; ++b) {
+                if ( !(phg.partWeight(b) <= _context.partition.max_part_weights[b]) ) {
+                  num_overloaded_blocks++;
+                }
               }
             }
           }
+        } else if (_context.partition.verbose_output && is_top_level) {
+          WARNING("Could not find a balanced solution even via bin packing; instance might not be solvable with specified block weights.");
         }
-      } else if (_context.partition.verbose_output && is_top_level) {
-        WARNING("Could not find a balanced solution even via bin packing; instance might not be solvable with specified block weights.");
       }
     }
 
