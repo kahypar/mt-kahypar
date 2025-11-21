@@ -130,9 +130,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
       switch (context.refinement.rebalancing.fallback_block_selection) {
         case RbFallbackBlockSelectionPolicy::any_fitting_min_dimension: break;
         case RbFallbackBlockSelectionPolicy::by_internal_imbalance: {
-          float matchingBlockWeight = impl::weightOfMatchingDimension(to_weight, max_dimensions.data(), block_weight_normalizers[to]);
-          float weight_sum = impl::normalizedSum(to_weight, block_weight_normalizers[to]);
-          rating = (weight_sum - matchingBlockWeight) / (0.01 * weight_sum + matchingBlockWeight);
+          rating = 1 / impl::internalImbalanceByDim(to_weight, max_dimensions.data(),  block_weight_normalizers[to]);
           break;
         }
         case RbFallbackBlockSelectionPolicy::by_dot_product: {
@@ -194,8 +192,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     switch (context.refinement.rebalancing.fallback_node_selection) {
       case RbFallbackNodeSelectionPolicy::any_fitting_max_dimension: break;
       case RbFallbackNodeSelectionPolicy::by_internal_imbalance: {
-        float matchingNodeWeight = impl::weightOfMatchingDimension(weight, max_dimensions.data(), block_weight_normalizers[from]);
-        node_rating = matchingNodeWeight / (1.01 * impl::normalizedSum(weight, block_weight_normalizers[from]) - matchingNodeWeight);
+        node_rating = impl::internalImbalanceByDim(weight, max_dimensions.data(), block_weight_normalizers[from]);
         break;
       }
       case RbFallbackNodeSelectionPolicy::by_dot_product: {
