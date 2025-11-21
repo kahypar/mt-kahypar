@@ -36,6 +36,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
@@ -129,7 +130,7 @@ struct BlockInfo {
   PartitionID id;
   HNWeightConstRef current_weight;
   HNWeightConstRef max_weight;
-  const vec<double>* weight_normalizer;
+  const vec<double>* weight_normalizer = nullptr;
 };
 
 struct BinPacker {
@@ -203,6 +204,7 @@ struct BinPacker {
     PartitionID best_block = kInvalidPartition;
     BlockInfo best_info;
     for (PartitionID block: block_order) {
+      // TODO: optimize by skipping irrelevant empty blocks
       if (fits(node, block)) {
         BlockInfo current_info{block, block_weights[block], max_part_weights[block], &block_weight_normalizers[block]};
         if (best_block == kInvalidPartition || compare_fn(best_info, current_info)) {
@@ -235,28 +237,66 @@ double computeBalanceRating(const Context& context, const BinPacker& result) {
   return squares;
 }
 
-bool assignNextNode(BinPacker& packer, RebalancingNode& node, BPAlgorithm algo) {
+bool assignNextNode(BinPacker& packer, RebalancingNode& node, BPAlgorithm algo, utils::Randomize rand) {
+  if (algo == BPAlgorithm::random_fit) {
+    const int cpu_id = THREAD_ID;
+    const size_t max_attempts = 2 * packer.block_order.size();
+    for (size_t i = 0; i < max_attempts; ++i) {
+      PartitionID to = rand.getRandomInt(0, packer.block_order.size() - 1, cpu_id);
+      if (packer.assignNode(node, to)) return true;
+    }
+    return false;
+  }
+  if (algo == BPAlgorithm::old_block_or_best) {
+    if (packer.assignNode(node, node.from)) return true;
+  }
+
   return packer.assignByComparator(node, [&](const BlockInfo& best, const BlockInfo& current) {
     const auto best_new_weight = best.current_weight + node.weight;
     const auto current_new_weight = current.current_weight + node.weight;
     double best_max = 0;
     double current_max = 0;
-    for (Dimension d = 0; d < node.weight.dimension(); ++d) {
-      best_max = std::max(best_max, best.weight_normalizer->at(d) * best_new_weight.at(d));
-      current_max = std::max(current_max, current.weight_normalizer->at(d) * current_new_weight.at(d));
+    if (algo == BPAlgorithm::best_fit || algo == BPAlgorithm::worst_fit) {
+      for (Dimension d = 0; d < node.weight.dimension(); ++d) {
+        best_max = std::max(best_max, best.weight_normalizer->at(d) * best_new_weight.at(d));
+        current_max = std::max(current_max, current.weight_normalizer->at(d) * current_new_weight.at(d));
+      }
+      ASSERT(best_max <= 1 && current_max <= 1);
     }
-    ASSERT(best_max <= 1 && current_max <= 1);
-    return current_max < best_max || (current_max == best_max && current.id == node.from);
+
+    switch (algo) {
+      case BPAlgorithm::first_fit: return true;
+      case BPAlgorithm::old_block_or_best:  // fallthrough
+      case BPAlgorithm::best_fit:
+        return current_max < best_max || (current_max == best_max && current.id == node.from);
+      case BPAlgorithm::worst_fit:
+        return current_max > best_max || (current_max == best_max && current.id == node.from);
+      case BPAlgorithm::best_by_dot_product: {
+        // TODO: better normalization?
+        float best_dot = impl::dotProduct(node.weight, best.max_weight - best.current_weight, *best.weight_normalizer);
+        float current_dot = impl::dotProduct(node.weight, current.max_weight - current.current_weight, *current.weight_normalizer);
+        return current_dot > best_dot || (current_dot == best_dot && current.id == node.from);
+      };
+      case BPAlgorithm::best_by_internal_imbalance: {
+        float best_imb = impl::internalImbalance(best_new_weight, *best.weight_normalizer);
+        float current_imb = impl::internalImbalance(current_new_weight, *current.weight_normalizer);
+        return current_imb < best_imb || (current_imb == best_imb && current.id == node.from);
+      }
+      case BPAlgorithm::random_fit: throw InvalidParameterException("invalid bin packing algorithm");
+      case BPAlgorithm::UNDEFINED: throw InvalidParameterException("invalid bin packing algorithm");
+        // omit default case to trigger compiler warning for missing cases
+    }
+    throw InvalidParameterException("invalid bin packing algorithm");
   });
 }
 
 bool computePackingFromNodeOrder(BinPacker& packer, vec<RebalancingNode>& nodes, const vec<double>& weight_normalizer, BPAlgorithm algo, bool permute) {
+  auto& randomize = utils::Randomize::instance();
   std::sort(nodes.begin(), nodes.end(), [&](const RebalancingNode& lhs, const RebalancingNode& rhs) {
     return impl::normalizedSum(lhs.weight, weight_normalizer) > impl::normalizedSum(rhs.weight, weight_normalizer);
   });
 
   if (permute) {
-    auto& randomize = utils::Randomize::instance();
     const int cpu_id = THREAD_ID;
     for (size_t i = randomize.flipCoin(cpu_id) ? 0 : 1; i + 1 < nodes.size(); ++i) {
       if (randomize.flipCoin(cpu_id)) {
@@ -266,7 +306,7 @@ bool computePackingFromNodeOrder(BinPacker& packer, vec<RebalancingNode>& nodes,
   }
 
   for (RebalancingNode& node: nodes) {
-    bool success = assignNextNode(packer, node, algo);
+    bool success = assignNextNode(packer, node, algo, randomize);
     if (!success) {
       // DBG << "Failed to compute packing: " << V(algo) << V(permute);
       return false;
@@ -330,6 +370,7 @@ bool computeManyPackings(const Context& context,
 
 template<typename PartitionedHypergraph>
 vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context) {
+  // TODO
   constexpr double selection_factor = 0.02;
   const vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(context);
 
