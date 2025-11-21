@@ -743,6 +743,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.fallback_rounds))->value_name(
                     "<size_t>")->default_value(3),
             "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds")
+            ((initial_partitioning ? "i-r-rebalancing-binpacking-tasks": "r-rebalancing-binpacking-tasks"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.bin_packing_tasks :
+                              &context.initial_partitioning.refinement.rebalancing.bin_packing_tasks))->value_name(
+                    "<size_t>")->default_value(10),
+            "Multiconstraint: number of jobs per binpacking algorithm for binpacking fallback")
             ((initial_partitioning ? "i-r-det-rebalancing-deadzone": "r-det-rebalancing-deadzone"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.det_relative_deadzone_size :
                               &context.initial_partitioning.refinement.rebalancing.det_relative_deadzone_size))->value_name(

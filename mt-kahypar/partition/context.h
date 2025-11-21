@@ -260,6 +260,7 @@ struct RebalancingParameters {
   bool fallback_relative_block_priority = false;
   RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_internal_imbalance;
   size_t fallback_rounds = 3;
+  size_t bin_packing_tasks = 10;
 
   // deterministic rebalancer
   double det_heavy_vertex_exclusion_factor = 1.5;
