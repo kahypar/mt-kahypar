@@ -66,6 +66,8 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeEmptyParts(PartitionedHypergra
 
   const auto& max_weights = _context.partition.max_part_weights;
   if (!_empty_parts.empty() && _context.partition.use_individual_part_weights) {
+    // TODO: this is broken in the multi-constraint case...
+
     // We sort the empty parts, so that
     // (1) we can determine which parts to skip for degree zero nodes
     // (2) computeBestMovesBlockIndependent can maintain the invariant that the last entry
@@ -76,7 +78,7 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeEmptyParts(PartitionedHypergra
     // can not be better than the move at position i (or it would be placed there).
     std::sort(_empty_parts.begin(), _empty_parts.end(), [&](PartitionID lhs, PartitionID rhs) {
       // deterministic tie breaking
-      return max_weights[lhs] > max_weights[rhs] || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
+      return max_weights[lhs].at(0) > max_weights[rhs].at(0) || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
     });
   }
 

@@ -85,6 +85,7 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph,
       min_nodes.push_back(hn);
     }
   }
+  // TODO: can easily fail if multi-constraint
   ASSERT(min_nodes.size() > 0);
   return (deterministic || min_nodes.size() == 1) ? min_nodes[0] :
     min_nodes[utils::Randomize::instance().getRandomInt(
