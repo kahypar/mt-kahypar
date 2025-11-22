@@ -24,12 +24,14 @@ def partitioner_header(result_dir):
 
 def serial_partitioner_call(partitioner, instance, k, epsilon, seed, objective, timelimit):
   return (
+    "OMP_NUM_THREADS=1 TBB_NUM_THREADS=1 " +
     partitioner_script_folder + "/" + partitioner_mapping[partitioner].script + ".py " + instance
     + " " + str(k) + " " + str(epsilon) + " " + str(seed) + " " + str(objective) + " " + str(timelimit)
   )
 
 def parallel_partitioner_call(partitioner, instance, threads, k, epsilon, seed, objective, timelimit):
   return (
+    "OMP_NUM_THREADS=" + str(threads) + " TBB_NUM_THREADS=" + str(threads) + " " +
     partitioner_script_folder + "/" + partitioner_mapping[partitioner].script + ".py " + instance
     + " " + str(threads) + " " + str(k) + " " + str(epsilon) + " " + str(seed) + " " + str(objective) + " " + str(timelimit)
   )
