@@ -318,25 +318,32 @@ class FixedSizeSparseMap {
   ~FixedSizeSparseMap() = default;
 
   FixedSizeSparseMap<Key, Value> copy() const {
-    FixedSizeSparseMap result(_map_size, _initial_value);
+    const size_t total_bytes  = sizeof(SparseElement) * _map_size + sizeof(MapElement) * _map_size;
+    const MapElement* old_dense_base = _dense;
 
+    FixedSizeSparseMap result(0, _initial_value);
+    result._map_size = _map_size;
     result._size = _size;
     result._timestamp = _timestamp;
+    result._data = std::make_unique<uint8_t[]>(total_bytes);
+    result._sparse = reinterpret_cast<SparseElement*>(result._data.get());
+    result._dense = reinterpret_cast<MapElement*>(result._data.get() + sizeof(SparseElement) * _map_size);
+    
     if (_data) {
-        result._data = std::make_unique<uint8_t[]>(_map_size);
-        std::memcpy(result._data.get(), _data.get(), _map_size);
+      std::memcpy(result._data.get(), _data.get(), total_bytes);
+      for (size_t j = 0; j < _map_size; ++j) {
+        SparseElement* s = &result._sparse[j];
+        if (s->timestamp == _timestamp) {
+          ptrdiff_t old_index = s->element - old_dense_base;          
+          s->element = &(result._dense[old_index]);
+        }
+      }
+    } else {
+      std::memset(result._data.get(), 0, total_bytes);
     }
-    if (_sparse) {
-        result._sparse = new SparseElement[_map_size];
-        std::memcpy(result._sparse, _sparse, sizeof(SparseElement) * _map_size);
-    }
-    if (_dense) {
-        result._dense = new MapElement[_map_size];
-        std::memcpy(result._dense, _dense, sizeof(MapElement) * _map_size);
-    }
-
+    
     return result;
-  }
+}
 
   size_t capacity() const {
     return _map_size;
