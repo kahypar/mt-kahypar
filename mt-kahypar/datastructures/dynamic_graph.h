@@ -470,6 +470,12 @@ class DynamicGraph {
       HypernodeIterator(_nodes.data() + numNodes(), numNodes(), numNodes()));
   }
 
+  // ! Returns a range of all nodes incident to u.
+  IteratorRange<IncidentNodeIterator> incidentNodes(const HypernodeID u) const {
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
+    return _adjacency_array.incidentNodes(u);
+  }
+
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
     return _adjacency_array.edges();
@@ -509,12 +515,6 @@ class DynamicGraph {
   HyperedgeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.nodeDegree(u);
-  }
-
-  void incident_nodes(const HypernodeID& node, vec<HypernodeID>& incident_nodes) const {
-    for ( const auto& edge_id : incidentEdges(node)) {
-      incident_nodes.push_back(edgeTarget(edge_id));
-    }
   }
 
   // ! Returns, whether a hypernode is enabled or not

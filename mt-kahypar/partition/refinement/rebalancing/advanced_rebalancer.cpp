@@ -58,9 +58,7 @@ namespace impl {
     if (!phg.fixedVertexSupport().getConstraintIdFromHypergraphId(node, node_id)) {
       return true; // node is not in constraint graph
     }
-    vec<HypernodeID> incident_nodes;
-    constraint_graph.incident_nodes(node_id, incident_nodes);
-    for (HypernodeID neighbor : incident_nodes) {
+    for (HypernodeID neighbor : constraint_graph.incidentNodes(node_id)) {
       if (phg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
         return false;
       }

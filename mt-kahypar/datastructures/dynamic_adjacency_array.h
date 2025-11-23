@@ -89,6 +89,29 @@ class IncidentEdgeIterator {
   bool _end;
 };
 
+class IncidentNodeIterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using difference_type = std::ptrdiff_t;
+    using reference = HypernodeID;
+    using pointer = void;
+
+    IncidentNodeIterator(const IncidentEdgeIterator& it, const DynamicAdjacencyArray* dynamic_adjacency_array);
+
+    HypernodeID operator*();
+
+    IncidentNodeIterator& operator++();
+    
+    bool operator==(const IncidentNodeIterator& other);
+
+    bool operator!=(const IncidentNodeIterator& other);
+
+private:
+    IncidentEdgeIterator _edge_it;
+    const DynamicAdjacencyArray* _dynamic_adjacency_array;
+};
+
 // Iterator over all edges
 class EdgeIterator {
   public:
@@ -317,6 +340,14 @@ class DynamicAdjacencyArray {
     return IteratorRange<IncidentEdgeIterator>(
       IncidentEdgeIterator(u, this, pos, false),
       IncidentEdgeIterator(u, this, UL(0), true));
+  }
+
+  // ! Returns a range to loop over the incident Nodes of Hypernode u.
+  IteratorRange<IncidentNodeIterator> incidentNodes(const HypernodeID& u) const {
+    auto edge_it = incidentEdges(u);
+    return IteratorRange<IncidentNodeIterator>(
+      IncidentNodeIterator(edge_it.begin(), this), 
+      IncidentNodeIterator(edge_it.end(), this));
   }
 
   // ! Returns a range to loop over all edges.

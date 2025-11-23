@@ -98,6 +98,28 @@ void IncidentEdgeIterator::skip_invalid() {
   }
 }
 
+HypernodeID IncidentNodeIterator::operator* () {
+  return _dynamic_adjacency_array->edge(*_edge_it).target;
+}
+
+IncidentNodeIterator& IncidentNodeIterator::operator++ () {
+  ++_edge_it;
+  return *this;
+}
+
+IncidentNodeIterator::IncidentNodeIterator( const IncidentEdgeIterator& it, 
+                                            const DynamicAdjacencyArray* dynamic_adjacency_array):
+  _edge_it(it),
+  _dynamic_adjacency_array(dynamic_adjacency_array) {}
+
+bool IncidentNodeIterator::operator== (const IncidentNodeIterator& other) {
+  return _edge_it == other._edge_it;
+}
+
+bool IncidentNodeIterator::operator!= (const IncidentNodeIterator& other){
+  return !(*this == other);
+}
+
 EdgeIterator::EdgeIterator(const HypernodeID u,
                            const DynamicAdjacencyArray* dynamic_adjacency_array):
     _current_u(u),

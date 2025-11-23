@@ -325,12 +325,6 @@ namespace mt_kahypar {
     }
   }
 
-  void get_incident_nodes(const ds::DynamicGraph& graph, const HypernodeID& node, vec<HypernodeID>& incident_nodes) {
-    for ( const auto& edge_id : graph.incidentEdges(node)) {
-      incident_nodes.push_back(graph.edgeTarget(edge_id));
-    }
-  }
-
   template<typename PartitionedHypergraph>
   PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg,
                                   const Context& context,
@@ -395,11 +389,9 @@ namespace mt_kahypar {
       for ( const auto& node : constraint_graph.nodes()) {
         HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
         PartitionID partition_id = partitioned_hg.partID(node_id);
-        vec<HypernodeID> incident_nodes_id;
         vec<bool> invalid_partitions(partitioned_hg.k(), false);
 
-        constraint_graph.incident_nodes(node, incident_nodes_id);
-        for (HypernodeID incident_node : incident_nodes_id) {
+        for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
           PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
           invalid_partitions[incident_partition_id] = true;
         }
@@ -429,9 +421,7 @@ namespace mt_kahypar {
       for (const auto& node : constraint_graph.nodes()) {
         HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
         PartitionID partition = partitioned_hg.partID(node_id);
-        vec<HypernodeID> incident_nodes;
-        constraint_graph.incident_nodes(node, incident_nodes);
-        for (HypernodeID neighbor : incident_nodes) {
+        for (HypernodeID neighbor : constraint_graph.incidentNodes(node)) {
           if (partitioned_hg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
             rebalanced_valid = false;
           }
