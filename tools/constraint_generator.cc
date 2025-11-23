@@ -15,26 +15,30 @@ namespace po = boost::program_options;
 
 constexpr double DEFAULT_CONSTRAINT_FRACTION = 0.15;
 
-HypernodeID constraints(std::ofstream& out_stream, const io::HyperedgeVector& hyperedges, const PartitionID& max_constraints_per_node, const HypernodeID& num_constraints) {
+HypernodeID constraints(vec<vec<NodeID>>& adjacency, const io::HyperedgeVector& hyperedges, const HypernodeID& max_constraints_per_node, const HypernodeID& num_constraints) {
     HypernodeID constraint_count = 0;
     std::unordered_map<HypernodeID, HypernodeID> constraint_per_node;
     for (io::Hyperedge edge : hyperedges) {
-        for (HypernodeID i = 0; i < edge.size(); i++) {
+        for (HyperedgeID i = 0; i < edge.size(); i++) {
             HypernodeID node = edge[i];
             for (HyperedgeID j = i + 1; j < edge.size(); j++) {
+                HypernodeID other_node = edge[j];
                 if (constraint_count >= num_constraints){
                     return constraint_count;
                 }
-                if (constraint_per_node[node] >= max_constraints_per_node) {
-                    break;
-                }
-                HypernodeID other_node = edge[j];
-                if (constraint_per_node[other_node] >= max_constraints_per_node) {
-                    continue;
-                }
+                if (constraint_per_node[node] >= max_constraints_per_node) break;
+                if (constraint_per_node[other_node] >= max_constraints_per_node) continue;
+                
+                auto& list = adjacency[node];
+                // if constraint already exists
+                if (std::find(list.begin(), list.end(), other_node) != list.end()) continue;
+                list = adjacency[other_node];
+                if (std::find(list.begin(), list.end(), node) != list.end()) continue;
+                
                 constraint_count++;
                 constraint_per_node[node]++;
-                out_stream << node << " " << other_node << std::endl;
+                constraint_per_node[other_node]++;
+                adjacency[node].push_back(other_node);
             }
         }
     }
@@ -44,7 +48,7 @@ HypernodeID constraints(std::ofstream& out_stream, const io::HyperedgeVector& hy
 int main(int argc, char* argv[]) {
     std::string hypergraph_file;
     std::string constraint_file;
-    PartitionID max_constraints_per_node;
+    HypernodeID max_constraints_per_node;
     HypernodeID num_constraints;
 
     po::options_description options("Options");
@@ -56,7 +60,7 @@ int main(int argc, char* argv[]) {
         po::value<std::string>(&constraint_file)->value_name("<string>")->required(),
         "Constraint Filename")
         ("blocks,k",
-        po::value<PartitionID>(&max_constraints_per_node)->value_name("<int>")->required(),
+        po::value<HypernodeID>(&max_constraints_per_node)->value_name("<int>")->required(),
         "Number of blocks")
         ("num-constraints,n",
         po::value<HypernodeID>(&num_constraints)->value_name("<int>")->default_value(0),
@@ -66,8 +70,8 @@ int main(int argc, char* argv[]) {
     po::store(po::parse_command_line(argc,argv, options), cmd_vm);
     po::notify(cmd_vm);
     max_constraints_per_node--; // max constraints per node are #Blocks -1
-
     std::ofstream out_stream(constraint_file.c_str());
+
     // Read Hypergraph
     HyperedgeID num_edges = 0;
     HypernodeID num_nodes = 0;
@@ -85,8 +89,22 @@ int main(int argc, char* argv[]) {
         num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
     }
 
+    vec<vec<NodeID>> adjacency;
+    adjacency.resize(num_nodes);
+    HypernodeID generated_constraints = constraints(adjacency, hyperedges, max_constraints_per_node, num_constraints);
+    for (NodeID i = 0; i < num_nodes; i++) {
+        vec<NodeID> neighbors = adjacency[i];
+        if(!neighbors.empty()) {
+            std::sort(neighbors.begin(), neighbors.end());
+            for(NodeID node : neighbors){
+                out_stream << i << " " << node << std::endl;
+            }
+        }
+        
+    }
+
     LOG << "";
-    LOG << "Generated " << constraints(out_stream, hyperedges, max_constraints_per_node, num_constraints) << "constraints";
+    LOG << "Generated " << generated_constraints << "constraints";
     LOG << "";
 
     out_stream.close();
