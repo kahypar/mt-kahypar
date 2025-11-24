@@ -82,7 +82,7 @@ HypernodeWeightArray generateWeights(const Hypergraph& hg, bool natural_weights,
   }
 
   std::mt19937 generator(137);
-  std::uniform_int_distribution<HNWeightScalar> uniform(1, 1000);
+  std::uniform_int_distribution<HNWeightScalar> uniform(1, 100);
 
   HypernodeWeightArray result(hg.initialNumNodes(), dimension, 0, true);
   for (HypernodeID hn = 0; hn < hg.initialNumNodes(); ++hn) {
