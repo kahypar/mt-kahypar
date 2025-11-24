@@ -28,6 +28,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <random>
 #include <string>
 #include <algorithm>
 
@@ -63,7 +64,8 @@ bool hasHyperedgeWeights(const Hypergraph& hg) {
 }
 
 template<typename Hypergraph>
-HypernodeWeightArray generateWeights(const Hypergraph& hg, bool natural_weights, bool unit_weights, bool degree_weights) {
+HypernodeWeightArray generateWeights(const Hypergraph& hg, bool natural_weights, bool unit_weights, bool degree_weights, int n_random_weights) {
+  ALWAYS_ASSERT(n_random_weights >= 0 && n_random_weights <= 5);
   if (natural_weights && unit_weights && !hasNodeWeights(hg)) {
     WARNING("Natural weights are equal to unit weights for unweighted graph! Continuing without natural weights.");
     natural_weights = false;
@@ -73,10 +75,14 @@ HypernodeWeightArray generateWeights(const Hypergraph& hg, bool natural_weights,
   dimension += natural_weights * hg.dimension();
   dimension += unit_weights;
   dimension += degree_weights;
+  dimension += n_random_weights;
 
   if (dimension == 0) {
     ERROR("No weights specified!");
   }
+
+  std::mt19937 generator(137);
+  std::uniform_int_distribution<HNWeightScalar> uniform(1, 100);
 
   HypernodeWeightArray result(hg.initialNumNodes(), dimension, 0, true);
   for (HypernodeID hn = 0; hn < hg.initialNumNodes(); ++hn) {
@@ -93,6 +99,10 @@ HypernodeWeightArray generateWeights(const Hypergraph& hg, bool natural_weights,
     }
     if (degree_weights) {
       result[hn].set(d, hg.nodeDegree(hn));
+      ++d;
+    }
+    for (int i = 0; i < n_random_weights; ++i) {
+      result[hn].set(d, uniform(generator));
       ++d;
     }
   }
@@ -176,6 +186,7 @@ int main(int argc, char* argv[]) {
   bool natural_weights = false;
   bool unit_weights = false;
   bool degree_weights = false;
+  int n_random_weights = 0;
 
   po::options_description options("Options");
   options.add_options()
@@ -193,7 +204,9 @@ int main(int argc, char* argv[]) {
     ("unit-weights,u",
     po::value<bool>(&unit_weights)->value_name("<bool>"), "Use unit weights.")
     ("degree-weights,d",
-    po::value<bool>(&degree_weights)->value_name("<bool>"), "Use degree weights.");
+    po::value<bool>(&degree_weights)->value_name("<bool>"), "Use degree weights.")
+    ("random-weights,r",
+    po::value<int>(&n_random_weights)->value_name("<int>"), "Use the specified number of uniformly random weights.");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -204,11 +217,11 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   if (is_metis) {
     auto graph = io::readInputFile<ds::StaticGraph>(hgr_filename, FileFormat::Metis, true);
-    HypernodeWeightArray hn_weights = generateWeights(graph, natural_weights, unit_weights, degree_weights);
+    HypernodeWeightArray hn_weights = generateWeights(graph, natural_weights, unit_weights, degree_weights, n_random_weights);
     writeMetisOutput(out_stream, graph, hn_weights);
   } else {
     auto hypergraph = io::readInputFile<ds::StaticHypergraph>(hgr_filename, FileFormat::hMetis, true);
-    HypernodeWeightArray hn_weights = generateWeights(hypergraph, natural_weights, unit_weights, degree_weights);
+    HypernodeWeightArray hn_weights = generateWeights(hypergraph, natural_weights, unit_weights, degree_weights, n_random_weights);
     writeHMetisOutput(out_stream, hypergraph, hn_weights);
   }
 
