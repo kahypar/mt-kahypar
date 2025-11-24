@@ -95,7 +95,7 @@ namespace impl {
 
       PartitionID to = kInvalidPartition;
       HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-      float to_gain = std::numeric_limits<float>::min();
+      float to_gain = std::numeric_limits<float>::lowest();
       for (PartitionID i : range) {
         if (i != from && i != kInvalidPartition) {
           bool is_adjacent;
@@ -131,7 +131,7 @@ namespace impl {
                                                             context.refinement.rebalancing.negative_progress_penalty));
       }
     }
-    return std::make_pair(kInvalidPartition, std::numeric_limits<float>::min());
+    return std::make_pair(kInvalidPartition, std::numeric_limits<float>::lowest());
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -303,7 +303,7 @@ namespace impl {
 
     bool tryPopSequential() {
       while (true) {
-        float best_key = std::numeric_limits<float>::min();
+        float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
           if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {
@@ -788,7 +788,7 @@ namespace impl {
           for (const auto& node: binpacking_nodes) {
             ASSERT(phg.partID(node.id) == node.from && node.to != kInvalidPartition);
             if (node.from == node.to) continue;
-            DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
+            // DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
 
             int64_t gain = 0;
             phg.changeNodePart(_gain_cache, node.id, node.from, node.to,
