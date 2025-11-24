@@ -84,28 +84,36 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
   // it can happen (due to degree 0 nodes or individual block weights) that some min dimension is not present for any block
   // ---> compute block with most fitting imbalance instead
   for (Dimension d = 0; d < phg.dimension(); ++d) {
-    bool has_block_target = false;
+    size_t n_block_targets = 0;
     for (PartitionID block = 0; block < context.partition.k; ++block) {
       if (is_min_block_dimension[block * phg.dimension() + d]) {
-        has_block_target = true;
-        break;
+        n_block_targets++;
+        if (n_block_targets > 1) break;
       }
     }
-    if (!has_block_target) {
+    if (n_block_targets <= 1) {
       float smallest_ratio = 2;
+      float second_smallest_ratio = 2;
       PartitionID best_block = kInvalidPartition;
+      PartitionID second_block = kInvalidPartition;
       for (PartitionID block = 0; block < context.partition.k; ++block) {
         const HNWeightConstRef block_weight = weight::toNonAtomic(phg.partWeight(block));
         float summed_weight = impl::normalizedSum(block_weight, block_weight_normalizers[block]);
         float weight_of_dim = block_weight_normalizers[block].at(d) * block_weight.at(d);
         float ratio = weight_of_dim / summed_weight;
         if (ratio < smallest_ratio) {
+          second_block = best_block;
+          second_smallest_ratio = smallest_ratio;
           best_block = block;
           smallest_ratio = ratio;
+        } else if (ratio < second_smallest_ratio) {
+          second_block = block;
+          second_smallest_ratio = ratio;
         }
       }
       ASSERT(best_block != kInvalidPartition);
       is_min_block_dimension[best_block * phg.dimension() + d] = static_cast<uint8_t>(true);
+      is_min_block_dimension[second_block * phg.dimension() + d] = static_cast<uint8_t>(true);
     }
   }
 
