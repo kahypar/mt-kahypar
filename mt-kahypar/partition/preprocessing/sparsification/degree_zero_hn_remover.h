@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
@@ -54,6 +55,11 @@ class DegreeZeroHypernodeRemover {
 
   // ! Remove all degree zero vertices
   HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+    vec<double> weight_normalizer(hypergraph.dimension(), 0);
+    for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+      weight_normalizer[d] = 1 / static_cast<double>(hypergraph.totalWeight().at(d));
+    }
+
     const HypernodeID current_num_nodes =
       hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
@@ -63,7 +69,7 @@ class DegreeZeroHypernodeRemover {
       }
       if ( hypergraph.nodeDegree(hn) == 0 && !hypergraph.isFixed(hn) ) {
         hypergraph.removeDegreeZeroHypernode(hn);
-        _removed_hns.push_back(hn);
+        _removed_hns.emplace_back(hn, impl::normalizedSum(hypergraph.nodeWeight(hn), weight_normalizer));
         ++num_removed_degree_zero_hypernodes;
       }
     }
@@ -74,44 +80,61 @@ class DegreeZeroHypernodeRemover {
   void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
     // Sort degree-zero vertices in decreasing order of their weight
     tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
-      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        const HNWeightScalar lhs_weight = weight::sum(hypergraph.nodeWeight(lhs));
-        const HNWeightScalar rhs_weight = weight::sum(hypergraph.nodeWeight(rhs));
-        return lhs_weight > rhs_weight || (lhs_weight == rhs_weight && lhs > rhs);
-      });
-    // Sort blocks of partition in increasing order of their weight
-    auto distance_to_max = [&](const PartitionID block) {
-      if (!(hypergraph.partWeight(block) < _context.partition.max_part_weights[block])) {
-        return weight::sum(weight::max(hypergraph.partWeight(block) - _context.partition.max_part_weights[block],
-                           weight::broadcast(0, hypergraph.dimension())));
-      }
-      return weight::sum(hypergraph.partWeight(block) - _context.partition.max_part_weights[block]);
-    };
-    parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
-    std::iota(blocks.begin(), blocks.end(), 0);
-    std::sort(blocks.begin(), blocks.end(),
-      [&](const PartitionID& lhs, const PartitionID& rhs) {
-        return distance_to_max(lhs) < distance_to_max(rhs);
+      [&](const std::pair<HypernodeID, float>& lhs, const std::pair<HypernodeID, float>& rhs) {
+        return lhs.second > rhs.second || (lhs.second == rhs.second && lhs.first > rhs.first);
       });
 
-    // Perform Bin-Packing
-    // TODO: multi-constraint
-    for ( const HypernodeID& hn : _removed_hns ) {
-      PartitionID to = blocks.front();
-      hypergraph.restoreDegreeZeroHypernode(hn, to);
-      PartitionID i = 0;
-      while ( i + 1 < _context.partition.k &&
-              distance_to_max(blocks[i]) > distance_to_max(blocks[i + 1]) ) {
-        std::swap(blocks[i], blocks[i + 1]);
-        ++i;
+    if (hypergraph.dimension() == 1) {
+      // Sort blocks of partition in increasing order of their weight
+      auto distance_to_max = [&](const PartitionID block) {
+        return hypergraph.partWeight(block) - _context.partition.max_part_weights[block];
+      };
+      parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
+      std::iota(blocks.begin(), blocks.end(), 0);
+      std::sort(blocks.begin(), blocks.end(),
+        [&](const PartitionID& lhs, const PartitionID& rhs) {
+          return distance_to_max(lhs) < distance_to_max(rhs);
+        });
+
+      // Perform Bin-Packing
+      for (const auto& [hn, _]: _removed_hns) {
+        PartitionID to = blocks.front();
+        hypergraph.restoreDegreeZeroHypernode(hn, to);
+        PartitionID i = 0;
+        while ( i + 1 < _context.partition.k &&
+                distance_to_max(blocks[i]) > distance_to_max(blocks[i + 1]) ) {
+          std::swap(blocks[i], blocks[i + 1]);
+          ++i;
+        }
+      }
+    } else {
+      const vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(_context);
+      for (const auto& [hn, _]: _removed_hns) {
+        const HNWeightConstRef weight = hypergraph.nodeWeight(hn);
+
+        PartitionID best_target = kInvalidPartition;
+        float best_block_rating = std::numeric_limits<float>::lowest();
+        for (PartitionID to = 0; to < _context.partition.k; ++to) {
+          float rating = impl::dotProduct(weight, _context.partition.max_part_weights[to] - hypergraph.partWeight(to), block_weight_normalizers[to]);
+          if (!(hypergraph.partWeight(to) + weight <= _context.partition.max_part_weights[to])) {
+            rating -= 1;
+          }
+          if (rating > best_block_rating) {
+            best_target = to;
+            best_block_rating = rating;
+          }
+        }
+        ASSERT(best_target != kInvalidPartition);
+        hypergraph.restoreDegreeZeroHypernode(hn, best_target);
       }
     }
+
     _removed_hns.clear();
   }
 
  private:
   const Context& _context;
-  parallel::scalable_vector<HypernodeID> _removed_hns;
+  parallel::scalable_vector<std::pair<HypernodeID, float>> _removed_hns;
 };
 
 }  // namespace mt_kahypar
