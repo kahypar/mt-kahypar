@@ -191,7 +191,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     }
 
     if (context.partition.negative_constraints_filename != "") {
-      oss << " constrains_met=" << ( mt_kahypar::constraints::verifyConstraints(hypergraph)? "yes" : "no");
+      oss << " constraints_met=" << ( mt_kahypar::constraints::verifyConstraints(hypergraph)? "yes" : "no");
     }
 
     // Metrics
