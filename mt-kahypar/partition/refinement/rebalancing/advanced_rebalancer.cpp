@@ -95,7 +95,7 @@ namespace impl {
 
       PartitionID to = kInvalidPartition;
       HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
-      float to_gain = std::numeric_limits<float>::min();
+      float to_gain = std::numeric_limits<float>::lowest();
       for (PartitionID i : range) {
         if (i != from && i != kInvalidPartition) {
           bool is_adjacent;
@@ -131,7 +131,7 @@ namespace impl {
                                                             context.refinement.rebalancing.negative_progress_penalty));
       }
     }
-    return std::make_pair(kInvalidPartition, std::numeric_limits<float>::min());
+    return std::make_pair(kInvalidPartition, std::numeric_limits<float>::lowest());
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -243,7 +243,7 @@ namespace impl {
 
       if (success) {
         pq.deleteTop();
-        gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+        gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
       } else {
         // gain was updated by success_func in this case
         if (_target_part[node] != kInvalidPartition) {
@@ -251,7 +251,7 @@ namespace impl {
           gpq.top_key = pq.topKey();
         } else {
           pq.deleteTop();
-          gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+          gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
         }
       }
       if (parallel) {
@@ -283,7 +283,7 @@ namespace impl {
       }
 
       while (true) {
-        float best_key = std::numeric_limits<float>::min();
+        float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
           if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {
@@ -303,7 +303,7 @@ namespace impl {
 
     bool tryPopSequential() {
       while (true) {
-        float best_key = std::numeric_limits<float>::min();
+        float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
           if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {

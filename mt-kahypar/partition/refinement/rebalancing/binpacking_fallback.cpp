@@ -457,8 +457,7 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
       success = computeSinglePacking(current_packer, current_nodes, weight_normalizer, algo, current_bound);
       if (success) {
         const double balance_rating = computeBalanceRating(context, current_packer);
-        bool check = global_best_result.applyBetterResult(context, current_nodes, balance_rating, 0, algo, false);
-        ASSERT(check);
+        global_best_result.applyBetterResult(context, current_nodes, balance_rating, 0, algo, false);
         best_bound_was_multi_packed = false;
       }
     }

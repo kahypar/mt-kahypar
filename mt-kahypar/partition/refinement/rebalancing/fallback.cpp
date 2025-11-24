@@ -119,7 +119,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
 
   auto compute_best_target = [&](const HypernodeID hn, const PartitionID from, const HNWeightConstRef weight, const vec<uint8_t>& max_dimensions, bool skip_blocks) {
     PartitionID best_to_part = kInvalidPartition;
-    float best_rating = std::numeric_limits<float>::min();
+    float best_rating = std::numeric_limits<float>::lowest();
     HyperedgeWeight best_gain = std::numeric_limits<HyperedgeWeight>::min();
     const HyperedgeWeight penalty_term = gain_cache.penaltyTerm(hn, phg.partID(hn));
     HyperedgeWeight adjacent_weight = 0;
