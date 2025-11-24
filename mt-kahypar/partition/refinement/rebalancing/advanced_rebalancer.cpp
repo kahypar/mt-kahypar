@@ -788,7 +788,7 @@ namespace impl {
           for (const auto& node: binpacking_nodes) {
             ASSERT(phg.partID(node.id) == node.from && node.to != kInvalidPartition);
             if (node.from == node.to) continue;
-            DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
+            // DBG << V(node.from) << V(node.to) << V(phg.nodeWeight(node.id)) << V(phg.partWeight(node.to));
 
             int64_t gain = 0;
             phg.changeNodePart(_gain_cache, node.id, node.from, node.to,
