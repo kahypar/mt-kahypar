@@ -191,7 +191,7 @@ namespace impl {
 
       if (success) {
         pq.deleteTop();
-        gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+        gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
       } else {
         // gain was updated by success_func in this case
         if (_target_part[node] != kInvalidPartition) {
@@ -199,7 +199,7 @@ namespace impl {
           gpq.top_key = pq.topKey();
         } else {
           pq.deleteTop();
-          gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+          gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
         }
       }
       gpq.lock.unlock();
@@ -229,7 +229,7 @@ namespace impl {
       }
 
       while (true) {
-        float best_key = std::numeric_limits<float>::min();
+        float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
           if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {

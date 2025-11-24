@@ -40,10 +40,10 @@ namespace rebalancer {
     GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
     SpinLock lock;
     ds::MaxHeap<float, HypernodeID> pq;
-    float top_key = std::numeric_limits<float>::min();
+    float top_key = std::numeric_limits<float>::lowest();
     void reset() {
       pq.clear();
-      top_key = std::numeric_limits<float>::min();
+      top_key = std::numeric_limits<float>::lowest();
     }
   };
 
