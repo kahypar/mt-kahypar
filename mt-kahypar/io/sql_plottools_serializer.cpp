@@ -30,6 +30,7 @@
 #include <sstream>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/constraints.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -187,6 +188,10 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
       if ( TargetGraph::TRACK_STATS ) {
         hypergraph.targetGraph()->printStats(oss);
       }
+    }
+
+    if (context.partition.negative_constraints_filename != "") {
+      oss << " constrains_met=" << ( mt_kahypar::constraints::verifyConstraints(hypergraph)? "yes" : "no");
     }
 
     // Metrics
