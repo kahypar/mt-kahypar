@@ -365,7 +365,7 @@ class Context {
 
   void setupGainPolicy();
 
-  void sanityCheck(const TargetGraph* target_graph);
+  void sanityCheck(Dimension dimension, const TargetGraph* target_graph);
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);

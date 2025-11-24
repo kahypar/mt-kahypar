@@ -414,7 +414,7 @@ namespace mt_kahypar {
             weight::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
-  void Context::sanityCheck(const TargetGraph* target_graph) {
+  void Context::sanityCheck(Dimension dimension, const TargetGraph* target_graph) {
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -432,13 +432,13 @@ namespace mt_kahypar {
     }
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
-    if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
-      // TODO: check is incorrect for multi-constraint ?!
+    if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) * dimension != partition.max_part_weights.size()) {
+      // TODO: check is not fully correct for multi-constraint (divisibility)
       ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
-                          << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
+                          << "Do you want to use k =" << partition.max_part_weights.size() / dimension << "instead (Y/N)?",
                   "Number of parts is not equal to k!",
                   partition.k,
-                  partition.max_part_weights.size());
+                  partition.max_part_weights.size() / dimension);
     }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, size_t(4), size_t(256));
