@@ -722,7 +722,7 @@ namespace mt_kahypar {
         LOG << "Starting evolutionary search with" << num_evo_workers << "workers, each using"
             << num_multilevel_threads << "threads for multilevel partitioning.";
 
-        const bool km1_logging_enabled = context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode;
+        const bool iteration_logging_enabled = context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode;
         const size_t log_limit = std::max<size_t>(1, context.evolutionary.iteration_log_limit);
 
         // task arenas for each worker to ensure isolated thread pools
@@ -795,8 +795,8 @@ namespace mt_kahypar {
                             std::exit(EXIT_FAILURE);
                     }
 
-                    // Log current best KM1 after each iteration if enabled
-                    if ( km1_logging_enabled ) {
+                    // Log current best KM1 after each iteration if enabled (iteration, timestamp, km1)
+                    if ( iteration_logging_enabled ) {
                         // get current best KM1 from population
                         size_t best_idx = population.bestSafe();
                         auto current_km1 = population.individualAtSafe(best_idx).fitness();
@@ -804,7 +804,9 @@ namespace mt_kahypar {
                                         std::chrono::high_resolution_clock::now().time_since_epoch()
                                         ).count();
                         std::lock_guard<std::mutex> lg(iteration_log_mutex);
-                        iteration_log_history += std::to_string(ts_ms) + "," + std::to_string(current_km1) + "\n";
+                        iteration_log_history += std::to_string(total_iterations.load()) + ", " +
+                                                std::to_string(ts_ms) + ", " +
+                                                std::to_string(current_km1) + "\n";
                     }
                 }
             });
