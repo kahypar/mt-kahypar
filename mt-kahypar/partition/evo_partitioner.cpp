@@ -18,6 +18,7 @@
 
 namespace mt_kahypar {
 
+
     template<typename TypeTraits>
     const Individual& EvoPartitioner<TypeTraits>::addThreadLocalTemporary(Individual&& individual) {
         thread_local_temporaries_.push_back(std::make_unique<Individual>(std::move(individual)));
@@ -184,6 +185,12 @@ namespace mt_kahypar {
         auto time_elapsed = now - start;
         auto duration = std::chrono::seconds(context.partition.time_limit);
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
+
+        // if benchmark mode is enabled, temporarily limit threads to 1 to ensure deterministic intial population
+        size_t original_thread_count = context.shared_memory.num_threads;
+        if (context.partition.enable_benchmark_mode) {
+            context.shared_memory.num_threads = 1;
+        }
         
         // INITIAL POPULATION
         if (context.evolutionary.dynamic_population_size) {
@@ -213,6 +220,10 @@ namespace mt_kahypar {
             int minimal_size = std::max(dynamic_population_size, 3);
 
             context.evolutionary.population_size = std::min(minimal_size, 50);
+            // limit kway combine to population size
+            context.evolutionary.kway_combine = std::min(context.evolutionary.kway_combine,
+                                                        int(context.evolutionary.population_size));
+
             LOG << context.evolutionary.population_size;
             //LOG << population;
         }
@@ -245,6 +256,12 @@ namespace mt_kahypar {
             iteration++;
             time_elapsed = now - start;
         }
+
+        // reset number of threads to original value
+        if (context.partition.enable_benchmark_mode) {
+            context.shared_memory.num_threads = original_thread_count;
+        }
+
         context.evolutionary.time_elapsed = time_elapsed;
         context.partition.verbose_output = true;
         return history;
@@ -318,6 +335,46 @@ namespace mt_kahypar {
         }
         
         return EvoDecision::combine;
+    }
+
+    template<typename TypeTraits>
+    ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context) {
+        
+        ContextModifierParameters params;
+
+        // set to defaults
+        params.k = context.partition.k;
+        params.epsilon = context.partition.epsilon;
+
+        // 5 options, equal probability (1/5 each)
+        int choice = utils::Randomize::instance().getRandomInt(0, 4, THREAD_ID);
+        switch (choice) {
+            case 0:
+                // modify epsilon (default = 3 * epsilon)
+                params.epsilon = 3.0 * context.partition.epsilon;
+                break;
+            case 1: 
+                // Random Partition
+                params.use_random_partitions = true;
+                break;
+            case 2:
+                // Degree Sorted Partition
+                params.use_degree_sorted_partitions = true;
+                break;
+            case 3:
+                // modify k (default = 2 * k)
+                params.k = 2 * context.partition.k;
+                break;
+            case 4:
+                // recursive bipartitioning
+                params.recursive_bipartitioning = true;
+                break;
+            default:
+                throw InvalidParameterException("Invalid choice for modified combine strategy");
+        }
+
+        return params;
+
     }
 
     template<typename TypeTraits>
@@ -711,6 +768,7 @@ namespace mt_kahypar {
             
             modified_combine_params = ContextModifierParameters{
                 .use_random_partitions = context.evolutionary.modified_combine_use_random_partitions,
+                .use_degree_sorted_partitions = context.evolutionary.modified_combine_use_degree_sorted_partitions,
                 .k = absolute_k,
                 .epsilon = absolute_epsilon,
                 .recursive_bipartitioning = context.evolutionary.modified_combine_recursive_bipartitioning
@@ -781,6 +839,10 @@ namespace mt_kahypar {
                             }
                         case EvoDecision::modified_combine:
                             {
+                                // decide modified combine parameters if mixed strategy is enabled
+                                if (context.evolutionary.modified_combine_mixed) {
+                                    modified_combine_params = decideContextModificationParameters(context);
+                                }
                                 std::string h = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
                                 if (!h.empty()) {
                                     std::lock_guard<std::mutex> lock(_history_mutex);

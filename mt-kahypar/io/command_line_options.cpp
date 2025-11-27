@@ -864,7 +864,10 @@ namespace mt_kahypar {
              "Use random partitions for modified combine external parent")
              ("evo-modified-combine-use-degree-sorted-partitions",
              po::value<bool>(&context.evolutionary.modified_combine_use_degree_sorted_partitions)->value_name("<bool>")->default_value(false),
-             "Use degree sorted partitions for modified combine external parent");
+             "Use degree sorted partitions for modified combine external parent")
+             ("evo-modified-combine-mixed",
+             po::value<bool>(&context.evolutionary.modified_combine_mixed)->value_name("<bool>")->default_value(false),
+             "Use mixed mode for modified combine external parent");
     return options;
   }
 

@@ -325,6 +325,7 @@ struct EvolutionaryParameters {
   bool modified_combine_recursive_bipartitioning = false;
   bool modified_combine_use_random_partitions = false;
   bool modified_combine_use_degree_sorted_partitions = false;
+  bool modified_combine_mixed = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params);
