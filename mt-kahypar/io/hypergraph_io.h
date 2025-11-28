@@ -56,6 +56,10 @@ namespace io {
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
 
+  void onlyReadHGRHeader(const std::string& filename,
+                          HyperedgeID& num_hyperedges,
+                          HypernodeID& num_hypernodes);
+
   void readNegativeConstraintsFile(const std::string& filename, vec<std::pair<HypernodeID, HypernodeID>>& constraints);
 
   template<typename PartitionedHypergraph>

@@ -219,6 +219,17 @@ namespace mt_kahypar::io {
     }
     do_line_ending(mapped_file, pos);
   }
+  
+  void onlyReadHGRHeader(const std::string& filename,
+                          HyperedgeID& num_hyperedges,
+                          HypernodeID& num_hypernodes) {
+    ASSERT(!filename.empty(), "No filename for hypergraph file specified");
+    FileHandle handle = mmap_file(filename);
+    size_t pos = 0;
+    mt_kahypar::Type type;
+    readHGRHeader(handle.mapped_file, pos, handle.length, num_hyperedges, num_hypernodes, type);
+    munmap_file(handle);
+  }
 
   struct HyperedgeRange {
     const size_t start;
