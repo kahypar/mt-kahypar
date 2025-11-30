@@ -61,6 +61,7 @@ class ParallelConstruction {
     PartitionID block;
   };
 
+  // for non-deterministic construction
   struct TmpHyperedge {
     const size_t hash;
     const size_t bucket;
@@ -112,6 +113,25 @@ class ParallelConstruction {
     uint32_t _threshold;
   };
 
+  // for deterministic construction
+  struct TmpDeterministicHyperedge {
+    size_t weight;
+    vec<whfc::Node> pins;
+  };
+
+  struct HashedHyperedge {
+    size_t he;
+    size_t hash;
+    size_t size;
+  };
+
+  struct TmpHyperedgeBuffer {
+    void resize(const HyperedgeID num_hyperedges);
+
+    vec<TmpDeterministicHyperedge> tmp_hyperedges;
+    vec<uint8_t> valid_hyperedges;
+  };
+
  public:
   explicit ParallelConstruction(const HyperedgeID num_hyperedges,
                                 FlowHypergraphBuilder& flow_hg,
@@ -126,7 +146,8 @@ class ParallelConstruction {
     _cut_hes(),
     _pins(),
     _he_to_whfc(),
-    _identical_nets(num_hyperedges, flow_hg, context) { }
+    _identical_nets(num_hyperedges, flow_hg, context),
+    _tmp_hyperedge_buffer() {}
 
   ParallelConstruction(const ParallelConstruction&) = delete;
   ParallelConstruction(ParallelConstruction&&) = delete;
@@ -140,7 +161,8 @@ class ParallelConstruction {
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
-                                      vec<HypernodeID>& whfc_to_node);
+                                      vec<HypernodeID>& whfc_to_node,
+                                      const bool deterministic);
 
   // ! Only for testing
   FlowProblem constructFlowHypergraphExplicit(const PartitionedHypergraph& phg,
@@ -148,7 +170,8 @@ class ParallelConstruction {
                                               const PartitionID block_0,
                                               const PartitionID block_1,
                                               vec<HypernodeID>& whfc_to_node,
-                                              const bool default_construction);
+                                              const bool default_construction,
+                                              const bool deterministic);
 
  private:
   FlowProblem constructDefault(const PartitionedHypergraph& phg,
@@ -157,11 +180,38 @@ class ParallelConstruction {
                                const PartitionID block_1,
                                vec<HypernodeID>& whfc_to_node);
 
+  FlowProblem constructDefaultDeterministic(const PartitionedHypergraph& phg,
+                                            const Subhypergraph& sub_hg,
+                                            const PartitionID block_0,
+                                            const PartitionID block_1,
+                                            vec<HypernodeID>& whfc_to_node);
+
   FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg,
                                             const PartitionID block_0,
                                             const PartitionID block_1,
                                             vec<HypernodeID>& whfc_to_node);
+
+  FlowProblem constructOptimizedForLargeHEsDeterministic(const PartitionedHypergraph& phg,
+                                                         const Subhypergraph& sub_hg,
+                                                         const PartitionID block_0,
+                                                         const PartitionID block_1,
+                                                         vec<HypernodeID>& whfc_to_node);
+
+  void initializeWHFCNodes(const PartitionedHypergraph& phg,
+                           const Subhypergraph& sub_hg,
+                           const PartitionID block_0,
+                           const PartitionID block_1,
+                           FlowProblem& flow_problem,
+                           vec<HypernodeID>& whfc_to_node,
+                           bool collect_pins);
+
+  bool checkIfHyperedgesAreParallel(const TmpDeterministicHyperedge& lhs,
+                                    const TmpDeterministicHyperedge& rhs);
+
+  void deduplicateParallelHyperedges(vec<HashedHyperedge>& bucket,
+                                     vec<TmpDeterministicHyperedge>& tmp_hyperedges,
+                                     vec<uint8_t>& valid_hyperedges);
 
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,
@@ -184,5 +234,7 @@ class ParallelConstruction {
   ds::ConcurrentFlatMap<HyperedgeID, HyperedgeID> _he_to_whfc;
 
   DynamicIdenticalNetDetection _identical_nets;
+
+  TmpHyperedgeBuffer _tmp_hyperedge_buffer;
 };
 }  // namespace mt_kahypar

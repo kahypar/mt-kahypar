@@ -167,7 +167,7 @@ namespace impl {
     bool checkCandidate(HypernodeID u, float& gain_in_pq) {
       if (!_node_state[u].tryLock()) return false;
       auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, _phg.partID(u));
-      if (true_gain >= gain_in_pq) {
+      if (to != kInvalidPartition && true_gain >= gain_in_pq) {
         next_move.node = u;
         next_move.to = to;
         next_move.from = _phg.partID(u);
@@ -191,7 +191,7 @@ namespace impl {
 
       if (success) {
         pq.deleteTop();
-        gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+        gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
       } else {
         // gain was updated by success_func in this case
         if (_target_part[node] != kInvalidPartition) {
@@ -199,7 +199,7 @@ namespace impl {
           gpq.top_key = pq.topKey();
         } else {
           pq.deleteTop();
-          gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+          gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
         }
       }
       gpq.lock.unlock();
@@ -229,7 +229,7 @@ namespace impl {
       }
 
       while (true) {
-        float best_key = std::numeric_limits<float>::min();
+        float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
           if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {
@@ -338,6 +338,7 @@ namespace impl {
 
       while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
         const Move& m = next_move_finder.next_move;
+        ASSERT(m.to != kInvalidPartition);
         const PartitionID from = phg.partID(m.node);
         _node_state[m.node].markAsMovedAndUnlock();
 

@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"

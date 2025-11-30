@@ -242,7 +242,7 @@ MaxGainMove LabelPropagationInitialPartitioner<TypeTraits>::computeMaxGainMoveFo
 template<typename TypeTraits>
 MaxGainMove LabelPropagationInitialPartitioner<TypeTraits>::findMaxGainMove(PartitionedHypergraph& hypergraph,
                                                                             const HypernodeID hn,
-                                                                            const HypernodeWeight internal_weight) {
+                                                                            const HyperedgeWeight internal_weight) {
   const PartitionID from = hypergraph.partID(hn);
   PartitionID best_block = from;
   Gain best_score = from == kInvalidPartition ? std::numeric_limits<Gain>::min() : 0;

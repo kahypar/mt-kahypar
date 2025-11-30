@@ -18,7 +18,11 @@
                 "KAHYPAR_ENABLE_SOED_METRIC": "OFF",
                 "KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES": "OFF",
                 "KAHYPAR_ENABLE_STEINER_TREE_METRIC": "OFF",
-                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF"
+                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF",
+                "KAHYPAR_ENABLE_TESTING": "OFF",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
+                "KAHYPAR_PYTHON": "OFF"
             }
         },
         {
@@ -33,7 +37,11 @@
                 "KAHYPAR_ENABLE_SOED_METRIC": "ON",
                 "KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES": "ON",
                 "KAHYPAR_ENABLE_STEINER_TREE_METRIC": "ON",
-                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF"
+                "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF",
+                "KAHYPAR_ENABLE_TESTING": "OFF",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
+                "KAHYPAR_PYTHON": "OFF"
             }
         },
         {

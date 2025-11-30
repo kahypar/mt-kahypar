@@ -118,11 +118,11 @@ class DynamicHypergraph {
       _valid = false;
     }
 
-    HyperedgeWeight weight() const {
+    HypernodeWeight weight() const {
       return _weight;
     }
 
-    void setWeight(HyperedgeWeight weight) {
+    void setWeight(HypernodeWeight weight) {
       ASSERT(!isDisabled());
       _weight = weight;
     }
@@ -146,7 +146,7 @@ class DynamicHypergraph {
 
    private:
     // ! Hypernode weight
-    HyperedgeWeight _weight;
+    HypernodeWeight _weight;
     // ! Community id
     PartitionID _community_id;
     // ! Index of the uncontraction batch in which this hypernode is contained in

@@ -168,7 +168,7 @@ class GreedyInitialPartitionerBase {
                      const PartitionID block,
                      const bool use_perfect_balanced_as_upper_bound) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    const HyperedgeWeight upper_bound = use_perfect_balanced_as_upper_bound ?
+    const HypernodeWeight upper_bound = use_perfect_balanced_as_upper_bound ?
       _context.partition.perfect_balance_part_weights[block] : _context.partition.max_part_weights[block];
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       upper_bound;

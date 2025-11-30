@@ -60,17 +60,17 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph> {
     context.preprocessing.community_detection.min_vertex_move_fraction = 0.0001;
     context.shared_memory.num_threads = 1;
 
-    graph = std::make_unique<Graph<Hypergraph>>(hypergraph, LouvainEdgeWeight::uniform);
+    graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readInputFile<Hypergraph>(
       context.partition.graph_filename, FileFormat::hMetis, true);
-    karate_club_graph = std::make_unique<Graph<Hypergraph>>(karate_club_hg, LouvainEdgeWeight::uniform, true);
+    karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   }
 
   using Base::hypergraph;
-  std::unique_ptr<Graph<Hypergraph>> graph;
+  std::unique_ptr<Graph> graph;
   Context context;
   Hypergraph karate_club_hg;
-  std::unique_ptr<Graph<Hypergraph>> karate_club_graph;
+  std::unique_ptr<Graph> karate_club_graph;
 };
 
 ds::Clustering clustering(const std::vector<PartitionID>& communities) {
@@ -82,100 +82,100 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove1) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 7, clear_list);
   ASSERT_EQ(0, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove2) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 8, clear_list);
   ASSERT_EQ(3, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove3) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 8, clear_list);
   ASSERT_EQ(2, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove4) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 9, clear_list);
   ASSERT_EQ(3, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove5) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 9, clear_list);
   ASSERT_EQ(2, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove6) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 10, clear_list);
   ASSERT_EQ(4, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove7) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 10, clear_list);
   ASSERT_EQ(0, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove8) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 0, clear_list);
   ASSERT_EQ(1, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove9) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 4, clear_list);
   ASSERT_EQ(3, to);
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove10) {
-  ParallelLocalMovingModularity<Hypergraph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
-  ParallelLocalMovingModularity<Hypergraph>::ClearList clear_list(graph->numNodes());
+  ParallelLocalMovingModularity::ClearList clear_list(graph->numNodes());
   PartitionID to = plm.computeMaxGainCluster(
     *graph, communities, 6, clear_list);
   ASSERT_EQ(4, to);
@@ -196,7 +196,7 @@ TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
-  karate_club_graph = std::make_unique<Graph<Hypergraph>>(
+  karate_club_graph = std::make_unique<Graph>(
     karate_club_hg, LouvainEdgeWeight::uniform, true);
   ASSERT_EQ(expected_comm, communities);
   ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),

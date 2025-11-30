@@ -347,11 +347,7 @@ class Context {
   size_t utility_id = std::numeric_limits<size_t>::max();
   bool partition_evolutionary = false;
 
-  Context(const bool register_utilities = true) {
-    if ( register_utilities ) {
-      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-    }
-  }
+  Context(const bool register_utilities = true);
 
   bool isNLevelPartitioning() const;
 

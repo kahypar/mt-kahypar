@@ -116,6 +116,7 @@ namespace mt_kahypar {
              }),
              "Preset Types: \n"
              " - deterministic\n"
+             " - deterministic_quality\n"
              " - large_k\n"
              " - default\n"
              " - quality\n"
@@ -291,8 +292,8 @@ namespace mt_kahypar {
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
              #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             "- additive\n"
              "- multiplicative\n"
-             "- edge_frequency_penalty\n"
              #endif
              "- no_penalty")
             ("c-rating-acceptance-criterion",
@@ -628,7 +629,8 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Flow Algorithms:\n"
              "- do_nothing\n"
-             "- flow_cutter")
+             "- flow_cutter\n"
+             "- deterministic")
             ((initial_partitioning ? "i-r-flow-max-bfs-distance" : "r-flow-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),

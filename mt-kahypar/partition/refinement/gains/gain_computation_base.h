@@ -32,6 +32,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/datastructures/synchronized_edge_update.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"

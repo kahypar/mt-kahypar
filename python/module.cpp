@@ -55,6 +55,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/randomize.h"
 
 
 namespace py = pybind11;
@@ -139,6 +140,7 @@ PYBIND11_MODULE(mtkahypar, m) {
   using mt_kahypar::PresetType;
   py::enum_<PresetType>(m, "PresetType", py::module_local())
     .value("DETERMINISTIC", PresetType::deterministic)
+    .value("DETERMINISTIC_QUALITY", PresetType::deterministic_quality)
     .value("LARGE_K", PresetType::large_k)
     .value("DEFAULT", PresetType::default_preset)
     .value("QUALITY", PresetType::quality)
