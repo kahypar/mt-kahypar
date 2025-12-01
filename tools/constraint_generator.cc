@@ -190,11 +190,11 @@ int main(int argc, char* argv[]) {
         );
     }
 
-    if (fs::is_regular_file(hypergraph_path)) {
+    if (fs::is_regular_file(hypergraph_path) && hypergraph_path.extension() == ".hgr") {
         hypergraph_files.push_back(hypergraph_path);
     } else if (fs::is_directory(hypergraph_path)) {
         for (const auto& file : fs::directory_iterator(hypergraph_path)) {
-            if (fs::is_regular_file(file.path())) {
+            if (fs::is_regular_file(file.path()) && file.path().extension() == ".hgr") {
                 hypergraph_files.push_back(file.path());
             }
         }
