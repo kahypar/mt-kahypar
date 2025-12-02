@@ -275,7 +275,7 @@ namespace mt_kahypar {
       }
       timer.stop_timer("construct_graph");
       timer.start_timer("perform_community_detection", "Perform Community Detection");
-      ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
+      ds::Clustering communities = community_detection::run_parallel_louvain(graph, context).back().first;
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(std::move(communities));
       timer.stop_timer("perform_community_detection");

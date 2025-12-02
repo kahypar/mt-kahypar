@@ -37,6 +37,22 @@ namespace mt_kahypar {
 namespace utils {
 
 template<typename T>
+double parallel_skew(const std::vector<T>& data, const double avg, const double stdev, const size_t n) {
+    if (stdev == 0) {
+        return 0.0;
+    }
+    return tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
+            [&](tbb::blocked_range<size_t>& range, double init) -> double {
+            double tmp_skew = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                tmp_skew += (data[i] - avg) * (data[i] - avg) * (data[i] - avg);
+            }
+            return tmp_skew;
+            }, std::plus<double>()) / (static_cast<double>(n) * std::pow(stdev, 3));
+}
+
+template<typename T>
 double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
     return std::sqrt(tbb::parallel_reduce(
             tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
@@ -46,7 +62,7 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
                 tmp_stdev += (data[i] - avg) * (data[i] - avg);
             }
             return tmp_stdev;
-            }, std::plus<double>()) / ( n- 1 ));
+            }, std::plus<double>()) / static_cast<double>(n));
 }
 
 template<typename T>
