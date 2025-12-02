@@ -29,35 +29,10 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/utilities.h"
-
-
-// yes this is hacky
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#endif
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-#include "growt/allocator/alignedallocator.hpp"
-#include "growt/data-structures/hash_table_mods.hpp"
-#include "growt/data-structures/table_config.hpp"
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
-using hasher_type    = utils_tm::hash_tm::murmur2_hash;
-using allocator_type = growt::AlignedAllocator<>;
-using ConcurrentHashTable = typename growt::table_config<
-  uint64_t, float, hasher_type, allocator_type, hmod::sync>::table_type;
-using HashTableHandle = typename ConcurrentHashTable::handle_type;
 
 namespace mt_kahypar {
 
@@ -204,14 +179,22 @@ public:
 
   void performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
-          const HighResClockTimepoint& round_start) {
+          const HighResClockTimepoint& round_start, bool accumulate_metadata) {
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
     Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-    vec<EdgeMetadata> contracted_md = accumulateMetadata(current_hg, contracted_hg, communities);
+
+    vec<EdgeMetadata> contracted_md;
+    if (accumulate_metadata) {
+      utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+      timer.start_timer("accumulate_metadata", "Accumulate Metadata");
+      contracted_md = accumulateMetadata(current_hg, contracted_hg, communities);
+      timer.stop_timer("accumulate_metadata");
+    }
+
     hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), std::move(contracted_md), elapsed_time);
   }
 
@@ -269,45 +252,57 @@ private:
 
     vec<EdgeMetadata> new_md;
     if constexpr (Hypergraph::is_graph) {
-      ConcurrentHashTable accumulator(2 * contracted_hg.initialNumEdges());
+      ds::ConcurrentBucketMap<std::tuple<HypernodeID, HypernodeID, EdgeMetadata>> accumulation_map;
+
       tbb::parallel_invoke([&] {
         new_md.resize(contracted_hg.initialNumEdges());
       }, [&] {
-        // accumulate the metadata
+        // write the metadata into buckets
+        accumulation_map.reserve_for_estimated_number_of_insertions(contracted_hg.initialNumEdges() / 2);
         current_hg.doParallelForAllEdges([&](HyperedgeID edge) {
           uint32_t source = mapping[current_hg.edgeSource(edge)];
           uint32_t target = mapping[current_hg.edgeTarget(edge)];
           if (source < target) {
-            HashTableHandle handle = accumulator.get_handle();
             EdgeMetadata val = old_md[edge];
-            uint64_t key = (static_cast<uint64_t>(source) << 32 | target);
-            handle.insert_or_update(key, val, [=](float& old) { old += val; });
+            // only hash by source, this massively simplifies mapping the data to the edge afterwards
+            accumulation_map.insert(source, {source, target, val});
+            accumulation_map.insert(target, {target, source, val});
           }
         });
       });
 
-      // write the new metadata into the vector
-      contracted_hg.doParallelForAllEdges([&](HyperedgeID edge) {
-        uint32_t source = contracted_hg.edgeSource(edge);
-        uint32_t target = contracted_hg.edgeTarget(edge);
-        if (source > target) {
-          std::swap(source, target);
+      // accumulate the new metadata
+      tbb::parallel_for(UL(0), accumulation_map.numBuckets(), [&](const size_t bucket_id) {
+        auto& bucket = accumulation_map.getBucket(bucket_id);
+        std::sort(bucket.begin(), bucket.end(), [&](const auto& lhs, const auto& rhs) {
+          return std::tie(std::get<0>(lhs), std::get<1>(lhs)) < std::tie(std::get<0>(rhs), std::get<1>(rhs));
+        });
+
+        for (size_t i = 0; i < bucket.size();) {
+          auto [source, _t, _v] = bucket[i];
+          auto it = contracted_hg.incidentEdges(source).begin();
+
+          for (; i < bucket.size() && std::get<0>(bucket[i]) == source;) {
+            auto [first_source, first_target, first_value] = bucket[i];
+            EdgeMetadata summed_value = first_value;
+            ++i;
+
+            for (; i < bucket.size() && std::get<0>(bucket[i]) == first_source && std::get<1>(bucket[i]) == first_target; ++i) {
+              summed_value += std::get<2>(bucket[i]);
+            }
+
+            HyperedgeID edge = *it;
+            ASSERT(first_source == source);
+            ++it;
+            ASSERT(contracted_hg.edgeSource(edge) == first_source && contracted_hg.edgeTarget(edge) == first_target);
+            new_md[edge] = summed_value;
+          }
         }
-        ALWAYS_ASSERT(source < target);
-        uint64_t key = (static_cast<uint64_t>(source) << 32 | target);
-        HashTableHandle handle = accumulator.get_handle();
-        auto it = handle.find(key);
-        ALWAYS_ASSERT(it != handle.end());
-        auto result = *it;
-        new_md[edge] = result.second;
       });
-      // LOG << "Num nodes: " << contracted_hg.initialNumNodes();
-      // for (size_t i = 0; i < std::min(UL(100), new_md.size()); ++i) {
-      //   std::cout << std::setprecision(3) << new_md[i] << " ";
-      // }
-      // LOG << "";
+      return new_md;
+    } else {
+      throw InvalidParameterException("Guided Coarsening only works with graph data structure!");
     }
-    return new_md;
   }
 
   Hypergraph& _hg;

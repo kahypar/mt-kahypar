@@ -114,7 +114,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
     return false;
   }
   _timer.start_timer("contraction", "Contraction");
-  _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time);
+  _uncoarseningData.performMultilevelContraction(std::move(clusters), true /* deterministic */, pass_start_time, false);
   _timer.stop_timer("contraction");
   return true;
 }
