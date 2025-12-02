@@ -363,6 +363,14 @@ namespace mt_kahypar {
              po::value<double>(&context.coarsening.rating.guiding_treshold)->value_name(
                      "<double>")->default_value(1.0),
              "Treshold for guided coarsening (e.g. by ML).")
+            ("c-guiding-threshold-max",
+             po::value<double>(&context.coarsening.rating.guiding_treshold_max)->value_name(
+                     "<double>")->default_value(1.0),
+             "Max. treshold for guided coarsening when using multiple LP subrounds.")
+            ("c-guided-subrounds",
+             po::value<size_t>(&context.coarsening.rating.num_guided_subrounds)->value_name(
+                     "<double>")->default_value(1),
+             "Number of LP subrounds for guided coarsening.")
             ("c-two-hop-degree-threshold",
              po::value<size_t>(&context.coarsening.two_hop_degree_threshold)->value_name(
                      "<size_t>")->default_value(100),
