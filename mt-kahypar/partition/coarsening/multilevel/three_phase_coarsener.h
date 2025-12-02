@@ -27,7 +27,9 @@
 #pragma once
 
 #include <string>
+#include <type_traits>
 
+#include "tbb/parallel_invoke.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
 
@@ -35,6 +37,7 @@
 
 #include "include/mtkahypartypes.h"
 
+#include "mt-kahypar/partition/coarsening/multilevel/compute_ml_results.h"
 #include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
@@ -142,7 +145,26 @@ class ThreePhaseCoarsener : public ICoarsener,
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
                                      cluster_ids, _rater, _clustering_data);
     cc.may_ignore_communities = shouldIgnoreCommunities(hierarchy_contraction_limit);
-    cc.initializeCoarseningPass(current_hg, _context);
+    if (_uncoarseningData.coarsestEdgeMetadata().empty() && _context.coarsening.rating.guiding_by_integrated_model) {
+      ALWAYS_ASSERT(_pass_nr == 0);
+      if constexpr (std::is_same_v<Hypergraph, ds::StaticGraph>) {
+        tbb::parallel_invoke([&] {
+            cc.initializeCoarseningPass(current_hg, _context);
+          }, [&] {
+            vec<EdgeMetadata> metadata;
+            metadata.resize(current_hg.initialNumNodes(), 0);
+            computeEdgeMetadataFromModel(current_hg, metadata);
+            _uncoarseningData.setEdgeMetadata(std::move(metadata));
+          }
+        );
+      } else {
+        throw InvalidParameterException("Guided Coarsening only works with graph data structure!");
+      }
+    } else {
+      cc.initializeCoarseningPass(current_hg, _context);
+    }
+
+
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context, _timer);
     _timer.stop_timer("init_similarity");
