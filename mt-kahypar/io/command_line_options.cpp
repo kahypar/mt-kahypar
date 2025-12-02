@@ -614,6 +614,11 @@ namespace mt_kahypar {
       context.coarsening.rating.acceptance_limit_bound,
       "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted)."
     )->capture_default_str();
+    app.add_option(
+      "--c-guiding-by-integrated-model",
+      context.coarsening.rating.guiding_by_integrated_model,
+      "If true, use the integrated model to perform guided coarsening."
+    )->capture_default_str();
     app.add_option_function<std::string>(
       "--c-guided-edge-scaling", [&](const std::string& s) {
         context.coarsening.rating.ge_scaling = guidedEdgeScalingFromString(s);

@@ -111,6 +111,7 @@ struct RatingParameters {
   double acceptance_limit_bound = 0.25;
 
   // Guided coarsening
+  bool guiding_by_integrated_model = false;
   GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::quadratic;
   GuidedEdgeAccumulation ge_accumulation = GuidedEdgeAccumulation::linear;
   double guiding_treshold = 0.2;
