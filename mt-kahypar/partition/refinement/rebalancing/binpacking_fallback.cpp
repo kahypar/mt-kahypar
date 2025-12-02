@@ -400,11 +400,10 @@ bool computeManyPackings(const Context& context,
 }
 
 template<typename PartitionedHypergraph>
-vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context) {
+vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context, double threshold) {
   // TODO: perhaps this should depend on epsilon
-  const double selection_factor = context.refinement.rebalancing.bin_packing_selection_threshold;
   const vec<vec<double>> block_weight_normalizers = impl::computeBlockWeightNormalizers(context);
-  const size_t max_count = phg.dimension() * std::ceil((1.0 + context.partition.epsilon) / selection_factor * context.partition.k);
+  const size_t max_count = phg.dimension() * std::ceil((1.0 + context.partition.epsilon) / threshold * context.partition.k);
 
   ds::BufferedVector<RebalancingNode> result(std::min(max_count, static_cast<size_t>(phg.initialNumNodes())));
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -412,7 +411,7 @@ vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, co
     const PartitionID from = phg.partID(hn);
     const vec<double>& normalizer = block_weight_normalizers[from];
     for (Dimension d = 0; d < phg.dimension(); ++d) {
-      if (normalizer[d] * weight.at(d) > selection_factor) {
+      if (normalizer[d] * weight.at(d) > threshold) {
         result.push_back_buffered(RebalancingNode(hn, weight, from));
         break;
       }
@@ -492,7 +491,7 @@ bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, cons
 }
 
 namespace {
-#define DETERMINE_NODES_FOR_REBALANCING(X) vec<RebalancingNode> determineNodesForRebalancing(X& phg, const Context& context)
+#define DETERMINE_NODES_FOR_REBALANCING(X) vec<RebalancingNode> determineNodesForRebalancing(X& phg, const Context& context, double threshold)
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(DETERMINE_NODES_FOR_REBALANCING)
