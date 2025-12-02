@@ -101,7 +101,7 @@ struct PreprocessingParameters {
   CommunityDetectionParameters community_detection = { };
 
   // hacky way to save computed communities
-  const std::vector<std::pair<ds::Clustering, double>>* community_stack = nullptr;
+  const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* community_stack = nullptr;
 };
 
 std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);

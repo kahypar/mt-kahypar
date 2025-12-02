@@ -33,16 +33,16 @@
 
 namespace mt_kahypar::community_detection {
 
-  std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph& fine_graph,
-                                                                               ParallelLocalMovingModularity& mlv,
-                                                                               const Context& context,
-                                                                               int depth) {
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> local_moving_contract_recurse(Graph& fine_graph,
+                                                                                             ParallelLocalMovingModularity& mlv,
+                                                                                             const Context& context,
+                                                                                             int depth) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("local_moving", "Local Moving");
     ds::Clustering own_communities(fine_graph.numNodes());
     bool communities_changed = mlv.localMoving(fine_graph, own_communities);
     timer.stop_timer("local_moving");
-    std::vector<std::pair<ds::Clustering, double>> result;
+    std::vector<std::tuple<ds::Clustering, HypernodeID, double>> result;
 
     if (communities_changed) {
       timer.start_timer("contraction_cd", "Contraction");
@@ -51,6 +51,7 @@ namespace mt_kahypar::community_detection {
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
       timer.stop_timer("contraction_cd");
 
+      HypernodeID num_comms = coarse_graph.numNodes();
       double new_modularity = 0;
       double factor = 1 / coarse_graph.totalVolume();
       for (NodeID node: coarse_graph.nodes()) {
@@ -67,18 +68,18 @@ namespace mt_kahypar::community_detection {
 
       timer.start_timer("project", "Project");
       if (coarse_communities.size() < 4) {
-        result.emplace_back(own_communities, new_modularity);
+        result.emplace_back(own_communities, num_comms, new_modularity);
       }
 
       // Prolong Clustering
-      for (const auto& [comm, modularity]: coarse_communities) {
+      for (const auto& [comm, num_comms, modularity]: coarse_communities) {
         ds::Clustering communities(own_communities);  // yes, this is an intentional copy
         const auto& clustering = comm;
         tbb::parallel_for(UL(0), fine_graph.numNodes(), [&](const NodeID u) {
           ASSERT(communities[u] < static_cast<PartitionID>(comm.size()));
           communities[u] = clustering[communities[u]];
         });
-        result.emplace_back(std::move(communities), modularity);
+        result.emplace_back(std::move(communities), num_comms, modularity);
       }
       timer.stop_timer("project");
     }
@@ -86,9 +87,9 @@ namespace mt_kahypar::community_detection {
     return result;
   }
 
-  std::vector<std::pair<ds::Clustering, double>> run_parallel_louvain(Graph& graph,
-                                      const Context& context,
-                                      bool disable_randomization) {
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> run_parallel_louvain(Graph& graph,
+                                                                                    const Context& context,
+                                                                                    bool disable_randomization) {
     ParallelLocalMovingModularity mlv(context, graph.numNodes(), disable_randomization);
     auto result = local_moving_contract_recurse(graph, mlv, context);
     return result;
