@@ -139,8 +139,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     const HypernodeID target_contraction_size = targetContractionSize(current_hg);
     ASSERT(target_contraction_size >= hierarchy_contraction_limit);
-    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
-                                     _rater, _clustering_data);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
+                                     cluster_ids, _rater, _clustering_data);
     cc.may_ignore_communities = shouldIgnoreCommunities(hierarchy_contraction_limit);
     cc.initializeCoarseningPass(current_hg, _context);
     _timer.start_timer("init_similarity", "Initialize Similarity Data");

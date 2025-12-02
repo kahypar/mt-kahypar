@@ -126,8 +126,8 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     AlwaysAcceptPolicy similarity_policy(current_hg.initialNumNodes());
     similarity_policy.initialize(current_hg, _context, _timer);
-    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
-                                     _rater, _clustering_data);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
+                                     cluster_ids, _rater, _clustering_data);
     cc.initializeCoarseningPass(current_hg, _context);
 
     _timer.start_timer("clustering", "Clustering");

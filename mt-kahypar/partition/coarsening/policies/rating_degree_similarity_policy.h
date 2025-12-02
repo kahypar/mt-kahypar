@@ -35,6 +35,7 @@
 #include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/timer.h"
@@ -53,6 +54,16 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool acceptContraction(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
+    return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context&,
+                                                                const HypernodeID,
+                                                                const HypernodeID,
+                                                                const HyperedgeWeight,
+                                                                const EdgeMetadata) const {
     return true;
   }
 
@@ -278,6 +289,16 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
   }
 
   template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context&,
+                                                                const HypernodeID,
+                                                                const HypernodeID,
+                                                                const HyperedgeWeight,
+                                                                const EdgeMetadata) const {
+    return true;
+  }
+
+  template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph& hypergraph,
                                                                const HypernodeID u) const {
     return _incident_weight[u] / std::max(hypergraph.nodeWeight(u), 1);
@@ -294,6 +315,47 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
 };
 
 
-using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy>;
+
+class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
+  static constexpr bool debug = false;
+
+ public:
+  explicit GuidedCoarseningPolicy() {}
+
+  explicit GuidedCoarseningPolicy(const HypernodeID) {}
+
+  GuidedCoarseningPolicy(const GuidedCoarseningPolicy&) = delete;
+  GuidedCoarseningPolicy(GuidedCoarseningPolicy&&) = delete;
+  GuidedCoarseningPolicy & operator= (const GuidedCoarseningPolicy &) = delete;
+  GuidedCoarseningPolicy & operator= (GuidedCoarseningPolicy &&) = delete;
+
+  template<typename Hypergraph>
+  void initialize(const Hypergraph&, const Context&, utils::Timer&) { }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool acceptContraction(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
+    return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context& context,
+                                                                const HypernodeID,
+                                                                const HypernodeID,
+                                                                const HyperedgeWeight summed_weight,
+                                                                const EdgeMetadata summed_md) const {
+    return summed_md / static_cast<double>(summed_weight) <= context.coarsening.rating.guiding_treshold;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph&,
+                                                               const HypernodeID) const {
+    return 1.0;
+  }
+};
+
+
+using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy, GuidedCoarseningPolicy>;
 
 }  // namespace mt_kahypar
