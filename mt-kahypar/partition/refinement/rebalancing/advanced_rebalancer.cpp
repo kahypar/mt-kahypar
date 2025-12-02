@@ -770,7 +770,8 @@ namespace impl {
     if (_context.refinement.rebalancing.use_binpacking_fallback && num_overloaded_blocks > 0
         && (!_context.refinement.rebalancing.binpacking_fallback_only_toplevel || is_top_level)) {
       DBG << YELLOW << "Starting binpacking fallback..." << END;
-      vec<bp::RebalancingNode> binpacking_nodes = bp::determineNodesForRebalancing(phg, _context);
+      vec<bp::RebalancingNode> binpacking_nodes = bp::determineNodesForRebalancing(
+        phg, _context, _context.refinement.rebalancing.bin_packing_selection_threshold);
       DBG << V(binpacking_nodes.size());
 
       if (!binpacking_nodes.empty()) {

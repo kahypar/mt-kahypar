@@ -47,7 +47,7 @@ struct RebalancingNode {
 };
 
 template<typename PartitionedHypergraph>
-vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context);
+vec<RebalancingNode> determineNodesForRebalancing(PartitionedHypergraph& phg, const Context& context, double threshold);
 
 bool computeBinPacking(const Context& context, vec<RebalancingNode>& nodes, const vec<double>& weight_normalizer);
 
