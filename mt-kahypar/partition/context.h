@@ -96,6 +96,9 @@ struct PreprocessingParameters {
   bool use_community_detection = true;
   bool disable_community_detection_for_mesh_graphs = true;
   CommunityDetectionParameters community_detection = { };
+
+  // hacky way to save computed communities
+  const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* community_stack = nullptr;
 };
 
 struct RatingParameters {
