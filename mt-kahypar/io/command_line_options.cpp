@@ -388,6 +388,10 @@ namespace mt_kahypar {
              po::value<size_t>(&context.coarsening.rating.num_guided_subrounds)->value_name(
                      "<double>")->default_value(5),
              "Number of LP subrounds for guided coarsening.")
+            ("c-guided-coarsening-levels",
+             po::value<size_t>(&context.coarsening.rating.guided_coarsening_levels)->value_name(
+                     "<size_t>")->default_value(100),
+             "The number of coarsening levels where guided coarsening is applied.")
             ("c-guiding-delete-edges",
              po::value<bool>(&context.coarsening.rating.consider_edges_deleted)->value_name(
                      "<double>")->default_value(false),
