@@ -33,7 +33,8 @@
 namespace mt_kahypar::community_detection {
   std::vector<std::pair<ds::Clustering, double>> local_moving_contract_recurse(Graph& fine_graph,
                                                                                ParallelLocalMovingModularity& mlv,
-                                                                               const Context& context);
+                                                                               const Context& context,
+                                                                               int depth = 0);
 
   std::vector<std::pair<ds::Clustering, double>> run_parallel_louvain(Graph& graph,
                                                                       const Context& context,
