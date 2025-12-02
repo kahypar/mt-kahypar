@@ -109,6 +109,15 @@ struct RatingParameters {
   double preserve_nodes_scaling_factor = 0.5;
   double preserve_nodes_relative_weight_limit = 0.001;
   double acceptance_limit_bound = 0.25;
+
+  // Guided coarsening
+  GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::none;
+  GuidedEdgeAccumulation ge_accumulation = GuidedEdgeAccumulation::linear;
+  double guiding_treshold = 1.0;
+  double guiding_treshold_max = 1.0;
+  size_t num_guided_subrounds = 1;
+  size_t guided_coarsening_levels = 100;
+  bool consider_edges_deleted = false;
 };
 
 struct CoarseningParameters {

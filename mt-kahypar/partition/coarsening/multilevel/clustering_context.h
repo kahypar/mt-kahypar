@@ -49,16 +49,19 @@ struct ClusteringContext {
 
   explicit ClusteringContext(const Context& context,
                              HypernodeID hierarchy_contraction_limit,
+                             const vec<EdgeMetadata>& edge_md,
                              vec<HypernodeID>& cluster_ids,
                              MultilevelVertexPairRater& rater,
                              ConcurrentClusteringData& clustering_data):
     hierarchy_contraction_limit(hierarchy_contraction_limit),
     max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     original_num_threads(context.shared_memory.original_num_threads),
+    guiding_treshold(context.coarsening.rating.guiding_treshold),
     num_hns_before_pass(0),
     previous_num_nodes(0),
     num_nodes_tracker(),
     fixed_vertices(),
+    edge_md(edge_md),
     cluster_ids(cluster_ids),
     rater(rater),
     clustering_data(clustering_data) { }
@@ -113,12 +116,12 @@ struct ClusteringContext {
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, const DegreeSimilarityPolicy& similarity_policy, bool has_fixed_vertices) {
     if (has_fixed_vertices) {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, true>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
-                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), edge_md, fixed_vertices,
+                  similarity_policy, max_allowed_node_weight, guiding_treshold, may_ignore_communities);
     } else {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, false>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices,
-                  similarity_policy, max_allowed_node_weight, may_ignore_communities);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), edge_md, fixed_vertices,
+                  similarity_policy, max_allowed_node_weight, guiding_treshold, may_ignore_communities);
     }
   }
 
@@ -152,6 +155,7 @@ struct ClusteringContext {
   HypernodeID hierarchy_contraction_limit;
   HypernodeWeight max_allowed_node_weight;
   size_t original_num_threads;
+  double guiding_treshold;
   bool may_ignore_communities = false;
   bool contract_aggressively = false;
 
@@ -161,6 +165,7 @@ struct ClusteringContext {
   NumNodesTracker num_nodes_tracker;
   ds::FixedVertexSupport<Hypergraph> fixed_vertices;
 
+  const vec<EdgeMetadata>& edge_md;
   vec<HypernodeID>& cluster_ids;
   MultilevelVertexPairRater& rater;
   ConcurrentClusteringData& clustering_data;

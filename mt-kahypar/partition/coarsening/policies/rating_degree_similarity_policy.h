@@ -35,6 +35,7 @@
 #include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/timer.h"
@@ -54,6 +55,26 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool acceptContraction(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
     return true;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context&,
+                                                                const double,
+                                                                const HyperedgeWeight,
+                                                                const EdgeMetadata) const {
+    return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context&,
+                                                                  const double,
+                                                                  const HyperedgeWeight rating,
+                                                                  const EdgeMetadata) const {
+    return rating;
   }
 
   template<typename Hypergraph>
@@ -277,6 +298,26 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     }
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context&,
+                                                                const double,
+                                                                const HyperedgeWeight,
+                                                                const EdgeMetadata) const {
+    return true;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context&,
+                                                                  const double,
+                                                                  const HyperedgeWeight rating,
+                                                                  const EdgeMetadata) const {
+    return rating;
+  }
+
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph& hypergraph,
                                                                const HypernodeID u) const {
@@ -294,6 +335,103 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
 };
 
 
-using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy>;
+
+class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
+  static constexpr bool debug = false;
+
+ public:
+  explicit GuidedCoarseningPolicy() {}
+
+  explicit GuidedCoarseningPolicy(const HypernodeID) {}
+
+  GuidedCoarseningPolicy(const GuidedCoarseningPolicy&) = delete;
+  GuidedCoarseningPolicy(GuidedCoarseningPolicy&&) = delete;
+  GuidedCoarseningPolicy & operator= (const GuidedCoarseningPolicy &) = delete;
+  GuidedCoarseningPolicy & operator= (GuidedCoarseningPolicy &&) = delete;
+
+  template<typename Hypergraph>
+  void initialize(const Hypergraph&, const Context&, utils::Timer&) { }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool acceptContraction(const Hypergraph&, const Context&, HypernodeID, HypernodeID) const {
+    return true;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context& context, EdgeMetadata& sum, const EdgeMetadata value, const HyperedgeWeight edge_weight) const {
+    switch (context.coarsening.rating.ge_accumulation) {
+      case GuidedEdgeAccumulation::linear:
+        sum += value;
+        break;
+      case GuidedEdgeAccumulation::quadratic:
+        sum += value / static_cast<double>(edge_weight) * value;
+        break;
+      case GuidedEdgeAccumulation::max:
+        sum = std::max(sum, value / static_cast<float>(edge_weight));
+        break;
+      case GuidedEdgeAccumulation::UNDEFINED:
+        // ...
+        break;
+    }
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
+                                                                const Context& context,
+                                                                const double guiding_threshold,
+                                                                const HyperedgeWeight summed_rating,
+                                                                const EdgeMetadata summed_md) const {
+    return computeRelativeValue(context, summed_rating, summed_md) <= guiding_threshold;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
+                                                                  const Context& context,
+                                                                  const double guiding_threshold,
+                                                                  const HyperedgeWeight summed_rating,
+                                                                  const EdgeMetadata summed_md) const {
+    double scale = std::max(guiding_threshold - computeRelativeValue(context, summed_rating, summed_md), 0.0) / guiding_threshold;
+    switch (context.coarsening.rating.ge_scaling) {
+      case GuidedEdgeScaling::none:
+        return summed_rating;
+      case GuidedEdgeScaling::linear:
+        return std::round(10 * scale * summed_rating);
+      case GuidedEdgeScaling::quadratic:
+        return std::round(10 * scale * scale * summed_rating);
+      case GuidedEdgeScaling::cubic:
+        return std::round(10 * scale * scale * scale * summed_rating);
+      case GuidedEdgeScaling::UNDEFINED:
+        // ...
+        break;
+    }
+    return summed_rating;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double computeRelativeValue(const Context& context,
+                                                                 const HyperedgeWeight summed_rating,
+                                                                 const EdgeMetadata summed_md) const {
+    switch (context.coarsening.rating.ge_accumulation) {
+      case GuidedEdgeAccumulation::linear:
+        return summed_md / static_cast<double>(summed_rating);
+      case GuidedEdgeAccumulation::quadratic:
+        return std::sqrt(summed_md / static_cast<double>(summed_rating));
+      case GuidedEdgeAccumulation::max:
+        return summed_md;
+      case GuidedEdgeAccumulation::UNDEFINED:
+        // ...
+        break;
+    }
+    return 1.0;
+  }
+
+  template<typename Hypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double weightRatioForNode(const Hypergraph&,
+                                                               const HypernodeID) const {
+    return 1.0;
+  }
+};
+
+
+using DegreeSimilarityPolicies = kahypar::meta::Typelist<PreserveRebalancingNodesPolicy, GuidedCoarseningPolicy>;
 
 }  // namespace mt_kahypar

@@ -94,6 +94,8 @@ void register_policies() {
   #endif
   REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::preserve_rebalancing_nodes,
                   PreserveRebalancingNodesPolicy);
+  REGISTER_POLICY(DegreeSimilarityPolicy, DegreeSimilarityPolicy::guided,
+                  GuidedCoarseningPolicy);
 
   // //////////////////////////////////////////////////////////////////////////////
   //                            Gain Type Policies

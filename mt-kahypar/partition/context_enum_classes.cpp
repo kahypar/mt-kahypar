@@ -184,10 +184,34 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy) {
     switch (ds_policy) {
       case DegreeSimilarityPolicy::preserve_rebalancing_nodes: return os << "preserve_rebalancing_nodes";
+      case DegreeSimilarityPolicy::guided: return os << "guided";
       case DegreeSimilarityPolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(ds_policy);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GuidedEdgeScaling& ge_scaling) {
+    switch (ge_scaling) {
+      case GuidedEdgeScaling::none: return os << "none";
+      case GuidedEdgeScaling::linear: return os << "linear";
+      case GuidedEdgeScaling::quadratic: return os << "quadratic";
+      case GuidedEdgeScaling::cubic: return os << "cubic";
+      case GuidedEdgeScaling::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(ge_scaling);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GuidedEdgeAccumulation& ge_acc) {
+    switch (ge_acc) {
+      case GuidedEdgeAccumulation::linear: return os << "linear";
+      case GuidedEdgeAccumulation::quadratic: return os << "quadratic";
+      case GuidedEdgeAccumulation::max: return os << "max";
+      case GuidedEdgeAccumulation::UNDEFINED: return os << "UNDEFINED";
+        // omit default GuidedEdgeAccumulation to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(ge_acc);
   }
 
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
@@ -425,8 +449,34 @@ namespace mt_kahypar {
   DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds) {
     if (ds == "preserve_rebalancing_nodes") {
       return DegreeSimilarityPolicy::preserve_rebalancing_nodes;
+    } else if (ds == "guided") {
+      return DegreeSimilarityPolicy::guided;
     }
     throw InvalidParameterException("No valid degree similarity policy for rating.");
+  }
+
+  GuidedEdgeScaling guidedEdgeScalingFromString(const std::string& ds) {
+    if (ds == "none") {
+      return GuidedEdgeScaling::none;
+    } else if (ds == "linear") {
+      return GuidedEdgeScaling::linear;
+    } else if (ds == "quadratic") {
+      return GuidedEdgeScaling::quadratic;
+    } else if (ds == "cubic") {
+      return GuidedEdgeScaling::cubic;
+    }
+    throw InvalidParameterException("No valid guided edge scaling policy.");
+  }
+
+  GuidedEdgeAccumulation guidedEdgeAccumulationFromString(const std::string& ds) {
+    if (ds == "linear") {
+      return GuidedEdgeAccumulation::linear;
+    } else if (ds == "quadratic") {
+      return GuidedEdgeAccumulation::quadratic;
+    } else if (ds == "max") {
+      return GuidedEdgeAccumulation::max;
+    }
+    throw InvalidParameterException("No valid guided edge accumulation policy.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {

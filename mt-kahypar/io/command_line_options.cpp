@@ -614,6 +614,43 @@ namespace mt_kahypar {
       context.coarsening.rating.acceptance_limit_bound,
       "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted)."
     )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-guided-edge-scaling", [&](const std::string& s) {
+        context.coarsening.rating.ge_scaling = guidedEdgeScalingFromString(s);
+      },
+      "Whether guided coarsening should also scale edge weights for non-forbidden edges."
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-guided-edge-accumulation", [&](const std::string& s) {
+        context.coarsening.rating.ge_accumulation = guidedEdgeAccumulationFromString(s);
+      },
+      "Accumulation operator for edge metadata in guided coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-threshold",
+      context.coarsening.rating.guiding_treshold,
+      "Treshold for guided coarsening (e.g. by ML)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-threshold-max",
+      context.coarsening.rating.guiding_treshold_max,
+      "Max. treshold for guided coarsening when using multiple LP subrounds."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guided-subrounds",
+      context.coarsening.rating.num_guided_subrounds,
+      "Number of LP subrounds for guided coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guided-coarsening-levels",
+      context.coarsening.rating.guided_coarsening_levels,
+      "The number of coarsening levels where guided coarsening is applied."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-delete-edges",
+      context.coarsening.rating.consider_edges_deleted,
+      "If true, edges over the threshold are considered deleted instead of blocking the whole contraction."
+    )->capture_default_str();
   }
 
   void addRefinementOptions(Context& context, CLI::App& app, const bool initial_partitioning) {

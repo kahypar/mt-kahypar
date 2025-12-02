@@ -139,8 +139,8 @@ class ThreePhaseCoarsener : public ICoarsener,
     // initialization of various things
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     const HypernodeID target_contraction_limit = targetContractionLimit(current_hg);
-    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
-                                     _rater, _clustering_data);
+    ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, _uncoarseningData.coarsestEdgeMetadata(),
+                                     cluster_ids, _rater, _clustering_data);
     cc.may_ignore_communities = shouldIgnoreCommunities(hierarchy_contraction_limit);
     cc.initializeCoarseningPass(current_hg, _context);
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
@@ -155,8 +155,22 @@ class ThreePhaseCoarsener : public ICoarsener,
                     current_hg, _lp_clustering, _similarity_policy, cc);
     _progress_bar += (current_num_nodes - cc.finalNumNodes());
     current_num_nodes = cc.currentNumNodes();
+    if (!_uncoarseningData.coarsestEdgeMetadata().empty() && static_cast<size_t>(_pass_nr) < _context.coarsening.rating.guided_coarsening_levels &&
+        _context.coarsening.rating.guiding_treshold_max > _context.coarsening.rating.guiding_treshold) {
+      const size_t num_rounds = _context.coarsening.rating.num_guided_subrounds;
+      for (size_t round = 1; round < num_rounds && current_num_nodes > target_contraction_limit; ++round) {
+        double interpolate = static_cast<double>(round) / static_cast<double>(num_rounds - 1);
+        double curr_threshold = (1 - interpolate) * _context.coarsening.rating.guiding_treshold + interpolate * _context.coarsening.rating.guiding_treshold_max;
+        DBG << "  - Guided subround: " << V(curr_threshold);
+        cc.guiding_treshold = curr_threshold;
+        cc.hierarchy_contraction_limit = target_contraction_limit;
+        coarseningRound("first_lp_round", "First LP round",
+                        current_hg, _lp_clustering, _similarity_policy, cc);
+      }
+    }
 
     // Step 2: if the size didn't shrink far enough, use two-hop clustering for low degree nodes
+    cc.hierarchy_contraction_limit = hierarchy_contraction_limit;
     if (current_num_nodes > target_contraction_limit) {
       DBG << "Start Two-Hop Coarsening: " << V(current_num_nodes) << V(hierarchy_contraction_limit);
       if (!_context.coarsening.two_hop_full_shrinkage) {
