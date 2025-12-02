@@ -255,11 +255,11 @@ struct RebalancingParameters {
   double fallback_node_count_threshold = 0.99;  // relative to max block weight
   double bin_packing_selection_threshold = 0.02;  // relative to max block weight
   RbFallbackNodeCountPolicy fallback_node_count = RbFallbackNodeCountPolicy::only_one;
-  bool fallback_relative_node_priority = false;
+  bool fallback_relative_node_priority = true;
   bool fallback_node_priority_by_weight = true;
   RbFallbackNodeSelectionPolicy fallback_node_selection = RbFallbackNodeSelectionPolicy::by_internal_imbalance;
   bool fallback_relative_block_priority = false;
-  RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_internal_imbalance;
+  RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_progress;
   size_t fallback_rounds = 3;
   size_t bin_packing_tasks = 10;
 
