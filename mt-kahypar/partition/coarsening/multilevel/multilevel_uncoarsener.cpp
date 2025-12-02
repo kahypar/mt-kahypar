@@ -101,13 +101,6 @@ namespace mt_kahypar {
       partitioned_hg.initializePartition();
       _timer.stop_timer("projecting_partition");
 
-      if (_current_level > 0) {
-        utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
-        std::stringstream ss;
-        ss << "level_" << _current_level << "_" << _context.partition.objective;
-        stats.add_stat(ss.str(), metrics::quality(partitioned_hg, _context));
-      }
-
       // Improve partition
       IUncoarsener<TypeTraits>::refine();
 

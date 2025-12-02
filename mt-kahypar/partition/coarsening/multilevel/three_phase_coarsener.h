@@ -148,10 +148,6 @@ class ThreePhaseCoarsener : public ICoarsener,
     _timer.stop_timer("init_similarity");
     _always_accept_policy.initialize(current_hg, _context, _timer);
 
-    bool did_two_hop = false;
-    bool did_second_lp = false;
-    bool did_second_two_hop = false;
-
     // TODO: degree zero nodes?!
     // Phase 1: LP clustering, but forbid contraction of low degree nodes onto high degree nodes
     HypernodeID current_num_nodes = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
@@ -181,7 +177,6 @@ class ThreePhaseCoarsener : public ICoarsener,
                       current_hg, _two_hop_clustering, _similarity_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
-      did_two_hop = true;
     }
 
     // Phase 3: LP and two-hop coarsening with all contractions allowed (and contracting size 1 communities)
@@ -200,7 +195,6 @@ class ThreePhaseCoarsener : public ICoarsener,
                       current_hg, _lp_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
-      did_second_lp = true;
     }
     if (current_num_nodes > target_contraction_size) {
       DBG << "Start Second Two-Hop Coarsening: " << V(cc.currentNumNodes()) << V(target_contraction_size);
@@ -208,20 +202,6 @@ class ThreePhaseCoarsener : public ICoarsener,
                       current_hg, _two_hop_clustering, _always_accept_policy, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();
-      did_second_two_hop = true;
-    }
-
-    // collect stats regarding coarsening effectiveness
-    if (_context.type == ContextType::main) {
-      utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
-      auto report = [&](auto name, bool val) {
-        std::stringstream ss;
-        ss << "level_" << _pass_nr << "_" << name;
-        stats.add_stat(ss.str(), val);
-      };
-      report("two_hop_active", did_two_hop);
-      report("second_lp_active", did_second_lp);
-      report("second_two_hop_active", did_second_two_hop);
     }
 
     DBG << V(current_num_nodes) << V(target_contraction_size) << V(hierarchy_contraction_limit);
