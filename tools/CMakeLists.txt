@@ -31,6 +31,11 @@ add_library(MtKaHyPar-BuildTools OBJECT "")
 target_link_libraries(MtKaHyPar-BuildTools PRIVATE MtKaHyPar-ToolsSources)
 target_link_libraries(MtKaHyPar-BuildTools PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
+# patoh
+target_include_directories(MtKaHyPar-BuildTools INTERFACE ${PROJECT_SOURCE_DIR}/external/)
+target_link_directories(MtKaHyPar-BuildTools INTERFACE ${PROJECT_SOURCE_DIR}/external/patoh)
+target_link_options(MtKaHyPar-BuildTools INTERFACE "-lpatoh")
+
 add_executable(GraphToHgr graph_to_hgr.cc)
 target_link_libraries(GraphToHgr MtKaHyPar-BuildTools)
 
@@ -75,3 +80,6 @@ target_link_libraries(ChangeWeights MtKaHyPar-BuildTools)
 
 add_executable(CheckWeights check_reasonable_weights.cc)
 target_link_libraries(CheckWeights MtKaHyPar-BuildTools)
+
+add_executable(RunMulticonstraintPaToH run_multiconstraint_patoh.cc)
+target_link_libraries(RunMulticonstraintPaToH MtKaHyPar-BuildTools)
