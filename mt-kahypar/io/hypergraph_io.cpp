@@ -205,15 +205,13 @@ namespace mt_kahypar::io {
                       size_t& pos,
                       const size_t length,
                       bool& has_edge_weights,
-                      bool& has_vertex_weights,
-                      bool& has_multiple_constraints) {
+                      bool& has_vertex_weights) {
     if (!is_line_ending(mapped_file, pos)) {
       // read the (up to) three 0/1 format digits
       uint32_t format_num = read_number(mapped_file, pos, length);
-      ASSERT(format_num / 100 == 0 || format_num / 100 == 1);
-      has_multiple_constraints = (format_num / 100 == 1);
-      ASSERT((format_num % 100) / 10 == 0 || (format_num % 100) / 10 == 1);
-      has_vertex_weights = ((format_num % 100) / 10 == 1);
+      ALWAYS_ASSERT(format_num < 100, "Invalid format specifier: vertex sizes in input file are not supported.");
+      ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
+      has_vertex_weights = (format_num / 10 == 1);
       ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
       has_edge_weights = (format_num % 10 == 1);
     }
@@ -232,16 +230,16 @@ namespace mt_kahypar::io {
       goto_next_line(mapped_file, pos, length);
     }
 
-    bool has_multiple_constraints = false;
     num_hyperedges = read_number(mapped_file, pos, length);
     num_hypernodes = read_number(mapped_file, pos, length);
-    readFormatInfo(mapped_file, pos, length, has_hyperedge_weights, has_vertex_weights, has_multiple_constraints);
+    readFormatInfo(mapped_file, pos, length, has_hyperedge_weights, has_vertex_weights);
 
-    if (has_multiple_constraints) {
+    if (!is_line_ending(mapped_file, pos)) {
       dimension = read_number(mapped_file, pos, length);
-      ASSERT(dimension > 0, "Invalid input file: missing n_constraints");
+      ASSERT(!has_vertex_weights || (dimension > 0), "Invalid input: n_constraints must be > 0 if vertex weights are specified");
+      ASSERT(has_vertex_weights || (dimension == 0), "Invalid input: must have vertex weights if n_constraints is > 0");
+      dimension = std::max<Dimension>(dimension, 1);
     } else {
-      ASSERT(is_line_ending(mapped_file, pos));
       dimension = 1;
     }
     do_line_ending(mapped_file, pos);
@@ -491,16 +489,16 @@ namespace mt_kahypar::io {
       goto_next_line(mapped_file, pos, length);
     }
 
-    bool has_multiple_constraints = false;
     num_vertices = read_number(mapped_file, pos, length);
     num_edges = read_number(mapped_file, pos, length);
-    readFormatInfo(mapped_file, pos, length, has_edge_weights, has_vertex_weights, has_multiple_constraints);
+    readFormatInfo(mapped_file, pos, length, has_edge_weights, has_vertex_weights);
 
-    if (has_multiple_constraints) {
+    if (!is_line_ending(mapped_file, pos)) {
       dimension = read_number(mapped_file, pos, length);
-      ASSERT(dimension > 0, "Invalid input file: missing n_constraints");
+      ASSERT(!has_vertex_weights || (dimension > 0), "Invalid input: n_constraints must be > 0 if vertex weights are specified");
+      ASSERT(has_vertex_weights || (dimension == 0), "Invalid input: must have vertex weights if n_constraints is > 0");
+      dimension = std::max<Dimension>(dimension, 1);
     } else {
-      ASSERT(is_line_ending(mapped_file, pos));
       dimension = 1;
     }
     do_line_ending(mapped_file, pos);
