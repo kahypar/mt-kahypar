@@ -46,7 +46,9 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#endif
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
@@ -190,8 +192,12 @@ namespace {
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, target_graph);
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+        uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+          hypergraph, context, uncoarseningData, target_graph);
+      #else
+        throw InvalidParameterException("NLevel features are deactivated.");
+      #endif
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);

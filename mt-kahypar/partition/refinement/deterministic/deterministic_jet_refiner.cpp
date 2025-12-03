@@ -467,7 +467,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHyper
     if (_gain_cache.isInitialized()) {
         success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, [] {}, objective_delta);
     } else if constexpr (PartitionedHypergraph::is_graph) {
-        success = phg.changeNodePartNoSync(hn, from, to, inf_weight);
+        success = phg.changeNodePartNoSync(hn, from, to);
     } else {
         success = phg.changeNodePart(hn, from, to, inf_weight, [] {}, objective_delta);
     }

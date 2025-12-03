@@ -1,4 +1,6 @@
 set(UtilSources
+      timer.cpp
+      delete.cpp
       memory_tree.cpp
     )
 

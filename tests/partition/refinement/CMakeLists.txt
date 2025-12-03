@@ -2,7 +2,7 @@ target_sources(mtkahypar_tests PRIVATE
          bipartitioning_gain_policy_test.cc
          deterministic_jet_refiner_test.cc
          problem_construction_test.cc
-         scheduler_test.cc
+         flow_refinement_scheduler_test.cc
          gain_policy_test.cc
          bipartitioning_gain_policy_test.cc
          rollback_test.cc

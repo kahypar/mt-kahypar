@@ -28,6 +28,7 @@
 
 #include "kahypar-resources/utils/math.h"
 
+#include "mt-kahypar/datastructures/flow_network_edge_parameters.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -66,14 +67,15 @@ whfc::Hyperedge SequentialConstruction<GraphAndGainTypes>::DynamicIdenticalNetDe
 
 template<typename GraphAndGainTypes>
 FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                            const Subhypergraph& sub_hg,
-                                                                            const PartitionID block_0,
-                                                                            const PartitionID block_1,
-                                                                            vec<HypernodeID>& whfc_to_node) {
+                                                                               const Subhypergraph& sub_hg,
+                                                                               const PartitionID block_0,
+                                                                               const PartitionID block_1,
+                                                                               vec<HypernodeID>& whfc_to_node,
+                                                                               const bool deterministic) {
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
   const bool default_construction = density >= 0.5 && avg_he_size <= 100;
-  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction);
+  return constructFlowHypergraphExplicit(phg, sub_hg, block_0, block_1, whfc_to_node, default_construction, deterministic);
 }
 
 template<typename GraphAndGainTypes>
@@ -82,17 +84,22 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructFlowHypergraphEx
                                                                                        const PartitionID block_0,
                                                                                        const PartitionID block_1,
                                                                                        vec<HypernodeID>& whfc_to_node,
-                                                                                       const bool default_construction) {
+                                                                                       const bool default_construction,
+                                                                                       const bool /*deterministic*/) {
   FlowProblem flow_problem;
-  if ( default_construction ) {
+
+  if ( PartitionedHypergraph::is_graph || default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
-    // they are contained in the flow problem. Algorithm could have overheads, if
-    // only a small portion of each hyperedge is contained in the flow hypergraph.
+    // they are contained in the flow problem.
     flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
-    // This is a construction algorithm optimized for hypergraphs with large hyperedges.
-    // Algorithm constructs a temporary pin list, therefore it could have overheads
-    // for hypergraphs with small hyperedges.
+    // The default construction algorithm always scans all hyperedges which
+    // intersect the sub-hypergraph. In case of large hyperedges, this is slow
+    // because it includes many pins outside of the flow problem.
+    // The algorithm used below avoids this by scanning the nodes and collecting
+    // the incident hyperedges. However, it requires an additional step to copy
+    // and sort the pins. Therefore it can have overheads for hypergraphs with
+    // small hyperedges.
     flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
 
@@ -178,60 +185,61 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const Pa
   for ( const HyperedgeID& he : sub_hg.hes ) {
     FlowNetworkEdgeParameters parameters =
       FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
+    ASSERT(parameters.capacity >= 0);
 
-    if ( parameters.capacity > 0 ) {
-      size_t he_hash = 0;
-      _tmp_pins.clear();
-      _flow_hg.startHyperedge(whfc::Flow(parameters.capacity));
-      if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
-        flow_problem.total_cut += parameters.capacity;
-      }
-      for ( const HypernodeID& pin : phg.pins(he) ) {
-        if ( _node_to_whfc.contains(pin) ) {
-          push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
-        } else {
-          const PartitionID pin_block = phg.partID(pin);
-          parameters.connect_to_source |= pin_block == block_0;
-          parameters.connect_to_sink |= pin_block == block_1;
-        }
-      }
+    // this check removes any edges that can't affect the global objective
+    if (parameters.capacity == 0) continue;
 
-      const bool empty_hyperedge = _tmp_pins.size() == 0;
-      const bool connected_to_source_and_sink = parameters.connect_to_source && parameters.connect_to_sink;
-      if ( connected_to_source_and_sink || empty_hyperedge ) {
-        // Hyperedge is connected to source and sink which means we can not remove it
-        // from the cut with the current flow problem => remove he from flow problem
-        _flow_hg.removeCurrentHyperedge();
-        flow_problem.non_removable_cut += connected_to_source_and_sink ? parameters.capacity : 0;
+    size_t he_hash = 0;
+    _tmp_pins.clear();
+    _flow_hg.startHyperedge(whfc::Flow(parameters.capacity));
+    if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
+      flow_problem.total_cut += parameters.capacity;
+    }
+    for ( const HypernodeID& pin : phg.pins(he) ) {
+      if ( _node_to_whfc.contains(pin) ) {
+        push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
       } else {
+        const PartitionID pin_block = phg.partID(pin);
+        parameters.connect_to_source |= pin_block == block_0;
+        parameters.connect_to_sink |= pin_block == block_1;
+      }
+    }
 
-        if ( parameters.connect_to_source ) {
-          push_into_tmp_pins(flow_problem.source, he_hash, true);
-        } else if ( parameters.connect_to_sink ) {
-          push_into_tmp_pins(flow_problem.sink, he_hash, true);
-        }
+    const bool empty_hyperedge = _tmp_pins.size() == 0;
+    const bool connected_to_source_and_sink = parameters.connect_to_source && parameters.connect_to_sink;
+    if ( connected_to_source_and_sink || empty_hyperedge ) {
+      // Hyperedge is connected to source and sink which means we can not remove it
+      // from the cut with the current flow problem => remove he from flow problem
+      _flow_hg.removeCurrentHyperedge();
+      flow_problem.non_removable_cut += connected_to_source_and_sink ? parameters.capacity : 0;
+    } else {
+      if ( parameters.connect_to_source ) {
+        push_into_tmp_pins(flow_problem.source, he_hash, true);
+      } else if ( parameters.connect_to_sink ) {
+        push_into_tmp_pins(flow_problem.sink, he_hash, true);
+      }
 
-        // Sort pins for identical net detection
-        std::sort( _tmp_pins.begin() +
-                 ( _tmp_pins[0] == flow_problem.source ||
-                   _tmp_pins[0] == flow_problem.sink), _tmp_pins.end());
+      // Sort pins for identical net detection
+      std::sort( _tmp_pins.begin() +
+                ( _tmp_pins[0] == flow_problem.source ||
+                  _tmp_pins[0] == flow_problem.sink), _tmp_pins.end());
 
-        if ( _tmp_pins.size() > 1 ) {
-          whfc::Hyperedge identical_net =
-            _identical_nets.add_if_not_contained(current_he, he_hash, _tmp_pins);
-          if ( identical_net == whfc::invalidHyperedge ) {
-            for ( const whfc::Node& pin : _tmp_pins ) {
-              _flow_hg.addPin(pin);
-            }
-            if ( _context.refinement.flows.determine_distance_from_cut &&
-                 phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
-              _cut_hes.push_back(current_he);
-            }
-            ++current_he;
-          } else {
-            // Current hyperedge is identical to an already added
-            _flow_hg.capacity(identical_net) += parameters.capacity;
+      if ( _tmp_pins.size() > 1 ) {
+        whfc::Hyperedge identical_net =
+          _identical_nets.add_if_not_contained(current_he, he_hash, _tmp_pins);
+        if ( identical_net == whfc::invalidHyperedge ) {
+          for ( const whfc::Node& pin : _tmp_pins ) {
+            _flow_hg.addPin(pin);
           }
+          if ( _context.refinement.flows.determine_distance_from_cut &&
+                phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
+            _cut_hes.push_back(current_he);
+          }
+          ++current_he;
+        } else {
+          // Current hyperedge is identical to an already added
+          _flow_hg.capacity(identical_net) += parameters.capacity;
         }
       }
     }
@@ -246,6 +254,7 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
                                                                                   const PartitionID block_0,
                                                                                   const PartitionID block_1,
                                                                                   vec<HypernodeID>& whfc_to_node) {
+  ALWAYS_ASSERT(!PartitionedHypergraph::is_graph);
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;

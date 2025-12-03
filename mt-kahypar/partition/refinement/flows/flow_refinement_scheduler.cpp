@@ -191,6 +191,7 @@ FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const Hypern
   _max_part_weights(context.partition.k, 0),
   _stats(utils::Utilities::instance().getStats(context.utility_id)),
   _apply_moves_lock() {
+    ASSERT(_context.refinement.flows.num_parallel_searches > 0);
     for ( size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i ) {
       _refiner.emplace_back(nullptr);
     }
@@ -276,7 +277,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
               << ", Refiner =" << refiner_idx << ")";
 
           timer.start_timer("region_growing", "Grow Region", true);
-          const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg);
+          const Subhypergraph sub_hg = _constructor.construct(blocks, _quotient_graph, phg, /*deterministic=*/false);
           timer.stop_timer("region_growing");
 
           _quotient_graph.edge(blocks).release();
@@ -286,11 +287,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
             [&](double time, bool reaches_time_limit) {
               tracker.reportRunningTime(time, reaches_time_limit);
             });
-
-          if ( delta > 0 ) {
-            _quotient_graph.edge(blocks).num_improvements_found++;
-            _quotient_graph.edge(blocks).total_improvement += delta;
-          }
+          _quotient_graph.edge(blocks).reportImprovement(delta);
           overall_delta.fetch_sub(delta, std::memory_order_relaxed);
 
           DBG << "End search" << search_id
@@ -401,7 +398,8 @@ void FlowRefinementScheduler<GraphAndGainTypes>::resizeDataStructuresForCurrentK
 
 template<typename GraphAndGainTypes>
 std::unique_ptr<IFlowRefiner> FlowRefinementScheduler<GraphAndGainTypes>::constructFlowRefiner() {
-  return std::make_unique<FlowRefiner<GraphAndGainTypes>>(_num_hyperedges, _context);
+  return std::make_unique<FlowRefiner<GraphAndGainTypes>>(
+    _num_hyperedges, _context, false /*deterministic*/);
 }
 
 namespace {
@@ -552,7 +550,9 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
   _apply_moves_lock.unlock();
 
   if ( sequence.state == MoveSequenceState::SUCCESS ) {
-    _quotient_graph.addNewCutHyperedges(*_phg, new_cut_hes);
+    for ( const auto& [he, block] : new_cut_hes ) {
+      _quotient_graph.addNewCutHyperedge(*_phg, he, block);
+    }
     _stats.total_improvement += improvement;
   }
 

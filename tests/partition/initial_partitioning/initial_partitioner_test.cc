@@ -24,6 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <thread>
+
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/command_line_options.h"
@@ -146,7 +148,7 @@ class AInitialPartitionerTest : public Test {
 };
 
 template <typename Config>
-size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance().num_cpus();
+size_t AInitialPartitionerTest<Config>::num_threads = std::thread::hardware_concurrency();
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,

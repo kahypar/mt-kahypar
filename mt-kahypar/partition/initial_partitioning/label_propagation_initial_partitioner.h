@@ -89,7 +89,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
 
   MaxGainMove findMaxGainMove(PartitionedHypergraph& hypergraph,
                               const HypernodeID hn,
-                              const HypernodeWeight internal_weight);
+                              const HyperedgeWeight internal_weight);
 
   void extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
                                      const vec<HypernodeID>& seed_vertices,

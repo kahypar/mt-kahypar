@@ -152,7 +152,7 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
   BlockPair blocks;
   size_t round = 0;
   ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
-  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg);
+  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg, false);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, blocks);
 }
@@ -171,7 +171,7 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
   BlockPair blocks;
   size_t round = 0;
   ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
-  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg);
+  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg, false);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, blocks);
 }
@@ -192,13 +192,13 @@ TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
     BlockPair blocks;
     size_t round = 0;
     ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
-  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg);
+  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg, false);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1, blocks);
   }, [&] {
     BlockPair blocks;
     size_t round = 0;
     ASSERT_TRUE(abs.popBlockPairFromQueue(blocks, round));
-  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg);
+  Subhypergraph sub_hg = constructor.construct(blocks, qg, phg, false);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2, blocks);
   });
   verifyThatVertexSetAreDisjoint(sub_hg_1, sub_hg_2);

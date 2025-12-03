@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
@@ -63,7 +64,7 @@ class MultiTryFMTest : public Test {
           gain_cache(),
           refiner(nullptr),
           metrics() {
-    TBBInitializer::instance(std::thread::hardware_concurrency());
+    parallel::initialize_tbb(std::thread::hardware_concurrency());
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;

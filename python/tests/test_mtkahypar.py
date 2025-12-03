@@ -809,12 +809,31 @@ class MainTest(unittest.TestCase):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
+  def test_partitions_a_graph_with_deterministic_quality_preset_into_two_blocks(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 2, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+
+  def test_partitions_a_graph_with_deterministic_quality_preset_into_four_blocks(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+
   def test_partitions_a_graph_into_a_large_number_of_blocks(self):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.LARGE_K, 1024, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_checks_if_deterministic_preset_produces_same_result_for_graph(self):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 8, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.partition()
+    objective_1 = partitioner.partitioned_graph.cut()
+    partitioner.partition()
+    objective_2 = partitioner.partitioned_graph.cut()
+    partitioner.partition()
+    objective_3 = partitioner.partitioned_graph.cut()
+    self.assertEqual(objective_1, objective_2)
+    self.assertEqual(objective_1, objective_3)
+
+  def test_checks_if_deterministic_quality_preset_produces_same_result_for_graph(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 8, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     objective_1 = partitioner.partitioned_graph.cut()
     partitioner.partition()
@@ -995,12 +1014,31 @@ class MainTest(unittest.TestCase):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 4, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
 
+  def test_partitions_a_hypergraph_with_deterministic_quality_preset_into_two_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_deterministic_quality_preset_into_four_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
   def test_partitions_a_hypergraph_into_a_large_number_of_blocks(self):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.LARGE_K, 512, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
 
   def test_checks_if_deterministic_preset_produces_same_result_for_hypergraphs(self):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+    objective_1 = partitioner.partitioned_hg.km1()
+    partitioner.partition()
+    objective_2 = partitioner.partitioned_hg.km1()
+    partitioner.partition()
+    objective_3 = partitioner.partitioned_hg.km1()
+    self.assertEqual(objective_1, objective_2)
+    self.assertEqual(objective_1, objective_3)
+
+  def test_checks_if_deterministic_quality_preset_produces_same_result_for_hypergraphs(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC_QUALITY, 8, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
     objective_1 = partitioner.partitioned_hg.km1()
     partitioner.partition()

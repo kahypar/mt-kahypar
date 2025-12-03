@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/datastructures/static_graph.h"
@@ -44,6 +45,8 @@
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
+
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
@@ -89,7 +92,7 @@ int main(int argc, char* argv[]) {
   context.mapping.large_he_threshold = 0.0;
 
   utils::Randomize::instance().setSeed(context.partition.seed);
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  parallel::initialize_tbb(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(

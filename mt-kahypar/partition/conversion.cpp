@@ -37,6 +37,7 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
   if ( instance == InstanceType::hypergraph ) {
     switch ( preset ) {
       case PresetType::deterministic:
+      case PresetType::deterministic_quality:
       case PresetType::large_k:
       case PresetType::default_preset:
       case PresetType::quality: return STATIC_HYPERGRAPH;
@@ -47,6 +48,7 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
   else if ( instance == InstanceType::graph ) {
     switch ( preset ) {
       case PresetType::deterministic:
+      case PresetType::deterministic_quality:
       case PresetType::large_k:
       case PresetType::default_preset:
       case PresetType::quality: return STATIC_GRAPH;
@@ -66,7 +68,8 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
     if ( preset == PresetType::default_preset ||
          preset == PresetType::quality ||
          preset == PresetType::large_k ||
-         preset == PresetType::deterministic ) {
+         preset == PresetType::deterministic ||
+         preset == PresetType::deterministic_quality ) {
       return MULTILEVEL_GRAPH_PARTITIONING;
     } else if ( preset == PresetType::highest_quality ) {
       return N_LEVEL_GRAPH_PARTITIONING;
@@ -74,7 +77,8 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
   } else if ( instance == InstanceType::hypergraph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::quality ||
-         preset == PresetType::deterministic ) {
+         preset == PresetType::deterministic ||
+         preset == PresetType::deterministic_quality ) {
       return MULTILEVEL_HYPERGRAPH_PARTITIONING;
     } else if ( preset == PresetType::highest_quality ) {
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
@@ -90,7 +94,11 @@ PresetType to_preset_type(const Mode mode,
                           const CoarseningAlgorithm coarsening_algo,
                           const FlowAlgorithm flow_algo) {
   if ( coarsening_algo == CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
-    return PresetType::deterministic;
+    if ( flow_algo == FlowAlgorithm::deterministic ) {
+      return PresetType::deterministic_quality;
+    } else {
+      return PresetType::deterministic;
+    }
   } else if ( mode == Mode::deep_multilevel && k >= 1024 ) {
     return PresetType::large_k;
   } else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {

@@ -129,7 +129,7 @@ namespace mt_kahypar {
         io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
       }
 
-      if ( !_context.partition.deterministic ) {
+      if ( _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
         if (_context.partition.verbose_output) {
           LOG << RED << "Start rebalancing!" << END;
         }
@@ -154,7 +154,7 @@ namespace mt_kahypar {
         }
       } else {
         if (_context.partition.verbose_output) {
-          LOG << RED << "Skip rebalancing since deterministic mode is activated" << END;
+          LOG << RED << "Skip rebalancing since no rebalancing algorithm is configured" << END;
         }
       }
 

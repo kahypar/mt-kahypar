@@ -134,10 +134,6 @@ class Array {
         return _ptr >= other._ptr;
       }
 
-      difference_type operator+(const ArrayIterator& other) const {
-        return ( _ptr + other._ptr );
-      }
-
       difference_type operator-(const ArrayIterator& other) const {
         return (_ptr - other._ptr);
       }
@@ -265,6 +261,10 @@ class Array {
     return iterator(_underlying_data);
   }
 
+  const_iterator begin() const {
+    return cbegin();
+  }
+
   const_iterator cbegin() const {
     ASSERT(_underlying_data);
     return const_iterator(_underlying_data);
@@ -273,6 +273,10 @@ class Array {
   iterator end() {
     ASSERT(_underlying_data);
     return iterator(_underlying_data + _size);
+  }
+
+  const_iterator end() const {
+    return cend();
   }
 
   const_iterator cend() const {

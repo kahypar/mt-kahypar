@@ -24,6 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <thread>
+
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
@@ -154,7 +156,7 @@ class ALabelPropagationRefiner : public Test {
 };
 
 template <typename Config>
-size_t ALabelPropagationRefiner<Config>::num_threads = HardwareTopology::instance().num_cpus();
+size_t ALabelPropagationRefiner<Config>::num_threads = std::thread::hardware_concurrency();
 
 static constexpr double EPS = 0.05;
 

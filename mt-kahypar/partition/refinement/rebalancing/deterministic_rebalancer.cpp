@@ -38,6 +38,16 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+namespace impl {
+  // factoring out this function seems to improve compile time, probably
+  // because the calling function becomes overly complex if it is inlined
+  MT_KAHYPAR_ATTRIBUTE_NO_INLINE void scalableSortMoves(vec<rebalancer::RebalancingMove>& moves) {
+    parallel::scalable_sort(moves, [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+      });
+  }
+}
+
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
 static float transformGain(Gain gain_, HypernodeWeight wu) {
@@ -163,9 +173,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       ASSERT(_moves[part].size() > 0);
 
       // sort the moves from each overweight part by priority
-      parallel::scalable_sort(_moves[part], [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      });
+      impl::scalableSortMoves(_moves[part]);
 
       // determine which moves to execute
       size_t last_move_idx = 0;

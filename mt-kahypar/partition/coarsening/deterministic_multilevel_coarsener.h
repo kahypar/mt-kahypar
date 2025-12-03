@@ -26,11 +26,12 @@
 
 #pragma once
 
-#include "multilevel_coarsener_base.h"
-#include "i_coarsener.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "include/mtkahypartypes.h"
 
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
@@ -77,11 +78,6 @@ public:
   }
 
 private:
-  struct Proposition {
-    HypernodeID node = kInvalidHypernode, cluster = kInvalidHypernode;
-    HypernodeWeight weight = 0;
-  };
-
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 

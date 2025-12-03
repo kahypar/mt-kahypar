@@ -36,13 +36,6 @@
 
 namespace mt_kahypar {
 
-enum class Type : int8_t {
-  Unweighted = 0,
-  EdgeWeights = 1,
-  NodeWeights = 10,
-  EdgeAndNodeWeights = 11,
-};
-
 enum class FileFormat : int8_t {
   hMetis = 0,
   Metis = 1,
@@ -56,6 +49,7 @@ enum class InstanceType : int8_t {
 
 enum class PresetType : int8_t {
   deterministic,
+  deterministic_quality,
   large_k,
   default_preset,
   quality,
@@ -174,7 +168,8 @@ enum class FMAlgorithm : uint8_t {
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
-  do_nothing
+  do_nothing,
+  deterministic
 };
 
 enum class RebalancingAlgorithm : uint8_t {

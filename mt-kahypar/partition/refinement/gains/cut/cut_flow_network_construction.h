@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "mt-kahypar/datastructures/flow_network_edge_parameters.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context.h"
 
@@ -37,6 +38,8 @@ namespace mt_kahypar {
  * is relevant for optimizing the objective function.
  */
 struct CutFlowNetworkConstruction {
+  static constexpr bool is_exact_model = true;
+
   template<typename PartitionedHypergraph>
   static FlowNetworkEdgeParameters getParameters(const PartitionedHypergraph& phg,
                                                  const Context&,

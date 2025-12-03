@@ -44,7 +44,7 @@ struct RebalancingMove {
     float priority;
     HypernodeWeight weight;
 };
-}; // namespace rebalancer
+}  // namespace rebalancer
 
 template <typename GraphAndGainTypes>
 class DeterministicRebalancer final : public IRebalancer {

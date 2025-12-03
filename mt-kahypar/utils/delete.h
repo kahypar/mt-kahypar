@@ -26,41 +26,12 @@
 
 #pragma once
 
-#include <string>
-
 #include "include/mtkahypartypes.h"
-
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar::utils {
 
-void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
-  if ( hg.hypergraph ) {
-    switch ( hg.type ) {
-      case STATIC_HYPERGRAPH: delete reinterpret_cast<ds::StaticHypergraph*>(hg.hypergraph); break;
-      ENABLE_GRAPHS(case STATIC_GRAPH: delete reinterpret_cast<ds::StaticGraph*>(hg.hypergraph); break;)
-      ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH: delete reinterpret_cast<ds::DynamicHypergraph*>(hg.hypergraph); break;)
-      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH: delete reinterpret_cast<ds::DynamicGraph*>(hg.hypergraph); break;)
-      case NULLPTR_HYPERGRAPH:
-      default: break;
-    }
-  }
-}
+void delete_hypergraph(mt_kahypar_hypergraph_t hg);
 
-void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
-  if ( phg.partitioned_hg ) {
-    switch ( phg.type ) {
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
-      ENABLE_GRAPHS(case MULTILEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;)
-      ENABLE_LARGE_K(case LARGE_K_PARTITIONING: delete reinterpret_cast<StaticSparsePartitionedHypergraph*>(phg.partitioned_hg); break;)
-      ENABLE_HIGHEST_QUALITY(case N_LEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedHypergraph*>(phg.partitioned_hg); break;)
-      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;)
-      case NULLPTR_PARTITION: break;
-      default: break;
-    }
-  }
-}
+void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg);
 
-
-}  // namespace mt_kahypar
+}  // namespace mt_kahypar::utils
