@@ -52,7 +52,7 @@ double maxRelativeWeight(const Hypergraph& hg) {
 
 int main(int argc, char* argv[]) {
   std::string hgr_filename;
-  FileFormat file_format;
+  FileFormat file_format = FileFormat::hMetis;
   PartitionID num_blocks;
   double fraction;
 
