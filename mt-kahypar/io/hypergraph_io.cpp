@@ -209,7 +209,7 @@ namespace mt_kahypar::io {
     if (!is_line_ending(mapped_file, pos)) {
       // read the (up to) three 0/1 format digits
       uint32_t format_num = read_number(mapped_file, pos, length);
-      ASSERT(format_num < 100, "Invalid format specifier: vertex sizes in input file are not supported.");
+      ALWAYS_ASSERT(format_num < 100, "Invalid format specifier: vertex sizes in input file are not supported.");
       ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
       has_vertex_weights = (format_num / 10 == 1);
       ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
