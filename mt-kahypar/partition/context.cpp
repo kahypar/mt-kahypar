@@ -117,6 +117,7 @@ namespace mt_kahypar {
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
+    str << "  Target Shrink Factor:               " << params.target_shrink_factor << std::endl;
     str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     if ( params.algorithm == CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
       str << "  Number of Subrounds:                " << params.num_sub_rounds_deterministic << std::endl;

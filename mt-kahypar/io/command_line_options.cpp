@@ -274,6 +274,9 @@ namespace mt_kahypar {
             ("c-max-shrink-factor",
              po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>")->default_value(2.5),
              "Maximum factor a hypergraph is allowed to shrink in a clustering pass")
+            ("c-target-shrink-factor",
+             po::value<double>(&context.coarsening.target_shrink_factor)->value_name("<double>")->default_value(2.5),
+             "If the hypergraph shrinks less than this factor in a clustering pass, additional techniques (such as two-hop clustering) are used.")
             ("c-rating-score",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& rating_score) {
