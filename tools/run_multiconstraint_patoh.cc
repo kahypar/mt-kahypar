@@ -63,6 +63,8 @@ std::pair<HyperedgeWeight, HypernodeWeightArray> computeObjectiveAndWeight(typen
   phg.initializePartition();
 
   HyperedgeWeight obj = metrics::quality(phg, objective);
+  std::cout << "Cut: " << metrics::quality(phg, Objective::cut) << '\n';
+  std::cout << "Connectivity: " << metrics::quality(phg, Objective::km1) << '\n';
   HypernodeWeightArray weights = phg.partWeights().copy();
   return {obj, std::move(weights)};
 }
@@ -207,7 +209,7 @@ int main(int argc, char* argv[]) try {
     ("n_parts,k",    po::value<int>(&k)->required(), "Number of parts")
     ("seed,s",       po::value<int>(&seed)->required(), "Random seed")
     ("verbose,v",    po::bool_switch(&verbose), "Verbose output")
-    ("is_metis",     po::bool_switch(&is_metis), "Metis input file");
+    ("is_metis",     po::value<bool>(&is_metis), "Metis input file");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, opts), vm);
@@ -227,8 +229,6 @@ int main(int argc, char* argv[]) try {
     transformToPaToHInput(hypergraph, &_c, &_n, &_nconst, &cwghts, &nwghts, &xpins, &pins);
   }
 
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-
   /*------------------------------------------------------------------*/
   /* 3. Initialise PaToH parameters                                   */
   /*------------------------------------------------------------------*/
@@ -245,6 +245,10 @@ int main(int argc, char* argv[]) try {
   args._k    = k;
   args.seed  = seed;
   args.final_imbal = epsilon;
+  args.MemMul_CellNet = 100;
+  args.MemMul_Pins = 100;
+  args.MemMul_General = 100;
+  args.balance = PATOH_BALANCE_STRICT;
   if (!verbose) args.outputdetail = PATOH_OD_LOW;
 
   /* You may fine-tune further parameters here, e.g. balance, coarsening … */
@@ -257,6 +261,8 @@ int main(int argc, char* argv[]) try {
     std::cerr << "ERROR: PaToH_Alloc failed\n";
     return EXIT_FAILURE;
   }
+
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
   /*------------------------------------------------------------------*/
   /* 5. Partition                                                     */
@@ -304,7 +310,6 @@ int main(int argc, char* argv[]) try {
   /*------------------------------------------------------------------*/
   /* 7. Output result                                                 */
   /*------------------------------------------------------------------*/
-  std::cout << "Objective: " << cut << '\n';
   std::cout << "Time: " << elapsed_seconds.count() << '\n';
   print_info(k, partweights, _nconst);
 
