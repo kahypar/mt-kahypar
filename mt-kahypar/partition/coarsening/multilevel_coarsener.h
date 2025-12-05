@@ -293,7 +293,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _timer.stop_timer("clustering");
 
-    if constexpr ( has_fixed_vertices ) {
+    if constexpr ( has_fixed_vertices ) { // constraints checken
       // Verify fixed vertices
       ASSERT([&] {
         vec<PartitionID> fixed_vertex_blocks(current_hg.initialNumNodes(), kInvalidPartition);

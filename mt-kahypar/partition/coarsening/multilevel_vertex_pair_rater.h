@@ -190,7 +190,7 @@ class MultilevelVertexPairRater {
         if constexpr ( has_fixed_vertices ) {
           accept_fixed_vertex_contraction =
             FixedVertexAcceptancePolicy::acceptContraction(
-              hypergraph, fixed_vertices, _context, tmp_target, u);
+              hypergraph, fixed_vertices, _context, tmp_target, u); // prüfen ob constraints zulässig
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;

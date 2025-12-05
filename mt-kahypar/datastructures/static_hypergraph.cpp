@@ -480,14 +480,14 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
 
-    if ( hasFixedVertices() ) {
+    if ( hasFixedVertices() ) { // constraint graphen übertragen
       // Map fixed vertices to coarse hypergraph
       FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
         hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
       coarse_fixed_vertices.setHypergraph(&hypergraph);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
-          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn)); // neues knoten mapping
         }
       });
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
