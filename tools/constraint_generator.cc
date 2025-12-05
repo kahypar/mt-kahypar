@@ -135,11 +135,11 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
             if (constraints_per_node[node] >= max_constraints_per_node) break;
             if (constraints_per_node[other_node] >= max_constraints_per_node) continue;
 
-            if (node_partition == partitions[other_node]) {
+            if (node_partition != partitions[other_node]) {
                 constraint_count++;
                 constraints_per_node[node]++;
                 constraints_per_node[other_node]++;
-                out_stream << node << " " << other_node << std::endl;
+                out_stream << node << " " << other_node << std::endl; //maybe add constraint to list and pick random, but very expensive
             }
         }
         constraints_per_node.erase(node);
