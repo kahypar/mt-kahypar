@@ -61,19 +61,13 @@ class ABipartitioningPolicy : public Test {
       "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
     partitioned_hg = PartitionedHypergraph(4, hypergraph, parallel_tag_t { });
 
+    presetToContext(context, PresetType::default_preset, true);
     context.partition.mode = Mode::direct;
     context.partition.objective = ObjectiveFunc::objective;
     context.partition.epsilon = 0.1;
     context.partition.k = 2;
-    context.partition.preset_type = PresetType::default_preset;
-    context.partition.instance_type = InstanceType::hypergraph;
-    context.partition.partition_type = PartitionedHypergraph::TYPE;
-    context.partition.verbose_output = false;
-    context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
-    auto option_list = loadPreset(PresetType::default_preset);
-    presetToContext(context, option_list);
     context.sanityCheck(nullptr);
     context.setupPartWeights(hypergraph.totalWeight());
   }
