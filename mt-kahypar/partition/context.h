@@ -36,7 +36,7 @@ namespace mt_kahypar {
 class TargetGraph;
 
 struct PartitioningParameters {
-  Mode mode = Mode::UNDEFINED;
+  Mode mode = Mode::direct;
   Objective objective = Objective::UNDEFINED;
   GainPolicy gain_policy = GainPolicy::none;
   FileFormat file_format = FileFormat::hMetis;
@@ -53,10 +53,10 @@ struct PartitioningParameters {
   bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
-  double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
+  double large_hyperedge_size_threshold_factor = 0.01;
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
-  HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();
-  HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
+  HypernodeID smallest_large_he_size_threshold = 50000;
+  HypernodeID ignore_hyperedge_size_threshold = 1000;
 
   bool verbose_output = true;
   bool show_detailed_timings = false;
@@ -82,10 +82,10 @@ struct PartitioningParameters {
 std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params);
 
 struct CommunityDetectionParameters {
-  LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
-  uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
+  LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::hybrid;
+  uint32_t max_pass_iterations = 5;
   bool low_memory_contraction = false;
-  long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
+  long double min_vertex_move_fraction = 0.01;
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 };
@@ -94,7 +94,7 @@ std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters
 
 struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
-  bool use_community_detection = false;
+  bool use_community_detection = true;
   bool disable_community_detection_for_mesh_graphs = true;
   CommunityDetectionParameters community_detection = { };
 };
@@ -102,9 +102,9 @@ struct PreprocessingParameters {
 std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);
 
 struct RatingParameters {
-  RatingFunction rating_function = RatingFunction::UNDEFINED;
-  HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
-  AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
+  RatingFunction rating_function = RatingFunction::heavy_edge;
+  HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+  AcceptancePolicy acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
@@ -112,12 +112,12 @@ std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
-  HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
-  HypernodeID deep_ml_contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
-  bool use_adaptive_edge_size = false;
-  double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
-  double minimum_shrink_factor = std::numeric_limits<double>::max();
-  double maximum_shrink_factor = std::numeric_limits<double>::max();
+  HypernodeID contraction_limit_multiplier = 160;
+  HypernodeID deep_ml_contraction_limit_multiplier = 160;
+  bool use_adaptive_edge_size = true;
+  double max_allowed_weight_multiplier = 1;
+  double minimum_shrink_factor = 1.01;
+  double maximum_shrink_factor = 2.5;
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 
   // parameters for deterministic coarsening
@@ -134,11 +134,11 @@ std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params
 
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
-  size_t maximum_iterations = 1;
+  size_t maximum_iterations = 5;
   mutable bool unconstrained = false;
   bool rebalancing = true;
   bool execute_sequential = false;
-  size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
+  size_t hyperedge_size_activation_threshold = 100;
   double relative_improvement_threshold = -1.0;
 };
 
@@ -158,21 +158,21 @@ std::ostream & operator<< (std::ostream& str, const JetParameters& params);
 struct FMParameters {
   mutable FMAlgorithm algorithm = FMAlgorithm::do_nothing;
 
-  size_t multitry_rounds = 1;
-  mutable size_t num_seed_nodes = 1;
+  size_t multitry_rounds = 10;
+  mutable size_t num_seed_nodes = 25;
 
-  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
+  double rollback_balance_violation_factor = 1.0;
   double min_improvement = -1.0;
-  double time_limit_factor = std::numeric_limits<double>::max();
+  double time_limit_factor = 0.25;
 
   bool rollback_parallel = true;
   bool iter_moves_on_recalc = false;
   bool shuffle = true;
-  mutable bool obey_minimal_parallelism = false;
+  mutable bool obey_minimal_parallelism = true;
   bool release_nodes = true;
 
   // unconstrained
-  size_t unconstrained_rounds = 1;
+  size_t unconstrained_rounds = 8;
   double treshold_border_node_inclusion = 0.75;
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
@@ -190,9 +190,9 @@ struct NLevelGlobalRefinementParameters {
   bool use_global_refinement = false;
   bool refine_until_no_improvement = false;
 
-  FMAlgorithm fm_algorithm = FMAlgorithm::do_nothing;
-  size_t fm_num_seed_nodes = 0;
-  bool fm_obey_minimal_parallelism = false;
+  FMAlgorithm fm_algorithm = FMAlgorithm::kway_fm;
+  size_t fm_num_seed_nodes = 25;
+  bool fm_obey_minimal_parallelism = true;
 
   LabelPropagationAlgorithm lp_algorithm = LabelPropagationAlgorithm::do_nothing;
   bool lp_unconstrained = false;
@@ -202,25 +202,27 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParamete
 
 struct FlowParameters {
   FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
-  double alpha = 0.0;
+  double alpha = 16.0;
   HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
-  bool find_most_balanced_cut = false;
-  bool determine_distance_from_cut = false;
+  bool find_most_balanced_cut = true;
+  bool determine_distance_from_cut = true;
+  size_t max_bfs_distance = 2;
+  double min_relative_improvement_per_round = 0.001;
+  double time_limit_factor = 8.0;
+  bool skip_small_cuts = true;
+  bool skip_unpromising_blocks = true;
+  bool pierce_in_bulk = true;
+  SteinerTreeFlowValuePolicy steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
+
+  // configured at runtime
   size_t num_parallel_searches = 0;
-  size_t max_bfs_distance = 0;
-  double min_relative_improvement_per_round = 0.0;
-  double time_limit_factor = 0.0;
-  bool skip_small_cuts = false;
-  bool skip_unpromising_blocks = false;
-  bool pierce_in_bulk = false;
-  SteinerTreeFlowValuePolicy steiner_tree_policy = SteinerTreeFlowValuePolicy::UNDEFINED;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
 
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
-  bool use_active_node_set = false;
+  bool use_active_node_set = true;
 };
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
@@ -229,7 +231,7 @@ struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
   double det_heavy_vertex_exclusion_factor = 1.5;
   double det_relative_deadzone_size = 1.0;
-  size_t det_max_rounds = std::numeric_limits<size_t>::max();
+  size_t det_max_rounds = 0;
 };
 
 std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params);
@@ -244,7 +246,7 @@ struct RefinementParameters {
   RebalancingParameters rebalancing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
-  size_t max_batch_size = std::numeric_limits<size_t>::max();
+  size_t max_batch_size = 1000;
   size_t min_border_vertices_per_thread = 0;
 };
 
@@ -255,17 +257,17 @@ struct InitialPartitioningParameters {
     // Enable all initial partitioner per default
     enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
 
-  Mode mode = Mode::UNDEFINED;
+  Mode mode = Mode::recursive_bipartitioning;
   RefinementParameters refinement = { };
   std::vector<bool> enabled_ip_algos;
-  size_t runs = 1;
-  bool use_adaptive_ip_runs = false;
-  size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
+  size_t runs = 20;
+  bool use_adaptive_ip_runs = true;
+  size_t min_adaptive_ip_runs = 5;
   bool perform_refinement_on_best_partitions = false;
   size_t fm_refinment_rounds = 1;
-  bool remove_degree_zero_hns_before_ip = false;
-  size_t lp_maximum_iterations = 1;
-  size_t lp_initial_block_size = 1;
+  bool remove_degree_zero_hns_before_ip = true;
+  size_t lp_maximum_iterations = 20;
+  size_t lp_initial_block_size = 5;
   size_t population_size = 16;
 };
 
