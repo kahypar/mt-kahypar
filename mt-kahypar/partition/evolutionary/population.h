@@ -181,6 +181,13 @@ class Population {
     return utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
   }
 
+  inline size_t randomIndividualSafeDeterministic(const size_t seed) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
+    return dist(gen);
+  }
+
   inline const Individual& individualAtSafe(const size_t pos) {
     std::lock_guard<std::mutex> guard(_population_mutex);
     return _individuals[pos];

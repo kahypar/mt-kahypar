@@ -295,12 +295,6 @@ namespace mt_kahypar {
     return str;
   }
 
-  Context::Context(const bool register_utilities) {
-    if ( register_utilities ) {
-      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-    }
-  }
-
   std::ostream & operator<< (std::ostream& str, const EvolutionaryParameters& params) {
     str << "Evolutionary Parameters:              " << std::endl;
     str << "  Population Size:                    " << params.population_size << std::endl;
@@ -309,6 +303,12 @@ namespace mt_kahypar {
     str << "  Mutation Strategy                   " << params.mutate_strategy << std::endl;
     str << "  Diversification Interval            " << params.diversify_interval << std::endl;
     return str;
+  }
+
+  Context::Context(const bool register_utilities) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
   }
 
   bool Context::isNLevelPartitioning() const {

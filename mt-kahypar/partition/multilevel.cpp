@@ -300,8 +300,12 @@ namespace {
     io::printLocalSearchBanner(context);
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, target_graph);
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+            uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+              hypergraph, context, uncoarseningData, target_graph);
+      #else
+            throw InvalidParameterException("NLevel features are deactivated.");
+      #endif
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
