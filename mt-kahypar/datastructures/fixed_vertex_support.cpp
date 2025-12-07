@@ -115,6 +115,19 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
       // => contraction is not allowed
       success = false;
     }
+  } else if (hasNegativeConstraints()) {
+    HypernodeID u1;
+    HypernodeID v1;
+    // if both nodes are in the constraint graph
+    if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && !constraintExistsForPair(u1,v1)) {
+      _constraint_graph->registerContraction(u1, v1);
+      if (!constraintExistsForPair(u1,v1)) {
+        _constraint_graph->contract(u1, std::numeric_limits<HypernodeWeight>::max());
+        LOG << "contracted nodes" << u1 << v1;
+      }
+      // else unregister??
+
+    }
   }
 
   if ( success && ( u_becomes_fixed || v_becomes_fixed ) ) {

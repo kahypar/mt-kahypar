@@ -170,6 +170,10 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeID num_hns_before_pass =
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = 0;
+    if (current_hg.hasNegativeConstraints()) { // TODO: remove loging
+      LOG << "negative constraints present";
+    }
+    else LOG << "lost negative constraints";
     if ( current_hg.hasFixedVertices() ) {
       current_num_nodes = performClustering<true>(current_hg, cluster_ids);
     } else {
@@ -459,7 +463,7 @@ class MultilevelCoarsener : public ICoarsener,
     return success;
   }
 
-  template<bool has_fixed_vertices>
+  template<bool has_fixed_vertices> // TODO: make has negative constraints template
   bool joinCluster(const Hypergraph& hypergraph,
                    const HypernodeID u,
                    const HypernodeID rep,
@@ -473,6 +477,11 @@ class MultilevelCoarsener : public ICoarsener,
     bool cluster_join_operation_allowed =
       weight_of_u + weight_of_rep <= _context.coarsening.max_allowed_node_weight;
     if constexpr ( has_fixed_vertices ) {
+      if ( cluster_join_operation_allowed ) {
+        cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
+      }
+    }
+    if (hypergraph.hasNegativeConstraints()) {
       if ( cluster_join_operation_allowed ) {
         cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
       }

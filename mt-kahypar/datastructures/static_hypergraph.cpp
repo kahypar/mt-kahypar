@@ -493,6 +493,12 @@ namespace mt_kahypar::ds {
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 
+    if (hasNegativeConstraints()) {
+      FixedVertexSupport<StaticHypergraph> fixed_vertex_support = _fixed_vertices.copy(); // TODO: dont just copy
+      fixed_vertex_support.setHypergraph(&hypergraph);
+      hypergraph.addFixedVertexSupport(std::move(_fixed_vertices.copy()));
+    }
+
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
