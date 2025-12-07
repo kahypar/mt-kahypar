@@ -214,7 +214,7 @@ enum class EvoDecision : uint8_t {
   modified_combine
 };
 
-std::ostream & operator<< (std::ostream& os, const Type& type);
+std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 

@@ -59,18 +59,19 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static const Individual& addThreadLocalTemporary(Individual&& individual);
     static void clearThreadLocalTemporaries();
 
-    static EvoDecision decideNextMove(const Context& context);
+    static EvoDecision decideNextMove(const Context& context, std::mt19937* rng = nullptr);
     static ContextModifierParameters decideContextModificationParameters(const Context& context);
     static std::vector<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
     static std::vector<PartitionID> createRandomPartition(const Hypergraph& hypergraph, const Context& context);
-    static EvoMutateStrategy decideNextMutation(const Context& context);
+    static EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
     static vec<PartitionID> combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions);
-    static std::string performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
-    static std::string performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population);
+    static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Context modifyContext(const Context& context, ContextModifierParameters params);
-    static std::string performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static std::string checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time);
+    static std::string EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population);
 };
 
 }  // namespace mt_kahypar
