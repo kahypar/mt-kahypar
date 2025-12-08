@@ -267,7 +267,10 @@ namespace mt_kahypar::dyn {
                 if (hn2 != hn) {
                   GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(hn2, -hypergraph_m.edgeWeight(he), partitioned_hypergraph_m.partID(hn));
                   // not necessary since it would only reduce gain
-                  // _rebalancer.insertOrUpdateNode(hn2, partitioned_hypergraph_m.partID(hn2), partitioned_hypergraph_m.partID(hn), -hypergraph_m.edgeWeight(he));
+                  if (!context.dynamic.lazy_pull_updates)
+                  {
+                    _rebalancer.insertOrUpdateNode(hn2, partitioned_hypergraph_m.partID(hn2), partitioned_hypergraph_m.partID(hn), -hypergraph_m.edgeWeight(he));
+                  }
                 }
               }
             }
