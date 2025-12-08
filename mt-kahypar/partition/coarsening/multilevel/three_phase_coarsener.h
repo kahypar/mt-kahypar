@@ -92,6 +92,7 @@ class ThreePhaseCoarsener : public ICoarsener,
     _pass_nr(0),
     _progress_bar(_hg.initialNumNodes(), 0, false),
     _enable_randomization(true) {
+    // TODO: initialize in parallel?
     _progress_bar += _hg.numRemovedHypernodes();
     _current_vertices.resize(_hg.initialNumNodes());
   }
