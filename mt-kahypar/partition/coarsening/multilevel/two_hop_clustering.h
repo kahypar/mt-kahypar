@@ -39,9 +39,15 @@ namespace mt_kahypar {
 
 class TwoHopClustering {
   using CacheEfficienIncidenceMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
+  using LocalCountingMap = ds::DynamicSparseMap<HypernodeID, HypernodeID>;
+  using AtomicID = parallel::IntegralAtomicWrapper<HypernodeID>;
+
+  static constexpr HypernodeID LARGE_CLUSTER_DEGREE_THRESHOLD = 1000;
+
+  static constexpr bool debug = false;
 
   struct MatchingEntry {
-    HypernodeID key;
+    HypernodeID target;
     HypernodeID hn;
   };
 
@@ -61,9 +67,18 @@ class TwoHopClustering {
                          bool has_fixed_vertices);
 
  private:
+  template<typename Hypergraph>
+  void matchVerticesInBucket(const Hypergraph& hg,
+                             ClusteringContext<Hypergraph>& cc,
+                             vec<MatchingEntry>& bucket,
+                             bool has_fixed_vertices);
+
   const Context& _context;
+  vec<AtomicID> _cluster_count;
+  vec<LocalCountingMap> _local_cluster_count;
   ds::ConcurrentBucketMap<MatchingEntry> _favorite_clusters;
   tbb::enumerable_thread_specific<CacheEfficienIncidenceMap> _local_incidence_map;
+  vec<vec<MatchingEntry>> _local_collected_nodes;
 };
 
 }  // namespace mt_kahypar
