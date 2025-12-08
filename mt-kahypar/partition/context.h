@@ -314,6 +314,7 @@ struct DynamicParameters {
   bool server = false;
   size_t setup_moves_count = 0;
   size_t small_blocks_threshold = 5;
+  bool lazy_pull_updates = true; // ignore updates for the rebalancer that decrement gain
 
   // not a parameter
   std::string output_path = "";

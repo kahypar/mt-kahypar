@@ -875,6 +875,10 @@ namespace mt_kahypar {
             ("d-stop-vcycle",
               po::value<size_t>(&context.dynamic.stop_vcycle_at_pct)->value_name("<size_t>"),
       "Stop the v-cycle at this percentage of the changes");
+      dynamic_options.add_options()
+      ("d-lazy-pull-updates",
+        po::value<bool>(&context.dynamic.lazy_pull_updates)->value_name("<bool>"),
+        "Default true, pull updates only improvements");
     return dynamic_options;
   }
 
