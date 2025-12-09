@@ -15,3 +15,7 @@ set(ToolsIOSources
         partitioning_output.cpp)
 
 target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsIOSources})
+
+# create header that contains the project version
+set(MT_KAHYPAR_AUTOGEN_WARNING "ATTENTION: this file is auto-generated and should never be modified")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/version.h" @ONLY)
