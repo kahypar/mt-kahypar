@@ -216,8 +216,6 @@ enum class EvoDecision : uint8_t {
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
-std::ostream & operator<< (std::ostream& os, const FileFormat& type);
-
 std::ostream & operator<< (std::ostream& os, const InstanceType& type);
 
 std::ostream & operator<< (std::ostream& os, const PresetType& type);

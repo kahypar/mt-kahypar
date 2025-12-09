@@ -13,6 +13,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/partition/evolutionary/evo_logs.h" 
 #include <fstream>
 #include <string>
 #include <tbb/task_arena.h>
@@ -55,9 +56,14 @@ namespace mt_kahypar {
 
         // init global timers for benchmark mode
         {
-        std::lock_guard<std::mutex> lock(best_tracking_mutex_);
-        global_best_fitness_ = std::numeric_limits<HyperedgeWeight>::max();
-        global_best_time_ = std::chrono::milliseconds(0);
+            std::lock_guard<std::mutex> lock(best_tracking_mutex_);
+            global_best_fitness_ = std::numeric_limits<HyperedgeWeight>::max();
+            global_best_time_ = std::chrono::milliseconds(0);
+            improvement_log_entries.clear();
+        }
+        {
+            std::lock_guard<std::mutex> lock(iteration_log_mutex);
+            iteration_log_entries.clear();
         }
 
         // DISABLED -- Individuals have incorrect indexing after preprocessing
@@ -85,6 +91,9 @@ namespace mt_kahypar {
             std::ofstream out_stream(context.evolutionary.history_file.c_str(), 
                                    std::ios::out | std::ios::trunc); 
             out_stream << history;
+            for (const auto& entry : improvement_log_entries) {
+                out_stream << entry.timestamp << ", " << entry.operation_type << ", " << entry.km1 << "\n";
+            }
             out_stream.close();
         }
         if (context.evolutionary.diff_matrix_file != "" && context.partition.enable_benchmark_mode) {
@@ -98,28 +107,23 @@ namespace mt_kahypar {
                                    std::ios::out | std::ios::trunc);
 
 
-           auto line_count = std::count(iteration_log_history.begin(), iteration_log_history.end(), '\n');
+           size_t line_count = iteration_log_entries.size();
            size_t log_limit = context.evolutionary.iteration_log_limit;
 
            // print every 1/line_countth line if limit is exceeded + last line
             if (line_count > log_limit) {
-                    std::istringstream iss(iteration_log_history);
-                    std::string line;
-                    std::string limited_history;
-                    size_t current_line = 0;
                     size_t step = line_count / log_limit;
-                    while (std::getline(iss, line)) {
-                        if (current_line % step == 0) {
-                            limited_history += line + "\n";
+                    for (size_t i = 0; i < line_count; ++i) {
+                        if (i % step == 0 || i == line_count - 1) {
+                            const auto& entry = iteration_log_entries[i];
+                            out_stream << entry.iteration << ", " << entry.timestamp << ", " << entry.km1 << "\n";
                         }
-                        else if (current_line == line_count - 1) {
-                            limited_history += line + "\n";
-                        }
-                        ++current_line;
                     }
-                    iteration_log_history = limited_history;
+            } else {
+                for (const auto& entry : iteration_log_entries) {
+                    out_stream << entry.iteration << ", " << entry.timestamp << ", " << entry.km1 << "\n";
+                }
             }
-            out_stream << iteration_log_history;
             out_stream.close();
         }
 
@@ -203,14 +207,7 @@ namespace mt_kahypar {
 
             // best result tracking for benchmark
             if (context.partition.enable_benchmark_mode) {
-                std::string improvement = checkAndLogNewBest(fitness, "Initial", now);
-                if (!improvement.empty()) {
-                    history += improvement;
-                    // std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-                    // std::string diff_matrix = population.updateDiffMatrix();
-                    // LOG << "DEBUG: Initial population diff matrix:\n" << diff_matrix;
-                    // diff_matrix_history += diff_matrix;
-                }
+                checkAndLogNewBest(fitness, "Initial", now, context.evolutionary.iteration);
             }
 
             timer.stop_timer("evolutionary");
@@ -249,10 +246,7 @@ namespace mt_kahypar {
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             
             if (context.partition.enable_benchmark_mode) {
-                std::string improvement = checkAndLogNewBest(cur, "Initial", now);
-                if (!improvement.empty()) {
-                    history += improvement;
-                }
+                checkAndLogNewBest(cur, "Initial", now, context.evolutionary.iteration);
             }
             
             // if (iteration == 0 || (cur < best)) {
@@ -332,7 +326,7 @@ namespace mt_kahypar {
              rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
         else if (rng != nullptr) {
             std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-            rand_val = dist(rng);
+            rand_val = dist(*rng);
         }
         else {
             throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
@@ -407,7 +401,7 @@ namespace mt_kahypar {
             }
             float rand_val;
             std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-            rand_val = dist(rng);
+            rand_val = dist(*rng);
             if ( rand_val < 0.5f ) {
                 return EvoMutateStrategy::vcycle;
             }
@@ -433,7 +427,7 @@ namespace mt_kahypar {
             PartitionID block;
             if (context.partition.deterministic) {
                 // derive a per-node seed deterministically
-                const size_t node_seed = utils::seed_iteration(static_cast<size_t>(base_seed), static_cast<size_t>(hn));
+                size_t node_seed = base_seed + static_cast<size_t>(hn);
                 std::mt19937 prng(static_cast<uint32_t>(node_seed));
                 std::uniform_int_distribution<PartitionID> dist(0, context.partition.k - 1);
                 block = dist(prng);
@@ -624,19 +618,19 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population) {
-        std::string ret = "";
+    bool EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration) {
+        bool improved = false;
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            ret = checkAndLogNewBest(individual.fitness(), "Insert", time);
+            improved = checkAndLogNewBest(individual.fitness(), "Insert", time, iteration);
         }
         population.insert(std::move(individual), context);
-        if (context.partition.enable_benchmark_mode && !ret.empty()) {
+        if (context.partition.enable_benchmark_mode && improved) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
             std::string diff_matrix = population.updateDiffMatrix();
             diff_matrix_history += diff_matrix;
         }
-        return ret;
+        return improved;
     }
 
     template<typename TypeTraits>
@@ -647,9 +641,10 @@ namespace mt_kahypar {
         Population& population) {
     std::vector<size_t> parents;
 
+    size_t best;
     if (context.partition.deterministic) {
         // use dedicated deterministic method
-        size_t best = population.randomIndividualSafeDeterministic(context.partition.seed);
+        best = population.randomIndividualSafeDeterministic(context.partition.seed);
         parents.push_back(best);
         for (int x = 1; x < context.evolutionary.kway_combine; x++) {
             size_t new_parent = population.randomIndividualSafeDeterministic(context.partition.seed + x);
@@ -660,7 +655,7 @@ namespace mt_kahypar {
         }
     }
     else {
-        size_t best = population.randomIndividualSafe();
+        best = population.randomIndividualSafe();
         parents.push_back(best);
         for (int x = 1; x < context.evolutionary.kway_combine; x++) {
             size_t new_parent = population.randomIndividualSafe();
@@ -706,23 +701,21 @@ namespace mt_kahypar {
         const Context& context,
         TargetGraph* target_graph,
         Population& population,
-        std::mt19937* rng = nullptr) {
+        std::mt19937* rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
     size_t mutation_position;
     std::vector<PartitionID> cur;
-    PartitionedHypergraph partitioned_hypergraph;
+    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
     EvoMutateStrategy mutation;
     if (context.partition.deterministic) {
         mutation_position = population.randomIndividualSafeDeterministic(context.partition.seed);
         cur = population.individualAtSafe(mutation_position).partition();
-        partitioned_hypergraph(context.partition.k, hypergraph);
         mutation = decideNextMutation(context, rng);
     }
     else {
         mutation_position = population.randomIndividualSafe();
         cur = population.individualAtSafe(mutation_position).partition();
-        partitioned_hypergraph(context.partition.k, hypergraph);
         mutation = decideNextMutation(context);
     }
 
@@ -789,7 +782,7 @@ namespace mt_kahypar {
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         auto time_start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
         std::string history = "";
-        std::mutex _history_mutex;
+        const bool enforce_time_limit = timelimit > 0;
         auto duration = std::chrono::seconds(timelimit) - context.evolutionary.time_elapsed;
         std::atomic<bool> stop_flag(false);
 
@@ -810,6 +803,10 @@ namespace mt_kahypar {
         std::atomic<int> total_combinations(0);
         std::atomic<int> total_modifiedCombinations(0);
         std::atomic<int> total_iterations(0);
+
+        // State for stopping criterion
+        double early_window_improvement_rate = -1.0;
+        std::mutex stopping_criterion_mutex;
 
         // Calculate ContextModifierParameters once before any workers start
         ContextModifierParameters modified_combine_params;
@@ -855,10 +852,39 @@ namespace mt_kahypar {
                 worker_arenas[worker_id]->execute([&] {
                     while (!stop_flag) {
                         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-                        if (now - time_start >= duration) {
+                        if (enforce_time_limit && (now - time_start >= duration)) {
                             stop_flag = true;
                             break;
                         }
+                        if (context.evolutionary.improvement_rate_stopping.enabled) {
+                            std::unique_lock<std::mutex> stop_lock(stopping_criterion_mutex, std::try_to_lock);
+                            if (stop_lock.owns_lock()) {
+                                std::lock_guard<std::mutex> iter_lock(iteration_log_mutex);
+                                std::lock_guard<std::mutex> best_lock(best_tracking_mutex_);
+
+                                int last_improv_iter = -1;
+                                if (!improvement_log_entries.empty()) {
+                                    last_improv_iter = improvement_log_entries.back().iteration;
+                                }
+
+                                bool should_stop = evolutionary::stopping::sliding_window_improvement_rate_stop(
+                                    last_improv_iter,
+                                    improvement_log_entries,
+                                    iteration_log_entries,
+                                    context.evolutionary.improvement_rate_stopping.early_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.recent_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.alpha,
+                                    context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
+                                    early_window_improvement_rate
+                                );
+
+                                if (should_stop) {
+                                    stop_flag = true;
+                                    break;
+                                }
+                            }
+                        }
+
                         // Create a context for the inner run and set its thread limit
                         Context evo_context(context);
                         evo_context.type = ContextType::main;
@@ -879,11 +905,7 @@ namespace mt_kahypar {
                             case EvoDecision::mutation:
                                 {
                                     Individual ind = performMutation(hg_copy, evo_context, target_graph, population);
-                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
-                                    if (!h.empty()) {
-                                        std::lock_guard<std::mutex> lock(_history_mutex);
-                                        history += h;
-                                    }
+                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
                                     total_mutations++;
                                     total_iterations++;
                                     break;
@@ -891,11 +913,7 @@ namespace mt_kahypar {
                             case EvoDecision::combine:
                                 {
                                     Individual ind = performCombine(hg_copy, evo_context, target_graph, population);
-                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
-                                    if (!h.empty()) {
-                                        std::lock_guard<std::mutex> lock(_history_mutex);
-                                        history += h;
-                                    }
+                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
                                     total_combinations++;
                                     total_iterations++;
                                     break;
@@ -904,11 +922,7 @@ namespace mt_kahypar {
                                 {
                                     // decide modified combine parameters if mixed strategy is enabled
                                     Individual ind = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
-                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
-                                    if (!h.empty()) {
-                                        std::lock_guard<std::mutex> lock(_history_mutex);
-                                        history += h;
-                                    }
+                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
                                     total_modifiedCombinations++;
                                     total_iterations++;
                                     break;
@@ -927,20 +941,18 @@ namespace mt_kahypar {
                                             std::chrono::high_resolution_clock::now().time_since_epoch()
                                             ).count();
                             std::lock_guard<std::mutex> lg(iteration_log_mutex);
-                            iteration_log_history += std::to_string(total_iterations.load()) + ", " +
-                                                    std::to_string(ts_ms) + ", " +
-                                                    std::to_string(current_km1) + "\n";
+                            iteration_log_entries.push_back({total_iterations.load(), ts_ms, static_cast<double>(current_km1)});
                         }
                     }
                 });
             });
         }
         else {
-
             //determinstic mode
             size_t batch_size = 5;
-            tbb::concurrent_vector<Individual> batch_individuals (batch_size);
+            std::vector<std::unique_ptr<Individual>> batch_individuals (batch_size);
             std::atomic<size_t> last_batch_filled = 0;
+            std::atomic<int> items_finished_in_current_batch = 0;
 
             std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
             for (int i = 0; i < num_evo_workers; i++) {
@@ -952,6 +964,48 @@ namespace mt_kahypar {
                 worker_arenas[worker_id]->execute([&] {
 
                     while (!stop_flag) {
+                        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                        if (enforce_time_limit && (now - time_start >= duration)) {
+                            stop_flag = true;
+                            break;
+                        }
+                        else if (total_iterations.load(std::memory_order_acquire) >= 1500) {
+                            stop_flag = true;
+                            break;
+                        }
+
+                        if (context.evolutionary.improvement_rate_stopping.enabled) {
+                            std::unique_lock<std::mutex> stop_lock(stopping_criterion_mutex, std::try_to_lock);
+                            if (stop_lock.owns_lock()) {
+                                std::lock_guard<std::mutex> iter_lock(iteration_log_mutex);
+                                std::lock_guard<std::mutex> best_lock(best_tracking_mutex_);
+
+                                int last_improv_iter = -1;
+                                if (!improvement_log_entries.empty()) {
+                                    last_improv_iter = improvement_log_entries.back().iteration;
+                                }
+
+                                bool should_stop = evolutionary::stopping::sliding_window_improvement_rate_stop(
+                                    last_improv_iter,
+                                    improvement_log_entries,
+                                    iteration_log_entries,
+                                    context.evolutionary.improvement_rate_stopping.early_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.recent_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.alpha,
+                                    context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
+                                    early_window_improvement_rate
+                                );
+                                LOG << "Evo Worker " << worker_id << ": Early Window Improvement Rate: " << early_window_improvement_rate;
+                                LOG << "Evo Worker " << worker_id << ": Should Stop: " << should_stop;
+                                LOG << "Evo Worker " << worker_id << ": Last Improvement Iteration: " << last_improv_iter;
+                                LOG << "Evo Worker " << worker_id << ": Current iteration: " << total_iterations.load(std::memory_order_acquire);
+
+                                if (should_stop) {
+                                    stop_flag = true;
+                                    break;
+                                }
+                            }
+                        }
 
                         // Assign unique iteration ID
                         int iteration_id = total_iterations.fetch_add(1, std::memory_order_relaxed);
@@ -977,7 +1031,7 @@ namespace mt_kahypar {
                         // Initialize task-local RNG
                         std::mt19937 rng(evo_context.partition.seed);
 
-                        EvoDecision decision = decideNextMove(evo_context, rng);
+                        EvoDecision decision = decideNextMove(evo_context, &rng);
                         Hypergraph hg_copy = hg.copy(parallel_tag_t{});
                         Individual child;
 
@@ -1003,20 +1057,32 @@ namespace mt_kahypar {
                         }
 
                         // Store individual in batch
-                        batch_individuals[batch_pos] = std::move(child);
+                        batch_individuals[batch_pos] = std::make_unique<Individual>(std::move(child));
+                        
+                        int finished_count = items_finished_in_current_batch.fetch_add(1, std::memory_order_acq_rel) + 1;
 
-                        if (batch_pos == batch_size - 1) {
+                        if (finished_count == batch_size) {
                             // Insert entire batch into population
                             for (size_t i = 0; i < batch_size; ++i) {
-                                std::string h = insert_individual_into_population(std::move(batch_individuals[i]), evo_context, population);
-                                if (!h.empty()) {
-                                    std::lock_guard<std::mutex> lock(_history_mutex);
-                                    history += h;
-                                }
+                                int current_batch_start_id = batch_id * batch_size;
+                                insert_individual_into_population(std::move(*batch_individuals[i]), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1);
+
+                                if (iteration_logging_enabled) {
+                                // One "iteration" per inserted individual
+                                size_t best_idx = population.bestSafe();
+                                auto current_km1 = population.individualAtSafe(best_idx).fitness();
+                                auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                                std::chrono::high_resolution_clock::now().time_since_epoch()
+                                            ).count();
+                                std::lock_guard<std::mutex> lg(iteration_log_mutex);
+                                iteration_log_entries.push_back({current_batch_start_id + static_cast<int>(i) + 1, ts_ms, static_cast<double>(current_km1)});
+                                }  
                             }
+
                             // Mark batch as filled
+                            items_finished_in_current_batch.store(0, std::memory_order_release);
                             last_batch_filled.fetch_add(1, std::memory_order_release);
-                        }
+                        } 
 
                     } 
                 });
@@ -1057,25 +1123,24 @@ namespace mt_kahypar {
     std::chrono::milliseconds EvoPartitioner<TypeTraits>::global_best_time_{ 0 };
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::checkAndLogNewBest(
+    bool EvoPartitioner<TypeTraits>::checkAndLogNewBest(
         HyperedgeWeight fitness,
         const std::string& operation_type,
-        std::chrono::milliseconds current_time) {
+        std::chrono::milliseconds current_time,
+        int iteration) {
     
         std::lock_guard<std::mutex> lock(best_tracking_mutex_);
         
         if (fitness < global_best_fitness_) {
             global_best_fitness_ = fitness;
             global_best_time_ = current_time;
-                    
-            return std::to_string(current_time.count()) + ", " + operation_type + ", " + 
-                std::to_string(fitness) + "\n";
+            
+            improvement_log_entries.push_back({current_time.count(), iteration, static_cast<double>(fitness), operation_type});
+            return true;
         }
     
-    return "";
-
-    
-}
+        return false;
+    }
 
 template<typename TypeTraits>
 std::string EvoPartitioner<TypeTraits>::diff_matrix_history = "";
@@ -1084,10 +1149,15 @@ template<typename TypeTraits>
 std::mutex EvoPartitioner<TypeTraits>::diff_matrix_history_mutex;
 
 template<typename TypeTraits>
-std::string EvoPartitioner<TypeTraits>::iteration_log_history = "";
+std::vector<evolutionary::IterationLogEntry>
+EvoPartitioner<TypeTraits>::iteration_log_entries;
+
 template<typename TypeTraits>
 std::mutex EvoPartitioner<TypeTraits>::iteration_log_mutex;
 
+template<typename TypeTraits>
+std::vector<evolutionary::ImprovementLogEntry>
+EvoPartitioner<TypeTraits>::improvement_log_entries;
 template<typename TypeTraits>
 thread_local std::vector<std::unique_ptr<Individual>> EvoPartitioner<TypeTraits>::thread_local_temporaries_;
 

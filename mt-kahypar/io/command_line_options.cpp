@@ -869,7 +869,22 @@ namespace mt_kahypar {
              "Use degree sorted partitions for modified combine external parent")
              ("evo-modified-combine-mixed",
              po::value<bool>(&context.evolutionary.modified_combine_mixed)->value_name("<bool>")->default_value(false),
-             "Use mixed mode for modified combine external parent");
+             "Use mixed mode for modified combine external parent")
+             ("evo-improvement-rate-stopping",
+             po::value<bool>(&context.evolutionary.improvement_rate_stopping.enabled)->value_name("<bool>")->default_value(false),
+             "Enable stopping based on improvement rate (sliding window)")
+             ("evo-early-window-improvs",
+             po::value<int>(&context.evolutionary.improvement_rate_stopping.early_window_improvs)->value_name("<int>")->default_value(5),
+             "Number of improvements for early window rate calculation")
+             ("evo-recent-window-improvs",
+             po::value<int>(&context.evolutionary.improvement_rate_stopping.recent_window_improvs)->value_name("<int>")->default_value(5),
+             "Number of improvements for recent window rate calculation")
+             ("evo-stopping-alpha",
+             po::value<double>(&context.evolutionary.improvement_rate_stopping.alpha)->value_name("<double>")->default_value(0.05),
+             "Alpha factor for improvement rate comparison (recent < alpha * early)")
+             ("evo-max-iters-without-improv",
+             po::value<int>(&context.evolutionary.improvement_rate_stopping.max_iters_without_improv)->value_name("<int>")->default_value(100),
+             "Maximum iterations without improvement (plateau) before stopping");
     return options;
   }
 

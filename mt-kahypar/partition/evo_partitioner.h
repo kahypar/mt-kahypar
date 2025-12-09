@@ -2,6 +2,8 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
+#include "mt-kahypar/partition/evolutionary/evo_logs.h"
+#include "mt-kahypar/partition/evolutionary/stopping_criteria.h"
 #include <mutex>
 #include <memory>
 #include <vector>
@@ -52,8 +54,9 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::chrono::milliseconds global_best_time_;
     static std::string diff_matrix_history;
     static std::mutex diff_matrix_history_mutex;
-    static std::string iteration_log_history;
+    static std::vector<evolutionary::IterationLogEntry> iteration_log_entries;
     static std::mutex iteration_log_mutex;
+    static std::vector<evolutionary::ImprovementLogEntry> improvement_log_entries;
 
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
     static const Individual& addThreadLocalTemporary(Individual&& individual);
@@ -70,8 +73,8 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Context modifyContext(const Context& context, ContextModifierParameters params);
     static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
-    static std::string checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time);
-    static std::string EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population);
+    static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
+    static bool insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration);
 };
 
 }  // namespace mt_kahypar
