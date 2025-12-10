@@ -136,8 +136,8 @@ std::vector<std::string> load_default_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
@@ -246,8 +246,8 @@ std::vector<std::string> load_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
@@ -369,8 +369,8 @@ std::vector<std::string> load_highest_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
@@ -461,8 +461,8 @@ std::vector<std::string> load_deterministic_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
@@ -564,8 +564,8 @@ std::vector<std::string> load_deterministic_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
