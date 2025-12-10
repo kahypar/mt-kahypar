@@ -63,7 +63,7 @@ def command(test, instance, k, epsilon, target_graph, fixed_vertex_file):
   parameters = test["parameters"] if "parameters" in test else []
   cmd = [ executable,
          "-h" + instance,
-         "-p" + config,
+         "-c" + config,
          "-k" + str(k),
          "-e" + str(epsilon),
          "-t" + str(num_threads),
