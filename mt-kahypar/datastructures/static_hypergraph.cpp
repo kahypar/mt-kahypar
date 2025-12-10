@@ -487,7 +487,7 @@ namespace mt_kahypar::ds {
       coarse_fixed_vertices.setHypergraph(&hypergraph);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
-          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn)); // neues knoten mapping
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn)); // neues knoten mapping 
         }
       });
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
@@ -496,7 +496,7 @@ namespace mt_kahypar::ds {
     if (hasNegativeConstraints()) {
       FixedVertexSupport<StaticHypergraph> fixed_vertex_support = _fixed_vertices.copy(); // TODO: dont just copy
       fixed_vertex_support.setHypergraph(&hypergraph);
-      hypergraph.addFixedVertexSupport(std::move(_fixed_vertices.copy()));
+      hypergraph.addFixedVertexSupport(_fixed_vertices.copy()); 
     }
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices

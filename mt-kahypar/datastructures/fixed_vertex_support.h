@@ -174,11 +174,7 @@ class FixedVertexSupport {
     }
   }
 
-  bool constraintExistsForPair(const HypernodeID u, const HypernodeID v) const {
-    HypernodeID u1;
-    HypernodeID v1;
-    return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
-  }
+  bool constraintExistsForPair(const HypernodeID u, const HypernodeID v) const;
 
   // ####################### Miscellaneous #######################
 

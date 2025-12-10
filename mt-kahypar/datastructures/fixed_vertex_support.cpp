@@ -122,11 +122,10 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && !constraintExistsForPair(u1,v1)) {
       _constraint_graph->registerContraction(u1, v1);
       if (!constraintExistsForPair(u1,v1)) {
-        _constraint_graph->contract(u1, std::numeric_limits<HypernodeWeight>::max());
+        _constraint_graph->contract(u1, std::numeric_limits<HypernodeWeight>::max()); // prüfen
+        //sucess 
         LOG << "contracted nodes" << u1 << v1;
       }
-      // else unregister??
-
     }
   }
 
@@ -256,6 +255,12 @@ void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<
                                                     node_weight.data(),
                                                     true));
 }
+template<typename Hypergraph>
+bool FixedVertexSupport<Hypergraph>::constraintExistsForPair(const HypernodeID u, const HypernodeID v) const {
+    HypernodeID u1;
+    HypernodeID v1;
+    return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
+  }
 
 template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
