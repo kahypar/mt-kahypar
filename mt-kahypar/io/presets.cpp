@@ -379,6 +379,7 @@ std::vector<option> load_deterministic_preset() {
     create_option("s-use-localized-random-shuffle", "false"),
     create_option("s-static-balancing-work-packages", "128"),
     // main -> preprocessing
+    create_option("p-stable-io", "true"),
     create_option("p-enable-community-detection", "true"),
     // main -> preprocessing -> community_detection
     create_option("p-louvain-edge-weight-function", "hybrid"),
@@ -470,6 +471,7 @@ std::vector<option> load_deterministic_quality_preset() {
     create_option("s-use-localized-random-shuffle", "false"),
     create_option("s-static-balancing-work-packages", "128"),
     // main -> preprocessing
+    create_option("p-stable-io", "true"),
     create_option("p-enable-community-detection", "true"),
     // main -> preprocessing -> community_detection
     create_option("p-louvain-edge-weight-function", "hybrid"),

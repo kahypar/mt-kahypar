@@ -448,6 +448,12 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
+      // ensure deterministic construction
+      if ( !preprocessing.stable_construction_of_incident_edges ) {
+        preprocessing.stable_construction_of_incident_edges = true;
+        WARNING("Enabling stable construction of incident edges since deterministic mode is active");
+      }
+
       // disable adaptive IP
       if ( initial_partitioning.use_adaptive_ip_runs ) {
         initial_partitioning.use_adaptive_ip_runs = false;
