@@ -169,7 +169,9 @@ namespace mt_kahypar {
   void addUserOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {
     app.option_defaults()->group("Additional Options");
     app.add_option_function<size_t>(
-      "-t,--s-num-threads", [&](const size_t& num_threads) {
+      // keep --s-num-threads for backwards compatibility
+      detailed ? "-t,--threads,--s-num-threads" : "-t,--threads",
+      [&](const size_t& num_threads) {
         context.shared_memory.num_threads = num_threads;
         context.shared_memory.original_num_threads = num_threads;
       },
@@ -182,7 +184,9 @@ namespace mt_kahypar {
       "Seed for randomization"
     )->capture_default_str();
     app.add_option_function<std::string>(
-      "--input-file-format", [&](const std::string& s) {
+      // keep --input-file-format for backwards compatibility
+      detailed ? "--file-format,--input-file-format" : "--file-format",
+      [&](const std::string& s) {
         context.partition.file_format = fileFormatFromString(s);
       },
       "Input file format:\n"
@@ -210,15 +214,28 @@ namespace mt_kahypar {
       "Output folder for partition file"
     )->check(CLI::ExistingPath);
     auto config_option = app.add_option_function<std::string>(
-      "-p,--preset", [&](const std::string& file) {
+      "-c,--config", [&](const std::string& file) {
         parseIniToContext(context, file, false);
       },
       "Config file, replaces the preset:\n"
       "<path-to-ini-file> (see config directory)"
     )->callback_priority(CLI::CallbackPriority::First)->check(CLI::ExistingFile);
     if (preset_option != nullptr) config_option->excludes(preset_option);
+    if (detailed) {
+      // provide deprecated name for backwards compatibility (-> remove in future version)
+      auto option = app.add_option_function<std::string>(
+        "-p,--preset", [&](const std::string& file) {
+          WARNING("--preset is deprecated, please use '-c/--config' instead");
+          parseIniToContext(context, file, false);
+        },
+        "DEPRECATED"
+      )->callback_priority(CLI::CallbackPriority::First)->check(CLI::ExistingFile);
+      option->excludes(config_option);
+      if (preset_option != nullptr) option->excludes(preset_option);
+    }
     app.add_option(
-      "-g,--target-graph-file",
+      // keep --target-graph-file for backwards compatibility
+      detailed ? "-g,--target-graph,--target-graph-file" : "-g,--target-graph",
       context.mapping.target_graph_file,
       "Path to a target architecture graph in Metis file format (steiner_tree objective)."
     )->check(CLI::ExistingFile);
@@ -284,8 +301,8 @@ namespace mt_kahypar {
         "Show detailed timings of each clustering iteration."
       );
       app.add_flag(
-        "--measure-detailed-uncontraction-timings",
-        context.partition.measure_detailed_uncontraction_timings,
+        "--show-detailed-uncontraction-timings",
+        context.partition.show_detailed_uncontraction_timings,
         "Show detailed timings for n-level uncontraction."
       );
       app.add_flag(
@@ -306,7 +323,7 @@ namespace mt_kahypar {
         "Number of levels shown in timing output"
       );
       app.add_flag(
-        "-s,--sp-process",
+        "--sp-process",
         context.partition.sp_process_output,
         "Summarize partitioning results in RESULT line compatible with sqlplottools "
         "(https://github.com/bingmann/sqlplottools)"
@@ -1058,13 +1075,13 @@ namespace mt_kahypar {
       "If true, uses local search to improve the initial mapping."
     )->capture_default_str();
     app.add_option(
-      "--use-two-phase-approach",
+      "--mapping-use-two-phase-approach",
       context.mapping.use_two_phase_approach,
       "If true, then we first compute a k-way partition via optimizing the connectivity metric. "
       "Afterwards, each block of the partition is mapped onto a block of the target architecture graph."
     )->capture_default_str();
     app.add_option(
-      "--max-steiner-tree-size",
+      "--mapping-max-steiner-tree-size",
       context.mapping.max_steiner_tree_size,
       "We precompute all optimal steiner trees up to this size in the target graph."
     )->capture_default_str();
