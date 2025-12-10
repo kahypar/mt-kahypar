@@ -63,11 +63,11 @@ class ProgressBar {
     #if _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    _progress_bar_size = (csbi.srWindow.Right - csbi.srWindow.Left + 1)/2;
+    _progress_bar_size = std::min((csbi.srWindow.Right - csbi.srWindow.Left + 1) / 2, 75);
     #else
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    _progress_bar_size = w.ws_col / 2;
+    _progress_bar_size =  std::min(w.ws_col / 2, 75);
     #endif
     display_progress();
   }
@@ -141,8 +141,7 @@ class ProgressBar {
       }
       std::cout << " ] ";
 
-      std::cout << "(" << progress << "% - "
-                << current_count << "/" << _expected_count << ") ";
+      std::cout << "(" << progress << "%) ";
 
       size_t time = std::chrono::duration<double>(end - _start).count();
       display_time(time);
