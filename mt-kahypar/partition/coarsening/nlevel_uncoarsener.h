@@ -101,7 +101,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
     _current_metrics(),
     _progress(hypergraph.initialNumNodes(), 0, false),
     _is_timer_disabled(false),
-    _force_measure_timings(context.partition.measure_detailed_uncontraction_timings && context.type == ContextType::main) { }
+    _force_measure_timings(context.partition.show_detailed_uncontraction_timings && context.type == ContextType::main) { }
 
   NLevelUncoarsener(const NLevelUncoarsener&) = delete;
   NLevelUncoarsener(NLevelUncoarsener&&) = delete;
