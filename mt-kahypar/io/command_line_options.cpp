@@ -867,7 +867,6 @@ namespace mt_kahypar {
       },
       "Rebalancer Algorithm:\n"
       "- deterministic\n"
-      "- simple_rebalancer\n"
       "- advanced_rebalancer\n"
       "- do_nothing"
     )->capture_default_str();
