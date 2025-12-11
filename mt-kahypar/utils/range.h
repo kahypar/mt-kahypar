@@ -27,26 +27,38 @@
 
 #pragma once
 
+#include <iterator>
 #include <vector>
 #include <numeric>
 
+namespace mt_kahypar {
+
 template<typename IteratorT>
 class IteratorRange {
-public:
+ public:
   IteratorRange(const IteratorT& first, const IteratorT& firstInvalid) : __begin(first), __end(firstInvalid) { }
 
+  using reference = typename IteratorT::reference;
   using Iterator = IteratorT; // make publicly visible
 
-  IteratorT begin() {
+  IteratorT begin() const {
     return __begin;
   }
 
-  IteratorT end() {
+  IteratorT end() const {
     return __end;
   }
 
-  bool empty() {
+  bool empty() const {
     return __begin == __end;
+  }
+
+  size_t size() const {
+    return __end - __begin;
+  }
+
+  reference operator[](size_t n) const {
+    return __begin[n];
   }
 
 private:
@@ -128,25 +140,116 @@ private:
 
 
 template<typename T>
-class IntegerRangeIterator {
+class IntegerIterator {
   public:
-    using const_iterator = typename std::vector<T>::const_iterator;
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = T;
+    using reference = T;
+    using pointer = const T*;
+    using difference_type = T;
 
-    IntegerRangeIterator() : _range() { }
+    explicit IntegerIterator(T value) : _value(value) { }
 
-    IntegerRangeIterator(const T n) :
-      _range(n) {
-      std::iota(_range.begin(), _range.end(), 0);
+    reference operator*() const {
+      return _value;
     }
 
-    const_iterator cbegin() const {
-      return _range.cbegin();
+    pointer operator->() const {
+      return &_value;
     }
 
-    const_iterator cend() const {
-      return _range.cend();
+    IntegerIterator& operator++() {
+      ++_value;
+      return *this;
+    }
+
+    IntegerIterator& operator--() {
+      --_value;
+      return *this;
+    }
+
+    IntegerIterator operator++(int) {
+      IntegerIterator tmp_it(_value);
+      ++_value;
+      return tmp_it;
+    }
+
+    IntegerIterator operator--(int) {
+      IntegerIterator tmp_it(_value);
+      --_value;
+      return tmp_it;
+    }
+
+    IntegerIterator operator+(const difference_type& n) const {
+      return IntegerIterator(_value + n);
+    }
+
+    IntegerIterator& operator+=(const difference_type& n) {
+      _value += n;
+      return *this;
+    }
+
+    IntegerIterator operator-(const difference_type& n) const {
+      return IntegerIterator(_value - n);
+    }
+
+    IntegerIterator& operator-=(const difference_type& n) {
+      _value -= n;
+      return *this;
+    }
+
+    reference operator[](const difference_type& n) const {
+      return _value + n;
+    }
+
+    bool operator==(const IntegerIterator& other) const {
+      return _value == other._value;
+    }
+
+    bool operator!=(const IntegerIterator& other) const {
+      return _value != other._value;
+    }
+
+    bool operator<(const IntegerIterator& other) const {
+      return _value < other._value;
+    }
+
+    bool operator>(const IntegerIterator& other) const {
+      return _value > other._value;
+    }
+
+    bool operator<=(const IntegerIterator& other) const {
+      return _value <= other._value;
+    }
+
+    bool operator>=(const IntegerIterator& other) const {
+      return _value >= other._value;
+    }
+
+    difference_type operator-(const IntegerIterator& other) const {
+      return (_value - other._value);
+    }
+
+    friend IntegerIterator operator+(const difference_type& n, const IntegerIterator& it) {
+      return it + n;
     }
 
   private:
-    std::vector<T> _range;
+    T _value;
 };
+
+
+template<typename T>
+using IntegerRange = IteratorRange<IntegerIterator<T>>;
+
+template<typename T>
+IntegerRange<T> integer_range(T start, T end) {
+  return IntegerRange<T>(IntegerIterator<T>(start), IntegerIterator<T>(end));
+}
+
+template<typename T>
+IntegerRange<T> integer_range(T end) {
+  return integer_range<T>(0, end);
+}
+
+} // namespace mt_kahypar
