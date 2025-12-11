@@ -652,6 +652,8 @@ std::vector<option> loadPreset(PresetType preset) {
     case PresetType::highest_quality:
       return load_highest_quality_preset();
     case PresetType::UNDEFINED:
+      // can't be an exception since it is called in a C library
+      // function without error return
       ERR("invalid preset");
   }
   return {};

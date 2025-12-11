@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <iostream>
+#include <sstream>
 #include <type_traits>
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
@@ -141,15 +143,18 @@
 #ifdef WARNING
 #undef WARNING
 #endif
-#define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
+#define WARNING(msg)                                                           \
+  std::cerr << YELLOW << "[WARNING]" << END << " " << msg << std::endl
 #define ERR(msg)                                                               \
-  LOG << RED << "[ERROR]" << END << msg;                                       \
+  std::cerr << RED << "[ERROR]" << END << " " << msg << std::endl;             \
   std::exit(-1)
 
 #ifdef MT_KAHYPAR_LIBRARY_MODE
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
-  ERR(error_msg);
+  std::stringstream ss;                                                        \
+  ss << error_msg;                                                             \
+  throw InvalidInputException(ss.str())
 #else
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
