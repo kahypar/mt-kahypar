@@ -24,18 +24,17 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include <string>
 
+#include <CLI/CLI.hpp>
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
@@ -44,18 +43,18 @@ int main(int argc, char* argv[]) {
   std::string graph_filename;
   std::string out_filename;
 
-  po::options_description options("Options");
-  options.add_options()
-    ("snap-file,s",
-    po::value<std::string>(&graph_filename)->value_name("<string>")->required(),
-    "Snap filename")
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Graph Output Filename");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.add_option(
+    "-s,--snap-file,snap-file",
+    graph_filename,
+    "Snap filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-o,--out-file,out-file",
+    out_filename,
+    "Graph Output Filename"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   std::ifstream in_stream(graph_filename);
   std::string line;

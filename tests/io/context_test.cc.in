@@ -4,6 +4,7 @@
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2025 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,17 +29,17 @@
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <set>
-#include <cstring>
+#include <string>
 #include <fstream>
+#include <sstream>
 
-#include <boost/program_options.hpp>
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/presets.h"
-
-namespace po = boost::program_options;
 
 using ::testing::Test;
 
@@ -46,96 +47,53 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-// comparison result and whether the type was known
-std::pair<bool, bool> variableValIsEqual(po::variable_value lhs, po::variable_value rhs) {
-  if (lhs.value().type() != rhs.value().type()) {
-    return {false, true};
-  }
-  bool* bool_val = boost::any_cast<bool>(&lhs.value());
-  if (bool_val != nullptr) {
-    return {*bool_val == rhs.as<bool>(), true};
-  }
-  size_t* size_t_val = boost::any_cast<size_t>(&lhs.value());
-  if (size_t_val != nullptr) {
-    return {*size_t_val == rhs.as<size_t>(), true};
-  }
-  int* int_val = boost::any_cast<int>(&lhs.value());
-  if (int_val != nullptr) {
-    return {*int_val == rhs.as<int>(), true};
-  }
-  HypernodeID* id_val = boost::any_cast<HypernodeID>(&lhs.value());
-  if (id_val != nullptr) {
-    return {*id_val == rhs.as<HypernodeID>(), true};
-  }
-  double* float_val = boost::any_cast<double>(&lhs.value());
-  if (float_val != nullptr) {
-    return {*float_val == rhs.as<double>(), true};
-  }
-  long double* ld_val = boost::any_cast<long double>(&lhs.value());
-  if (ld_val != nullptr) {
-    return {*ld_val == rhs.as<long double>(), true};
-  }
-  std::string* string_val = boost::any_cast<std::string>(&lhs.value());
-  if (string_val != nullptr) {
-    return {*string_val == rhs.as<std::string>(), true};
-  }
-  std::vector<bool>* flag_val = boost::any_cast<std::vector<bool>>(&lhs.value());
-  if (flag_val != nullptr) {
-    auto actual_flags = *flag_val;
-    auto expected_flags = rhs.as<std::vector<bool>>();
-    if (actual_flags.size() != expected_flags.size()) {
-      return {false, true};
-    }
-    for (size_t i = 0; i < actual_flags.size(); ++i) {
-      if (actual_flags[i] != expected_flags[i]) {
-      return {false, true};
-      }
-    }
-    return {true, true};
-  }
-  return {true, false};
-}
-
 void comparePresetWithIniFile(PresetType preset, std::string ini_filename) {
   Context dummy_context;
-  auto ini_line_options = getIniOptionsDescription(dummy_context);
+  std::vector<CLI::ConfigItem> ini_list = CLI::ConfigINI().from_file(ini_filename);
+  std::vector<std::string> preset_list = loadPreset(preset);
 
-  po::variables_map actual;
-  auto option_list = loadPreset(preset);
-  po::basic_parsed_options<char> options(&ini_line_options);
-  options.options = option_list;
-  po::store(options, actual);
-  po::notify(actual);
-
-  po::variables_map expected;
-  std::ifstream file(ini_filename.c_str());
-  if (!file) {
-    throw InvalidInputException(
-      "Could not load context file at: " + ini_filename);
-  }
-  po::store(po::parse_config_file(file, ini_line_options, false), expected);
-  po::notify(expected);
-
-  for (auto [key, val]: actual) {
-    auto [equal, success] = variableValIsEqual(val, expected[key]);
-    if (!equal) {
-      LOG << "diverging config value for:" << key;
-    }
-    ASSERT_TRUE(equal);
-    if (!success) {
-      LOG << "missed:" << key;
+  std::unordered_map<std::string, std::string> ini_mapping;
+  for (const auto& item: ini_list)  {
+    ASSERT_EQ(ini_mapping.find(item.name), ini_mapping.end());
+    std::string& value = ini_mapping[item.name];
+    for (auto& v: item.inputs) {
+      value += v;
     }
   }
-  for (auto [key, val]: expected) {
-    auto [equal, success] = variableValIsEqual(actual[key], val);
-    if (!equal) {
-      LOG << "diverging config value for:" << key;
-    }
-    ASSERT_TRUE(equal);
-    if (!success) {
-      LOG << "missed:" << key;
-    }
+
+  std::unordered_map<std::string, std::string> preset_mapping;
+  for (const std::string& entry: preset_list) {
+    std::stringstream ss(entry);
+    std::string name;
+    std::string value;
+    char del = '=';
+    std::getline(ss, name, del);
+    std::getline(ss, value, del);
+    ASSERT_TRUE(name.size() > 2 && name[0] == '-' && name[1] == '-');
+    name = name.substr(2);
+    ASSERT_TRUE(value.size() == 1 || preset_mapping.find(name) == preset_mapping.end());
+    preset_mapping[name] += value;
   }
+
+  for (const auto& [name, value]: preset_mapping) {
+    if (ini_mapping.find(name) == ini_mapping.end()) {
+      LOG << "Missing value in config file:" << name;
+    }
+    ASSERT_TRUE(ini_mapping.find(name) != ini_mapping.end());
+    ASSERT_EQ(value, ini_mapping[name]);
+  }
+  for (const auto& [name, _]: ini_mapping) {
+    if (preset_mapping.find(name) == preset_mapping.end()) {
+      LOG << "Missing value in preset function:" << name;
+    }
+    ASSERT_TRUE(preset_mapping.find(name) != preset_mapping.end());
+  }
+
+  // check whether an error occurs during actual parsing
+  Context c1;
+  parseIniToContext(c1, ini_filename, false);
+  Context c2;
+  presetToContext(c2, preset, false);
 }
 
 TEST(AContext, LoadsDefaultPresetCorrectly) {

@@ -50,16 +50,10 @@ using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resoluti
 int main(int argc, char* argv[]) {
 
   Context context(false);
-  processCommandLineInput(context, argc, argv, nullptr);
+  processCommandLineInput(context, argc, argv);
 
-  if ( context.partition.preset_file == "" ) {
-    if ( context.partition.preset_type != PresetType::UNDEFINED ) {
-      // Only a preset type specified => load according preset
-      auto preset_option_list = loadPreset(context.partition.preset_type);
-      processCommandLineInput(context, argc, argv, &preset_option_list);
-    } else {
-      throw InvalidInputException("No preset specified");
-    }
+  if ( context.partition.preset_type == PresetType::UNDEFINED ) {
+    ERR("No preset specified (--preset-type)");
   }
 
   // Determine instance (graph or hypergraph) and partition type

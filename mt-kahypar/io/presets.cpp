@@ -27,15 +27,25 @@
 #include "presets.h"
 
 #include <vector>
+#include <sstream>
 
 namespace mt_kahypar {
 
 // construction helper
-option create_option(const std::string& key, const std::string& value) {
-  return { key, {value} };
+std::string create_option(const std::string& key, const std::string& value) {
+  std::stringstream out;
+  out << "--" << key << "=" << value;
+  return out.str();
 }
 
-std::vector<option> load_default_preset() {
+std::vector<std::string> validPresetTypes() {
+  return {
+    "default", "quality", "highest_quality",
+    "deterministic", "deterministic_quality", "large_k"
+  };
+}
+
+std::vector<std::string> load_default_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -133,7 +143,7 @@ std::vector<option> load_default_preset() {
 }
 
 
-std::vector<option> load_quality_preset() {
+std::vector<std::string> load_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -242,7 +252,7 @@ std::vector<option> load_quality_preset() {
 }
 
 
-std::vector<option> load_highest_quality_preset() {
+std::vector<std::string> load_highest_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -365,7 +375,7 @@ std::vector<option> load_highest_quality_preset() {
 }
 
 
-std::vector<option> load_deterministic_preset() {
+std::vector<std::string> load_deterministic_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -457,7 +467,7 @@ std::vector<option> load_deterministic_preset() {
 }
 
 
-std::vector<option> load_deterministic_quality_preset() {
+std::vector<std::string> load_deterministic_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -560,7 +570,7 @@ std::vector<option> load_deterministic_quality_preset() {
 }
 
 
-std::vector<option> load_large_k_preset() {
+std::vector<std::string> load_large_k_preset() {
   return {
     // general
     create_option("mode", "deep"),
@@ -595,17 +605,15 @@ std::vector<option> load_large_k_preset() {
     // main -> initial_partitioning
     create_option("i-mode", "direct"),
     create_option("i-runs", "5"),
-    { "i-enabled-ip-algos", {
-      "1",    // greedy_round_robin_fm
-      "1",    // greedy_global_fm
-      "0",    // greedy_sequential_fm
-      "1",    // random
-      "1",    // bfs
-      "0",    // label_propagation
-      "1",    // greedy_round_robin_max_net
-      "0",    // greedy_global_max_net
-      "1",    // greedy_sequential_max_net
-    } },
+    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_fm
+    create_option("i-enabled-ip-algos", "1"),    // greedy_global_fm
+    create_option("i-enabled-ip-algos", "0"),    // greedy_sequential_fm
+    create_option("i-enabled-ip-algos", "1"),    // random
+    create_option("i-enabled-ip-algos", "1"),    // bfs
+    create_option("i-enabled-ip-algos", "0"),    // label_propagation
+    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_max_net
+    create_option("i-enabled-ip-algos", "0"),    // greedy_global_max_net
+    create_option("i-enabled-ip-algos", "1"),    // greedy_sequential_max_net
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "3"),
     create_option("i-perform-refinement-on-best-partitions", "true"),
@@ -639,7 +647,7 @@ std::vector<option> load_large_k_preset() {
 }
 
 
-std::vector<option> loadPreset(PresetType preset) {
+std::vector<std::string> loadPreset(PresetType preset) {
   switch( preset ) {
     case PresetType::deterministic:
       return load_deterministic_preset();

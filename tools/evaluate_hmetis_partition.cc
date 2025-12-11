@@ -24,12 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
@@ -43,7 +43,6 @@
 #include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
@@ -71,21 +70,24 @@ void readPartitionFile(const std::string& partition_file, PartitionedHypergraph&
 int main(int argc, char* argv[]) {
   Context context;
 
-  po::options_description options("Options");
-  options.add_options()
-          ("hypergraph,h",
-           po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-           "Hypergraph Filename")
-          ("partition-file,b",
-           po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
-           "Partition Filename")
-          ("blocks,k",
-           po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
-           "Number of Blocks");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-h,--hypergraph,hypergraph",
+    context.partition.graph_filename,
+    "Hypergraph filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-b,--partition-file,partition-file",
+    context.partition.graph_partition_filename,
+    "Partition Filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "--k,--blocks",
+    context.partition.k,
+    "Number of Blocks"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   // Read Hypergraph
   mt_kahypar_hypergraph_t hypergraph =
