@@ -65,19 +65,19 @@ class GraphCutGainCache {
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
   static constexpr bool invalidates_entries = false;
 
-  using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
+  using AdjacentBlocksIterator = IntegerIterator<PartitionID>;
 
   GraphCutGainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache(),
-    _dummy_adjacent_blocks() { }
+    _current_k(kInvalidPartition),
+    _gain_cache() { }
 
   GraphCutGainCache(const Context&) :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache(),
-    _dummy_adjacent_blocks() { }
+    _current_k(kInvalidPartition),
+    _gain_cache() { }
 
   GraphCutGainCache(const GraphCutGainCache&) = delete;
   GraphCutGainCache & operator= (const GraphCutGainCache &) = delete;
@@ -122,8 +122,7 @@ class GraphCutGainCache {
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
     // We do not maintain the adjacent blocks of a node in this gain cache.
     // We therefore return an iterator over all blocks here
-    return IteratorRange<AdjacentBlocksIterator>(
-      _dummy_adjacent_blocks.cbegin(), _dummy_adjacent_blocks.cend());
+    return integer_range(_current_k);
   }
 
   // ####################### Gain Computation #######################
@@ -255,7 +254,7 @@ class GraphCutGainCache {
 
   void changeNumberOfBlocks(const PartitionID new_k) {
     ASSERT(new_k <= _k);
-    _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(new_k);
+    _current_k = new_k;
   }
 
   template<typename PartitionedHypergraph>
@@ -277,7 +276,7 @@ class GraphCutGainCache {
                          const PartitionID k) {
     if (_gain_cache.size() == 0 && k != kInvalidPartition) {
       _k = k;
-      _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
+      _current_k = k;
       _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);
     }
   }
@@ -287,12 +286,10 @@ class GraphCutGainCache {
 
   // ! Number of blocks
   PartitionID _k;
+  PartitionID _current_k;
 
   // ! Array of size |V| * k, which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
-
-  // ! Provides an iterator from 0 to k (:= number of blocks)
-  IntegerRangeIterator<PartitionID> _dummy_adjacent_blocks;
 };
 
 /**
