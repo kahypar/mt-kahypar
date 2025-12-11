@@ -71,9 +71,6 @@ Mt-KaHyPar requires:
  - A 64-bit Linux, MacOS, or Windows operating system.
  - A modern, C++17-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows.
  - The [cmake][cmake] build system (>= 3.26).
- - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
-   If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
-   to the cmake command to download, extract, and build the necessary dependencies automatically.
  - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.5.0).
    If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
    to the cmake command to download oneTBB and extract the necessary dependencies automatically.
@@ -84,13 +81,13 @@ Mt-KaHyPar requires:
 
 The following command will install most of the required dependencies on a Ubuntu machine:
 
-    sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+    sudo apt-get install libtbb-dev libhwloc-dev
 
 ### MacOS
 
 The following command will install most of the required dependencies on a MacOS machine:
 
-    brew install tbb boost hwloc
+    brew install tbb hwloc
 
 ### Windows
 
@@ -104,7 +101,7 @@ The following instructions set up the environment used to build Mt-KaHyPar on Wi
 
   4. The following command will then install all required dependencies:
 
-    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-boost mingw-w64-x86_64-tbb
+    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-tbb
 
 ### Build Commands
 
@@ -640,7 +637,6 @@ feel free to contact us or create an issue on the
 [issue tracking system](https://github.com/kahypar/mt-kahypar/issues).
 
 [cmake]: http://www.cmake.org/ "CMake tool"
-[Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
 [LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"

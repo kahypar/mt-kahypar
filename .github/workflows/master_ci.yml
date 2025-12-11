@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
 
       - name: Install Mt-KaHyPar
         env:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev libudev-dev
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libudev-dev
 
       - name: Install Mt-KaHyPar
         run: |
@@ -82,7 +82,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libboost-program-options-dev
+          sudo apt-get update && sudo apt-get install libtbb-dev
 
       - name: Install Mt-KaHyPar
         run: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
@@ -143,7 +143,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
 
       - name: Install Mt-KaHyPar Integration Tests
         run: |
@@ -172,7 +172,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
@@ -194,7 +194,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
@@ -225,10 +225,10 @@ jobs:
         with:
           install: git make
 
-      - name: Install Boost and TBB
+      - name: Install TBB
         shell: msys2 {0}
         run: |
-          pacman --noconfirm -S mingw-w64-x86_64-boost mingw-w64-x86_64-tbb mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
+          pacman --noconfirm -S mingw-w64-x86_64-tbb mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
 
       - name: Put MSYS2_MinGW64 on Path
         run: |
@@ -262,7 +262,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install tbb boost hwloc lcov gcovr
+          brew install tbb hwloc lcov gcovr
 
       - name: Install Mt-KaHyPar Multilevel Tests
         run: |
