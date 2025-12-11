@@ -24,40 +24,44 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <functional>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 int main(int argc, char* argv[]) {
   int N, M, MAX_WEIGHT;
   std::string out_filename;
-  po::options_description options("Options");
-  options.add_options()
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Target Graph Output Filename")
-    ("n",
-    po::value<int>(&N)->value_name("<int>")->required(),
-    "Number of rows")
-    ("m",
-    po::value<int>(&M)->value_name("<int>")->required(),
-    "Number of columns")
-    ("max-weight",
-    po::value<int>(&MAX_WEIGHT)->value_name("<int>")->required(),
-    "Maximum weight of an edge in the target graph");
 
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.add_option(
+    "-o,--out-file,out-file",
+    out_filename,
+    "Target Graph Output Filename"
+  )->required();
+  app.add_option(
+    "-n,--rows",
+    N,
+    "Number of rows"
+  )->required();
+  app.add_option(
+    "-m,--columns",
+    M,
+    "Number of columns"
+  )->required();
+  app.add_option(
+    "--max-weight",
+    MAX_WEIGHT,
+    "Maximum weight of an edge in the target graph"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   const PartitionID k = N * M;
   out_filename = out_filename + ".k" + std::to_string(k);

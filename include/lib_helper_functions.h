@@ -159,8 +159,7 @@ Context context_from_file(const char* ini_file_name) {
 
 Context context_from_preset(PresetType preset) {
   Context context(false);
-  auto preset_option_list = loadPreset(preset);
-  presetToContext(context, preset_option_list, true);
+  presetToContext(context, preset, true);
   return context;
 }
 

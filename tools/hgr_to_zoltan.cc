@@ -24,11 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
@@ -39,7 +39,6 @@
 #include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using Hypergraph = ds::StaticHypergraph;
 
@@ -69,18 +68,19 @@ int main(int argc, char* argv[]) {
   std::string hgr_filename;
   std::string out_filename;
 
-  po::options_description options("Options");
-  options.add_options()
-    ("hypergraph,h",
-    po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
-    "Hypergraph filename")
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Hypergraph Output Filename");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-h,--hypergraph,hypergraph",
+    hgr_filename,
+    "Hypergraph filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-o,--out-file,out-file",
+    out_filename,
+    "Hypergraph Output Filename"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
