@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev
           python3 -m pip install cibuildwheel>=2.22.0
 
       - name: Build Python Wheels
@@ -53,7 +53,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+          sudo apt-get install libtbb-dev libhwloc-dev
           python3 -m pip install cibuildwheel>=2.22.0
 
       - name: Build Python Wheels
@@ -86,7 +86,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install tbb boost pipx
+          brew install tbb pipx
 
       - name: Build Python Wheels
         env:
@@ -120,7 +120,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install tbb boost pipx
+          brew install tbb pipx
 
       - name: Build Python Wheels
         env:
@@ -148,7 +148,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev
 
       - name: Build sdist
         run: |
