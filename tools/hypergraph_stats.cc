@@ -24,12 +24,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#include <CLI/CLI.hpp>
 
 #include "tbb/parallel_sort.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -47,7 +47,6 @@
 #include "kahypar-resources/utils/math.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using Hypergraph = ds::StaticHypergraph;
 
@@ -82,26 +81,23 @@ Statistic createStats(const std::vector<T>& vec, const double avg, const double 
 int main(int argc, char* argv[]) {
   Context context;
 
-  po::options_description options("Options");
-  options.add_options()
-          ("hypergraph,h",
-           po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-           "Hypergraph Filename")
-          ("input-file-format",
-            po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
-              if (s == "hmetis") {
-                context.partition.file_format = FileFormat::hMetis;
-              } else if (s == "metis") {
-                context.partition.file_format = FileFormat::Metis;
-              }
-            }),
-            "Input file format: \n"
-            " - hmetis : hMETIS hypergraph file format \n"
-            " - metis : METIS graph file format");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-h,--hypergraph",
+    context.partition.graph_filename,
+    "Hypergraph (or graph) filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option_function<std::string>(
+    "--file-format,--input-file-format",
+    [&](const std::string& s) {
+      context.partition.file_format = fileFormatFromString(s);
+    },
+    "Input file format:\n"
+    " - hmetis: hMETIS hypergraph file format\n"
+    " - metis: METIS graph file format"
+  )->default_str("hmetis");
+  CLI11_PARSE(app, argc, argv);
 
   // Read Hypergraph
   mt_kahypar_hypergraph_t hypergraph =

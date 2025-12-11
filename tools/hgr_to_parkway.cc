@@ -24,11 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
@@ -39,7 +39,6 @@
 #include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
@@ -95,21 +94,24 @@ int main(int argc, char* argv[]) {
   std::string out_filename;
   int num_procs;
 
-  po::options_description options("Options");
-  options.add_options()
-    ("hypergraph,h",
-    po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
-    "Hypergraph filename")
-    ("num-procs,p",
-    po::value<int>(&num_procs)->value_name("<int>")->required(),
-    "Number of Processor Parkway will be called with")
-    ("out-file,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Hypergraph Output Filename");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-h,--hypergraph,hypergraph",
+    hgr_filename,
+    "Hypergraph filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-o,--out-file,out-file",
+    out_filename,
+    "Hypergraph Output Filename"
+  )->required();
+  app.add_option(
+    "-p,--num-procs",
+    num_procs,
+    "Number of processors Parkway will be called with"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   // Read Hypergraph
   mt_kahypar_hypergraph_t hypergraph =

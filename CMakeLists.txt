@@ -344,6 +344,7 @@ set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
 set(KAHYPAR_WHFC_TAG             30b0eeb0e49577d06c3deb09a44b035d81c529d2)
 set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
+set(KAHYPAR_CLI11_VERSION        v2.6.1)
 set(KAHYPAR_TBB_VERSION          v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
 set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
@@ -351,6 +352,14 @@ set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
 message(STATUS "Fetching dependencies...")
 
 # Include header-only dependencies
+FetchContent_Declare(
+    cli11 QUIET EXLUDE_FROM_ALL
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG ${KAHYPAR_CLI11_VERSION}
+)
+FetchContent_MakeAvailable(cli11)
+target_link_libraries(MtKaHyPar-Include INTERFACE CLI11::CLI11)
+
 FetchContent_Populate(
   kahypar-shared-resources QUIET EXLUDE_FROM_ALL
   GIT_REPOSITORY https://github.com/kahypar/kahypar-shared-resources.git
