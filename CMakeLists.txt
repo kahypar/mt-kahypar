@@ -34,9 +34,6 @@ endif()
 if (POLICY CMP0144)  # uppercase find_package variables
   cmake_policy(SET CMP0144 NEW)
 endif()
-if (POLICY CMP0167)  # new FindBoost behavior
-  cmake_policy(SET CMP0167 NEW)
-endif()
 
 if (NOT DEFINED BUILD_SHARED_LIBS AND NOT WIN32)
   # since TBB does not support static linking, we build with dynamic linking by default (except on Windows)
@@ -90,7 +87,6 @@ option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mt
 option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package." OFF)
 
 # dependencies
-option(KAHYPAR_DOWNLOAD_BOOST "Download boost automatically and compile required libraries." OFF)
 option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
 option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact running time on NUMA platforms." OFF)
 option(KAHYPAR_DISABLE_GROWT "Remove the growt dependency. Might significantly impact running time of the Steiner tree metric." OFF)
@@ -341,7 +337,7 @@ endif()
 
 include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
-set(KAHYPAR_WHFC_TAG             30b0eeb0e49577d06c3deb09a44b035d81c529d2)
+set(KAHYPAR_WHFC_TAG             51b27ff2c27a4794bfbaa4e8189d38159d249312)
 set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.6.1)
@@ -412,48 +408,6 @@ if (KAHYPAR_ENABLE_TESTING)
   add_library(MtKaHyPar-Test INTERFACE)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
 endif()
-
-# check for linking problems
-if(BUILD_SHARED_LIBS AND KAHYPAR_STATIC_LINK_DEPENDENCIES)
-  if(NOT KAHYPAR_DOWNLOAD_BOOST OR NOT CMAKE_POSITION_INDEPENDENT_CODE)
-    message(WARNING "Building a shared lib with static linking of transitive dependencies requires building Boost from source with -DCMAKE_POSITION_INDEPENDENT_CODE=On")
-  endif()
-endif()
-
-block()
-  # define required boost libraries
-  set(BOOST_INCLUDE_LIBRARIES program_options range dynamic_bitset lexical_cast)
-
-  if(KAHYPAR_STATIC_LINK_DEPENDENCIES)
-    set(Boost_USE_STATIC_LIBS ON)
-    set(BUILD_SHARED_LIBS OFF)
-  endif()
-  if(KAHYPAR_DOWNLOAD_BOOST)
-    # Download Boost
-    set(BOOST_ENABLE_CMAKE ON)
-    FetchContent_Declare(
-      Boost EXCLUDE_FROM_ALL SYSTEM
-      URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.gz
-    )
-    FetchContent_MakeAvailable(Boost)
-  else()
-    # Find system Boost
-    find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
-    if(NOT Boost_FOUND)
-      message(FATAL_ERROR "
-        Boost not found. Install Boost on your system or
-        add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
-    endif()
-    message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}, Boost Library: ${Boost_LIBRARY_DIRS}")
-  endif()
-
-  # newer boost versions require to add all targets explicitly
-  foreach(BOOST_TARGET ${BOOST_INCLUDE_LIBRARIES})
-    if(TARGET Boost::${BOOST_TARGET})
-      target_link_libraries(MtKaHyPar-Include INTERFACE Boost::${BOOST_TARGET})
-    endif()
-  endforeach()
-endblock()
 
 
 if(KAHYPAR_DOWNLOAD_TBB)
