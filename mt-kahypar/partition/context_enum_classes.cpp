@@ -290,6 +290,16 @@ namespace mt_kahypar {
     return Mode::UNDEFINED;
   }
 
+  FileFormat fileFormatFromString(const std::string& type) {
+    if (type == "hmetis") {
+      return FileFormat::hMetis;
+    } else if (type == "metis") {
+      return FileFormat::Metis;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return FileFormat::hMetis;
+  }
+
   InstanceType instanceTypeFromString(const std::string& type) {
     if (type == "graph") {
       return InstanceType::graph;

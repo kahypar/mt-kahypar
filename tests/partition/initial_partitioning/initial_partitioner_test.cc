@@ -64,9 +64,9 @@ class AInitialPartitionerTest : public Test {
 
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     if ( !context.isNLevelPartitioning() ) {
-      parseIniToContext(context, "../config/default_preset.ini");
+      parseIniToContext(context, "../config/default_preset.ini", true);
     } else {
-      parseIniToContext(context, "../config/highest_quality_preset.ini");
+      parseIniToContext(context, "../config/highest_quality_preset.ini", true);
     }
     context.partition.partition_type = PartitionedHypergraph::TYPE;
 
@@ -84,7 +84,6 @@ class AInitialPartitionerTest : public Test {
     context.partition.gain_policy = GainPolicy::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
-    context.partition.verbose_output = false;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;

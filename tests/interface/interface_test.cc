@@ -42,6 +42,7 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, LoadsContextFromFile) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_file("test_preset.ini", &error);
+    ASSERT_NE(context, nullptr);
     // verbose should be false by default
     ASSERT_FALSE(reinterpret_cast<Context*>(context)->partition.verbose_output);
     ASSERT_EQ(DEFAULT, mt_kahypar_get_preset(context));

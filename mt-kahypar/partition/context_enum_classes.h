@@ -230,6 +230,8 @@ std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& p
 
 Mode modeFromString(const std::string& mode);
 
+FileFormat fileFormatFromString(const std::string& type);
+
 InstanceType instanceTypeFromString(const std::string& type);
 
 PresetType presetTypeFromString(const std::string& type);
