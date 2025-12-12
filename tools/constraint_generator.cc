@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
         fs::path constraint_file = constraint_dir / (hg_file.filename().string() + "." + std::to_string(k) + CONSTRAINT_FILE_EXTENSION);
         HypernodeID generated_constraints;
         if (partitioned_hypergraph_path) {
-            auto part_hg_file = findFileWithPrefix(partitioned_hypergraph_path.value(), hg_file.filename().string());
+            auto part_hg_file = findFileWithPrefix(partitioned_hypergraph_path.value(), hg_file.filename().string() + ".part" + std::to_string(k));
             if (!part_hg_file){
                 throw fs::filesystem_error(
                     "no matching partitioned hypergraph file found in ",
