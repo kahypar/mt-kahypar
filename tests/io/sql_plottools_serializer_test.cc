@@ -57,7 +57,8 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
     {"DeterministicRefinement", "sync_lp_"}, {"JetParameters", "jet_"}, {"FlowParameters", "flow_"}, {"MappingParameters", "mapping_"} };
 
 std::set<std::string> excluded_members =
-  { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
+  { "enable_logging", "verbose_logging", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption",
+    "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "show_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement", "jet",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos", "original_num_threads",

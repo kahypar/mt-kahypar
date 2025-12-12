@@ -181,7 +181,9 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
     }
     case VERBOSE:
       try {
-        c.partition.verbose_output = boost::lexical_cast<bool>(value);
+        bool value = boost::lexical_cast<bool>(value);
+        c.partition.enable_logging = value;
+        c.partition.verbose_logging = value;
         return mt_kahypar_status_t::SUCCESS;
       } catch ( boost::bad_lexical_cast& ) {
         report_conversion_error("boolean");

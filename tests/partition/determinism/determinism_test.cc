@@ -71,7 +71,7 @@ public:
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.epsilon = 0.25;
-    context.partition.verbose_output = false;
+    context.partition.enable_logging = false;
     context.partition.k = 8;
 
     // Shared Memory

@@ -136,7 +136,7 @@ void check_if_all_relevant_parameters_are_set(Context& context) {
   auto check_parameter = [&](bool is_uninitialized, const char* warning_msg) {
     if (is_uninitialized) {
       success = false;
-      if (context.partition.verbose_output) {
+      if (context.partition.enable_logging) {
         WARNING(warning_msg);
       }
     }

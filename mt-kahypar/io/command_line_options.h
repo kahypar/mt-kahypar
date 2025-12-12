@@ -37,8 +37,8 @@ void printHelp(Context& context, bool verbose);
 
 void processCommandLineInput(Context& context, int argc, char *argv[]);
 
-void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_verbose_output);
+void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_logging);
 
-void presetToContext(Context& context, PresetType preset, bool disable_verbose_output);
+void presetToContext(Context& context, PresetType preset, bool disable_logging);
 
 } // namespace mt_kahypar

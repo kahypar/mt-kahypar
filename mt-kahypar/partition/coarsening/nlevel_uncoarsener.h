@@ -98,7 +98,6 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
     _tmp_refinement_nodes(),
     _border_vertices_of_batch(hypergraph.initialNumNodes()),
     _stats(context),
-    _current_metrics(),
     _progress(hypergraph.initialNumNodes(), 0, false),
     _is_timer_disabled(false),
     _force_measure_timings(context.partition.show_detailed_uncontraction_timings && context.type == ContextType::main) { }
@@ -151,6 +150,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_flows;
   using Base::_rebalancer;
   using Base::_timer;
+  using Base::_current_metrics;
 
   const TargetGraph* _target_graph;
 
@@ -170,7 +170,6 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   kahypar::ds::FastResetFlagArray<> _border_vertices_of_batch;
 
   NLevelStats _stats;
-  Metrics _current_metrics;
   utils::ProgressBar _progress;
   bool _is_timer_disabled;
   bool _force_measure_timings;

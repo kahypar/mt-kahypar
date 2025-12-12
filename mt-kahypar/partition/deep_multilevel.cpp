@@ -293,7 +293,7 @@ Context setupBipartitioningContext(const Context& context,
   b_context.partition.k = 2;
   b_context.partition.objective = Objective::cut;
   b_context.partition.gain_policy = is_graph ? GainPolicy::cut_for_graphs : GainPolicy::cut;
-  b_context.partition.verbose_output = false;
+  b_context.partition.enable_logging = false;
   b_context.initial_partitioning.mode = Mode::direct;
   b_context.type = ContextType::initial_partitioning;
 
@@ -368,7 +368,7 @@ Context setupDeepMultilevelRecursionContext(const Context& context,
   Context r_context(context);
 
   r_context.type = ContextType::initial_partitioning;
-  r_context.partition.verbose_output = false;
+  r_context.partition.enable_logging = false;
 
   const double thread_reduction_factor = static_cast<double>(num_threads) / context.shared_memory.num_threads;
   r_context.shared_memory.num_threads = num_threads;
@@ -404,7 +404,7 @@ void printInitialPartitioningResult(const PartitionedHypergraph& partitioned_hg,
                                     const Context& context,
                                     const PartitionID k,
                                     const RBTree& rb_tree) {
-  if ( context.partition.verbose_output ) {
+  if ( context.partition.enable_logging ) {
     Context m_context(context);
     m_context.partition.k = k;
     m_context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(m_context.partition.k);
@@ -717,7 +717,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     coarsener->terminate();
 
 
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
       mt_kahypar::io::printHypergraphInfo(
         utils::cast<Hypergraph>(coarsestHypergraph), context,
@@ -815,7 +815,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   ASSERT(current_k != kInvalidPartition);
 
   printInitialPartitioningResult(coarsest_phg, context, current_k, rb_tree);
-  if ( context.partition.verbose_output ) {
+  if ( context.partition.enable_logging && context.partition.verbose_logging ) {
     utils::Utilities::instance().getInitialPartitioningStats(
       context.utility_id).printInitialPartitioningStats();
   }
@@ -825,7 +825,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   // ################## UNCOARSENING ##################
   io::printLocalSearchBanner(context);
   timer.start_timer("refinement", "Refinement");
-  const bool progress_bar_enabled = context.partition.verbose_output &&
+  const bool progress_bar_enabled = context.partition.enable_logging &&
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
@@ -870,7 +870,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     // the number of nodes gets larger than k' * C.
     while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ) {
       PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
-      if ( context.partition.verbose_output && context.type == ContextType::main ) {
+      if ( context.partition.enable_logging && context.partition.verbose_logging && context.type == ContextType::main ) {
         LOG << "Extend number of blocks from" << current_k << "to" << next_k
             << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
       }
@@ -889,7 +889,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
       const HyperedgeWeight obj_before = uncoarsener->getObjective();
       uncoarsener->refine();
       const HyperedgeWeight obj_after = uncoarsener->getObjective();
-      if ( context.partition.verbose_output && context.type == ContextType::main ) {
+      if ( context.partition.enable_logging && context.partition.verbose_logging && context.type == ContextType::main ) {
         LOG << "Refinement improved" << context.partition.objective
             << "from" << obj_before << "to" << obj_after
             << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
@@ -900,7 +900,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     const HyperedgeWeight obj_before = uncoarsener->getObjective();
     uncoarsener->projectToNextLevelAndRefine();
     const HyperedgeWeight obj_after = uncoarsener->getObjective();
-    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+    if ( context.partition.enable_logging && context.partition.verbose_logging && context.type == ContextType::main ) {
       LOG << "Refinement after projecting partition to next level improved"
           << context.partition.objective << "from" << obj_before << "to" << obj_after
           << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
@@ -914,7 +914,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ||
           ( context.type == ContextType::main && current_k != final_k ) ) {
     PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
-    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+    if ( context.partition.enable_logging && context.partition.verbose_logging && context.type == ContextType::main ) {
       LOG << "Extend number of blocks from" << current_k << "to" << next_k
           << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
     }
@@ -933,7 +933,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     const HyperedgeWeight obj_before = uncoarsener->getObjective();
     uncoarsener->refine();
     const HyperedgeWeight obj_after = uncoarsener->getObjective();
-    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+    if ( context.partition.enable_logging && context.partition.verbose_logging && context.type == ContextType::main ) {
       LOG << "Refinement improved" << context.partition.objective
           << "from" << obj_before << "to" << obj_after
           << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
