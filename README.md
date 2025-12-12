@@ -126,13 +126,15 @@ Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines
 Running Mt-KaHyPar
 -----------
 
-To partition a **hypergraph** with our default configuration, you can use the following command:
+To partition a **hypergraph** with our default configuration, use the following command:
 
     ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> --preset-type=default -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
 
+Available options are described in more detail below. You can also use `--help` to print a summary of the most important options.
+
 ### Partitioning Configurations
 
-Mt-KaHyPar provides several partitioning configurations with different time-quality trade-offs. The configurations are stored in `ini` files located in the `config` folder. However, we recommend using the `--preset-type` command line parameter to run Mt-KaHyPar with a specific partitioning configuration:
+Mt-KaHyPar provides several partitioning configurations with different time-quality trade-offs. The configurations are stored in `ini` files located in the `config` folder. However, we recommend using the `--preset-type` parameter:
 
     --preset-type=<default/quality/highest_quality/deterministic/deterministic_quality/large_k>
 
@@ -156,21 +158,22 @@ Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degrees m
 
     -o <cut/km1/soed>
 
-### Graph Partitioning
-
-To partition a **graph** with Mt-KaHyPar, you can add the following command line parameters to the partitioning call:
-
-    -h <path-to-graph> --instance-type=graph --input-file-format=<metis/hmetis> -o cut
-
-Mt-KaHyPar then uses optimized data structures for graph partitioning, which speeds up the partitioning time by a factor of two compared to our hypergraph partitioning code. Per default, we expect the input in [hMetis format](mt-kahypar/io/docs/FileFormats.md#hmetis-format-for-input-hypergraphs), but you can read graph files in [Metis format](mt-kahypar/io/docs/FileFormats.md#metis-format-for-input-graphs) via `--input-file-format=metis`.
-
 ### Mapping (Hyper)Graphs onto Graphs
 
-To map a **(hyper)graph** onto a **target graph** with Mt-KaHyPar, you can add the following command line parameters to the partitioning call:
+To map a **(hyper)graph** onto a **target graph**, use the following parameters:
 
     -g <path-to-target-graph> -o steiner_tree
 
 The target graph is expected to be in [Metis format](mt-kahypar/io/docs/FileFormats.md#metis-format-for-input-graphs). The nodes of the (hyper)graph are then mapped onto the nodes of the target graph, while optimizing the Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
+
+### Graph Partitioning
+
+To partition a **graph** in [Metis format](mt-kahypar/io/docs/FileFormats.md#metis-format-for-input-graphs), use the following parameters:
+
+    -h <path-to-graph> --file-format=metis -o cut
+
+Mt-KaHyPar uses optimized data structures for graph partitioning, which speeds up the partitioning time by a factor of two in comparison to hypergraphs.
+For graphs in [hMetis format](mt-kahypar/io/docs/FileFormats.md#hmetis-format-for-input-hypergraphs), the optimized data structures can be enabled with `--instance-type=graph`.
 
 ### Fixed Vertices
 
@@ -190,20 +193,20 @@ Note that the sum of all individual target block weights must be larger than the
 
 To enable writing the partition to a file after partitioning, you can add the following command line parameters to the partitioning call:
 
-    --write-partition-file=true --partition-output-folder=<path/to/folder>
+    --write-partition-file --partition-output-folder=<path/to/folder>
 
 The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name and will be located in the folder specified by `--partition-output-folder`. If you do not provide a partition output folder, the partition file will be placed in the same folder as the input hypergraph file.
 
-### Other Useful Program Options
+### Display Options
 
-There are several useful options that can provide you with additional insights during and after the partitioning process:
+There are several useful options to control which output is shown:
 
-- `--verbose=true`: Displays detailed information on the partitioning process
-- `--show-detailed-timings=true`: Shows detailed sub-timings of each phase of the algorithm at the end of partitioning
-- `--enable-progress-bar=true`: Shows a progress bar during the coarsening and refinement phase
+- `-q/--quiet`: Disable partitioning output
+- `-v/--verbose`: Displays more detailed information on the partitioning process
+- `--show-detailed-timings`: Shows detailed sub-timings of each phase of the algorithm at the end of partitioning
+- `--enable-progress-bar`: Shows a progress bar during the coarsening and refinement phase
 
-
-If you want to change other configuration parameters manually, please run `--help` for a detailed description of the different program options.
+For changing other configuration parameters manually, please run `--help -v` for a detailed description of the program options.
 
 The C Library
 -----------
