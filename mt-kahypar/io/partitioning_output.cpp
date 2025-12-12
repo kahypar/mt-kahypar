@@ -183,10 +183,10 @@ namespace mt_kahypar::io {
 
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
-    LOG << "# HNs :" << num_hypernodes
-        << "# HEs :" << (Hypergraph::is_graph ? num_hyperedges / 2 : num_hyperedges)
-        << "# pins:" << num_pins
-        << "# graph edges:" << (Hypergraph::is_graph ? num_hyperedges / 2 : graph_edge_count.combine(std::plus<>()));
+    LOG << "# HNs:" << num_hypernodes
+        << " # HEs:" << (Hypergraph::is_graph ? num_hyperedges / 2 : num_hyperedges)
+        << " # pins:" << num_pins
+        << " # graph edges:" << (Hypergraph::is_graph ? num_hyperedges / 2 : graph_edge_count.combine(std::plus<>()));
 
     internal::printHypergraphStats(
             internal::createStats(he_sizes, avg_he_size, stdev_he_size),
@@ -285,7 +285,7 @@ namespace mt_kahypar::io {
 
   template<typename Hypergraph>
   void printFixedVertexPartWeights(const Hypergraph& hypergraph, const Context& context) {
-    if ( context.partition.verbose_output && hypergraph.hasFixedVertices() ) {
+    if ( context.partition.enable_logging && hypergraph.hasFixedVertices() ) {
       HypernodeWeight max_part_weight = 0;
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         if ( hypergraph.fixedVertexBlockWeight(i) > max_part_weight ) {
@@ -315,25 +315,27 @@ namespace mt_kahypar::io {
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const std::string& description) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << description;
       LOG << context.partition.objective << "      ="
           << metrics::quality(hypergraph, context);
       LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
-      LOG << "Part sizes and weights:";
-      io::printPartWeightsAndSizes(hypergraph, context);
-      LOG << "";
+      if (context.partition.verbose_logging) {
+        LOG << "Part sizes and weights:";
+        io::printPartWeightsAndSizes(hypergraph, context);
+        LOG << "";
+      }
     }
   }
 
   void printContext(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << context;
     }
   }
 
   void printMemoryPoolConsumption(const Context& context) {
-    if ( context.partition.verbose_output && context.partition.show_memory_consumption ) {
+    if ( context.partition.enable_logging && context.partition.show_memory_consumption ) {
       utils::MemoryTreeNode memory_pool_consumption("Memory Pool", utils::OutputType::MEGABYTE);
       parallel::MemoryPool::instance().memory_consumption(&memory_pool_consumption);
       memory_pool_consumption.finalize();
@@ -345,7 +347,7 @@ namespace mt_kahypar::io {
 
   template<typename Hypergraph>
   void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                                    Input                                     *";
       LOG << "********************************************************************************";
@@ -356,7 +358,7 @@ namespace mt_kahypar::io {
   }
 
   void printTopLevelPreprocessingBanner(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                              Preprocessing...                                *";
       LOG << "********************************************************************************";
@@ -364,7 +366,7 @@ namespace mt_kahypar::io {
   }
 
   void printCoarseningBanner(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "********************************************************************************";
       LOG << "*                                Coarsening...                                 *";
       LOG << "********************************************************************************";
@@ -372,7 +374,7 @@ namespace mt_kahypar::io {
   }
 
   void printInitialPartitioningBanner(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                           Initial Partitioning...                            *";
       LOG << "********************************************************************************";
@@ -380,7 +382,7 @@ namespace mt_kahypar::io {
   }
 
   void printLocalSearchBanner(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                               Local Search...                                *";
       LOG << "********************************************************************************";
@@ -388,7 +390,7 @@ namespace mt_kahypar::io {
   }
 
   void printVCycleBanner(const Context& context, const size_t vcycle_num) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       std::cout << "*                                  V-Cycle  " << vcycle_num;
       if ( vcycle_num < 10 ) {
@@ -400,7 +402,7 @@ namespace mt_kahypar::io {
     }
   }
   void printDeepMultilevelBanner(const Context& context) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                       Deep Multilevel Partitioning...                        *";
       LOG << "********************************************************************************";
@@ -595,7 +597,7 @@ namespace mt_kahypar::io {
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const std::chrono::duration<double>& elapsed_seconds) {
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging) {
       LOG << "\n********************************************************************************";
       LOG << "*                             Partitioning Result                              *";
       LOG << "********************************************************************************";
@@ -615,6 +617,7 @@ namespace mt_kahypar::io {
 
       LOG << "\nPartition sizes and weights: ";
       printPartWeightsAndSizes(hypergraph, context);
+      LOG << "";
 
       if ( context.partition.show_memory_consumption ) {
         // Print Memory Consumption
@@ -622,7 +625,7 @@ namespace mt_kahypar::io {
           "Partitioned Hypergraph", utils::OutputType::MEGABYTE);
         hypergraph.memoryConsumption(&hypergraph_memory_consumption);
         hypergraph_memory_consumption.finalize();
-        LOG << "\nPartitioned Hypergraph Memory Consumption";
+        LOG << "Partitioned Hypergraph Memory Consumption";
         LOG << hypergraph_memory_consumption;
       }
 
@@ -630,11 +633,13 @@ namespace mt_kahypar::io {
         hypergraph.targetGraph()->printStats();
       }
 
-      LOG << "\nTimings:";
-      utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-      timer.showDetailedTimings(context.partition.show_detailed_timings);
-      timer.setMaximumOutputDepth(context.partition.timings_output_depth);
-      LOG << timer;
+      if ( context.partition.verbose_logging || context.partition.show_detailed_timings ) {
+        LOG << "Timings:";
+        utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+        timer.showDetailedTimings(context.partition.show_detailed_timings);
+        timer.setMaximumOutputDepth(context.partition.timings_output_depth);
+        LOG << timer;
+      }
     }
   }
 
@@ -694,90 +699,95 @@ namespace mt_kahypar::io {
   }
 
   template<typename Hypergraph>
-  void printCommunityInformation(const Hypergraph& hypergraph) {
-
-    PartitionID num_communities =
-            tbb::parallel_reduce(
-                    tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
-                    0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
-              PartitionID my_range_num_communities = init;
-              for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-                if ( hypergraph.nodeIsEnabled(hn) ) {
-                  my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+  void printCommunityInformation(const Hypergraph& hypergraph, const Context& context) {
+    if (context.partition.enable_logging) {
+      PartitionID num_communities =
+              tbb::parallel_reduce(
+                      tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
+                      0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+                PartitionID my_range_num_communities = init;
+                for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                  if ( hypergraph.nodeIsEnabled(hn) ) {
+                    my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+                  }
                 }
-              }
-              return my_range_num_communities;
-            },
-            [](const PartitionID lhs, const PartitionID rhs) {
-              return std::max(lhs, rhs);
-            });
-    num_communities = std::max(num_communities, 1);
+                return my_range_num_communities;
+              },
+              [](const PartitionID lhs, const PartitionID rhs) {
+                return std::max(lhs, rhs);
+              });
+      num_communities = std::max(num_communities, 1);
 
-    std::vector<size_t> nodes_per_community(num_communities, 0);
-    std::vector<size_t> internal_pins(num_communities, 0);
-    std::vector<size_t> internal_degree(num_communities, 0);
+      LOG << "# Communities:" << num_communities;
 
-    auto reduce_nodes = [&] {
-      tbb::enumerable_thread_specific< vec< std::pair<size_t, size_t> > > ets_nodes(num_communities, std::make_pair(UL(0), UL(0)));
-      hypergraph.doParallelForAllNodes([&](const HypernodeID u) {
-        const PartitionID cu = hypergraph.communityID(u);
-        ets_nodes.local()[cu].first++;
-        ets_nodes.local()[cu].second += hypergraph.nodeDegree(u);
-      });
+      if (context.partition.verbose_logging) {
+        std::vector<size_t> nodes_per_community(num_communities, 0);
+        std::vector<size_t> internal_pins(num_communities, 0);
+        std::vector<size_t> internal_degree(num_communities, 0);
 
-      for (const auto& x : ets_nodes) {
-        for (PartitionID i = 0; i < num_communities; ++i) {
-          nodes_per_community[i] += x[i].first;
-          internal_degree[i] += x[i].second;
-        }
+        auto reduce_nodes = [&] {
+          tbb::enumerable_thread_specific< vec< std::pair<size_t, size_t> > > ets_nodes(num_communities, std::make_pair(UL(0), UL(0)));
+          hypergraph.doParallelForAllNodes([&](const HypernodeID u) {
+            const PartitionID cu = hypergraph.communityID(u);
+            ets_nodes.local()[cu].first++;
+            ets_nodes.local()[cu].second += hypergraph.nodeDegree(u);
+          });
+
+          for (const auto& x : ets_nodes) {
+            for (PartitionID i = 0; i < num_communities; ++i) {
+              nodes_per_community[i] += x[i].first;
+              internal_degree[i] += x[i].second;
+            }
+          }
+        };
+
+        auto reduce_hyperedges = [&] {
+          tbb::enumerable_thread_specific< vec<size_t> > ets_pins(num_communities, 0);
+          hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
+            auto& pin_counter = ets_pins.local();
+            for (const HypernodeID pin : hypergraph.pins(he)) {
+              pin_counter[ hypergraph.communityID(pin) ]++;
+            }
+          });
+
+          for (const auto& x : ets_pins) {
+            for (PartitionID i = 0; i < num_communities; ++i) {
+              internal_pins[i] += x[i];
+            }
+          }
+        };
+
+        tbb::parallel_invoke(reduce_nodes, reduce_hyperedges);
+
+        std::sort(nodes_per_community.begin(), nodes_per_community.end());
+        std::sort(internal_pins.begin(), internal_pins.end());
+        std::sort(internal_degree.begin(), internal_degree.end());
+
+        auto square = [&](double x) { return x * x; };
+
+        auto avg_and_std_dev = [&](const std::vector<size_t>& v) {
+          const double avg = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+          double std_dev = 0.0;
+          for (size_t x : v) {
+            std_dev += square(x - avg);
+          }
+          std_dev = std::sqrt(std_dev / static_cast<double>(v.size() - 1));
+          return std::make_pair(avg, std_dev);
+        };
+
+        auto [avg_nodes, std_dev_nodes] = avg_and_std_dev(nodes_per_community);
+        auto [avg_pins, std_dev_pins] = avg_and_std_dev(internal_pins);
+        auto [avg_deg, std_dev_deg] = avg_and_std_dev(internal_degree);;
+
+        internal::printCommunityStats(
+                internal::createStats(nodes_per_community, avg_nodes, std_dev_nodes),
+                internal::createStats(internal_pins, avg_pins, std_dev_pins),
+                internal::createStats(internal_degree, avg_deg, std_dev_deg)
+                );
       }
-    };
 
-    auto reduce_hyperedges = [&] {
-      tbb::enumerable_thread_specific< vec<size_t> > ets_pins(num_communities, 0);
-      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
-        auto& pin_counter = ets_pins.local();
-        for (const HypernodeID pin : hypergraph.pins(he)) {
-          pin_counter[ hypergraph.communityID(pin) ]++;
-        }
-      });
-
-      for (const auto& x : ets_pins) {
-        for (PartitionID i = 0; i < num_communities; ++i) {
-          internal_pins[i] += x[i];
-        }
-      }
-    };
-
-    tbb::parallel_invoke(reduce_nodes, reduce_hyperedges);
-
-    std::sort(nodes_per_community.begin(), nodes_per_community.end());
-    std::sort(internal_pins.begin(), internal_pins.end());
-    std::sort(internal_degree.begin(), internal_degree.end());
-
-    auto square = [&](double x) { return x * x; };
-
-    auto avg_and_std_dev = [&](const std::vector<size_t>& v) {
-      const double avg = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
-      double std_dev = 0.0;
-      for (size_t x : v) {
-        std_dev += square(x - avg);
-      }
-      std_dev = std::sqrt(std_dev / static_cast<double>(v.size() - 1));
-      return std::make_pair(avg, std_dev);
-    };
-
-    auto [avg_nodes, std_dev_nodes] = avg_and_std_dev(nodes_per_community);
-    auto [avg_pins, std_dev_pins] = avg_and_std_dev(internal_pins);
-    auto [avg_deg, std_dev_deg] = avg_and_std_dev(internal_degree);
-
-    LOG << "# Communities :" << num_communities;
-
-    internal::printCommunityStats(
-            internal::createStats(nodes_per_community, avg_nodes, std_dev_nodes),
-            internal::createStats(internal_pins, avg_pins, std_dev_pins),
-            internal::createStats(internal_degree, avg_deg, std_dev_deg)
-            );
+      LOG << "";
+    }
   }
 
   namespace {
@@ -795,7 +805,7 @@ namespace mt_kahypar::io {
     #define PRINT_PART_WEIGHT_AND_SIZES(X) void printPartWeightsAndSizes(const X& hypergraph, const Context& context)
     #define PRINT_FIXED_VERTEX_PART_WEIGHTS(X) void printFixedVertexPartWeights(const X& hypergraph, const Context& context)
     #define PRINT_INPUT_INFORMATION(X) void printInputInformation(const Context& context, const X& hypergraph)
-    #define PRINT_COMMUNITY_INFORMATION(X) void printCommunityInformation(const X& hypergraph)
+    #define PRINT_COMMUNITY_INFORMATION(X) void printCommunityInformation(const X& hypergraph, const Context& context)
   } // namespace
 
   INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_HYPERGRAPH_INFO)

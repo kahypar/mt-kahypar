@@ -207,7 +207,8 @@ namespace mt_kahypar {
       }
     }
 
-    if (context.partition.show_memory_consumption && context.partition.verbose_output
+    if (context.partition.show_memory_consumption
+        && context.partition.enable_logging
         && context.type == ContextType::main
         && phg.initialNumNodes() == sharedData.moveTracker.moveOrder.size() /* top level */) {
       printMemoryConsumption();

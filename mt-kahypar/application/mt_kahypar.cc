@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 
 
   context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-  if (context.partition.verbose_output) {
+  if (context.partition.enable_logging) {
     io::printBanner();
   }
 

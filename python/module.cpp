@@ -400,10 +400,16 @@ Construct a target graph.
       }, "Sets the number of V-cycles")
     .def_property("logging",
       [](const Context& context) {
-        return context.partition.verbose_output;
-      }, [](Context& context, const bool verbose_output) {
-        context.partition.verbose_output = verbose_output;
+        return context.partition.enable_logging;
+      }, [](Context& context, const bool enable_logging) {
+        context.partition.enable_logging = enable_logging;
       }, "Enable partitioning output")
+    .def_property("verbose_logging",
+      [](const Context& context) {
+        return context.partition.verbose_logging;
+      }, [](Context& context, const bool verbose_logging) {
+        context.partition.verbose_logging = verbose_logging;
+      }, "Use verbose partitioning output")
     .def("set_individual_target_block_weights",
       [](Context& context, std::vector<HypernodeWeight>& block_weights) {
         if (static_cast<PartitionID>(block_weights.size()) != context.partition.k) {

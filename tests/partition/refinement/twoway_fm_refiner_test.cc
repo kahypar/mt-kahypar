@@ -56,7 +56,7 @@ class ATwoWayFmRefiner : public Test {
     context.partition.gain_policy = GainPolicy::km1; /* change this once cut policy available */
     context.partition.epsilon = 0.25;
     context.partition.k = 2;
-    context.partition.verbose_output = false;
+    context.partition.enable_logging = false;
 
     // Shared Memory
     context.shared_memory.num_threads = 1;

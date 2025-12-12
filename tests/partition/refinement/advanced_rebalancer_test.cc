@@ -74,7 +74,7 @@ class RebalancerTest : public Test {
     context.partition.preset_type = PresetType::default_preset;
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.partition_type = PartitionedHypergraph::TYPE;
-    context.partition.verbose_output = false;
+    context.partition.enable_logging = false;
 
     // Shared Memory
     context.shared_memory.original_num_threads = std::thread::hardware_concurrency();

@@ -95,8 +95,8 @@ namespace mt_kahypar {
            V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)));
     _timer.stop_timer("initialize_partition");
 
-    // Enable progress bar if verbose output is enabled
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug ) {
+    // Enable progress bar if logging is enabled
+    if ( _context.partition.enable_logging && _context.partition.enable_progress_bar && !debug ) {
       _progress.enable();
       _progress.setObjective(_current_metrics.quality);
       _progress += _uncoarseningData.compactified_hg->initialNumNodes();
@@ -225,7 +225,9 @@ namespace mt_kahypar {
       _uncoarseningData.round_coarsening_times.pop_back();
       ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
       const HyperedgeWeight objective_after = _current_metrics.quality;
-      if ( _context.partition.verbose_output && objective_after < objective_before ) {
+      if ( _context.partition.enable_logging
+           && _context.partition.verbose_logging
+           && objective_after < objective_before ) {
         LOG << GREEN << "Top-Level Refinment improved objective from"
         << objective_before << "to" << objective_after << END;
       }
@@ -247,38 +249,8 @@ namespace mt_kahypar {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
     if ( _context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
-      const HyperedgeWeight quality_before = _current_metrics.quality;
-      if ( _context.partition.verbose_output ) {
-        LOG << RED << "Partition is imbalanced (Current Imbalance:"
-        << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ") ->"
-        << "Rebalancer is activated" << END;
-
-        LOG << "Part weights: (violations in red)";
-        io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
-      }
-
-        // Preform rebalancing
-      _timer.start_timer("rebalance", "Rebalance");
-       mt_kahypar_partitioned_hypergraph_t phg =
-        utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
-      _rebalancer->refine(phg, {}, _current_metrics, 0.0);
-      _timer.stop_timer("rebalance");
-
-      const HyperedgeWeight quality_after = _current_metrics.quality;
-      if ( _context.partition.verbose_output ) {
-        const HyperedgeWeight quality_delta = quality_after - quality_before;
-        if ( quality_delta > 0 ) {
-          LOG << RED << "Rebalancer worsen solution quality by" << quality_delta
-          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
-        } else {
-          LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
-          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
-        }
-      }
+      Base::applyRebalancing();
     }
-
-    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
-      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
   }
 
   template<typename TypeTraits>

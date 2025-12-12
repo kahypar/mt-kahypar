@@ -96,7 +96,7 @@ public:
         context.partition.preset_type = PresetType::deterministic;
         context.partition.instance_type = InstanceType::hypergraph;
         context.partition.partition_type = PartitionedHypergraph::TYPE;
-        context.partition.verbose_output = false;
+        context.partition.enable_logging = false;
 
         // Shared Memory
         context.shared_memory.num_threads = num_threads;

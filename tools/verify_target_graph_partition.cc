@@ -54,7 +54,7 @@ using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::Connecti
 
 int main(int argc, char* argv[]) {
   Context context;
-  context.partition.verbose_output = false;
+  context.partition.enable_logging = false;
 
   CLI::App app;
   app.set_help_flag("--help");
@@ -84,7 +84,8 @@ int main(int argc, char* argv[]) {
   )->default_str("hmetis");
   app.add_flag_callback(
     "-v,--verbose", [&]{
-      context.partition.verbose_output = true;
+      context.partition.enable_logging = true;
+      context.partition.verbose_logging = true;
     },
     "Enables logging"
   );
@@ -124,7 +125,7 @@ int main(int argc, char* argv[]) {
       static_cast<size_t>(hg.maxEdgeSize())));
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
-  if ( context.partition.verbose_output ) {
+  if ( context.partition.enable_logging ) {
     std::chrono::duration<double> elapsed_seconds(end - start);
     io::printPartitioningResults(partitioned_hg, context, elapsed_seconds);
   }
