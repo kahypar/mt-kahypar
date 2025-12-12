@@ -456,6 +456,7 @@ namespace mt_kahypar {
       },
       "Coarsening Algorithm:\n"
       " - multilevel_coarsener\n"
+      " - three_phase_coarsener\n"
       " - nlevel_coarsener\n"
       " - deterministic_multilevel_coarsener\n"
       " - do_nothing"
@@ -486,6 +487,11 @@ namespace mt_kahypar {
       "--c-min-shrink-factor",
       context.coarsening.minimum_shrink_factor,
       "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase."
+    )->capture_default_str();
+    app.add_option(
+      "--c-min-accepted-shrink-factor",
+      context.coarsening.min_accepted_shrink_factor,
+      "Minimum factor a hypergraph should shrink in a multilevel pass. Sub-optimal contractions might be used to reach it."
     )->capture_default_str();
     app.add_option(
       "--c-max-shrink-factor",

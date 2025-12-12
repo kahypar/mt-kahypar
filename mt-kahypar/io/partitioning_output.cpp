@@ -701,22 +701,7 @@ namespace mt_kahypar::io {
   template<typename Hypergraph>
   void printCommunityInformation(const Hypergraph& hypergraph, const Context& context) {
     if (context.partition.enable_logging) {
-      PartitionID num_communities =
-              tbb::parallel_reduce(
-                      tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
-                      0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
-                PartitionID my_range_num_communities = init;
-                for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-                  if ( hypergraph.nodeIsEnabled(hn) ) {
-                    my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
-                  }
-                }
-                return my_range_num_communities;
-              },
-              [](const PartitionID lhs, const PartitionID rhs) {
-                return std::max(lhs, rhs);
-              });
-      num_communities = std::max(num_communities, 1);
+      PartitionID num_communities = utils::communityCount(hypergraph);
 
       LOG << "# Communities:" << num_communities;
 
