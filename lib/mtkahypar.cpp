@@ -26,10 +26,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <cstring>
-#include <type_traits>
+#include <algorithm>
+#include <cctype>
 #include <charconv>
-#include <boost/lexical_cast.hpp>
+#include <cstring>
+#include <optional>
+#include <string>
+#include <type_traits>
 
 #include "include/mtkahypar.h"
 #include "include/mtkahypartypes.h"
@@ -115,6 +118,19 @@ namespace {
     }
     return to_error(mt_kahypar_status_t::OTHER_ERROR, ex.what());
   }
+
+  std::optional<bool> string_to_bool(const char* input) {
+    std::string val(input);
+    std::transform(val.begin(), val.end(), val.begin(),
+      [](unsigned char c){ return std::tolower(c); });
+    if (val == "t" || val == "y" || val == "1" || val == "true" || val == "yes") {
+      return true;
+    } else if (val == "f" || val == "n" || val == "0" || val == "false" || val == "no") {
+      return false;
+    } else {
+      return {};
+    }
+  }
 }
 
 
@@ -179,16 +195,17 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
       report_conversion_error("one of km1, cut, soed");
       return mt_kahypar_status_t::INVALID_PARAMETER;
     }
-    case VERBOSE:
-      try {
-        bool value = boost::lexical_cast<bool>(value);
-        c.partition.enable_logging = value;
-        c.partition.verbose_logging = value;
+    case VERBOSE: {
+      std::optional<bool> result = string_to_bool(value);
+      if (result.has_value()) {
+        c.partition.enable_logging = *result;
+        c.partition.verbose_logging = *result;
         return mt_kahypar_status_t::SUCCESS;
-      } catch ( boost::bad_lexical_cast& ) {
+      } else {
         report_conversion_error("boolean");
         return mt_kahypar_status_t::INVALID_PARAMETER;
       }
+    }
   }
   *error = to_error(mt_kahypar_status_t::INVALID_PARAMETER,
                     "Type must be a valid value of mt_kahypar_context_parameter_type_t");
