@@ -545,6 +545,16 @@ namespace mt_kahypar {
       context.coarsening.det_resolve_swaps,
       "Whether to resolve node swaps in a postprocessing step for deterministic coarsening."
     )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-cluster-size",
+      context.coarsening.two_hop_cluster_size,
+      "Two-hop clustering: maximum number of nodes in one cluster"
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-degree-threshold",
+      context.coarsening.two_hop_degree_threshold,
+      "Vertices with more neighbors than the provided threshold are ignored during two-hop clustering."
+    )->capture_default_str();
   }
 
   void addRefinementOptions(Context& context, CLI::App& app, const bool initial_partitioning) {
