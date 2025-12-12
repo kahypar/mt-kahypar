@@ -16,7 +16,7 @@ using namespace mt_kahypar;
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
 
-constexpr double DEFAULT_CONSTRAINT_FRACTION = 0.25;
+constexpr double DEFAULT_CONSTRAINT_FRACTION = 1.0;
 const std::string CONSTRAINT_FILE_EXTENSION = ".constraints.txt";
 
 std::optional<fs::path> findFileWithPrefix(const fs::path& path, const std::string& prefix) {
