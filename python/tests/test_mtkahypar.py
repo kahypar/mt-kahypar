@@ -52,12 +52,14 @@ class MainTest(unittest.TestCase):
     context.objective = mtkahypar.Objective.CUT
     context.num_vcycles = 5
     context.logging = True
+    context.verbose_logging = False
 
     self.assertEqual(context.k, 4)
     self.assertEqual(context.epsilon, 0.05)
     self.assertEqual(context.objective, mtkahypar.Objective.CUT)
     self.assertEqual(context.num_vcycles, 5)
     self.assertEqual(context.logging, True)
+    self.assertEqual(context.verbose_logging, False)
 
   def test_get_and_set_max_block_weights(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)

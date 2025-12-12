@@ -262,7 +262,7 @@ namespace mt_kahypar {
     app.set_help_flag();
     app.add_flag_callback("--help", [&]{
         // custom help output
-        printHelp(context, context.partition.verbose_output);
+        printHelp(context, context.partition.verbose_logging);
         std::exit(0);
       },
       "Print this help and exit."
@@ -278,9 +278,15 @@ namespace mt_kahypar {
 
   void addDisplayOptions(Context& context, CLI::App& app, bool detailed) {
     app.option_defaults()->group("Display Options");
+    app.add_flag_callback(
+      "-q,--quiet", [&]{
+        context.partition.enable_logging = false;
+      },
+      "Disable partitioning output"
+    );
     app.add_flag(
       "-v,--verbose",
-      context.partition.verbose_output,
+      context.partition.verbose_logging,
       "Verbose partitioning output"
       // increase priority so the flag can be used to extend the help output
     )->callback_priority(CLI::CallbackPriority::PreRequirementsCheckPreHelp);
@@ -1199,9 +1205,9 @@ namespace mt_kahypar {
   }
 
 
-  void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_verbose_output) {
-    if (disable_verbose_output) {
-      context.partition.verbose_output = false;
+  void parseIniToContext(Context& context, const std::string& ini_filename, bool disable_logging) {
+    if (disable_logging) {
+      context.partition.enable_logging = false;
     }
 
     std::ifstream file(ini_filename.c_str());
@@ -1227,9 +1233,9 @@ namespace mt_kahypar {
   }
 
 
-  void presetToContext(Context& context, PresetType preset, bool disable_verbose_output) {
-    if (disable_verbose_output) {
-      context.partition.verbose_output = false;
+  void presetToContext(Context& context, PresetType preset, bool disable_logging) {
+    if (disable_logging) {
+      context.partition.enable_logging = false;
     }
 
     CLI::App app;

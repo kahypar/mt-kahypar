@@ -60,7 +60,6 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
       _current_level(0),
       _num_levels(0),
       _block_ids(hypergraph.initialNumNodes(), kInvalidPartition),
-      _current_metrics(),
       _progress(hypergraph.initialNumNodes(), 0, false) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
@@ -103,12 +102,12 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_flows;
   using Base::_rebalancer;
   using Base::_timer;
+  using Base::_current_metrics;
 
   const TargetGraph* _target_graph;
   int _current_level;
   int _num_levels;
   ds::Array<PartitionID> _block_ids;
-  Metrics _current_metrics;
   utils::ProgressBar _progress;
 };
 

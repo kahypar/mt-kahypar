@@ -131,7 +131,7 @@ class MultilevelCoarsener : public ICoarsener,
 
  private:
   void initializeImpl() override {
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+    if ( _context.partition.enable_logging && _context.partition.enable_progress_bar ) {
       _progress_bar.enable();
     }
   }

@@ -211,7 +211,7 @@ void map_to_target_graph(PartitionedHypergraph& communication_hg,
 
   const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::steiner_tree);
   if ( objective_after < objective_before ) {
-    if ( context.partition.verbose_output ) {
+    if ( context.partition.enable_logging && context.partition.verbose_logging ) {
       LOG << GREEN << "Initial one-to-one mapping algorithm has improved objective by"
           << (objective_before - objective_after)
           << "( Before =" << objective_before << ", After =" << objective_after << ")" << END;
@@ -225,7 +225,9 @@ void map_to_target_graph(PartitionedHypergraph& communication_hg,
         communication_hg.changeNodePart(hn, from, to);
       }
     });
-  } else if ( context.partition.verbose_output && objective_before < objective_after ) {
+  } else if ( context.partition.enable_logging
+              && context.partition.verbose_logging
+              && objective_before < objective_after ) {
     // Initial mapping algorithm has worsen solution quality
     // => use input partition of communication hypergraph
     LOG << RED << "Initial one-to-one mapping algorithm has worsen objective by"

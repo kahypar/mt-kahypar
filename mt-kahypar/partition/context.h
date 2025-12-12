@@ -58,7 +58,8 @@ struct PartitioningParameters {
   HypernodeID smallest_large_he_size_threshold = 50000;
   HypernodeID ignore_hyperedge_size_threshold = 1000;
 
-  bool verbose_output = true;
+  bool enable_logging = true;
+  bool verbose_logging = false;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
   bool show_detailed_uncontraction_timings = false;
@@ -79,8 +80,6 @@ struct PartitioningParameters {
   std::string preset_file { };
 };
 
-std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params);
-
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::hybrid;
   uint32_t max_pass_iterations = 5;
@@ -90,8 +89,6 @@ struct CommunityDetectionParameters {
   size_t num_sub_rounds_deterministic = 16;
 };
 
-std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);
-
 struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
   bool use_community_detection = true;
@@ -99,15 +96,11 @@ struct PreprocessingParameters {
   CommunityDetectionParameters community_detection = { };
 };
 
-std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);
-
 struct RatingParameters {
   RatingFunction rating_function = RatingFunction::heavy_edge;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
 };
-
-std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
 
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
@@ -129,9 +122,6 @@ struct CoarseningParameters {
   HypernodeID contraction_limit = 0;
 };
 
-
-std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params);
-
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 5;
@@ -142,8 +132,6 @@ struct LabelPropagationParameters {
   double relative_improvement_threshold = -1.0;
 };
 
-std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params);
-
 struct JetParameters {
   JetAlgorithm algorithm = JetAlgorithm::do_nothing;
   size_t num_iterations = 12;
@@ -152,8 +140,6 @@ struct JetParameters {
   double initial_negative_gain_factor = 0.75;
   double final_negative_gain_factor = 0.0;
 };
-
-std::ostream & operator<< (std::ostream& str, const JetParameters& params);
 
 struct FMParameters {
   mutable FMAlgorithm algorithm = FMAlgorithm::do_nothing;
@@ -184,8 +170,6 @@ struct FMParameters {
   double penalty_for_activation_test = 0.5;
 };
 
-std::ostream& operator<<(std::ostream& out, const FMParameters& params);
-
 struct NLevelGlobalRefinementParameters {
   bool use_global_refinement = false;
   bool refine_until_no_improvement = false;
@@ -197,8 +181,6 @@ struct NLevelGlobalRefinementParameters {
   LabelPropagationAlgorithm lp_algorithm = LabelPropagationAlgorithm::do_nothing;
   bool lp_unconstrained = false;
 };
-
-std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params);
 
 struct FlowParameters {
   FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
@@ -218,14 +200,10 @@ struct FlowParameters {
   size_t num_parallel_searches = 0;
 };
 
-std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
-
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = true;
 };
-
-std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
@@ -233,8 +211,6 @@ struct RebalancingParameters {
   double det_relative_deadzone_size = 1.0;
   size_t det_max_rounds = 0;
 };
-
-std::ostream& operator<<(std::ostream& out, const RebalancingParameters& params);
 
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
@@ -249,8 +225,6 @@ struct RefinementParameters {
   size_t max_batch_size = 1000;
   size_t min_border_vertices_per_thread = 0;
 };
-
-std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);
 
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
@@ -271,8 +245,6 @@ struct InitialPartitioningParameters {
   size_t population_size = 16;
 };
 
-std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
-
 struct MappingParameters {
   std::string target_graph_file = "";
   OneToOneMappingStrategy strategy = OneToOneMappingStrategy::identity;
@@ -284,8 +256,6 @@ struct MappingParameters {
   HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
 };
 
-std::ostream & operator<< (std::ostream& str, const MappingParameters& params);
-
 struct SharedMemoryParameters {
   size_t original_num_threads = 1;
   size_t num_threads = 1;
@@ -294,8 +264,6 @@ struct SharedMemoryParameters {
   size_t shuffle_block_size = 2;
   double degree_of_parallelism = 1.0;
 };
-
-std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 class Context {
  public:
