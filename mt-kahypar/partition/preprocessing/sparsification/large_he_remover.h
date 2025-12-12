@@ -85,7 +85,7 @@ class LargeHyperedgeRemover {
       delta += metrics::contribution(hypergraph, he, _context.partition.objective);
     }
 
-    if ( _context.partition.verbose_output && delta > 0 ) {
+    if ( _context.partition.enable_logging && _context.partition.verbose_logging && delta > 0 ) {
       LOG << RED << "Restoring of" << _removed_hes.size() << "large hyperedges (|e| >"
           << largeHyperedgeThreshold() << ") increased" << _context.partition.objective
           << "by" << delta << END;
