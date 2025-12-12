@@ -80,6 +80,9 @@ namespace mt_kahypar {
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "0", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "T", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "false", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "true", &error));
 
     ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "x", &error));
     check_error_status();
@@ -90,6 +93,8 @@ namespace mt_kahypar {
     ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "a0", &error));
     check_error_status();
     ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, VERBOSE, "2", &error));
+    check_error_status();
+    ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, VERBOSE, "tr", &error));
     check_error_status();
 
     Context& c = *reinterpret_cast<Context*>(context);
