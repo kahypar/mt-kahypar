@@ -113,10 +113,10 @@ struct ClusteringContext {
   Rating rate(const Hypergraph& current_hg, const HypernodeID u, bool has_fixed_vertices) {
     if (has_fixed_vertices) {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, true>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight, may_ignore_communities);
     } else {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, false>(
-                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight);
+                  current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight, may_ignore_communities);
     }
   }
 
