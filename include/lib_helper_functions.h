@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <sstream>
 #include <type_traits>
@@ -423,8 +424,12 @@ mt_kahypar_partitioned_hypergraph_t partition_impl(mt_kahypar_hypergraph_t hg, C
   context.partition.instance_type = get_instance_type(hg);
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
   prepare_context(context);
-  context.partition.num_vcycles = 0;
-  return PartitionerFacade::partition(hg, context, target_graph);
+
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  auto phg = PartitionerFacade::partition(hg, context, target_graph);
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  PartitionerFacade::printPartitioningResults(phg, context, end - start);
+  return phg;
 }
 
 mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hg, const Context& context) {
@@ -457,7 +462,11 @@ void improve_impl(mt_kahypar_partitioned_hypergraph_t phg,
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
   prepare_context(context);
   context.partition.num_vcycles = num_vcycles;
+
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   PartitionerFacade::improve(phg, context, target_graph);
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  PartitionerFacade::printPartitioningResults(phg, context, end - start);
 }
 
 void improve(mt_kahypar_partitioned_hypergraph_t phg, const Context& context, const size_t num_vcycles) {
