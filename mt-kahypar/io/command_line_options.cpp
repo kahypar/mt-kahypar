@@ -498,6 +498,11 @@ namespace mt_kahypar {
       context.coarsening.maximum_shrink_factor,
       "Maximum factor a hypergraph is allowed to shrink in a clustering pass"
     )->capture_default_str();
+    app.add_option(
+      "--c-target-shrink-factor",
+      context.coarsening.target_shrink_factor,
+      "If the hypergraph shrinks less than this factor in a clustering pass, additional techniques (such as two-hop clustering) are used."
+    )->capture_default_str();
     app.add_option_function<std::string>(
       "--c-rating-score", [&](const std::string& s) {
         context.coarsening.rating.rating_function = ratingFunctionFromString(s);
