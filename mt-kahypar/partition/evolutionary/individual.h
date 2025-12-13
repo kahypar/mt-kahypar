@@ -126,6 +126,15 @@ class Individual {
     LOG << "\n--------------------------------------------------";
   }
 
+  Individual copy() const {
+    Individual ind;
+    ind._partition = _partition;
+    ind._cut_edges = _cut_edges;
+    ind._strong_cut_edges = _strong_cut_edges;
+    ind._fitness = _fitness;
+    return ind;
+  }
+
  private:
   std::vector<PartitionID> _partition;
   std::vector<HyperedgeID> _cut_edges;

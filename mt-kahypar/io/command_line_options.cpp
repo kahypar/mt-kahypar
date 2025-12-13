@@ -884,7 +884,13 @@ namespace mt_kahypar {
              "Alpha factor for improvement rate comparison (recent < alpha * early)")
              ("evo-max-iters-without-improv",
              po::value<int>(&context.evolutionary.improvement_rate_stopping.max_iters_without_improv)->value_name("<int>")->default_value(100),
-             "Maximum iterations without improvement (plateau) before stopping");
+             "Maximum iterations without improvement (plateau) before stopping")
+             ("evo-meta-mode",
+             po::value<bool>(&context.evolutionary.meta_evo_mode)->value_name("<bool>")->default_value(false),
+             "Enable Meta-Evo mode: Initial population is built by running multiple short evolutionary runs.")
+             ("evo-meta-solutions-per-run",
+             po::value<int>(&context.evolutionary.meta_evo_solutions_per_run)->value_name("<int>")->default_value(2),
+             "Number of best solutions to take from each meta-evo run into the main population.");
     return options;
   }
 
@@ -1066,6 +1072,14 @@ namespace mt_kahypar {
         context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
         context.evolutionary.mutation_chance = 1.0f / 3.0f;
       }
+    }
+
+    // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
+    if (context.evolutionary.meta_evo_mode && !context.evolutionary.improvement_rate_stopping.enabled) {
+        context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
+        context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
+        context.evolutionary.improvement_rate_stopping.alpha = 0.15;
+        context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
