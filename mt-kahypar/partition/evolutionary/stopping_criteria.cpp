@@ -72,9 +72,6 @@ bool sliding_window_improvement_rate_stop(
     const int win_span = std::max(win_end_iter - win_start_iter, 1);
     const double recent_rate = (win_start_km1 - win_end_km1) / static_cast<double>(win_span);
 
-    // Stop if recent rate is significantly lower than early rate
-    std::cout << "recent Rate: " << recent_rate << std::endl;
-    std::cout << "alpha*ER : " << (alpha*early_rate) << std::endl;
     if (recent_rate < alpha * early_rate) {
         return true;
     }
