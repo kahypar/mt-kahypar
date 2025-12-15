@@ -110,9 +110,10 @@ struct CoarseningParameters {
   bool use_adaptive_edge_size = true;
   double max_allowed_weight_multiplier = 1;
   double minimum_shrink_factor = 1.01;
-  double min_accepted_shrink_factor = 1.75;
   double maximum_shrink_factor = 2.5;
   double target_shrink_factor = 2.5;
+  bool two_hop_full_shrinkage = true;
+  bool two_hop_restrict_hyperedges = true;
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 
   // parameters for deterministic coarsening

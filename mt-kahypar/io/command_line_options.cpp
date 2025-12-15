@@ -489,11 +489,6 @@ namespace mt_kahypar {
       "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase."
     )->capture_default_str();
     app.add_option(
-      "--c-min-accepted-shrink-factor",
-      context.coarsening.min_accepted_shrink_factor,
-      "Minimum factor a hypergraph should shrink in a multilevel pass. Sub-optimal contractions might be used to reach it."
-    )->capture_default_str();
-    app.add_option(
       "--c-max-shrink-factor",
       context.coarsening.maximum_shrink_factor,
       "Maximum factor a hypergraph is allowed to shrink in a clustering pass"
@@ -502,6 +497,16 @@ namespace mt_kahypar {
       "--c-target-shrink-factor",
       context.coarsening.target_shrink_factor,
       "If the hypergraph shrinks less than this factor in a clustering pass, additional techniques (such as two-hop clustering) are used."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-full-shrinkage",
+      context.coarsening.two_hop_full_shrinkage,
+      "Use full hierarchy contraction factor for two hop coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-restrict-hyperedges",
+      context.coarsening.two_hop_restrict_hyperedges,
+      "Two hop coarsening: require that considered hyperedges are only incident to one cluster."
     )->capture_default_str();
     app.add_option_function<std::string>(
       "--c-rating-score", [&](const std::string& s) {

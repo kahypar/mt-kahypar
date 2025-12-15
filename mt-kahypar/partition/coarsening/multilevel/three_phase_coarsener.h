@@ -150,7 +150,9 @@ class ThreePhaseCoarsener : public ICoarsener,
     // Step 2: if the size didn't shrink far enough, use two-hop clustering for low degree nodes
     if (current_num_nodes > target_contraction_limit) {
       DBG << "Start Two-Hop Coarsening: " << V(current_num_nodes) << V(hierarchy_contraction_limit);
-      cc.hierarchy_contraction_limit = target_contraction_limit;
+      if (!_context.coarsening.two_hop_full_shrinkage) {
+        cc.hierarchy_contraction_limit = target_contraction_limit;
+      }
       coarseningRound("two_hop_clustering", "Two-Hop Clustering", current_hg, _two_hop_clustering, cc);
       _progress_bar += (current_num_nodes - cc.finalNumNodes());
       current_num_nodes = cc.currentNumNodes();

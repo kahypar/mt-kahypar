@@ -102,27 +102,52 @@ class TwoHopClustering {
     });
 
     auto fill_incidence_map_for_node = [&](auto& incidence_map, const HypernodeID hn, bool& too_many_accesses) {
-      // TODO: specialized version for graphs
-      size_t num_accesses = 0;
-      HyperedgeWeight incident_weight_sum = 0;
-      for (const HyperedgeID& he : hg.incidentEdges(hn)) {
-        const HypernodeID considered_pins = hg.edgeSize(he) - 1;
-        if (num_accesses + considered_pins > _context.coarsening.two_hop_degree_threshold) {
-          too_many_accesses = true;
-          break;
+      if constexpr (Hypergraph::is_graph) {
+        HyperedgeWeight incident_weight_sum = 0;
+        for (const HyperedgeID& he : hg.incidentEdges(hn)) {
+          HypernodeID neighbor = hg.edgeTarget(he);
+          HypernodeID target_cluster = cc.clusterID(neighbor);
+          ASSERT(target_cluster != cc.clusterID(hn));  // we only consider unmatched nodes
+          incidence_map[target_cluster] += hg.edgeWeight(he);
+          incident_weight_sum += hg.edgeWeight(he);
         }
-
-        for (const HypernodeID& pin: hg.pins(he)) {
-          if (pin != hn) {
-            HypernodeID target_cluster = cc.clusterID(pin);
-            ASSERT(target_cluster != cc.clusterID(hn));  // holds since we only consider unmatched nodes
-            incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / considered_pins;
+        return incident_weight_sum;
+      } else {
+        const bool restrict_hyperedges = _context.coarsening.two_hop_restrict_hyperedges;
+        size_t num_accesses = 0;
+        HyperedgeWeight incident_weight_sum = 0;
+        for (const HyperedgeID& he : hg.incidentEdges(hn)) {
+          const HypernodeID considered_pins = hg.edgeSize(he) - 1;
+          if (num_accesses + considered_pins > _context.coarsening.two_hop_degree_threshold) {
+            too_many_accesses = true;
+            break;
           }
+
+          HypernodeID first_cluster = kInvalidHypernode;
+          for (const HypernodeID& pin: hg.pins(he)) {
+            if (pin != hn) {
+              HypernodeID target_cluster = cc.clusterID(pin);
+              ASSERT(target_cluster != cc.clusterID(hn));  // we only consider unmatched nodes
+              if (restrict_hyperedges && first_cluster == kInvalidHypernode) {
+                first_cluster = target_cluster;
+              } else if (restrict_hyperedges) {
+                if (first_cluster != target_cluster) {
+                  first_cluster = kInvalidHypernode;
+                  break;
+                }
+              } else {
+                incidence_map[target_cluster] += static_cast<double>(hg.edgeWeight(he)) / considered_pins;
+              }
+            }
+          }
+          if (restrict_hyperedges && first_cluster != kInvalidHypernode) {
+            incidence_map[first_cluster] += hg.edgeWeight(he);
+          }
+          num_accesses += considered_pins;
+          incident_weight_sum += hg.edgeWeight(he);
         }
-        num_accesses += considered_pins;
-        incident_weight_sum += hg.edgeWeight(he);
+        return incident_weight_sum;
       }
-      return incident_weight_sum;
     };
 
     // collect unmatched (low degree) nodes and compute their favorite cluster
