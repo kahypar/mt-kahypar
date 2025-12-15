@@ -326,6 +326,17 @@ class PartitionedHypergraph {
     return success;
   }
 
+  // ! checks all connectivity sets
+  bool checkAllConnectivitySets() const {
+    bool success = true;
+    doParallelForAllEdges([&](const HyperedgeID e) {
+      if ( !checkConnectivitySet(e, _k) ) {
+        success = false;
+      }
+    });
+    return success;
+  }
+
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex

@@ -3,6 +3,7 @@
 #include "mt-kahypar/dynamic/dynamic_io.h"
 #include "mt-kahypar/dynamic/strategies/localFM_rebalance_vcycle.h"
 #include "mt-kahypar/dynamic/strategies/repartition.h"
+#include "mt-kahypar/dynamic/strategies/streaming.h"
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
@@ -35,6 +36,8 @@ namespace mt_kahypar::dyn {
 
       if (context.dynamic.strategy == "localFM_rebalance_vcycle") {
         strategy = new LocalFMRebalanceVCycleV4(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "streaming") {
+        strategy = new Streaming(hypergraph_m, context);
       } else if (context.dynamic.strategy == "repartition") {
         strategy = new Repartition(hypergraph_m, context);
       } else {
@@ -51,6 +54,8 @@ namespace mt_kahypar::dyn {
         std::cout << "Processing " << changes.size() << " changes" << std::endl;
 
         auto& hypergraph_p =  strategy->init();
+
+        std::cout << "Initial km1: " << metrics::quality(hypergraph_p, context) << ", imbalance: " << metrics::imbalance(hypergraph_p, context) << std::endl;
 
         size_t log_step_size = changes.size() * context.dynamic.logging_step_size_pct;
 

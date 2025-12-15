@@ -214,7 +214,9 @@ namespace mt_kahypar::dyn {
         /*
          * A Strategy can print final statistics after the last partitioning step.
          */
-        virtual void printAdditionalFinalStats() = 0;
+        virtual void printAdditionalFinalStats() {
+          // Default implementation does nothing.
+        }
 
         static ds::PartitionedHypergraph<ds::MutableHypergraph>& getPartitionedHypergraphCopy(DynamicStrategy& strategy) {
           return strategy.partitioned_hypergraph_m;
