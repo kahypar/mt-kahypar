@@ -48,6 +48,8 @@ class SteinerTreeGainComputation : public GainComputationBase<SteinerTreeGainCom
  public:
   using RatingMap = typename Base::RatingMap;
 
+  static constexpr bool is_independent_of_block = false;
+
   SteinerTreeGainComputation(const Context& context,
                                 bool disable_randomization = false) :
     Base(context, disable_randomization),

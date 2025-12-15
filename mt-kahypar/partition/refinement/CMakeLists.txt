@@ -7,6 +7,7 @@ set(RefinementSources
         label_propagation/label_propagation_refiner.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/deterministic_rebalancer.cpp
+        rebalancing/repair_empty_blocks.cpp
         deterministic/deterministic_label_propagation.cpp
         deterministic/deterministic_jet_refiner.cpp
         flows/problem_construction.cpp
