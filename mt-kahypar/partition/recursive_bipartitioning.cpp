@@ -271,11 +271,13 @@ namespace rb {
       setupFixedVerticesForBipartitioning(hg, k);
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
       DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
+      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
+      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed_seconds(end - start);
       DBG << "Bipartitioning Result -"
           << "Objective =" << metrics::quality(bipartitioned_hg, b_context)
-          << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
-          << "(Target Imbalance =" << b_context.partition.epsilon << ")";
+          << "Time =" << elapsed_seconds.count();
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, true);
       hg.addFixedVertexSupport(std::move(fixed_vertices));
 
