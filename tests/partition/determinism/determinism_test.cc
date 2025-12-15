@@ -170,8 +170,7 @@ public:
     for (HypernodeID u : hypergraph.nodes()) {
       initial_partition[u] = partitioned_hypergraph.partID(u);
     }
-    gain_cache.reset(partitioned_hypergraph.initialNumNodes(), partitioned_hypergraph.k());
-    gain_cache.initializeGainCache(partitioned_hypergraph);
+    ASSERT(!gain_cache.isInitialized());
 
     vec<PartitionID> first(hypergraph.initialNumNodes());
     for (size_t i = 0; i < num_repetitions; ++i) {

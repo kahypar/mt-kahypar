@@ -64,6 +64,7 @@ class DeterministicRebalancerTest : public Test {
           hypergraph(),
           partitioned_hypergraph(),
           context(),
+          gain_cache(),
           rebalancer(nullptr) {
     parallel::initialize_tbb(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
@@ -105,12 +106,13 @@ class DeterministicRebalancerTest : public Test {
     partitioned_hypergraph = PartitionedHypergraph(context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
 
-    rebalancer = std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context);
+    rebalancer = std::make_unique<Rebalancer>(hypergraph.initialNumNodes(), context, gain_cache);
   }
 
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
+  GainCache gain_cache;
   std::unique_ptr<Rebalancer> rebalancer;
 };
 

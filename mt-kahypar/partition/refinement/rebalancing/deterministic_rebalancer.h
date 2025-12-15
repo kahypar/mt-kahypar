@@ -59,8 +59,9 @@ private:
     static constexpr bool enable_heavy_assert = false;
 
 public:
-    explicit DeterministicRebalancer(HypernodeID, const Context& context) :
+    explicit DeterministicRebalancer(HypernodeID, const Context& context, GainCache& gain_cache) :
         _context(context),
+        _gain_cache(gain_cache),
         _current_k(context.partition.k),
         _gain_computation(context),
         _num_imbalanced_parts(0),
@@ -68,9 +69,6 @@ public:
         _tmp_potential_moves(context.partition.k),
         _current_imbalance(context.partition.k),
         _block_has_only_heavy_vertices(context.partition.k) {}
-
-    explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, GainCache&) :
-        DeterministicRebalancer(num_nodes, context) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -124,8 +122,7 @@ private:
     bool changeNodePart(PartitionedHypergraph& phg,
                         const HypernodeID hn,
                         const PartitionID from,
-                        const PartitionID to,
-                        bool ensure_balanced);
+                        const PartitionID to);
 
     void weakRebalancingRound(PartitionedHypergraph& phg);
 
@@ -133,6 +130,7 @@ private:
 
 
     const Context& _context;
+    const GainCache& _gain_cache;
     PartitionID _current_k;
     GainComputation _gain_computation;
     PartitionID _num_imbalanced_parts;
