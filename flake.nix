@@ -27,6 +27,7 @@
             boost
             tbb_2022_0
             linuxPackages_latest.perf
+            samply
           ];
 
           buildInputs = with pkgs; [
