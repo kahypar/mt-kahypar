@@ -9,6 +9,7 @@ target_sources(mtkahypar_tests PRIVATE
          rebalance_test.cc
          advanced_rebalancer_test.cc
          deterministic_rebalancer_test.cc
+         repair_empty_blocks_test.cc
          twoway_fm_refiner_test.cc
          gain_cache_test.cc
          multitry_fm_test.cc
