@@ -75,6 +75,7 @@ namespace mt_kahypar::dyn {
             context.dynamic.incremental_km1 -= gain;
             context.dynamic.km1_gain_rebalance_pull += gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
+            context.dynamic.move_count += moved_nodes.size();
           }
 
           auto rebalance_pull_duration = std::chrono::high_resolution_clock::now() - start;
@@ -92,6 +93,7 @@ namespace mt_kahypar::dyn {
             context.dynamic.incremental_km1 -= gain;
             context.dynamic.km1_gain_rebalance_push += gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
+            context.dynamic.move_count += moved_nodes.size();
           }
           ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
           ASSERT(_rebalancer.checkBlockQueues());
@@ -147,6 +149,7 @@ namespace mt_kahypar::dyn {
             _rebalancer.updateHeapsForMove(move);
             context.dynamic.incremental_km1 -= move.gain;
             context.dynamic.km1_gain_localFM += move.gain;
+            context.dynamic.move_count++;
           }
 
           _rebalancer.updateGainForMoves(context.dynamic.local_fm_round->moves);
@@ -210,6 +213,8 @@ namespace mt_kahypar::dyn {
         }
 
         void partition(Change& change, size_t changes_size) override {
+
+          context.dynamic.move_count = 0;
 
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
@@ -484,6 +489,7 @@ namespace mt_kahypar::dyn {
                 //TODO why is this worse than reset?
                 // std::cout << "Resetting node " << hn << " to part " << partition_of_nodes[hn] << std::endl;
                 _rebalancer.insertOrUpdateNode(hn);
+                context.dynamic.move_count++;
                 // std::cout << "Before: " << partitioned_hypergraph_m.partID(hn) << " After: ";
               }
             }

@@ -321,6 +321,7 @@ struct DynamicParameters {
   // logging values
   double logging_step_size_pct = 0.001;
   size_t stop_vcycle_at_pct = 100;
+  size_t move_count = 0;
 
   //local FM Round
   HyperedgeWeight incremental_km1 = 0;
