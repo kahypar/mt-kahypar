@@ -43,6 +43,8 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
  public:
   using RatingMap = typename Base::RatingMap;
 
+  static constexpr bool is_independent_of_block = true;
+
   Km1GainComputation(const Context& context,
                      bool disable_randomization = false) :
     Base(context, disable_randomization) { }
@@ -83,6 +85,20 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
         }
       }
     }
+  }
+
+  // ! Computes only the gain (cut increase) for moving out of the current block.
+  template<typename PartitionedHypergraph>
+  static Gain computeIsolatedBlockGain(const PartitionedHypergraph& phg, const HypernodeID hn) {
+    Gain isolated_block_gain = 0;
+    PartitionID from = phg.partID(hn);
+    for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+      HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
+      if ( pin_count_in_from_part > 1 ) {
+        isolated_block_gain += phg.edgeWeight(he);
+      }
+    }
+    return isolated_block_gain;
   }
 
   HyperedgeWeight gain(const Gain to_score,
