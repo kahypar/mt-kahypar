@@ -158,7 +158,7 @@ class ThreePhaseCoarsener : public ICoarsener,
       current_num_nodes = cc.currentNumNodes();
     }
 
-    if (current_num_nodes > target_contraction_limit) {
+    if (_context.coarsening.two_hop_contract_communities && (current_num_nodes > target_contraction_limit || _pass_nr > 0)) {
       // If the size is still too large, the reason could be that there are too many communities.
       // We initialize the community count, so the next round can decide to ignore communities
       // (delayed initialization since it is not completely free)

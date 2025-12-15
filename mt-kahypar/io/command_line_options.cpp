@@ -508,6 +508,11 @@ namespace mt_kahypar {
       context.coarsening.two_hop_restrict_hyperedges,
       "Two hop coarsening: require that considered hyperedges are only incident to one cluster."
     )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-contract-communities",
+      context.coarsening.two_hop_contract_communities,
+      "Two hop coarsening: allow contraction of communities as last measure."
+    )->capture_default_str();
     app.add_option_function<std::string>(
       "--c-rating-score", [&](const std::string& s) {
         context.coarsening.rating.rating_function = ratingFunctionFromString(s);
