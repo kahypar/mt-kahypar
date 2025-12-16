@@ -2,6 +2,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
@@ -17,6 +18,23 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
     if (partitioned_hg.partID(constraint.first) == partitioned_hg.partID(constraint.second)) {
       return false;
     }
+  }
+  return true;
+}
+
+template<typename Hypergraph>
+bool verifyConstraints(const Hypergraph& hg) {
+  const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = hg.fixedVertexSupport();
+  for (const auto& constraint : fixed_vertex_support.getConstraints()) {
+    HypernodeID u;
+    HypernodeID v;
+    if (fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.first, u) && fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.second, v)) {
+      // constraint between u and v exists, but they are contracted together
+      if (u == v) return false;
+    } else {
+      // ohne of the nodes was not found in
+      throw std::logic_error("Node is in constraints but not in _hypergraph_id_to_graph_id mapping");
+      return false;}
   }
   return true;
 }

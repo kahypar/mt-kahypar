@@ -92,7 +92,13 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
   const HypernodeWeight weight_of_u = _hg->nodeWeight(u);
   const HypernodeWeight weight_of_v = _hg->nodeWeight(v);
   PartitionID fixed_vertex_block = kInvalidPartition;
-  _fixed_vertex_data[u].sync.lock();
+  if (u < v) {
+    _fixed_vertex_data[u].sync.lock();
+    _fixed_vertex_data[v].sync.lock();
+  } else {
+    _fixed_vertex_data[v].sync.lock();
+    _fixed_vertex_data[u].sync.lock();
+  }
   // If we contract a node v onto another node u, all contractions onto v are completed
   // => we therefore do not have to lock v
   const bool is_fixed_u = isFixed(u);
@@ -119,12 +125,27 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     HypernodeID u1;
     HypernodeID v1;
     // if both nodes are in the constraint graph
-    if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && !constraintExistsForPair(u1,v1)) {
-      _constraint_graph->registerContraction(u1, v1);
-      if (!constraintExistsForPair(u1,v1)) {
-        _constraint_graph->contract(u1, std::numeric_limits<HypernodeWeight>::max()); // prüfen
-        //sucess 
-        LOG << "contracted nodes" << u1 << v1;
+    if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
+      // and no neighbors
+      if (constraintExistsForPair(u,v)) {
+        success = false;
+      } else {
+        success = _constraint_graph->registerContraction(u1, v1);
+        if (success) {
+          // node weight to node id in hypergraph mapping gets broken here
+          // because new weight of u1 is u1 + v1
+          size_t num_contractions = _constraint_graph->contract(v1, std::numeric_limits<HypernodeWeight>::max());
+          if (num_contractions == 0) {
+            success = false;
+            LOG << "could not contract nodes" << u1 << v1;
+          } else {
+            // v1 gets contracted in u1
+            // both hg nodes point to the same new contracted node u1
+            _hypergraph_id_to_graph_id->operator[](v) = u1;
+          }
+        } else {
+          LOG << "could not register contraction beteween nodes" << u1 << v1;
+        }
       }
     }
   }
@@ -160,6 +181,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     }
   }
   _fixed_vertex_data[u].sync.unlock();
+  _fixed_vertex_data[v].sync.unlock();
 
   if ( !ignore_v && v_becomes_fixed ) {
     // Our contraction algorithm ensures that there are no concurrent contractions onto v
@@ -239,6 +261,7 @@ vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pai
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
+  _constraints = constraints;
   _hypergraph_id_to_graph_id->setMaxSize(constraints.size() * 3);
   vec<HypernodeWeight> node_weight;
   HypernodeID num_nodes;
@@ -274,6 +297,7 @@ FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   cpy._fixed_vertex_data = _fixed_vertex_data;
   if (_constraint_graph != nullptr) {
     cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
+    cpy._constraints = _constraints;
     cpy._hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(_hypergraph_id_to_graph_id->copy());
   }
   return cpy;

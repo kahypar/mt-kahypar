@@ -37,7 +37,7 @@
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "include/mtkahypartypes.h"
-
+#include "mt-kahypar/partition/constraints.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -171,7 +171,6 @@ class MultilevelCoarsener : public ICoarsener,
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = 0;
     if (current_hg.hasNegativeConstraints()) { // TODO: remove loging
-      LOG << "negative constraints present";
     }
     else LOG << "lost negative constraints";
     if ( current_hg.hasFixedVertices() ) {
@@ -218,7 +217,9 @@ class MultilevelCoarsener : public ICoarsener,
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
+    LOG << (constraints::verifyConstraints(current_hg)? "constraints met" : "constraints disrespected") << "before contraction";
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
+    LOG << (constraints::verifyConstraints(Base::currentHypergraph())? "constraints met" : "constraints disrespected") << "after contraction";
     _timer.stop_timer("contraction");
 
     ++_pass_nr;
@@ -333,6 +334,9 @@ class MultilevelCoarsener : public ICoarsener,
         }
         return true;
       }(), "Fixed vertex support is corrupted");
+    }
+    if (current_hg.hasNegativeConstraints()) {
+      LOG << (constraints::verifyConstraints(current_hg)? "constraints met" : "constraints disrespected");
     }
 
     return num_hns_before_pass - contracted_nodes.combine(std::plus<>());
@@ -482,8 +486,13 @@ class MultilevelCoarsener : public ICoarsener,
       }
     }
     if (hypergraph.hasNegativeConstraints()) {
-      if ( cluster_join_operation_allowed ) {
-        cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
+      HypernodeID dummy;
+      if ( cluster_join_operation_allowed && fixed_vertices.getConstraintIdFromHypergraphId(u, dummy) && fixed_vertices.getConstraintIdFromHypergraphId(rep, dummy) ) {
+        if (fixed_vertices.constraintExistsForPair(u,rep)) {
+          cluster_join_operation_allowed = false;
+        } else {
+          cluster_join_operation_allowed = fixed_vertices.contract(rep, u); // ist es hier richtig die zu contracten oder muss man die hier registrieren?
+        }
       }
     }
     if ( cluster_join_operation_allowed ) {

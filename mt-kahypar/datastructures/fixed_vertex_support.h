@@ -164,6 +164,14 @@ class FixedVertexSupport {
     return *_constraint_graph;
   }
 
+  vec<std::pair<HypernodeID, HypernodeID>> getConstraintsCopy() const {
+    return _constraints;
+  }
+
+  const vec<std::pair<HypernodeID, HypernodeID>>& getConstraints() const {
+    return _constraints;
+  }
+
   bool getConstraintIdFromHypergraphId(const HypernodeID hypergraph_id, HypernodeID& constraint_id) const {
     if (!hasNegativeConstraints()) return false;
     if (_hypergraph_id_to_graph_id->contains(hypergraph_id)) {
@@ -213,6 +221,9 @@ class FixedVertexSupport {
 
   // ! Graph that represents the negative constraints
   std::unique_ptr<DynamicGraph> _constraint_graph;
+
+  // ! Negative constraints needed for the multilevel step 
+  vec<std::pair<HypernodeID, HypernodeID>> _constraints;
 
   // mapping from HypernodeIds of the partitioned Graph to HypernodeIds of the constraint Graph
   std::unique_ptr<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>> _hypergraph_id_to_graph_id;

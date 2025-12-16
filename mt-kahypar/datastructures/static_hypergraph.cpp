@@ -480,23 +480,34 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
 
-    if ( hasFixedVertices() ) { // constraint graphen übertragen
+    if ( hasFixedVertices() || hasNegativeConstraints()) {
       // Map fixed vertices to coarse hypergraph
       FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
         hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
       coarse_fixed_vertices.setHypergraph(&hypergraph);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
-          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn)); // neues knoten mapping 
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
         }
       });
-      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
-    }
+      if (hasNegativeConstraints()) {
+        // remap constraints and add new constraint graph
+        vec<std::pair<HypernodeID, HypernodeID>> constraints = _fixed_vertices.getConstraintsCopy();
+        tbb::parallel_for(
+          size_t(0),
+          constraints.size(),
+          [&](size_t i) {
+            auto& constraint = constraints[i];
+            constraint = {
+              communities[constraint.first],
+              communities[constraint.second]
+            };
+          }
+        );
+        coarse_fixed_vertices.setNegativeConstraints(constraints);
+      }
 
-    if (hasNegativeConstraints()) {
-      FixedVertexSupport<StaticHypergraph> fixed_vertex_support = _fixed_vertices.copy(); // TODO: dont just copy
-      fixed_vertex_support.setHypergraph(&hypergraph);
-      hypergraph.addFixedVertexSupport(_fixed_vertices.copy()); 
+      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
