@@ -252,6 +252,11 @@ namespace mt_kahypar {
       context.partition.use_individual_part_weights = true;
       return value;
     })->check(CLI::PositiveNumber)->type_name("LIST[UINT]");
+    app.add_flag(
+      "--allow-empty-blocks",
+      context.partition.allow_empty_blocks,
+      "Allow that the partition leaves blocks empty."
+    );
     app.add_option(
       "--num-vcycles",
       context.partition.num_vcycles,
