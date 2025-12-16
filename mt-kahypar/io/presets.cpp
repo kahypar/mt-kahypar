@@ -580,6 +580,7 @@ std::vector<std::string> load_large_k_preset() {
     create_option("maxnet-removal-factor", "0.01"),
     create_option("smallest-maxnet-threshold", "50000"),
     create_option("maxnet-ignore", "1000"),
+    create_option("allow-empty-blocks", "true"),
     create_option("num-vcycles", "0"),
     // main -> shared_memory
     create_option("s-use-localized-random-shuffle", "false"),
