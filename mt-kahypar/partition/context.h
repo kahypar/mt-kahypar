@@ -50,6 +50,7 @@ struct PartitioningParameters {
   bool perform_parallel_recursion_in_deep_multilevel = true;
 
   int time_limit = 0;
+  bool allow_empty_blocks = true;
   bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
