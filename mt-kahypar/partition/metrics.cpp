@@ -155,7 +155,7 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
       num_empty_parts++;
     }
   }
-  return context.partition.preset_type == PresetType::large_k ||
+  return context.partition.allow_empty_blocks ||
     num_empty_parts <= phg.numRemovedHypernodes();
 }
 
