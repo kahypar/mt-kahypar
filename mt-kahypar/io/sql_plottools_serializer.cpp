@@ -63,6 +63,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " seed=" << context.partition.seed
         << " num_vcycles=" << context.partition.num_vcycles
         << " deterministic=" << context.partition.deterministic
+        << " allow_empty_blocks=" << context.partition.allow_empty_blocks
         << " perform_parallel_recursion_in_deep_multilevel=" << context.partition.perform_parallel_recursion_in_deep_multilevel;
     oss << " large_hyperedge_size_threshold_factor=" << context.partition.large_hyperedge_size_threshold_factor
         << " smallest_large_he_size_threshold=" << context.partition.smallest_large_he_size_threshold
