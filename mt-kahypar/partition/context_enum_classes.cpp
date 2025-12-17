@@ -279,7 +279,7 @@ namespace mt_kahypar {
   }
 
   Mode modeFromString(const std::string& mode) {
-    if (mode == "rb") {
+    if (mode == "rb" || mode == "recursive_bipartitioning") {
       return Mode::recursive_bipartitioning;
     } else if (mode == "direct") {
       return Mode::direct;
