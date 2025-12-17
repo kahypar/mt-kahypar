@@ -1022,7 +1022,7 @@ namespace mt_kahypar {
         }
         else {
             //determinstic mode
-            size_t batch_size = 5;
+            const int batch_size = 5;
             std::vector<std::unique_ptr<Individual>> batch_individuals (batch_size);
             std::atomic<size_t> last_batch_filled = 0;
             std::atomic<int> items_finished_in_current_batch = 0;
@@ -1043,49 +1043,40 @@ namespace mt_kahypar {
                             break;
                         }
 
-                        if (context.evolutionary.improvement_rate_stopping.enabled) {
-                            std::unique_lock<std::mutex> stop_lock(stopping_criterion_mutex, std::try_to_lock);
-                            if (stop_lock.owns_lock()) {
-                                std::lock_guard<std::mutex> iter_lock(iteration_log_mutex);
-                                std::lock_guard<std::mutex> best_lock(best_tracking_mutex_);
+                        int iteration_id = -1;
+                        int batch_id = -1;
+                        int batch_pos = -1;
+                        while (true) {
+                            if (stop_flag.load(std::memory_order_acquire)) {
+                                break;
+                            }
 
-                                int last_improv_iter = -1;
-                                if (!improvement_log_entries.empty()) {
-                                    last_improv_iter = improvement_log_entries.back().iteration;
-                                }
+                            const int cur = total_iterations.load(std::memory_order_relaxed);
+                            const int cur_batch = cur / batch_size;
 
-                                bool should_stop = evolutionary::stopping::sliding_window_improvement_rate_stop(
-                                    last_improv_iter,
-                                    improvement_log_entries,
-                                    iteration_log_entries,
-                                    context.evolutionary.improvement_rate_stopping.early_window_improvs,
-                                    context.evolutionary.improvement_rate_stopping.recent_window_improvs,
-                                    context.evolutionary.improvement_rate_stopping.alpha,
-                                    context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
-                                    early_window_improvement_rate
-                                );
-                                // LOG << "Evo Worker " << worker_id << ": Early Window Improvement Rate: " << early_window_improvement_rate;
-                                // LOG << "Evo Worker " << worker_id << ": Should Stop: " << should_stop;
-                                // LOG << "Evo Worker " << worker_id << ": Last Improvement Iteration: " << last_improv_iter;
-                                // LOG << "Evo Worker " << worker_id << ": Current iteration: " << total_iterations.load(std::memory_order_acquire);
-
-                                if (should_stop) {
-                                    stop_flag = true;
+                            while (static_cast<size_t>(cur_batch) > last_batch_filled.load(std::memory_order_acquire)) {
+                                if (stop_flag.load(std::memory_order_acquire)) {
                                     break;
                                 }
-                            }
-                        }
-
-                        // Assign unique iteration ID
-                        int iteration_id = total_iterations.fetch_add(1, std::memory_order_relaxed);
-                        int batch_id = iteration_id / batch_size;
-                        int batch_pos = iteration_id % batch_size;
-
-                        if (batch_id > last_batch_filled.load(std::memory_order_acquire)) {
-                            // wait until previous batch is filled
-                            while (last_batch_filled.load(std::memory_order_acquire) < batch_id) {
                                 std::this_thread::yield();
                             }
+                            if (stop_flag.load(std::memory_order_acquire)) {
+                                break;
+                            }
+
+                            int expected = cur;
+                            if (total_iterations.compare_exchange_weak(
+                                    expected, cur + 1,
+                                    std::memory_order_acq_rel,
+                                    std::memory_order_relaxed)) {
+                                iteration_id = cur;
+                                batch_id = cur_batch;
+                                batch_pos = cur % batch_size;
+                                break;
+                            }
+                        }
+                        if (stop_flag.load(std::memory_order_acquire)) {
+                            break;
                         }
 
                         // Create a thread-local copy of the context
@@ -1126,14 +1117,14 @@ namespace mt_kahypar {
                         }
 
                         // Store individual in batch
-                        batch_individuals[batch_pos] = std::make_unique<Individual>(std::move(child));
+                        batch_individuals[static_cast<size_t>(batch_pos)] = std::make_unique<Individual>(std::move(child));
                         
                         int finished_count = items_finished_in_current_batch.fetch_add(1, std::memory_order_acq_rel) + 1;
 
                         if (finished_count == batch_size) {
                             // Insert entire batch into population
                             for (size_t i = 0; i < batch_size; ++i) {
-                                int current_batch_start_id = batch_id * batch_size;
+                                const int current_batch_start_id = batch_id * batch_size;
                                 insert_individual_into_population(std::move(*batch_individuals[i]), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1);
 
                                 if (iteration_logging_enabled) {
@@ -1146,6 +1137,34 @@ namespace mt_kahypar {
                                 std::lock_guard<std::mutex> lg(iteration_log_mutex);
                                 iteration_log_entries.push_back({current_batch_start_id + static_cast<int>(i) + 1, ts_ms, static_cast<double>(current_km1)});
                                 }  
+                            }
+
+                            // Deterministic stopping criterion evaluation at batch boundaries
+                            if (context.evolutionary.improvement_rate_stopping.enabled &&
+                                !stop_flag.load(std::memory_order_acquire)) {
+                                std::lock_guard<std::mutex> stop_lock(stopping_criterion_mutex);
+                                std::lock_guard<std::mutex> iter_lock(iteration_log_mutex);
+                                std::lock_guard<std::mutex> best_lock(best_tracking_mutex_);
+
+                                int last_improv_iter = -1;
+                                if (!improvement_log_entries.empty()) {
+                                    last_improv_iter = improvement_log_entries.back().iteration;
+                                }
+
+                                const bool should_stop = evolutionary::stopping::sliding_window_improvement_rate_stop(
+                                    last_improv_iter,
+                                    improvement_log_entries,
+                                    iteration_log_entries,
+                                    context.evolutionary.improvement_rate_stopping.early_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.recent_window_improvs,
+                                    context.evolutionary.improvement_rate_stopping.alpha,
+                                    context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
+                                    early_window_improvement_rate
+                                );
+
+                                if (should_stop) {
+                                    stop_flag.store(true, std::memory_order_release);
+                                }
                             }
 
                             // Mark batch as filled
