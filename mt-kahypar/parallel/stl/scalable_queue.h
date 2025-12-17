@@ -29,11 +29,11 @@
 
 #include <queue>
 
-#include <tbb/scalable_allocator.h>
+#include "mt-kahypar/parallel/stl/allocator.h"
 
 namespace mt_kahypar {
 namespace parallel {
 template <typename T>
-using scalable_queue = std::queue<T, std::deque<T, tbb::scalable_allocator<T>> >;
+using scalable_queue = std::queue<T, std::deque<T, parallel::scalable_allocator<T>> >;
 }  // namespace parallel
 }  // namespace mt_kahypar

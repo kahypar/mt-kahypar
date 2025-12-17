@@ -29,25 +29,25 @@
 
 #include <memory>
 
-#include <tbb/scalable_allocator.h>
+#include "mt-kahypar/parallel/stl/allocator.h"
 
 namespace mt_kahypar {
 namespace parallel {
 
 template<typename T>
-struct tbb_deleter {
+struct scalable_deleter {
   void operator()(T *p) {
-    scalable_free(p);
+    mtk_scalable_free(p);
   }
 };
 
 template<typename T>
-using tbb_unique_ptr = std::unique_ptr<T, tbb_deleter<T>>;
+using tbb_unique_ptr = std::unique_ptr<T, scalable_deleter<T>>;
 
 template<typename T>
 static tbb_unique_ptr<T> make_unique(const size_t size) {
-  T* ptr = (T*) scalable_malloc(sizeof(T) * size);
-  return tbb_unique_ptr<T>(ptr, parallel::tbb_deleter<T>());
+  T* ptr = (T*) mtk_scalable_malloc(sizeof(T) * size);
+  return tbb_unique_ptr<T>(ptr, scalable_deleter<T>());
 }
 
 }  // namespace parallel

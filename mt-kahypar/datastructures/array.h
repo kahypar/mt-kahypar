@@ -32,7 +32,6 @@
 #include <iterator>
 
 #include <tbb/parallel_for.h>
-#include <tbb/scalable_allocator.h>
 #include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/macros.h"
