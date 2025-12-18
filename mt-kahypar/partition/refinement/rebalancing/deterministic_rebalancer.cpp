@@ -50,12 +50,29 @@ namespace impl {
 
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
-static float transformGain(Gain gain_, HypernodeWeight wu) {
+static float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightConstRef current_imbalance, HNWeightConstRef max_part_weight) {
   float gain = gain_;
-  if (gain > 0) {
-    gain /= wu;
-  } else if (gain < 0) {
-    gain *= wu;
+
+  if (wu.dimension() == 1) {
+    if (gain > 0) {
+      gain /= wu.at(0);
+    } else if (gain < 0) {
+      gain *= wu.at(0);
+    }
+  } else {
+    float relevant_weight_fraction = 0;
+    for (Dimension d = 0; d < wu.dimension(); ++d) {
+      if (current_imbalance.at(d) > 0) {
+        relevant_weight_fraction += wu.at(d) / static_cast<float>(max_part_weight.at(d));
+      }
+    }
+    if (gain > 0 && relevant_weight_fraction == 0) {
+      gain = std::numeric_limits<float>::max();
+    } else if (gain > 0) {
+      gain /= relevant_weight_fraction;
+    } else if (gain < 0) {
+      gain *= relevant_weight_fraction;
+    }
   }
   return gain;
 }
@@ -98,9 +115,8 @@ template <typename  GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::updateImbalance(const PartitionedHypergraph& phg) {
   _num_imbalanced_parts = 0;
   for (PartitionID part = 0; part < _context.partition.k; ++part) {
-    const HypernodeWeight current_imbalance = phg.partWeight(part) - _context.partition.max_part_weights[part];
-    _current_imbalance[part] = current_imbalance;
-    if (current_imbalance > 0) {
+    _current_imbalance[part] = phg.partWeight(part) - _context.partition.max_part_weights[part];
+    if ( !(_current_imbalance[part] <= weight::broadcast(0, phg.dimension())) ) {
       ++_num_imbalanced_parts;
     }
   }
@@ -110,7 +126,7 @@ template <typename GraphAndGainTypes>
 rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& phg,
                                                                                                  const HypernodeID hn,
                                                                                                  bool non_adjacent_blocks) {
-  const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+  const HNWeightConstRef hn_weight = phg.nodeWeight(hn);
   RatingMap& tmp_scores = _gain_computation.localScores();
   Gain isolated_block_gain = 0;
   _gain_computation.precomputeGains(phg, hn, tmp_scores, isolated_block_gain, true);
@@ -148,7 +164,9 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
     ASSERT(best_target == kInvalidPartition || (best_target >= 0 && best_target < _current_k));
   }
   tmp_scores.clear();
-  return { hn, best_target, transformGain(best_gain, hn_weight), hn_weight };
+
+  PartitionID from = phg.partID(hn);
+  return { hn, best_target, transformGain(best_gain, hn_weight, _current_imbalance[from], _context.partition.max_part_weights[from])};
 }
 
 template <typename GraphAndGainTypes>
@@ -162,8 +180,8 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
   // group moves by source part
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
-    const HypernodeWeight weight = phg.nodeWeight(hn);
-    if (_current_imbalance[from] > 0 && mayMoveNode(phg, from, weight) && !phg.isFixed(hn)) {
+    const HNWeightConstRef weight = phg.nodeWeight(hn);
+    if ( !(_current_imbalance[from] <= weight::broadcast(0, phg.dimension())) && mayMoveNode(phg, from, weight) && !phg.isFixed(hn)) {
       const auto triple = computeGainAndTargetPart(phg, hn, true);
       if (from != triple.to && triple.to != kInvalidPartition) {
         _tmp_potential_moves[from].stream(triple);
@@ -181,9 +199,11 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
 
       // determine which moves to execute
       size_t last_move_idx = 0;
-      HypernodeWeight sum = 0;
-      for (; last_move_idx < _moves[part].size() && sum < _current_imbalance[part]; ++last_move_idx) {
-        sum += _moves[part][last_move_idx].weight;
+      AllocatedHNWeight sum(phg.dimension(), 0);
+
+      // TODO: this is not quite optimal for multiple dimensions, we should sort anew (or smth) when one dimension is balanced
+      for (; last_move_idx < _moves[part].size() && !(sum >= _current_imbalance[part]); ++last_move_idx) {
+        sum += phg.nodeWeight(_moves[part][last_move_idx].hn);
       }
 
       bool success = (sum >= _current_imbalance[part]);
@@ -195,7 +215,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
         changeNodePart(phg, move.hn, part, move.to);
       });
-    } else if (_current_imbalance[part] > 0) {
+    } else if ( !(_current_imbalance[part] <= weight::broadcast(0, phg.dimension())) ) {
       _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(true);
     }
   });
@@ -204,6 +224,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
 
 template <typename GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
+  const Dimension dimension = _current_imbalance.dimension();
   // If the number of blocks changes, we resize data structures
   // (can happen during deep multilevel partitioning)
   if (_current_k != _context.partition.k) {
@@ -211,28 +232,21 @@ void DeterministicRebalancer<GraphAndGainTypes>::resizeDataStructuresForCurrentK
     _gain_computation.changeNumberOfBlocks(_current_k);
     _moves.resize(_current_k);
     _tmp_potential_moves.resize(_current_k);
-    _current_imbalance.resize(_current_k);
+    _current_imbalance.replaceWith(_current_k, dimension, 0);
     _block_has_only_heavy_vertices.resize(_current_k);
   }
 }
 
 template <typename GraphAndGainTypes>
-bool DeterministicRebalancer<GraphAndGainTypes>::mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HypernodeWeight hn_weight) const {
-  double allowed_weight = phg.partWeight(part) - _context.partition.perfect_balance_part_weights[part];
-  allowed_weight *= _context.refinement.rebalancing.det_heavy_vertex_exclusion_factor;
+bool DeterministicRebalancer<GraphAndGainTypes>::mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HNWeightConstRef hn_weight) const {
+  const auto weight_difference = weight::toNonAtomic(phg.partWeight(part)) - _context.partition.perfect_balance_part_weights[part];
+  const auto allowed_weight = _context.refinement.rebalancing.det_heavy_vertex_exclusion_factor * weight_difference;
   return hn_weight <= allowed_weight || _block_has_only_heavy_vertices[part];
 }
 
 template <typename GraphAndGainTypes>
-HypernodeWeight DeterministicRebalancer<GraphAndGainTypes>::deadzoneForPart(PartitionID part) const {
-  const HypernodeWeight balanced = _context.partition.perfect_balance_part_weights[part];
-  const HypernodeWeight max = _context.partition.max_part_weights[part];
-  return max - _context.refinement.rebalancing.det_relative_deadzone_size * (max - balanced);
-}
-
-template <typename GraphAndGainTypes>
-bool DeterministicRebalancer<GraphAndGainTypes>::isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HypernodeWeight hn_weight) const {
-  const HypernodeWeight part_weight = hypergraph.partWeight(part);
+bool DeterministicRebalancer<GraphAndGainTypes>::isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HNWeightConstRef hn_weight) const {
+  const HNWeightConstRef part_weight =  weight::toNonAtomic(hypergraph.partWeight(part));
   return (part_weight < deadzoneForPart(part)) &&
     part_weight + hn_weight <= _context.partition.max_part_weights[part];
 }
@@ -259,7 +273,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::checkPreviouslyOverweightParts(
   for (PartitionID i = 0; i < _current_k; ++i) {
     const auto partWeight = phg.partWeight(i);
     unused(partWeight);
-    if (_current_imbalance[i] > 0) {
+    if ( !(_current_imbalance[i] <= weight::broadcast(0, phg.dimension())) ) {
         const auto& max_part_weights = _context.partition.max_part_weights;
         ASSERT(partWeight <= max_part_weights[i] || _block_has_only_heavy_vertices[i], V(partWeight) << V(max_part_weights[i]));
         unused(max_part_weights);

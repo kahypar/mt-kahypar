@@ -31,10 +31,10 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
-
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/reproducible_random.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -58,7 +58,7 @@ public:
                                                 const Context& context) :
       context(context),
       gain_computation(context, true /* disable_randomization */),
-      cumulative_node_weights(num_hypernodes),
+      cumulative_node_weights(num_hypernodes, context.dimension(), 0),
       moves(num_hypernodes),
       sorted_moves(num_hypernodes),
       current_k(context.partition.k),
@@ -90,16 +90,16 @@ private:
 
   std::pair<size_t, size_t> findBestPrefixesRecursive(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
-          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
+          HNWeightConstRef lb_p1, HNWeightConstRef ub_p2);
 
   // used for verification
   std::pair<size_t, size_t> findBestPrefixesSequentially(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
-          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
+          HNWeightConstRef lb_p1, HNWeightConstRef ub_p2);
 
   const Context& context;
   GainComputation gain_computation;
-  vec<HypernodeWeight> cumulative_node_weights;
+  HypernodeWeightArray cumulative_node_weights;
   ds::BufferedVector<Move> moves;
   vec<Move> sorted_moves;
 
