@@ -337,9 +337,14 @@ namespace mt_kahypar {
 
       Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
       mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
+      utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+      timer.start_timer("refinement", "Refinement");
+      timer.start_timer("rebalance", "Rebalance");
       rebalancer->initialize(phg);
       rebalancer->refine(phg, {}, metrics, 0.0);
       GainCachePtr::deleteGainCache(gain_cache);
+      timer.stop_timer("rebalance");
+      timer.stop_timer("refinement");
     }
   }
 
