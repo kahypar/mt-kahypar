@@ -41,6 +41,7 @@
 #include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/parallel/work_stack.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -155,7 +156,7 @@ struct NodeTracker {
 // incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
 // gain for moves that violate the balance constraint
 class UnconstrainedFMData {
-  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using AtomicWeight = parallel::IntegralAtomicWrapper<HNWeightScalar>;
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
@@ -190,7 +191,7 @@ class UnconstrainedFMData {
     InitializationHelper<GraphAndGainTypes>::initialize(*this, context, phg, gain_cache);
   }
 
-  Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
+  Gain estimatePenaltyForImbalancedMove(PartitionID to, HNWeightScalar initial_imbalance, HNWeightScalar moved_weight) const;
 
   AtomicWeight& virtualWeightDelta(PartitionID block) {
     ASSERT(block >= 0 && static_cast<size_t>(block) < virtual_weight_delta.size());
@@ -206,7 +207,7 @@ class UnconstrainedFMData {
   void changeNumberOfBlocks(PartitionID new_k) {
     if (new_k != current_k) {
       current_k = new_k;
-      local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
+      local_bucket_weights = tbb::enumerable_thread_specific<vec<HNWeightScalar>>(new_k * NUM_BUCKETS);
       initialized = false;
     }
   }
@@ -245,10 +246,10 @@ class UnconstrainedFMData {
 
   bool initialized = false;
   PartitionID current_k;
-  parallel::scalable_vector<HypernodeWeight> bucket_weights;
+  parallel::scalable_vector<HNWeightScalar> bucket_weights;
   parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
-  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
-  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HNWeightScalar>> local_bucket_weights;
+  parallel::scalable_vector<parallel::scalable_vector<HNWeightScalar>> fallback_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
 };
 

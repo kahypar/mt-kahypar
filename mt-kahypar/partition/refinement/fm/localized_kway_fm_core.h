@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -129,6 +130,9 @@ private:
   // ! in that block) touched by the current local search associated
   // ! with their gain values
   vec<VertexPriorityQueue> vertexPQs;
+
+  // ! Buffer for weight computations
+  AllocatedHNWeight tmpHNWeight;
 };
 
 }
