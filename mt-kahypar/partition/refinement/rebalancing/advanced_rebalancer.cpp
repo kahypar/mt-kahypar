@@ -319,10 +319,10 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  void AdvancedRebalancer<GraphAndGainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                        int64_t& attributed_gain,
+                                                        size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    int64_t attributed_gain = 0;
-    size_t global_move_id = 0;
     size_t num_overloaded_blocks = _overloaded_blocks.size();
 
     auto task = [&](size_t task_id) {
@@ -433,8 +433,6 @@ namespace impl {
     tbb::task_group tg;
     for (size_t i = 0; i < _context.shared_memory.num_threads; ++i) { tg.run(std::bind(task, i)); }
     tg.wait();
-
-    return std::make_pair(attributed_gain, global_move_id);
   }
 
   template <typename GraphAndGainTypes>
@@ -444,6 +442,20 @@ namespace impl {
                                                                   Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+
+    int64_t attributed_gain = 0;
+    size_t global_move_id = 0;
+    _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain, [&](const Move& m) {
+      bool success = phg.changeNodePart(
+        _gain_cache, m.node, m.from, m.to,
+        _context.partition.max_part_weights[m.to],
+        [&] { _moves[global_move_id++] = m; },
+        [&](const SynchronizedEdgeUpdate& sync_update) {
+          attributed_gain += AttributedGains::gain(sync_update);
+        }
+      );
+      ASSERT(success); unused(success);
+    });
 
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
@@ -456,10 +468,10 @@ namespace impl {
 
     insertNodesInOverloadedBlocks(hypergraph);
 
-    auto [attributed_gain, num_moves_performed] = findMoves(hypergraph);
+    findMoves(hypergraph, attributed_gain, global_move_id);
 
     if constexpr (GainCache::invalidates_entries) {
-      tbb::parallel_for(UL(0), num_moves_performed, [&](const size_t i) {
+      tbb::parallel_for(UL(0), global_move_id, [&](const size_t i) {
         _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
       });
     }
@@ -469,13 +481,13 @@ namespace impl {
     if (moves_by_part != nullptr) {
       moves_by_part->resize(_context.partition.k);
       for (auto& direction : *moves_by_part) direction.clear();
-      for (size_t i = 0; i < num_moves_performed; ++i) {
+      for (size_t i = 0; i < global_move_id; ++i) {
         (*moves_by_part)[_moves[i].from].push_back(_moves[i]);
       }
     } else if (moves_linear != nullptr) {
       moves_linear->clear();
-      moves_linear->reserve(num_moves_performed);
-      for (size_t i = 0; i < num_moves_performed; ++i) {
+      moves_linear->reserve(global_move_id);
+      for (size_t i = 0; i < global_move_id; ++i) {
         moves_linear->push_back(_moves[i]);
       }
     }
@@ -513,7 +525,8 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _target_part(num_nodes, kInvalidPartition),
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),
-        _node_state(num_nodes) { }
+        _node_state(num_nodes),
+        _repair_empty_blocks(context, gain_cache) { }
 
 template <typename GraphAndGainTypes>
 AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
