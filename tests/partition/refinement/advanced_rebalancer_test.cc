@@ -82,6 +82,7 @@ class RebalancerTest : public Test {
 
     context.partition.objective = Hypergraph::is_graph ? Objective::cut : Objective::km1;
     context.partition.gain_policy = Hypergraph::is_graph ? GainPolicy::cut_for_graphs : GainPolicy::km1;
+    context.partition.allow_empty_blocks = false;
   }
 
   void constructFromFile() {
@@ -139,6 +140,31 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+}
+
+
+TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
+  this->constructFromValues(4, 2, { {0, 1}, {1, 2} }, {1, 1, 1, 1});
+  this->context.partition.max_part_weights.resize(this->context.partition.k, 5);
+  this->context.partition.use_individual_part_weights = true;
+  this->setup();
+
+  this->partitioned_hypergraph.setOnlyNodePart(0, 0);
+  this->partitioned_hypergraph.setOnlyNodePart(1, this->context.partition.k == 2 ? 0 : 1);
+  this->partitioned_hypergraph.setOnlyNodePart(2, 0);
+  this->partitioned_hypergraph.setOnlyNodePart(3, this->context.partition.k == 2 ? 0 : 1);
+  this->partitioned_hypergraph.initializePartition();
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->rebalancer->initialize(phg);
+
+  Metrics metrics;
+  metrics.quality = metrics::quality(this->partitioned_hypergraph, this->context);
+  metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
+  this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
+
+  for (PartitionID block = 0; block < this->context.partition.k; ++block) {
+    ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+  }
 }
 
 
