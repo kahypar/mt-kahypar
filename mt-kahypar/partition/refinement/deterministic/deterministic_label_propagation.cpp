@@ -26,14 +26,14 @@
 
 #include "deterministic_label_propagation.h"
 
+#include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include "mt-kahypar/utils/cast.h"
-
-#include <tbb/parallel_sort.h>
-#include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 
@@ -176,10 +176,10 @@ namespace mt_kahypar {
   }
 
   template<typename PartitionedHypergraph>
-  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, PartitionID current_k, const vec<Move>& moves, size_t end) {
+  HypernodeWeightArray aggregatePartWeightDeltas(PartitionedHypergraph& phg, PartitionID current_k, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
-    tbb::enumerable_thread_specific<vec< HypernodeWeight>>
-    ets_part_weight_diffs(current_k, 0);
+    tbb::enumerable_thread_specific<HypernodeWeightArray>
+    ets_part_weight_diffs(current_k, phg.dimension(), 0, false);
     auto accum = [&](const tbb::blocked_range<size_t>& r) {
       auto& part_weights = ets_part_weight_diffs.local();
       for (size_t i = r.begin(); i < r.end(); ++i) {
@@ -188,8 +188,8 @@ namespace mt_kahypar {
       }
     };
     tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
-    vec<HypernodeWeight> res(current_k, 0);
-    auto combine = [&](const vec<HypernodeWeight>& a) {
+    HypernodeWeightArray res(current_k, phg.dimension(), 0, true);
+    auto combine = [&](const HypernodeWeightArray& a) {
       for (size_t i = 0; i < res.size(); ++i) {
         res[i] += a[i];
       }
@@ -207,13 +207,13 @@ namespace mt_kahypar {
 
     const auto& max_part_weights = context.partition.max_part_weights;
     size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
-    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, current_k, moves.getData(), num_moves);
+    HypernodeWeightArray part_weights = aggregatePartWeightDeltas(phg, current_k, moves.getData(), num_moves);
     for (PartitionID i = 0; i < current_k; ++i) {
       part_weights[i] += phg.partWeight(i);
-      if (part_weights[i] > max_part_weights[i]) {
+      if (!(part_weights[i] <= max_part_weights[i])) {
         num_overloaded_blocks++;
       }
-      if (phg.partWeight(i) > max_part_weights[i]) {
+      if (!(phg.partWeight(i) <= max_part_weights[i])) {
         num_overloaded_before_round++;
       }
     }
@@ -234,7 +234,7 @@ namespace mt_kahypar {
 
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
-      if (part_weights[m.to] > max_part_weights[m.to]
+      if (!(part_weights[m.to] <= max_part_weights[m.to])
           && part_weights[m.from] + phg.nodeWeight(m.node) <= max_part_weights[m.from]) {
         revert_move(m);
       }
@@ -255,8 +255,8 @@ namespace mt_kahypar {
           num_extra_rounds++;
         }
         Move& m = moves[j - 1];
-        if (m.isValid() && part_weights[m.to] > max_part_weights[m.to]) {
-          if (part_weights[m.from] + phg.nodeWeight(m.node) > max_part_weights[m.from]
+        if (m.isValid() && !(part_weights[m.to] <= max_part_weights[m.to])) {
+          if (!(part_weights[m.from] + phg.nodeWeight(m.node) <= max_part_weights[m.from])
               && part_weights[m.from] <= max_part_weights[m.from]) {
             num_overloaded_blocks++;
           }
@@ -328,6 +328,8 @@ namespace mt_kahypar {
 
     // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
     vec<size_t> swap_prefix(max_key, 0);
+    tbb::enumerable_thread_specific<AllocatedHNWeight> local_lower_bound;
+    tbb::enumerable_thread_specific<AllocatedHNWeight> local_upper_bound;
     tbb::parallel_for(size_t(0), relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
       auto sort_by_gain_and_prefix_sum_node_weights = [&](PartitionID p1, PartitionID p2) {
@@ -339,8 +341,8 @@ namespace mt_kahypar {
         tbb::parallel_for(begin, end, [&](size_t pos) {
           cumulative_node_weights[pos] = phg.nodeWeight(sorted_moves[pos].node);
         });
-        parallel_prefix_sum(cumulative_node_weights.begin() + begin, cumulative_node_weights.begin() + end,
-                            cumulative_node_weights.begin() + begin, std::plus<>(), 0);
+        parallel_hnweight_prefix_sum(cumulative_node_weights.begin() + begin, cumulative_node_weights.begin() + end,
+                                     cumulative_node_weights.begin() + begin, phg.dimension());
       };
 
       PartitionID p1, p2;
@@ -351,16 +353,20 @@ namespace mt_kahypar {
         sort_by_gain_and_prefix_sum_node_weights(p2, p1);
       });
 
-      HypernodeWeight  budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
-                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
-      HypernodeWeight  lb_p1 = -(budget_p1 /std::max(size_t(1), involvements[p1])),
-                       ub_p2 = budget_p2 / std::max(size_t(1), involvements[p2]);
+      auto budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1);
+      auto budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
+      AllocatedHNWeight& lb_p1 = local_lower_bound.local();
+      AllocatedHNWeight& ub_p2 = local_upper_bound.local();
+      lb_p1 = -(budget_p1 / std::max(size_t(1), involvements[p1]));
+      ub_p2 = budget_p2 / std::max(size_t(1), involvements[p2]);
 
       size_t p1_begin = positions[index(p1, p2)], p1_end = positions[index(p1, p2) + 1],
              p2_begin = positions[index(p2, p1)], p2_end = positions[index(p2, p1) + 1];
 
-      auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
-                                                   p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
+      // the recursive algorithm doesn't work in the multi-constraint case
+      auto best_prefix = phg.dimension() == 1 ?
+        findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end, p1_begin - 1, p2_begin - 1, lb_p1, ub_p2) :
+        findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
 
       assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end,
                                                          p1_begin - 1, p2_begin - 1, lb_p1, ub_p2));
@@ -405,8 +411,11 @@ namespace mt_kahypar {
   std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<GraphAndGainTypes>::findBestPrefixesRecursive(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
           size_t p1_invalid, size_t p2_invalid,
-          HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+          HNWeightConstRef lb_p1, HNWeightConstRef ub_p2)
   {
+    ASSERT(cumulative_node_weights.dimension() == 1);
+    const ds::Array<HNWeightScalar>& scalar_cumulative_weights = cumulative_node_weights.underlying_array();
+
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
       ASSERT(p1_ind == p1_invalid || p1_ind < p1_end);
       ASSERT(p1_ind >= p1_invalid || p1_invalid == (size_t(0) - 1));
@@ -414,14 +423,14 @@ namespace mt_kahypar {
       ASSERT(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
       ASSERT(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
       ASSERT(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
-      const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
-      const auto b = (p2_ind == p2_invalid) ? 0 : cumulative_node_weights[p2_ind];
+      const auto a = (p1_ind == p1_invalid) ? 0 : scalar_cumulative_weights[p1_ind];
+      const auto b = (p2_ind == p2_invalid) ? 0 : scalar_cumulative_weights[p2_ind];
       return a - b;
     };
 
     auto is_feasible = [&](size_t p1_ind, size_t p2_ind) {
-      const HypernodeWeight bal = balance(p1_ind, p2_ind);
-      return lb_p1 <= bal && bal <= ub_p2;
+      const auto bal = balance(p1_ind, p2_ind);
+      return lb_p1.at(0) <= bal && bal <= ub_p2.at(0);
     };
 
     const size_t n_p1 = p1_end - p1_begin, n_p2 = p2_end - p2_begin;
@@ -431,17 +440,17 @@ namespace mt_kahypar {
       return findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
     }
 
-    const auto c = cumulative_node_weights.begin();
+    const auto c = scalar_cumulative_weights.begin();
     if (n_p1 > n_p2) {
       size_t p1_mid = p1_begin + n_p1 / 2;
-      auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, cumulative_node_weights[p1_mid]);
-      size_t p2_match = std::distance(cumulative_node_weights.begin(), p2_match_it);
+      auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, scalar_cumulative_weights[p1_mid]);
+      size_t p2_match = std::distance(scalar_cumulative_weights.begin(), p2_match_it);
 
       if (p2_match != p2_end && p1_mid != p1_end && is_feasible(p1_mid, p2_match)) {
         // no need to search left range
         return findBestPrefixesRecursive(p1_mid + 1, p1_end, p2_match + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2) {
+      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2.at(0)) {
         // p1_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
@@ -455,14 +464,14 @@ namespace mt_kahypar {
       return right.first != invalid_pos ? right : left;
     } else {
       size_t p2_mid = p2_begin + n_p2 / 2;
-      auto p1_match_it = std::lower_bound(c + p1_begin, c + p1_end, cumulative_node_weights[p2_mid]);
-      size_t p1_match = std::distance(cumulative_node_weights.begin(), p1_match_it);
+      auto p1_match_it = std::lower_bound(c + p1_begin, c + p1_end, scalar_cumulative_weights[p2_mid]);
+      size_t p1_match = std::distance(scalar_cumulative_weights.begin(), p1_match_it);
 
       if (p1_match != p1_end && p2_mid != p2_end && is_feasible(p1_match, p2_mid)) {
         // no need to search left range
         return findBestPrefixesRecursive(p1_match + 1, p1_end, p2_mid + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1) {
+      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1.at(0)) {
         // p2_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_match, p2_begin, p2_mid, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
@@ -480,27 +489,46 @@ namespace mt_kahypar {
   template<typename GraphAndGainTypes>
   std::pair<size_t, size_t> DeterministicLabelPropagationRefiner<GraphAndGainTypes>::findBestPrefixesSequentially(
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
-          HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+          HNWeightConstRef lb_p1, HNWeightConstRef ub_p2)
   {
+    const Dimension dimension = cumulative_node_weights.dimension();
+    ASSERT(dimension > 0);
+
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
-      const auto a = (p1_ind == p1_inv) ? 0 : cumulative_node_weights[p1_ind];
-      const auto b = (p2_ind == p2_inv) ? 0 : cumulative_node_weights[p2_ind];
+      ASSERT(p1_ind == p1_inv || p1_ind < p1_end);
+      ASSERT(p1_ind >= p1_inv || p1_inv == (size_t(0) - 1));
+      ASSERT(p2_ind == p2_inv || p2_ind < p2_end);
+      ASSERT(p2_ind >= p2_inv || p2_inv == (size_t(0) - 1));
+      ASSERT(p1_ind == p1_inv || p1_ind < cumulative_node_weights.size());
+      ASSERT(p2_ind == p2_inv || p2_ind < cumulative_node_weights.size());
+      const auto a = weight::ternary(p1_ind == p1_inv,
+        weight::broadcast(0, dimension),
+        weight::lazy([this, p1_ind]{ return cumulative_node_weights[p1_ind]; }, dimension));
+      const auto b = weight::ternary(p2_ind == p2_inv,
+        weight::broadcast(0, dimension),
+        weight::lazy([this, p2_ind]{ return cumulative_node_weights[p2_ind]; }, dimension));
       return a - b;
     };
 
     auto is_feasible = [&](size_t p1_ind, size_t p2_ind) {
-      const HypernodeWeight bal = balance(p1_ind, p2_ind);
+      const auto bal = balance(p1_ind, p2_ind);
       return lb_p1 <= bal && bal <= ub_p2;
     };
 
     while (true) {
       if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
-      if (balance(p1_end - 1, p2_end - 1) < 0) {
+
+      const auto& curr_balance = balance(p1_end - 1, p2_end - 1);
+      if (curr_balance <= weight::broadcast(0, dimension)) {
         if (p2_end == p2_begin) { break; }
         p2_end--;
-      } else {
+      } else if (dimension == 1 || curr_balance >= weight::broadcast(0, dimension)) {
         if (p1_end == p1_begin) { break; }
         p1_end--;
+      } else {
+        if (p1_end == p1_begin || p2_end == p2_begin) { break; }
+        p1_end--;
+        p2_end--;
       }
     }
     return std::make_pair(invalid_pos, invalid_pos);

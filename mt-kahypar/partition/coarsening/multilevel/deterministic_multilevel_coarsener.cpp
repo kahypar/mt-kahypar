@@ -65,9 +65,9 @@ DeterministicMultilevelCoarsener<TypeTraits>::DeterministicMultilevelCoarsener(m
   tbb::parallel_invoke([&] {
     propositions.resize(_hg.initialNumNodes());
   }, [&] {
-    cluster_weight.resize(_hg.initialNumNodes(), 0);
+    cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0, true);
   }, [&] {
-    opportunistic_cluster_weight.resize(_hg.initialNumNodes(), 0);
+    opportunistic_cluster_weight.resize(_hg.initialNumNodes(), _hg.dimension(), 0, true);
   }, [&] {
     nodes_in_too_heavy_clusters.adapt_capacity(_hg.initialNumNodes());
   }, [&] {
@@ -166,7 +166,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
           ASSERT(success); unused(success);
         }
         clusters[u] = target;
-        std::atomic_ref(cluster_weight[target]).store(opportunistic_cluster_weight[target], std::memory_order_relaxed);
+        cluster_weight[target].store(opportunistic_cluster_weight[target], std::memory_order_relaxed);
       } else {
         if (opportunistic_cluster_weight[u] != hg.nodeWeight(u)) {
           // node u could still not move
@@ -198,13 +198,13 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
   }
 
   HEAVY_COARSENING_ASSERT([&] {
-    vec<HypernodeWeight> cluster_weight_recalced(cluster_weight.size(), 0);
+    HypernodeWeightArray cluster_weight_recalced(cluster_weight.size(), hg.dimension(), 0, true);
     for (const HypernodeID hn : hg.nodes()) {
       const HypernodeID cluster = clusters[hn];
       cluster_weight_recalced[cluster] += hg.nodeWeight(hn);
     }
     for (const HypernodeID c : hg.nodes()) {
-      if (cluster_weight_recalced[c] > 0 && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
+      if (!weight::isZero(cluster_weight_recalced[c]) && (cluster_weight_recalced[c] != cluster_weight[c] || cluster_weight_recalced[c] != opportunistic_cluster_weight[c])) {
         LOG << "Wrong cluster weight: " << V(cluster_weight_recalced[c]) << ", " << V(cluster_weight[c]) << ", " << V(opportunistic_cluster_weight[c]);
         return false;
       }
@@ -250,7 +250,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
   // find highest rated, feasible cluster
   const PartitionID comm_u = hg.communityID(u);
-  const HypernodeWeight weight_u = hg.nodeWeight(u);
+  const HNWeightConstRef weight_u = hg.nodeWeight(u);
   vec<HypernodeID>& best_targets = ties.local();
   double best_score = 0.0;
 
@@ -289,7 +289,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
   if (best_target != u) {
     propositions[u] = best_target;
-    std::atomic_ref(opportunistic_cluster_weight[best_target]).fetch_add(hg.nodeWeight(u), std::memory_order::relaxed);
+    weight::eval(opportunistic_cluster_weight[best_target].fetch_add(hg.nodeWeight(u), std::memory_order_relaxed));
   }
 }
 
@@ -301,7 +301,9 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
 
   // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
   auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
-    HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
+    // TODO: normalize weight??
+    auto wl = weight::sum(hg.nodeWeight(lhs));
+    auto wr = weight::sum(hg.nodeWeight(rhs));
     return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
   };
   tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
@@ -311,7 +313,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
     // the first vertex for this cluster handles the approval
     size_t num_contracted_local = 0;
     if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
-      HypernodeWeight target_weight = cluster_weight[target];
+      HNWeightRef target_weight_ref = cluster_weight[target];
       size_t first_rejected = pos;
       // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
       for (; ; ++first_rejected) {
@@ -319,7 +321,7 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
         ASSERT(first_rejected < nodes_in_too_heavy_clusters.size());
         ASSERT(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
         HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
-        if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+        if (!(target_weight_ref + hg.nodeWeight(v) <= _context.coarsening.max_allowed_node_weight)) {
           break;
         }
         if constexpr (has_fixed_vertices) {
@@ -327,13 +329,12 @@ size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeI
           ASSERT(success); unused(success);
         }
         clusters[v] = target;
-        target_weight += hg.nodeWeight(v);
-        if (std::atomic_ref(opportunistic_cluster_weight[v]).load(std::memory_order_relaxed) == hg.nodeWeight(v)) {
+        target_weight_ref += hg.nodeWeight(v);  // updates cluster_weight[target]
+        if (opportunistic_cluster_weight[v].load(std::memory_order_relaxed) == hg.nodeWeight(v)) {
           num_contracted_local += 1;
         }
       }
-      cluster_weight[target] = target_weight;
-      std::atomic_ref(opportunistic_cluster_weight[target]).store(target_weight, std::memory_order_relaxed);
+      opportunistic_cluster_weight[target].store(target_weight_ref, std::memory_order_relaxed);
       num_contracted_nodes.local() += num_contracted_local;
     }
   });
@@ -347,7 +348,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::handleNodeSwaps(const size_t 
     const HypernodeID u = permutation.at(pos);
     const HypernodeID v = std::atomic_ref(propositions[u]).load(std::memory_order_relaxed);
     if (u < v && u == std::atomic_ref(propositions[v]).load(std::memory_order_relaxed)) {
-      const HypernodeID target = opportunistic_cluster_weight[u] > opportunistic_cluster_weight[v] ? u : v;
+      const HypernodeID target = weight::sum(opportunistic_cluster_weight[u]) > weight::sum(opportunistic_cluster_weight[v]) ? u : v;
       const HypernodeID source = target == u ? v : u;
       std::atomic_ref(propositions[u]).store(target, std::memory_order_relaxed);
       std::atomic_ref(propositions[v]).store(target, std::memory_order_relaxed);
