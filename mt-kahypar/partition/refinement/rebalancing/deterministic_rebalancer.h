@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/rebalancing/repair_empty_blocks.h"
 
 namespace mt_kahypar {
 
@@ -68,7 +69,8 @@ public:
         _moves(context.partition.k),
         _tmp_potential_moves(context.partition.k),
         _current_imbalance(context.partition.k),
-        _block_has_only_heavy_vertices(context.partition.k) {}
+        _block_has_only_heavy_vertices(context.partition.k),
+        _repair_empty_blocks(context, gain_cache) {}
 
     explicit DeterministicRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
         DeterministicRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
@@ -138,6 +140,7 @@ private:
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> _tmp_potential_moves;
     parallel::scalable_vector<HypernodeWeight> _current_imbalance;
     parallel::scalable_vector<uint8_t> _block_has_only_heavy_vertices;
+    RepairEmtpyBlocks<GraphAndGainTypes> _repair_empty_blocks;
 };
 
 }  // namespace kahypar

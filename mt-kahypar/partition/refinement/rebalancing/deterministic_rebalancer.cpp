@@ -71,8 +71,12 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
-  updateImbalance(phg);
   _gain_computation.reset();
+
+  _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain_computation, [&](const Move& m) {
+    changeNodePart(phg, m.node, m.from, m.to);
+  });
+  updateImbalance(phg);
 
   size_t iteration = 0;
   const size_t max_rounds = _context.refinement.rebalancing.det_max_rounds == 0 ? ABSOLUTE_MAX_ROUNDS : std::min(ABSOLUTE_MAX_ROUNDS, _context.refinement.rebalancing.det_max_rounds);
