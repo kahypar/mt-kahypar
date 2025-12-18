@@ -94,7 +94,7 @@ class StaticBitset {
    private:
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void nextBlockID() {
       ++_current_block_id;
-      Block b;
+      Block b = 0;
 
       while ( _current_block_id < _max_block_id ) {
         b = loadCurrentBlock();
