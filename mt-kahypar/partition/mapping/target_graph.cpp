@@ -56,6 +56,7 @@ void TargetGraph::precomputeDistances(const size_t max_connectivity) {
 }
 
 HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) const {
+  ASSERT(_is_initialized);
   const PartitionID connectivity = connectivity_set.popcount();
   if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
     const size_t idx = index(connectivity_set);
