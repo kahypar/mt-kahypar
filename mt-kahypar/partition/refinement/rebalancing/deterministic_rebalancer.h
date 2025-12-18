@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/rebalancing/repair_empty_blocks.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -43,7 +44,6 @@ struct RebalancingMove {
     HypernodeID hn;
     PartitionID to;
     float priority;
-    HypernodeWeight weight;
 };
 }  // namespace rebalancer
 
@@ -54,7 +54,6 @@ private:
     using GainCache = typename GraphAndGainTypes::GainCache;
     using GainComputation = typename GraphAndGainTypes::GainComputation;
     using RatingMap = typename GainComputation::RatingMap;
-    using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
     static constexpr bool debug = false;
     static constexpr bool enable_heavy_assert = false;
@@ -68,7 +67,7 @@ public:
         _num_imbalanced_parts(0),
         _moves(context.partition.k),
         _tmp_potential_moves(context.partition.k),
-        _current_imbalance(context.partition.k),
+        _current_imbalance(context.partition.k, context.dimension(), 0, false),
         _block_has_only_heavy_vertices(context.partition.k),
         _repair_empty_blocks(context, gain_cache) {}
 
@@ -111,11 +110,15 @@ private:
     void updateImbalance(const PartitionedHypergraph& hypergraph);
 
     // ! decides wether the node is allowed to be moved based on the heavy vertex excclusion parameter
-    bool mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HypernodeWeight hn_weight) const;
+    bool mayMoveNode(const PartitionedHypergraph& phg, PartitionID part, HNWeightConstRef hn_weight) const;
 
-    HypernodeWeight deadzoneForPart(PartitionID part) const;
+    auto deadzoneForPart(PartitionID part) const {
+        const HNWeightConstRef balanced = _context.partition.perfect_balance_part_weights[part];
+        const HNWeightConstRef max = _context.partition.max_part_weights[part];
+        return max - _context.refinement.rebalancing.det_relative_deadzone_size * (max - balanced);
+    }
 
-    bool isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HypernodeWeight hn_weight) const;
+    bool isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HNWeightConstRef hn_weight) const;
 
     rebalancer::RebalancingMove computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
                                                          const HypernodeID hn,
@@ -138,7 +141,7 @@ private:
     PartitionID _num_imbalanced_parts;
     parallel::scalable_vector<parallel::scalable_vector<rebalancer::RebalancingMove>> _moves;
     parallel::scalable_vector<ds::StreamingVector<rebalancer::RebalancingMove>> _tmp_potential_moves;
-    parallel::scalable_vector<HypernodeWeight> _current_imbalance;
+    HypernodeWeightArray _current_imbalance;
     parallel::scalable_vector<uint8_t> _block_has_only_heavy_vertices;
     RepairEmptyBlocks<GraphAndGainTypes> _repair_empty_blocks;
 };

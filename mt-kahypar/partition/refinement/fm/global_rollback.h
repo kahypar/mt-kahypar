@@ -29,6 +29,7 @@
 #include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar {
@@ -60,8 +61,8 @@ public:
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
-                                     const vec<HypernodeWeight>& partWeights,
-                                     const std::vector<HypernodeWeight>& maxPartWeights) {
+                                     const HypernodeWeightArray& partWeights,
+                                     const HypernodeWeightArray& maxPartWeights) {
     if (context.refinement.fm.rollback_parallel) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
@@ -71,8 +72,8 @@ public:
 
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
-                                             const vec<HypernodeWeight>& partWeights,
-                                             const std::vector<HypernodeWeight>& maxPartWeights);
+                                             const HypernodeWeightArray& partWeights,
+                                             const HypernodeWeightArray& maxPartWeights);
 
   void recalculateGainForHyperedge(PartitionedHypergraph& phg,
                                    FMSharedData& sharedData,
@@ -87,8 +88,8 @@ public:
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
-                                               const vec<HypernodeWeight>&,
-                                               const std::vector<HypernodeWeight>& maxPartWeights);
+                                               const HypernodeWeightArray&,
+                                               const HypernodeWeightArray& maxPartWeights);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void moveVertex(PartitionedHypergraph& phg, HypernodeID u, PartitionID from, PartitionID to) {

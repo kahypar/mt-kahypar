@@ -39,6 +39,7 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 #include <tbb/enumerable_thread_specific.h>
 
@@ -154,7 +155,8 @@ private:
   HypernodeID initial_num_nodes;
   utils::ParallelPermutation<HypernodeID> permutation;
   vec<HypernodeID> propositions;
-  vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
+  HypernodeWeightArray cluster_weight;
+  HypernodeWeightArray opportunistic_cluster_weight;
   ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
   tbb::enumerable_thread_specific<LargeRatingMap> default_rating_maps;
   tbb::enumerable_thread_specific<CacheEfficientRatingMap> cache_efficient_rating_maps;
