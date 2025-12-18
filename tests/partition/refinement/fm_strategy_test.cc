@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -83,7 +84,7 @@ TYPED_TEST(AFMStrategy, FindNextMove) {
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {
-    context.partition.max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+    context.partition.max_part_weights[i] = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), 1);
   }
 
   std::mt19937 rng(420);

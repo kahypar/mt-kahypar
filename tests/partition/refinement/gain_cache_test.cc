@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -82,6 +83,7 @@ class AGainCache : public Test {
 
     context.partition.k = k;
     context.type = ContextType::main;
+    context.partition.max_part_weights.replaceWith(k, 1, 100);  // just a random value
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
@@ -112,7 +114,7 @@ class AGainCache : public Test {
           3, 2, 1, 1,
           3, 2, 1 };
       target_graph = std::make_unique<TargetGraph>(
-        ds::StaticGraphFactory::construct(8, 10,
+        ds::StaticGraphFactory::construct(8, 10, 1,
           { { 0, 1 }, { 1, 2 }, { 2, 3 },
             { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
             { 4, 5 }, { 5, 6 }, { 6, 7 } },
@@ -187,7 +189,7 @@ class AGainCache : public Test {
         const PartitionID to = rand.getRandomInt(0, k - 1, THREAD_ID);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           delta_phg->changeNodePart(hn, from, to,
-            std::numeric_limits<HyperedgeWeight>::max(), update_delta_gain_cache);
+            weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), 1), update_delta_gain_cache);
         }
       }
     }
@@ -253,7 +255,7 @@ class AGainCache : public Test {
                   0, static_cast<int>(representatives.size() - 1), THREAD_ID)];
                 if ( hypergraph.registerContraction(hn, rep) ) {
                   current_num_nodes -= hypergraph.contract(
-                    rep, std::numeric_limits<HypernodeWeight>::max());
+                    rep, weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), 1));
                 }
                 representatives.clear();
               }
@@ -491,7 +493,7 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
     if ( from != to ) {
       const Gain expected_gain = this->gain_cache.gain(hn, from, to);
       this->partitioned_hg.changeNodePart(this->gain_cache, hn, from, to,
-        std::numeric_limits<HyperedgeWeight>::max(), []{}, delta);
+        weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), 1), []{}, delta);
       ASSERT_EQ(expected_gain, attributed_gain);
     }
     attributed_gain = 0;

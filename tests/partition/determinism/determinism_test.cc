@@ -37,14 +37,15 @@
 #include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
+#endif
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -93,7 +94,7 @@ public:
     context.coarsening.det_resolve_swaps = true;
     context.coarsening.num_sub_rounds_deterministic = 3;
     context.coarsening.contraction_limit = 320;
-    context.coarsening.max_allowed_node_weight = 30;
+    context.coarsening.max_allowed_node_weight = weight::broadcast(30, 1);
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
 
@@ -154,6 +155,7 @@ public:
     });
   }
 
+  #ifndef KAHYPAR_MINIMAL_COMPILATION
   void performRepeatedFlowRefinement() {
     using RefinerT = DeterministicFlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
     performRepeatedRefinement([&](auto&) {
@@ -161,6 +163,7 @@ public:
         hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache);
     });
   }
+  #endif
 
   void performRepeatedRefinement(std::function<std::unique_ptr<IRefiner>(IRebalancer&)> refiner_fn) {
     using RebalancerT = DeterministicRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
@@ -335,6 +338,7 @@ TEST_F(DeterminismTest, JetRefinementOnCoarseHypergraph) {
 }
 
 
+#ifndef KAHYPAR_MINIMAL_COMPILATION
 TEST_F(DeterminismTest, FlowRefinement) {
   performRepeatedFlowRefinement();
 }
@@ -364,5 +368,6 @@ TEST_F(DeterminismTest, FlowRefinementOnCoarseHypergraph) {
     context.partition.k, hypergraph, parallel_tag_t());
   performRepeatedFlowRefinement();
 }
+#endif
 
 }  // namespace mt_kahypar

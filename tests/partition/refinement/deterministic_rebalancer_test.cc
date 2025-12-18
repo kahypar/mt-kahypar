@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -98,8 +99,12 @@ class DeterministicRebalancerTest : public Test {
   }
 
   void constructFromValues(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
-                           const vec<vec<HypernodeID>>& edge_vector, const vec<HypernodeWeight> hypernode_weight) {
-    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, edge_vector, nullptr, hypernode_weight.data());
+                           const vec<vec<HypernodeID>>& edge_vector, const vec<HNWeightScalar> hypernode_weight) {
+    HypernodeWeightArray node_weights(hypernode_weight.size(), 1, 0);
+    for (size_t i = 0; i < hypernode_weight.size(); ++i) {
+      node_weights[i].set(0, hypernode_weight[i]);
+    }
+    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, 1, edge_vector, nullptr, &node_weights);
   }
 
   void setup() {
