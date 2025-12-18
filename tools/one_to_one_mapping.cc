@@ -24,11 +24,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <functional>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
@@ -49,37 +49,59 @@
 
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
+
 using Graph = ds::StaticGraph;
 using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
 
 int main(int argc, char* argv[]) {
   Context context;
-  po::options_description options("Options");
-  options.add_options()
-    ("hypergraph,h",
-     po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-     "Hypergraph Filename")
-    ("partition-file,b",
-     po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
-     "Partition Filename")
-    ("process-graph-file,p",
-     po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>"),
-     "Target Graph Filename")
-    ("blocks,k",
-     po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
-     "Number of Blocks")
-    ("seed,s",
-     po::value<int>(&context.partition.seed)->value_name("<int>")->required(),
-     "Random number seed")
-    ("verbose,v",
-     po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(false),
-     "Enables logging");
+  context.partition.enable_logging = false;
 
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-h,--hypergraph",
+    context.partition.graph_filename,
+    "Hypergraph (or graph) filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-b,--partition-file",
+    context.partition.graph_partition_filename,
+    "Partition Filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-p,--process-graph-file",
+    context.mapping.target_graph_file,
+    "Target Graph Filename"
+  )->check(CLI::ExistingFile);
+  app.add_option(
+    "-k,--blocks",
+    context.partition.k,
+    "Number of blocks"
+  )->required();
+  app.add_option(
+    "-s,--seed",
+    context.partition.seed,
+    "Random number seed"
+  )->required();
+  app.add_option_function<std::string>(
+    "--file-format,--input-file-format",
+    [&](const std::string& s) {
+      context.partition.file_format = fileFormatFromString(s);
+    },
+    "Input file format:\n"
+    " - hmetis: hMETIS hypergraph file format\n"
+    " - metis: METIS graph file format"
+  )->default_str("hmetis");
+  app.add_flag_callback(
+    "-v,--verbose", [&]{
+      context.partition.enable_logging = true;
+      context.partition.verbose_logging = true;
+    },
+    "Enables logging"
+  );
+  CLI11_PARSE(app, argc, argv);
 
   // Setup context
   context.partition.objective = Objective::steiner_tree;
@@ -126,7 +148,7 @@ int main(int argc, char* argv[]) {
   timer.stop_timer("precompute_steiner_trees");
   HighResClockTimepoint end_1 = std::chrono::high_resolution_clock::now();
 
-  if ( context.partition.verbose_output ) {
+  if ( context.partition.enable_logging ) {
     io::printHypergraphInfo(hg, context, "Input Hypergraph", false);
     io::printPartitioningResults(partitioned_hg, context, "Input Partition");
   }
@@ -138,7 +160,7 @@ int main(int argc, char* argv[]) {
   HighResClockTimepoint end_2 = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed_seconds((end_2 - start_2) + (end_1 - start_1));
-  if ( context.partition.verbose_output ) {
+  if ( context.partition.enable_logging ) {
     io::printPartitioningResults(partitioned_hg, context, elapsed_seconds);
   }
 

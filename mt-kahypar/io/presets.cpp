@@ -27,15 +27,25 @@
 #include "presets.h"
 
 #include <vector>
+#include <sstream>
 
 namespace mt_kahypar {
 
 // construction helper
-option create_option(const std::string& key, const std::string& value) {
-  return { key, {value} };
+std::string create_option(const std::string& key, const std::string& value) {
+  std::stringstream out;
+  out << "--" << key << "=" << value;
+  return out.str();
 }
 
-std::vector<option> load_default_preset() {
+std::vector<std::string> validPresetTypes() {
+  return {
+    "default", "quality", "highest_quality",
+    "deterministic", "deterministic_quality", "large_k"
+  };
+}
+
+std::vector<std::string> load_default_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -72,6 +82,7 @@ std::vector<option> load_default_preset() {
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "5"),
     create_option("i-perform-refinement-on-best-partitions", "true"),
+    create_option("i-remove-degree-zero-hns-before-ip", "true"),
     create_option("i-fm-refinement-rounds", "1"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
@@ -125,15 +136,15 @@ std::vector<option> load_default_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 
 
-std::vector<option> load_quality_preset() {
+std::vector<std::string> load_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -170,6 +181,7 @@ std::vector<option> load_quality_preset() {
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "5"),
     create_option("i-perform-refinement-on-best-partitions", "true"),
+    create_option("i-remove-degree-zero-hns-before-ip", "true"),
     create_option("i-fm-refinement-rounds", "1"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
@@ -234,15 +246,15 @@ std::vector<option> load_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 
 
-std::vector<option> load_highest_quality_preset() {
+std::vector<std::string> load_highest_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -278,8 +290,8 @@ std::vector<option> load_highest_quality_preset() {
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "5"),
     create_option("i-perform-refinement-on-best-partitions", "true"),
-    create_option("i-fm-refinement-rounds", "2147483647"),
     create_option("i-remove-degree-zero-hns-before-ip", "true"),
+    create_option("i-fm-refinement-rounds", "2147483647"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
@@ -357,15 +369,15 @@ std::vector<option> load_highest_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 
 
-std::vector<option> load_deterministic_preset() {
+std::vector<std::string> load_deterministic_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -407,13 +419,12 @@ std::vector<option> load_deterministic_preset() {
     create_option("i-runs", "20"),
     create_option("i-use-adaptive-ip-runs", "false"),
     create_option("i-perform-refinement-on-best-partitions", "false"),
+    create_option("i-remove-degree-zero-hns-before-ip", "true"),
     create_option("i-fm-refinement-rounds", "3"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
     create_option("i-r-refine-until-no-improvement", "false"),
-    // main -> initial_partitioning -> refinement -> rebalancing
-    create_option("i-r-rebalancer-type", "deterministic"),
     // main -> initial_partitioning -> refinement -> label_propagation
     create_option("i-r-lp-type", "deterministic"),
     create_option("i-r-lp-maximum-iterations", "5"),
@@ -439,6 +450,7 @@ std::vector<option> load_deterministic_preset() {
     // main -> refinement -> jet
     create_option("r-jet-type", "deterministic"),
     create_option("r-jet-num-iterations", "8"),
+    create_option("r-jet-relative-improvement-threshold", "0.001"),
     create_option("r-jet-dynamic-rounds", "3"),
     create_option("r-jet-initial-negative-gain", "0.75"),
     create_option("r-jet-final-negative-gain", "0.0"),
@@ -449,15 +461,15 @@ std::vector<option> load_deterministic_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 
 
-std::vector<option> load_deterministic_quality_preset() {
+std::vector<std::string> load_deterministic_quality_preset() {
   return {
     // general
     create_option("mode", "direct"),
@@ -499,13 +511,12 @@ std::vector<option> load_deterministic_quality_preset() {
     create_option("i-runs", "20"),
     create_option("i-use-adaptive-ip-runs", "false"),
     create_option("i-perform-refinement-on-best-partitions", "false"),
+    create_option("i-remove-degree-zero-hns-before-ip", "true"),
     create_option("i-fm-refinement-rounds", "3"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
     create_option("i-r-refine-until-no-improvement", "false"),
-    // main -> initial_partitioning -> refinement -> rebalancing
-    create_option("i-r-rebalancer-type", "deterministic"),
     // main -> initial_partitioning -> refinement -> label_propagation
     create_option("i-r-lp-type", "deterministic"),
     create_option("i-r-lp-maximum-iterations", "5"),
@@ -531,6 +542,7 @@ std::vector<option> load_deterministic_quality_preset() {
     // main -> refinement -> jet
     create_option("r-jet-type", "deterministic"),
     create_option("r-jet-num-iterations", "8"),
+    create_option("r-jet-relative-improvement-threshold", "0.001"),
     create_option("r-jet-dynamic-rounds", "3"),
     create_option("r-jet-initial-negative-gain", "0.75"),
     create_option("r-jet-final-negative-gain", "0.0"),
@@ -552,15 +564,15 @@ std::vector<option> load_deterministic_quality_preset() {
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
-    create_option("use-two-phase-approach", "false"),
-    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-use-two-phase-approach", "false"),
+    create_option("mapping-max-steiner-tree-size", "4"),
     create_option("mapping-largest-he-fraction", "0.0"),
     create_option("mapping-min-pin-coverage", "0.05"),
   };
 }
 
 
-std::vector<option> load_large_k_preset() {
+std::vector<std::string> load_large_k_preset() {
   return {
     // general
     create_option("mode", "deep"),
@@ -595,20 +607,19 @@ std::vector<option> load_large_k_preset() {
     // main -> initial_partitioning
     create_option("i-mode", "direct"),
     create_option("i-runs", "5"),
-    { "i-enabled-ip-algos", {
-      "1",    // greedy_round_robin_fm
-      "1",    // greedy_global_fm
-      "0",    // greedy_sequential_fm
-      "1",    // random
-      "1",    // bfs
-      "0",    // label_propagation
-      "1",    // greedy_round_robin_max_net
-      "0",    // greedy_global_max_net
-      "1",    // greedy_sequential_max_net
-    } },
+    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_fm
+    create_option("i-enabled-ip-algos", "1"),    // greedy_global_fm
+    create_option("i-enabled-ip-algos", "0"),    // greedy_sequential_fm
+    create_option("i-enabled-ip-algos", "1"),    // random
+    create_option("i-enabled-ip-algos", "1"),    // bfs
+    create_option("i-enabled-ip-algos", "0"),    // label_propagation
+    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_max_net
+    create_option("i-enabled-ip-algos", "0"),    // greedy_global_max_net
+    create_option("i-enabled-ip-algos", "1"),    // greedy_sequential_max_net
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "3"),
     create_option("i-perform-refinement-on-best-partitions", "true"),
+    create_option("i-remove-degree-zero-hns-before-ip", "true"),
     create_option("i-fm-refinement-rounds", "1"),
     create_option("i-lp-maximum-iterations", "20"),
     create_option("i-lp-initial-block-size", "5"),
@@ -639,7 +650,7 @@ std::vector<option> load_large_k_preset() {
 }
 
 
-std::vector<option> loadPreset(PresetType preset) {
+std::vector<std::string> loadPreset(PresetType preset) {
   switch( preset ) {
     case PresetType::deterministic:
       return load_deterministic_preset();

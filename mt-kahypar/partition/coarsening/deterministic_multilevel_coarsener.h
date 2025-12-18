@@ -82,7 +82,7 @@ private:
   static constexpr bool enable_heavy_assert = false;
 
   void initializeImpl() override {
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+    if ( _context.partition.enable_logging && _context.partition.enable_progress_bar ) {
       progress_bar.enable();
     }
   }

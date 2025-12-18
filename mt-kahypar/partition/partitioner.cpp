@@ -173,7 +173,7 @@ namespace mt_kahypar {
     timer.stop_timer("large_hyperedge_removal");
 
     const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
-    if (context.partition.verbose_output &&
+    if (context.partition.enable_logging && context.partition.verbose_logging &&
         ( num_removed_single_node_hes > 0 ||
           num_removed_degree_zero_hypernodes > 0 ||
           num_removed_large_hyperedges > 0 )) {
@@ -281,9 +281,7 @@ namespace mt_kahypar {
       timer.stop_timer("perform_community_detection");
       timer.stop_timer("community_detection");
 
-      if (context.partition.verbose_output) {
-        io::printCommunityInformation(hypergraph);
-      }
+      io::printCommunityInformation(hypergraph, context);
     }
 
     precomputeSteinerTrees(hypergraph, target_graph, context);
@@ -305,7 +303,7 @@ namespace mt_kahypar {
           const PartitionID from = partitioned_hg.partID(hn);
           const PartitionID to = partitioned_hg.fixedVertexBlock(hn);
           if ( from != to ) {
-            if ( context.partition.verbose_output ) {
+            if ( context.partition.enable_logging && context.partition.verbose_logging ) {
               LOG << RED << "Node" << hn << "is fixed to block" << to
                   << ", but it is assigned to block" << from << "!"
                   << "It is now moved to its fixed vertex block." << END;
@@ -393,7 +391,7 @@ namespace mt_kahypar {
     }
     #endif
 
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging && context.partition.verbose_logging) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), context,
         "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
@@ -444,7 +442,7 @@ namespace mt_kahypar {
     forceFixedVertexAssignment(partitioned_hg, context);
     timer.stop_timer("postprocessing");
 
-    if (context.partition.verbose_output) {
+    if (context.partition.enable_logging && context.partition.verbose_logging) {
       io::printHypergraphInfo(partitioned_hg.hypergraph(), context,
         "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();

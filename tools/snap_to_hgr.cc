@@ -24,15 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
+#include <CLI/CLI.hpp>
 
-namespace po = boost::program_options;
+#include "mt-kahypar/macros.h"
 
 int main(int argc, char* argv[]) {
   std::string graph_filename;
@@ -40,24 +38,29 @@ int main(int argc, char* argv[]) {
   int num_nodes;
   int num_edges;
 
-  po::options_description options("Options");
-  options.add_options()
-    ("graph,g",
-    po::value<std::string>(&graph_filename)->value_name("<string>")->required(),
-    "Graph filename")
-    ("hypergraph,h",
-    po::value<std::string>(&hgr_filename)->value_name("<string>")->required(),
-    "Hypergraph filename")
-    ("num-nodes",
-    po::value<int>(&num_nodes)->value_name("<int>")->required(),
-    "Number of Nodes")
-    ("num-edges",
-    po::value<int>(&num_edges)->value_name("<int>")->required(),
-    "Number of Edges");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.set_help_flag("--help");
+  app.add_option(
+    "-g,--graph,graph",
+    graph_filename,
+    "Graph filename"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-h,--hypergraph,hypergraph",
+    hgr_filename,
+    "Hypergraph Filename"
+  )->required();
+  app.add_option(
+    "--num-nodes",
+    num_nodes,
+    "Number of Nodes"
+  )->required();
+  app.add_option(
+    "--num-edges",
+    num_edges,
+    "Number of Edges"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   std::ofstream out_stream(hgr_filename.c_str());
 

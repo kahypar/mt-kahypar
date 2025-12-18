@@ -42,8 +42,9 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, LoadsContextFromFile) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_file("test_preset.ini", &error);
+    ASSERT_NE(context, nullptr);
     // verbose should be false by default
-    ASSERT_FALSE(reinterpret_cast<Context*>(context)->partition.verbose_output);
+    ASSERT_FALSE(reinterpret_cast<Context*>(context)->partition.enable_logging);
     ASSERT_EQ(DEFAULT, mt_kahypar_get_preset(context));
     mt_kahypar_free_context(context);
 
@@ -79,6 +80,9 @@ namespace mt_kahypar {
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "0", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3", &error));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "T", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "false", &error));
+    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "true", &error));
 
     ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "x", &error));
     check_error_status();
@@ -90,13 +94,15 @@ namespace mt_kahypar {
     check_error_status();
     ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, VERBOSE, "2", &error));
     check_error_status();
+    ASSERT_EQ(INVALID_PARAMETER, mt_kahypar_set_context_parameter(context, VERBOSE, "tr", &error));
+    check_error_status();
 
     Context& c = *reinterpret_cast<Context*>(context);
     ASSERT_EQ(4, c.partition.k);
     ASSERT_EQ(0.03, c.partition.epsilon);
     ASSERT_EQ(Objective::km1, c.partition.objective);
     ASSERT_EQ(3, c.partition.num_vcycles);
-    ASSERT_TRUE(c.partition.verbose_output);
+    ASSERT_TRUE(c.partition.enable_logging);
 
     mt_kahypar_free_context(context);
   }

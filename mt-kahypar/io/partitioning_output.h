@@ -63,5 +63,5 @@ namespace mt_kahypar::io {
   template<typename Hypergraph>
   void printInputInformation(const Context& context, const Hypergraph& hypergraph);
   template<typename Hypergraph>
-  void printCommunityInformation(const Hypergraph& hypergraph);
+  void printCommunityInformation(const Hypergraph& hypergraph, const Context& context);
 }  // namespace mt_kahypar::io

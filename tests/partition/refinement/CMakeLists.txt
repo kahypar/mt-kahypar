@@ -6,7 +6,6 @@ target_sources(mtkahypar_tests PRIVATE
          gain_policy_test.cc
          bipartitioning_gain_policy_test.cc
          rollback_test.cc
-         rebalance_test.cc
          advanced_rebalancer_test.cc
          deterministic_rebalancer_test.cc
          twoway_fm_refiner_test.cc

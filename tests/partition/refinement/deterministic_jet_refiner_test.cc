@@ -35,7 +35,6 @@
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/utils/cast.h"
@@ -96,7 +95,7 @@ public:
         context.partition.preset_type = PresetType::deterministic;
         context.partition.instance_type = InstanceType::hypergraph;
         context.partition.partition_type = PartitionedHypergraph::TYPE;
-        context.partition.verbose_output = false;
+        context.partition.enable_logging = false;
 
         // Shared Memory
         context.shared_memory.num_threads = num_threads;
@@ -121,10 +120,7 @@ public:
             context.partition.k, hypergraph, parallel_tag_t());
         context.setupPartWeights(hypergraph.totalWeight());
         initialPartition();
-        if (context.refinement.rebalancing.algorithm == RebalancingAlgorithm::simple_rebalancer) {
-            rebalancer = std::make_unique<SimpleRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
-                context);
-        } else if (context.refinement.rebalancing.algorithm == RebalancingAlgorithm::advanced_rebalancer) {
+        if (context.refinement.rebalancing.algorithm == RebalancingAlgorithm::advanced_rebalancer) {
             rebalancer = std::make_unique<AdvancedRebalancer<GraphAndGainTypes<TypeTraits, GainTypes>>>(
                 hypergraph.initialNumNodes(), context, gain_cache);
         } else if (context.refinement.rebalancing.algorithm == RebalancingAlgorithm::deterministic) {

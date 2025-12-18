@@ -24,19 +24,18 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <functional>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
-namespace po = boost::program_options;
 
 using AdjList = std::vector<std::vector<std::pair<HypernodeID, HyperedgeWeight>>>;
 
@@ -72,24 +71,29 @@ void construct_hierarchical_process_graph(AdjList& graph,
 int main(int argc, char* argv[]) {
   std::string hierarchy_str, costs_str;
   std::string out_folder, prefix;
-  po::options_description options("Options");
-  options.add_options()
-    ("out-folder,o",
-    po::value<std::string>(&out_folder)->value_name("<string>")->required(),
-    "Process Graph Output Folder")
-    ("filename-prefix",
-    po::value<std::string>(&prefix)->value_name("<string>")->default_value(""),
-    "Prefix of output filename")
-    ("hierarchy",
-    po::value<std::string>(&hierarchy_str)->value_name("<string>")->required(),
-    "Data center hierarchy")
-    ("communication-costs",
-    po::value<std::string>(&costs_str)->value_name("<string>")->required(),
-    "Communications costs");
 
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.add_option(
+    "-o,--out-folder",
+    out_folder,
+    "Process Graph Output Folder"
+  )->required();
+  app.add_option(
+    "--hierarchy",
+    hierarchy_str,
+    "Data center hierarchy"
+  )->required();
+  app.add_option(
+    "--communication-costs",
+    costs_str,
+    "Communications costs"
+  )->required();
+  app.add_option(
+    "--filename-prefix",
+    prefix,
+    "Prefix of output filename"
+  );
+  CLI11_PARSE(app, argc, argv);
 
   for ( size_t i = 0; i < hierarchy_str.size(); ++i )  {
     hierarchy_str[i] = hierarchy_str[i] == ':' ? ' ' : hierarchy_str[i];
