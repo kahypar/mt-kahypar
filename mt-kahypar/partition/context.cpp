@@ -521,11 +521,6 @@ namespace mt_kahypar {
 
     // Set correct gain policy type
     setupGainPolicy();
-
-    if ( partition.preset_type == PresetType::large_k ) {
-      // Silently switch to deep multilevel scheme for large k partitioning
-      partition.mode = Mode::deep_multilevel;
-    }
   }
 
   void Context::setupThreadsPerFlowSearch() {
