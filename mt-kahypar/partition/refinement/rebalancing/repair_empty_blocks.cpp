@@ -61,6 +61,35 @@ void RepairEmtpyBlocks<GraphAndGainTypes>::computeEmptyParts(PartitionedHypergra
       _empty_parts.push_back(block);
     }
   }
+
+  const auto& max_weights = _context.partition.max_part_weights;
+  if (!_empty_parts.empty() && _context.partition.use_individual_part_weights) {
+    // We sort the empty parts, so that
+    // (1) we can determine which parts to skip for degree zero nodes
+    // (2) computeBestMovesBlockIndependent can maintain the invariant that the last entry
+    // of best_move_for_part is the worst move in the list. This invariant could be broken
+    // if a node does not fit in a block (unlikely, but possible) and therefore "skips"
+    // a part of the list. However, by sorting descending by part weight, this can't happen
+    // since a move at position i + 1 is guaranteed to also fit in position i, and thus
+    // can not be better than the move at position i (or it would be placed there).
+    std::sort(_empty_parts.begin(), _empty_parts.end(), [&](PartitionID lhs, PartitionID rhs) {
+      // deterministic tie breaking
+      return max_weights[lhs] > max_weights[rhs] || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
+    });
+  }
+
+  if (!_empty_parts.empty() && phg.numRemovedHypernodes() > 0) {
+    // since some of the blocks can be filled by degree zero nodes at the end, we can throw
+    // out all blocks that can be filled in this way
+    HypernodeWeight max_removed_weight = phg.maxWeightOfRemovedDegreeZeroNode();
+    size_t last_fitting = 0;
+    while (last_fitting < _empty_parts.size()
+           && max_removed_weight <= max_weights[_empty_parts[last_fitting]]) {
+      ++last_fitting;
+    }
+    size_t start = (phg.numRemovedHypernodes() >= last_fitting) ? 0 : last_fitting - phg.numRemovedHypernodes();
+    _empty_parts.erase(_empty_parts.begin() + start, _empty_parts.begin() + last_fitting);
+  }
 }
 
 template <typename GraphAndGainTypes>
@@ -72,20 +101,6 @@ void RepairEmtpyBlocks<GraphAndGainTypes>::computeBestMovesBlockIndependent(Part
     tbb::enumerable_thread_specific<vec<Move>> local_best_move_for_part(_empty_parts.size(), Move{});
     _global_best_move_for_part.clear();
     _global_best_move_for_part.resize(_empty_parts.size(), Move{});
-
-    if (_context.partition.use_individual_part_weights) {
-      // We sort the empty parts, so that we can maintain the invariant that the last entry
-      // of best_move_for_part is the worst move in the list. This invariant could be broken
-      // if a node does not fit in a block (unlikely, but possible) and therefore "skips"
-      // a part of the list. However, by sorting descending by part weight, this can't happen
-      // since a move at position i + 1 is guaranteed to also fit in position i, and thus
-      // can not be better than the move at position i (or it would be placed there).
-      const auto& max_weights = _context.partition.max_part_weights;
-      std::sort(_empty_parts.begin(), _empty_parts.end(), [&](PartitionID lhs, PartitionID rhs) {
-        // deterministic tie breaking
-        return max_weights[lhs] > max_weights[rhs] || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
-      });
-    }
 
     auto insert_move_into_list = [&](Move& current_move, vec<Move>& move_for_part) {
       // TODO: change back to reference, remove assertion below?
