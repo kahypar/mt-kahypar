@@ -413,6 +413,7 @@ class DynamicHypergraph {
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
     _removed_degree_zero_hn_weight(0),
+    _max_removed_degree_zero_hn_weight(0),
     _num_hyperedges(0),
     _num_removed_hyperedges(0),
     _max_edge_size(0),
@@ -441,6 +442,7 @@ class DynamicHypergraph {
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
     _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
+    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
     _num_hyperedges(other._num_hyperedges),
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
@@ -470,6 +472,7 @@ class DynamicHypergraph {
     _num_hyperedges = other._num_hyperedges;
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
+    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
@@ -511,6 +514,11 @@ class DynamicHypergraph {
   // ! Weight of removed degree zero vertics
   HypernodeWeight weightOfRemovedDegreeZeroVertices() const {
     return _removed_degree_zero_hn_weight;
+  }
+
+  // ! Max weight of removed degree zero vertex
+  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+    return _max_removed_degree_zero_hn_weight;
   }
 
   // ! Initial number of hyperedges
@@ -662,6 +670,8 @@ class DynamicHypergraph {
     ASSERT(nodeDegree(u) == 0);
     removeHypernode(u);
     _removed_degree_zero_hn_weight += nodeWeight(u);
+    _max_removed_degree_zero_hn_weight =
+      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
   }
 
   // ! Restores a degree zero hypernode
@@ -669,6 +679,7 @@ class DynamicHypergraph {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
     _removed_degree_zero_hn_weight -= nodeWeight(u);
+    _max_removed_degree_zero_hn_weight = 0;
   }
 
   // ####################### Hyperedge Information #######################
@@ -1116,6 +1127,7 @@ class DynamicHypergraph {
   HypernodeID _num_removed_hypernodes;
   // ! Number of removed degree zero hypernodes
   HypernodeWeight _removed_degree_zero_hn_weight;
+  HypernodeWeight _max_removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
