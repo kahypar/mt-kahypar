@@ -278,6 +278,11 @@ private:
     return _hg->numRemovedHypernodes();
   }
 
+  // ! Max weight of removed degree zero vertex
+  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+    return _hg->maxWeightOfRemovedDegreeZeroNode();
+  }
+
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _hg->initialNumEdges();
