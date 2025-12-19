@@ -175,7 +175,7 @@ int main(int argc, char* argv[]) {
             << " k=" << context.partition.k
             << " epsilon=" << context.partition.epsilon
             << " seed=" << context.partition.seed
-            << " imbalance=" << metrics::imbalance(partitioned_hg, context)
+            << " imbalance=" << metrics::imbalance(partitioned_hg, context).imbalance_value
             << " steiner_tree=" << metrics::quality(partitioned_hg, Objective::steiner_tree)
             << " approximation_factor=" << metrics::approximationFactorForProcessMapping(partitioned_hg, context)
             << " cut=" << metrics::quality(partitioned_hg, Objective::cut)

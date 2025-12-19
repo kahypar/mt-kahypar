@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
   std::cout << "RESULT"
             << " graph=" << context.partition.graph_filename
             << " k=" << context.partition.k
-            << " imbalance=" << metrics::imbalance(phg, context)
+            << " imbalance=" << metrics::imbalance(phg, context).imbalance_value
             << " cut=" << metrics::quality(phg, Objective::cut)
             << " km1=" << metrics::quality(phg, Objective::km1) << std::endl;
 
