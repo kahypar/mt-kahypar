@@ -316,10 +316,11 @@ namespace mt_kahypar::io {
                                 const Context& context,
                                 const std::string& description) {
     if (context.partition.enable_logging) {
+      BalanceMetrics imbalance = metrics::imbalance(hypergraph, context);
       LOG << description;
       LOG << context.partition.objective << "      ="
           << metrics::quality(hypergraph, context);
-      LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
+      LOG << "imbalance =" << imbalance.imbalance_value;
       if (context.partition.verbose_logging) {
         LOG << "Part sizes and weights:";
         io::printPartWeightsAndSizes(hypergraph, context);
@@ -437,7 +438,11 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::soed && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::soed, metrics::quality(hypergraph, Objective::soed));
     }
-    printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
+    BalanceMetrics imbalance = metrics::imbalance(hypergraph, context);
+    printKeyValue("Imbalance", imbalance.imbalance_value);
+    if ( context.partition.verbose_logging && !context.partition.allow_empty_blocks ) {
+      printKeyValue("Has Empty Blocks", imbalance.violates_non_empty_blocks ? "true" : "false");
+    }
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
   }
 
