@@ -457,6 +457,7 @@ class StaticGraph {
   explicit StaticGraph() :
     _num_nodes(0),
     _num_removed_nodes(0),
+    _max_removed_degree_zero_hn_weight(0),
     _num_edges(0),
     _total_weight(0),
     _nodes(),
@@ -472,6 +473,7 @@ class StaticGraph {
   StaticGraph(StaticGraph&& other) :
     _num_nodes(other._num_nodes),
     _num_removed_nodes(other._num_removed_nodes),
+    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
     _nodes(std::move(other._nodes)),
@@ -487,6 +489,7 @@ class StaticGraph {
   StaticGraph & operator= (StaticGraph&& other) {
     _num_nodes = other._num_nodes;
     _num_removed_nodes = other._num_removed_nodes;
+    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
     _num_edges = other._num_edges;
     _total_weight = other._total_weight;
     _nodes = std::move(other._nodes);
@@ -518,6 +521,11 @@ class StaticGraph {
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
     return _num_removed_nodes;
+  }
+
+  // ! Max weight of removed degree zero vertex
+  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+    return _max_removed_degree_zero_hn_weight;
   }
 
   // ! Initial number of hyperedges
@@ -630,12 +638,15 @@ class StaticGraph {
     ASSERT(nodeDegree(u) == 0);
     node(u).disable();
     ++_num_removed_nodes;
+    _max_removed_degree_zero_hn_weight =
+      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     node(u).enable();
     ASSERT(nodeDegree(u) == 0);
+    _max_removed_degree_zero_hn_weight = 0;
   }
 
   // ####################### Hyperedge Information #######################
@@ -930,6 +941,7 @@ class StaticGraph {
   HypernodeID _num_nodes;
   // ! Number of removed nodes
   HypernodeID _num_removed_nodes;
+  HypernodeWeight _max_removed_degree_zero_hn_weight;
   // ! Number of edges (note that each hyperedge is respresented as two graph edges)
   HyperedgeID _num_edges;
   // ! Total weight of the graph
