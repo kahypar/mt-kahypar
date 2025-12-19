@@ -207,6 +207,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
         return false;
       }
     }
+    return true;
   }(), "Clustering calculated wrong cluster-weights/opportunistic-cluster-weights");
 }
 
