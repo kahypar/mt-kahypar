@@ -141,7 +141,9 @@ class UncoarsenerBase {
   }
 
   void applyRebalancing() {
-    const bool logging = _context.partition.enable_logging && _context.partition.verbose_logging;
+    const bool logging = _context.partition.enable_logging
+      && _context.partition.verbose_logging
+      && _context.type == ContextType::main;
     const HyperedgeWeight quality_before = _current_metrics.quality;
     if (logging) {
       LOG << RED << "Partition is imbalanced (Current Imbalance:"
