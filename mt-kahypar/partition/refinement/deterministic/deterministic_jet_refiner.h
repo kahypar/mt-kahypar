@@ -69,7 +69,6 @@ public:
     _current_k(context.partition.k),
     _top_level_num_nodes(num_hypernodes),
     _current_partition_is_best(true),
-    _was_already_balanced(false),
     _negative_gain_factor(0.0),
     _active_nodes(),
     _tmp_active_nodes(),
@@ -128,7 +127,6 @@ private:
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
-  bool _was_already_balanced;
   double _negative_gain_factor;
   ActiveNodes _active_nodes;
   ds::StreamingVector<HypernodeID> _tmp_active_nodes;

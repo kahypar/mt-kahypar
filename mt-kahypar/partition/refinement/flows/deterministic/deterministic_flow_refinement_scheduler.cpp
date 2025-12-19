@@ -120,7 +120,7 @@ bool DeterministicFlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahy
         _quotient_graph.addNewCutHyperedge(phg, hyperedge.he, hyperedge.block);
       });
       num_scheduled_blocks = _schedule.getNextMatching(scheduled_blocks);
-      ASSERT(metrics::isBalanced(phg, _context));
+      ASSERT(!best_metrics.imbalance.isValidPartition() || metrics::isValidPartition(phg, _context));
     }
     overall_delta += round_delta;
     current_metrics.quality -= round_delta;
