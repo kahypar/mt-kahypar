@@ -27,13 +27,36 @@
 
 #pragma once
 
+#include <iostream>
+#include <limits>
+
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
+struct BalanceMetrics {
+  double imbalance_value = std::numeric_limits<double>::max();
+  bool violates_balance = true;
+  bool violates_non_empty_blocks = true;
+
+  bool isValidPartition() const;
+
+  bool isBetter(const BalanceMetrics& other) const;
+
+  bool isEqual(const BalanceMetrics& other) const;
+
+  bool operator==(const BalanceMetrics& other) const;
+};
+
+std::ostream& operator<< (std::ostream& os, const BalanceMetrics& imbalance);
+
 struct Metrics {
   HyperedgeWeight quality;
-  double imbalance;
+  BalanceMetrics imbalance;
+
+  bool isBetter(const Metrics& other) const;
+
+  bool isEqual(const Metrics& other) const;
 };
 
 namespace metrics {
@@ -55,10 +78,10 @@ HyperedgeWeight contribution(const PartitionedHypergraph& hg,
                              const Objective objective);
 
 template<typename PartitionedHypergraph>
-bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
+bool isValidPartition(const PartitionedHypergraph& phg, const Context& context);
 
 template<typename PartitionedHypergraph>
-double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
 template<typename PartitionedHypergraph>
 double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);

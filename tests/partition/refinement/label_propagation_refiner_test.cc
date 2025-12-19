@@ -191,13 +191,13 @@ TYPED_TEST_SUITE(ALabelPropagationRefiner, TestConfigs);
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-  ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
+  ASSERT_LE(this->metrics.imbalance.imbalance_value, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {

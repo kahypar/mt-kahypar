@@ -248,7 +248,7 @@ namespace mt_kahypar {
   void NLevelUncoarsener<TypeTraits>::rebalancingImpl() {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
-    if ( _context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if ( _context.type == ContextType::main && !metrics::isValidPartition(*_uncoarseningData.partitioned_hg, _context)) {
       Base::applyRebalancing();
     }
   }
