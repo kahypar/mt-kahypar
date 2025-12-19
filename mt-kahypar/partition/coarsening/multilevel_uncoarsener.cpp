@@ -101,6 +101,9 @@ namespace mt_kahypar {
       partitioned_hg.initializePartition();
       _timer.stop_timer("projecting_partition");
 
+      // some imbalance constraints (empty blocks) can be different on top level
+      _current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
+
       // Improve partition
       IUncoarsener<TypeTraits>::refine();
 
