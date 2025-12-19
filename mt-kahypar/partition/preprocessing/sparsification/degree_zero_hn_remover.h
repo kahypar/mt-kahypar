@@ -79,7 +79,12 @@ class DegreeZeroHypernodeRemover {
       });
     // Sort blocks of partition in increasing order of their weight
     auto distance_to_max = [&](const PartitionID block) {
-      return hypergraph.partWeight(block) - _context.partition.max_part_weights[block];
+      if (!_context.partition.allow_empty_blocks && hypergraph.partWeight(block) == 0) {
+        // repairing empty blocks gets highest priority
+        return -(_context.partition.max_part_weights[block] + hypergraph.totalWeight());
+      } else {
+        return hypergraph.partWeight(block) - _context.partition.max_part_weights[block];
+      }
     };
     parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
     std::iota(blocks.begin(), blocks.end(), 0);
