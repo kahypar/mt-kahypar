@@ -279,6 +279,7 @@ namespace mt_kahypar {
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
                                                             vec<vec<Move>>& rebalancing_moves_by_part) {
+    // TODO: how to handle moves to empty blocks?
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
