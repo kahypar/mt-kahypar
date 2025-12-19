@@ -102,12 +102,12 @@ static constexpr double EPS = 0.05;
 
 TEST_F(ATwoWayFmRefiner, UpdatesImbalanceCorrectly) {
   refiner->refine(metrics, *prng);
-  ASSERT_DOUBLE_EQ(metrics::imbalance(partitioned_hypergraph, context), metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(partitioned_hypergraph, context), metrics.imbalance);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesNotViolateBalanceConstraint) {
   refiner->refine(metrics, *prng);
-  ASSERT_LE(metrics.imbalance, context.partition.epsilon + EPS);
+  ASSERT_LE(metrics.imbalance.imbalance_value, context.partition.epsilon + EPS);
 }
 
 TEST_F(ATwoWayFmRefiner, UpdatesMetricsCorrectly) {

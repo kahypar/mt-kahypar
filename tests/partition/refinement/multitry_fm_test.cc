@@ -70,6 +70,7 @@ class MultiTryFMTest : public Test {
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
+    context.partition.allow_empty_blocks = true;
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
       PresetType::default_preset : PresetType::highest_quality;
@@ -164,14 +165,14 @@ TYPED_TEST_SUITE(MultiTryFMTest, TestConfigs);
 TYPED_TEST(MultiTryFMTest, UpdatesImbalanceCorrectly) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 
 TYPED_TEST(MultiTryFMTest, DoesNotViolateBalanceConstraint) {
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
   this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-  ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
+  ASSERT_TRUE(this->metrics.imbalance.isValidPartition());
 }
 
 TYPED_TEST(MultiTryFMTest, UpdatesMetricsCorrectly) {
@@ -197,8 +198,8 @@ TYPED_TEST(MultiTryFMTest, AlsoWorksWithNonDefaultFeatures) {
   ASSERT_LE(this->metrics.quality, objective_before);
   ASSERT_EQ(metrics::quality(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.quality);
-  ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  ASSERT_TRUE(this->metrics.imbalance.isValidPartition());
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(MultiTryFMTest, WorksWithRefinementNodes) {
@@ -212,8 +213,8 @@ TYPED_TEST(MultiTryFMTest, WorksWithRefinementNodes) {
   ASSERT_LE(this->metrics.quality, objective_before);
   ASSERT_EQ(metrics::quality(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.quality);
-  ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  ASSERT_TRUE(this->metrics.imbalance.isValidPartition());
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 
   std::stringstream buffer;
   std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());  // redirect std::cout to discard output

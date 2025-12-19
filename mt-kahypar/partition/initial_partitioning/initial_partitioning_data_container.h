@@ -62,23 +62,17 @@ class InitialPartitioningDataContainer {
     PartitioningResult(InitialPartitioningAlgorithm algorithm,
                        HyperedgeWeight objective_ip,
                        HyperedgeWeight objective,
-                       double imbalance) :
+                       BalanceMetrics imbalance) :
       _algorithm(algorithm),
       _objective_ip(objective_ip),
       _objective(objective),
       _imbalance(imbalance) { }
 
-    bool is_other_better(const PartitioningResult& other, const double epsilon) const {
-      bool equal_metric = other._objective == _objective;
-      bool improved_metric = other._objective < _objective;
-      bool improved_imbalance = other._imbalance < _imbalance;
-      bool is_feasible = _imbalance <= epsilon;
-      bool is_other_feasible = other._imbalance <= epsilon;
-      return ( improved_metric && (is_other_feasible || improved_imbalance) ) ||
-             ( equal_metric && improved_imbalance ) ||
-             ( is_other_feasible && !is_feasible ) ||
-             ( improved_imbalance && !is_other_feasible && !is_feasible ) ||
-             ( equal_metric && _imbalance == other._imbalance     // tie breaking for deterministic mode
+    bool is_other_better(const PartitioningResult& other) const {
+      Metrics my_metric{_objective, _imbalance};
+      Metrics other_metric{other._objective, other._imbalance};
+      return other_metric.isBetter(my_metric) ||
+             ( other_metric.isEqual(my_metric)     // tie breaking for deterministic mode
                 && std::tie(other._random_tag, other._deterministic_tag) < std::tie(_random_tag, _deterministic_tag) );
     }
 
@@ -94,7 +88,7 @@ class InitialPartitioningDataContainer {
     InitialPartitioningAlgorithm _algorithm = InitialPartitioningAlgorithm::UNDEFINED;
     HyperedgeWeight _objective_ip = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight _objective = std::numeric_limits<HyperedgeWeight>::max();
-    double _imbalance = std::numeric_limits<double>::max();
+    BalanceMetrics _imbalance;
     size_t _random_tag = std::numeric_limits<size_t>::max();
     size_t _deterministic_tag = std::numeric_limits<size_t>::max();
   };
@@ -202,7 +196,7 @@ class InitialPartitioningDataContainer {
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HyperedgeWeight>::max(),
               std::numeric_limits<HyperedgeWeight>::max(),
-              std::numeric_limits<double>::max()),
+              BalanceMetrics()),
       _gain_cache(GainCachePtr::constructGainCache(context)),
       _rebalancer(nullptr),
       _label_propagation(nullptr),
@@ -255,7 +249,7 @@ class InitialPartitioningDataContainer {
       ++_stats[algorithm_index].total_calls;
 
       _global_stats.add_run(algorithm, current_metric.quality,
-        current_metric.imbalance <= _context.partition.epsilon);
+        current_metric.imbalance.isValidPartition());
 
       return result;
     }
@@ -290,7 +284,7 @@ class InitialPartitioningDataContainer {
       auto refined = performRefinementOnPartition(_partition, _result, prng);
 
       // Compare current best partition with refined partition
-      if ( _result.is_other_better(refined, _context.partition.epsilon) ) {
+      if ( _result.is_other_better(refined) ) {
         for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
           const PartitionID part_id = _partitioned_hypergraph.partID(hn);
           ASSERT(hn < _partition.size());
@@ -495,20 +489,19 @@ class InitialPartitioningDataContainer {
     // already commits the result if non-deterministic
     auto& my_ip_data = _local_hg.local();
     auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
-    const double eps = _context.partition.epsilon;
 
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
       my_result._deterministic_tag = deterministic_tag;
       PartitioningResult worst_in_population = _best_partitions[0].first;
-      if (worst_in_population.is_other_better(my_result, eps)) {
+      if (worst_in_population.is_other_better(my_result)) {
         _pop_lock.lock();
         worst_in_population = _best_partitions[0].first;
-        if (worst_in_population.is_other_better(my_result, eps)) {
+        if (worst_in_population.is_other_better(my_result)) {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[0].second);
-          auto comp = [&](const auto& l, const auto& r) { return r.first.is_other_better(l.first, eps); };
+          auto comp = [&](const auto& l, const auto& r) { return r.first.is_other_better(l.first); };
           assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
           _best_partitions[0].first = my_result;
           std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
@@ -517,7 +510,7 @@ class InitialPartitioningDataContainer {
         _pop_lock.unlock();
       }
     } else {
-      if (my_ip_data._result.is_other_better(my_result, eps)) {
+      if (my_ip_data._result.is_other_better(my_result)) {
         my_ip_data._result = my_result;
         my_ip_data.copyPartition(my_ip_data._partition);
       }
@@ -554,7 +547,7 @@ class InitialPartitioningDataContainer {
 
       // bring them in a deterministic order
       std::sort(_best_partitions.begin(), _best_partitions.end(), [&](const auto& l, const auto& r) {
-        return r.first.is_other_better(l.first, _context.partition.epsilon);
+        return r.first.is_other_better(l.first);
       });
 
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
@@ -568,7 +561,7 @@ class InitialPartitioningDataContainer {
           refined._deterministic_tag = my_objectives._deterministic_tag;
           refined._random_tag = my_objectives._random_tag;
 
-          if (my_objectives.is_other_better(refined, _context.partition.epsilon)) {
+          if (my_objectives.is_other_better(refined)) {
             for (HypernodeID node : my_phg.nodes()) {
               my_partition[node] = my_phg.partID(node);
             }
@@ -585,7 +578,7 @@ class InitialPartitioningDataContainer {
 
       size_t best_index = 0;
       for (size_t i = 1; i < _best_partitions.size(); ++i) {
-        if (_best_partitions[best_index].first.is_other_better(_best_partitions[i].first, _context.partition.epsilon) ) {
+        if (_best_partitions[best_index].first.is_other_better(_best_partitions[i].first) ) {
           best_index = i;
         }
       }
@@ -621,14 +614,14 @@ class InitialPartitioningDataContainer {
       for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
         ++number_of_threads;
         partition.aggregate_stats(stats);
-        if ( !best || best->_result.is_other_better(partition._result, _context.partition.epsilon) ) {
+        if ( !best || best->_result.is_other_better(partition._result) ) {
           best = &partition;
         }
-        if ( !worst || !worst->_result.is_other_better(partition._result, _context.partition.epsilon) ) {
+        if ( !worst || !worst->_result.is_other_better(partition._result) ) {
           worst = &partition;
         }
-        if ( !best_imbalance || best_imbalance->_result._imbalance > partition._result._imbalance ||
-             (best_imbalance->_result._imbalance == partition._result._imbalance &&
+        if ( !best_imbalance || partition._result._imbalance.isBetter(best_imbalance->_result._imbalance) ||
+             (best_imbalance->_result._imbalance.isEqual(partition._result._imbalance) &&
               best_objective->_result._objective > partition._result._objective)) {
           best_imbalance = &partition;
         }
