@@ -137,7 +137,7 @@ namespace mt_kahypar {
                              num_tasks, num_seeds, round);
       timer.stop_timer("find_moves");
 
-      if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
+      if (is_unconstrained && !metrics::imbalance(phg, context, max_part_weights).isValidPartition()) {
         vec<vec<Move>> moves_by_part;
 
         // compute rebalancing moves

@@ -67,7 +67,6 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
 
   parallel::scalable_vector<HypernodeID> performed_moves;
   HyperedgeWeight current_cut = best_metrics.quality;
-  double current_imbalance = best_metrics.imbalance;
   size_t min_cut_idx = 0;
   StopRule stopping_rule(_phg.initialNumNodes());
   while ( !_pq.empty() && !stopping_rule.searchShouldStop() ) {
@@ -117,29 +116,18 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
       performed_moves.push_back(hn);
       DBG << "Moved hypernode" << hn << "from block" << from << "to block" << to << "with gain" << gain;
       current_cut -= gain;
-      current_imbalance = metrics::imbalance(_phg, _context);
       stopping_rule.update(gain);
 
-      const bool improved_cut_within_balance = (current_cut < best_metrics.quality) &&
-                                                ( _phg.partWeight(0)
-                                                  <= _context.partition.max_part_weights[0]) &&
-                                                ( _phg.partWeight(1)
-                                                  <= _context.partition.max_part_weights[1]);
-      const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
-                                                  (current_cut <= best_metrics.quality);
-      const bool move_is_feasible = ( _phg.partWeight(from) > 0) &&
-                                    ( improved_cut_within_balance ||
-                                      improved_balance_less_equal_cut );
-      if ( move_is_feasible ) {
+      Metrics current_metrics{current_cut, metrics::imbalance(_phg, _context)};
+      if ( current_metrics.isBetter(best_metrics) ) {
         DBG << GREEN << "2Way FM improved cut from" << best_metrics.quality << "to" << current_cut
-            << "(Imbalance:" << current_imbalance << ")" << END;
+            << "(Imbalance:" << current_metrics.imbalance << ")" << END;
         stopping_rule.reset();
-        best_metrics.quality = current_cut;
-        best_metrics.imbalance = current_imbalance;
+        best_metrics = current_metrics;
         min_cut_idx = performed_moves.size();
       } else {
         DBG << RED << "2Way FM decreased cut to" << current_cut
-            << "(Imbalance:" << current_imbalance << ")" << END;
+            << "(Imbalance:" << current_metrics.imbalance << ")" << END;
       }
     }
   }

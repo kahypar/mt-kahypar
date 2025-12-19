@@ -117,7 +117,7 @@ class UncoarsenerBase {
     if ( _context.partition.objective != Objective::km1 ) {
       stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
     }
-    stats.add_stat("initial_imbalance", m.imbalance);
+    stats.add_stat("initial_imbalance", m.imbalance.imbalance_value);
     return m;
   }
 
@@ -147,7 +147,7 @@ class UncoarsenerBase {
     const HyperedgeWeight quality_before = _current_metrics.quality;
     if (logging) {
       LOG << RED << "Partition is imbalanced (Current Imbalance:"
-      << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
+      << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context).imbalance_value << ")" << END;
 
       LOG << "Part weights: (violations in red)";
       io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
@@ -170,10 +170,10 @@ class UncoarsenerBase {
         const HyperedgeWeight quality_delta = quality_after - quality_before;
         if (quality_delta > 0) {
           LOG << RED << "Rebalancer decreased solution quality by" << quality_delta
-          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
+          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context).imbalance_value << ")" << END;
         } else {
           LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
-          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
+          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context).imbalance_value << ")" << END;
         }
       }
     } else {
