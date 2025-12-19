@@ -33,6 +33,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
@@ -60,7 +61,6 @@ class LabelPropagationRefiner final : public IRefiner {
                                    GainCache& gain_cache,
                                    IRebalancer& rb) :
     _might_be_uninitialized(false),
-    _old_partition_is_balanced(true),
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
@@ -107,7 +107,7 @@ class LabelPropagationRefiner final : public IRefiner {
   void moveActiveNodes(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes);
 
   bool applyRebalancing(PartitionedHypergraph& hypergraph,
-                        Metrics& best_metrics,
+                        const Metrics& best_metrics,
                         Metrics& current_metrics,
                         vec<Move>& rebalance_moves);
 
@@ -196,7 +196,6 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   bool _might_be_uninitialized;
-  bool _old_partition_is_balanced;
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;

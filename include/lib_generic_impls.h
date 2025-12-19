@@ -350,7 +350,7 @@ double imbalance(mt_kahypar_partitioned_hypergraph_t p, const Context& context) 
     }
     Context c(context);
     c.setupPartWeights(phg.totalWeight());
-    return metrics::imbalance(phg, c);
+    return metrics::imbalance(phg, c).imbalance_value;
   });
 }
 

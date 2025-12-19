@@ -142,7 +142,7 @@ TYPED_TEST(DeterministicRebalancerTest, CanNotBeRebalanced) {
   metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
 }
 
 
@@ -192,7 +192,7 @@ TYPED_TEST(DeterministicRebalancerTest, MustMoveHeavyVertex) {
   metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
   for (PartitionID part = 0; part < this->context.partition.k; ++part) {
     ASSERT_LE(this->partitioned_hypergraph.partWeight(part), this->context.partition.max_part_weights[part]);
   }
@@ -222,7 +222,7 @@ TYPED_TEST(DeterministicRebalancerTest, ProducesBalancedResult) {
   metrics.imbalance = metrics::imbalance(this->partitioned_hypergraph, this->context);
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
+  ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), metrics.imbalance);
   for (PartitionID part = 0; part < this->context.partition.k; ++part) {
     ASSERT_LE(this->partitioned_hypergraph.partWeight(part), this->context.partition.max_part_weights[part]);
   }

@@ -201,8 +201,7 @@ TYPED_TEST_SUITE(AFlatInitialPartitionerTest, TestConfigs);
 TYPED_TEST(AFlatInitialPartitionerTest, HasValidImbalance) {
   this->execute();
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(AFlatInitialPartitionerTest, AssginsEachHypernode) {
@@ -235,8 +234,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVertices) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
@@ -250,8 +248,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 
