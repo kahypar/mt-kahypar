@@ -96,6 +96,7 @@ class MultiTryKWayFM final : public IRefiner {
                                  vec<MoveID>& current_rebalancing_move_index);
 
   bool isBalanced(const PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
+    // TODO: does not consider empty parts. Intentional?
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (phg.partWeight(i) > max_part_weights[i]) {
         return false;
