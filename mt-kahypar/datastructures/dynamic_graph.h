@@ -552,6 +552,13 @@ class DynamicGraph {
     _removed_degree_zero_hn_weight -= nodeWeight(u);
   }
 
+  bool isIncidentTo(const HypernodeID u, const HypernodeID v) {
+    for (HypernodeID node : incidentNodes(u)) {
+      if (node == v) return true;
+    }
+    return false;
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information

@@ -192,6 +192,11 @@ class MultilevelVertexPairRater {
             FixedVertexAcceptancePolicy::acceptContraction(
               hypergraph, fixed_vertices, _context, tmp_target, u);
         }
+        if (fixed_vertices.hasNegativeConstraints()) {
+          if (fixed_vertices.constraintExistsForPair(tmp_target, u)) {
+            accept_fixed_vertex_contraction = false;
+          }
+        }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
         if ( accept_fixed_vertex_contraction &&
@@ -204,7 +209,7 @@ class MultilevelVertexPairRater {
         }
       }
     }
-
+    
     VertexPairRating ret;
     if (max_rating != std::numeric_limits<RatingType>::min()) {
       ASSERT(target != std::numeric_limits<HypernodeID>::max(), "invalid contraction target");

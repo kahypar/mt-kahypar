@@ -2,6 +2,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
@@ -10,7 +11,7 @@
 namespace mt_kahypar::constraints {
 
 template<typename PartitionedHypergraph>
-bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context, const ds::DynamicGraph& constraint_graph) {
+bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
   vec<std::pair<HypernodeID, HypernodeID>> constraints;
   io::readNegativeConstraintsFile(context.partition.negative_constraints_filename, constraints);
   for (std::pair<HypernodeID, HypernodeID> constraint : constraints) {
@@ -19,29 +20,29 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
     }
   }
   return true;
-  //old
-  bool constrains_respected = true;
-  for (const auto& node : constraint_graph.nodes()) {
-    HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
-    PartitionID partition = partitioned_hg.partID(node_id);
-    for (HypernodeID neighbor : constraint_graph.incidentNodes(node)) {
-      if (partitioned_hg.partID(constraint_graph.nodeWeight(neighbor)) == partition) {
-        constrains_respected = false;
-      }
-    }
-  }
-  return constrains_respected;
 }
 
-template<typename PartitionedHypergraph>
-bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
-  return verifyConstraints(partitioned_hg, context, partitioned_hg.fixedVertexSupport().getConstraintGraph());
+template<typename Hypergraph>
+bool verifyConstraints(const Hypergraph& hg) {
+  const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = hg.fixedVertexSupport();
+  for (const auto& constraint : fixed_vertex_support.getConstraints()) {
+    HypernodeID u;
+    HypernodeID v;
+    if (fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.first, u) && fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.second, v)) {
+      // constraint between u and v exists, but they are contracted together
+      if (u == v) return false;
+    } else {
+      // ohne of the nodes was not found in
+      throw std::logic_error("Node is in constraints but not in _hypergraph_id_to_graph_id mapping");
+      return false;}
+  }
+  return true;
 }
 
 template<typename PartitionedHypergraph>
   PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg,
                                   const Context& context,
-                                  const HypernodeID& node_id, 
+                                  const HypernodeID& node_id,
                                   const vec<bool>& is_partition_invalid,
                                   const Km1GainCache& concrete_gain_cache) {
     PartitionID best_partition = partitioned_hg.partID(999);
@@ -88,7 +89,6 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
      * -> get all partitionIDs 
      * -> move node_id in different partition if nessesary
      */
-    using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
     gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
     Km1GainCache& concrete_gain_cache = GainCachePtr::cast<Km1GainCache>(gain_cache);
     concrete_gain_cache.initializeGainCache(partitioned_hg);
@@ -121,14 +121,14 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
     LOG << "";
     LOG << "Verify if constraints are respected:";
     LOG << "";
-    LOG << (verifyConstraints(partitioned_hg, context,constraint_graph)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
+    LOG << (verifyConstraints(partitioned_hg, context)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
 
     Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
     rebalancer->initialize(phg);
     rebalancer->refine(phg, {}, metrics, 0.0);
     GainCachePtr::deleteGainCache(gain_cache);
-    LOG << (verifyConstraints(partitioned_hg, context,constraint_graph)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
+    LOG << (verifyConstraints(partitioned_hg, context)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
     LOG << "";
 }
 

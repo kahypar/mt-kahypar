@@ -480,7 +480,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
 
-    if ( hasFixedVertices() ) {
+    if ( hasFixedVertices() || hasNegativeConstraints()) {
       // Map fixed vertices to coarse hypergraph
       FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
         hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
@@ -490,6 +490,25 @@ namespace mt_kahypar::ds {
           coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
         }
       });
+      if (hasNegativeConstraints()) {
+        // remap constraints and add new constraint graph
+        vec<std::pair<HypernodeID, HypernodeID>> constraints = _fixed_vertices.getConstraintsCopy();
+        tbb::parallel_for(
+          size_t(0),
+          constraints.size(),
+          [&](size_t i) {
+            auto& constraint = constraints[i];
+            ASSERT(communities[constraint.first] != communities[constraint.second], "Error: nodes are in constraints but get contracted" 
+              << constraint.first << constraint.second << "to" << communities[constraint.first] << communities[constraint.second]);
+            constraint = {
+              communities[constraint.first],
+              communities[constraint.second]
+            };
+          }
+        );
+        coarse_fixed_vertices.setNegativeConstraints(constraints);
+      }
+
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 

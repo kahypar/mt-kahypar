@@ -37,7 +37,7 @@
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "include/mtkahypartypes.h"
-
+#include "mt-kahypar/partition/constraints.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -170,6 +170,9 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeID num_hns_before_pass =
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = 0;
+    if (!current_hg.hasNegativeConstraints()) { // TODO: remove loging
+      LOG << "lost negative constraints";
+    }
     if ( current_hg.hasFixedVertices() ) {
       current_num_nodes = performClustering<true>(current_hg, cluster_ids);
     } else {
@@ -330,6 +333,9 @@ class MultilevelCoarsener : public ICoarsener,
         return true;
       }(), "Fixed vertex support is corrupted");
     }
+    if (current_hg.hasNegativeConstraints()) {
+      LOG << (constraints::verifyConstraints(current_hg)? "constraints met" : "constraints disrespected");
+    }
 
     return num_hns_before_pass - contracted_nodes.combine(std::plus<>());
   }
@@ -459,7 +465,7 @@ class MultilevelCoarsener : public ICoarsener,
     return success;
   }
 
-  template<bool has_fixed_vertices>
+  template<bool has_fixed_vertices> // TODO: make has negative constraints template
   bool joinCluster(const Hypergraph& hypergraph,
                    const HypernodeID u,
                    const HypernodeID rep,
@@ -476,6 +482,9 @@ class MultilevelCoarsener : public ICoarsener,
       if ( cluster_join_operation_allowed ) {
         cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
       }
+    }
+    if (hypergraph.hasNegativeConstraints() && cluster_join_operation_allowed ) {
+      cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
     }
     if ( cluster_join_operation_allowed ) {
       cluster_ids[u] = rep;
