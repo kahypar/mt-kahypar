@@ -183,7 +183,7 @@ namespace rb {
   template<typename Hypergraph>
   void setupFixedVerticesForBipartitioning(Hypergraph& hg,
                                            const PartitionID k) {
-    if ( hg.hasFixedVertices() ) {
+    if ( hg.hasFixedVertices() ) {// constraints übernehmen
       const PartitionID m = k / 2 + (k % 2);
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2);
       fixed_vertices.setHypergraph(&hg);
@@ -203,9 +203,9 @@ namespace rb {
   template<typename Hypergraph>
   void setupFixedVerticesForRecursion(const Hypergraph& input_hg,
                                       Hypergraph& extracted_hg,
-                                      const vec<HypernodeID>& input2extracted,
+                                      const vec<HypernodeID>& input2extracted,//neue knoten ids
                                       const PartitionID k0,
-                                      const PartitionID k1) {
+                                      const PartitionID k1) {//unterscheiden in welchem teil
     if ( input_hg.hasFixedVertices() ) {
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(
         extracted_hg.initialNumNodes(), k1 - k0);

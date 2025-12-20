@@ -44,7 +44,7 @@ void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
         // Randomly select a block to assign the hypernode
         PartitionID block = select_random_block(_rng);
         PartitionID current_block = block;
-        while ( !fitsIntoBlock(hg, hn, current_block) ) {
+        while ( !fitsIntoBlock(hg, hn, current_block) ) {//TODO: constraints checken
           // If the hypernode does not fit into the random selected block
           // (because it would violate the balance constraint), we try to
           // assign it to the next block.
