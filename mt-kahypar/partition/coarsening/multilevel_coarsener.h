@@ -170,9 +170,9 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeID num_hns_before_pass =
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = 0;
-    if (current_hg.hasNegativeConstraints()) { // TODO: remove loging
+    if (!current_hg.hasNegativeConstraints()) { // TODO: remove loging
+      LOG << "lost negative constraints";
     }
-    else LOG << "lost negative constraints";
     if ( current_hg.hasFixedVertices() ) {
       current_num_nodes = performClustering<true>(current_hg, cluster_ids);
     } else {
@@ -217,9 +217,7 @@ class MultilevelCoarsener : public ICoarsener,
 
     _timer.start_timer("contraction", "Contraction");
     // Perform parallel contraction
-    LOG << (constraints::verifyConstraints(current_hg)? "constraints met" : "constraints disrespected") << "before contraction";
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), false /* deterministic */, round_start);
-    LOG << (constraints::verifyConstraints(Base::currentHypergraph())? "constraints met" : "constraints disrespected") << "after contraction";
     _timer.stop_timer("contraction");
 
     ++_pass_nr;
@@ -298,7 +296,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _timer.stop_timer("clustering");
 
-    if constexpr ( has_fixed_vertices ) { // constraints checken
+    if constexpr ( has_fixed_vertices ) {
       // Verify fixed vertices
       ASSERT([&] {
         vec<PartitionID> fixed_vertex_blocks(current_hg.initialNumNodes(), kInvalidPartition);
@@ -485,15 +483,8 @@ class MultilevelCoarsener : public ICoarsener,
         cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
       }
     }
-    if (hypergraph.hasNegativeConstraints()) {
-      HypernodeID dummy;
-      if ( cluster_join_operation_allowed && fixed_vertices.getConstraintIdFromHypergraphId(u, dummy) && fixed_vertices.getConstraintIdFromHypergraphId(rep, dummy) ) {
-        if (fixed_vertices.constraintExistsForPair(u,rep)) {
-          cluster_join_operation_allowed = false;
-        } else {
-          cluster_join_operation_allowed = fixed_vertices.contract(rep, u); // ist es hier richtig die zu contracten oder muss man die hier registrieren?
-        }
-      }
+    if (hypergraph.hasNegativeConstraints() && cluster_join_operation_allowed ) {
+      cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
     }
     if ( cluster_join_operation_allowed ) {
       cluster_ids[u] = rep;

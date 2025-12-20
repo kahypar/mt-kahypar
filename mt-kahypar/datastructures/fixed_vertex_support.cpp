@@ -88,6 +88,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
   bool success = true;
   bool u_becomes_fixed = false;
   bool v_becomes_fixed = false;
+  bool maybe_negative_constraints = false;
   const bool is_fixed_v = isFixed(v);
   const HypernodeWeight weight_of_u = _hg->nodeWeight(u);
   const HypernodeWeight weight_of_v = _hg->nodeWeight(v);
@@ -122,11 +123,15 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
       success = false;
     }
   } else if (hasNegativeConstraints()) {
-    HypernodeID u1;
-    HypernodeID v1;
-    // if both nodes are in the constraint graph
-    if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
-      // and no neighbors
+    maybe_negative_constraints = true;
+    HypernodeID u1 = u;
+    HypernodeID v1 = v;
+    // if v is in constraints and u not, dont contract it in u for now.
+    // TODO: contract them but change all occurencies of v to u in constraints
+    if (getConstraintIdFromHypergraphId(v, v1) && !getConstraintIdFromHypergraphId(u, u1)) {
+      success = false;
+    } else if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
+      // if both nodes are in the constraint graph and no neighbors
       if (constraintExistsForPair(u,v)) {
         success = false;
       } else {
@@ -150,7 +155,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     }
   }
 
-  if ( success && ( u_becomes_fixed || v_becomes_fixed ) ) {
+  if ( !maybe_negative_constraints && success && ( u_becomes_fixed || v_becomes_fixed ) ) {
     ASSERT(fixed_vertex_block != kInvalidPartition);
     ASSERT(!(u_becomes_fixed && v_becomes_fixed));
     // Either u or v becomes a fixed vertex. Therefore, the fixed vertex block weight changes.
@@ -171,7 +176,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         _fixed_vertex_data[u].fixed_vertex_contraction_cnt = 1;
         _fixed_vertex_data[u].fixed_vertex_weight = weight_of_u;
       }
-    } else {
+    } else if( !maybe_negative_constraints ) {
       // The new fixed vertex block weight is larger than the maximum allowed bock weight
       // => revert block weight update and forbid contraction
       _fixed_vertex_block_weights[fixed_vertex_block].sub_fetch(

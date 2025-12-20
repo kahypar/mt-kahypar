@@ -498,6 +498,8 @@ namespace mt_kahypar::ds {
           constraints.size(),
           [&](size_t i) {
             auto& constraint = constraints[i];
+            ASSERT(communities[constraint.first] != communities[constraint.second], "Error: nodes are in constraints but get contracted" 
+              << constraint.first << constraint.second << "to" << communities[constraint.first] << communities[constraint.second]);
             constraint = {
               communities[constraint.first],
               communities[constraint.second]
