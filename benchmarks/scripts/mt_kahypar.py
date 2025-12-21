@@ -11,6 +11,7 @@ import ntpath
 import shutil
 import re
 import threading
+import time
 
 
 _result_values = {
@@ -38,9 +39,59 @@ def get_args():
   parser.add_argument("--tag", action="store_true")
   return parser.parse_args()
 
+
+def _extract_objectives(text: str) -> dict:
+    metrics: dict[str, float | int] = {}
+
+    # First pass: inline key=value anywhere in the text (case-insensitive)
+    inline_patterns = {
+        'km1':       r'km1\s*=\s*([0-9]+)',
+        'cut':       r'cut\s*=\s*([0-9]+)',
+        'soed':      r'soed\s*=\s*([0-9]+)',
+        'imbalance': r'imbalance\s*=\s*([0-9.]+)',
+        'time':      r'(?:totalPartitionTime|totalPartitioningTime)\s*=\s*([0-9.]+)'
+    }
+
+    for key, pat in inline_patterns.items():
+        if key in metrics:
+            continue
+        m = re.search(pat, text, flags=re.IGNORECASE)
+        if m:
+            if key in ('km1', 'cut', 'soed'):
+                metrics[key] = int(m.group(1))
+            else:
+                metrics[key] = float(m.group(1))
+
+    line_patterns = {
+        'km1':       r'^\s*KM1\s*=\s*([0-9]+)',
+        'cut':       r'^\s*Cut\s*=\s*([0-9]+)',
+        'soed':      r'^\s*SOED\s*=\s*([0-9]+)',
+        'imbalance': r'^\s*Imbalance\s*=\s*([0-9.]+)%?',
+        'time':      r'^\s*(?:Partitioning Time|Total Partitioning Time)\s*=\s*([0-9.]+)\s*s'
+    }
+
+    for line in text.splitlines():
+        for key, pat in line_patterns.items():
+            if key in metrics:
+                continue
+            m = re.search(pat, line, flags=re.IGNORECASE)
+            if m:
+                if key in ('km1', 'cut', 'soed'):
+                    metrics[key] = int(m.group(1))
+                else:
+                    metrics[key] = float(m.group(1))
+
+    return metrics
+
+
 def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
-  # Remove --evo marker if present (it's not a Mt-KaHyPar argument)
-  cleaned_args = args.args.replace('--evo', '').strip()
+  cleaned_args = args.args.strip() if args.args else ""
+
+  include_history = False
+  if cleaned_args and "history-info" in cleaned_args:
+    include_history = True
+    cleaned_args = cleaned_args.replace("history-info", "").strip()
+
   args_list = shlex.split(cleaned_args) if cleaned_args else []
 
   for arg_key in default_args:
@@ -55,79 +106,99 @@ def run_mtkahypar(mt_kahypar, args, default_args, print_fail_msg=True, detect_in
       args_list.append("--instance-type=graph")
       args_list.append("--input-file-format=metis")
 
-  #DEBUG PRINT
-  #print("DEBUG: Additional Mt-KaHyPar arguments: " + str(args_list), file=sys.stderr)
+  # evo-style history file for NON-evo runs
+  history_path = None
+  if include_history and args.history:
+    experiment_dir = args.history
+    evo_history_dir = os.path.join(experiment_dir, "evo_history")
+    os.makedirs(evo_history_dir, exist_ok=True)
 
-  # Run Mt-KaHyPar
-  cmd = [mt_kahypar,
-         "-h" + args.graph,
-         "-k" + str(args.k),
-         "-e" + str(args.epsilon),
-         "--seed=" + str(args.seed),
-         "-o" + str(args.objective),
-         "-mdirect",
-         "--s-num-threads=" + str(args.threads),
-         "--verbose=false",
-         "--sp-process=true",
-         "--show-detailed-timing=true",
-         *args_list]
-  if args.partition_folder != "":
-    cmd.extend(["--write-partition-file=true"])
-    cmd.extend(["--partition-output-folder=" + args.partition_folder])
-  mt_kahypar_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, preexec_fn=os.setsid)
+    base_filename = ntpath.basename(args.graph)
+    unique_suffix = f".k{args.k}.epsilon{args.epsilon}.seed{args.seed}.timelimit{args.timelimit}"
+    thread_id = threading.get_ident()
+    history_path = os.path.join(
+      evo_history_dir,
+      f"{base_filename}{unique_suffix}.thread{thread_id}.history.csv"
+    )
 
-  # handle early interrupt cases where the Mt-KaHyPar process should be killed
-  def kill_proc(*args):
-    os.killpg(os.getpgid(mt_kahypar_proc.pid), signal.SIGTERM)
+    with open(history_path, "w", encoding="utf-8") as f:
+      f.write(f"Starttime: {int(time.time() * 1000)}\n")
 
-  signal.signal(signal.SIGINT, kill_proc)
-  signal.signal(signal.SIGTERM, kill_proc)
+  def _build_cmd(seed: int):
+    return [
+      mt_kahypar,
+      "-h" + args.graph,
+      "-k" + str(args.k),
+      "-e" + str(args.epsilon),
+      "--seed=" + str(seed),
+      "-o" + str(args.objective),
+      "-mdirect",
+      "--s-num-threads=" + str(args.threads),
+      "--verbose=false",
+      "--sp-process=true",
+      "--show-detailed-timing=true",
+      *args_list
+    ]
 
-  t = Timer(args.timelimit, kill_proc)
-  t.start()
-  out, err = mt_kahypar_proc.communicate()
-  t.cancel()
+  total_budget = float(args.timelimit)
+  start = time.monotonic()
 
-  def _extract_objectives(text: str) -> dict:
-      patterns = {
-        'km1':       r'^\s*km1\s*=\s*([0-9]+)',
-        'cut':       r'^\s*cut\s*=\s*([0-9]+)',
-        'soed':      r'^\s*soed\s*=\s*([0-9]+)',
-        'imbalance': r'^\s*Imbalance\s*=\s*([0-9.]+)',
-        'time':      r'^\s*Partitioning Time\s*=\s*([0-9.]+)\s*s'
-      }
-      metrics = {}
-      
-      # DEBUG TEXT
-      #print("DEBUG: Mt-KaHyPar output:\n" + text, file=sys.stderr)
-      
-      for line in text.splitlines():
-        for key, pat in patterns.items():
-          if key in metrics:
-            continue
-          m = re.search(pat, line)
-          if m:
-            if key in ('km1', 'cut', 'soed'):
-              metrics[key] = int(m.group(1))
-            else:
-              metrics[key] = float(m.group(1))
-      return metrics
-  
-  if mt_kahypar_proc.returncode == 0:
-    metrics = _extract_objectives(out)
-    required = {'km1', 'cut', 'soed', 'imbalance', 'time'}
-    
-    assert required.issubset(metrics.keys()), "No complete Objectives block found!"
-    return metrics, True
-  elif mt_kahypar_proc.returncode == -signal.SIGTERM:
-    _result_values["timeout"] = "yes"
+  best_metrics = None
+  best_km1 = None
+  run_idx = 0
+
+  while True:
+    elapsed = time.monotonic() - start
+    remaining = total_budget - elapsed
+    if remaining <= 0:
+      break
+
+    seed = args.seed + run_idx
+    cmd = _build_cmd(seed)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            universal_newlines=True, preexec_fn=os.setsid)
+
+    def kill_proc(*_):
+      try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+      except Exception:
+        pass
+
+    # per-run limit = remaining global budget
+    t = Timer(remaining, kill_proc)
+    t.start()
+    out, err = proc.communicate()
+    t.cancel()
+
+    if proc.returncode == 0:
+      metrics = _extract_objectives(out)
+      required = {'km1', 'cut', 'soed', 'imbalance', 'time'}
+      assert required.issubset(metrics.keys()), "No complete Objectives block found!"
+
+      km1 = int(metrics["km1"])
+      if best_km1 is None or km1 < best_km1:
+        best_km1 = km1
+        best_metrics = metrics
+        if history_path is not None:
+          ts_ms = int(time.time() * 1000)
+          with open(history_path, "a", encoding="utf-8") as f:
+            # same 3-column format as evo: timestamp, op_type, km1
+            f.write(f"{ts_ms}, NORMAL, {km1}\n")
+    elif proc.returncode == -signal.SIGTERM:
+      # slice timed out; just move on, global loop will stop when budget is gone
+      _result_values["timeout"] = "yes"
+    else:
+      _result_values["failed"] = "yes"
+      if err and print_fail_msg:
+        print(err, file=sys.stderr)
+      # optional: break here instead of continuing if you prefer
+    run_idx += 1
+
+  if best_metrics is None:
     return {}, False
-  else:
-    _result_values["failed"] = "yes"
-    if err and print_fail_msg:
-      print(err, file=sys.stderr)
-  return {}, False
-  
+
+  return best_metrics, True
+
 
 def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detect_instance_type=False):
   # Remove --evo marker and history-info if present (not Mt-KaHyPar arguments)
@@ -222,27 +293,6 @@ def run_mtkahypar_evo(mt_kahypar, args, default_args, print_fail_msg=True, detec
   t.start()     
   out, err = mt_kahypar_proc.communicate()
   t.cancel()
-
-  def _extract_objectives(text: str) -> dict:
-      patterns = {
-        'km1':       r'^\s*km1\s*=\s*([0-9]+)',
-        'cut':       r'^\s*cut\s*=\s*([0-9]+)',
-        'soed':      r'^\s*soed\s*=\s*([0-9]+)',
-        'imbalance': r'^\s*Imbalance\s*=\s*([0-9.]+)',
-        'time':      r'^\s*Partitioning Time\s*=\s*([0-9.]+)\s*s'
-      }
-      metrics = {}
-      for line in text.splitlines():
-        for key, pat in patterns.items():
-          if key in metrics:
-            continue
-          m = re.search(pat, line)
-          if m:
-            if key in ('km1', 'cut', 'soed'):
-              metrics[key] = int(m.group(1))
-            else:
-              metrics[key] = float(m.group(1))
-      return metrics
 
   if mt_kahypar_proc.returncode == 0:
     metrics = _extract_objectives(out)

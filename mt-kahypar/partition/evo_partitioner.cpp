@@ -1047,10 +1047,6 @@ namespace mt_kahypar {
                         int batch_id = -1;
                         int batch_pos = -1;
                         while (true) {
-                            if (stop_flag.load(std::memory_order_acquire)) {
-                                break;
-                            }
-
                             const int cur = total_iterations.load(std::memory_order_relaxed);
                             const int cur_batch = cur / batch_size;
 
@@ -1065,10 +1061,7 @@ namespace mt_kahypar {
                             }
 
                             int expected = cur;
-                            if (total_iterations.compare_exchange_weak(
-                                    expected, cur + 1,
-                                    std::memory_order_acq_rel,
-                                    std::memory_order_relaxed)) {
+                            if (total_iterations.compare_exchange_weak(expected, cur + 1, std::memory_order_acq_rel, std::memory_order_relaxed)) {
                                 iteration_id = cur;
                                 batch_id = cur_batch;
                                 batch_pos = cur % batch_size;
