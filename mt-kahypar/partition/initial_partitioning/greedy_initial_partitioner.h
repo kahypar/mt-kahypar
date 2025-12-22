@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 template<typename TypeTraits, template<typename> typename GainPolicyT>
@@ -105,7 +106,8 @@ class GreedyInitialPartitionerBase {
         ASSERT(to != _default_block);
         ASSERT(hg.partID(hn) == _default_block);
 
-        if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
+        if ( allow_overfitting || 
+          ( fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) && constraintsAllowBlock(hg, hn, to))) {
           if ( _default_block != kInvalidPartition ) {
             hg.changeNodePartNoSync(hn, _default_block, to);
           } else {
@@ -172,6 +174,15 @@ class GreedyInitialPartitionerBase {
       _context.partition.perfect_balance_part_weights[block] : _context.partition.max_part_weights[block];
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       upper_bound;
+  }
+
+  bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
+                            const HypernodeID hn,
+                            const PartitionID block) const {
+    if (hypergraph.hasNegativeConstraints()) {
+      return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
+    }
+    return true;
   }
 
   void insertVertexIntoPQ(const PartitionedHypergraph& hypergraph,
