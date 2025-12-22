@@ -50,7 +50,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
       for ( ; i < std::min(start_nodes[block].size(),
         _context.initial_partitioning.lp_initial_block_size); ++i ) {
         const HypernodeID hn = start_nodes[block][i];
-        if ( hg.partID(hn) == kInvalidPartition && fitsIntoBlock(hg, hn, block) ) {
+        if ( hg.partID(hn) == kInvalidPartition && fitsIntoBlock(hg, hn, block) && constraintsAllowBlock(hg, hn, block)) {
           hg.setNodePart(hn, block);
         } else {
           std::swap(start_nodes[block][i--], start_nodes[block][start_nodes[block].size() - 1]);
@@ -94,7 +94,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
           MaxGainMove max_gain_move = computeMaxGainMove(hg, hn);
 
           const PartitionID to = max_gain_move.block;
-          if ( to != kInvalidPartition ) {
+          if ( to != kInvalidPartition && constraintsAllowBlock(hg, hn, to)) {
             const PartitionID from = hg.partID(hn);
             if ( from == kInvalidPartition ) {
               ASSERT(fitsIntoBlock(hg, hn, to));
@@ -275,7 +275,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::extendBlockToInitialBlockSi
     for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
       for ( const HypernodeID& pin : hypergraph.pins(he) ) {
         if ( hypergraph.partID(pin) == kInvalidPartition &&
-             fitsIntoBlock(hypergraph, pin, block) ) {
+             fitsIntoBlock(hypergraph, pin, block) && constraintsAllowBlock(hypergraph, pin, block) ) {
           hypergraph.setNodePart(pin, block);
           block_size++;
           if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) break;
@@ -306,16 +306,26 @@ void LabelPropagationInitialPartitioner<TypeTraits>::assignVertexToBlockWithMini
                                                                                           const HypernodeID hn) {
   ASSERT(hypergraph.partID(hn) == kInvalidPartition);
   PartitionID minimum_weight_block = kInvalidPartition;
+  PartitionID minimum_allowed_block = kInvalidPartition;
   HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();
+  HypernodeWeight minimum_allowed_weight = std::numeric_limits<HypernodeWeight>::max();
   for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
     const HypernodeWeight block_weight = hypergraph.partWeight(block);
     if ( block_weight < minimum_weight ) {
       minimum_weight = block_weight;
       minimum_weight_block = block;
     }
+    if ( block_weight < minimum_allowed_weight && constraintsAllowBlock(hypergraph, hn, block) ) {
+      minimum_allowed_weight = block_weight;
+      minimum_allowed_block = block;
+    }
   }
-  ASSERT(minimum_weight_block != kInvalidPartition);
-  hypergraph.setNodePart(hn, minimum_weight_block);
+  
+  if (minimum_allowed_block == kInvalidPartition) {
+    minimum_allowed_block = minimum_weight_block;
+  }
+  ASSERT( minimum_allowed_block != kInvalidPartition);
+  hypergraph.setNodePart(hn, minimum_allowed_block);
 }
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(LabelPropagationInitialPartitioner)

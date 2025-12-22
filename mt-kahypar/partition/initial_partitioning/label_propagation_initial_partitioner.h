@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 
@@ -70,6 +71,15 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       _context.partition.perfect_balance_part_weights[block] *
       std::min(1.005, 1 + _context.partition.epsilon);
+  }
+
+  bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
+                            const HypernodeID hn,
+                            const PartitionID block) const {
+    if (hypergraph.hasNegativeConstraints()) {
+      return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
+    }
+    return true;
   }
 
   MaxGainMove computeMaxGainMove(PartitionedHypergraph& hypergraph,
