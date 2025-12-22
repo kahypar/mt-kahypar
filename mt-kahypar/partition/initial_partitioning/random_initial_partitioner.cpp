@@ -37,6 +37,7 @@ void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     std::uniform_int_distribution<PartitionID> select_random_block(0, _context.partition.k - 1);
+    LOG << "Running intitial random partitioner" << (hg.hasNegativeConstraints()? "negative constraints present" : "negative constraints not present");
 
     _ip_data.preassignFixedVertices(hg);
     for ( const HypernodeID& hn : hg.nodes() ) {
@@ -44,7 +45,7 @@ void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
         // Randomly select a block to assign the hypernode
         PartitionID block = select_random_block(_rng);
         PartitionID current_block = block;
-        while ( !fitsIntoBlock(hg, hn, current_block) ) {//TODO: constraints checken
+        while ( !fitsIntoBlock(hg, hn, current_block) && !constraintsAllowBlock(hg, hn, current_block) ) {
           // If the hypernode does not fit into the random selected block
           // (because it would violate the balance constraint), we try to
           // assign it to the next block.
