@@ -47,13 +47,31 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
   if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
-        if (partitioned_hg.partID(constraint_graph.nodeWeight(incident_node)) == part_id) {
-          return false;
-        }
+      if (partitioned_hg.partID(constraint_graph.nodeWeight(incident_node)) == part_id) {
+        return false;
       }
+    }
   }
   return true;
+}
+
+template<typename PartitionedHypergraph>
+PartitionID isNodeAllowedInAnyPartition(const PartitionedHypergraph& partitioned_hg,
+                                        const HypernodeID& node_id) {
+  HypernodeID node;
+  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
+    vec<bool> is_partition_allowed(partitioned_hg.k(), true);
+    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
+      is_partition_allowed[partitioned_hg.partID(constraint_graph.nodeWeight(incident_node))] = false;
+    }
+    for (bool allowed : is_partition_allowed) {
+      if (allowed) return true;
+    }
+    return false;
   }
+  return true;
+}
 
 template<typename PartitionedHypergraph>
 PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg,

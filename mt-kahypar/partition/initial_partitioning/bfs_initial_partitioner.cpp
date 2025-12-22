@@ -84,7 +84,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
             // we take the last unassigned hypernode popped from the queue.
             // Note, in that case the balanced constraint will be violated.
             hn = next_hn;
-            if (fitsIntoBlock(hypergraph, hn, block)) {
+            if (fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block)) {
               fits_into_block = true;
               break;
             }
@@ -96,7 +96,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
           hn = _ip_data.get_unassigned_hypernode();
-          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) ) {
+          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block)) {
             fits_into_block = true;
           }
         }

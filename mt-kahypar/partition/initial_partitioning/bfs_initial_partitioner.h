@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 
@@ -59,6 +60,19 @@ class BFSInitialPartitioner : public IInitialPartitioner {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       _context.partition.perfect_balance_part_weights[block];
+  }
+
+  bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
+                            const HypernodeID hn,
+                            const PartitionID block) const {
+    if (hypergraph.hasNegativeConstraints()) {
+      if (!constraints::isNodeAllowedInPartition(hypergraph, hn, block)){
+        // if there is no allowed partition just put it in the one requested
+        // if there is an allowed partition, dont put it in unallowed one
+        return !constraints::isNodeAllowedInAnyPartition(hypergraph, hn);
+      }
+    }
+    return true;
   }
 
   // ! Pushes all adjacent hypernodes (not visited before) of hypernode hn
