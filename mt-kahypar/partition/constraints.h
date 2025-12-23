@@ -47,7 +47,9 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
   if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
-      if (partitioned_hg.partID(constraint_graph.nodeWeight(incident_node)) == part_id) {
+      PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
+      if (pid == part_id) {
         return false;
       }
     }
@@ -63,7 +65,9 @@ PartitionID isNodeAllowedInAnyPartition(const PartitionedHypergraph& partitioned
     vec<bool> is_partition_allowed(partitioned_hg.k(), true);
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
-      is_partition_allowed[partitioned_hg.partID(constraint_graph.nodeWeight(incident_node))] = false;
+      PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
+      is_partition_allowed[pid] = false; // TODO: invalid parts because we have to put them in one???
     }
     for (bool allowed : is_partition_allowed) {
       if (allowed) return true;
@@ -79,14 +83,14 @@ PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg
                                       const HypernodeID& node_id,
                                       const vec<bool>& is_partition_invalid,
                                       const Km1GainCache& concrete_gain_cache) {
-  PartitionID best_partition = partitioned_hg.partID(999);
-  assert(is_partition_invalid[best_partition]);
+  PartitionID best_partition = kInvalidPartition;
+  assert(is_partition_invalid[partitioned_hg.partID(node_id)]);
   const PartitionID num_partitons = is_partition_invalid.size();
   const HypernodeWeight node_weight = partitioned_hg.nodeWeight(node_id);
   HyperedgeWeight max_gain = std::numeric_limits<HyperedgeWeight>::min();
   HypernodeWeight min_weight = std::numeric_limits<HypernodeWeight>::max();
 
-  PartitionID fallback_partition = best_partition;
+  PartitionID fallback_partition = kInvalidPartition;
   HypernodeWeight fallback_weight = std::numeric_limits<HypernodeWeight>::max();
 
   for (PartitionID partition = 0; partition < num_partitons; partition++) {

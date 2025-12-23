@@ -170,9 +170,6 @@ class MultilevelCoarsener : public ICoarsener,
     const HypernodeID num_hns_before_pass =
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = 0;
-    if (!current_hg.hasNegativeConstraints()) { // TODO: remove loging
-      LOG << "lost negative constraints";
-    }
     if ( current_hg.hasFixedVertices() ) {
       current_num_nodes = performClustering<true>(current_hg, cluster_ids);
     } else {
@@ -334,7 +331,7 @@ class MultilevelCoarsener : public ICoarsener,
       }(), "Fixed vertex support is corrupted");
     }
     if (current_hg.hasNegativeConstraints()) {
-      LOG << (constraints::verifyConstraints(current_hg)? "constraints met" : "constraints disrespected");
+      ASSERT(constraints::verifyConstraints(current_hg), "constraints disrespected");
     }
 
     return num_hns_before_pass - contracted_nodes.combine(std::plus<>());
@@ -434,7 +431,7 @@ class MultilevelCoarsener : public ICoarsener,
                 break;
               }
             }
-
+            
             // Resolve cyclic matching dependency
             // Vertex with smallest id starts to resolve conflict
             const bool is_in_cyclic_dependency = _matching_partner[cur_u].load(std::memory_order_relaxed) == u;
