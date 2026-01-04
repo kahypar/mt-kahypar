@@ -140,8 +140,8 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
           _fixed_vertex_data[v1].sync.lock();
           _fixed_vertex_data[u1].sync.lock();
         }
-        HypernodeID u2;
-        HypernodeID v2;
+        HypernodeID u2 = invalidNode;
+        HypernodeID v2 = invalidNode;
         getConstraintIdFromHypergraphId(u, u2);
         getConstraintIdFromHypergraphId(v, v2);
         if (u1 == u2 && v1 == v2) {
