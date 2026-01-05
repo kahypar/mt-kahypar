@@ -132,8 +132,7 @@ namespace mt_kahypar {
         // After evolution, we take the best individual and create the final partition.
         PartitionedHypergraph final_partition(context.partition.k, const_cast<Hypergraph&>(hypergraph));
         
-        size_t best_idx = population.bestSafe();
-        std::vector<PartitionID> best_partition_vec = population.individualAtSafe(best_idx).partition();
+        std::vector<PartitionID> best_partition_vec = population.bestPartitionCopySafe();
         final_partition.doParallelForAllNodes([&](const HypernodeID& hn) {
             final_partition.setOnlyNodePart(hn, best_partition_vec[hn]);
         });
@@ -712,8 +711,8 @@ namespace mt_kahypar {
         const Context& context,
         TargetGraph* target_graph,
         Population& population) {
-    std::vector<size_t> parents;
 
+    std::vector<size_t> parents;
     size_t best;
     if (context.partition.deterministic) {
         // use dedicated deterministic method
@@ -782,13 +781,11 @@ namespace mt_kahypar {
     PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
     EvoMutateStrategy mutation;
     if (context.partition.deterministic) {
-        mutation_position = population.randomIndividualSafeDeterministic(context.partition.seed);
-        cur = population.individualAtSafe(mutation_position).partition();
+        cur = population.randomIndividualPartitionCopySafeDeterministic(context.partition.seed);
         mutation = decideNextMutation(context, rng);
     }
     else {
-        mutation_position = population.randomIndividualSafe();
-        cur = population.individualAtSafe(mutation_position).partition();
+        cur = population.randomIndividualPartitionCopySafe();
         mutation = decideNextMutation(context);
     }
 
@@ -1175,7 +1172,7 @@ namespace mt_kahypar {
         timer.stop_timer("evolutionary");
 
         // Update final diff matrix
-        {
+        if (context.partition.enable_benchmark_mode) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
             std::string diff_matrix = population.updateDiffMatrix();
             diff_matrix_history += diff_matrix;
