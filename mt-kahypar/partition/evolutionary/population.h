@@ -193,6 +193,34 @@ class Population {
     return _individuals[pos];
   }
 
+  inline std::vector<PartitionID> bestPartitionCopySafe() {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    size_t best_position = 0;
+    HyperedgeWeight best_fitness = _individuals[0].fitness();
+    for (size_t i = 1; i < _individuals.size(); ++i) {
+      const HyperedgeWeight result = _individuals[i].fitness();
+      if (result < best_fitness) {
+        best_position = i;
+        best_fitness = result;
+      }
+    }
+    return _individuals[best_position].partition(); // returns copy
+  }
+
+  inline std::vector<PartitionID> randomIndividualPartitionCopySafe() {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    size_t random_position = utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
+    return _individuals[random_position].partition(); // returns copy
+  }
+
+  inline std::vector<PartitionID> randomIndividualPartitionCopySafeDeterministic(const size_t seed) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
+    size_t random_position = dist(gen);
+    return _individuals[random_position].partition(); // returns copy
+  }
+
   inline std::vector<PartitionID> partitionCopySafe(const size_t pos) {
     std::lock_guard<std::mutex> guard(_population_mutex);
     return _individuals[pos].partition(); // returns copy
