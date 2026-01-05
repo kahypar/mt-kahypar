@@ -58,8 +58,15 @@ with open(args.benchmark) as json_experiment:
     # get phyical CPU core count
     cpu_cores = os.cpu_count() // 2
     max_threads_per_call = max(config["threads"])
-    final_cores = min(cpu_cores // max_threads_per_call, 42)  # limit to 42 parallel jobs to avoid overloading the system
-    print(f"Executing benchmark with {cpu_cores} physical CPU cores and max {max_threads_per_call} threads per partitioner call.")
+
+    # allow overriding the number of parallel jobs via config["jobs"]
+    jobs_override = config.get("jobs", None)
+    if jobs_override is not None:
+        final_cores = int(jobs_override)
+    else:
+        final_cores = min(cpu_cores // max_threads_per_call, 42)  # limit to 42 parallel jobs to avoid overloading the system
+
+    print(f"Executing benchmark with {final_cores} physical CPU cores and max {max_threads_per_call} threads per partitioner call.")
     os.system(f"parallel --jobs {final_cores} --memfree 5G  :::: {workload_file}")
     
 
