@@ -189,6 +189,7 @@ namespace mt_kahypar {
         auto now = start;
         auto time_elapsed = now - start;
         auto duration = std::chrono::seconds(context.partition.time_limit);
+        const bool enforce_time_limit = context.partition.time_limit > 0;
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
 
         // META-EVO LOGIC
@@ -308,7 +309,7 @@ namespace mt_kahypar {
         int iteration = 0;
 
         while (population.size() < context.evolutionary.population_size &&
-            time_elapsed <= duration) {
+            (!enforce_time_limit || time_elapsed <= duration)) {
             //LOG << "DEBUG: Initial pop loop - Iteration" << iteration << ", Pop size:" << population.size();
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
@@ -426,42 +427,30 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context) {
+    ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context, std::mt19937* rng) {
         
-        ContextModifierParameters params;
+    ContextModifierParameters params;
+    params.k = context.partition.k;
+    params.epsilon = context.partition.epsilon;
 
-        // set to defaults
-        params.k = context.partition.k;
-        params.epsilon = context.partition.epsilon;
+    int choice = 0;
+    if (context.partition.deterministic) {
+        if (!rng) throw UnsupportedOperationException("Deterministic mode requires rng");
+        std::uniform_int_distribution<int> dist(0, 4);
+        choice = dist(*rng);
+    } else {
+        choice = utils::Randomize::instance().getRandomInt(0, 4, THREAD_ID);
+    }
 
-        // 5 options, equal probability (1/5 each)
-        int choice = utils::Randomize::instance().getRandomInt(0, 4, THREAD_ID);
-        switch (choice) {
-            case 0:
-                // modify epsilon (default = 3 * epsilon)
-                params.epsilon = 3.0 * context.partition.epsilon;
-                break;
-            case 1: 
-                // Random Partition
-                params.use_random_partitions = true;
-                break;
-            case 2:
-                // Degree Sorted Partition
-                params.use_degree_sorted_partitions = true;
-                break;
-            case 3:
-                // modify k (default = 2 * k)
-                params.k = 2 * context.partition.k;
-                break;
-            case 4:
-                // recursive bipartitioning
-                params.recursive_bipartitioning = true;
-                break;
-            default:
-                throw InvalidParameterException("Invalid choice for modified combine strategy");
-        }
-
-        return params;
+    switch (choice) {
+        case 0: params.epsilon = 3.0 * context.partition.epsilon; break;
+        case 1: params.use_random_partitions = true; break;
+        case 2: params.use_degree_sorted_partitions = true; break;
+        case 3: params.k = 2 * context.partition.k; break;
+        case 4: params.recursive_bipartitioning = true; break;
+        default: throw InvalidParameterException("Invalid choice for modified combine strategy");
+    }
+    return params;
 
     }
 
@@ -991,6 +980,9 @@ namespace mt_kahypar {
                             case EvoDecision::modified_combine:
                                 {
                                     // decide modified combine parameters if mixed strategy is enabled
+                                    if (context.evolutionary.modified_combine_mixed) {
+                                        modified_combine_params = decideContextModificationParameters(context);
+                                    }
                                     Individual ind = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
                                     insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
                                     total_modifiedCombinations++;
@@ -1097,6 +1089,10 @@ namespace mt_kahypar {
                                 break;
                             }
                             case EvoDecision::modified_combine: {
+                                // decide modified combine parameters if mixed strategy is enabled
+                                if (context.evolutionary.modified_combine_mixed) {
+                                    modified_combine_params = decideContextModificationParameters(context, &rng);
+                                }
                                 child = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population, &rng);
                                 total_modifiedCombinations.fetch_add(1, std::memory_order_relaxed);
                                 break;
