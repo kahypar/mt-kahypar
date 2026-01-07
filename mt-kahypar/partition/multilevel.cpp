@@ -46,6 +46,7 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/constraints.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #endif
@@ -111,6 +112,7 @@ namespace {
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
+    LOG << (constraints::verifyConstraints(phg)? "Constrains were respected from coarsener" : "!!! Coarsener destroyed constrains !!!");
 
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
@@ -184,6 +186,10 @@ namespace {
     if ( context.partition.verbose_output && !is_vcycle ) {
       utils::Utilities::instance().getInitialPartitioningStats(
         context.utility_id).printInitialPartitioningStats();
+    }
+    if(phg.hasNegativeConstraints()) {
+      LOG << (constraints::verifyConstraints(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
+      constraints::postprocessNegativeConstraints(phg, context);
     }
     timer.stop_timer("initial_partitioning");
 

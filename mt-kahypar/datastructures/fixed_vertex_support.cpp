@@ -29,6 +29,7 @@
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -156,10 +157,10 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         }
       }
       if(success) {
-        // if both nodes are in the constraint graph and no neighbors
-        if (constraintExistsForPair(u,v)) {
+        if (constraintExistsForPair(u, v) || !constraints::allowedNumberOfNeighbors(*_hg, u, v)) {
           success = false;
         } else {
+          // if both nodes are in the constraint graph and no neighbors and have together less than k-1 unique neighbors
           success = _constraint_graph->registerContraction(u1, v1);
           if (success) {
             // node weight to node id in hypergraph mapping gets broken here

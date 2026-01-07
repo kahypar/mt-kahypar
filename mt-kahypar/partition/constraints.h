@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
@@ -28,8 +29,9 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
   return true;
 }
 
-template<typename Hypergraph>
-bool verifyConstraints(const Hypergraph& hg) {
+template<typename PartitionedHypergraph>
+bool verifyConstraints(const PartitionedHypergraph& hg) {
+  using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
   const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = hg.fixedVertexSupport();
   for (const auto& constraint : fixed_vertex_support.getConstraints()) {
     HypernodeID u;
@@ -61,6 +63,37 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
     }
   }
   return true;
+}
+
+template<typename PartitionedHypergraph>
+PartitionID allowedNumberOfNeighbors(const PartitionedHypergraph& partitioned_hg,
+                            const HypernodeID& node_id,
+                            const HypernodeID& other_node_id) {
+  // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
+  HypernodeID u,v;
+  PartitionID k = partitioned_hg.fixedVertexSupport().numBlocks();
+  PartitionID count = 0;
+  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, u) &&
+      partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(other_node_id, v)) {
+    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    std::unordered_set<HypernodeID> set;
+    for (const auto& node : constraint_graph.incidentNodes(u)) {
+      if (set.find(node) != set.end()) LOG << "doubled constraint!";
+      else {
+        set.insert(node);
+        count++;
+      }
+    }
+    for (const auto& node : constraint_graph.incidentNodes(v)) {
+      if (set.find(node) != set.end()) continue;
+      else {
+        set.insert(node);
+        count++;
+        if (count >= k) return false;
+      }
+    }
+  }
+  return count < k;
 }
 
 template<typename PartitionedHypergraph>
@@ -134,18 +167,24 @@ PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg
   return best_partition;
 }
 
-inline PartitionID getBestCutPartition(const bool must_cut_be_positive,
+template<typename PartitionedHypergraph>
+PartitionID getBestCutPartition(const bool must_cut_be_positive,
                                       const HypernodeID& node_id,
                                       const PartitionID& current_partition,
                                       const vec<bool>& is_partition_invalid,
-                                      const Km1GainCache& concrete_gain_cache) {
+                                      gain_cache_t& gain_cache) {
   PartitionID best_partition = current_partition;
   const PartitionID num_partitons = is_partition_invalid.size();
   HyperedgeWeight max_gain = std::numeric_limits<HyperedgeWeight>::min();
 
   for (PartitionID partition = 0; partition < num_partitons; partition++) {
     if (is_partition_invalid[partition]) continue;
-    HyperedgeWeight gain = concrete_gain_cache.gain(node_id, current_partition, partition);
+    HyperedgeWeight gain = GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
+      [&](const auto& cache){
+        return cache.gain(node_id, current_partition, partition);
+      },
+      gain_cache
+    );
     if (must_cut_be_positive && gain < 0) continue;
     if (gain > max_gain) {
       max_gain = gain;
@@ -158,11 +197,8 @@ inline PartitionID getBestCutPartition(const bool must_cut_be_positive,
 template<typename PartitionedHypergraph>
 void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
                                     const Context& context,
-                                    Km1GainCache& concrete_gain_cache) {
-  LOG << "-------------- stats before postprocessing --------------";
-  LOG << "km1       ="<< metrics::quality(partitioned_hg, context);
-  LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
-  LOG << (verifyConstraints(partitioned_hg, context)? "Constrains are respected before partitioner" : "! Constrains are not respected before partitioner !");
+                                    gain_cache_t& gain_cache) {
+  unused(context);
   /**
    * For each node in constraint graph 
    * -> get neighbors
@@ -183,7 +219,7 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
             invalid_partitions[incident_partition_id] = true;
         }
         // in first round just move with gain >= 0
-        PartitionID new_partition_id = getBestCutPartition((i == 0), node_id, partition_id, invalid_partitions, concrete_gain_cache);
+        PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>((i == 0), node_id, partition_id, invalid_partitions, gain_cache);
         if (new_partition_id != partition_id) {
           partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
         }
@@ -199,8 +235,14 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
 template<typename PartitionedHypergraph>
 void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
                                 const Context& context,
-                                Km1GainCache& concrete_gain_cache) {
+                                gain_cache_t& gain_cache) {
   unused(context);
+  GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
+    [&](auto& cache){
+        cache.initializeGainCache(partitioned_hg);
+    },
+    gain_cache
+  );
   // initialize PQ
   const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
   std::vector<PosT> positions(constraint_graph.numNodes(), invalid_position);
@@ -221,7 +263,7 @@ void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
         PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
         invalid_partitions[incident_partition_id] = true;
     }
-    PartitionID new_partition_id = getBestCutPartition(false, node_id, partition_id, invalid_partitions, concrete_gain_cache);
+    PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>(false, node_id, partition_id, invalid_partitions, gain_cache);
     if (new_partition_id != partition_id) {
       partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
     }
@@ -234,23 +276,21 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
   std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
       context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
-  Km1GainCache& concrete_gain_cache = GainCachePtr::cast<Km1GainCache>(gain_cache);
-  concrete_gain_cache.initializeGainCache(partitioned_hg);
 
-  frontToBackConstraints(partitioned_hg, context, concrete_gain_cache);
-  //descendingConstraintDegree(partitioned_hg, context, concrete_gain_cache);
-
-  LOG << "\n-------------- stats after postprocessing --------------";
-  LOG << "km1       ="<<metrics::quality(partitioned_hg, context);
+  LOG << "-------------- stats before postprocessing --------------";
+  LOG << "km1       ="<< metrics::quality(partitioned_hg, context);
   LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
-  LOG << (verifyConstraints(partitioned_hg, context)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
+  LOG << (verifyConstraints(partitioned_hg)? "Constrains are respected before partitioner" : "! Constrains are not respected before partitioner !");
+
+  //frontToBackConstraints(partitioned_hg, context, gain_cache);
+  descendingConstraintDegree(partitioned_hg, context, gain_cache);
 
   Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
   rebalancer->initialize(phg);
   rebalancer->refine(phg, {}, metrics, 0.0);
   LOG << "";
-  LOG << (verifyConstraints(partitioned_hg, context)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
+  LOG << (verifyConstraints(partitioned_hg)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
   LOG << "";
   GainCachePtr::deleteGainCache(gain_cache);
 }
