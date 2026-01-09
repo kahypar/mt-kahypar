@@ -12,10 +12,10 @@
 
 namespace mt_kahypar::constraints {
 
-using Key = std::tuple<PartitionID, PartitionID, HypernodeID>;
+// using Key = std::tuple<PartitionID, PartitionID, HypernodeID>;
 
-template<typename Comparator = std::less<Key>, uint32_t arity = 4>
-using PQ = ds::Heap<Key, HypernodeID, Comparator, arity>;
+// template<typename Comparator = std::less<Key>, uint32_t arity = 4>
+// using PQ = ds::Heap<Key, HypernodeID, Comparator, arity>;
 
 template<typename PartitionedHypergraph>
 bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
@@ -247,43 +247,43 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
   }
 }
 
-template<typename PartitionedHypergraph>
-void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
-                                const Context& context,
-                                gain_cache_t& gain_cache) {
-  unused(context);
-  GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
-    [&](auto& cache){
-        cache.initializeGainCache(partitioned_hg);
-    },
-    gain_cache
-  );
-  // initialize PQ
-  const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
-  std::vector<PosT> positions(constraint_graph.numNodes(), invalid_position);
-  PQ heap(positions.data(), positions.size());
-  for (auto node : constraint_graph.nodes()) {
-    HypernodeID node_id = constraint_graph.nodeWeight(node);
-    heap.insert(node, {constraintDegree(partitioned_hg, node), partitioned_hg.nodeDegree(node_id), node});
-  }
+// template<typename PartitionedHypergraph>
+// void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
+//                                 const Context& context,
+//                                 gain_cache_t& gain_cache) {
+//   unused(context);
+//   GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
+//     [&](auto& cache){
+//         cache.initializeGainCache(partitioned_hg);
+//     },
+//     gain_cache
+//   );
+//   // initialize PQ
+//   const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+//   std::vector<PosT> positions(constraint_graph.numNodes(), invalid_position);
+//   PQ heap(positions.data(), positions.size());
+//   for (auto node : constraint_graph.nodes()) {
+//     HypernodeID node_id = constraint_graph.nodeWeight(node);
+//     heap.insert(node, {constraintDegree(partitioned_hg, node), partitioned_hg.nodeDegree(node_id), node});
+//   }
   
-  while(!heap.empty()){
-    HypernodeID node = heap.top();
-    heap.deleteTop();
-    HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
-    PartitionID partition_id = partitioned_hg.partID(node_id);
-    vec<bool> invalid_partitions(partitioned_hg.k(), false);
+//   while(!heap.empty()){
+//     HypernodeID node = heap.top();
+//     heap.deleteTop();
+//     HypernodeID node_id = HypernodeID(constraint_graph.nodeWeight(node));
+//     PartitionID partition_id = partitioned_hg.partID(node_id);
+//     vec<bool> invalid_partitions(partitioned_hg.k(), false);
 
-    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
-        PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
-        invalid_partitions[incident_partition_id] = true;
-    }
-    PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>(false, node_id, partition_id, invalid_partitions, gain_cache);
-    if (new_partition_id != partition_id) {
-      partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
-    }
-  }
-}
+//     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
+//         PartitionID incident_partition_id = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+//         invalid_partitions[incident_partition_id] = true;
+//     }
+//     PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>(false, node_id, partition_id, invalid_partitions, gain_cache);
+//     if (new_partition_id != partition_id) {
+//       partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
+//     }
+//   }
+// }
 
 template<typename PartitionedHypergraph>
 void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
