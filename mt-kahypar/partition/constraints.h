@@ -31,18 +31,8 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
 
 template<typename PartitionedHypergraph>
 bool verifyConstraints(const PartitionedHypergraph& hg) {
-  using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
-  const ds::FixedVertexSupport<Hypergraph>& fixed_vertex_support = hg.fixedVertexSupport();
-  for (const auto& constraint : fixed_vertex_support.getConstraints()) {
-    HypernodeID u;
-    HypernodeID v;
-    if (fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.first, u) && fixed_vertex_support.getConstraintIdFromHypergraphId(constraint.second, v)) {
-      // constraint between u and v exists, but they are contracted together
-      if (u == v) return false;
-    } else {
-      // ohne of the nodes was not found in
-      throw std::logic_error("Node is in constraints but not in _hypergraph_id_to_graph_id mapping");
-      return false;}
+  for (const auto& constraint : hg.fixedVertexSupport().getConstraints()) {
+    if (hg.partID(constraint.first) == hg.partID(constraint.second) && hg.partID(constraint.first) != kInvalidPartition) return false;
   }
   return true;
 }
@@ -66,34 +56,58 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
 }
 
 template<typename PartitionedHypergraph>
-PartitionID allowedNumberOfNeighbors(const PartitionedHypergraph& partitioned_hg,
-                            const HypernodeID& node_id,
-                            const HypernodeID& other_node_id) {
-  // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
-  HypernodeID u,v;
-  PartitionID k = partitioned_hg.fixedVertexSupport().numBlocks();
+PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph, HypernodeID u) {
   PartitionID count = 0;
-  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, u) &&
-      partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(other_node_id, v)) {
-    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
-    std::unordered_set<HypernodeID> set;
-    for (const auto& node : constraint_graph.incidentNodes(u)) {
-      if (set.find(node) != set.end()) LOG << "doubled constraint!";
-      else {
-        set.insert(node);
-        count++;
-      }
-    }
-    for (const auto& node : constraint_graph.incidentNodes(v)) {
-      if (set.find(node) != set.end()) continue;
-      else {
-        set.insert(node);
-        count++;
-        if (count >= k) return false;
-      }
+  std::unordered_set<HypernodeID> set;
+  for (const auto& node : constraint_graph.incidentNodes(u)) {
+    if (set.find(node) != set.end()) continue;
+    else {
+      set.insert(node);
+      count++;
     }
   }
-  return count < k;
+  return count;
+}
+
+template<typename PartitionedHypergraph>
+PartitionID allNodesAllowedNumberOfNeighbors(const PartitionedHypergraph& partitioned_hg) {
+  // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
+  
+  bool pass = true;
+  PartitionID k = partitioned_hg.fixedVertexSupport().numBlocks();
+  const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+  for(const auto& u : constraint_graph.nodes()){
+    PartitionID count = numberOfDistinctNeighbors<PartitionedHypergraph>(constraint_graph, u);
+    if(count >= k) {
+      //LOG << "node" << constraint_graph.nodeWeight(u) << "has too much neighbors!" << count;
+      pass = false;
+      }
+  }
+  return pass;
+}
+
+template<typename PartitionedHypergraph>
+PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph,
+                            const HypernodeID& u,
+                            const HypernodeID& v) {
+  // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
+  PartitionID count = 0;
+  std::unordered_set<HypernodeID> set;
+  for (const auto& node : constraint_graph.incidentNodes(u)) {
+    if (set.find(node) != set.end()) continue; // TODO: there are many double neighbors, how to remove them?
+    else {
+      set.insert(node);
+      count++;
+    }
+  }
+  for (const auto& node : constraint_graph.incidentNodes(v)) {
+    if (set.find(node) != set.end()) continue;
+    else {
+      set.insert(node);
+      count++;
+    }
+  }
+  return count;
 }
 
 template<typename PartitionedHypergraph>
@@ -199,6 +213,12 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
                                     const Context& context,
                                     gain_cache_t& gain_cache) {
   unused(context);
+  GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
+    [&](auto& cache){
+        cache.initializeGainCache(partitioned_hg);
+    },
+    gain_cache
+  );
   /**
    * For each node in constraint graph 
    * -> get neighbors
@@ -219,15 +239,10 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
             invalid_partitions[incident_partition_id] = true;
         }
         // in first round just move with gain >= 0
-        PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>((i == 0), node_id, partition_id, invalid_partitions, gain_cache);
-        if (new_partition_id != partition_id) {
+        PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>(false, node_id, partition_id, invalid_partitions, gain_cache);
+        if ( new_partition_id != partition_id) {
           partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
         }
-
-        // LOG << "Node nr: " << node_id;
-        // LOG << "Partition id: " << partition_id;
-        // LOG << (invalid_partitions[partition_id]? ("Moved to Partition:") : ("Stayed in:")) << partitioned_hg.partID(node_id);
-        // LOG << "";
     }
   }
 }
@@ -282,14 +297,16 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
   LOG << (verifyConstraints(partitioned_hg)? "Constrains are respected before partitioner" : "! Constrains are not respected before partitioner !");
 
-  //frontToBackConstraints(partitioned_hg, context, gain_cache);
-  descendingConstraintDegree(partitioned_hg, context, gain_cache);
+  frontToBackConstraints(partitioned_hg, context, gain_cache);
+  //descendingConstraintDegree(partitioned_hg, context, gain_cache);
 
   Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
   rebalancer->initialize(phg);
   rebalancer->refine(phg, {}, metrics, 0.0);
-  LOG << "";
+  LOG << "-------------- stats after postprocessing --------------";
+  LOG << "km1       ="<< metrics::quality(partitioned_hg, context);
+  LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
   LOG << (verifyConstraints(partitioned_hg)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
   LOG << "";
   GainCachePtr::deleteGainCache(gain_cache);

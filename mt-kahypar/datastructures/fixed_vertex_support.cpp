@@ -157,7 +157,8 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         }
       }
       if(success) {
-        if (constraintExistsForPair(u, v) || !constraints::allowedNumberOfNeighbors(*_hg, u, v)) {
+        if (constraintExistsForPair(u, v) || (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) >= _k)) {
+          // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
           success = false;
         } else {
           // if both nodes are in the constraint graph and no neighbors and have together less than k-1 unique neighbors
@@ -173,6 +174,8 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
               // v1 gets contracted in u1
               // both hg nodes point to the same new contracted node u1
               _hypergraph_id_to_graph_id->operator[](v) = u1;
+              _constraint_graph->setNodeWeight(u1, HypernodeWeight(u));
+              if (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1) >= _k) LOG << "Number after contraction too high" << constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1);
             }
           } else {
             ASSERT(false, "could not register contraction beteween nodes" << u1 << v1);
@@ -315,17 +318,17 @@ void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const FixedVertexSupport<Hypergraph>& fixed_vertices) {
-    _constraint_graph = std::make_unique<DynamicGraph>(fixed_vertices._constraint_graph->copy());
-    _constraints = fixed_vertices._constraints;
-    _hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(fixed_vertices._hypergraph_id_to_graph_id->copy());
-  }
+  _constraint_graph = std::make_unique<DynamicGraph>(fixed_vertices._constraint_graph->copy());
+  _constraints = fixed_vertices._constraints;
+  _hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(fixed_vertices._hypergraph_id_to_graph_id->copy());
+}
 
 template<typename Hypergraph>
 bool FixedVertexSupport<Hypergraph>::constraintExistsForPair(const HypernodeID u, const HypernodeID v) const {
-    HypernodeID u1;
-    HypernodeID v1;
-    return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
-  }
+  HypernodeID u1;
+  HypernodeID v1;
+  return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
+}
 
 template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
