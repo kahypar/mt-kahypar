@@ -1075,11 +1075,22 @@ namespace mt_kahypar {
     }
 
     // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
-    if (context.evolutionary.meta_evo_mode && !context.evolutionary.improvement_rate_stopping.enabled) {
-        context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
-        context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
-        context.evolutionary.improvement_rate_stopping.alpha = 0.15;
-        context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
+    if (context.evolutionary.meta_evo_mode) {
+        bool any_stopping_param_set_manually = 
+            !cmd_vm["evo-improvement-rate-stopping"].defaulted() ||
+            !cmd_vm["evo-early-window-improvs"].defaulted() ||
+            !cmd_vm["evo-recent-window-improvs"].defaulted() ||
+            !cmd_vm["evo-stopping-alpha"].defaulted() ||
+            !cmd_vm["evo-max-iters-without-improv"].defaulted();
+        
+        if (!any_stopping_param_set_manually) {
+            // Apply aggressive defaults only if user didn't specify any stopping criteria parameters
+            context.evolutionary.improvement_rate_stopping.enabled = true;
+            context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
+            context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
+            context.evolutionary.improvement_rate_stopping.alpha = 0.15;
+            context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
+        }
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);

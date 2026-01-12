@@ -37,6 +37,7 @@ debug152/*
 profile/*
 external_tools/*
 .vscode/*
+.venv/*
 example_1
 example_2
 example_3
