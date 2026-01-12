@@ -115,7 +115,8 @@ class TwoHopClustering {
         const HyperedgeWeight incident_weight_sum = fill_incidence_map_for_node(incidence_map, hn, too_many_accesses);
 
         if (!too_many_accesses) {
-          const float required_connectivity = _context.coarsening.two_hop_required_connectivity * incident_weight_sum;
+          // const float required_connectivity = _context.coarsening.two_hop_required_connectivity * incident_weight_sum;
+          const float required_connectivity = cc.contract_aggressively ? 0.0 : (_context.coarsening.two_hop_required_connectivity * incident_weight_sum);
           float max_connectivity = 0;
           HypernodeID best_target = kInvalidHypernode;
           for (const auto& [target_cluster, connectivity]: incidence_map) {
