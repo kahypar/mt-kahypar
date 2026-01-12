@@ -60,10 +60,14 @@ bool operator>(const PQElement& lhs, const PQElement& rhs) {
 using PQ = std::priority_queue<PQElement>;
 
 
-HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph, bool deterministic) {
+HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph,
+                                                  bool deterministic,
+                                                  const ds::Bitset& unassigned_processors) {
   vec<HypernodeID> min_nodes;
   HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
   for ( const HypernodeID& hn : graph.nodes() ) {
+    if (!unassigned_processors.isSet(hn)) continue;
+
     HyperedgeWeight weighted_degree = 0;
     for ( const HyperedgeID he : graph.incidentEdges(hn) ) {
       weighted_degree += graph.edgeWeight(he);
@@ -106,6 +110,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
       for ( const HypernodeID& hn : communication_hg.nodes() ) {
         if ( communication_hg.partID(hn) == kInvalidPartition ) {
           ASSERT(up_to_date_ratings[hn]);
+          ASSERT(!communication_hg.isFixed(hn));
           pq.push( PQElement { rating[hn], hn } );
           break;
         }
@@ -114,9 +119,11 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   };
 
   auto assign = [&](const HypernodeID u,
-                    const PartitionID process) {
+                    const PartitionID process,
+                    bool check_unassigned_nodes) {
     ASSERT(process != kInvalidPartition && process < communication_hg.k());
     ASSERT(unassigned_processors.isSet(process));
+    ASSERT(!communication_hg.isFixed(u) || communication_hg.fixedVertexBlock(u) == process);
     communication_hg.setNodePart(u, process);
     up_to_date_ratings[u] = false; // This marks u as assigned
     unassigned_processors.unset(process); // This marks the process as assigned
@@ -130,7 +137,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
         const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
         for ( const HypernodeID& pin : communication_hg.pins(he) ) {
           rating[pin] += edge_weight;
-          if ( up_to_date_ratings[pin] ) {
+          if ( up_to_date_ratings[pin] && !communication_hg.isFixed(pin) ) {
             nodes_to_update.push_back(pin);
             up_to_date_ratings[pin] = false;
           }
@@ -144,7 +151,9 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
       pq.push(PQElement { rating[hn], hn });
       up_to_date_ratings[hn] = true;
     }
-    check_if_all_nodes_are_assigned();
+    if (check_unassigned_nodes) {
+      check_if_all_nodes_are_assigned();
+    }
   };
 
   communication_hg.resetPartition();
@@ -152,17 +161,32 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   for ( PartitionID block = 0; block < target_graph.numBlocks(); ++block ) {
     unassigned_processors.set(block);
   }
+  // Preassign fixed vertices
+  if ( communication_hg.hasFixedVertices() ) {
+    for ( const HypernodeID& hn : communication_hg.nodes() ) {
+      if (communication_hg.isFixed(hn)) {
+        PartitionID process = communication_hg.fixedVertexBlock(hn);
+        assign(hn, process, false);
+      }
+    }
+  }
   // Assign seed node to process with minimum weighted degree
   const bool deterministic = context.partition.deterministic;
-  assign(seed_node, get_node_with_minimum_weighted_degree(target_graph.graph(), deterministic));
+  if (!communication_hg.isFixed(seed_node)) {
+    PartitionID best_process = get_node_with_minimum_weighted_degree(target_graph.graph(), deterministic, unassigned_processors);
+    assign(seed_node, best_process, true);
+  }
 
-  HyperedgeWeight actual_objective = 0;
+  // Note: it seems metrics::quality actually handles the unassigned nodes correctly
+  HyperedgeWeight actual_objective =
+    communication_hg.hasFixedVertices() ? metrics::quality(communication_hg, Objective::steiner_tree) : 0;
   vec<PartitionID> tie_breaking;
   vec<HyperedgeWeight> tmp_ratings(communication_hg.initialNumNodes(), 0);
   while ( !pq.empty() ) {
     const PQElement best = pq.top();
     const HypernodeID u = best.u;
     pq.pop();
+    ASSERT(!communication_hg.isFixed(u));
 
     if ( !up_to_date_ratings[u] ) {
       check_if_all_nodes_are_assigned();
@@ -204,7 +228,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
       tie_breaking[utils::Randomize::instance().getRandomInt(
         0, static_cast<int>(tie_breaking.size() - 1), THREAD_ID)];
     actual_objective += best_rating;
-    assign(u, best_process);
+    assign(u, best_process, true);
   }
   ASSERT(actual_objective == metrics::quality(communication_hg, Objective::steiner_tree));
   ASSERT([&] {
