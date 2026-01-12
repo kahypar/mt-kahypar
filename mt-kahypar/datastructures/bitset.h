@@ -86,7 +86,7 @@ class Bitset {
     std::memcpy(_bitset.data(), blocks, sizeof(Block) * num_blocks);
   }
 
-  bool isSet(const size_t pos) {
+  bool isSet(const size_t pos) const {
     ASSERT(pos < _size);
     const size_t block_idx = pos >> DIV_SHIFT; // pos / BITS_PER_BLOCK;
     const size_t idx = pos & MOD_MASK; // pos % BITS_PER_BLOCK;

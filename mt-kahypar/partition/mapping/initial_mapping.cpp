@@ -108,6 +108,18 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
   });
   converted_phg.initializePartition();
 
+  // Map fixed vertices to new hypergraph
+  if ( phg.hasFixedVertices() ) {
+    ds::FixedVertexSupport<ds::StaticHypergraph> fixed_vertices_copy(phg.initialNumNodes(), phg.k());
+    fixed_vertices_copy.setHypergraph(&converted_hg);
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      if ( phg.isFixed(hn) ) {
+        fixed_vertices_copy.fixToBlock(hn, phg.fixedVertexBlock(hn));
+      }
+    });
+    converted_hg.addFixedVertexSupport(std::move(fixed_vertices_copy));
+  }
+
   ASSERT(metrics::quality(phg, Objective::cut) == metrics::quality(converted_phg, Objective::cut));
   return std::make_pair<Hypergraph, TargetPartitionedHypergraph>(
     std::move(converted_hg), std::move(converted_phg));

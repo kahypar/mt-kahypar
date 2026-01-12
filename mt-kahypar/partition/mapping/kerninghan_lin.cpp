@@ -145,7 +145,11 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
     // Initialize priority queue
     PQ pq;
     for ( const HypernodeID& u : communication_hg.nodes() ) {
+      if (communication_hg.isFixed(u)) continue;
+
       for ( const HypernodeID& v : communication_hg.nodes() ) {
+        if (communication_hg.isFixed(v)) continue;
+
         if ( u < v ) {
           const HyperedgeWeight gain = swap_gain(communication_hg, target_graph, u, v, marked_hes);
           pq.push(PQElement { gain, std::make_pair(u, v) });
