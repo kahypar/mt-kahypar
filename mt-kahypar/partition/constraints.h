@@ -100,6 +100,13 @@ PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph,
       count++;
     }
   }
+  // if (constraint_graph.nodeDegree(u) != count) {
+  //     LOG << "node"<<u<<"has "<<count<<"constraints but a degree of" << constraint_graph.nodeDegree(u);
+  //     LOG << "neighbors:";
+  //     for (HypernodeID incident_node : constraint_graph.incidentNodes(u)) {
+  //       LOG << incident_node;
+  //     }
+  //   }
   for (const auto& node : constraint_graph.incidentNodes(v)) {
     if (set.find(node) != set.end()) continue;
     else {
