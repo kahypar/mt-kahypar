@@ -205,7 +205,9 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
       if ( context.partition.objective != Objective::soed ) {
         oss << " soed=" << metrics::quality(hypergraph, Objective::soed);
       }
-      oss << " imbalance=" << metrics::imbalance(hypergraph, context);
+      BalanceMetrics imbalance = metrics::imbalance(hypergraph, context);
+      oss << " imbalance=" << imbalance.imbalance_value;
+      oss << " violates_non_empty_blocks=" << imbalance.violates_non_empty_blocks;
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 

@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
   std::cout << "cut =" << metrics::quality(phg, Objective::cut) << std::endl;
   std::cout << "soed =" << metrics::quality(phg, Objective::soed) << std::endl;
   std::cout << "km1 = " << metrics::quality(phg, Objective::km1) << std::endl;
-  std::cout << "imbalance = " << metrics::imbalance(phg, context) << std::endl;
+  std::cout << "imbalance = " << metrics::imbalance(phg, context).imbalance_value << std::endl;
 
   utils::delete_hypergraph(hypergraph);
 
