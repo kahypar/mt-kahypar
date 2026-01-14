@@ -124,7 +124,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     HypernodeID v1 = v;
     // if v is in constraints and u not, dont contract it in u for now.
     // TODO: contract them but change all occurencies of v to u in constraints
-    if (getConstraintIdFromHypergraphId(v, v1) && !getConstraintIdFromHypergraphId(u, u1)) {
+    if (!getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
       success = false;
     } else if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
       // if anti constraints should be checked this was wrong locked
@@ -157,7 +157,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         }
       }
       if(success) {
-        if (constraintExistsForPair(u, v) || (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) >= _k)) {
+        if (constraintExistsForPair(u, v) || !allowedConstraintDegreeAfterContraction(u, v)) {
           // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
           success = false;
         } else {
@@ -328,6 +328,16 @@ bool FixedVertexSupport<Hypergraph>::constraintExistsForPair(const HypernodeID u
   HypernodeID u1;
   HypernodeID v1;
   return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
+}
+
+template<typename Hypergraph>
+bool FixedVertexSupport<Hypergraph>::allowedConstraintDegreeAfterContraction(const HypernodeID u, const HypernodeID v) const {
+  HypernodeID u1;
+  HypernodeID v1;
+  if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
+    return constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) < _k;
+  }
+  return true;
 }
 
 template<typename Hypergraph>

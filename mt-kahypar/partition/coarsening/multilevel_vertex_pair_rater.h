@@ -193,7 +193,7 @@ class MultilevelVertexPairRater {
               hypergraph, fixed_vertices, _context, tmp_target, u);
         }
         if (fixed_vertices.hasNegativeConstraints()) {
-          if (fixed_vertices.constraintExistsForPair(tmp_target, u)) {
+          if (fixed_vertices.constraintExistsForPair(tmp_target, u) || !fixed_vertices.allowedConstraintDegreeAfterContraction(tmp_target, u)){
             accept_fixed_vertex_contraction = false;
           }
         }

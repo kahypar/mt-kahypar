@@ -54,7 +54,7 @@ namespace mt_kahypar {
       Move best_move = _gain.computeMaxGainMove(hypergraph, hn, false, false, unconstrained);
       // We perform a move if it either improves the solution quality or, in case of a
       // zero gain move, the balance of the solution.
-      const bool positive_gain = best_move.gain < 0; // das muss größer als sein ?!
+      const bool positive_gain = best_move.gain < 0;
       const bool zero_gain_move = (_context.refinement.label_propagation.rebalancing &&
                                     best_move.gain == 0 &&
                                     hypergraph.partWeight(best_move.from) - 1 >
@@ -68,7 +68,7 @@ namespace mt_kahypar {
       const bool improved_anti_constraints_hold_cut = hypergraph.hasNegativeConstraints() && 
                                             !constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.from) && 
                                             constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.to) &&
-                                            best_move.gain >= 0;
+                                            best_move.gain <= 0;
       const bool perform_move = (positive_gain || zero_gain_move || improved_anti_constraints_hold_cut) && anti_constraints_met ;
       if (best_move.from != best_move.to && perform_move) {
         PartitionID from = best_move.from;
