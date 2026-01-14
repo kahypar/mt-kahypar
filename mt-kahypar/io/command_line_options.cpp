@@ -1356,19 +1356,23 @@ namespace mt_kahypar {
 
     // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
     if (context.evolutionary.meta_evo_mode) {
-        bool any_stopping_param_set_manually = 
-            !cmd_vm["evo-improvement-rate-stopping"].defaulted() ||
-            !cmd_vm["evo-early-window-improvs"].defaulted() ||
-            !cmd_vm["evo-recent-window-improvs"].defaulted() ||
-            !cmd_vm["evo-stopping-alpha"].defaulted() ||
-            !cmd_vm["evo-max-iters-without-improv"].defaulted();
-        
-        if (!any_stopping_param_set_manually) {
-            // Apply aggressive defaults only if user didn't specify any stopping criteria parameters
-            context.evolutionary.improvement_rate_stopping.enabled = true;
+        if (cmd_vm["evo-improvement-rate-stopping"].defaulted()) {
+             context.evolutionary.improvement_rate_stopping.enabled = true;
+        }
+
+        if (cmd_vm["evo-early-window-improvs"].defaulted()) {
             context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
+        }
+        
+        if (cmd_vm["evo-recent-window-improvs"].defaulted()) {
             context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
+        }
+
+        if (cmd_vm["evo-stopping-alpha"].defaulted()) {
             context.evolutionary.improvement_rate_stopping.alpha = 0.15;
+        }
+
+        if (cmd_vm["evo-max-iters-without-improv"].defaulted()) {
             context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
         }
     }
