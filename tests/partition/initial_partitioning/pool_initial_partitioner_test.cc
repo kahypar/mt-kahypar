@@ -148,8 +148,7 @@ TYPED_TEST_SUITE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   this->bipartition();
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
@@ -180,8 +179,7 @@ TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVertices) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
@@ -195,8 +193,7 @@ TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 

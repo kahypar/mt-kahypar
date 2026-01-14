@@ -52,7 +52,7 @@ namespace mt_kahypar {
     resizeDataStructuresForCurrentK();
     // If partition is imbalanced, rebalancer is activated
     bool improvement = false;
-    if ( !metrics::isBalanced(phg, _context) ) {
+    if ( !metrics::isValidPartition(phg, _context) ) {
       _gain.reset();
 
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
@@ -111,7 +111,7 @@ namespace mt_kahypar {
 
       // If partition is still imbalanced, we try execute moves stored into
       // the thread local priority queue which could possibly worsen solution quality
-      if ( !metrics::isBalanced(phg, _context) ) {
+      if ( !metrics::isValidPartition(phg, _context) ) {
 
         // Initialize minimum gain value of each priority queue
         parallel::scalable_vector<uint8_t> active_pqs(idx.load(), false);

@@ -119,7 +119,7 @@ namespace mt_kahypar {
   void MultilevelUncoarsener<TypeTraits>::rebalancingImpl() {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
-    if (_context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if (_context.type == ContextType::main && !metrics::isValidPartition(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = _current_metrics.quality;
       if (_context.partition.verbose_output) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
@@ -213,7 +213,7 @@ namespace mt_kahypar {
     if ( _rebalancer && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _rebalancer->initialize(phg);
     }
-    if (!metrics::isBalanced(partitioned_hypergraph, _context)) {
+    if (!metrics::isValidPartition(partitioned_hypergraph, _context)) {
       _timer.start_timer("rebalance", "Rebalance");
       _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
       _timer.stop_timer("rebalance");
