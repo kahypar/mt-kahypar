@@ -95,6 +95,7 @@ class RepairEmptyBlocksTest : public Test {
     }
 
     gain_computation = std::make_unique<GainComputation>(context);
+    context.partition.allow_empty_blocks = false;
   }
 
   void constructFromFile() {

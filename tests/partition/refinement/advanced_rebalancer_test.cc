@@ -82,6 +82,7 @@ class RebalancerTest : public Test {
 
     context.partition.objective = Hypergraph::is_graph ? Objective::cut : Objective::km1;
     context.partition.gain_policy = Hypergraph::is_graph ? GainPolicy::cut_for_graphs : GainPolicy::km1;
+    context.partition.allow_empty_blocks = false;
   }
 
   void constructFromFile() {
@@ -143,7 +144,7 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
 
 
 TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
-  this->constructFromValues(4, 1, { {0, 1, 2} }, {1, 1, 1, 1});
+  this->constructFromValues(4, 2, { {0, 1}, {1, 2} }, {1, 1, 1, 1});
   this->context.partition.max_part_weights.resize(this->context.partition.k, 5);
   this->context.partition.use_individual_part_weights = true;
   this->setup();
