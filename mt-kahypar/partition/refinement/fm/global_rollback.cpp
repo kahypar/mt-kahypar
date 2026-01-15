@@ -30,65 +30,62 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/metrics_tracker.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/datastructures/synchronized_edge_update.h"
 
 namespace mt_kahypar {
+  struct Prefix {
+    Metrics delta_metrics;                   /** objective is relative to when using valid moves up to best_index */
+    MoveID best_index = 0;                   /** local ID of first move to revert */
+
+    Prefix(): delta_metrics{0, BalanceMetrics{}}, best_index(0) { }
+
+    explicit Prefix(const Metrics& metrics, MoveID index):
+      delta_metrics(metrics), best_index(index) { }
+
+    bool isBetter(const Prefix& other) const {
+      return delta_metrics.isBetter(other.delta_metrics) ||
+        (delta_metrics.isEqual(other.delta_metrics) && best_index < other.best_index);
+    }
+
+    bool isValid() const {
+      return delta_metrics.imbalance.isValidPartition();
+    }
+  };
 
   template<typename PartitionedHypergraph>
   struct BalanceAndBestIndexScan {
-    const PartitionedHypergraph& phg;
-    const vec<Move>& moves;
-
-    struct Prefix {
-      Gain gain = 0;                           /** gain when using valid moves up to best_index */
-      MoveID best_index = 0;                   /** local ID of first move to revert */
-      HypernodeWeight heaviest_weight =
-              std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
-
-      bool operator<(const Prefix& o) const {
-        return gain > o.gain ||
-               (gain == o.gain && std::tie(heaviest_weight, best_index) < std::tie(o.heaviest_weight, o.best_index));
-      }
-    };
+    metrics::MetricsTracker<PartitionedHypergraph> tracker;
     std::shared_ptr< tbb::enumerable_thread_specific<Prefix> > local_best;
 
-    Gain gain_sum = 0;
-
-    vec<HypernodeWeight> part_weights;
+    const vec<Move>& moves;
     const std::vector<HypernodeWeight>& max_part_weights;
 
     BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
-            phg(b.phg),
-            moves(b.moves),
+            tracker(b.tracker.splitPrescan()),
             local_best(b.local_best),
-            gain_sum(0),
-            part_weights(b.part_weights.size(), 0),
+            moves(b.moves),
             max_part_weights(b.max_part_weights) { }
 
-
     BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
-                            const vec<Move>& moves,
+                            const Context& context,
                             const vec<HypernodeWeight>& part_weights,
-                            const std::vector<HypernodeWeight>& max_part_weights) :
-            phg(phg),
-            moves(moves),
+                            const std::vector<HypernodeWeight>& max_part_weights,
+                            const vec<Move>& moves) :
+            tracker(phg, context, part_weights, max_part_weights),
             local_best(std::make_shared< tbb::enumerable_thread_specific<Prefix> >()),
-            part_weights(part_weights),
-            max_part_weights(max_part_weights)
-    {
-    }
+            moves(moves),
+            max_part_weights(max_part_weights) { }
 
 
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
         if (m.isValid()) {  // skip locally reverted moves
-          gain_sum += m.gain;
-          part_weights[m.from] -= phg.nodeWeight(m.node);
-          part_weights[m.to] += phg.nodeWeight(m.node);
+          tracker.applyMovePreScan(m);
         }
       }
     }
@@ -96,68 +93,55 @@ namespace mt_kahypar {
     // subranges a | b | c | d . assuming this ran pre_scan on c,
     // then lhs ran pre_scan on b and final_scan of this will be on d
     void reverse_join(BalanceAndBestIndexScan& lhs) {
-      for (size_t i = 0; i < part_weights.size(); ++i) {
-        part_weights[i] += lhs.part_weights[i];
-      }
-      gain_sum += lhs.gain_sum;
+      tracker.addPrefix(lhs.tracker);
     }
 
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
-      size_t overloaded = 0;
-      for (size_t i = 0; i < part_weights.size(); ++i) {
-        if (part_weights[i] > max_part_weights[i]) {
-          overloaded++;
-        }
-      }
+      tracker.initializeConstraints();
 
       Prefix current;
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
 
         if (m.isValid()) {  // skip locally reverted moves
-          gain_sum += m.gain;
+          tracker.applyMove(m);
 
-          const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
-          part_weights[m.from] -= phg.nodeWeight(m.node);
-          if (from_overloaded && part_weights[m.from] <= max_part_weights[m.from]) {
-            overloaded--;
-          }
-          const bool to_overloaded = part_weights[m.to] > max_part_weights[m.to];
-          part_weights[m.to] += phg.nodeWeight(m.node);
-          if (!to_overloaded && part_weights[m.to] > max_part_weights[m.to]) {
-            overloaded++;
-          }
-
-          if (overloaded == 0 && gain_sum >= current.gain) {
-            Prefix new_prefix = { gain_sum, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
-            current = std::min(current, new_prefix);
+          if (tracker.isBetter(current.delta_metrics)) {
+            current = Prefix(tracker.getMetrics(), i + 1);
           }
         }
       }
 
       if (current.best_index != 0) {
         Prefix& lb = local_best->local();
-        lb = std::min(lb, current);
+        if (current.isBetter(lb)) {
+          lb = current;
+        }
       }
     }
 
-    void assign(BalanceAndBestIndexScan& b) {
-      gain_sum = b.gain_sum;
+    void assign(BalanceAndBestIndexScan&) {
+      // only matters for retrieving the result (which we do via local_best)
     }
 
     Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
-      Prefix res { 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
+      const auto initial_imbalance =
+        metrics::imbalance(*tracker.phg, *tracker.context, initial_part_weights, max_part_weights);
+      Prefix res(Metrics{0, initial_imbalance}, 0);
       for (const Prefix& x : *local_best) {
-        res = std::min(res, x);
+        if (x.isBetter(res)) {
+          res = x;
+        }
       }
       return res;
     }
   };
 
   template<typename GraphAndGainTypes>
-  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(
-          PartitionedHypergraph& phg, FMSharedData& sharedData,
-          const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
+  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixParallel(PartitionedHypergraph& phg,
+                                                                                FMSharedData& sharedData,
+                                                                                const vec<HypernodeWeight>& partWeights,
+                                                                                const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
@@ -166,10 +150,10 @@ namespace mt_kahypar {
     recalculateGains(phg, sharedData);
     HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
 
-    BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order, partWeights, maxPartWeights);
+    BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, context, partWeights, maxPartWeights, move_order);
     // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
-    typename BalanceAndBestIndexScan<PartitionedHypergraph>::Prefix b = s.finalize(partWeights);
+    Prefix b = s.finalize(partWeights);
 
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
@@ -188,7 +172,7 @@ namespace mt_kahypar {
     sharedData.moveTracker.reset();
 
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    return b.gain;
+    return -b.delta_metrics.quality;
   }
 
   template<typename GraphAndGainTypes>
