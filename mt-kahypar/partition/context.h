@@ -85,7 +85,7 @@ struct CommunityDetectionParameters {
   uint32_t max_pass_iterations = 5;
   bool low_memory_contraction = false;
   long double min_vertex_move_fraction = 0.01;
-  size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
+  size_t vertex_degree_sampling_threshold = 200000;
   size_t num_sub_rounds_deterministic = 16;
 };
 
@@ -111,7 +111,7 @@ struct CoarseningParameters {
   double max_allowed_weight_multiplier = 1;
   double minimum_shrink_factor = 1.01;
   double maximum_shrink_factor = 2.5;
-  size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
+  size_t vertex_degree_sampling_threshold = 200000;
 
   // parameters for deterministic coarsening
   size_t num_sub_rounds_deterministic = 16;
