@@ -84,6 +84,17 @@ template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
 template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const std::vector<HypernodeWeight>& max_part_weights);
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const vec<HypernodeWeight>& part_weights,
+                         const std::vector<HypernodeWeight>& max_part_weights);
+
+template<typename PartitionedHypergraph>
 double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);
 
 }  // namespace metrics

@@ -199,8 +199,11 @@ bool isValidPartition(const PartitionedHypergraph& phg, const Context& context) 
   return imbalance_metrics.isValidPartition();
 }
 
-template<typename PartitionedHypergraph>
-BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+template<typename PartitionedHypergraph, typename Func>
+BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
+                              const Context& context,
+                              Func&& part_weight_fn,
+                              const std::vector<HypernodeWeight>& max_part_weights) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
   size_t num_empty_parts = 0;
@@ -208,11 +211,11 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context&
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    const HypernodeWeight part_weight = hypergraph.partWeight(i);
+    const HypernodeWeight part_weight = part_weight_fn(i);
     const double balance_i = (part_weight
             / static_cast<double>(context.partition.perfect_balance_part_weights[i]));
     max_balance = std::max(max_balance, balance_i);
-    if (part_weight > context.partition.max_part_weights[i]) {
+    if (part_weight > max_part_weights[i]) {
       violates_balance = true;
     }
     if (part_weight == 0) {
@@ -227,6 +230,39 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context&
     && min_empty_part_weight < hypergraph.maxWeightOfRemovedDegreeZeroNode();
   return BalanceMetrics{max_balance - 1.0, violates_balance,
     !context.partition.allow_empty_blocks && (too_many_empty_parts || too_small_empty_parts)};
+}
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+  return imbalance_impl(
+    hypergraph,
+    context,
+    [&](PartitionID i) { return hypergraph.partWeight(i); },
+    context.partition.max_part_weights);
+}
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const std::vector<HypernodeWeight>& max_part_weights) {
+  return imbalance_impl(
+    hypergraph,
+    context,
+    [&](PartitionID i) { return hypergraph.partWeight(i); },
+    max_part_weights);
+}
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const vec<HypernodeWeight>& part_weights,
+                         const std::vector<HypernodeWeight>& max_part_weights) {
+  ASSERT(part_weights.size() == (size_t)context.partition.k);
+  return imbalance_impl(
+    hypergraph,
+    context,
+    [&](PartitionID i) { return part_weights[i]; },
+    max_part_weights);
 }
 
 template<typename PartitionedHypergraph>
@@ -248,7 +284,14 @@ namespace {
 #define OBJECTIVE_2(X) HyperedgeWeight quality(const X& hg, const Objective objective, const bool parallel)
 #define CONTRIBUTION(X) HyperedgeWeight contribution(const X& hg, const HyperedgeID he, const Objective objective)
 #define IS_VALID_PARTITION(X) bool isValidPartition(const X& phg, const Context& context)
-#define IMBALANCE(X) BalanceMetrics imbalance(const X& hypergraph, const Context& context)
+#define IMBALANCE_1(X) BalanceMetrics imbalance(const X& hypergraph, const Context& context)
+#define IMBALANCE_2(X) BalanceMetrics imbalance(const X& hypergraph, \
+                                                const Context& context, \
+                                                const std::vector<HypernodeWeight>& max_part_weights)
+#define IMBALANCE_3(X) BalanceMetrics imbalance(const X& hypergraph, \
+                                                const Context& context, \
+                                                const vec<HypernodeWeight>& part_weights, \
+                                                const std::vector<HypernodeWeight>& max_part_weights)
 #define APPROX_FACTOR(X) double approximationFactorForProcessMapping(const X& hypergraph, const Context& context)
 }
 
@@ -256,7 +299,9 @@ INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_1)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_2)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(CONTRIBUTION)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IS_VALID_PARTITION)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE_1)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE_2)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE_3)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(APPROX_FACTOR)
 
 } // namespace metrics
