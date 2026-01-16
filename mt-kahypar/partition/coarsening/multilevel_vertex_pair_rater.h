@@ -193,7 +193,13 @@ class MultilevelVertexPairRater {
               hypergraph, fixed_vertices, _context, tmp_target, u);
         }
         if (fixed_vertices.hasNegativeConstraints()) {
-          if (fixed_vertices.constraintExistsForPair(tmp_target, u)) {
+          HypernodeID u1;
+          HypernodeID tmp1;
+          if (fixed_vertices.constraintExistsForPair(tmp_target, u) || !fixed_vertices.allowedConstraintDegreeAfterContraction(tmp_target, u)){
+            accept_fixed_vertex_contraction = false;
+          }
+          else if (!fixed_vertices.getConstraintIdFromHypergraphId(tmp_target, tmp1) && fixed_vertices.getConstraintIdFromHypergraphId(u, u1)) {
+            // dont contract a non constraint node into a constraint node, just the other way around
             accept_fixed_vertex_contraction = false;
           }
         }

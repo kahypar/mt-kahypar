@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 
@@ -88,7 +89,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
     // Perform vertex move
     PartitionID from = _phg.partID(hn);
     _vertex_state[hn] = VertexState::MOVED;
-    if ( _phg.changeNodePart(hn, from, to,
+    if ( /*constraints::isNodeAllowedInPartition(_phg, hn, to) && */ _phg.changeNodePart(hn, from, to, //makes quality worse
           _context.partition.max_part_weights[to], []{}, border_vertex_update) ) {
 
       // Perform delta gain updates
@@ -120,6 +121,14 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
       current_imbalance = metrics::imbalance(_phg, _context);
       stopping_rule.update(gain);
 
+      const bool anti_constraints_met = (_phg.hasNegativeConstraints() ? (
+                                            constraints::isNodeAllowedInPartition(_phg, hn, to) ||
+                                            !constraints::isNodeAllowedInPartition(_phg, hn, from)
+                                          ) : true);
+      const bool improved_anti_constraints_hold_cut = _phg.hasNegativeConstraints() && 
+                                            !constraints::isNodeAllowedInPartition(_phg, hn, from) && 
+                                            constraints::isNodeAllowedInPartition(_phg, hn, to) &&
+                                            current_cut <= best_metrics.quality * 1.00; // found value by trying on two graph instance
       const bool improved_cut_within_balance = (current_cut < best_metrics.quality) &&
                                                 ( _phg.partWeight(0)
                                                   <= _context.partition.max_part_weights[0]) &&
@@ -127,9 +136,10 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
                                                   <= _context.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
                                                   (current_cut <= best_metrics.quality);
-      const bool move_is_feasible = ( _phg.partWeight(from) > 0) &&
+      const bool move_is_feasible = ( _phg.partWeight(from) > 0) && anti_constraints_met &&
                                     ( improved_cut_within_balance ||
-                                      improved_balance_less_equal_cut );
+                                      improved_balance_less_equal_cut ||
+                                      improved_anti_constraints_hold_cut );
       if ( move_is_feasible ) {
         DBG << GREEN << "2Way FM improved cut from" << best_metrics.quality << "to" << current_cut
             << "(Imbalance:" << current_imbalance << ")" << END;

@@ -83,7 +83,7 @@ std::vector<option> load_default_preset() {
     create_option("i-r-lp-rebalancing", "true"),
     create_option("i-r-lp-he-size-activation-threshold", "100"),
     // main -> initial_partitioning -> refinement -> fm
-    create_option("i-r-fm-type", "kway_fm"),
+    create_option("i-r-fm-type", "do_nothing"),
     create_option("i-r-fm-multitry-rounds", "5"),
     create_option("i-r-fm-rollback-parallel", "true"),
     create_option("i-r-fm-rollback-balance-violation-factor", "1"),
@@ -105,7 +105,7 @@ std::vector<option> load_default_preset() {
     create_option("r-lp-he-size-activation-threshold", "100"),
     create_option("r-lp-relative-improvement-threshold", "0.001"),
     // main -> refinement -> fm
-    create_option("r-fm-type", "unconstrained_fm"),
+    create_option("r-fm-type", "do_nothing"),
     create_option("r-fm-multitry-rounds", "10"),
     create_option("r-fm-unconstrained-rounds", "8"),
     create_option("r-fm-rollback-parallel", "true"),

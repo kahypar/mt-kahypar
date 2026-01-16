@@ -522,14 +522,12 @@ namespace mt_kahypar::ds {
             std::make_move_iterator(v.end())
           );
         }
-        LOG << new_constraints.size();
         // remove duplicates
         std::sort(new_constraints.begin(), new_constraints.end());
         new_constraints.erase(
           std::unique(new_constraints.begin(), new_constraints.end()),
           new_constraints.end()
         );
-        LOG << new_constraints.size();
         coarse_fixed_vertices.setNegativeConstraints(new_constraints);
       }
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));

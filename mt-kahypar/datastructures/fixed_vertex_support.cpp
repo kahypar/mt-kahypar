@@ -29,6 +29,7 @@
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -123,7 +124,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     HypernodeID v1 = v;
     // if v is in constraints and u not, dont contract it in u for now.
     // TODO: contract them but change all occurencies of v to u in constraints
-    if (getConstraintIdFromHypergraphId(v, v1) && !getConstraintIdFromHypergraphId(u, u1)) {
+    if (!getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
       success = false;
     } else if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
       // if anti constraints should be checked this was wrong locked
@@ -156,10 +157,11 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         }
       }
       if(success) {
-        // if both nodes are in the constraint graph and no neighbors
-        if (constraintExistsForPair(u,v)) {
+        if (constraintExistsForPair(u, v) || !allowedConstraintDegreeAfterContraction(u, v)) {
+          // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
           success = false;
         } else {
+          // if both nodes are in the constraint graph and no neighbors and have together less than k-1 unique neighbors
           success = _constraint_graph->registerContraction(u1, v1);
           if (success) {
             // node weight to node id in hypergraph mapping gets broken here
@@ -172,6 +174,8 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
               // v1 gets contracted in u1
               // both hg nodes point to the same new contracted node u1
               _hypergraph_id_to_graph_id->operator[](v) = u1;
+              _constraint_graph->setNodeWeight(u1, HypernodeWeight(u));
+              if (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1) >= _k) LOG << "Number after contraction too high" << constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1);
             }
           } else {
             ASSERT(false, "could not register contraction beteween nodes" << u1 << v1);
@@ -314,17 +318,27 @@ void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const FixedVertexSupport<Hypergraph>& fixed_vertices) {
-    _constraint_graph = std::make_unique<DynamicGraph>(fixed_vertices._constraint_graph->copy());
-    _constraints = fixed_vertices._constraints;
-    _hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(fixed_vertices._hypergraph_id_to_graph_id->copy());
-  }
+  _constraint_graph = std::make_unique<DynamicGraph>(fixed_vertices._constraint_graph->copy());
+  _constraints = fixed_vertices._constraints;
+  _hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(fixed_vertices._hypergraph_id_to_graph_id->copy());
+}
 
 template<typename Hypergraph>
 bool FixedVertexSupport<Hypergraph>::constraintExistsForPair(const HypernodeID u, const HypernodeID v) const {
-    HypernodeID u1;
-    HypernodeID v1;
-    return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
+  HypernodeID u1;
+  HypernodeID v1;
+  return (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1) && _constraint_graph->isIncidentTo(u1, v1));
+}
+
+template<typename Hypergraph>
+bool FixedVertexSupport<Hypergraph>::allowedConstraintDegreeAfterContraction(const HypernodeID u, const HypernodeID v) const {
+  HypernodeID u1;
+  HypernodeID v1;
+  if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
+    return constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) < _k;
   }
+  return true;
+}
 
 template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {

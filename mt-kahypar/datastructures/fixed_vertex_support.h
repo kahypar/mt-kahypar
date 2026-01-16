@@ -186,6 +186,8 @@ class FixedVertexSupport {
 
   bool constraintExistsForPair(const HypernodeID u, const HypernodeID v) const;
 
+  bool allowedConstraintDegreeAfterContraction(const HypernodeID u, const HypernodeID v) const;
+
   // ####################### Miscellaneous #######################
 
   FixedVertexSupport<Hypergraph> copy() const;
