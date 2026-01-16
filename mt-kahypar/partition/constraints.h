@@ -100,13 +100,6 @@ PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph,
       count++;
     }
   }
-  // if (constraint_graph.nodeDegree(u) != count) {
-  //     LOG << "node"<<u<<"has "<<count<<"constraints but a degree of" << constraint_graph.nodeDegree(u);
-  //     LOG << "neighbors:";
-  //     for (HypernodeID incident_node : constraint_graph.incidentNodes(u)) {
-  //       LOG << incident_node;
-  //     }
-  //   }
   for (const auto& node : constraint_graph.incidentNodes(v)) {
     if (set.find(node) != set.end()) continue;
     else {
@@ -226,6 +219,16 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
     },
     gain_cache
   );
+  auto delta_func =
+  [&partitioned_hg, &gain_cache](const SynchronizedEdgeUpdate& sync_update) {
+    GainCachePtr::applyWithConcreteGainCacheForHG<PartitionedHypergraph>(
+      [&](auto& cache) {
+        cache.deltaGainUpdate(partitioned_hg, sync_update);
+      },
+      gain_cache
+    );
+  };
+
   /**
    * For each node in constraint graph 
    * -> get neighbors
@@ -248,7 +251,7 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
         // in first round just move with gain >= 0
         PartitionID new_partition_id = getBestCutPartition<PartitionedHypergraph>(false, node_id, partition_id, invalid_partitions, gain_cache);
         if ( new_partition_id != partition_id) {
-          partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id);
+          partitioned_hg.changeNodePart(node_id, partition_id, new_partition_id, delta_func);
         }
     }
   }

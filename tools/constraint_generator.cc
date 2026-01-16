@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -51,6 +52,22 @@ void print_constraints(fs::path constraints_path,
         out_stream << constraint.first << " " << constraint.second << std::endl;
     }
     out_stream.close();
+}
+
+void logNumberOfDifferentNodes(fs::path constraints_path, 
+                        vec<std::pair<HypernodeID, HypernodeID>>& constraint_list, 
+                        HypernodeID num_constraints) {
+    std::mt19937 gen(12345);
+    std::shuffle(constraint_list.begin(), constraint_list.end(), gen);
+    std::unordered_set<HypernodeID> set;
+    set.reserve(constraint_list.size());
+
+    for (HypernodeID i = 0; i < num_constraints; i++) {
+        std::pair<HypernodeID, HypernodeID> constraint = constraint_list[i];
+        set.insert(constraint.first);
+        set.insert(constraint.second);
+    }
+    LOG << "Number of different Nodes:"<<set.size();
 }
 
 HypernodeID get_constraints(vec<vec<NodeID>>& adjacency, 
@@ -161,7 +178,39 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
     }
     num_constraints = std::min(num_constraints, constraint_count);
     print_constraints(constraints_path, constraint_list, num_constraints);
+    logNumberOfDifferentNodes(constraints_path, constraint_list, num_constraints);
     return num_constraints;
+}
+
+HypernodeID generate_fixed_from_partitioned_hg(const fs::path hg_path, 
+                                                        const fs::path part_hg_path, 
+                                                        const fs::path fixed_path, 
+                                                        HypernodeID num_constraints, 
+                                                        const HypernodeID max_constraints_per_node) {
+    HyperedgeID num_edges;
+    HypernodeID num_nodes;
+    std::vector<PartitionID> partitions;
+    io::onlyReadHGRHeader(hg_path.string(), num_edges, num_nodes);
+    io::readPartitionFile(part_hg_path.string(), num_nodes, partitions);
+
+    if (num_constraints <= 0) {
+        num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
+    }
+
+    std::ofstream out_stream(fixed_path);
+    HypernodeID count = 0;
+    HypernodeID fixed = num_nodes / 30565;
+    for (HypernodeID i = 0; i < num_nodes; i++) {
+        PartitionID part = -1;
+        if (i%fixed == 0){ 
+            part = partitions[i];
+            count++;
+        }
+        out_stream << part << std::endl;
+    }
+    out_stream.close();
+    LOG << "Generated fixed vertecies:" << count;
+    return count;
 }
 
 int main(int argc, char* argv[]) {
@@ -194,7 +243,7 @@ int main(int argc, char* argv[]) {
         "Partitioned-Hypergraph Filename or directory (optional)")
     ;
     po::variables_map cmd_vm;
-    po::store(po::parse_command_line(argc,argv, options), cmd_vm);
+    po::store(po::parse_command_line(argc, argv, options), cmd_vm);
     po::notify(cmd_vm);
 
     max_constraints_per_node = k - 1;
