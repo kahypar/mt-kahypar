@@ -43,6 +43,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 #include "kahypar-resources/utils/math.h"
 
@@ -233,7 +234,7 @@ namespace mt_kahypar::io {
       max_part_size = std::max(max_part_size, part_sizes[i]);
       num_imbalanced_blocks +=
         (hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-          ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 ));
+          ( !context.partition.allow_empty_blocks && hypergraph.partWeight(i) == 0 ));
     }
     avg_part_weight /= context.partition.k;
 
@@ -243,7 +244,7 @@ namespace mt_kahypar::io {
       for (PartitionID i = 0; i != context.partition.k; ++i) {
         bool is_imbalanced =
                 hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-                ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
+                ( !context.partition.allow_empty_blocks && hypergraph.partWeight(i) == 0 );
         if ( is_imbalanced ) std::cout << RED;
         std::cout << "|block " << std::left  << std::setw(k_digits) << i
                   << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
@@ -267,7 +268,7 @@ namespace mt_kahypar::io {
         for (PartitionID i = 0; i != context.partition.k; ++i) {
           const bool is_imbalanced =
             hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-            ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
+            ( !context.partition.allow_empty_blocks && hypergraph.partWeight(i) == 0 );
           if ( is_imbalanced ) {
             std::cout << RED << "|block " << std::left  << std::setw(k_digits) << i
                       << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
@@ -315,10 +316,11 @@ namespace mt_kahypar::io {
                                 const Context& context,
                                 const std::string& description) {
     if (context.partition.verbose_output) {
+      BalanceMetrics imbalance = metrics::imbalance(hypergraph, context);
       LOG << description;
       LOG << context.partition.objective << "      ="
           << metrics::quality(hypergraph, context);
-      LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
+      LOG << "imbalance =" << imbalance.imbalance_value;
       LOG << "Part sizes and weights:";
       io::printPartWeightsAndSizes(hypergraph, context);
       LOG << "";
@@ -434,8 +436,43 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::soed && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::soed, metrics::quality(hypergraph, Objective::soed));
     }
-    printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
+    BalanceMetrics imbalance = metrics::imbalance(hypergraph, context);
+    printKeyValue("Imbalance", imbalance.imbalance_value);
+    if ( !context.partition.allow_empty_blocks ) {
+      printKeyValue("Has Empty Blocks", imbalance.violates_non_empty_blocks ? "true" : "false");
+    }
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
+  }
+
+  using MCell = parallel::IntegralAtomicWrapper<HyperedgeWeight>;
+  using MCol = std::vector<MCell>;
+
+  void printMatrix(const std::vector<MCol>& matrix, PartitionID k) {
+    ASSERT(matrix.size() == UL(k));
+
+    HyperedgeWeight max_entry = 0;
+    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+      for ( PartitionID block_2 = block_1 + 1; block_2 < k; ++block_2 ) {
+        max_entry = std::max(max_entry, matrix[block_1][block_2].load());
+      }
+    }
+
+    // HEADER
+    const uint8_t column_width = std::max(kahypar::math::digits(max_entry) + 2, 5);
+    std::cout << std::right << std::setw(column_width) << "Block";
+    for ( PartitionID block = 0; block < k; ++block ) {
+      std::cout << std::right << std::setw(column_width) << block;
+    }
+    std::cout << std::endl;
+
+    // CUT MATRIX
+    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+      std::cout << std::right << std::setw(column_width) << block_1;
+      for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
+        std::cout << std::right << std::setw(column_width) << matrix[block_1][block_2].load();
+      }
+      std::cout << std::endl;
+    }
   }
 
   template<typename PartitionedHypergraph>
@@ -451,6 +488,11 @@ namespace mt_kahypar::io {
         const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
         for ( const PartitionID& block_1 : hypergraph.connectivitySet(he) ) {
           for ( const PartitionID& block_2 : hypergraph.connectivitySet(he) ) {
+            if constexpr (PartitionedHypergraph::is_graph) {
+              if (hypergraph.edgeSource(he) > hypergraph.edgeTarget(he)) {
+                continue;
+              }
+            }
             if ( block_1 < block_2 ) {
               cut_matrix[block_1][block_2] += edge_weight;
             }
@@ -459,31 +501,9 @@ namespace mt_kahypar::io {
       }
     });
 
-    HyperedgeWeight max_cut = 0;
-    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
-      for ( PartitionID block_2 = block_1 + 1; block_2 < k; ++block_2 ) {
-        max_cut = std::max(max_cut, cut_matrix[block_1][block_2].load());
-      }
-    }
-
-    // HEADER
-    const uint8_t column_width = std::max(kahypar::math::digits(max_cut) + 2, 5);
-    std::cout << std::right << std::setw(column_width) << "Block";
-    for ( PartitionID block = 0; block < k; ++block ) {
-      std::cout << std::right << std::setw(column_width) << block;
-    }
-    std::cout << std::endl;
-
-    // CUT MATRIX
-    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
-      std::cout << std::right << std::setw(column_width) << block_1;
-      for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
-        std::cout << std::right << std::setw(column_width)
-                  << (PartitionedHypergraph::is_graph ? cut_matrix[block_1][block_2].load() / 2 : cut_matrix[block_1][block_2].load());
-      }
-      std::cout << std::endl;
-    }
+    printMatrix(cut_matrix, k);
   }
+
 
   template<typename PartitionedHypergraph>
   void printPotentialPositiveGainMoveMatrix(const PartitionedHypergraph& hypergraph) {
@@ -525,30 +545,7 @@ namespace mt_kahypar::io {
       }
     });
 
-
-    HyperedgeWeight max_gain = 0;
-    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
-      for ( PartitionID block_2 = block_1 + 1; block_2 < k; ++block_2 ) {
-        max_gain = std::max(max_gain, positive_gains[block_1][block_2].load());
-      }
-    }
-
-    // HEADER
-    const uint8_t column_width = std::max(kahypar::math::digits(max_gain) + 2, 5);
-    std::cout << std::right << std::setw(column_width) << "Block";
-    for ( PartitionID block = 0; block < k; ++block ) {
-      std::cout << std::right << std::setw(column_width) << block;
-    }
-    std::cout << std::endl;
-
-    // CUT MATRIX
-    for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
-      std::cout << std::right << std::setw(column_width) << block_1;
-      for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
-        std::cout << std::right << std::setw(column_width) << positive_gains[block_1][block_2].load();
-      }
-      std::cout << std::endl;
-    }
+    printMatrix(positive_gains, k);
   }
 
   template<typename PartitionedHypergraph>

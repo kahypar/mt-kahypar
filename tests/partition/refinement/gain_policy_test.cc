@@ -47,7 +47,8 @@ class AGainPolicy : public Test {
   using HypergraphFactory = typename Hypergraph::Factory;
 
   AGainPolicy() :
-    hg(HypergraphFactory::construct(7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
+    hg(HypergraphFactory::construct(7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
+                                    nullptr, nullptr, true  /* stable construction */)),
     context(),
     gain(nullptr) {
     context.partition.k = K;

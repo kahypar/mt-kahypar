@@ -54,7 +54,6 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     Metrics current_metrics = best_metrics;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const HyperedgeWeight input_quality = best_metrics.quality;
-    _was_already_balanced = metrics::isBalanced(phg, _context);
     const auto& jet_context = _context.refinement.jet;
     resizeDataStructuresForCurrentK();
 
@@ -147,7 +146,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
         timer.stop_timer("apply_moves");
 
         // rebalance
-        if (!metrics::isBalanced(phg, _context)) {
+        if (!metrics::isValidPartition(phg, _context)) {
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
             timer.start_timer("rebalance", "Rebalance");
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
@@ -169,14 +168,12 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
 
         // if the parition was ever balanced => look for balanced partition with better quality
         // if the partition was never balanced => look for less imbalanced partition regardless of quality
-        const bool is_balanced = metrics::isBalanced(phg, _context);
-        if ((current_metrics.quality < best_metrics.quality && _was_already_balanced && is_balanced) || (!_was_already_balanced && current_metrics.imbalance < best_metrics.imbalance)) {
+        if (current_metrics.isBetter(best_metrics)) {
             if (best_metrics.quality - current_metrics.quality > _context.refinement.jet.relative_improvement_threshold * best_metrics.quality) {
                 rounds_without_improvement = 0;
             }
             best_metrics = current_metrics;
             _current_partition_is_best = true;
-            _was_already_balanced |= is_balanced;
         } else {
             _current_partition_is_best = false;
         }

@@ -26,12 +26,13 @@
  ******************************************************************************/
 
 #include <iostream>
+#include <chrono>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/io/presets.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/registries/registry.h"
@@ -44,6 +45,7 @@
 #include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
+using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 int main(int argc, char* argv[]) {
 
@@ -79,26 +81,24 @@ int main(int argc, char* argv[]) {
       context.shared_memory.shuffle_block_size);
   }
 
-  #ifndef KAHYPAR_DISABLE_HWLOC
-    size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+  if constexpr (parallel::provides_hardware_information) {
+    size_t num_available_cpus = parallel::num_hardware_cpus();
     if ( num_available_cpus < context.shared_memory.num_threads ) {
       WARNING("There are currently only" << num_available_cpus << "cpus available."
         << "Setting number of threads from" << context.shared_memory.num_threads
         << "to" << num_available_cpus);
       context.shared_memory.num_threads = num_available_cpus;
     }
-  #endif
+  }
 
   // Initialize TBB task arenas on numa nodes
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  parallel::initialize_tbb(context.shared_memory.num_threads);
 
-  #ifndef KAHYPAR_DISABLE_HWLOC
+  if constexpr (parallel::provides_hardware_information) {
     // We set the membind policy to interleaved allocations in order to
     // distribute allocations evenly across NUMA nodes
-    hwloc_cpuset_t cpuset = TBBInitializer::instance().used_cpuset();
-    parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
-    hwloc_bitmap_free(cpuset);
-  #endif
+    parallel::activate_interleaved_membind_policy();
+  }
 
   // Read Hypergraph
   utils::Timer& timer =
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
   }
 
   parallel::MemoryPool::instance().free_memory_chunks();
-  TBBInitializer::instance().terminate();
+  parallel::terminate_tbb();
 
   utils::delete_hypergraph(hypergraph);
   utils::delete_partitioned_hypergraph(partitioned_hypergraph);

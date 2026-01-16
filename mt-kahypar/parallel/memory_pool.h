@@ -41,10 +41,9 @@
 #endif
 
 #include <tbb/parallel_for.h>
-#include <tbb/scalable_allocator.h>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
+#include "mt-kahypar/parallel/stl/allocator.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
 namespace mt_kahypar {
@@ -158,7 +157,7 @@ class MemoryPoolT {
     // ! Note, the memory chunk is zero initialized.
     bool allocate() {
       if ( !_data && !_defer_allocation ) {
-        _data = (char*) scalable_calloc(_num_elements, _size);
+        _data = (char*) mtk_scalable_calloc(_num_elements, _size);
         return true;
       } else {
         return false;
@@ -168,7 +167,7 @@ class MemoryPoolT {
     // ! Frees the memory chunk
     void free() {
       if ( _data ) {
-        scalable_free(_data);
+        mtk_scalable_free(_data);
         _data = nullptr;
       }
     }

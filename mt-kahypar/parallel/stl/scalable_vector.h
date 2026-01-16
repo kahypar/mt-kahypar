@@ -31,18 +31,18 @@
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
-#include <tbb/scalable_allocator.h>
 
+#include "mt-kahypar/parallel/stl/allocator.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
 template<typename T>
-using vec = std::vector<T, tbb::scalable_allocator<T> >;  // shorter name
+using vec = std::vector<T, parallel::scalable_allocator<T> >;  // shorter name
 
 namespace parallel {
 template <typename T>
-using scalable_vector = std::vector<T, tbb::scalable_allocator<T> >;
+using scalable_vector = vec<T>;
 
 template<typename T>
 static inline void free(scalable_vector<T>& vec) {

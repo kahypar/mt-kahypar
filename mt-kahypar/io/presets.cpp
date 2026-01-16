@@ -175,7 +175,6 @@ std::vector<option> load_quality_preset() {
     create_option("i-lp-initial-block-size", "5"),
     // main -> initial_partitioning -> refinement
     create_option("i-r-refine-until-no-improvement", "false"),
-    create_option("i-r-relative-improvement-threshold", "0.0"),
     // main -> initial_partitioning -> refinement -> label_propagation
     create_option("i-r-lp-type", "label_propagation"),
     create_option("i-r-lp-maximum-iterations", "5"),
@@ -195,8 +194,7 @@ std::vector<option> load_quality_preset() {
     create_option("i-r-flow-algo", "do_nothing"),
     // main -> refinement
     create_option("r-rebalancer-type", "advanced_rebalancer"),
-    create_option("r-refine-until-no-improvement", "true"),
-    create_option("r-relative-improvement-threshold", "0.0025"),
+    create_option("r-refine-until-no-improvement", "false"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
     create_option("r-lp-unconstrained", "true"),
@@ -381,6 +379,7 @@ std::vector<option> load_deterministic_preset() {
     create_option("s-use-localized-random-shuffle", "false"),
     create_option("s-static-balancing-work-packages", "128"),
     // main -> preprocessing
+    create_option("p-stable-io", "true"),
     create_option("p-enable-community-detection", "true"),
     // main -> preprocessing -> community_detection
     create_option("p-louvain-edge-weight-function", "hybrid"),
@@ -447,6 +446,109 @@ std::vector<option> load_deterministic_preset() {
     create_option("r-fm-type", "do_nothing"),
     // main -> refinement -> flows
     create_option("r-flow-algo", "do_nothing"),
+    // main -> mapping
+    create_option("one-to-one-mapping-strategy", "greedy_mapping"),
+    create_option("mapping-use-local-search", "true"),
+    create_option("use-two-phase-approach", "false"),
+    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-largest-he-fraction", "0.0"),
+    create_option("mapping-min-pin-coverage", "0.05"),
+  };
+}
+
+
+std::vector<option> load_deterministic_quality_preset() {
+  return {
+    // general
+    create_option("mode", "direct"),
+    create_option("preset-type", "deterministic_quality"),
+    create_option("deterministic", "true"),
+    create_option("maxnet-removal-factor", "0.01"),
+    create_option("smallest-maxnet-threshold", "50000"),
+    create_option("maxnet-ignore", "1000"),
+    create_option("num-vcycles", "0"),
+    // main -> shared_memory
+    create_option("s-use-localized-random-shuffle", "false"),
+    create_option("s-static-balancing-work-packages", "128"),
+    // main -> preprocessing
+    create_option("p-stable-io", "true"),
+    create_option("p-enable-community-detection", "true"),
+    // main -> preprocessing -> community_detection
+    create_option("p-louvain-edge-weight-function", "hybrid"),
+    create_option("p-max-louvain-pass-iterations", "5"),
+    create_option("p-louvain-min-vertex-move-fraction", "0.01"),
+    create_option("p-vertex-degree-sampling-threshold", "200000"),
+    create_option("p-louvain-low-memory-contraction", "true"),
+    create_option("p-num-sub-rounds", "16"),
+    // main -> coarsening
+    create_option("c-type", "deterministic_multilevel_coarsener"),
+    create_option("c-use-adaptive-edge-size", "false"),
+    create_option("c-resolve-swaps", "true"),
+    create_option("c-min-shrink-factor", "1.01"),
+    create_option("c-max-shrink-factor", "2.5"),
+    create_option("c-s", "1"),
+    create_option("c-t", "160"),
+    create_option("c-vertex-degree-sampling-threshold", "200000"),
+    create_option("c-num-sub-rounds", "3"),
+    // main -> coarsening -> rating
+    create_option("c-rating-score", "heavy_edge"),
+    create_option("c-rating-heavy-node-penalty", "no_penalty"),
+    create_option("c-rating-acceptance-criterion", "best_prefer_unmatched"),
+    // main -> initial_partitioning
+    create_option("i-mode", "rb"),
+    create_option("i-runs", "20"),
+    create_option("i-use-adaptive-ip-runs", "false"),
+    create_option("i-perform-refinement-on-best-partitions", "false"),
+    create_option("i-fm-refinement-rounds", "3"),
+    create_option("i-lp-maximum-iterations", "20"),
+    create_option("i-lp-initial-block-size", "5"),
+    // main -> initial_partitioning -> refinement
+    create_option("i-r-refine-until-no-improvement", "false"),
+    // main -> initial_partitioning -> refinement -> rebalancing
+    create_option("i-r-rebalancer-type", "deterministic"),
+    // main -> initial_partitioning -> refinement -> label_propagation
+    create_option("i-r-lp-type", "deterministic"),
+    create_option("i-r-lp-maximum-iterations", "5"),
+    create_option("i-r-sync-lp-sub-rounds", "1"),
+    create_option("i-r-lp-he-size-activation-threshold", "100"),
+    create_option("i-r-sync-lp-active-nodeset", "true"),
+    // main -> initial_partitioning -> refinement -> fm
+    create_option("i-r-fm-type", "do_nothing"),
+    create_option("i-population-size", "64"),
+    // main -> refinement
+    create_option("r-refine-until-no-improvement", "false"),
+    // main -> refinement -> rebalancing
+    create_option("r-rebalancer-type", "deterministic"),
+    create_option("r-max-det-rebalancing-rounds", "0"),
+    create_option("r-det-rebalancing-deadzone", "0.1"),
+    create_option("r-det-rebalancing-heavy-vertex-exclusion", "1.5"),
+    // main -> refinement -> label_propagation
+    create_option("r-lp-type", "do_nothing"),
+    create_option("r-lp-maximum-iterations", "5"),
+    create_option("r-sync-lp-sub-rounds", "1"),
+    create_option("r-lp-he-size-activation-threshold", "100"),
+    create_option("r-sync-lp-active-nodeset", "true"),
+    // main -> refinement -> jet
+    create_option("r-jet-type", "deterministic"),
+    create_option("r-jet-num-iterations", "8"),
+    create_option("r-jet-dynamic-rounds", "3"),
+    create_option("r-jet-initial-negative-gain", "0.75"),
+    create_option("r-jet-final-negative-gain", "0.0"),
+    // main -> refinement -> fm
+    create_option("r-fm-type", "do_nothing"),
+    // main -> refinement -> flows
+    create_option("r-flow-algo", "deterministic"),
+    create_option("r-flow-scaling", "16"),
+    create_option("r-flow-max-num-pins", "4294967295"),
+    create_option("r-flow-find-most-balanced-cut", "true"),
+    create_option("r-flow-determine-distance-from-cut", "true"),
+    create_option("r-flow-max-bfs-distance", "2"),
+    create_option("r-flow-min-relative-improvement-per-round", "0.001"),
+    create_option("r-flow-time-limit-factor", "8"),
+    create_option("r-flow-skip-small-cuts", "true"),
+    create_option("r-flow-skip-unpromising-blocks", "true"),
+    create_option("r-flow-pierce-in-bulk", "true"),
+    create_option("r-flow-process-mapping-policy", "lower_bound"),
     // main -> mapping
     create_option("one-to-one-mapping-strategy", "greedy_mapping"),
     create_option("mapping-use-local-search", "true"),
@@ -541,6 +643,8 @@ std::vector<option> loadPreset(PresetType preset) {
   switch( preset ) {
     case PresetType::deterministic:
       return load_deterministic_preset();
+    case PresetType::deterministic_quality:
+      return load_deterministic_quality_preset();
     case PresetType::large_k:
       return load_large_k_preset();
     case PresetType::default_preset:
@@ -550,6 +654,8 @@ std::vector<option> loadPreset(PresetType preset) {
     case PresetType::highest_quality:
       return load_highest_quality_preset();
     case PresetType::UNDEFINED:
+      // can't be an exception since it is called in a C library
+      // function without error return
       ERR("invalid preset");
   }
   return {};

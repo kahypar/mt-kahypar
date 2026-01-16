@@ -59,8 +59,7 @@ MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_h
 
       HyperedgeWeight new_cut = flow_problem.non_removable_cut;
       HypernodeWeight max_part_weight;
-      const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
-      if (sequential) {
+      if (useSequentialAlgorithm()) {
         new_cut += _sequential_hfc.cs.flow_algo.flow_value;
         max_part_weight = std::max(_sequential_hfc.cs.source_weight, _sequential_hfc.cs.target_weight);
       } else {
@@ -79,7 +78,7 @@ MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_h
           if ( hn != kInvalidHypernode ) {
             const PartitionID from = phg.partID(hn);
             PartitionID to;
-            if (sequential) {
+            if (useSequentialAlgorithm()) {
               to = _sequential_hfc.cs.flow_algo.isSource(u) ? _block_0 : _block_1;
             } else {
               to = _parallel_hfc.cs.flow_algo.isSource(u) ? _block_0 : _block_1;
@@ -122,9 +121,8 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
     return true;
   };
 
-
-  const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
-  if (sequential) {
+  if (useSequentialAlgorithm()) {
+    ASSERT(!_deterministic);
     _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
             flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
     _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
@@ -139,6 +137,9 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
     _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
             flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
 
+    if (_deterministic) {
+      _parallel_hfc.setSeed(_context.partition.seed);
+    }
     _parallel_hfc.reset();
     _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
     result = _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
@@ -154,22 +155,20 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
   FlowProblem flow_problem;
 
-
-  const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
-  if ( sequential ) {
+  if (useSequentialAlgorithm()) {
     if ( _sequential_construction == nullptr ) {
       _sequential_construction = std::make_unique<SequentialConstruction<GraphAndGainTypes>>(
         _num_hyperedges, _flow_hg, _sequential_hfc, _context);
     }
     flow_problem = _sequential_construction->constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, _deterministic);
   } else {
     if ( _parallel_construction == nullptr ) {
       _parallel_construction = std::make_unique<ParallelConstruction<GraphAndGainTypes>>(
         _num_hyperedges, _flow_hg, _parallel_hfc, _context);
     }
     flow_problem = _parallel_construction->constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      phg, sub_hg, _block_0, _block_1, _whfc_to_node, _deterministic);
   }
 
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
@@ -178,6 +177,14 @@ FlowProblem FlowRefiner<GraphAndGainTypes>::constructFlowHypergraph(const Partit
       << ", Blocks = (" << _block_0 << "," << _block_1 << ") ]";
 
   return flow_problem;
+}
+
+template<typename GraphAndGainTypes>
+bool FlowRefiner<GraphAndGainTypes>::useSequentialAlgorithm() {
+  // in the deterministic case, we always use the parallel algorithm to ensure that
+  // the result is the same independent of the number of threads
+  return !_deterministic &&
+    (_context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches);
 }
 
 namespace {

@@ -113,7 +113,7 @@ class UncoarsenerBase {
     if ( _context.partition.objective != Objective::km1 ) {
       stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
     }
-    stats.add_stat("initial_imbalance", m.imbalance);
+    stats.add_stat("initial_imbalance", m.imbalance.imbalance_value);
     return m;
   }
 

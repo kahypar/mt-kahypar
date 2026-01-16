@@ -27,10 +27,14 @@
 
 #include "context.h"
 
+#include <cmath>
 #include <algorithm>
+#include <numeric>
 
-#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/parallel/thread_management.h"
+#include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -63,6 +67,10 @@ namespace mt_kahypar {
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
     str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
     str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
+    if ( params.allow_empty_blocks ) {
+      str << "  Allow Empty Blocks:                 " << std::boolalpha
+          << params.allow_empty_blocks << std::endl;
+    }
     if ( params.use_individual_part_weights ) {
       str << "  Individual Part Weights:            ";
       for ( const HypernodeWeight& w : params.max_part_weights ) {
@@ -284,12 +292,18 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
-    if constexpr (TBBInitializer::provides_numa_information) {
-      str << "  Number of used NUMA nodes:          " << TBBInitializer::instance().num_used_numa_nodes() << std::endl;
+    if constexpr (parallel::provides_hardware_information) {
+      str << "  Number of used NUMA nodes:          " << parallel::num_used_numa_nodes() << std::endl;
     }
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
     return str;
+  }
+
+  Context::Context(const bool register_utilities) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
   }
 
   bool Context::isNLevelPartitioning() const {
@@ -441,6 +455,12 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
+      // ensure deterministic construction
+      if ( !preprocessing.stable_construction_of_incident_edges ) {
+        preprocessing.stable_construction_of_incident_edges = true;
+        WARNING("Enabling stable construction of incident edges since deterministic mode is active");
+      }
+
       // disable adaptive IP
       if ( initial_partitioning.use_adaptive_ip_runs ) {
         initial_partitioning.use_adaptive_ip_runs = false;
@@ -508,11 +528,6 @@ namespace mt_kahypar {
 
     // Set correct gain policy type
     setupGainPolicy();
-
-    if ( partition.preset_type == PresetType::large_k ) {
-      // Silently switch to deep multilevel scheme for large k partitioning
-      partition.mode = Mode::deep_multilevel;
-    }
   }
 
   void Context::setupThreadsPerFlowSearch() {
@@ -523,6 +538,10 @@ namespace mt_kahypar {
       refinement.flows.num_parallel_searches = std::min(shared_memory.num_threads,
         std::min(static_cast<size_t>(partition.k),
           static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
+
+    } else if ( refinement.flows.algorithm == FlowAlgorithm::deterministic ) {
+      refinement.flows.num_parallel_searches =
+        std::min(shared_memory.num_threads, static_cast<size_t>(partition.k / 2));
     }
   }
 

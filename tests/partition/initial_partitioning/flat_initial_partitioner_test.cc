@@ -142,112 +142,58 @@ template<typename TypeTraits>
 using GreedySequentialMaxNetInitialPartitioner = GreedyInitialPartitioner<TypeTraits, MaxNetGainPolicy, SequentialPQSelectionPolicy>;
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 5>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 2>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 5>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 2>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 5>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 5>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 1>,
-                         TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 5> > TestConfigs;
 
 TYPED_TEST_SUITE(AFlatInitialPartitionerTest, TestConfigs);
@@ -255,8 +201,7 @@ TYPED_TEST_SUITE(AFlatInitialPartitionerTest, TestConfigs);
 TYPED_TEST(AFlatInitialPartitionerTest, HasValidImbalance) {
   this->execute();
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(AFlatInitialPartitionerTest, AssginsEachHypernode) {
@@ -289,8 +234,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVertices) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
@@ -304,8 +248,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 

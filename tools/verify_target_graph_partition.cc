@@ -40,6 +40,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
@@ -88,7 +89,7 @@ int main(int argc, char* argv[]) {
   context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
   context.mapping.max_steiner_tree_size = 4;
-  TBBInitializer::instance(context.shared_memory.num_threads);
+  parallel::initialize_tbb(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(
@@ -132,7 +133,7 @@ int main(int argc, char* argv[]) {
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k
             << " epsilon=" << context.partition.epsilon
-            << " imbalance=" << metrics::imbalance(partitioned_hg, context)
+            << " imbalance=" << metrics::imbalance(partitioned_hg, context).imbalance_value
             << " steiner_tree=" << metrics::quality(partitioned_hg, Objective::steiner_tree)
             << " approximation_factor=" << metrics::approximationFactorForProcessMapping(partitioned_hg, context)
             << " cut=" << metrics::quality(partitioned_hg, Objective::cut)

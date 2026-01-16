@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/rebalancing/repair_empty_blocks.h"
 
 namespace mt_kahypar {
 
@@ -40,10 +41,10 @@ namespace rebalancer {
     GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
     SpinLock lock;
     ds::MaxHeap<float, HypernodeID> pq;
-    float top_key = std::numeric_limits<float>::min();
+    float top_key = std::numeric_limits<float>::lowest();
     void reset() {
       pq.clear();
-      top_key = std::numeric_limits<float>::min();
+      top_key = std::numeric_limits<float>::lowest();
     }
   };
 
@@ -120,14 +121,15 @@ private:
                               vec<Move>* moves_linear,
                               Metrics& best_metric);
 
+
+  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+
+  void findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph, int64_t& attributed_gain, size_t& global_move_id);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;
-
-
-  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
-  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 
   ds::Array<Move> _moves;
   vec<rebalancer::GuardedPQ> _pqs;
@@ -137,6 +139,7 @@ private:
   ds::Array<PosT> _pq_handles;
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
+  RepairEmtpyBlocks<GraphAndGainTypes> _repair_empty_blocks;
 };
 
 }  // namespace mt_kahypar

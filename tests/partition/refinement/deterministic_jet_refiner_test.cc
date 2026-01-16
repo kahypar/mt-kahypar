@@ -24,6 +24,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <thread>
+
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
@@ -159,7 +161,7 @@ public:
 };
 
 template <typename Config>
-size_t ADeterministicJetRefiner<Config>::num_threads = HardwareTopology::instance().num_cpus();
+size_t ADeterministicJetRefiner<Config>::num_threads = std::thread::hardware_concurrency();
 
 static constexpr double EPS = 0.05;
 
@@ -175,18 +177,18 @@ typedef ::testing::Types<
     TestConfig<8, Objective::km1, RebalancingAlgorithm::advanced_rebalancer>
 > TestConfigs;
 
-TYPED_TEST_CASE(ADeterministicJetRefiner, TestConfigs);
+TYPED_TEST_SUITE(ADeterministicJetRefiner, TestConfigs);
 
 TYPED_TEST(ADeterministicJetRefiner, UpdatesImbalanceCorrectly) {
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
     this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-    ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+    ASSERT_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ADeterministicJetRefiner, DoesNotViolateBalanceConstraint) {
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
     this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
-    ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
+    ASSERT_LE(this->metrics.imbalance.imbalance_value, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ADeterministicJetRefiner, UpdatesMetricsCorrectly) {

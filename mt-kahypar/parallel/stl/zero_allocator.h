@@ -26,13 +26,21 @@
 
 #pragma once
 
-#include <tbb/tbb_allocator.h>
+#ifndef NDEBUG
+#include <memory>
+#else
+#include <mt-kahypar/parallel/stl/allocator.h>
+#endif
 
 namespace mt_kahypar {
 namespace parallel {
 
+#ifndef NDEBUG
+template<typename T>
+using zero_allocator = std::allocator<T>;
+#else
 template <typename T>
-class zero_allocator : public tbb::tbb_allocator<T> {
+class zero_allocator : public parallel::scalable_allocator<T> {
  public:
   using value_type = T;
   using propagate_on_container_move_assignment = std::true_type;
@@ -43,11 +51,12 @@ class zero_allocator : public tbb::tbb_allocator<T> {
   explicit zero_allocator(const U&) noexcept {}
 
   T* allocate(std::size_t n) {
-    T* ptr = tbb::tbb_allocator<T>::allocate(n);
+    T* ptr = parallel::scalable_allocator<T>::allocate(n);
     std::memset(static_cast<void*>(ptr), 0, n * sizeof(value_type));
     return ptr;
   }
 };
+#endif
 
 }  // namespace parallel
 }  // namespace mt_kahypar

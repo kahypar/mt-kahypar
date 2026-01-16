@@ -56,15 +56,17 @@ class FlowRefiner final : public IFlowRefiner {
 
  public:
   explicit FlowRefiner(const HyperedgeID num_hyperedges,
-                       const Context& context) :
+                       const Context& context,
+                       bool deterministic) :
     _phg(nullptr),
     _context(context),
+    _deterministic(deterministic),
     _num_hyperedges(num_hyperedges),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
-    _sequential_hfc(_flow_hg, context.partition.seed),
-    _parallel_hfc(_flow_hg, context.partition.seed),
+    _sequential_hfc(_flow_hg, context.partition.seed, deterministic),
+    _parallel_hfc(_flow_hg, context.partition.seed, deterministic),
     _whfc_to_node(),
     _sequential_construction(nullptr),
     _parallel_construction(nullptr) {
@@ -110,8 +112,11 @@ class FlowRefiner final : public IFlowRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
+  bool useSequentialAlgorithm();
+
   const PartitionedHypergraph* _phg;
   const Context& _context;
+  bool _deterministic;
   using IFlowRefiner::_time_limit;
 
   HyperedgeID _num_hyperedges;

@@ -119,6 +119,7 @@ namespace mt_kahypar {
              }),
              "Preset Types: \n"
              " - deterministic\n"
+             " - deterministic_quality\n"
              " - large_k\n"
              " - default\n"
              " - quality\n"
@@ -628,7 +629,8 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Flow Algorithms:\n"
              "- do_nothing\n"
-             "- flow_cutter")
+             "- flow_cutter\n"
+             "- deterministic")
             ((initial_partitioning ? "i-r-flow-max-bfs-distance" : "r-flow-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),
@@ -978,10 +980,6 @@ namespace mt_kahypar {
             + ".KaHyPar";
     context.partition.graph_community_filename =
             context.partition.graph_filename + ".community";
-
-    if (context.partition.deterministic) {
-      context.preprocessing.stable_construction_of_incident_edges = true;
-    }
   }
 
 
@@ -1003,9 +1001,6 @@ namespace mt_kahypar {
         context.partition.verbose_output = false;
       }
     }
-    if (context.partition.deterministic) {
-      context.preprocessing.stable_construction_of_incident_edges = true;
-    }
   }
 
 
@@ -1021,9 +1016,6 @@ namespace mt_kahypar {
 
     if (disable_verbose_output) {
       context.partition.verbose_output = false;
-    }
-    if (context.partition.deterministic) {
-      context.preprocessing.stable_construction_of_incident_edges = true;
     }
   }
 

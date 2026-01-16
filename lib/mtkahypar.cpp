@@ -49,6 +49,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/utils/randomize.h"
 
 using namespace mt_kahypar;
 
@@ -67,6 +68,7 @@ namespace {
   PresetType to_preset_type(mt_kahypar_preset_type_t preset) {
     switch ( preset ) {
       case DETERMINISTIC: return PresetType::deterministic;
+      case DETERMINISTIC_QUALITY: return PresetType::deterministic_quality;
       case LARGE_K: return PresetType::large_k;
       case DEFAULT: return PresetType::default_preset;
       case QUALITY: return PresetType::quality;
@@ -78,6 +80,7 @@ namespace {
   mt_kahypar_preset_type_t from_preset_type(PresetType preset) {
     switch ( preset ) {
       case PresetType::deterministic: return DETERMINISTIC;
+      case PresetType::deterministic_quality: return DETERMINISTIC_QUALITY;
       case PresetType::large_k: return LARGE_K;
       case PresetType::default_preset: return DEFAULT;
       case PresetType::quality: return QUALITY;

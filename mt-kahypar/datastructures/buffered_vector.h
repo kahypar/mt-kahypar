@@ -30,15 +30,16 @@
 #include <vector>
 #include <cassert>
 
-#include <tbb/scalable_allocator.h>
 #include <tbb/enumerable_thread_specific.h>
+
+#include "mt-kahypar/parallel/stl/allocator.h"
 
 namespace mt_kahypar::ds {
 
 template<typename T>
 class BufferedVector {
 public:
-  using vec_t = std::vector<T, tbb::scalable_allocator<T>>;
+  using vec_t = std::vector<T, parallel::scalable_allocator<T>>;
 
   BufferedVector() : BufferedVector(0)
   { }

@@ -38,6 +38,16 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+namespace impl {
+  // factoring out this function seems to improve compile time, probably
+  // because the calling function becomes overly complex if it is inlined
+  MT_KAHYPAR_ATTRIBUTE_NO_INLINE void scalableSortMoves(vec<rebalancer::RebalancingMove>& moves) {
+    parallel::scalable_sort(moves, [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
+        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
+      });
+  }
+}
+
 static constexpr size_t ABSOLUTE_MAX_ROUNDS = 30;
 
 static float transformGain(Gain gain_, HypernodeWeight wu) {
@@ -55,10 +65,18 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
                                                             const vec<HypernodeID>&,
                                                             Metrics& best_metrics,
                                                             double) {
+  if (_gain_cache.isInitialized()) {
+    throw UnsupportedOperationException("deterministic rebalancer does not support algorithms with gain cache (FM refinement)");
+  }
+
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   resizeDataStructuresForCurrentK();
-  updateImbalance(phg);
   _gain_computation.reset();
+
+  _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain_computation, [&](const Move& m) {
+    changeNodePart(phg, m.node, m.from, m.to);
+  });
+  updateImbalance(phg);
 
   size_t iteration = 0;
   const size_t max_rounds = _context.refinement.rebalancing.det_max_rounds == 0 ? ABSOLUTE_MAX_ROUNDS : std::min(ABSOLUTE_MAX_ROUNDS, _context.refinement.rebalancing.det_max_rounds);
@@ -163,9 +181,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       ASSERT(_moves[part].size() > 0);
 
       // sort the moves from each overweight part by priority
-      parallel::scalable_sort(_moves[part], [](const rebalancer::RebalancingMove& a, const rebalancer::RebalancingMove& b) {
-        return a.priority < b.priority || (a.priority == b.priority && a.hn > b.hn);
-      });
+      impl::scalableSortMoves(_moves[part]);
 
       // determine which moves to execute
       size_t last_move_idx = 0;
@@ -181,7 +197,7 @@ void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(Partitione
       tbb::parallel_for(UL(0), last_move_idx, [&](const size_t j) {
         const auto& move = _moves[part][j];
         ASSERT(move.to == kInvalidPartition || (move.to >= 0 && move.to < _current_k));
-        changeNodePart(phg, move.hn, part, move.to, false);
+        changeNodePart(phg, move.hn, part, move.to);
       });
     } else if (_current_imbalance[part] > 0) {
       _block_has_only_heavy_vertices[part] = static_cast<uint8_t>(true);
@@ -229,18 +245,16 @@ template <typename GraphAndGainTypes>
 bool DeterministicRebalancer<GraphAndGainTypes>::changeNodePart(PartitionedHypergraph& phg,
                                                                 const HypernodeID hn,
                                                                 const PartitionID from,
-                                                                const PartitionID to,
-                                                                bool ensure_balanced) {
+                                                                const PartitionID to) {
   // This function is passed as lambda to the changeNodePart function and used
   // to calculate the "real" delta of a move (in terms of the used objective function).
   auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain_computation.computeDeltaForHyperedge(sync_update);
   };
 
-  HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
   bool success = false;
-  success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to, max_weight) : phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
-  ASSERT(success || ensure_balanced);
+  success = PartitionedHypergraph::is_graph ? phg.changeNodePartNoSync(hn, from, to) : phg.changeNodePart(hn, from, to, objective_delta);
+  ASSERT(success);
   return success;
 }
 

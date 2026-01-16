@@ -30,7 +30,6 @@
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/constraints.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -43,9 +42,9 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   template<bool unconstrained, typename F>
   bool LabelPropagationRefiner<GraphAndGainTypes>::moveVertex(PartitionedHypergraph& hypergraph,
-                                                           const HypernodeID hn,
-                                                           NextActiveNodes& next_active_nodes,
-                                                           const F& objective_delta) {
+                                                              const HypernodeID hn,
+                                                              NextActiveNodes& next_active_nodes,
+                                                              const F& objective_delta) {
     bool is_moved = false;
     ASSERT(hn != kInvalidHypernode);
     if ( hypergraph.isBorderNode(hn) && !hypergraph.isFixed(hn) ) {
@@ -105,9 +104,9 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   bool LabelPropagationRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
-                                                           const vec<HypernodeID>& refinement_nodes,
-                                                           Metrics& best_metrics,
-                                                           const double)  {
+                                                              const vec<HypernodeID>& refinement_nodes,
+                                                              Metrics& best_metrics,
+                                                              const double)  {
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     resizeDataStructuresForCurrentK();
     _gain.reset();
@@ -136,7 +135,7 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void LabelPropagationRefiner<GraphAndGainTypes>::labelPropagation(PartitionedHypergraph& hypergraph,
-                                                                 Metrics& best_metrics) {
+                                                                    Metrics& best_metrics) {
     NextActiveNodes next_active_nodes;
     vec<Move> rebalance_moves;
     bool should_stop = false;
@@ -156,17 +155,17 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   bool LabelPropagationRefiner<GraphAndGainTypes>::labelPropagationRound(PartitionedHypergraph& hypergraph,
-                                                                      NextActiveNodes& next_active_nodes,
-                                                                      Metrics& best_metrics,
-                                                                      vec<Move>& rebalance_moves,
-                                                                      bool unconstrained_lp) {
+                                                                         NextActiveNodes& next_active_nodes,
+                                                                         Metrics& best_metrics,
+                                                                         vec<Move>& rebalance_moves,
+                                                                         bool unconstrained_lp) {
     Metrics current_metrics = best_metrics;
     _visited_he.reset();
     _next_active.reset();
     _gain.reset();
 
     if (unconstrained_lp) {
-      _old_partition_is_balanced = metrics::isBalanced(hypergraph, _context);
+      ASSERT(best_metrics.imbalance == metrics::imbalance(hypergraph, _context));
       moveActiveNodes<true>(hypergraph, next_active_nodes);
     } else {
       moveActiveNodes<false>(hypergraph, next_active_nodes);
@@ -186,7 +185,7 @@ namespace mt_kahypar {
     bool did_rebalance = false;
     bool should_stop = false;
     if ( unconstrained_lp ) {
-      if (!metrics::isBalanced(hypergraph, _context)) {
+      if (!metrics::isValidPartition(hypergraph, _context)) {
         should_stop = applyRebalancing(hypergraph, best_metrics, current_metrics, rebalance_moves);
         // rebalancer might initialize the gain cache
         should_update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized() && should_stop;
@@ -217,8 +216,7 @@ namespace mt_kahypar {
     // not decrease. Race conditions during applying/reverting moves can lead to a situation where reverting some moves
     // looks beneficial but results in a net negative. This is however so rare in practice that we can accept it instead
     // of investing more running time to fix it.
-    ASSERT(!did_rebalance || current_metrics.quality <= best_metrics.quality ||
-            (!_old_partition_is_balanced && current_metrics.imbalance < best_metrics.imbalance));
+    ASSERT(!did_rebalance || !best_metrics.isBetter(current_metrics));
     unused(did_rebalance);
     const Gain old_quality = best_metrics.quality;
     best_metrics = current_metrics;
@@ -231,7 +229,7 @@ namespace mt_kahypar {
   template <typename GraphAndGainTypes>
   template<bool unconstrained>
   void LabelPropagationRefiner<GraphAndGainTypes>::moveActiveNodes(PartitionedHypergraph& phg,
-                                                                NextActiveNodes& next_active_nodes) {
+                                                                   NextActiveNodes& next_active_nodes) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
@@ -266,9 +264,9 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   bool LabelPropagationRefiner<GraphAndGainTypes>::applyRebalancing(PartitionedHypergraph& hypergraph,
-                                                                 Metrics& best_metrics,
-                                                                 Metrics& current_metrics,
-                                                                 vec<Move>& rebalance_moves) {
+                                                                    const Metrics& best_metrics,
+                                                                    Metrics& current_metrics,
+                                                                    vec<Move>& rebalance_moves) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("rebalance_lp", "Rebalance");
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
@@ -291,13 +289,10 @@ namespace mt_kahypar {
     timer.stop_timer("rebalance_lp");
     DBG << "[LP] Imbalance after rebalancing: " << current_metrics.imbalance << ", quality: " << current_metrics.quality;
 
-    bool was_imbalanced_and_improved_balance = !_old_partition_is_balanced
-                                               && current_metrics.imbalance < best_metrics.imbalance;
     // We consider the new partition an improvement if either
     // (1) the old partiton was imbalanced and balance is improved or
     // (2) the quality is improved while still being balanced
-    if ( was_imbalanced_and_improved_balance
-         || (current_metrics.quality <= best_metrics.quality && metrics::isBalanced(hypergraph, _context)) ) {
+    if ( current_metrics.isBetter(best_metrics) ) {
       return false;
     } else {
       // rollback and stop LP
@@ -340,7 +335,7 @@ namespace mt_kahypar {
 
   template <typename GraphAndGainTypes>
   void LabelPropagationRefiner<GraphAndGainTypes>::initializeActiveNodes(PartitionedHypergraph& hypergraph,
-                                                                      const vec<HypernodeID>& refinement_nodes) {
+                                                                         const vec<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
     if ( refinement_nodes.empty() ) {
       _might_be_uninitialized = false;

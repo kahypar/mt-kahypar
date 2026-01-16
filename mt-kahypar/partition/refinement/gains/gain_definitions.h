@@ -67,6 +67,7 @@
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #endif
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -206,7 +207,7 @@ using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATI
     case GainPolicy::steiner_tree:                                                            \
       ENABLE_STEINER_TREE(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeGainTypes))         \
     default: {                                                                                \
-      ERR("Invalid gain policy type");                                                      \
+      throw InvalidParameterException("Invalid gain policy type");                            \
     }                                                                                         \
   }                                                                                           \
 }
@@ -218,7 +219,7 @@ using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATI
     case GainPolicy::steiner_tree_for_graphs:                                                                 \
       ENABLE_STEINER_TREE(ENABLE_GRAPHS(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeForGraphsTypes)))     \
     default: {                                                                                                \
-      ERR("Invalid gain policy type");                                                                      \
+      throw InvalidParameterException("Invalid gain policy type");                                            \
     }                                                                                                         \
   }                                                                                                           \
 }

@@ -31,6 +31,7 @@
 #include <random>
 #include <thread>
 #include <vector>
+#include <type_traits>
 
 #include <tbb/task_group.h>
 #include <tbb/parallel_for.h>
@@ -44,6 +45,9 @@ namespace mt_kahypar::utils {
 class Randomize {
   static constexpr bool debug = false;
   static constexpr size_t PRECOMPUTED_FLIP_COINS = 128;
+
+  template<typename T>
+  using enable_overload_t = std::enable_if_t<!std::is_same_v<parallel::scalable_vector<T>, std::vector<T>>>;
 
   using SwapBlock = std::pair<size_t, size_t>;
 
@@ -127,22 +131,22 @@ class Randomize {
     return _rand[cpu_id].flipCoin();
   }
 
-  template <typename T>
+  template <typename T, typename = enable_overload_t<T> >
   void shuffleVector(std::vector<T>& vector, size_t num_elements, int cpu_id) {
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
 
   template <typename T>
-  void shuffleVector(std::vector<T>& vector, int cpu_id = -1) {
+  void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
       cpu_id = THREAD_ID;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
 
-  template <typename T>
-  void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
+  template <typename T, typename = enable_overload_t<T> >
+  void shuffleVector(std::vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
       cpu_id = THREAD_ID;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
@@ -155,7 +159,7 @@ class Randomize {
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
 
-  template <typename T>
+  template <typename T, typename = enable_overload_t<T> >
   void shuffleVector(std::vector<T>& vector, size_t i, size_t j, int cpu_id) {
     ASSERT(i <= j && j <= vector.size());
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());

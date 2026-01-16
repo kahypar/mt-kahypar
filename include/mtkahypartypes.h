@@ -116,6 +116,8 @@ typedef enum {
 typedef enum {
   // configuration for deterministic partitioning
   DETERMINISTIC,
+  // high-quality deterministic partitioning (uses flow-based refinement)
+  DETERMINISTIC_QUALITY,
   // configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks)
   LARGE_K,
   // computes good partitions very fast

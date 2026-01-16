@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <iostream>
+#include <sstream>
 #include <type_traits>
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
@@ -61,6 +63,12 @@
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
 #else
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE inline
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define MT_KAHYPAR_ATTRIBUTE_NO_INLINE __attribute__ ((noinline))
+#else
+#define MT_KAHYPAR_ATTRIBUTE_NO_INLINE
 #endif
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
@@ -135,15 +143,18 @@
 #ifdef WARNING
 #undef WARNING
 #endif
-#define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
+#define WARNING(msg)                                                           \
+  std::cerr << YELLOW << "[WARNING]" << END << " " << msg << std::endl
 #define ERR(msg)                                                               \
-  LOG << RED << "[ERROR]" << END << msg;                                       \
+  std::cerr << RED << "[ERROR]" << END << " " << msg << std::endl;             \
   std::exit(-1)
 
 #ifdef MT_KAHYPAR_LIBRARY_MODE
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
-  ERR(error_msg);
+  std::stringstream ss;                                                        \
+  ss << error_msg;                                                             \
+  throw InvalidInputException(ss.str())
 #else
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \

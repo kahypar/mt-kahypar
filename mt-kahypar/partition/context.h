@@ -29,7 +29,6 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -51,6 +50,7 @@ struct PartitioningParameters {
   bool perform_parallel_recursion_in_deep_multilevel = true;
 
   int time_limit = 0;
+  bool allow_empty_blocks = true;
   bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
@@ -312,11 +312,7 @@ class Context {
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
   size_t utility_id = std::numeric_limits<size_t>::max();
 
-  Context(const bool register_utilities = true) {
-    if ( register_utilities ) {
-      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-    }
-  }
+  Context(const bool register_utilities = true);
 
   bool isNLevelPartitioning() const;
 

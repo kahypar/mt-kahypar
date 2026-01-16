@@ -98,7 +98,7 @@ void ActiveBlockScheduler::initialize(const bool is_input_hypergraph) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       const BlockPair blocks{ i, j };
       best_total_improvement = std::max(best_total_improvement,
-        _quotient_graph.edge(blocks).total_improvement.load(std::memory_order_relaxed));
+        _quotient_graph.edge(blocks).totalImprovement());
     }
   }
 
@@ -117,16 +117,16 @@ void ActiveBlockScheduler::initialize(const bool is_input_hypergraph) {
       [&](const BlockPair& lhs, const BlockPair& rhs) {
         const QuotientGraphEdge& l_edge = _quotient_graph.edge(lhs);
         const QuotientGraphEdge& r_edge = _quotient_graph.edge(rhs);
-        return l_edge.total_improvement > r_edge.total_improvement ||
-          ( l_edge.total_improvement == r_edge.total_improvement &&
-            l_edge.cut_he_weight > r_edge.cut_he_weight );
+        return l_edge.totalImprovement() > r_edge.totalImprovement() ||
+          ( l_edge.totalImprovement() == r_edge.totalImprovement() &&
+            l_edge.weightOfCutHyperedges() > r_edge.weightOfCutHyperedges() );
       });
     _rounds.emplace_back(_context, _quotient_graph);
     ++_num_rounds;
     for ( const BlockPair& blocks : active_block_pairs ) {
       DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
-          << "Total Improvement =" << _quotient_graph.edge(blocks).total_improvement << ","
-          << "Cut Weight =" << _quotient_graph.edge(blocks).cut_he_weight << ")";
+          << "Total Improvement =" << _quotient_graph.edge(blocks).totalImprovement() << ","
+          << "Cut Weight =" << _quotient_graph.edge(blocks).weightOfCutHyperedges() << ")";
       _rounds.back().pushBlockPairIntoQueue(blocks);
     }
   }
@@ -173,8 +173,8 @@ void ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
         const BlockPair new_blocks{ std::min(block_id, other), std::max(block_id, other) };
         if ( isActiveBlockPair(new_blocks) ) {
           DBG << "Schedule blocks (" << new_blocks.i << "," << new_blocks.j << ") in round" << (round + 2) << " ("
-              << "Total Improvement =" << _quotient_graph.edge(new_blocks).total_improvement << ","
-              << "Cut Weight =" << _quotient_graph.edge(new_blocks).cut_he_weight << ")";
+              << "Total Improvement =" << _quotient_graph.edge(new_blocks).totalImprovement() << ","
+              << "Cut Weight =" << _quotient_graph.edge(new_blocks).weightOfCutHyperedges() << ")";
           _rounds[round + 1].pushBlockPairIntoQueue(new_blocks);
         }
       }
@@ -199,8 +199,8 @@ void ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
         // a previous round, which are then not scheduled in the next round. If this edge is scheduled and
         // leads to an improvement, we schedule it in the next round here.
         DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round" << (round + 2) << " ("
-            << "Total Improvement =" << _quotient_graph.edge(blocks).total_improvement << ","
-            << "Cut Weight =" << _quotient_graph.edge(blocks).cut_he_weight << ")";
+            << "Total Improvement =" << _quotient_graph.edge(blocks).totalImprovement() << ","
+            << "Cut Weight =" << _quotient_graph.edge(blocks).weightOfCutHyperedges() << ")";
         _rounds[round + 1].pushBlockPairIntoQueue(blocks);
   }
 
@@ -250,10 +250,10 @@ bool ActiveBlockScheduler::isActiveBlockPair(const BlockPair& blocks) const {
     _context.refinement.flows.skip_small_cuts;
   const int cut_he_threshold = skip_small_cuts ? 10 : 0;
 
-  const bool contains_enough_cut_hes = _quotient_graph.edge(blocks).cut_he_weight > cut_he_threshold;
+  const bool contains_enough_cut_hes = _quotient_graph.edge(blocks).weightOfCutHyperedges() > cut_he_threshold;
   const bool is_promising_blocks_pair =
     !_context.refinement.flows.skip_unpromising_blocks ||
-      ( _first_active_round == 0 || _quotient_graph.edge(blocks).num_improvements_found > 0 );
+      ( _first_active_round == 0 || _quotient_graph.edge(blocks).numImprovementsFound() > 0 );
   return contains_enough_cut_hes && is_promising_blocks_pair;
 }
 

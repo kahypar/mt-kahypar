@@ -27,12 +27,15 @@
 #include "gmock/gmock.h"
 
 #include <atomic>
+#include <thread>
 
 #include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
 
@@ -108,7 +111,7 @@ class APoolInitialPartitionerTest : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBInitializer::instance(HardwareTopology::instance().num_cpus());
+    parallel::initialize_tbb(std::thread::hardware_concurrency());
   }
 
   Hypergraph hypergraph;
@@ -145,8 +148,7 @@ TYPED_TEST_SUITE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   this->bipartition();
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
@@ -177,8 +179,7 @@ TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVertices) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
@@ -192,8 +193,7 @@ TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
     }
   }
 
-  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
-            this->context.partition.epsilon);
+  ASSERT_TRUE(metrics::isValidPartition(this->partitioned_hypergraph, this->context));
 }
 
 

@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
@@ -102,8 +103,19 @@ namespace {
 template<typename TypeTraits>
 Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks,
                                                          QuotientGraph& quotient_graph,
-                                                         const PartitionedHypergraph& phg) {
+                                                         const PartitionedHypergraph& phg,
+                                                         bool deterministic) {
   Subhypergraph sub_hg;
+
+  auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
+  if (deterministic) {
+    tbb::parallel_sort(cut_hes.begin(), cut_hes.end());
+  } else {
+    std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
+  }
+
+  // NOTE: the BFS initialzation must happen after cut_hes, otherwise tbb::parallel_sort could
+  // interfere with the thread local variable (see "Work Isolation" in oneTBB Developer Guide)
   BFSData& bfs = _local_bfs.local();
   bfs.reset();
   bfs.blocks = blocks;
@@ -118,13 +130,11 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
     _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
   const size_t max_bfs_distance = _context.refinement.flows.max_bfs_distance;
 
-
   // We initialize the BFS with all cut hyperedges running
   // between the involved block associated with the search
   bfs.clearQueue();
-  auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
-  std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
-  for ( size_t i = 0; i < cut_hes.size(); ++i ) {
+  const size_t num_cut_hes = cut_hes.size();  // size() is expensive on concurrent_vector
+  for ( size_t i = 0; i < num_cut_hes; ++i ) {
     const HyperedgeID he = cut_hes[i];
     if ( phg.pinCountInPart(he, blocks.i) > 0 && phg.pinCountInPart(he, blocks.j) > 0 ) {
       bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,

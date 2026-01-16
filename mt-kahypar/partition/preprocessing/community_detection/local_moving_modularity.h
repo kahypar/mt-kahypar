@@ -40,13 +40,11 @@
 #include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar::metrics {
-  template<typename Hypergraph>
-  double modularity(const Graph<Hypergraph>& graph, const ds::Clustering& communities);
+  double modularity(const Graph& graph, const ds::Clustering& communities);
 }
 
 namespace mt_kahypar::community_detection {
 
-template<typename Hypergraph>
 class ParallelLocalMovingModularity {
  private:
   using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
@@ -71,12 +69,12 @@ class ParallelLocalMovingModularity {
 
   ~ParallelLocalMovingModularity();
 
-  bool localMoving(Graph<Hypergraph>& graph, ds::Clustering& communities);
+  bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
-  size_t parallelNonDeterministicRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
-  size_t synchronousParallelRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
-  size_t sequentialRound(const Graph<Hypergraph>& graph, ds::Clustering& communities);
+  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
+  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
+  size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
 public:
   struct ClearList {
     vec<double> weights;
@@ -85,8 +83,7 @@ public:
   };
 
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph<Hypergraph>& graph,
-                                                                       const HypernodeID u)  {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph, const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
     return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
            graph.degree(u) <= cache_efficient_map_size;
@@ -99,15 +96,15 @@ public:
 public:
 
   // ! Only for testing
-  void initializeClusterVolumes(const Graph<Hypergraph>& graph, ds::Clustering& communities);
+  void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph<Hypergraph>& graph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u) {
     return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph<Hypergraph>& graph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u,
                                                                        ClearList& incident_cluster_weights) {
@@ -172,10 +169,10 @@ private:
   }
 
 
-  bool verifyGain(const Graph<Hypergraph>& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
+  bool verifyGain(const Graph& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
                   double weight_from, double weight_to);
 
-  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph<Hypergraph>& graph, const ds::Clustering& communities);
+  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities);
 
   const Context& _context;
   size_t _max_degree;

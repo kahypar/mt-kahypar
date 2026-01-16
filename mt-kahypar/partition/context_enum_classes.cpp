@@ -33,17 +33,6 @@
 
 namespace mt_kahypar {
 
-  std::ostream & operator<< (std::ostream& os, const Type& type) {
-    switch (type) {
-      case Type::Unweighted: return os << "unweighted";
-      case Type::EdgeWeights: return os << "edge_weights";
-      case Type::NodeWeights: return os << "node_weights";
-      case Type::EdgeAndNodeWeights: return os << "edge_and_node_weights";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(type);
-  }
-
   std::ostream & operator<< (std::ostream& os, const FileFormat& format) {
     switch (format) {
       case FileFormat::hMetis: return os << "hMetis";
@@ -66,6 +55,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
+      case PresetType::deterministic_quality: return os << "deterministic_quality";
       case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
       case PresetType::quality: return os << "quality";
@@ -251,6 +241,7 @@ namespace mt_kahypar {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
       case FlowAlgorithm::mock: return os << "mock";
       case FlowAlgorithm::do_nothing: return os << "do_nothing";
+      case FlowAlgorithm::deterministic: return os << "deterministic";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -288,7 +279,7 @@ namespace mt_kahypar {
   }
 
   Mode modeFromString(const std::string& mode) {
-    if (mode == "rb") {
+    if (mode == "rb" || mode == "recursive_bipartitioning") {
       return Mode::recursive_bipartitioning;
     } else if (mode == "direct") {
       return Mode::direct;
@@ -312,6 +303,8 @@ namespace mt_kahypar {
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
+    } else if (type == "deterministic_quality") {
+      return PresetType::deterministic_quality;
     } else if (type == "large_k") {
       return PresetType::large_k;
     } else if (type == "default") {
@@ -484,6 +477,8 @@ namespace mt_kahypar {
       return FlowAlgorithm::flow_cutter;
     } else if (type == "do_nothing") {
       return FlowAlgorithm::do_nothing;
+    } else if (type == "deterministic") {
+      return FlowAlgorithm::deterministic;
     }
     throw InvalidParameterException("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;

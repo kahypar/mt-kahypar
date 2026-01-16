@@ -68,7 +68,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
 
   parallel::scalable_vector<HypernodeID> performed_moves;
   HyperedgeWeight current_cut = best_metrics.quality;
-  double current_imbalance = best_metrics.imbalance;
+  BalanceMetrics current_imbalance = best_metrics.imbalance;
   size_t min_cut_idx = 0;
   StopRule stopping_rule(_phg.initialNumNodes());
   while ( !_pq.empty() && !stopping_rule.searchShouldStop() ) {
@@ -129,14 +129,11 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
                                             !constraints::isNodeAllowedInPartition(_phg, hn, from) && 
                                             constraints::isNodeAllowedInPartition(_phg, hn, to) &&
                                             current_cut <= best_metrics.quality * 1.00; // found value by trying on two graph instance
-      const bool improved_cut_within_balance = (current_cut < best_metrics.quality) &&
-                                                ( _phg.partWeight(0)
-                                                  <= _context.partition.max_part_weights[0]) &&
-                                                ( _phg.partWeight(1)
-                                                  <= _context.partition.max_part_weights[1]);
-      const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
-                                                  (current_cut <= best_metrics.quality);
-      const bool move_is_feasible = ( _phg.partWeight(from) > 0) && anti_constraints_met &&
+      const bool improved_cut_within_balance =
+        (current_cut < best_metrics.quality) && current_imbalance.isValidPartition();
+      const bool improved_balance_less_equal_cut =
+        current_imbalance.isBetter(best_metrics.imbalance) && (current_cut <= best_metrics.quality);
+      const bool move_is_feasible = anti_constraints_met &&
                                     ( improved_cut_within_balance ||
                                       improved_balance_less_equal_cut ||
                                       improved_anti_constraints_hold_cut );

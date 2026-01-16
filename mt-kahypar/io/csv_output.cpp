@@ -34,6 +34,7 @@
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::io::csv {
 
@@ -66,7 +67,7 @@ namespace mt_kahypar::io::csv {
     s << context.partition.seed << sep;
 
     s << context.partition.epsilon << sep;
-    s << metrics::imbalance(phg, context) << sep;
+    s << metrics::imbalance(phg, context).imbalance_value << sep;
 
     s << context.partition.objective << sep;
     s << metrics::quality(phg, Objective::km1) << sep;

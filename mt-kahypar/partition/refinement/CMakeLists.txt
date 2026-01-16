@@ -8,6 +8,7 @@ set(RefinementSources
         rebalancing/simple_rebalancer.cpp
         rebalancing/advanced_rebalancer.cpp
         rebalancing/deterministic_rebalancer.cpp
+        rebalancing/repair_empty_blocks.cpp
         deterministic/deterministic_label_propagation.cpp
         deterministic/deterministic_jet_refiner.cpp
         flows/problem_construction.cpp
@@ -18,6 +19,8 @@ set(RefinementSources
         flows/sequential_construction.cpp
         flows/parallel_construction.cpp
         flows/flow_hypergraph_builder.cpp
+        flows/deterministic/deterministic_flow_refinement_scheduler.cpp
+        flows/deterministic/participation_scheduler.cpp
         )
 
 set(Km1Sources

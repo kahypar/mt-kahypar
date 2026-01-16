@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/local_gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/local_unconstrained_strategy.h"
+#include "mt-kahypar/utils/utilities.h"
 
 
 namespace mt_kahypar {
