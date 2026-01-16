@@ -241,8 +241,9 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
-    mt_kahypar::Type type;
-    readHGRHeader(handle.mapped_file, pos, handle.length, num_hyperedges, num_hypernodes, type);
+    bool has_hyperedge_weights;
+    bool has_vertex_weights;
+    readHGRHeader(handle.mapped_file, pos, handle.length, num_hyperedges, num_hypernodes, has_hyperedge_weights, has_vertex_weights);
     munmap_file(handle);
   }
 
