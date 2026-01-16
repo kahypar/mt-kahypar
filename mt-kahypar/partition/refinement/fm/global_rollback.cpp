@@ -376,11 +376,10 @@ namespace mt_kahypar {
   }
 
   template<typename GraphAndGainTypes>
-  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(
-    PartitionedHypergraph& phg,
-    FMSharedData& sharedData,
-    const vec<HypernodeWeight>&,
-    const std::vector<HypernodeWeight>& maxPartWeights) {
+  HyperedgeWeight GlobalRollback<GraphAndGainTypes>::revertToBestPrefixSequential(PartitionedHypergraph& phg,
+                                                                                  FMSharedData& sharedData,
+                                                                                  const vec<HypernodeWeight>& partWeights,
+                                                                                  const std::vector<HypernodeWeight>& maxPartWeights) {
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     const MoveID numMoves = tracker.numPerformedMoves();
@@ -394,37 +393,25 @@ namespace mt_kahypar {
       }
     });
 
-    size_t overloaded = 0;
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > maxPartWeights[i]) {
-        overloaded++;
-      }
-    }
-
     // roll forward sequentially
-    Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
-    auto attributed_gains = [&](const SynchronizedEdgeUpdate& sync_update) {
-      gain_sum -= AttributedGains::gain(sync_update);
-    };
+    metrics::MetricsTracker<PartitionedHypergraph> delta_metrics(phg, context, partWeights, maxPartWeights);
+    Metrics best_metrics = delta_metrics.getMetrics();
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!m.isValid()) continue;
 
-      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
-      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
+      Gain gain = 0;
       phg.changeNodePart(gain_cache, m.node, m.from, m.to,
-        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
-      if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
-        overloaded--;
-      }
-      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
-        overloaded++;
-      }
+        std::numeric_limits<HypernodeWeight>::max(), []{ },
+        [&](const SynchronizedEdgeUpdate& sync_update) {
+          gain -= AttributedGains::gain(sync_update);
+        });
+      delta_metrics.applyMove(m.from, m.to, m.node, gain);
 
-      if (overloaded == 0 && gain_sum > best_gain) {
+      if (delta_metrics.isBetter(best_metrics)) {
         best_index = localMoveID + 1;
-        best_gain = gain_sum;
+        best_metrics = delta_metrics.getMetrics();
       }
     }
 
@@ -444,7 +431,7 @@ namespace mt_kahypar {
 
     tracker.reset();
 
-    return best_gain;
+    return -best_metrics.quality;
   }
 
 
