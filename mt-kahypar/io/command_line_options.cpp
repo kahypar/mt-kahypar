@@ -1357,7 +1357,7 @@ namespace mt_kahypar {
     // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
     if (context.evolutionary.meta_evo_mode) {
         if (cmd_vm["evo-improvement-rate-stopping"].defaulted()) {
-             context.evolutionary.improvement_rate_stopping.enabled = true;
+             context.evolutionary.improvement_rate_stopping.enabled = false;
         }
 
         if (cmd_vm["evo-early-window-improvs"].defaulted()) {
