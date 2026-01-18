@@ -18,6 +18,26 @@ namespace mt_kahypar::constraints {
 // using PQ = ds::Heap<Key, HypernodeID, Comparator, arity>;
 
 template<typename PartitionedHypergraph>
+PartitionID constraintDegree(const PartitionedHypergraph& partitioned_hg,
+                                        const HypernodeID& node_id) {
+  HypernodeID node;
+  PartitionID num_constraints = 0;
+  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
+    vec<bool> is_partition_allowed(partitioned_hg.k(), true);
+    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
+      PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
+      is_partition_allowed[pid] = false; // TODO: invalid parts because we have to put them in one???
+    }
+    for (bool allowed : is_partition_allowed) {
+      if (!allowed) num_constraints++;
+    }
+  }
+  return num_constraints;
+}
+
+template<typename PartitionedHypergraph>
 bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
   vec<std::pair<HypernodeID, HypernodeID>> constraints;
   io::readNegativeConstraintsFile(context.partition.negative_constraints_filename, constraints);
@@ -31,10 +51,17 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
 
 template<typename PartitionedHypergraph>
 bool verifyConstraints(const PartitionedHypergraph& hg) {
+  bool constraints_met = true;
+  HypernodeID count = 0;
   for (const auto& constraint : hg.fixedVertexSupport().getConstraints()) {
-    if (hg.partID(constraint.first) == hg.partID(constraint.second) && hg.partID(constraint.first) != kInvalidPartition) return false;
+    if (hg.partID(constraint.first) == hg.partID(constraint.second) && hg.partID(constraint.first) != kInvalidPartition) {
+      constraints_met = false;
+      count++;
+      //LOG << "Broken constraint:"<<constraint.first<<constraint.second<<"degrees"<<constraintDegree(hg, constraint.first)<<constraintDegree(hg, constraint.second);
+    }
   }
-  return true;
+  if (!constraints_met) LOG << "Number broken constraints"<<count;
+  return constraints_met;
 }
 
 template<typename PartitionedHypergraph>
@@ -44,13 +71,16 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
   HypernodeID node;
   if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    vec<HypernodeID> count_constraints_in_partition(partitioned_hg.k(), 0);
     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
       PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
-      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
-      if (pid == part_id) {
-        return false;
+      if (pid >= 0 && pid < partitioned_hg.k()){
+        count_constraints_in_partition[pid]++;
       }
     }
+    HypernodeID min_value = *std::min_element(count_constraints_in_partition.begin(), count_constraints_in_partition.end());
+    if (count_constraints_in_partition[part_id] == min_value) return true;
+    else return false; // allow if count < k / 2^rounds so in round 1 are k/2 constraints in one block allowed in the last just one
   }
   return true;
 }
@@ -110,35 +140,7 @@ PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph,
   return count;
 }
 
-template<typename PartitionedHypergraph>
-PartitionID constraintDegree(const PartitionedHypergraph& partitioned_hg,
-                                        const HypernodeID& node_id) {
-  HypernodeID node;
-  PartitionID num_constraints = 0;
-  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
-    vec<bool> is_partition_allowed(partitioned_hg.k(), true);
-    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
-    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
-      PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
-      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
-      is_partition_allowed[pid] = false; // TODO: invalid parts because we have to put them in one???
-    }
-    for (bool allowed : is_partition_allowed) {
-      if (!allowed) num_constraints++;
-    }
-  }
-  return num_constraints;
-}
 
-template<typename PartitionedHypergraph>
-PartitionID isNodeAllowedInAnyPartition(const PartitionedHypergraph& partitioned_hg,
-                                        const HypernodeID& node_id) {
-  HypernodeID node;
-  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
-    return constraintDegree(partitioned_hg, node_id) < partitioned_hg.k();
-  }
-  return true;
-}
 
 template<typename PartitionedHypergraph>
 PartitionID getLowestWeightPartition(const PartitionedHypergraph& partitioned_hg,

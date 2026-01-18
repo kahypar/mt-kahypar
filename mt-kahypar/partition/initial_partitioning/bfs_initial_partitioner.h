@@ -66,13 +66,15 @@ class BFSInitialPartitioner : public IInitialPartitioner {
                             const HypernodeID hn,
                             const PartitionID block) const {
     if (hypergraph.hasNegativeConstraints()) {
-      if (!constraints::isNodeAllowedInPartition(hypergraph, hn, block)){
-        // if there is no allowed partition just put it in the one requested
-        // if there is an allowed partition, dont put it in unallowed one
-        return !constraints::isNodeAllowedInAnyPartition(hypergraph, hn);
-      }
+      return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
     }
     return true;
+  }
+
+  bool isConstraintNode(PartitionedHypergraph& hypergraph,
+                            const HypernodeID hn) {
+    HypernodeID node;
+    return hypergraph.fixedVertexSupport().getConstraintIdFromHypergraphId(hn, node);
   }
 
   // ! Pushes all adjacent hypernodes (not visited before) of hypernode hn

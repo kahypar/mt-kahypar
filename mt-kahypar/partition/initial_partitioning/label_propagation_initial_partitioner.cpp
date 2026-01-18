@@ -252,7 +252,7 @@ MaxGainMove LabelPropagationInitialPartitioner<TypeTraits>::findMaxGainMove(Part
 
       // Since we perform size-constraint label propagation, the move to the
       // corresponding block is only valid, if it fullfils the balanced constraint.
-      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] > best_score) {
+      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] > best_score && constraintsAllowBlock(hypergraph, hn, block)) {
         best_score = _tmp_scores[block];
         best_block = block;
       }
@@ -292,7 +292,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::extendBlockToInitialBlockSi
   // this function recursive
   while ( block_size < _context.initial_partitioning.lp_initial_block_size ) {
     const HypernodeID seed_vertex = _ip_data.get_unassigned_hypernode();
-    if ( seed_vertex != kInvalidHypernode && fitsIntoBlock(hypergraph, seed_vertex, block)  ) {
+    if ( seed_vertex != kInvalidHypernode && fitsIntoBlock(hypergraph, seed_vertex, block) && constraintsAllowBlock(hypergraph, seed_vertex, block) ) {
       hypergraph.setNodePart(seed_vertex, block);
       block_size++;
     } else {
@@ -311,7 +311,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::assignVertexToBlockWithMini
   HypernodeWeight minimum_allowed_weight = std::numeric_limits<HypernodeWeight>::max();
   for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
     const HypernodeWeight block_weight = hypergraph.partWeight(block);
-    if ( block_weight < minimum_weight ) {
+    if ( block_weight < minimum_weight && constraintsAllowBlock(hypergraph, hn, block) ) {
       minimum_weight = block_weight;
       minimum_weight_block = block;
     }

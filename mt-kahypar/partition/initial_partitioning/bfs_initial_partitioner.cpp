@@ -105,7 +105,11 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // The node does not fit into the block. Thus, we quickly
           // check if there is another block to which we can assign the node
           for ( PartitionID other_block = 0; other_block < _context.partition.k; ++other_block ) {
-            if ( other_block != block && fitsIntoBlock(hypergraph, hn, other_block) ) {
+            if ( other_block != block && 
+                ( isConstraintNode(hypergraph, hn) ? 
+                constraintsAllowBlock(hypergraph, hn, other_block) : 
+                fitsIntoBlock(hypergraph, hn, other_block) 
+              )) {
               // There is another block to which we can assign the node
               // => ignore the node for now
               hn = kInvalidHypernode;
@@ -117,6 +121,9 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
         if (hn != kInvalidHypernode) {
           ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
           hypergraph.setNodePart(hn, block);
+          if (!constraintsAllowBlock(hypergraph, hn, block)) {
+            LOG << "put node"<<hn<<"in block"<<block<<"altough it is not allowed!";
+          }
           ++num_assigned_hypernodes;
           pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
                                           hypernodes_in_queue, hyperedges_in_queue, hn, block);

@@ -64,7 +64,6 @@ class RandomInitialPartitioner : public IInitialPartitioner {
                             const HypernodeID hn,
                             const PartitionID block) const {
     if (hypergraph.hasNegativeConstraints()) {
-      if (!constraints::isNodeAllowedInAnyPartition(hypergraph, hn)) return true;
       return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
     }
     return true;
