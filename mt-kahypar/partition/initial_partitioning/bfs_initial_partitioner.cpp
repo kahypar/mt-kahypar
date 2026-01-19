@@ -107,7 +107,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           for ( PartitionID other_block = 0; other_block < _context.partition.k; ++other_block ) {
             if ( other_block != block && 
                 ( isConstraintNode(hypergraph, hn) ? 
-                constraintsAllowBlock(hypergraph, hn, other_block) : 
+                constraintsAllowBlock(hypergraph, hn, other_block) : // there are nodes not allowed in any partition :((
                 fitsIntoBlock(hypergraph, hn, other_block) 
               )) {
               // There is another block to which we can assign the node
@@ -121,9 +121,6 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
         if (hn != kInvalidHypernode) {
           ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
           hypergraph.setNodePart(hn, block);
-          if (!constraintsAllowBlock(hypergraph, hn, block)) {
-            LOG << "put node"<<hn<<"in block"<<block<<"altough it is not allowed!";
-          }
           ++num_assigned_hypernodes;
           pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
                                           hypernodes_in_queue, hyperedges_in_queue, hn, block);
@@ -132,7 +129,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
         }
       }
     }
-
+    
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     double time = std::chrono::duration<double>(end - start).count();
     _ip_data.commit(InitialPartitioningAlgorithm::bfs, _rng, _tag, time);

@@ -66,7 +66,7 @@ class BFSInitialPartitioner : public IInitialPartitioner {
                             const HypernodeID hn,
                             const PartitionID block) const {
     if (hypergraph.hasNegativeConstraints()) {
-      return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
+      return constraints::isNodeAllowedInPartition(hypergraph, _context, hn, block);
     }
     return true;
   }

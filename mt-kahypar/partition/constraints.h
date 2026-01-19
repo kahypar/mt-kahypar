@@ -38,6 +38,20 @@ PartitionID constraintDegree(const PartitionedHypergraph& partitioned_hg,
 }
 
 template<typename PartitionedHypergraph>
+PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph, HypernodeID u) {
+  PartitionID count = 0;
+  std::unordered_set<HypernodeID> set;
+  for (const auto& node : constraint_graph.incidentNodes(u)) {
+    if (set.find(node) != set.end()) continue;
+    else {
+      set.insert(node);
+      count++;
+    }
+  }
+  return count;
+}
+
+template<typename PartitionedHypergraph>
 bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
   vec<std::pair<HypernodeID, HypernodeID>> constraints;
   io::readNegativeConstraintsFile(context.partition.negative_constraints_filename, constraints);
@@ -86,17 +100,36 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
 }
 
 template<typename PartitionedHypergraph>
-PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph, HypernodeID u) {
-  PartitionID count = 0;
-  std::unordered_set<HypernodeID> set;
-  for (const auto& node : constraint_graph.incidentNodes(u)) {
-    if (set.find(node) != set.end()) continue;
-    else {
-      set.insert(node);
-      count++;
+PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
+                            const Context& context,
+                            const HypernodeID& node_id,
+                            const PartitionID part_id) {
+  HypernodeID node;
+  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
+    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    PartitionID upper_level_allowed_constraints = context.initial_partitioning.allowed_numer_of_constraints;
+
+    // only allow that amount of constraints in block k that can be later be put in different blocks
+    HypernodeID allowed_constraints = upper_level_allowed_constraints / 2 - 1;
+    if(part_id == 0 && upper_level_allowed_constraints % 2 == 1) {
+      allowed_constraints++; // if there is an odd number of blocks left, block 0 gets one time more devided than block 1
     }
+
+    HypernodeID constraint_count = 0;
+    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
+      const HypernodeID incident_node_id = constraint_graph.nodeWeight(incident_node);
+      const PartitionID pid = partitioned_hg.partID(incident_node_id);
+      if (pid == part_id) {
+        constraint_count++;
+        if (HypernodeID(constraintDegree(partitioned_hg, incident_node_id)) >= allowed_constraints) {
+          //if current part is not allowed, choose part with least constraints
+          return isNodeAllowedInPartition(partitioned_hg, node_id, part_id);
+        }
+      }
+    }
+    return constraint_count <= allowed_constraints;
   }
-  return count;
+  return true;
 }
 
 template<typename PartitionedHypergraph>
@@ -110,6 +143,22 @@ PartitionID allNodesAllowedNumberOfNeighbors(const PartitionedHypergraph& partit
     PartitionID count = numberOfDistinctNeighbors<PartitionedHypergraph>(constraint_graph, u);
     if(count >= k) {
       //LOG << "node" << constraint_graph.nodeWeight(u) << "has too much neighbors!" << count;
+      pass = false;
+      }
+  }
+  return pass;
+}
+
+template<typename PartitionedHypergraph>
+PartitionID allNodesAllowedNumberOfNeighbors(const PartitionedHypergraph& partitioned_hg, PartitionID k) {
+  // contraint nodes that get contracted must have less than k neighbors! otherwise they break the invariant and initial partitioning is impossible
+  
+  bool pass = true;
+  const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+  for(const auto& u : constraint_graph.nodes()){
+    PartitionID count = numberOfDistinctNeighbors<PartitionedHypergraph>(constraint_graph, u);
+    if(count >= k) {
+      LOG << "node" << constraint_graph.nodeWeight(u) << "has too much neighbors!" << count;
       pass = false;
       }
   }

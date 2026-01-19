@@ -261,6 +261,7 @@ struct InitialPartitioningParameters {
   RefinementParameters refinement = { };
   std::vector<bool> enabled_ip_algos;
   size_t runs = 1;
+  PartitionID allowed_numer_of_constraints = 0;
   bool use_adaptive_ip_runs = false;
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
   bool perform_refinement_on_best_partitions = false;
