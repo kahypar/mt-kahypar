@@ -53,6 +53,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/partition/k_colouring.h"
 
 namespace mt_kahypar {
 
@@ -114,6 +115,9 @@ namespace {
     if ( context.type == ContextType::main && phg.hasNegativeConstraints()) {
       LOG << (constraints::verifyConstraints(phg)? "Constrains were respected from coarsener" : "!!! Coarsener destroyed constrains !!!");
       LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from coarsener" : "!!! Coarsener destroyed node degrees !!!");
+      LOG << "Colouring";
+      KColouring<TypeTraits> color(context);
+      color.colour(phg);
     }
     io::printInitialPartitioningBanner(context);// put back at top
 

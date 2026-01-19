@@ -341,6 +341,11 @@ bool FixedVertexSupport<Hypergraph>::allowedConstraintDegreeAfterContraction(con
 }
 
 template<typename Hypergraph>
+DynamicGraph FixedVertexSupport<Hypergraph>::getConstraintGraphCopy() const {
+  return _constraint_graph->copy();
+}
+
+template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   FixedVertexSupport<Hypergraph> cpy;
   cpy._num_nodes = _num_nodes;

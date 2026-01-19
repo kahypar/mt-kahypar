@@ -80,7 +80,7 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
     }
     HypernodeID min_value = *std::min_element(count_constraints_in_partition.begin(), count_constraints_in_partition.end());
     if (count_constraints_in_partition[part_id] == min_value) return true;
-    else return false; // allow if count < k / 2^rounds so in round 1 are k/2 constraints in one block allowed in the last just one
+    else return false;
   }
   return true;
 }
