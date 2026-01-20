@@ -62,7 +62,7 @@ void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     double time = std::chrono::duration<double>(end - start).count();
     _ip_data.commit(InitialPartitioningAlgorithm::random, _rng, _tag, time);
-    if(!constraints::verifyConstraints(hg)) LOG << "!!! random initial partitioner destroyed constrains !!!";
+    if(!constraints::constraintsMet(hg)) LOG << "!!! random initial partitioner destroyed constrains !!!";
   }
 }
 

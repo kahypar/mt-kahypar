@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/constraints.h"
 
 namespace mt_kahypar {
 
@@ -460,6 +461,10 @@ namespace impl {
                                                                   Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+
+    if (phg.hasNegativeConstraints() && !constraints::constraintsMet(phg)) {
+      constraints::fixNegativeConstraintsInUncoarsening(phg, _context);
+    }
 
     int64_t attributed_gain = 0;
     size_t global_move_id = 0;

@@ -331,7 +331,7 @@ namespace mt_kahypar {
                                       const Context& context) {
     if (partitioned_hg.hasNegativeConstraints()) {
       constraints::postprocessNegativeConstraints(partitioned_hg, context);
-      LOG << (constraints::verifyConstraints(partitioned_hg, context)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
+      LOG << (constraints::constraintsMet(partitioned_hg, context)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
     }
   }
 
