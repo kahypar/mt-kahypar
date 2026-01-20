@@ -331,7 +331,7 @@ class MultilevelCoarsener : public ICoarsener,
       }(), "Fixed vertex support is corrupted");
     }
     if (current_hg.hasNegativeConstraints()) {
-      ASSERT(constraints::verifyConstraints(current_hg), "constraints disrespected");
+      ASSERT(constraints::constraintsMet(current_hg), "constraints disrespected");
     }
 
     return num_hns_before_pass - contracted_nodes.combine(std::plus<>());

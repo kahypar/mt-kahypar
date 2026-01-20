@@ -52,7 +52,7 @@ PartitionID numberOfDistinctNeighbors(const ds::DynamicGraph& constraint_graph, 
 }
 
 template<typename PartitionedHypergraph>
-bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Context& context) {
+bool constraintsMet(const PartitionedHypergraph& partitioned_hg, const Context& context) {
   vec<std::pair<HypernodeID, HypernodeID>> constraints;
   io::readNegativeConstraintsFile(context.partition.negative_constraints_filename, constraints);
   for (std::pair<HypernodeID, HypernodeID> constraint : constraints) {
@@ -64,18 +64,19 @@ bool verifyConstraints(const PartitionedHypergraph& partitioned_hg, const Contex
 }
 
 template<typename PartitionedHypergraph>
-bool verifyConstraints(const PartitionedHypergraph& hg) {
-  bool constraints_met = true;
+HypernodeID numBrokenConstraints(const PartitionedHypergraph& hg) {
   HypernodeID count = 0;
   for (const auto& constraint : hg.fixedVertexSupport().getConstraints()) {
     if (hg.partID(constraint.first) == hg.partID(constraint.second) && hg.partID(constraint.first) != kInvalidPartition) {
-      constraints_met = false;
       count++;
-      //LOG << "Broken constraint:"<<constraint.first<<constraint.second<<"degrees"<<constraintDegree(hg, constraint.first)<<constraintDegree(hg, constraint.second);
     }
   }
-  if (!constraints_met) LOG << "Number broken constraints"<<count;
-  return constraints_met;
+  return count;
+}
+
+template<typename PartitionedHypergraph>
+bool constraintsMet(const PartitionedHypergraph& hg) {
+  return numBrokenConstraints(hg) == 0;
 }
 
 template<typename PartitionedHypergraph>
@@ -94,7 +95,7 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
     }
     HypernodeID min_value = *std::min_element(count_constraints_in_partition.begin(), count_constraints_in_partition.end());
     if (count_constraints_in_partition[part_id] == min_value) return true;
-    else return false; // allow if count < k / 2^rounds so in round 1 are k/2 constraints in one block allowed in the last just one
+    else return false;
   }
   return true;
 }
@@ -347,6 +348,18 @@ void frontToBackConstraints(PartitionedHypergraph& partitioned_hg,
 // }
 
 template<typename PartitionedHypergraph>
+void fixNegativeConstraintsInUncoarsening(PartitionedHypergraph& partitioned_hg,
+                                          const Context& context) {
+  LOG << "fixing constraints while uncoarsening";
+  gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
+  std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
+      context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
+  frontToBackConstraints(partitioned_hg, context, gain_cache);
+  GainCachePtr::deleteGainCache(gain_cache);
+}
+
+
+template<typename PartitionedHypergraph>
 void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
                                     const Context& context) {
   gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
@@ -356,7 +369,7 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   LOG << "-------------- stats before postprocessing --------------";
   LOG << "km1       ="<< metrics::quality(partitioned_hg, context);
   LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
-  LOG << (verifyConstraints(partitioned_hg)? "Constrains are respected before partitioner" : "! Constrains are not respected before partitioner !");
+  LOG << (constraintsMet(partitioned_hg)? "Constrains are respected before partitioner" : "! Constrains are not respected before partitioner !");
 
   frontToBackConstraints(partitioned_hg, context, gain_cache);
   //descendingConstraintDegree(partitioned_hg, context, gain_cache);
@@ -368,7 +381,7 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   LOG << "-------------- stats after postprocessing --------------";
   LOG << "km1       ="<< metrics::quality(partitioned_hg, context);
   LOG << "Imbalance ="<<metrics::imbalance(partitioned_hg, context);
-  LOG << (verifyConstraints(partitioned_hg)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
+  LOG << (constraintsMet(partitioned_hg)? "Constrains were respected from balancer" : "!!! Balancer destroyed constrains !!!");
   LOG << "";
   GainCachePtr::deleteGainCache(gain_cache);
 }
