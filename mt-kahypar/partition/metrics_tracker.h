@@ -36,25 +36,25 @@
 namespace mt_kahypar {
 namespace metrics {
 
-template<typename PartitionedHypergraph>
-struct MetricsTracker {
+template<typename PartitionedHypergraph, typename Subclass>
+struct MetricsTrackerBase {
   HyperedgeWeight objective_delta;
   vec<HypernodeWeight> part_weights;
   size_t num_overloaded;
   // TODO: ignores removed d0 nodes...
-  size_t num_empty;
+  size_t num_underloaded;
   double imbalance;
 
   const PartitionedHypergraph* phg;
   const Context* context;
   const HypernodeWeight* max_part_weights;
 
-  MetricsTracker(const PartitionedHypergraph& phg,
-                 const Context& context) :
+  MetricsTrackerBase(const PartitionedHypergraph& phg,
+                     const Context& context) :
     objective_delta(0),
     part_weights(),
     num_overloaded(0),
-    num_empty(0),
+    num_underloaded(0),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -66,14 +66,14 @@ struct MetricsTracker {
       initializeConstraints();
   }
 
-  MetricsTracker(const PartitionedHypergraph& phg,
-                 const Context& context,
-                 const vec<HypernodeWeight>& part_weights,
-                 const std::vector<HypernodeWeight>& max_part_weights) :
+  MetricsTrackerBase(const PartitionedHypergraph& phg,
+                     const Context& context,
+                     const vec<HypernodeWeight>& part_weights,
+                     const std::vector<HypernodeWeight>& max_part_weights) :
     objective_delta(0),
     part_weights(part_weights),
     num_overloaded(0),
-    num_empty(0),
+    num_underloaded(0),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -83,12 +83,16 @@ struct MetricsTracker {
 
   void initializeConstraints() {
     num_overloaded = 0;
-    num_empty = 0;
+    num_underloaded = 0;
+    static_cast<Subclass*>(this)->clear();
+
     for (size_t i = 0; i < part_weights.size(); ++i) {
-      if (part_weights[i] > max_part_weights[i]) {
+      if (isOverloaded(i)) {
         num_overloaded++;
-      } else if (part_weights[i] == 0) {
-        num_empty++;
+        static_cast<Subclass*>(this)->setOverloaded(i, true);
+      } else if (isUnderloaded(i)) {
+        num_underloaded++;
+        static_cast<Subclass*>(this)->setUnderloaded(i, true);
       }
     }
   }
@@ -108,39 +112,43 @@ struct MetricsTracker {
     objective_delta -= gain;
     imbalance = -1; // invalidate
 
-    const bool from_overloaded = part_weights[from] > max_part_weights[from];
+    const bool from_was_overloaded = isOverloaded(from);
+    const bool from_was_underloaded = isUnderloaded(from);
     part_weights[from] -= node_weight;
     ASSERT(part_weights[from] >= 0);
-    if (from_overloaded && part_weights[from] <= max_part_weights[from]) {
+    if (from_was_overloaded && !isOverloaded(from)) {
       num_overloaded--;
+      static_cast<Subclass*>(this)->setOverloaded(from, false);
     }
-    if (part_weights[from] == 0 && node_weight > 0) {
-      num_empty++;
+    if (!from_was_underloaded && isUnderloaded(from)) {
+      num_underloaded++;
+      static_cast<Subclass*>(this)->setUnderloaded(from, true);
     }
-    if (part_weights[to] == 0 && node_weight > 0) {
-      num_empty--;
-    }
-    const bool to_overloaded = part_weights[to] > max_part_weights[to];
+
+    const bool to_was_overloaded = isOverloaded(to);
+    const bool to_was_underloaded = isUnderloaded(to);
     part_weights[to] += node_weight;
-    if (!to_overloaded && part_weights[to] > max_part_weights[to]) {
+    if (!to_was_overloaded && isOverloaded(to)) {
       num_overloaded++;
+      static_cast<Subclass*>(this)->setOverloaded(to, true);
+    }
+    if (to_was_underloaded && !isUnderloaded(to)) {
+      num_underloaded--;
+      static_cast<Subclass*>(this)->setUnderloaded(to, false);
     }
 
     checkConstraints();
   }
 
   bool isValid() const {
-    return num_overloaded == 0 && (context->partition.allow_empty_blocks || num_empty == 0);
+    return num_overloaded == 0 && num_underloaded == 0;
   }
 
   Metrics getMetrics() {
     checkConstraints();
 
-    return Metrics{objective_delta,
-      BalanceMetrics{
-        computeImbalance(),
-        num_overloaded > 0,
-        context->partition.allow_empty_blocks && num_empty > 0}};
+    BalanceMetrics balance{computeImbalance(), num_overloaded > 0, num_underloaded > 0};
+    return Metrics{objective_delta, balance};
   }
 
   bool isBetter(const Metrics& metrics) {
@@ -166,8 +174,8 @@ struct MetricsTracker {
   }
 
   // ! for parallel prefix sum
-  MetricsTracker splitPrescan() const {
-    MetricsTracker copy(*this);
+  Subclass splitPrescan() const {
+    Subclass copy(static_cast<const Subclass&>(*this));
     copy.part_weights.assign(part_weights.size(), 0);
     copy.objective_delta = 0;
     copy.imbalance = -1;
@@ -184,7 +192,7 @@ struct MetricsTracker {
   }
 
   // ! for parallel prefix sum
-  void addPrefix(MetricsTracker& lhs) {
+  void addPrefix(const MetricsTrackerBase& lhs) {
     for (size_t i = 0; i < part_weights.size(); ++i) {
       part_weights[i] += lhs.part_weights[i];
     }
@@ -192,6 +200,15 @@ struct MetricsTracker {
   }
 
  private:
+  bool isOverloaded(PartitionID block) {
+    return part_weights[block] > max_part_weights[block];
+  }
+
+  bool isUnderloaded(PartitionID block) {
+    ASSERT(part_weights[block] >= 0);
+    return !context->partition.allow_empty_blocks && part_weights[block] == 0;
+  }
+
   double computeImbalance() {
     if (imbalance == -1) {
       for (size_t i = 0; i < part_weights.size(); ++i) {
@@ -206,18 +223,88 @@ struct MetricsTracker {
 
   void checkConstraints() const {
     ASSERT([&]{
-      MetricsTracker copy(*this);
+      Subclass copy(static_cast<const Subclass&>(*this));
       copy.initializeConstraints();
       if (num_overloaded != copy.num_overloaded) {
         LOG << V(num_overloaded) << V(copy.num_overloaded);
         return false;
       }
-      if (num_empty != copy.num_empty) {
-        LOG << V(num_empty) << V(copy.num_empty);
+      if (num_underloaded != copy.num_underloaded) {
+        LOG << V(num_underloaded) << V(copy.num_underloaded);
         return false;
       }
       return true;
     }());
+  }
+};
+
+template<typename PartitionedHypergraph>
+struct MetricsTracker: public MetricsTrackerBase<PartitionedHypergraph, MetricsTracker<PartitionedHypergraph>> {
+  using Base = MetricsTrackerBase<PartitionedHypergraph, MetricsTracker<PartitionedHypergraph>>;
+
+  MetricsTracker(const PartitionedHypergraph& phg,
+                 const Context& context) :
+    Base(phg, context) { }
+
+  MetricsTracker(const PartitionedHypergraph& phg,
+                 const Context& context,
+                 const vec<HypernodeWeight>& part_weights,
+                 const std::vector<HypernodeWeight>& max_part_weights) :
+    Base(phg, context, part_weights, max_part_weights) { }
+
+  void clear() { }
+  void setOverloaded(PartitionID, bool) { }
+  void setUnderloaded(PartitionID, bool) { }
+};
+
+template<typename PartitionedHypergraph>
+struct MetricsAndBlockTracker: public MetricsTrackerBase<PartitionedHypergraph, MetricsAndBlockTracker<PartitionedHypergraph>> {
+  using Base = MetricsTrackerBase<PartitionedHypergraph, MetricsAndBlockTracker<PartitionedHypergraph>>;
+
+  vec<PartitionID> overloaded_blocks;
+  vec<PartitionID> underloaded_blocks;
+
+  MetricsAndBlockTracker(const PartitionedHypergraph& phg,
+                         const Context& context) :
+    Base(phg, context) { }
+
+  MetricsAndBlockTracker(const PartitionedHypergraph& phg,
+                         const Context& context,
+                         const vec<HypernodeWeight>& part_weights,
+                         const std::vector<HypernodeWeight>& max_part_weights) :
+    Base(phg, context, part_weights, max_part_weights) { }
+
+  void clear() {
+    overloaded_blocks.clear();
+    underloaded_blocks.clear();
+  }
+
+  void setOverloaded(PartitionID block, bool value) {
+    setBlockImpl(overloaded_blocks, block, value);
+  }
+
+  void setUnderloaded(PartitionID block, bool value) {
+    setBlockImpl(underloaded_blocks, block, value);
+  }
+
+ private:
+  void setBlockImpl(vec<PartitionID>& block_set, PartitionID block, bool value) {
+    ASSERT([&]{
+      bool contained = false;
+      for (PartitionID p: block_set) {
+        contained |= (p == block);
+      }
+      return contained != value;
+    }());
+
+    if (value) {
+      block_set.push_back(block);
+    } else {
+      block_set.erase(
+        std::remove_if(block_set.begin(), block_set.end(),
+            [block](PartitionID p) { return p == block; }),
+        block_set.end());
+    }
   }
 };
 
