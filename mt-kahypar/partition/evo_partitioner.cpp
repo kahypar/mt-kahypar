@@ -196,8 +196,9 @@ namespace mt_kahypar {
         if (context.evolutionary.meta_evo_mode) {
             LOG << "DEBUG: Starting Meta-Evo Initial Population Generation";
             
+
             int target_pop_size = context.evolutionary.population_size;
-            int solutions_per_run = context.evolutionary.meta_evo_solutions_per_run; // Default 2
+            int solutions_per_run = context.evolutionary.meta_evo_solutions_per_run; // Default 5
             int num_meta_runs = (target_pop_size + solutions_per_run - 1) / solutions_per_run;
 
             for (int run = 0; run < num_meta_runs; run++) {
@@ -217,7 +218,7 @@ namespace mt_kahypar {
                 sub_context.partition.time_limit = 0; 
                 sub_context.evolutionary.improvement_rate_stopping.enabled = true;
                 Population sub_population;
-                
+
                 // Adjust seed for sub-runs if in deterministic mode
                 if (sub_context.partition.deterministic) {
                     sub_context.partition.seed += run + 1; // +1 to differ from main run
@@ -260,7 +261,15 @@ namespace mt_kahypar {
                     population.addStartingIndividual(ind_copy, context);
                     extracted++;
                 }
-            }         
+            }
+            auto end_time_meta = std::chrono::high_resolution_clock::now();
+            auto meta_duration = std::chrono::duration_cast<std::chrono::seconds>(end_time_meta - std::chrono::time_point_cast<std::chrono::high_resolution_clock::duration>(start));
+            // Update the global limit for the subsequent evolution phase
+            if (context.partition.time_limit > 0) {
+                context.partition.time_limit -= meta_duration.count();
+                if (context.partition.time_limit < 1) context.partition.time_limit = 1; // leave at least 1 sec
+            }
+
             context.partition.verbose_output = true;
             return history;
         }
@@ -701,59 +710,59 @@ namespace mt_kahypar {
         TargetGraph* target_graph,
         Population& population) {
 
-    std::vector<size_t> parents;
-    size_t best;
-    if (context.partition.deterministic) {
-        // use dedicated deterministic method
-        best = population.randomIndividualSafeDeterministic(context.partition.seed);
-        parents.push_back(best);
-        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-            size_t new_parent = population.randomIndividualSafeDeterministic(context.partition.seed + x);
-            parents.push_back(new_parent);
-            if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
-                best = new_parent;
+        std::vector<size_t> parents;
+        size_t best;
+        if (context.partition.deterministic) {
+            // use dedicated deterministic method
+            best = population.randomIndividualSafeDeterministic(context.partition.seed);
+            parents.push_back(best);
+            for (int x = 1; x < context.evolutionary.kway_combine; x++) {
+                size_t new_parent = population.randomIndividualSafeDeterministic(context.partition.seed + x);
+                parents.push_back(new_parent);
+                if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
+                    best = new_parent;
+                }
             }
         }
-    }
-    else {
-        best = population.randomIndividualSafe();
-        parents.push_back(best);
-        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-            size_t new_parent = population.randomIndividualSafe();
-            parents.push_back(new_parent);
-            if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
-                best = new_parent;
+        else {
+            best = population.randomIndividualSafe();
+            parents.push_back(best);
+            for (int x = 1; x < context.evolutionary.kway_combine; x++) {
+                size_t new_parent = population.randomIndividualSafe();
+                parents.push_back(new_parent);
+                if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
+                    best = new_parent;
+                }
             }
         }
-    }
 
-    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
-    std::unordered_map<PartitionID, int> comm_to_block;
-    vec<PartitionID> comms = combinePartitions(context, population, parents);
+        std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+        std::unordered_map<PartitionID, int> comm_to_block;
+        vec<PartitionID> comms = combinePartitions(context, population, parents);
 
-    Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
-    for (const HypernodeID& hn : hypergraph.nodes()) {
-        partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
-        if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
-        comm_to_block[comms[hn]] = best_partition[hn];
+        for (const HypernodeID& hn : hypergraph.nodes()) {
+            partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
+            if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
+            comm_to_block[comms[hn]] = best_partition[hn];
+            }
         }
-    }
 
-    partitioned_hypergraph.initializePartition();
-    hypergraph.setCommunityIDs(std::move(comms));
+        partitioned_hypergraph.initializePartition();
+        hypergraph.setCommunityIDs(std::move(comms));
 
-    if (context.partition.mode == Mode::direct) {
-        Context vc_context(context);
-        vc_context.setupPartWeights(hypergraph.totalWeight());
-        Multilevel<TypeTraits>::evolutionPartitionVCycle(
-            hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-    } else {
-        throw InvalidParameterException("Invalid partitioning mode!");
-    }
+        if (context.partition.mode == Mode::direct) {
+            Context vc_context(context);
+            vc_context.setupPartWeights(hypergraph.totalWeight());
+            Multilevel<TypeTraits>::evolutionPartitionVCycle(
+                hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+        } else {
+            throw InvalidParameterException("Invalid partitioning mode!");
+        }
 
-    return Individual(partitioned_hypergraph, context);
+        return Individual(partitioned_hypergraph, context);
     }
 
     template<typename TypeTraits>

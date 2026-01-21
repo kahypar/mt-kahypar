@@ -889,7 +889,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.evolutionary.meta_evo_mode)->value_name("<bool>")->default_value(false),
              "Enable Meta-Evo mode: Initial population is built by running multiple short evolutionary runs.")
              ("evo-meta-solutions-per-run",
-             po::value<int>(&context.evolutionary.meta_evo_solutions_per_run)->value_name("<int>")->default_value(2),
+             po::value<int>(&context.evolutionary.meta_evo_solutions_per_run)->value_name("<int>")->default_value(5),
              "Number of best solutions to take from each meta-evo run into the main population.");
     return options;
   }
