@@ -262,8 +262,8 @@ namespace mt_kahypar {
                     extracted++;
                 }
             }
-            auto end_time_meta = std::chrono::high_resolution_clock::now();
-            auto meta_duration = std::chrono::duration_cast<std::chrono::seconds>(end_time_meta - std::chrono::time_point_cast<std::chrono::high_resolution_clock::duration>(start));
+            auto end_time_meta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+            auto meta_duration = std::chrono::duration_cast<std::chrono::seconds>(end_time_meta - start);
             // Update the global limit for the subsequent evolution phase
             if (context.partition.time_limit > 0) {
                 context.partition.time_limit -= meta_duration.count();
