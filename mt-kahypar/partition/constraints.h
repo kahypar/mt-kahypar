@@ -124,7 +124,7 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
         constraint_count++;
         if (HypernodeID(constraintDegree(partitioned_hg, incident_node_id)) >= allowed_constraints) {
           //if current part is not allowed, choose part with least constraints
-          return isNodeAllowedInPartition(partitioned_hg, node_id, part_id);
+          return false;//isNodeAllowedInPartition(partitioned_hg, node_id, part_id);
         }
       }
     }

@@ -51,11 +51,13 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
     hypernodes_in_queue.reset();
     hyperedges_in_queue.reset();
     parallel::scalable_vector<Queue> queues(_context.partition.k);
+    transformed_colouring colouring = transformed_colouring::get_colouring(hypergraph, _context);
 
     for (PartitionID block = 0; block < _context.partition.k; ++block) {
       for ( const HypernodeID& hn : start_nodes[block] ) {
         queues[block].push(hn);
         markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, hn, block);
+        colouring.setNodePart(hn, block);
       }
     }
 
@@ -84,7 +86,11 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
             // we take the last unassigned hypernode popped from the queue.
             // Note, in that case the balanced constraint will be violated.
             hn = next_hn;
-            if (fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block)) {
+            if (!colouring.isNodeAllowed(hn)) {
+              hn = kInvalidHypernode;
+              continue;
+            }
+            if (fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block, colouring)) {
               fits_into_block = true;
               break;
             }
@@ -96,7 +102,8 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
           hn = _ip_data.get_unassigned_hypernode();
-          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block)) {
+          if (!colouring.isNodeAllowed(hn)) hn = kInvalidHypernode;
+          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block, colouring)) {
             fits_into_block = true;
           }
         }
@@ -106,8 +113,8 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // check if there is another block to which we can assign the node
           for ( PartitionID other_block = 0; other_block < _context.partition.k; ++other_block ) {
             if ( other_block != block && 
-                ( isConstraintNode(hypergraph, hn) ? 
-                constraintsAllowBlock(hypergraph, hn, other_block) : // there are nodes not allowed in any partition :((
+                ( isConstraintNode(hypergraph, hn) ?
+                constraintsAllowBlock(hypergraph, hn, other_block, colouring) : // there are nodes not allowed in any partition :((
                 fitsIntoBlock(hypergraph, hn, other_block) 
               )) {
               // There is another block to which we can assign the node
@@ -121,6 +128,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
         if (hn != kInvalidHypernode) {
           ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
           hypergraph.setNodePart(hn, block);
+          colouring.setNodePart(hn, block);
           ++num_assigned_hypernodes;
           pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
                                           hypernodes_in_queue, hyperedges_in_queue, hn, block);
