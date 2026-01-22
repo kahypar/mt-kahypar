@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -42,8 +43,8 @@ struct MetricsTrackerBase {
   HyperedgeWeight objective_delta;
   vec<HypernodeWeight> part_weights;
   size_t num_overloaded;
-  // TODO: ignores removed d0 nodes...
   size_t num_underloaded;
+  size_t num_ignorable_underloaded_blocks;
   double imbalance;
 
   const PartitionedHypergraph* phg;
@@ -53,6 +54,7 @@ struct MetricsTrackerBase {
   void initializeConstraints() {
     num_overloaded = 0;
     num_underloaded = 0;
+    num_ignorable_underloaded_blocks = 0;
     static_cast<Subclass*>(this)->clear();
 
     for (size_t i = 0; i < part_weights.size(); ++i) {
@@ -63,6 +65,12 @@ struct MetricsTrackerBase {
         num_underloaded++;
         static_cast<Subclass*>(this)->setUnderloaded(i, true);
       }
+    }
+
+    if (!context->partition.allow_empty_blocks) {
+      HypernodeWeight required_weight = phg->maxWeightOfRemovedDegreeZeroNode();
+      HypernodeWeight min_block_weight = *std::min_element(max_part_weights, max_part_weights + context->partition.k);
+      num_ignorable_underloaded_blocks = min_block_weight >= required_weight ? phg->numRemovedHypernodes() : 0;
     }
   }
 
@@ -123,13 +131,21 @@ struct MetricsTrackerBase {
   }
 
   bool isValid() const {
-    return num_overloaded == 0 && num_underloaded == 0;
+    return !hasOverloadedBlock() && !hasUnderloadedBlock();
+  }
+
+  bool hasOverloadedBlock() const {
+    return num_overloaded > 0;
+  }
+
+  bool hasUnderloadedBlock() const {
+    return num_underloaded > num_ignorable_underloaded_blocks;
   }
 
   Metrics getMetrics() {
     checkConstraints();
 
-    BalanceMetrics balance{computeImbalance(), num_overloaded > 0, num_underloaded > 0};
+    BalanceMetrics balance{computeImbalance(), hasOverloadedBlock(), hasUnderloadedBlock()};
     return Metrics{objective_delta, balance};
   }
 
@@ -188,6 +204,7 @@ struct MetricsTrackerBase {
     part_weights(),
     num_overloaded(0),
     num_underloaded(0),
+    num_ignorable_underloaded_blocks(0),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -206,6 +223,7 @@ struct MetricsTrackerBase {
     part_weights(part_weights),
     num_overloaded(0),
     num_underloaded(0),
+    num_ignorable_underloaded_blocks(0),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -298,15 +316,12 @@ struct MetricsAndBlockTracker: public MetricsTrackerBase<PartitionedHypergraph, 
       Base::initializeConstraints();
     }
 
-  bool hasImbalancedBlock() {
-    return !overloaded_blocks.empty() || !underloaded_blocks.empty();
-  }
-
   IteratorRange<const_iterator> overloadedBlocks() {
     return {overloaded_blocks.cbegin(), overloaded_blocks.cend()};
   }
 
   IteratorRange<const_iterator> underloadedBlocks() {
+    ASSERT(underloaded_blocks.empty() || Base::hasUnderloadedBlock(), "accessed underloaded block that can be ignored");
     return {underloaded_blocks.cbegin(), underloaded_blocks.cend()};
   }
 
