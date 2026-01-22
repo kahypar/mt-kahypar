@@ -76,6 +76,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
   _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain_computation, [&](const Move& m) {
     changeNodePart(phg, m.node, m.from, m.to);
   });
+  ASSERT(!metrics::imbalance(phg, _context).violates_non_empty_blocks || phg.initialNumNodes() < ID(_context.partition.k));
   updateImbalance(phg);
 
   size_t iteration = 0;
