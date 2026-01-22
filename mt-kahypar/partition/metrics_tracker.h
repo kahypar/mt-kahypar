@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -43,8 +44,9 @@ struct MetricsTrackerBase {
   HyperedgeWeight objective_delta;
   weight::CopyableHypernodeWeightArray part_weights;
   size_t num_overloaded;
-  // TODO: ignores removed d0 nodes...
   size_t num_underloaded;
+  size_t num_ignorable_underloaded_blocks;
+  bool allow_empty_blocks;
   double imbalance;
 
   const PartitionedHypergraph* phg;
@@ -54,6 +56,7 @@ struct MetricsTrackerBase {
   void initializeConstraints() {
     num_overloaded = 0;
     num_underloaded = 0;
+    num_ignorable_underloaded_blocks = 0;
     static_cast<Subclass*>(this)->clear();
 
     for (size_t i = 0; i < part_weights.size(); ++i) {
@@ -64,6 +67,17 @@ struct MetricsTrackerBase {
         num_underloaded++;
         static_cast<Subclass*>(this)->setUnderloaded(i, true);
       }
+    }
+
+    if (!allow_empty_blocks && phg->numRemovedHypernodes() > 0) {
+      const auto required_weight = phg->maxWeightOfRemovedDegreeZeroNode();
+      for (const auto& block_weight: *max_part_weights) {
+        if (!(block_weight >= required_weight)) {
+          num_ignorable_underloaded_blocks = 0;
+          return;
+        }
+      }
+      num_ignorable_underloaded_blocks = phg->numRemovedHypernodes();
     }
   }
 
@@ -117,19 +131,27 @@ struct MetricsTrackerBase {
   bool improvesBalanceViolation(PartitionID from, PartitionID to, HypernodeID node) {
     const HNWeightConstRef node_weight = phg->nodeWeight(node);
     bool improves_from = isOverloaded(from);
-    bool improves_to = !context->partition.allow_empty_blocks && weight::isZero(part_weights[to]);
+    bool improves_to = !allow_empty_blocks && weight::isZero(part_weights[to]);
     // TODO: we might want to make this more fine-grained at some point (e.g. with multi-constraint)
     return (improves_from || improves_to) && (part_weights[to] + node_weight <= (*max_part_weights)[to]);
   }
 
   bool isValid() const {
-    return num_overloaded == 0 && num_underloaded == 0;
+    return !hasOverloadedBlock() && !hasUnderloadedBlock();
+  }
+
+  bool hasOverloadedBlock() const {
+    return num_overloaded > 0;
+  }
+
+  bool hasUnderloadedBlock() const {
+    return num_underloaded > num_ignorable_underloaded_blocks;
   }
 
   Metrics getMetrics() {
     checkConstraints();
 
-    BalanceMetrics balance{computeImbalance(), num_overloaded > 0, num_underloaded > 0};
+    BalanceMetrics balance{computeImbalance(), hasOverloadedBlock(), hasUnderloadedBlock()};
     return Metrics{objective_delta, balance};
   }
 
@@ -188,6 +210,8 @@ struct MetricsTrackerBase {
     part_weights(),
     num_overloaded(0),
     num_underloaded(0),
+    num_ignorable_underloaded_blocks(0),
+    allow_empty_blocks(context.partition.allow_empty_blocks),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -206,6 +230,8 @@ struct MetricsTrackerBase {
     part_weights(part_weights.copy()),
     num_overloaded(0),
     num_underloaded(0),
+    num_ignorable_underloaded_blocks(0),
+    allow_empty_blocks(context.partition.allow_empty_blocks),
     imbalance(-1.0),
     phg(&phg),
     context(&context),
@@ -219,7 +245,7 @@ struct MetricsTrackerBase {
 
   bool isUnderloaded(PartitionID block) {
     ASSERT(part_weights[block] >= weight::broadcast(0, phg->dimension()));
-    return !context->partition.allow_empty_blocks && weight::isZero(part_weights[block]);
+    return !allow_empty_blocks && weight::isZero(part_weights[block]);
   }
 
   double computeImbalance() {
@@ -303,15 +329,12 @@ struct MetricsAndBlockTracker: public MetricsTrackerBase<PartitionedHypergraph, 
       Base::initializeConstraints();
     }
 
-  bool hasImbalancedBlock() {
-    return !overloaded_blocks.empty() || !underloaded_blocks.empty();
-  }
-
   IteratorRange<const_iterator> overloadedBlocks() {
     return {overloaded_blocks.cbegin(), overloaded_blocks.cend()};
   }
 
   IteratorRange<const_iterator> underloadedBlocks() {
+    ASSERT(underloaded_blocks.empty() || Base::hasUnderloadedBlock(), "accessed underloaded block that can be ignored");
     return {underloaded_blocks.cbegin(), underloaded_blocks.cend()};
   }
 
