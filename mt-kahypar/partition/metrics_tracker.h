@@ -32,6 +32,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 namespace metrics {
@@ -48,38 +49,6 @@ struct MetricsTrackerBase {
   const PartitionedHypergraph* phg;
   const Context* context;
   const HypernodeWeight* max_part_weights;
-
-  MetricsTrackerBase(const PartitionedHypergraph& phg,
-                     const Context& context) :
-    objective_delta(0),
-    part_weights(),
-    num_overloaded(0),
-    num_underloaded(0),
-    imbalance(-1.0),
-    phg(&phg),
-    context(&context),
-    max_part_weights(context.partition.max_part_weights.data()) {
-      part_weights.resize(context.partition.k);
-      for (size_t i = 0; i < part_weights.size(); ++i) {
-        part_weights[i] = phg.partWeight(i);
-      }
-      initializeConstraints();
-  }
-
-  MetricsTrackerBase(const PartitionedHypergraph& phg,
-                     const Context& context,
-                     const vec<HypernodeWeight>& part_weights,
-                     const std::vector<HypernodeWeight>& max_part_weights) :
-    objective_delta(0),
-    part_weights(part_weights),
-    num_overloaded(0),
-    num_underloaded(0),
-    imbalance(-1.0),
-    phg(&phg),
-    context(&context),
-    max_part_weights(max_part_weights.data()) {
-      initializeConstraints();
-  }
 
   void initializeConstraints() {
     num_overloaded = 0;
@@ -138,6 +107,19 @@ struct MetricsTrackerBase {
     }
 
     checkConstraints();
+  }
+
+  bool improvesBalanceViolation(const Move& m) {
+    ASSERT(m.isValid());
+    return improvesBalanceViolation(m.from, m.to, m.node);
+  }
+
+  bool improvesBalanceViolation(PartitionID from, PartitionID to, HypernodeID node) {
+    const HypernodeWeight node_weight = phg->nodeWeight(node);
+    bool improves_from = isOverloaded(from);
+    bool improves_to = !context->partition.allow_empty_blocks && part_weights[to] == 0;
+    // Note: we might want to make this more fine-grained at some point (e.g. with multi-constraint)
+    return (improves_from || improves_to) && part_weights[to] + node_weight <= max_part_weights[to];
   }
 
   bool isValid() const {
@@ -199,6 +181,36 @@ struct MetricsTrackerBase {
     objective_delta += lhs.objective_delta;
   }
 
+ protected:
+  MetricsTrackerBase(const PartitionedHypergraph& phg,
+                     const Context& context) :
+    objective_delta(0),
+    part_weights(),
+    num_overloaded(0),
+    num_underloaded(0),
+    imbalance(-1.0),
+    phg(&phg),
+    context(&context),
+    max_part_weights(context.partition.max_part_weights.data()) {
+      part_weights.resize(context.partition.k);
+      for (size_t i = 0; i < part_weights.size(); ++i) {
+        part_weights[i] = phg.partWeight(i);
+      }
+  }
+
+  MetricsTrackerBase(const PartitionedHypergraph& phg,
+                     const Context& context,
+                     const vec<HypernodeWeight>& part_weights,
+                     const std::vector<HypernodeWeight>& max_part_weights) :
+    objective_delta(0),
+    part_weights(part_weights),
+    num_overloaded(0),
+    num_underloaded(0),
+    imbalance(-1.0),
+    phg(&phg),
+    context(&context),
+    max_part_weights(max_part_weights.data()) { }
+
  private:
   bool isOverloaded(PartitionID block) {
     return part_weights[block] > max_part_weights[block];
@@ -244,13 +256,20 @@ struct MetricsTracker: public MetricsTrackerBase<PartitionedHypergraph, MetricsT
 
   MetricsTracker(const PartitionedHypergraph& phg,
                  const Context& context) :
-    Base(phg, context) { }
+    Base(phg, context) {
+      Base::initializeConstraints();
+    }
 
   MetricsTracker(const PartitionedHypergraph& phg,
                  const Context& context,
                  const vec<HypernodeWeight>& part_weights,
                  const std::vector<HypernodeWeight>& max_part_weights) :
-    Base(phg, context, part_weights, max_part_weights) { }
+    Base(phg, context, part_weights, max_part_weights) {
+      Base::initializeConstraints();
+    }
+
+ private:
+  friend Base;
 
   void clear() { }
   void setOverloaded(PartitionID, bool) { }
@@ -260,19 +279,39 @@ struct MetricsTracker: public MetricsTrackerBase<PartitionedHypergraph, MetricsT
 template<typename PartitionedHypergraph>
 struct MetricsAndBlockTracker: public MetricsTrackerBase<PartitionedHypergraph, MetricsAndBlockTracker<PartitionedHypergraph>> {
   using Base = MetricsTrackerBase<PartitionedHypergraph, MetricsAndBlockTracker<PartitionedHypergraph>>;
+  using const_iterator = vec<PartitionID>::const_iterator;
 
   vec<PartitionID> overloaded_blocks;
   vec<PartitionID> underloaded_blocks;
 
   MetricsAndBlockTracker(const PartitionedHypergraph& phg,
                          const Context& context) :
-    Base(phg, context) { }
+    Base(phg, context) {
+      Base::initializeConstraints();
+    }
 
   MetricsAndBlockTracker(const PartitionedHypergraph& phg,
                          const Context& context,
                          const vec<HypernodeWeight>& part_weights,
                          const std::vector<HypernodeWeight>& max_part_weights) :
-    Base(phg, context, part_weights, max_part_weights) { }
+    Base(phg, context, part_weights, max_part_weights) {
+      Base::initializeConstraints();
+    }
+
+  bool hasImbalancedBlock() {
+    return !overloaded_blocks.empty() || !underloaded_blocks.empty();
+  }
+
+  IteratorRange<const_iterator> overloadedBlocks() {
+    return {overloaded_blocks.cbegin(), overloaded_blocks.cend()};
+  }
+
+  IteratorRange<const_iterator> underloadedBlocks() {
+    return {underloaded_blocks.cbegin(), underloaded_blocks.cend()};
+  }
+
+ private:
+  friend Base;
 
   void clear() {
     overloaded_blocks.clear();
@@ -287,7 +326,6 @@ struct MetricsAndBlockTracker: public MetricsTrackerBase<PartitionedHypergraph, 
     setBlockImpl(underloaded_blocks, block, value);
   }
 
- private:
   void setBlockImpl(vec<PartitionID>& block_set, PartitionID block, bool value) {
     ASSERT([&]{
       bool contained = false;
