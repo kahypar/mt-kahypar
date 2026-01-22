@@ -456,6 +456,7 @@ namespace impl {
       );
       ASSERT(success); unused(success);
     });
+    ASSERT(!metrics::imbalance(phg, _context).violates_non_empty_blocks || phg.initialNumNodes() < ID(_context.partition.k));
 
     _overloaded_blocks.clear();
     _is_overloaded.assign(_context.partition.k, false);
