@@ -126,26 +126,30 @@ namespace impl {
                               MoveID& next_move_index,
                               vec<Move>& tmp_move_order) {
     bool success = true;
-    while (success && tracker.hasImbalancedBlock()) {
+    while (success && !tracker.isValid()) {
       success = false;
-      for (PartitionID from: tracker.overloadedBlocks()) {
-        Move m;
-        if (lookup.nextMoveFrom(from, m) && tracker.improvesBalanceViolation(m)) {
-          tracker.applyMove(m);
-          lookup.commitMoveFrom(from);
-          tmp_move_order[next_move_index++] = m;
-          success = true;
-          break;  // might invalidate the iterator
+      if (tracker.hasOverloadedBlock()) {
+        for (PartitionID from: tracker.overloadedBlocks()) {
+          Move m;
+          if (lookup.nextMoveFrom(from, m) && tracker.improvesBalanceViolation(m)) {
+            tracker.applyMove(m);
+            lookup.commitMoveFrom(from);
+            tmp_move_order[next_move_index++] = m;
+            success = true;
+            break;  // might invalidate the iterator
+          }
         }
       }
-      for (PartitionID to: tracker.underloadedBlocks()) {
-        Move m;
-        if (lookup.nextMoveTo(to, m) && tracker.improvesBalanceViolation(m)) {
-          tracker.applyMove(m);
-          lookup.commitMoveTo(to);
-          tmp_move_order[next_move_index++] = m;
-          success = true;
-          break;  // might invalidate the iterator
+      if (tracker.hasUnderloadedBlock()) {
+        for (PartitionID to: tracker.underloadedBlocks()) {
+          Move m;
+          if (lookup.nextMoveTo(to, m) && tracker.improvesBalanceViolation(m)) {
+            tracker.applyMove(m);
+            lookup.commitMoveTo(to);
+            tmp_move_order[next_move_index++] = m;
+            success = true;
+            break;  // might invalidate the iterator
+          }
         }
       }
     }
