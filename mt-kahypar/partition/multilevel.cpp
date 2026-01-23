@@ -113,11 +113,10 @@ namespace {
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
     if ( context.type == ContextType::main && phg.hasNegativeConstraints()) {
-      LOG << (constraints::constraintsMet(phg)? "Constrains were respected from coarsener" : "!!! Coarsener destroyed constrains !!!");
+      HypernodeID num_broken_constraints = constraints::numBrokenConstraints(phg);
+      if (num_broken_constraints == 0) LOG <<"Constrains were respected from coarsener";
+      else LOG <<"!!! Coarsener destroyed " << num_broken_constraints << "constrains !!!";
       LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from coarsener" : "!!! Coarsener destroyed node degrees !!!");
-      LOG << "Colouring";
-      KColouring<TypeTraits> color(context);
-      color.colour(phg);
     }
     io::printInitialPartitioningBanner(context);// put back at top
 
@@ -138,7 +137,11 @@ namespace {
         ip_context.partition.verbose_output = false;
         Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
-        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
+        if (phg.hasNegativeConstraints()) {
+          KColouring<TypeTraits>::partition(phg, ip_context);
+        } else {
+          RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
+        }
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
         ASSERT(ip_context.partition.objective != Objective::steiner_tree);
         ip_context.partition.verbose_output = false;
@@ -195,9 +198,10 @@ namespace {
         context.utility_id).printInitialPartitioningStats();
     }
     if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
+      HypernodeID num_broken_constraints = constraints::numBrokenConstraints(phg);
       LOG <<"";
-      LOG << (constraints::constraintsMet(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
-      LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
+      if (num_broken_constraints == 0) LOG << "Constrains were respected from initial partitioning";
+      else LOG << "!!! initial partitioning destroyed" << num_broken_constraints << "constrains !!!";
       LOG <<"";
       constraints::postprocessNegativeConstraints(phg, context);
     }

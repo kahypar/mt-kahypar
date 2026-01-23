@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/priority_queue.h"
 
@@ -15,6 +16,16 @@ struct graph_colouring {
   Colour used_colours = 0;
 } ;
 
+struct block_weights {
+  vec<HypernodeWeight> weights;
+
+  template<typename PartitionedHypergraph>
+  void setNodePart(const PartitionedHypergraph& phg, const HypernodeID hn, const PartitionID part) {
+    HypernodeWeight weight = phg.nodeWeight(hn);
+    weights[part] += weight;
+  }
+};
+
 class NodeSelector {
  public:
   
@@ -27,6 +38,12 @@ class NodeSelector {
         return degree > other.degree;
       }
       return id > other.id;
+    }
+    bool operator<(const Key& other) const {
+      if (degree != other.degree) {
+        return degree < other.degree;
+      }
+      return id < other.id;
     }
     bool operator==(const Key& other) const {
         return degree == other.degree && id == other.id;
@@ -42,9 +59,11 @@ class NodeSelector {
       _constraint_graph.removeSinglePinAndParallelHyperedges();
       for (const HypernodeID& node : _constraint_graph.nodes()) {
         _pq.insert(node, Key{_constraint_graph.nodeDegree(node), node});
+        if (_constraint_graph.nodeDegree(node) > 19) {
+          LOG << "node"<<node<<"has a degree of"<<_constraint_graph.nodeDegree(node);
+        }
       }
-      LOG << "PQ size:"<<_pq.size();
-      LOG << "graph nodes:"<<_constraint_graph.numNodes();
+      LOG <<"Nodes in pq"<< _pq.size();
     }
 
   HypernodeID getNextNode() {
@@ -53,15 +72,15 @@ class NodeSelector {
     }
     const HypernodeID node = _pq.top();
     _pq.deleteTop();
-    for (const auto& neighbour : _constraint_graph.incidentNodes(node)) {
-      if (_pq.contains(neighbour)) {
-        Key key = _pq.getKey(neighbour);
-        if (key.degree > 0) {
-          key.degree--;
-        }
-        _pq.adjustKey(neighbour, key);
-      }
-    }
+    // for (const auto& neighbour : _constraint_graph.incidentNodes(node)) {
+    //   if (_pq.contains(neighbour)) {
+    //     Key key = _pq.getKey(neighbour);
+    //     if (key.degree > 0) {
+    //       key.degree--;
+    //     }
+    //     _pq.adjustKey(neighbour, key);
+    //   }
+    // }
     return node;
   }
 
@@ -69,12 +88,13 @@ class NodeSelector {
   DynamicGraph _constraint_graph;
 
   vec<PosT> _positions;
-  ds::Heap<Key, HypernodeID, std::greater<Key>, 4> _pq;
+  ds::Heap<Key, HypernodeID, std::less<Key>, 4> _pq;
 };
 
 template<typename TypeTraits>
 class KColouring{
 
+  using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
@@ -104,21 +124,48 @@ class KColouring{
     return colouring.used_colours;
   }
 
+  static void partition(PartitionedHypergraph& hypergraph,
+                        const Context& context);
+
  private:
 
-  Colour getSmalestPossibleColour(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
-    vec<Colour> is_colour_used(colouring.used_colours + 1, false);
-    Colour colour_tu_use = 0;
+  static vec<bool> getPossibleColours(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
+    vec<bool> is_colour_usable(colouring.used_colours, true);
     for (auto incident_hn : incident_iterator) {
       Colour incident_colour = colouring.node_colours[incident_hn];
       if (incident_colour != kInvalidColour) {
-        is_colour_used[incident_colour] = true;
-        if ( incident_colour == colour_tu_use) {
-          while (is_colour_used[colour_tu_use])
-          {
-            colour_tu_use++;
-          }
-        }
+        is_colour_usable[incident_colour] = false;
+      }
+    }
+    return is_colour_usable;
+  }
+
+  static Colour getSmalestPossibleColour(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
+    vec<bool> is_colour_usable = getPossibleColours(incident_iterator, colouring);
+    Colour colour_tu_use = 0;
+    while(!is_colour_usable[colour_tu_use]) colour_tu_use++;
+    return colour_tu_use;
+  }
+
+  static Colour getMostBalancedColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
+    Colour colour_tu_use = 0;
+    HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
+    for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
+      if (is_colour_usable[colour] && weights.weights[colour] < best_weight) { // if no color is valid all put in 0
+        colour_tu_use = colour;
+        best_weight = weights.weights[colour];
+      }
+    }
+    return colour_tu_use;
+  }
+
+  static Colour getBestCutColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
+    Colour colour_tu_use = 0;
+    HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
+    for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
+      if (is_colour_usable[colour] && weights.weights[colour] < best_weight) { // if no color is valid all put in 0
+        colour_tu_use = colour;
+        best_weight = weights.weights[colour];
       }
     }
     return colour_tu_use;

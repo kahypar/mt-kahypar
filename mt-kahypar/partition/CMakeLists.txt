@@ -15,6 +15,7 @@ set(PartitionSources
         conversion.cpp
         metrics.cpp
         recursive_bipartitioning.cpp
+        k_colouring.cpp
         )
 
 target_sources(MtKaHyPar-Sources INTERFACE ${PartitionSources})
