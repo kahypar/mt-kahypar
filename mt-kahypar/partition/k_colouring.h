@@ -3,6 +3,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 
 namespace mt_kahypar {
 
@@ -72,15 +73,6 @@ class NodeSelector {
     }
     const HypernodeID node = _pq.top();
     _pq.deleteTop();
-    // for (const auto& neighbour : _constraint_graph.incidentNodes(node)) {
-    //   if (_pq.contains(neighbour)) {
-    //     Key key = _pq.getKey(neighbour);
-    //     if (key.degree > 0) {
-    //       key.degree--;
-    //     }
-    //     _pq.adjustKey(neighbour, key);
-    //   }
-    // }
     return node;
   }
 
@@ -98,7 +90,8 @@ class KColouring{
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
-  KColouring(const Context& context) :
+  KColouring(PartitionedHypergraph& phg, const Context& context) :
+    _phg(phg),
     _context(context) { }
 
   Colour colour(const PartitionedHypergraph& phg) {
@@ -124,12 +117,18 @@ class KColouring{
     return colouring.used_colours;
   }
 
-  static void partition(PartitionedHypergraph& hypergraph,
-                        const Context& context);
+  void partition();
 
  private:
 
-  static vec<bool> getPossibleColours(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
+  bool fitsIntoBlock(const HypernodeID hn_id,
+                    const PartitionID block) const {
+    ASSERT(block != kInvalidPartition && block < _context.partition.k);
+    return _phg.partWeight(block) + _phg.nodeWeight(hn_id) <=
+      _context.partition.max_part_weights[block];
+  }
+
+  vec<bool> getPossibleColours(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
     vec<bool> is_colour_usable(colouring.used_colours, true);
     for (auto incident_hn : incident_iterator) {
       Colour incident_colour = colouring.node_colours[incident_hn];
@@ -140,18 +139,18 @@ class KColouring{
     return is_colour_usable;
   }
 
-  static Colour getSmalestPossibleColour(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
+  Colour getSmalestPossibleColour(IteratorRange<ds::IncidentNodeIterator> incident_iterator, graph_colouring& colouring) {
     vec<bool> is_colour_usable = getPossibleColours(incident_iterator, colouring);
     Colour colour_tu_use = 0;
     while(!is_colour_usable[colour_tu_use]) colour_tu_use++;
     return colour_tu_use;
   }
 
-  static Colour getMostBalancedColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
+  Colour getMostBalancedColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
     Colour colour_tu_use = 0;
     HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
     for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
-      if (is_colour_usable[colour] && weights.weights[colour] < best_weight) { // if no color is valid all put in 0
+      if (is_colour_usable[colour] && weights.weights[colour] < best_weight) {
         colour_tu_use = colour;
         best_weight = weights.weights[colour];
       }
@@ -159,18 +158,36 @@ class KColouring{
     return colour_tu_use;
   }
 
-  static Colour getBestCutColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
-    Colour colour_tu_use = 0;
-    HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
+  Colour getBestCutColor(const vec<bool>& is_colour_usable, const HypernodeID hn_id) {
+    Gain maximum_gain = std::numeric_limits<Gain>::min();
+    Colour maximum_gain_colour = kInvalidColour;
+    Gain maximum_balanced_gain = std::numeric_limits<Gain>::min();
+    Colour maximum_balanced_gain_colour = kInvalidColour;
     for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
-      if (is_colour_usable[colour] && weights.weights[colour] < best_weight) { // if no color is valid all put in 0
-        colour_tu_use = colour;
-        best_weight = weights.weights[colour];
+      if (is_colour_usable[colour]) {
+        Gain gain = CutGainPolicy<TypeTraits>::calculateGain(_phg, hn_id, PartitionID(colour));
+        if (gain > maximum_gain) {
+          maximum_gain = gain;
+          maximum_gain_colour = colour;
+        }
+        if (fitsIntoBlock(hn_id, colour) 
+            && (gain > maximum_balanced_gain 
+              || (gain == maximum_balanced_gain && _phg.partWeight(colour) < _phg.partWeight(maximum_balanced_gain_colour)))) {
+          maximum_balanced_gain = gain;
+          maximum_balanced_gain_colour = colour;
+        }
       }
     }
-    return colour_tu_use;
+    if (maximum_balanced_gain_colour != kInvalidColour) {
+      return maximum_balanced_gain_colour;
+    } else {
+      return maximum_gain_colour;
+    }
   }
 
+  void setRemainingNodes();
+
+  PartitionedHypergraph& _phg;
   const Context& _context;
 };
 

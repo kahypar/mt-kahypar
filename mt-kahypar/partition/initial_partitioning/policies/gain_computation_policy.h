@@ -85,7 +85,7 @@ class CutGainPolicy {
           // in from part, we would make the hyperedge cut if move hn to
           // block to
           gain -= hypergraph.edgeWeight(he);
-        } else if ( connectivity == 2 &&
+        } else if ( connectivity > 1 &&
                     pin_count_in_from_part == 1 &&
                     pin_count_in_to_part > 0 ) {
           // In case, the connectivity is two and hn is the last pin left

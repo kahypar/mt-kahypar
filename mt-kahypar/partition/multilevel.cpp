@@ -138,7 +138,8 @@ namespace {
         Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
         if (phg.hasNegativeConstraints()) {
-          KColouring<TypeTraits>::partition(phg, ip_context);
+          KColouring<TypeTraits> colourer(phg, ip_context);
+          colourer.partition();
         } else {
           RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
         }
