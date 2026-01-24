@@ -32,11 +32,26 @@ bool sliding_window_improvement_rate_stop(
         return false;
     }
 
+    // Identify evolutionary (non-"Initial") improvements
+    // Only needs to be done if early rate not yet computed
+    std::vector<int> evo_indices;
+    if (early_window_improvement_rate < 0.0) {
+        for (int i = 0; i < static_cast<int>(improvement_log_entries.size()); ++i) {
+            if (improvement_log_entries[i].operation_type != "Initial") {
+                evo_indices.push_back(i);
+            }
+        }
+    }
+
+    if (evo_indices.size() < early_window_improvs) {
+        return false;
+    }
+
     // Compute early window improvement rate once and write it back
     if (early_window_improvement_rate < 0.0) {
         // First early_window_improvs improvements define the early window
-        const auto& first = improvement_log_entries.front();
-        const auto& last  = improvement_log_entries[early_window_improvs - 1];
+        const auto& first = improvement_log_entries[evo_indices[0]];
+        const auto& last  = improvement_log_entries[evo_indices[early_window_improvs - 1]];
 
         const double earliest_km1      = first.km1;
         const double latest_km1        = last.km1;
@@ -46,7 +61,7 @@ bool sliding_window_improvement_rate_stop(
 
         early_window_improvement_rate = (earliest_km1 - latest_km1) / static_cast<double>(span);
 
-        // This should actually never trigger because at leat 1 improvement is needed to enter (safeguard)
+        // This should actually never trigger because at least 2 improvements (span >= 1) are needed
         if (early_window_improvement_rate <= 0.0) {
             return false;
         }
@@ -54,13 +69,13 @@ bool sliding_window_improvement_rate_stop(
 
     const double early_rate = early_window_improvement_rate;
 
-    // Compute recent window improvement rate
-    const int n_impr = static_cast<int>(improvement_log_entries.size());
-    if (n_impr <= early_window_improvs)
+    // Compute recent window improvement rate using only non-"Initial" entries
+    if (static_cast<int>(evo_indices.size()) <= early_window_improvs)
         return false;
 
-    const int end_idx = n_impr - 1;
-    const int start_idx = std::max(0, end_idx - recent_window_improvs + 1);
+    const int n_evo = static_cast<int>(evo_indices.size());
+    const int end_idx = evo_indices[n_evo - 1];
+    const int start_idx = evo_indices[std::max(0, n_evo - recent_window_improvs)];
 
     const auto& win_start = improvement_log_entries[start_idx];
     const auto& win_end   = improvement_log_entries[end_idx];
