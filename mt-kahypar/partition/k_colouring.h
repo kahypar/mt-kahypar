@@ -72,16 +72,16 @@ class NodeSelector {
   ds::Heap<Key, HypernodeID, std::greater<Key>, 4> _pq;
 };
 
-template<typename PartitionedHypergraph>
+template<typename TypeTraits>
 class KColouring{
 
-  //using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   KColouring(const Context& context) :
     _context(context) { }
 
-  graph_colouring colour(const PartitionedHypergraph& phg) {
+  Colour colour(const PartitionedHypergraph& phg) {
     const ds::DynamicGraph& constraint_graph = phg.fixedVertexSupport().getConstraintGraph();
     NodeSelector selector(constraint_graph);
     graph_colouring colouring;
@@ -101,7 +101,7 @@ class KColouring{
     for(int i = 0; i<colouring.used_colours; i++) {
       LOG<<"Colour"<<i<<"num Nodes"<<count[i];
     }
-    return colouring;
+    return colouring.used_colours;
   }
 
  private:

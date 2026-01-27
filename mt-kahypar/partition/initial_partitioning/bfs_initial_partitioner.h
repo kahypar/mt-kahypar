@@ -30,7 +30,6 @@
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/constraints.h"
-#include "mt-kahypar/partition/k_colouring.h"
 
 namespace mt_kahypar {
 
@@ -41,50 +40,6 @@ class BFSInitialPartitioner : public IInitialPartitioner {
   static constexpr bool debug = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-
-  struct transformed_colouring {
-    vec<Colour> node_colours;
-    vec<HypernodeID> nodes_per_colour;
-    Colour current_max_colour;
-
-    template<typename PartitionedHypergraph>
-    static transformed_colouring get_colouring(const PartitionedHypergraph& hypergraph, const Context& context) {
-      graph_colouring constraint_colouring = KColouring<PartitionedHypergraph>(context).colour(hypergraph);
-      transformed_colouring transformed;
-      transformed.current_max_colour = constraint_colouring.used_colours - 1;
-      transformed.nodes_per_colour = vec<HypernodeID> (constraint_colouring.used_colours, 0);
-      transformed.node_colours = vec<Colour> (hypergraph.initialNumNodes(), kInvalidColour);
-      for (const HypernodeID hn : hypergraph.nodes()) {
-        HypernodeID node;
-        if (hypergraph.fixedVertexSupport().getConstraintIdFromHypergraphId(hn, node)) {
-          Colour colour = constraint_colouring.node_colours[node];
-          transformed.nodes_per_colour[colour]++;
-          transformed.node_colours[hn] = colour;
-        }
-      }
-      return transformed;
-    }
-
-    bool isNodeAllowed(const HypernodeID hn) const {
-      Colour colour = node_colours[hn];
-      if (colour == kInvalidColour) return true;
-      if (colour == current_max_colour) return true;
-      return false;
-    }
-
-    void setNodePart(const HypernodeID hn, const PartitionID) {
-      Colour colour = node_colours[hn];
-      if (colour == kInvalidColour) return;
-      if (colour != current_max_colour) {
-        LOG << "Used not the biggest colour!"<< colour << current_max_colour;
-      }
-      nodes_per_colour[colour]--;
-      if (nodes_per_colour[colour] <= 0 && colour == current_max_colour) {
-        current_max_colour--;
-      }
-    }
-
-  };
 
  public:
   BFSInitialPartitioner(const InitialPartitioningAlgorithm,
@@ -109,19 +64,15 @@ class BFSInitialPartitioner : public IInitialPartitioner {
 
   bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
                             const HypernodeID hn,
-                            const PartitionID block,
-                            const transformed_colouring& colouring) const {
+                            const PartitionID block) const {
     if (hypergraph.hasNegativeConstraints()) {
-      if (colouring.isNodeAllowed(hn)) {
-        return constraints::isNodeAllowedInPartition(hypergraph, _context, hn, block);
-      }
-      return false;
+      return constraints::isNodeAllowedInPartition(hypergraph, _context, hn, block);
     }
     return true;
   }
 
   bool isConstraintNode(PartitionedHypergraph& hypergraph,
-                        const HypernodeID hn) {
+                            const HypernodeID hn) {
     HypernodeID node;
     return hypergraph.fixedVertexSupport().getConstraintIdFromHypergraphId(hn, node);
   }

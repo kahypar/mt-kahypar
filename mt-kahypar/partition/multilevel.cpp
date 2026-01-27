@@ -113,12 +113,10 @@ namespace {
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
     if ( context.type == ContextType::main && phg.hasNegativeConstraints()) {
-      HypernodeID num_broken_constraints = constraints::numBrokenConstraints(phg);
-      if (num_broken_constraints == 0) LOG <<"Constrains were respected from coarsener";
-      else LOG << "!!! Coarsener destroyed"<< num_broken_constraints<< "constrains !!!";
+      LOG << (constraints::constraintsMet(phg)? "Constrains were respected from coarsener" : "!!! Coarsener destroyed constrains !!!");
       LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from coarsener" : "!!! Coarsener destroyed node degrees !!!");
       LOG << "Colouring";
-      KColouring<PartitionedHypergraph> color(context);
+      KColouring<TypeTraits> color(context);
       color.colour(phg);
     }
     io::printInitialPartitioningBanner(context);// put back at top
@@ -198,9 +196,7 @@ namespace {
     }
     if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
       LOG <<"";
-      HypernodeID num_broken_constraints = constraints::numBrokenConstraints(phg);
-      if (num_broken_constraints == 0) LOG <<"Constrains were respected from initial partitioning";
-      else LOG << "!!! Initial partitioning destroyed"<< num_broken_constraints<< "constrains !!!";
+      LOG << (constraints::constraintsMet(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
       LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
       LOG <<"";
       constraints::postprocessNegativeConstraints(phg, context);
