@@ -176,13 +176,22 @@ class FixedVertexSupport {
     return _constraints;
   }
 
+  bool isConstraintNode(const HypernodeID hypergraph_id) {
+    if (!hasNegativeConstraints()) return false;
+    if (_hypergraph_id_to_graph_id->contains(hypergraph_id)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   bool getConstraintIdFromHypergraphId(const HypernodeID hypergraph_id, HypernodeID& constraint_id) const {
     if (!hasNegativeConstraints()) return false;
     if (_hypergraph_id_to_graph_id->contains(hypergraph_id)) {
-        constraint_id = _hypergraph_id_to_graph_id->get(hypergraph_id);
-        return true;
+      constraint_id = _hypergraph_id_to_graph_id->get(hypergraph_id);
+      return true;
     } else {
-        return false;
+      return false;
     }
   }
 

@@ -4,8 +4,10 @@
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
+#include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
+
 
 using DynamicGraph = typename ds::DynamicGraph;
 using Colour = int32_t;
@@ -15,7 +17,7 @@ static constexpr Colour kInvalidColour = -1;
 struct graph_colouring {
   vec<Colour> node_colours;
   Colour used_colours = 0;
-} ;
+};
 
 struct block_weights {
   vec<HypernodeWeight> weights;
@@ -27,9 +29,86 @@ struct block_weights {
   }
 };
 
-class NodeSelector {
+template<typename PartitionedHypergraph>
+class BFSNodeSelector {
+
+  using Queue = parallel::scalable_queue<ConstraintNodeID>;
+
  public:
-  
+  BFSNodeSelector(PartitionedHypergraph& phg, const DynamicGraph& constraint_graph) :
+    _phg(phg),
+    _constraint_graph(constraint_graph.copy()),
+    _node_already_seen(_constraint_graph.numNodes(), false),
+    _max_degree(0)
+    {
+      _constraint_graph.removeSinglePinAndParallelHyperedges();
+      _nodes_with_degree = vec<vec<ConstraintNodeID>>(_phg.k());
+      for (const ConstraintNodeID& node : _constraint_graph.nodes()) {
+        _nodes_with_degree[_constraint_graph.nodeDegree(node)].push_back(node);
+        if (_constraint_graph.nodeDegree(node) > _max_degree) {
+          _max_degree = _constraint_graph.nodeDegree(node);
+        }
+      }
+    }
+
+  ConstraintNodeID getNextNode() {
+    if (_queue.empty() && _max_degree >= 0) {
+      fillQueueWithBfs();
+    }
+    if (_queue.empty()) {
+      return kInvalidHypernode;
+    }
+    ConstraintNodeID node = _queue.front();
+    _queue.pop();
+    return node;
+  }
+
+ private:
+  // go threw the hypergraph in BFS fashion, but insert just constraint nodes that match the current degree that are not seen before
+  void fillQueueWithBfs() {
+    if (!nodesLeft()) return;
+
+    ConstraintNodeID start_node = _nodes_with_degree[_max_degree].back();
+    _nodes_with_degree[_max_degree].pop_back();
+    HypernodeID node_id = _constraint_graph.nodeWeight(start_node);
+    
+    for (const HyperedgeID& he : _phg.incidentEdges(node_id)) {
+      for (const HypernodeID& pin : _phg.pins(he)) {
+        ConstraintNodeID node;
+        if (_phg.fixedVertexSupport().getConstraintIdFromHypergraphId(pin, node)) {
+          // node is a constraint node
+          if (!_node_already_seen[node]) {
+            _queue.push(node);
+            _node_already_seen[node] = true;
+          }
+        }
+      }
+    }
+    if (_queue.empty()) fillQueueWithBfs();
+  }
+
+  bool nodesLeft() {
+    if( _max_degree > 0 && _nodes_with_degree[_max_degree].empty()) {
+      _max_degree--;
+      return nodesLeft();
+    } else if (!_nodes_with_degree[_max_degree].empty()) {
+      return true;
+    }
+    return false;
+  }
+
+  PartitionedHypergraph& _phg;
+  DynamicGraph _constraint_graph;
+
+  vec<vec<ConstraintNodeID>> _nodes_with_degree;
+  vec<ConstraintNodeID> _node_already_seen;
+  ConstraintNodeID _max_degree;
+  Queue _queue;
+};
+
+class DegreeNodeSelector {
+
+ public:
   struct Key {
     HypernodeID degree;
     HypernodeID id;
@@ -51,8 +130,7 @@ class NodeSelector {
     }
   };
 
-
-  NodeSelector(const DynamicGraph& constraint_graph) :
+  DegreeNodeSelector(const DynamicGraph& constraint_graph) :
     _constraint_graph(constraint_graph.copy()),
     _positions(constraint_graph.numNodes()),
     _pq(_positions.data(), constraint_graph.numNodes())
@@ -64,7 +142,6 @@ class NodeSelector {
           LOG << "node"<<node<<"has a degree of"<<_constraint_graph.nodeDegree(node);
         }
       }
-      LOG <<"Nodes in pq"<< _pq.size();
     }
 
   HypernodeID getNextNode() {
@@ -84,7 +161,7 @@ class NodeSelector {
 };
 
 template<typename TypeTraits>
-class KColouring{
+class KColouring {
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -96,7 +173,7 @@ class KColouring{
 
   Colour colour(const PartitionedHypergraph& phg) {
     const ds::DynamicGraph& constraint_graph = phg.fixedVertexSupport().getConstraintGraph();
-    NodeSelector selector(constraint_graph);
+    DegreeNodeSelector selector(constraint_graph);
     graph_colouring colouring;
     colouring.node_colours = vec<Colour> (constraint_graph.numNodes(), kInvalidColour);
     for (HypernodeID hn = selector.getNextNode(); hn != kInvalidHypernode; hn = selector.getNextNode()) {
@@ -120,7 +197,6 @@ class KColouring{
   void partition();
 
  private:
-
   bool fitsIntoBlock(const HypernodeID hn_id,
                     const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
@@ -149,7 +225,7 @@ class KColouring{
   Colour getMostBalancedColor(const vec<bool>& is_colour_usable, const block_weights& weights) {
     Colour colour_tu_use = 0;
     HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
-    for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
+    for (Colour colour = 0; colour < Colour(is_colour_usable.size()); colour++) {
       if (is_colour_usable[colour] && weights.weights[colour] < best_weight) {
         colour_tu_use = colour;
         best_weight = weights.weights[colour];
@@ -163,7 +239,7 @@ class KColouring{
     Colour maximum_gain_colour = kInvalidColour;
     Gain maximum_balanced_gain = std::numeric_limits<Gain>::min();
     Colour maximum_balanced_gain_colour = kInvalidColour;
-    for (Colour colour = 0; colour < is_colour_usable.size(); colour++) {
+    for (Colour colour = 0; colour < Colour(is_colour_usable.size()); colour++) {
       if (is_colour_usable[colour]) {
         Gain gain = CutGainPolicy<TypeTraits>::calculateGain(_phg, hn_id, PartitionID(colour));
         if (gain > maximum_gain) {

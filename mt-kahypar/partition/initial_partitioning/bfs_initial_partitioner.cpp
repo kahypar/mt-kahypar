@@ -96,6 +96,9 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
           hn = _ip_data.get_unassigned_hypernode();
+          if ( hn == kInvalidHypernode) {
+            num_assigned_hypernodes = current_num_nodes; // no nodes left unassigned
+          }
           if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) && constraintsAllowBlock(hypergraph, hn, block)) {
             fits_into_block = true;
           }

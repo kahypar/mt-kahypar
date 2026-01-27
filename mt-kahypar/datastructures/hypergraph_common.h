@@ -51,6 +51,8 @@ using NodeID = uint64_t;
 #define ID(X) static_cast<uint32_t>(X)
 using HypernodeID = uint32_t;
 using HyperedgeID = uint32_t;
+//negative constraints
+using ConstraintNodeID = HypernodeID;
 // louvain graph
 using NodeID = uint32_t;
 #endif
