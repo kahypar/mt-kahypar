@@ -27,8 +27,8 @@ PartitionID constraintDegree(const PartitionedHypergraph& partitioned_hg,
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
     for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
       PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
-      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids
-      is_partition_allowed[pid] = false; // TODO: invalid parts because we have to put them in one???
+      if (pid < 0 || pid >= partitioned_hg.k()) continue; // skip invalid part ids, not all nodes are already in part
+      is_partition_allowed[pid] = false;
     }
     for (bool allowed : is_partition_allowed) {
       if (!allowed) num_constraints++;
@@ -80,7 +80,25 @@ bool constraintsMet(const PartitionedHypergraph& hg) {
 }
 
 template<typename PartitionedHypergraph>
-PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
+HypernodeID incientNodesInSamePart(const PartitionedHypergraph& partitioned_hg,
+                                        const HypernodeID& node_id) {
+  HypernodeID node;
+  HypernodeID num_nodes = 0;
+  if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node) &&
+    partitioned_hg.partID(node_id) != kInvalidPartition ) {
+
+    PartitionID part = partitioned_hg.partID(node_id);
+    const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
+    for (HypernodeID incident_node : constraint_graph.incidentNodes(node)) {
+      PartitionID pid = partitioned_hg.partID(constraint_graph.nodeWeight(incident_node));
+      if (pid == part) num_nodes++;
+    }
+  }
+  return num_nodes;
+}
+
+template<typename PartitionedHypergraph>
+bool isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
                             const HypernodeID& node_id,
                             const PartitionID part_id) {
   HypernodeID node;
@@ -101,7 +119,7 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
 }
 
 template<typename PartitionedHypergraph>
-PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
+bool isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
                             const Context& context,
                             const HypernodeID& node_id,
                             const PartitionID part_id) {
@@ -122,9 +140,9 @@ PartitionID isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg
       const PartitionID pid = partitioned_hg.partID(incident_node_id);
       if (pid == part_id) {
         constraint_count++;
-        if (HypernodeID(constraintDegree(partitioned_hg, incident_node_id)) >= allowed_constraints) {
+        if (incientNodesInSamePart(partitioned_hg, incident_node_id) >= allowed_constraints) {
           //if current part is not allowed, choose part with least constraints
-          return isNodeAllowedInPartition(partitioned_hg, node_id, part_id);
+          return false;//isNodeAllowedInPartition(partitioned_hg, node_id, part_id);
         }
       }
     }

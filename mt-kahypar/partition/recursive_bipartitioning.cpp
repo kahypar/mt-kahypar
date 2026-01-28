@@ -203,6 +203,7 @@ namespace rb {
       }
       if (hg.hasNegativeConstraints()){
         fixed_vertices.setNegativeConstraints(hg.fixedVertexSupport());
+        fixed_vertices.dedublicateConstraintGraph();
       }
       hg.addFixedVertexSupport(std::move(fixed_vertices));
     }
@@ -259,6 +260,7 @@ namespace rb {
         vec<std::pair<HypernodeID, HypernodeID>> constraints;
         remapConstraints(input_hg.fixedVertexSupport().getConstraints(), input2extracted, constraints);
         fixed_vertices.setNegativeConstraints(constraints);
+        fixed_vertices.dedublicateConstraintGraph();
       }
       extracted_hg.addFixedVertexSupport(std::move(fixed_vertices));
     }

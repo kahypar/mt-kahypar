@@ -196,7 +196,11 @@ namespace {
     }
     if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
       LOG <<"";
-      LOG << (constraints::constraintsMet(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
+      if (constraints::numBrokenConstraints(phg) > 0) {
+        LOG<<"!!! initial partitioning destroyed" <<constraints::numBrokenConstraints(phg)<<"constrains !!!";
+      } else {
+        LOG << "Constrains were respected from initial partitioning";
+      }
       LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
       LOG <<"";
       constraints::postprocessNegativeConstraints(phg, context);

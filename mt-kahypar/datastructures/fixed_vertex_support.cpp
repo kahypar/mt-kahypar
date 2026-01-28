@@ -346,6 +346,11 @@ DynamicGraph FixedVertexSupport<Hypergraph>::getConstraintGraphCopy() const {
 }
 
 template<typename Hypergraph>
+void FixedVertexSupport<Hypergraph>::dedublicateConstraintGraph() {
+  _constraint_graph->removeSinglePinAndParallelHyperedges();
+}
+
+template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   FixedVertexSupport<Hypergraph> cpy;
   cpy._num_nodes = _num_nodes;

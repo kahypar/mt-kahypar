@@ -168,6 +168,8 @@ class FixedVertexSupport {
 
   DynamicGraph getConstraintGraphCopy() const;
 
+  void dedublicateConstraintGraph();
+
   vec<std::pair<HypernodeID, HypernodeID>> getConstraintsCopy() const {
     return _constraints;
   }
