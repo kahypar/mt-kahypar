@@ -793,9 +793,17 @@ namespace mt_kahypar {
             const mt_kahypar_file_format_type_t format,
             const mt_kahypar_preset_type_t preset,
             const double epsilon,
-            const bool verbose = false) {
+            const bool verbose = false,
+            const bool add_fixed_vertices = false) {
       SetUpContext(preset, 8, epsilon, KM1, verbose);
       Load(filename, format);
+      if ( add_fixed_vertices ) addFixedVertices(8);
+      partition(hypergraph, &partitioned_hg, context, 8, epsilon, target_graph);
+    }
+
+    void MapNoSetup(const double epsilon,
+                    const bool add_fixed_vertices = false) {
+      if ( add_fixed_vertices ) addFixedVertices(8);
       partition(hypergraph, &partitioned_hg, context, 8, epsilon, target_graph);
     }
 
@@ -1404,6 +1412,88 @@ namespace mt_kahypar {
     verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
     mt_kahypar_remove_fixed_vertices(hypergraph);
     PartitionNoSetup(4, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphWithDefaultPresetAndFixedVertices) {
+    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAGraphWithDefaultPresetAndFixedVertices) {
+    Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphWithHighestQualityPresetAndFixedVertices) {
+    Map(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAGraphWithHighestQualityPresetAndFixedVertices) {
+    Map(GRAPH_FILE, METIS, HIGHEST_QUALITY, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphWithDeterministicPresetAndFixedVertices) {
+    Map(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAGraphWithDeterministicPresetAndFixedVertices) {
+    Map(GRAPH_FILE, METIS, DETERMINISTIC, 0.03, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphWithIndividualBlockWeightsAndFixedVertices) {
+    PartitionID num_blocks = 8;
+
+    // Setup Individual Block Weights
+    SetUpContext(DEFAULT, num_blocks, 0.03, KM1, false);
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(num_blocks);
+    block_weights[0] = 1131; block_weights[1] = 613;
+    block_weights[2] = 3687; block_weights[3] = 2501;
+    block_weights[4] = 1131; block_weights[5] = 1131;
+    block_weights[6] = 613; block_weights[7] = 2100;
+    mt_kahypar_set_individual_target_block_weights(context, num_blocks, block_weights.get());
+
+    Load(HYPERGRAPH_FILE, HMETIS);
+    MapNoSetup(0.03, true);
+
+    // Verify Fixed Vertices and Block Weights
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> actual_block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(num_blocks);
+    mt_kahypar_get_block_weights(partitioned_hg, actual_block_weights.get());
+    for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
+      ASSERT_LE(actual_block_weights[i], block_weights[i]);
+    }
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphWithIndividualBlockWeightsAndFixedVerticesDeterministic) {
+    PartitionID num_blocks = 8;
+
+    // Setup Individual Block Weights
+    SetUpContext(DETERMINISTIC, num_blocks, 0.03, KM1, false);
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(num_blocks);
+    block_weights[0] = 1131; block_weights[1] = 613;
+    block_weights[2] = 3687; block_weights[3] = 2501;
+    block_weights[4] = 1131; block_weights[5] = 1131;
+    block_weights[6] = 613; block_weights[7] = 2100;
+    mt_kahypar_set_individual_target_block_weights(context, num_blocks, block_weights.get());
+
+    Load(HYPERGRAPH_FILE, HMETIS);
+    MapNoSetup(0.03, true);
+
+    // Verify Fixed Vertices and Block Weights
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> actual_block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(num_blocks);
+    mt_kahypar_get_block_weights(partitioned_hg, actual_block_weights.get());
+    for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
+      ASSERT_LE(actual_block_weights[i], block_weights[i]);
+    }
   }
 
   TEST_F(APartitioner, PartitionsManyHypergraphsInParallel) {
