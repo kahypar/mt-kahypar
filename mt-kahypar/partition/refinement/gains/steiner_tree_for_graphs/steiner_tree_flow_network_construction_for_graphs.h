@@ -38,7 +38,7 @@ namespace mt_kahypar {
  * is relevant for optimizing the objective function.
  */
 struct GraphSteinerTreeFlowNetworkConstruction {
-  static constexpr bool is_exact_model = true;
+  static constexpr bool is_exact_model = false;
 
   template<typename PartitionedHypergraph>
   static FlowNetworkEdgeParameters getParameters(const PartitionedHypergraph& phg,
