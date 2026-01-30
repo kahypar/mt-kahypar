@@ -16,7 +16,6 @@ using namespace mt_kahypar;
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
 
-constexpr double DEFAULT_CONSTRAINT_FRACTION = 1.0;
 const std::string CONSTRAINT_FILE_EXTENSION = ".constraints.txt";
 
 std::optional<fs::path> findFileWithPrefix(const fs::path& path, const std::string& prefix) {
@@ -53,47 +52,21 @@ void print_constraints(fs::path constraints_path,
     out_stream.close();
 }
 
-HypernodeID get_constraints(vec<vec<NodeID>>& adjacency, 
-                            const io::HyperedgeVector& hyperedges, 
-                            const HypernodeID max_constraints_per_node, 
-                            const HypernodeID num_constraints) {
-    HypernodeID constraint_count = 0;
-    std::unordered_map<HypernodeID, HypernodeID> constraints_per_node;
-    for (io::Hyperedge edge : hyperedges) {
-        for (HyperedgeID i = 0; i < edge.size(); i++) {
-            HypernodeID node = edge[i];
-            for (HyperedgeID j = i + 1; j < edge.size(); j++) {
-                HypernodeID other_node = edge[j];
-                if (constraint_count >= num_constraints){
-                    return constraint_count;
-                }
-                if (constraints_per_node[node] >= max_constraints_per_node) break;
-                if (constraints_per_node[other_node] >= max_constraints_per_node) continue;
-                
-                auto& list = adjacency[node];
-                // if constraint already exists
-                if (std::find(list.begin(), list.end(), other_node) != list.end()) continue;
-                auto& other_list = adjacency[other_node];
-                if (std::find(other_list.begin(), other_list.end(), node) != other_list.end()) continue;
-                
-                constraint_count++;
-                constraints_per_node[node]++;
-                constraints_per_node[other_node]++;
-                adjacency[node].push_back(other_node);
-            }
-        }
-    }
-    return constraint_count;
+HypernodeID pick_random(const HypernodeID limit) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(0, limit);
+    return dist(gen);
 }
 
 HypernodeID generate_constraints_from_hg(const fs::path hg_path,
                                             const fs::path constraints_path,
-                                            HypernodeID num_constraints, 
+                                            const float constraints_percentage,
                                             const HypernodeID max_constraints_per_node) {
     // Read Hypergraph
-    HyperedgeID num_edges = 0;
-    HypernodeID num_nodes = 0;
-    HyperedgeID num_removed_single_pin_hyperedges = 0;
+    HyperedgeID num_edges;
+    HypernodeID num_nodes;
+    HyperedgeID num_removed_single_pin_hyperedges;
     io::HyperedgeVector hyperedges;
     vec<HyperedgeWeight> hyperedges_weight;
     vec<HypernodeWeight> hypernodes_weight;
@@ -103,42 +76,44 @@ HypernodeID generate_constraints_from_hg(const fs::path hg_path,
     ALWAYS_ASSERT(hyperedges.size() == num_edges);
     ALWAYS_ASSERT(num_removed_single_pin_hyperedges == 0);
 
-    if (num_constraints <= 0) {
-        num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
-    }
+    HypernodeID num_constraints = num_nodes * constraints_percentage;
+    HypernodeID constraint_count = 0;
+    std::unordered_map<HypernodeID, HypernodeID> constraints_per_node;
 
-    vec<vec<NodeID>> adjacency;
-    adjacency.resize(num_nodes);
-    HypernodeID generated_constraints = get_constraints(adjacency, hyperedges, max_constraints_per_node, num_constraints);
     std::ofstream out_stream(constraints_path);
-    for (NodeID i = 0; i < num_nodes; i++) {
-        vec<NodeID> neighbors = adjacency[i];
-        if(!neighbors.empty()) {
-            std::sort(neighbors.begin(), neighbors.end());
-            for(NodeID node : neighbors){
-                out_stream << i << " " << node << std::endl;
-            }
+    while(constraint_count < num_constraints) {
+        HypernodeID node = pick_random(num_nodes - 1);
+        HypernodeID node_constraints = pick_random(max_constraints_per_node);
+        HypernodeID count_node_constraints = 0;
+        while (count_node_constraints < node_constraints && constraint_count < num_constraints) {
+            HypernodeID other_node = pick_random(num_nodes - 1);
+            if (constraints_per_node[node] >= max_constraints_per_node) break;
+            if (other_node == node || constraints_per_node[other_node] >= max_constraints_per_node) continue;
+
+            count_node_constraints++;
+            constraint_count++;
+            constraints_per_node[node]++;
+            constraints_per_node[other_node]++;
+            out_stream << node << " " << other_node << std::endl;
         }
-        
     }
     out_stream.close();
-    return generated_constraints;
+    return constraint_count;
 }
 
 HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path, 
                                                         const fs::path part_hg_path, 
                                                         const fs::path constraints_path, 
-                                                        HypernodeID num_constraints, 
+                                                        const float constraints_percentage, 
                                                         const HypernodeID max_constraints_per_node) {
+    // Read Hypergraph header and partitioned Hypergraph
     HyperedgeID num_edges;
     HypernodeID num_nodes;
     std::vector<PartitionID> partitions;
     io::onlyReadHGRHeader(hg_path.string(), num_edges, num_nodes);
     io::readPartitionFile(part_hg_path.string(), num_nodes, partitions);
 
-    if (num_constraints <= 0) {
-        num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
-    }
+    HypernodeID num_constraints = num_nodes * constraints_percentage;
 
     vec<std::pair<HypernodeID, HypernodeID>> constraint_list;
     constraint_list.reserve(num_nodes * max_constraints_per_node);
@@ -159,9 +134,9 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
         }
         constraints_per_node.erase(node);
     }
-    num_constraints = std::min(num_constraints, constraint_count);
-    print_constraints(constraints_path, constraint_list, num_constraints);
-    return num_constraints;
+    HypernodeID actual_num_constraints = std::min(num_constraints, constraint_count);
+    print_constraints(constraints_path, constraint_list, actual_num_constraints);
+    return actual_num_constraints;
 }
 
 int main(int argc, char* argv[]) {
@@ -170,7 +145,7 @@ int main(int argc, char* argv[]) {
     std::optional<fs::path> partitioned_hypergraph_path;
     fs::path constraint_dir;
     HypernodeID k;
-    HypernodeID num_constraints;
+    float num_constraints_percentage;
     HypernodeID max_constraints_per_node;
 
     po::options_description options("Options");
@@ -185,7 +160,7 @@ int main(int argc, char* argv[]) {
         po::value<HypernodeID>(&k)->value_name("<int>")->required(),
         "Number of blocks")
         ("num-constraints,n",
-        po::value<HypernodeID>(&num_constraints)->value_name("<int>")->default_value(0),
+        po::value<float>(&num_constraints_percentage)->value_name("<float>")->default_value(1.0),
         "Number of constraints (optional)")
         ("part-hypergraph,p",
         po::value<fs::path>()->notifier([&](const fs::path& path) {
@@ -235,9 +210,9 @@ int main(int argc, char* argv[]) {
                     std::make_error_code(std::errc::not_a_directory)
                 );
             }
-            generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints, max_constraints_per_node);
+            generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node);
         } else {
-            generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints, max_constraints_per_node);
+            generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints_percentage, max_constraints_per_node);
         }
         LOG << "";
         LOG << "Generated " << generated_constraints << "constraints for hg:" << hg_file.filename();
