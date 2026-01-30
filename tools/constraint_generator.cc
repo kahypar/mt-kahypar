@@ -140,29 +140,35 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
     io::readPartitionFile(part_hg_path.string(), num_nodes, partitions);
 
     HypernodeID num_constraints = num_nodes * constraints_percentage;
-
-    vec<std::pair<HypernodeID, HypernodeID>> constraint_list;
-    constraint_list.reserve(num_nodes * max_constraints_per_node);
     HypernodeID constraint_count = 0;
-    std::unordered_map<HypernodeID, HypernodeID> constraints_per_node;
-    for (HypernodeID node = 0; node < num_nodes; node++) {
-        PartitionID node_partition = partitions[node];
-        for (HypernodeID other_node = node + 1; other_node < num_nodes; other_node++) {
-            if (constraints_per_node[node] >= max_constraints_per_node) break;
-            if (constraints_per_node[other_node] >= max_constraints_per_node) continue;
+    std::unordered_map<HypernodeID, HypernodeID> constraints_count_per_node;
+    std::unordered_map<HypernodeID, std::unordered_set<HypernodeID>> constraints_per_node;
 
-            if (node_partition != partitions[other_node]) {
+    std::ofstream out_stream(constraints_path);
+    while(constraint_count < num_constraints) {
+        HypernodeID node = pick_random(num_nodes - 1);
+        HypernodeID node_constraints = pick_random(max_constraints_per_node);
+        PartitionID node_partition = partitions[node];
+        HypernodeID count_node_constraints = 0;
+        while (count_node_constraints < node_constraints && constraint_count < num_constraints) {
+            HypernodeID other_node = pick_random(num_nodes - 1);
+            if (constraints_count_per_node[node] >= max_constraints_per_node) break;
+            if (node_partition != partitions[other_node] &&
+                try_add_constraint(
+                node,
+                other_node,
+                max_constraints_per_node,
+                constraints_count_per_node,
+                constraints_per_node
+            )) {
+                count_node_constraints++;
                 constraint_count++;
-                constraints_per_node[node]++;
-                constraints_per_node[other_node]++;
-                constraint_list.push_back(std::make_pair(node, other_node));
+                out_stream << node << " " << other_node << std::endl;
             }
         }
-        constraints_per_node.erase(node);
     }
-    HypernodeID actual_num_constraints = std::min(num_constraints, constraint_count);
-    print_constraints(constraints_path, constraint_list, actual_num_constraints);
-    return actual_num_constraints;
+    out_stream.close();
+    return constraint_count;
 }
 
 int main(int argc, char* argv[]) {
