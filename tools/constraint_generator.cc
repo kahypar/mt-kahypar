@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -59,10 +60,30 @@ HypernodeID pick_random(const HypernodeID limit) {
     return dist(gen);
 }
 
+bool try_add_constraint(HypernodeID a,
+                        HypernodeID b,
+                        const HypernodeID max_constraints_per_node,
+                        std::unordered_map<HypernodeID, HypernodeID>& constraints_count_per_node,
+                        std::unordered_map<HypernodeID, std::unordered_set<HypernodeID>>& constraints_per_node) {
+    if (a == b) return false;
+    if (constraints_count_per_node[a] >= max_constraints_per_node) return false;
+    if (constraints_count_per_node[b] >= max_constraints_per_node) return false;
+
+    auto& set_a = constraints_per_node[a];
+    auto& set_b = constraints_per_node[b];
+    if (set_a.find(b) != set_a.end() || set_b.find(a) != set_b.end()) return false;
+
+    set_a.insert(b);
+    set_b.insert(a);
+    constraints_count_per_node[a]++;
+    constraints_count_per_node[b]++;
+    return true;
+}
+
 HypernodeID generate_constraints_from_hg(const fs::path hg_path,
-                                            const fs::path constraints_path,
-                                            const float constraints_percentage,
-                                            const HypernodeID max_constraints_per_node) {
+                                        const fs::path constraints_path,
+                                        const float constraints_percentage,
+                                        const HypernodeID max_constraints_per_node) {
     // Read Hypergraph
     HyperedgeID num_edges;
     HypernodeID num_nodes;
@@ -78,7 +99,8 @@ HypernodeID generate_constraints_from_hg(const fs::path hg_path,
 
     HypernodeID num_constraints = num_nodes * constraints_percentage;
     HypernodeID constraint_count = 0;
-    std::unordered_map<HypernodeID, HypernodeID> constraints_per_node;
+    std::unordered_map<HypernodeID, HypernodeID> constraints_count_per_node;
+    std::unordered_map<HypernodeID, std::unordered_set<HypernodeID>> constraints_per_node;
 
     std::ofstream out_stream(constraints_path);
     while(constraint_count < num_constraints) {
@@ -87,14 +109,18 @@ HypernodeID generate_constraints_from_hg(const fs::path hg_path,
         HypernodeID count_node_constraints = 0;
         while (count_node_constraints < node_constraints && constraint_count < num_constraints) {
             HypernodeID other_node = pick_random(num_nodes - 1);
-            if (constraints_per_node[node] >= max_constraints_per_node) break;
-            if (other_node == node || constraints_per_node[other_node] >= max_constraints_per_node) continue;
-
-            count_node_constraints++;
-            constraint_count++;
-            constraints_per_node[node]++;
-            constraints_per_node[other_node]++;
-            out_stream << node << " " << other_node << std::endl;
+            if (constraints_count_per_node[node] >= max_constraints_per_node) break;
+            if (try_add_constraint(
+                node,
+                other_node,
+                max_constraints_per_node,
+                constraints_count_per_node,
+                constraints_per_node
+            )) {
+                count_node_constraints++;
+                constraint_count++;
+                out_stream << node << " " << other_node << std::endl;
+            }
         }
     }
     out_stream.close();
