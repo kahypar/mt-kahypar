@@ -840,6 +840,10 @@ class DynamicGraph {
   // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets();
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
+    return _adjacency_array.numNodes();
+  }
+
  private:
   friend class DynamicGraphFactory;
   template<typename Hypergraph>
@@ -848,10 +852,6 @@ class DynamicGraph {
   friend class PartitionedGraph;
 
   // ####################### Acquiring / Releasing Ownership #######################
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
-    return _adjacency_array.numNodes();
-  }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHypernode(const HypernodeID u) {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");

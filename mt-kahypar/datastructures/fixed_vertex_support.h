@@ -164,6 +164,10 @@ class FixedVertexSupport {
     return *_constraint_graph;
   }
 
+  const vec<std::pair<HypernodeID, HypernodeID>>& getConstraints() const {
+    return _constraints;
+  }
+
   bool getConstraintIdFromHypergraphId(HypernodeID hypergraph_id, HypernodeID& constraint_id) const {
     if (_hypergraph_id_to_graph_id->contains(hypergraph_id)) {
         constraint_id = _hypergraph_id_to_graph_id->get(hypergraph_id);
@@ -213,6 +217,7 @@ class FixedVertexSupport {
 
   // mapping from HypernodeIds of the partitioned Graph to HypernodeIds of the constraint Graph
   std::unique_ptr<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>> _hypergraph_id_to_graph_id;
+  vec<std::pair<HypernodeID, HypernodeID>> _constraints;
 };
 
 }  // namespace ds

@@ -227,6 +227,7 @@ vec<std::pair<HypernodeID, HypernodeID>> trasform_node_vector(const vec<std::pai
 
 template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints) {
+  _constraints = constraints;
   _hypergraph_id_to_graph_id->setMaxSize(constraints.size() * 3);
   vec<HypernodeWeight> node_weight;
   HypernodeID num_nodes;
@@ -257,6 +258,7 @@ FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   if (_constraint_graph != nullptr) {
     cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
     cpy._hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(_hypergraph_id_to_graph_id->copy());
+    cpy._constraints = _constraints;
   }
   return cpy;
 }
