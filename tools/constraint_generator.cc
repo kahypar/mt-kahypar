@@ -83,7 +83,8 @@ bool try_add_constraint(HypernodeID a,
 HypernodeID generate_constraints_from_hg(const fs::path hg_path,
                                         const fs::path constraints_path,
                                         const float constraints_percentage,
-                                        const HypernodeID max_constraints_per_node) {
+                                        const HypernodeID max_constraints_per_node,
+                                        const HypernodeID desired_node_degree) {
     // Read Hypergraph
     HyperedgeID num_edges;
     HypernodeID num_nodes;
@@ -105,7 +106,7 @@ HypernodeID generate_constraints_from_hg(const fs::path hg_path,
     std::ofstream out_stream(constraints_path);
     while(constraint_count < num_constraints) {
         HypernodeID node = pick_random(num_nodes - 1);
-        HypernodeID node_constraints = pick_random(max_constraints_per_node);
+        HypernodeID node_constraints = ((desired_node_degree == 0)? pick_random(max_constraints_per_node) : desired_node_degree);
         HypernodeID count_node_constraints = 0;
         while (count_node_constraints < node_constraints && constraint_count < num_constraints) {
             HypernodeID other_node = pick_random(num_nodes - 1);
@@ -131,7 +132,8 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
                                                         const fs::path part_hg_path, 
                                                         const fs::path constraints_path, 
                                                         const float constraints_percentage, 
-                                                        const HypernodeID max_constraints_per_node) {
+                                                        const HypernodeID max_constraints_per_node,
+                                                        const HypernodeID desired_node_degree) {
     // Read Hypergraph header and partitioned Hypergraph
     HyperedgeID num_edges;
     HypernodeID num_nodes;
@@ -147,7 +149,7 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
     std::ofstream out_stream(constraints_path);
     while(constraint_count < num_constraints) {
         HypernodeID node = pick_random(num_nodes - 1);
-        HypernodeID node_constraints = pick_random(max_constraints_per_node);
+        HypernodeID node_constraints = ((desired_node_degree == 0)? pick_random(max_constraints_per_node) : desired_node_degree);
         PartitionID node_partition = partitions[node];
         HypernodeID count_node_constraints = 0;
         while (count_node_constraints < node_constraints && constraint_count < num_constraints) {
@@ -177,6 +179,7 @@ int main(int argc, char* argv[]) {
     std::optional<fs::path> partitioned_hypergraph_path;
     fs::path constraint_dir;
     HypernodeID k;
+    HypernodeID desired_node_degree;
     float num_constraints_percentage;
     HypernodeID max_constraints_per_node;
 
@@ -191,6 +194,9 @@ int main(int argc, char* argv[]) {
         ("blocks,k",
         po::value<HypernodeID>(&k)->value_name("<int>")->required(),
         "Number of blocks")
+        ("degree,d",
+        po::value<HypernodeID>(&desired_node_degree)->value_name("<int>")->default_value(0),
+        "Desired constraint node degree")
         ("num-constraints,n",
         po::value<float>(&num_constraints_percentage)->value_name("<float>")->default_value(1.0),
         "Number of constraints (optional)")
@@ -242,9 +248,9 @@ int main(int argc, char* argv[]) {
                     std::make_error_code(std::errc::not_a_directory)
                 );
             }
-            generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node);
+            generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
         } else {
-            generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints_percentage, max_constraints_per_node);
+            generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
         }
         LOG << "";
         LOG << "Generated " << generated_constraints << "constraints for hg:" << hg_file.filename();
