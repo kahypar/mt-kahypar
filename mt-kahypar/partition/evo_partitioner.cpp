@@ -1020,7 +1020,7 @@ namespace mt_kahypar {
         }
         else {
             //determinstic mode
-            const int batch_size = 5;
+            const int batch_size = context.evolutionary.batch_size;
             std::vector<std::unique_ptr<Individual>> batch_individuals (batch_size);
             std::atomic<size_t> last_batch_filled = 0;
             std::atomic<int> items_finished_in_current_batch = 0;

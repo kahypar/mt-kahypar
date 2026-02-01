@@ -890,7 +890,10 @@ namespace mt_kahypar {
              "Enable Meta-Evo mode: Initial population is built by running multiple short evolutionary runs.")
              ("evo-meta-solutions-per-run",
              po::value<int>(&context.evolutionary.meta_evo_solutions_per_run)->value_name("<int>")->default_value(5),
-             "Number of best solutions to take from each meta-evo run into the main population.");
+             "Number of best solutions to take from each meta-evo run into the main population.")
+             ("evo-batch-size",
+             po::value<int>(&context.evolutionary.batch_size)->value_name("<int>")->default_value(6),
+             "Batch size determining the amount of individuals inserted when using deterministic mode.");
     return options;
   }
 
