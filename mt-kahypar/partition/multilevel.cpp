@@ -40,6 +40,7 @@
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
+#include "mt-kahypar/partition/constraints.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
@@ -179,6 +180,17 @@ namespace {
 
     if ( context.partition.objective == Objective::steiner_tree ) {
       phg.setTargetGraph(target_graph);
+    }
+    if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
+      LOG <<"";
+      if (constraints::numBrokenConstraints(phg) > 0) {
+        LOG<<"!!! initial partitioning destroyed" <<constraints::numBrokenConstraints(phg)<<"constrains !!!";
+      } else {
+        LOG << "Constrains were respected from initial partitioning";
+      }
+      LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
+      LOG <<"";
+      constraints::postprocessNegativeConstraints(phg, context);
     }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
     if ( context.partition.verbose_output && !is_vcycle ) {
