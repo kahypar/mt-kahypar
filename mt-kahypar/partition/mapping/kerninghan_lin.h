@@ -52,7 +52,8 @@ class KerninghanLin {
   // ! best seen solution. This is repeated several times until no
   // ! further improvements are possible.
   static void improve(CommunicationHypergraph& communication_hg,
-                      const TargetGraph& target_graph);
+                      const TargetGraph& target_graph,
+                      const Context& context);
 
  private:
   KerninghanLin() { }
