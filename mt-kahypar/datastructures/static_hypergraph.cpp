@@ -480,7 +480,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
 
-    if ( hasFixedVertices() ) {
+    if ( hasFixedVertices() || hasNegativeConstraints()) {
       // Map fixed vertices to coarse hypergraph
       FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
         hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
@@ -490,6 +490,46 @@ namespace mt_kahypar::ds {
           coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
         }
       });
+      if (hasNegativeConstraints()) {
+        // remap constraints and add new constraint graph
+        vec<std::pair<HypernodeID, HypernodeID>> old_constraints = _fixed_vertices.getConstraints();
+        vec<std::pair<HypernodeID, HypernodeID>> new_constraints;
+        tbb::enumerable_thread_specific<std::vector<std::pair<HypernodeID, HypernodeID>>> parallel_constraints;
+        tbb::parallel_for(
+          size_t(0),
+          old_constraints.size(),
+          [&](size_t i) {
+            auto& constraint = old_constraints[i];
+            if (!nodeIsEnabled(constraint.first) || !nodeIsEnabled(constraint.second)) return;
+            HypernodeID u = communities[constraint.first];
+            HypernodeID v = communities[constraint.second];
+            ASSERT(communities[constraint.first] != communities[constraint.second], "Error: nodes are in constraints but get contracted" 
+              << constraint.first << constraint.second << "to" << u << v);
+            
+            if (u == v) return;
+            if (u > v) std::swap(u, v);
+            parallel_constraints.local().emplace_back(u,v);
+          }
+        );
+        size_t total = 0;
+        for (auto& v : parallel_constraints) total += v.size();
+        new_constraints.reserve(total);
+
+        for (auto& v : parallel_constraints) {
+          new_constraints.insert(
+            new_constraints.end(),
+            std::make_move_iterator(v.begin()),
+            std::make_move_iterator(v.end())
+          );
+        }
+        // remove duplicates
+        std::sort(new_constraints.begin(), new_constraints.end());
+        new_constraints.erase(
+          std::unique(new_constraints.begin(), new_constraints.end()),
+          new_constraints.end()
+        );
+        coarse_fixed_vertices.setNegativeConstraints(new_constraints);
+      }
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 

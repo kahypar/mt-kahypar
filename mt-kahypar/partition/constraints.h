@@ -375,13 +375,22 @@ void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
 }
 
 template<typename PartitionedHypergraph>
-void fixNegativeConstraintsInUncoarsening(PartitionedHypergraph& partitioned_hg,
+void fixNegativeConstraintsAfterIP(PartitionedHypergraph& partitioned_hg,
                                           const Context& context) {
-  LOG << "fixing constraints while uncoarsening";
+
   gain_cache_t gain_cache = GainCachePtr::constructGainCache(context);
   std::unique_ptr<IRebalancer> rebalancer = RebalancerFactory::getInstance().createObject(
       context.refinement.rebalancing.algorithm, partitioned_hg.initialNumNodes(), context, gain_cache);
-  frontToBackConstraints(partitioned_hg, context, gain_cache);
+  descendingConstraintDegree(partitioned_hg, context, gain_cache);
+  Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
+  rebalancer->initialize(phg);
+  rebalancer->refine(phg, {}, metrics, 0.0);
+  HypernodeID num_broken_constraints = numBrokenConstraints(partitioned_hg);
+  LOG <<"";
+  if (num_broken_constraints == 0) LOG <<"Constrains are respected";
+  else LOG << "! Constrains are not respected!" << num_broken_constraints;
+  LOG << "";
   GainCachePtr::deleteGainCache(gain_cache);
 }
 
@@ -401,7 +410,7 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   else LOG << "! Constrains are not respected before partitioner !" << num_broken_constraints;
 
   frontToBackConstraints(partitioned_hg, context, gain_cache);
-  // descendingConstraintDegree(partitioned_hg, context, gain_cache);
+  //descendingConstraintDegree(partitioned_hg, context, gain_cache);
 
   Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);

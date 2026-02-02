@@ -90,7 +90,6 @@ namespace {
 
     const bool nlevel = context.isNLevelPartitioning();
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
-    if(hypergraph.hasNegativeConstraints()) LOG << "hypergraph.hasNegativeConstraints()";
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
@@ -113,7 +112,6 @@ namespace {
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
-    if(phg.hasNegativeConstraints()) LOG << "phg.hasNegativeConstraints()";
 
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
@@ -190,9 +188,8 @@ namespace {
       } else {
         LOG << "Constrains were respected from initial partitioning";
       }
-      LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
       LOG <<"";
-      constraints::postprocessNegativeConstraints(phg, context);
+      constraints::fixNegativeConstraintsAfterIP(phg, context);
     }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
     if ( context.partition.verbose_output && !is_vcycle ) {
