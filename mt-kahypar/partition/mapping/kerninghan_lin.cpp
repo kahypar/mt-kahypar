@@ -129,7 +129,8 @@ using PQ = std::priority_queue<PQElement>;
 
 template<typename CommunicationHypergraph>
 void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& communication_hg,
-                                                     const TargetGraph& target_graph) {
+                                                     const TargetGraph& target_graph,
+                                                     const Context& context) {
   ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
 
   HyperedgeWeight current_objective = metrics::quality(communication_hg, Objective::steiner_tree, false);
@@ -150,7 +151,10 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
       for ( const HypernodeID& v : communication_hg.nodes() ) {
         if (communication_hg.isFixed(v)) continue;
 
-        if ( u < v ) {
+        bool weight_is_valid = !context.partition.use_individual_part_weights ||
+          (communication_hg.nodeWeight(u) <= context.partition.max_part_weights[communication_hg.partID(v)] &&
+           communication_hg.nodeWeight(v) <= context.partition.max_part_weights[communication_hg.partID(u)]);
+        if ( u < v && weight_is_valid ) {
           const HyperedgeWeight gain = swap_gain(communication_hg, target_graph, u, v, marked_hes);
           pq.push(PQElement { gain, std::make_pair(u, v) });
         }

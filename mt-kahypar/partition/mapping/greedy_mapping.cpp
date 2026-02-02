@@ -61,12 +61,16 @@ using PQ = std::priority_queue<PQElement>;
 
 
 HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph,
+                                                  const Context& context,
                                                   bool deterministic,
-                                                  const ds::Bitset& unassigned_processors) {
+                                                  const ds::Bitset& unassigned_processors,
+                                                  HypernodeWeight required_weight) {
   vec<HypernodeID> min_nodes;
   HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
   for ( const HypernodeID& hn : graph.nodes() ) {
     if (!unassigned_processors.isSet(hn)) continue;
+    if (context.partition.use_individual_part_weights &&
+        context.partition.max_part_weights[hn] < required_weight) continue;
 
     HyperedgeWeight weighted_degree = 0;
     for ( const HyperedgeID he : graph.incidentEdges(hn) ) {
@@ -173,7 +177,8 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   // Assign seed node to process with minimum weighted degree
   const bool deterministic = context.partition.deterministic;
   if (!communication_hg.isFixed(seed_node)) {
-    PartitionID best_process = get_node_with_minimum_weighted_degree(target_graph.graph(), deterministic, unassigned_processors);
+    PartitionID best_process = get_node_with_minimum_weighted_degree(target_graph.graph(), context, deterministic,
+                                                                     unassigned_processors, communication_hg.nodeWeight(seed_node));
     assign(seed_node, best_process, true);
   }
 
@@ -211,12 +216,18 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     // Determine processor that would result in the least increase of the
     // steiner tree metric.
     HyperedgeWeight best_rating = std::numeric_limits<HyperedgeWeight>::max();
+    bool best_is_balanced = false;
+    const HypernodeWeight node_weight = communication_hg.nodeWeight(u);
     for ( const PartitionID process : unassigned_processors_view ) {
-      if ( tmp_ratings[process] < best_rating ) {
+      const bool is_balanced = !context.partition.use_individual_part_weights
+        || node_weight <= context.partition.max_part_weights[process];
+      const bool is_at_least_as_balanced = is_balanced || !best_is_balanced;
+      best_is_balanced |= is_balanced;
+      if ( (is_balanced && !best_is_balanced) || (is_at_least_as_balanced && tmp_ratings[process] < best_rating) ) {
         tie_breaking.clear();
         tie_breaking.push_back(process);
         best_rating = tmp_ratings[process];
-      } else if ( tmp_ratings[process] == best_rating ) {
+      } else if ( is_at_least_as_balanced && tmp_ratings[process] == best_rating ) {
         tie_breaking.push_back(process);
       }
       tmp_ratings[process] = 0;
@@ -254,6 +265,7 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
   HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::steiner_tree);
+  double best_imbalance = metrics::imbalance(communication_hg, context);
   HypernodeID best_hn_id = kInvalidHypernode;
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
@@ -266,15 +278,26 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
     compute_greedy_mapping(tmp_communication_phg, target_graph, context, hn);
 
     if ( context.mapping.use_local_search ) {
-      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, target_graph);
+      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, target_graph, context);
     }
 
     // Check if new mapping is better than the currently best mapping
     const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
+    const double imbalance = metrics::imbalance(tmp_communication_phg, context);
     best_lock.lock();
-    if ( objective < best_objective ||
-         (objective == best_objective && context.partition.deterministic && hn > best_hn_id)) {
+    // TODO: make this less ugly along with the metrics refactoring
+    bool equal_metric = objective == best_objective;
+    bool improved_metric = objective < best_objective;
+    bool improved_imbalance = imbalance < best_imbalance;
+    bool is_feasible = imbalance <= context.partition.epsilon;
+    bool is_best_feasible = best_imbalance <= context.partition.epsilon;
+    if ( ( improved_metric && (is_feasible || improved_imbalance) ) ||
+         ( equal_metric && improved_imbalance ) ||
+         ( is_feasible && !is_best_feasible ) ||
+         ( improved_imbalance && !is_feasible && !is_best_feasible ) ||
+         ( equal_metric && imbalance == best_imbalance && hn > best_hn_id)) {
       best_objective = objective;
+      best_imbalance = imbalance;
       best_hn_id = hn;
       for ( const HypernodeID& u : tmp_communication_phg.nodes() ) {
         best_mapping[u] = tmp_communication_phg.partID(u);
