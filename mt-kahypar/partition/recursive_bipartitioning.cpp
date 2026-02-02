@@ -183,20 +183,53 @@ namespace rb {
   template<typename Hypergraph>
   void setupFixedVerticesForBipartitioning(Hypergraph& hg,
                                            const PartitionID k) {
-    if ( hg.hasFixedVertices() ) {
+    if ( hg.hasFixedVertices() || hg.hasNegativeConstraints() ) {
       const PartitionID m = k / 2 + (k % 2);
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2);
       fixed_vertices.setHypergraph(&hg);
-      hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( hg.isFixed(hn) ) {
-          if ( hg.fixedVertexBlock(hn) < m ) {
-            fixed_vertices.fixToBlock(hn, 0);
-          } else {
-            fixed_vertices.fixToBlock(hn, 1);
+      if (hg.hasFixedVertices()) {
+        hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          if ( hg.isFixed(hn) ) {
+            if ( hg.fixedVertexBlock(hn) < m ) {
+              fixed_vertices.fixToBlock(hn, 0);
+            } else {
+              fixed_vertices.fixToBlock(hn, 1);
+            }
           }
-        }
-      });
+        });
+      }
+      if (hg.hasNegativeConstraints()){
+        fixed_vertices.setNegativeConstraints(hg.fixedVertexSupport());
+        fixed_vertices.dedublicateConstraintGraph();
+      }
       hg.addFixedVertexSupport(std::move(fixed_vertices));
+    }
+  }
+
+  void remapConstraints(const vec<std::pair<HypernodeID, HypernodeID>>& constraints,
+                        const vec<HypernodeID>& input2extracted,
+                        vec<std::pair<HypernodeID, HypernodeID>>& result) {
+    tbb::enumerable_thread_specific<vec<std::pair<HypernodeID, HypernodeID>>> tls_vectors;
+
+    tbb::parallel_for(size_t(0), constraints.size(), [&](size_t i) {
+      auto& local = tls_vectors.local();
+      auto c = constraints[i];
+      c.first  = input2extracted[c.first];
+      c.second = input2extracted[c.second];
+
+      if (c.first != kInvalidHypernode && c.second != kInvalidHypernode) {
+        local.push_back(c);
+      }
+    });
+
+    size_t total = 0;
+    for (auto& v : tls_vectors) total += v.size();
+    result.reserve(total);
+
+    for (auto& v : tls_vectors) {
+      result.insert(result.end(),
+                    std::make_move_iterator(v.begin()),
+                    std::make_move_iterator(v.end()));
     }
   }
 
@@ -206,18 +239,26 @@ namespace rb {
                                       const vec<HypernodeID>& input2extracted,
                                       const PartitionID k0,
                                       const PartitionID k1) {
-    if ( input_hg.hasFixedVertices() ) {
+    if ( input_hg.hasFixedVertices() || input_hg.hasNegativeConstraints() ) {
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(
         extracted_hg.initialNumNodes(), k1 - k0);
       fixed_vertices.setHypergraph(&extracted_hg);
-      input_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( input_hg.isFixed(hn) ) {
-          const PartitionID block = input_hg.fixedVertexBlock(hn);
-          if ( block >= k0 && block < k1 ) {
-            fixed_vertices.fixToBlock(input2extracted[hn], block - k0);
+      if (input_hg.hasFixedVertices()) {
+        input_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          if ( input_hg.isFixed(hn) ) {
+            const PartitionID block = input_hg.fixedVertexBlock(hn);
+            if ( block >= k0 && block < k1 ) {
+              fixed_vertices.fixToBlock(input2extracted[hn], block - k0);
+            }
           }
-        }
-      });
+        });
+      }
+      if (input_hg.hasNegativeConstraints()){
+        vec<std::pair<HypernodeID, HypernodeID>> constraints;
+        remapConstraints(input_hg.fixedVertexSupport().getConstraints(), input2extracted, constraints);
+        fixed_vertices.setNegativeConstraints(constraints);
+        fixed_vertices.dedublicateConstraintGraph();
+      }
       extracted_hg.addFixedVertexSupport(std::move(fixed_vertices));
     }
   }

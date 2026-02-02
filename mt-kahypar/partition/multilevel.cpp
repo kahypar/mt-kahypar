@@ -90,6 +90,7 @@ namespace {
 
     const bool nlevel = context.isNLevelPartitioning();
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
+    if(hypergraph.hasNegativeConstraints()) LOG << "hypergraph.hasNegativeConstraints()";
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
@@ -112,6 +113,7 @@ namespace {
     io::printInitialPartitioningBanner(context);
     timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
+    if(phg.hasNegativeConstraints()) LOG << "phg.hasNegativeConstraints()";
 
     if ( !is_vcycle ) {
       DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);

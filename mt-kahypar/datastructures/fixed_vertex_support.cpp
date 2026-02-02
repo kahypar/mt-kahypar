@@ -246,6 +246,18 @@ void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const vec<std::pair<
 }
 
 template<typename Hypergraph>
+void FixedVertexSupport<Hypergraph>::setNegativeConstraints(const FixedVertexSupport& support ) {
+  _constraints = support._constraints;
+  _constraint_graph = std::make_unique<DynamicGraph>(support._constraint_graph->copy());
+  _hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID,HypernodeID>>(support._hypergraph_id_to_graph_id->copy());
+}
+
+template<typename Hypergraph>
+void FixedVertexSupport<Hypergraph>::dedublicateConstraintGraph() {
+  _constraint_graph->removeSinglePinAndParallelHyperedges();
+}
+
+template<typename Hypergraph>
 FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   FixedVertexSupport<Hypergraph> cpy;
   cpy._num_nodes = _num_nodes;
