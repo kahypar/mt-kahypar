@@ -7,6 +7,7 @@
 #include <mt-kahypar/utils/cast.h>
 #include <mt-kahypar/utils/delete.h>
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar::dyn {

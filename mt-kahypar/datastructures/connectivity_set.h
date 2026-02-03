@@ -83,6 +83,8 @@ public:
     ENABLE_ASSERTIONS(_num_hyperedges(num_hyperedges) COMMA)
     _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
     _bits(),
+    _current_capacity(static_cast<size_t>(num_hyperedges) * _num_blocks_per_hyperedge
+        + 1),
     _deep_copy_bitset(),
     _shallow_copy_bitset() {
       if ( num_hyperedges > 0 ) {
@@ -100,13 +102,71 @@ public:
         he * _num_blocks_per_hyperedge, _num_blocks_per_hyperedge * BITS_PER_BLOCK));
   }
 
-  void addEdge(const HyperedgeID he) {
+  void addEdge(const HyperedgeID he)
+  {
+    // ENABLE_ASSERTIONS(++_num_hyperedges;);
+    // const size_t required_size = static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge;
+    // for (size_t i = _bits.size(); i < required_size; ++i) {
+    //   _bits.push_back(0);
+    // }
+
+
+    // Alternative: Re-Initialise the whole data structure (less efficient) and copy old data
     ENABLE_ASSERTIONS(++_num_hyperedges;);
-    const size_t required_size = static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge;
-    for (size_t i = _bits.size(); i < required_size; ++i) {
-      _bits.push_back(0);
+    if (size_t required_capacity = static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge + 1; _current_capacity < required_capacity ) {
+      required_capacity *= 2; // double capacity to avoid frequent resizes
+      _current_capacity = required_capacity;
+      //
+      // const size_t required_size = static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge;
+      // Array<UnsafeBlock> bits_new =  Array<UnsafeBlock>();
+      // bits_new.resize("Refinement", "connectivity_set",
+      //   required_size + 1 /* The nextBlockID() implementation performs a (masked out) load past the end */
+      //   , true, true);
+      // for ( size_t i = 0; i < _bits.size(); ++i )
+      // {
+      //   bits_new[i] = _bits[i];
+      // }
+      // _bits = std::move(bits_new);
+
+      // Faster Version?
+
+      // Assumptions stated explicitly
+      // assert(_bits.size() == he);
+      static_assert(std::is_trivially_copyable_v<UnsafeBlock>,
+                    "UnsafeBlock must be trivially copyable for memcpy");
+
+      const size_t old_size = _bits.size();
+      //
+      // size_t required_size =
+      //     (he + 1) * _num_blocks_per_hyperedge;
+
+      Array<UnsafeBlock> bits_new;
+      bits_new.resize(
+          "Refinement",
+          "connectivity_set",
+          required_capacity, // nextBlockID() may read one past the end
+          false,             // do NOT value-initialize (important for performance)
+          true
+      );
+
+      // Fast bulk copy
+      std::memcpy(
+          bits_new.data(),
+          _bits.data(),
+          he * sizeof(UnsafeBlock)
+      );
+
+      // Initialize new part to zero
+      for ( size_t i = old_size; i < bits_new.size(); ++i )
+      {
+        bits_new[i] = 0;
+      }
+
+
+      _bits = std::move(bits_new);
     }
   }
+
 
   void add(const HyperedgeID he, const PartitionID p) {
     toggle(he, p);
@@ -198,6 +258,7 @@ private:
 	ENABLE_ASSERTIONS(HyperedgeID _num_hyperedges;)
 	PartitionID _num_blocks_per_hyperedge;
 	Array<UnsafeBlock> _bits;
+  size_t _current_capacity = 0;
 
   // Bitsets to create shallow and deep copies of the connectivity set
   mutable tbb::enumerable_thread_specific<Bitset> _deep_copy_bitset;
