@@ -189,7 +189,7 @@ namespace {
         LOG << "Constrains were respected from initial partitioning";
       }
       LOG <<"";
-      constraints::fixNegativeConstraintsAfterIP(phg, context);
+      // constraints::fixNegativeConstraintsAfterIP(phg, context);
     }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
     if ( context.partition.verbose_output && !is_vcycle ) {
