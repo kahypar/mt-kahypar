@@ -251,7 +251,6 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
       switch (algo) {
         case RebalancingAlgorithm::deterministic: return os << "deterministic";
-        case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
         case RebalancingAlgorithm::advanced_rebalancer: return os << "advanced_rebalancer";
         case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
           // omit default case to trigger compiler warning for missing cases
@@ -288,6 +287,16 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + mode);
     return Mode::UNDEFINED;
+  }
+
+  FileFormat fileFormatFromString(const std::string& type) {
+    if (type == "hmetis") {
+      return FileFormat::hMetis;
+    } else if (type == "metis") {
+      return FileFormat::Metis;
+    }
+    throw InvalidParameterException("Illegal option: " + type);
+    return FileFormat::hMetis;
   }
 
   InstanceType instanceTypeFromString(const std::string& type) {
@@ -487,8 +496,6 @@ namespace mt_kahypar {
   RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type) {
     if (type == "deterministic") {
       return RebalancingAlgorithm::deterministic;
-    } else if (type == "simple_rebalancer") {
-      return RebalancingAlgorithm::simple_rebalancer;
     } else if (type == "advanced_rebalancer") {
       return RebalancingAlgorithm::advanced_rebalancer;
     } else if (type == "do_nothing") {

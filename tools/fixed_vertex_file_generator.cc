@@ -24,17 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <boost/program_options.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <string>
+
+#include <CLI/CLI.hpp>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/utils/randomize.h"
 
-namespace po = boost::program_options;
 using namespace mt_kahypar;
 
 int main(int argc, char* argv[]) {
@@ -42,21 +41,23 @@ int main(int argc, char* argv[]) {
   double percentage = 0;
   PartitionID k;
 
-  po::options_description options("Options");
-  options.add_options()
-    ("partition-file,p",
-    po::value<std::string>(&partition_file)->value_name("<string>")->required(),
-    "Partition file")
-    ("num-blocks,k",
-    po::value<PartitionID>(&k)->value_name("<int32_t>")->required(),
-    "Number of blocks")
-    ("fixed-vertex-percentage",
-    po::value<double>(&percentage)->value_name("<double>")->required(),
-    "Percentage of Fixed Vertices");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  CLI::App app;
+  app.add_option(
+    "-p,--partition-file",
+    partition_file,
+    "Partition file"
+  )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-k,--blocks",
+    k,
+    "Number of blocks"
+  )->required();
+  app.add_option(
+    "--fixed-vertex-percentage",
+    percentage,
+    "Percentage of Fixed Vertices"
+  )->required();
+  CLI11_PARSE(app, argc, argv);
 
   std::vector<PartitionID> partition;
   std::ifstream file(partition_file);

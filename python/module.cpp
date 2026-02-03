@@ -29,8 +29,6 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 
-#include <boost/range/irange.hpp>
-
 #include <tbb/parallel_for.h>
 
 #include <atomic>
@@ -56,6 +54,7 @@
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/range.h"
 
 
 namespace py = pybind11;
@@ -400,10 +399,16 @@ Construct a target graph.
       }, "Sets the number of V-cycles")
     .def_property("logging",
       [](const Context& context) {
-        return context.partition.verbose_output;
-      }, [](Context& context, const bool verbose_output) {
-        context.partition.verbose_output = verbose_output;
+        return context.partition.enable_logging;
+      }, [](Context& context, const bool enable_logging) {
+        context.partition.enable_logging = enable_logging;
       }, "Enable partitioning output")
+    .def_property("verbose_logging",
+      [](const Context& context) {
+        return context.partition.verbose_logging;
+      }, [](Context& context, const bool verbose_logging) {
+        context.partition.verbose_logging = verbose_logging;
+      }, "Use verbose partitioning output")
     .def("set_individual_target_block_weights",
       [](Context& context, std::vector<HypernodeWeight>& block_weights) {
         if (static_cast<PartitionID>(block_weights.size()) != context.partition.k) {
@@ -612,9 +617,8 @@ Construct a partitioned hypergraph from this hypergraph.
     .def("blocks",
       [&](mt_kahypar_partitioned_hypergraph_t p) {
         return lib::switch_phg<py::iterator, true>(p, [=](const auto& phg) {
-          return py::make_iterator(
-            boost::range_detail::integer_iterator<PartitionID>(0),
-            boost::range_detail::integer_iterator<PartitionID>(phg.k()));
+          auto range = integer_range(phg.k());
+          return py::make_iterator(range.begin(), range.end());
         });
       }, "Iterator over blocks of the partition", py::keep_alive<0, 1>())
     .def("is_fixed",

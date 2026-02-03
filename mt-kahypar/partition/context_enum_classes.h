@@ -168,7 +168,6 @@ enum class FlowAlgorithm : uint8_t {
 
 enum class RebalancingAlgorithm : uint8_t {
   deterministic,
-  simple_rebalancer,
   advanced_rebalancer,
   do_nothing
 };
@@ -229,6 +228,8 @@ std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo
 std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
 
 Mode modeFromString(const std::string& mode);
+
+FileFormat fileFormatFromString(const std::string& type);
 
 InstanceType instanceTypeFromString(const std::string& type);
 

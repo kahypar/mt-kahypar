@@ -60,6 +60,7 @@ class AProblemConstruction : public Test {
     context.partition.objective = Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
+    context.refinement.flows.alpha = 0;
     context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
