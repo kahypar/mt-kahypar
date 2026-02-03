@@ -638,6 +638,103 @@ std::vector<option> load_large_k_preset() {
   };
 }
 
+std::vector<option> load_mutable_preset() {
+  return {
+    // general
+    create_option("mode", "direct"),
+    create_option("preset-type", "default"),
+    create_option("maxnet-removal-factor", "0.01"),
+    create_option("smallest-maxnet-threshold", "50000"),
+    create_option("maxnet-ignore", "1000"),
+    create_option("num-vcycles", "0"),
+    // main -> shared_memory
+    create_option("s-use-localized-random-shuffle", "false"),
+    create_option("s-static-balancing-work-packages", "128"),
+    // main -> preprocessing
+    create_option("p-enable-community-detection", "true"),
+    // main -> preprocessing -> community_detection
+    create_option("p-louvain-edge-weight-function", "hybrid"),
+    create_option("p-max-louvain-pass-iterations", "5"),
+    create_option("p-louvain-min-vertex-move-fraction", "0.01"),
+    create_option("p-vertex-degree-sampling-threshold", "200000"),
+    // main -> coarsening
+    create_option("c-type", "multilevel_coarsener"),
+    create_option("c-use-adaptive-edge-size", "true"),
+    create_option("c-min-shrink-factor", "1.01"),
+    create_option("c-max-shrink-factor", "2.5"),
+    create_option("c-s", "1"),
+    create_option("c-t", "160"),
+    create_option("c-vertex-degree-sampling-threshold", "200000"),
+    // main -> coarsening -> rating
+    create_option("c-rating-score", "heavy_edge"),
+    create_option("c-rating-heavy-node-penalty", "no_penalty"),
+    create_option("c-rating-acceptance-criterion", "best_prefer_unmatched"),
+    // main -> initial_partitioning
+    create_option("i-mode", "rb"),
+    create_option("i-runs", "20"),
+    create_option("i-use-adaptive-ip-runs", "true"),
+    create_option("i-min-adaptive-ip-runs", "5"),
+    create_option("i-perform-refinement-on-best-partitions", "true"),
+    create_option("i-fm-refinement-rounds", "1"),
+    create_option("i-lp-maximum-iterations", "20"),
+    create_option("i-lp-initial-block-size", "5"),
+    // main -> initial_partitioning -> refinement
+    create_option("i-r-refine-until-no-improvement", "false"),
+    // main -> initial_partitioning -> refinement -> label_propagation
+    create_option("i-r-lp-type", "label_propagation"),
+    create_option("i-r-lp-maximum-iterations", "5"),
+    create_option("i-r-lp-rebalancing", "true"),
+    create_option("i-r-lp-he-size-activation-threshold", "100"),
+    // main -> initial_partitioning -> refinement -> fm
+    create_option("i-r-fm-type", "kway_fm"),
+    create_option("i-r-fm-multitry-rounds", "5"),
+    create_option("i-r-fm-rollback-parallel", "true"),
+    create_option("i-r-fm-rollback-balance-violation-factor", "1"),
+    create_option("i-r-fm-seed-nodes", "25"),
+    create_option("i-r-fm-obey-minimal-parallelism", "false"),
+    create_option("i-r-fm-release-nodes", "true"),
+    create_option("i-r-fm-time-limit-factor", "0.25"),
+    create_option("i-r-fm-iter-moves-on-recalc", "true"),
+    // main -> initial_partitioning -> refinement -> flows
+    create_option("i-r-flow-algo", "do_nothing"),
+    // main -> refinement
+    create_option("r-rebalancer-type", "advanced_rebalancer"),
+    create_option("r-refine-until-no-improvement", "false"),
+    // main -> refinement -> label_propagation
+    create_option("r-lp-type", "label_propagation"),
+    create_option("r-lp-unconstrained", "true"),
+    create_option("r-lp-maximum-iterations", "5"),
+    create_option("r-lp-rebalancing", "false"),
+    create_option("r-lp-he-size-activation-threshold", "100"),
+    create_option("r-lp-relative-improvement-threshold", "0.001"),
+    // main -> refinement -> fm
+    create_option("r-fm-type", "unconstrained_fm"),
+    create_option("r-fm-multitry-rounds", "10"),
+    create_option("r-fm-unconstrained-rounds", "8"),
+    create_option("r-fm-rollback-parallel", "true"),
+    create_option("r-fm-rollback-balance-violation-factor", "1.0"),
+    create_option("r-fm-threshold-border-node-inclusion", "0.7"),
+    create_option("r-fm-imbalance-penalty-min", "0.2"),
+    create_option("r-fm-imbalance-penalty-max", "1.0"),
+    create_option("r-fm-seed-nodes", "25"),
+    create_option("r-fm-release-nodes", "true"),
+    create_option("r-fm-min-improvement", "-1.0"),
+    create_option("r-fm-unconstrained-min-improvement", "0.002"),
+    create_option("r-fm-obey-minimal-parallelism", "true"),
+    create_option("r-fm-time-limit-factor", "0.25"),
+    create_option("r-fm-iter-moves-on-recalc", "true"),
+    // main -> refinement -> flows
+    create_option("r-flow-algo", "do_nothing"),
+    // main -> mapping
+    create_option("one-to-one-mapping-strategy", "greedy_mapping"),
+    create_option("mapping-use-local-search", "true"),
+    create_option("use-two-phase-approach", "false"),
+    create_option("max-steiner-tree-size", "4"),
+    create_option("mapping-largest-he-fraction", "0.0"),
+    create_option("mapping-min-pin-coverage", "0.05"),
+  };
+}
+
 
 std::vector<option> loadPreset(PresetType preset) {
   switch( preset ) {
@@ -651,6 +748,8 @@ std::vector<option> loadPreset(PresetType preset) {
       return load_default_preset();
     case PresetType::quality:
       return load_quality_preset();
+    case PresetType::mutable_preset:
+      return load_mutable_preset();
     case PresetType::highest_quality:
       return load_highest_quality_preset();
     case PresetType::UNDEFINED:

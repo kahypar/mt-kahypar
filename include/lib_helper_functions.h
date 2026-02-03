@@ -56,17 +56,20 @@ namespace lib {
   using StaticGraph = typename StaticGraphTypeTraits::Hypergraph;
   using DynamicGraph = typename DynamicGraphTypeTraits::Hypergraph;
   using StaticHypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+  using MutableHypergraph = typename MutableHypergraphTypeTraits::Hypergraph;
   using DynamicHypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
 
   using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedGraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
   using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using MutablePartitionedHypergraph = typename MutableHypergraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
 
   using StaticHypergraphFactory = typename ds::StaticHypergraph::Factory;
   using DynamicHypergraphFactory = typename ds::DynamicHypergraph::Factory;
   using StaticGraphFactory = typename ds::StaticGraph::Factory;
+  using MutableHypergraphFactory = typename ds::MutableHypergraph::Factory;
   using DynamicGraphFactory = typename ds::DynamicGraph::Factory;
 
 
@@ -121,6 +124,8 @@ bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypa
     case DETERMINISTIC_QUALITY:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == MULTILEVEL_HYPERGRAPH_PARTITIONING;
+    case MUTABLE:
+      return partitioned_hg.type == MUTABLE_HYPERGRAPH_PARTITIONING;
     case LARGE_K:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == LARGE_K_PARTITIONING;
@@ -181,6 +186,7 @@ InstanceType get_instance_type(mt_kahypar_hypergraph_t hypergraph) {
     case DYNAMIC_GRAPH:
       return InstanceType::graph;
     case STATIC_HYPERGRAPH:
+    case MUTABLE_HYPERGRAPH:
     case DYNAMIC_HYPERGRAPH:
       return InstanceType::hypergraph;
     case NULLPTR_HYPERGRAPH:
@@ -195,6 +201,7 @@ InstanceType get_instance_type(mt_kahypar_partitioned_hypergraph_t partitioned_h
     case N_LEVEL_GRAPH_PARTITIONING:
       return InstanceType::graph;
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+    case MUTABLE_HYPERGRAPH_PARTITIONING:
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
     case LARGE_K_PARTITIONING:
       return InstanceType::hypergraph;
@@ -208,6 +215,7 @@ mt_kahypar_preset_type_t get_preset_c_type(const PresetType preset) {
   switch ( preset ) {
     case PresetType::default_preset: return DEFAULT;
     case PresetType::quality: return QUALITY;
+    case PresetType::mutable_preset: return MUTABLE;
     case PresetType::highest_quality: return HIGHEST_QUALITY;
     case PresetType::deterministic: return DETERMINISTIC;
     case PresetType::deterministic_quality: return DETERMINISTIC_QUALITY;
@@ -232,6 +240,10 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
       ss << "The hypergraph uses the static hypergraph data structure which can be only used "
          << "in combination with the following presets: "
          << "DEFAULT, QUALITY, DETERMINISTIC, DETERMINISTIC_QUALITY and LARGE_K"; break;
+    case MUTABLE_HYPERGRAPH:
+      ss << "The hypergraph uses the mutable hypergraph data structure which can be only used "
+         << "in combination with the following presets: "
+         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
     case DYNAMIC_HYPERGRAPH:
       ss << "The hypergraph uses the dynamic hypergraph data structure which can be only used "
          << "in combination with the following preset: "
@@ -264,7 +276,11 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel hypergraph partitioning "
          << "which can be only used in combination with the following presets: "
-         << "DEFAULT, QUALITY, and DETERMINISTIC, DETERMINISTIC_QUALITY"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC_QUALITY and DETERMINISTIC"; break;
+    case MUTABLE_HYPERGRAPH_PARTITIONING:
+      ss << "The partitioned hypergraph uses the data structures for mutable hypergraph partitioning "
+         << "which can be only used in combination with the following presets: "
+         << "MUTABLE"; break;
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for n-level hypergraph partitioning "
          << "which can be only used in combination with the following preset: "
@@ -310,6 +326,11 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
           StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
             edge_vector, hyperedge_weights, vertex_weights, true))), STATIC_HYPERGRAPH };
+    case PresetType::mutable_preset:
+        return mt_kahypar_hypergraph_t {
+        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::MutableHypergraph(
+          MutableHypergraphFactory ::construct(num_vertices, num_hyperedges,
+            edge_vector, hyperedge_weights, vertex_weights, true))), MUTABLE_HYPERGRAPH };
     case PresetType::highest_quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
@@ -337,6 +358,7 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
           StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
             edge_vector, edge_weights, vertex_weights, true))), STATIC_GRAPH };
+    //TODO mutable?
     case PresetType::highest_quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
@@ -395,6 +417,10 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
         return create_partitioned_hypergraph<StaticPartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
+      case PresetType::mutable_preset:
+        ASSERT(hypergraph.type == MUTABLE_HYPERGRAPH);
+        return create_partitioned_hypergraph<MutablePartitionedHypergraph>(
+          utils::cast<ds::MutableHypergraph>(hypergraph), num_blocks, partition);
       case PresetType::highest_quality:
         ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
         return create_partitioned_hypergraph<DynamicPartitionedHypergraph>(

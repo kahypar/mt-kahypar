@@ -10,7 +10,7 @@
             "name": "minimal",
             "displayName": "Minimal config to reduce compile time",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS": "ON",
                 "KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS": "ON",
                 "KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES": "OFF",
@@ -75,6 +75,16 @@
             "name": "minimal-dev",
             "inherits": ["minimal"],
             "cacheVariables": {
+                "KAHYPAR_ENABLE_TESTING": "ON",
+                "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
+            }
+        },
+        {
+            "name": "minimal-dev-debug",
+            "inherits": ["minimal"],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
                 "KAHYPAR_ENABLE_TESTING": "ON",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "ON"

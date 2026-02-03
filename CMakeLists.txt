@@ -279,7 +279,7 @@ endif(KAHYPAR_USE_GCOV)
 find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
 endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>

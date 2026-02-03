@@ -75,6 +75,11 @@ mt_kahypar_hypergraph_t constructHypergraph(const mt_kahypar_hypergraph_type_t& 
           hyperedge_weight.data(), hypernode_weight.data(),
           num_removed_single_pin_hes, stable_construction);
       )
+    case MUTABLE_HYPERGRAPH:
+      return constructHypergraph<ds::MutableHypergraph>(
+        num_hypernodes, num_hyperedges, hyperedges,
+        hyperedge_weight.data(), hypernode_weight.data(),
+        num_removed_single_pin_hes, stable_construction);
     case DYNAMIC_HYPERGRAPH:
       ENABLE_HIGHEST_QUALITY(
         return constructHypergraph<ds::DynamicHypergraph>(
@@ -165,6 +170,7 @@ namespace {
 HypernodeID numberOfNodes(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumNodes();
+    case MUTABLE_HYPERGRAPH: return utils::cast<ds::MutableHypergraph>(hypergraph).initialNumNodes();
     ENABLE_GRAPHS(case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumNodes();)
     ENABLE_HIGHEST_QUALITY(case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumNodes();)
     ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumNodes();)
@@ -207,6 +213,8 @@ void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:
       addFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph), fixed_vertices, k); break;
+    case MUTABLE_HYPERGRAPH:
+      addFixedVertices(utils::cast<ds::MutableHypergraph>(hypergraph), fixed_vertices, k); break;
     ENABLE_GRAPHS(case STATIC_GRAPH:
       addFixedVertices(utils::cast<ds::StaticGraph>(hypergraph), fixed_vertices, k); break;
     )
@@ -233,6 +241,8 @@ void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
   switch ( hypergraph.type ) {
     case STATIC_HYPERGRAPH:
       removeFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph)); break;
+    case MUTABLE_HYPERGRAPH:
+      removeFixedVertices(utils::cast<ds::MutableHypergraph>(hypergraph)); break;
     ENABLE_GRAPHS(case STATIC_GRAPH:
       removeFixedVertices(utils::cast<ds::StaticGraph>(hypergraph)); break;
     )

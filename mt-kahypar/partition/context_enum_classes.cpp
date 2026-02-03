@@ -59,6 +59,7 @@ namespace mt_kahypar {
       case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
       case PresetType::quality: return os << "quality";
+      case PresetType::mutable_preset: return os << "mutable";
       case PresetType::highest_quality: return os << "highest_quality";
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -71,6 +72,7 @@ namespace mt_kahypar {
       case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
       case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      case MUTABLE_HYPERGRAPH_PARTITIONING: return os << "mutable_hypergraph_partitioning";
       case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
       case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
       case NULLPTR_PARTITION: return os << "UNDEFINED";
@@ -309,6 +311,8 @@ namespace mt_kahypar {
       return PresetType::large_k;
     } else if (type == "default") {
       return PresetType::default_preset;
+    } else if (type == "mutable") {
+      return PresetType::mutable_preset;
     } else if (type == "quality") {
       return PresetType::quality;
     } else if (type == "highest_quality") {

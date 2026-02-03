@@ -167,7 +167,7 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
   GraphAndGainTypes<TYPE_TRAITS, CutGainForGraphsTypes>                                      \
   ENABLE_STEINER_TREE(COMMA GraphAndGainTypes<TYPE_TRAITS COMMA SteinerTreeForGraphsTypes>)
 
-using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATIONS(StaticHypergraphTypeTraits)
+using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATIONS(StaticHypergraphTypeTraits) COMMA _LIST_HYPERGRAPH_COMBINATIONS(MutableHypergraphTypeTraits)
                                                       ENABLE_GRAPHS(COMMA _LIST_GRAPH_COMBINATIONS(StaticGraphTypeTraits))
                                                       ENABLE_HIGHEST_QUALITY(COMMA _LIST_HYPERGRAPH_COMBINATIONS(DynamicHypergraphTypeTraits))
                                                       ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA _LIST_GRAPH_COMBINATIONS(DynamicGraphTypeTraits))
@@ -187,6 +187,7 @@ using GraphAndGainTypesList = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATI
 
 #define INSTANTIATE_CLASS_WITH_VALID_TRAITS(C)                                                                    \
   _INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, StaticHypergraphTypeTraits)                             \
+  _INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, MutableHypergraphTypeTraits)                             \
   ENABLE_GRAPHS(_INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, StaticGraphTypeTraits))                        \
   ENABLE_HIGHEST_QUALITY(_INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, DynamicHypergraphTypeTraits))    \
   ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(_INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, DynamicGraphTypeTraits))   \

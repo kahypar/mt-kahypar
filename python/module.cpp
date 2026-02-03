@@ -144,6 +144,7 @@ PYBIND11_MODULE(mtkahypar, m) {
     .value("LARGE_K", PresetType::large_k)
     .value("DEFAULT", PresetType::default_preset)
     .value("QUALITY", PresetType::quality)
+    .value("MUTABLE", PresetType::mutable_preset)
     .value("HIGHEST_QUALITY", PresetType::highest_quality);
 
   using mt_kahypar::Objective;

@@ -49,6 +49,11 @@ using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
 using HypergraphTestTypeTraits = ::testing::Types<StaticHypergraphTypeTraits
                                                   ENABLE_HIGHEST_QUALITY(COMMA DynamicHypergraphTypeTraits)
                                                   ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
+
+using MutableHypergraphTestTypeTraits = ::testing::Types<MutableHypergraphTypeTraits
+        ENABLE_HIGHEST_QUALITY(COMMA DynamicHypergraphTypeTraits)
+        ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
+
 using GraphTestTypeTraits = ::testing::Types<StaticGraphTypeTraits
                                              ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA DynamicGraphTypeTraits)>;
 

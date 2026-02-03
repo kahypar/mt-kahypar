@@ -7,14 +7,17 @@ typedef enum {
   STATIC_GRAPH,
   DYNAMIC_GRAPH,
   STATIC_HYPERGRAPH,
+  MUTABLE_HYPERGRAPH,
   DYNAMIC_HYPERGRAPH,
   NULLPTR_HYPERGRAPH
 } mt_kahypar_hypergraph_type_t;
 
 typedef enum {
+  //TODO add mutable
   MULTILEVEL_GRAPH_PARTITIONING,
   N_LEVEL_GRAPH_PARTITIONING,
   MULTILEVEL_HYPERGRAPH_PARTITIONING,
+  MUTABLE_HYPERGRAPH_PARTITIONING,
   N_LEVEL_HYPERGRAPH_PARTITIONING,
   LARGE_K_PARTITIONING,
   NULLPTR_PARTITION
@@ -122,6 +125,8 @@ typedef enum {
   LARGE_K,
   // computes good partitions very fast
   DEFAULT,
+  // computes high-quality partitions (uses flow-based refinement)
+  MUTABLE,
   // computes high-quality partitions (uses flow-based refinement)
   QUALITY,
   // highest-quality configuration (uses n-level coarsening and flow-based refinement)

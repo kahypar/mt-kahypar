@@ -55,11 +55,13 @@ using namespace mt_kahypar;
 
 namespace {
   using StaticHypergraphFactory = typename ds::StaticHypergraph::Factory;
+  using MutableHypergraphFactory = typename ds::MutableHypergraph::Factory;
   using DynamicHypergraphFactory = typename ds::DynamicHypergraph::Factory;
   using StaticGraphFactory = typename ds::StaticGraph::Factory;
   using DynamicGraphFactory = typename ds::DynamicGraph::Factory;
 
   using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using MutablePartitionedHypergraph = typename MutableHypergraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
   using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
@@ -71,6 +73,7 @@ namespace {
       case DETERMINISTIC_QUALITY: return PresetType::deterministic_quality;
       case LARGE_K: return PresetType::large_k;
       case DEFAULT: return PresetType::default_preset;
+      case MUTABLE: return PresetType::mutable_preset;
       case QUALITY: return PresetType::quality;
       case HIGHEST_QUALITY: return PresetType::highest_quality;
     }
@@ -84,6 +87,7 @@ namespace {
       case PresetType::large_k: return LARGE_K;
       case PresetType::default_preset: return DEFAULT;
       case PresetType::quality: return QUALITY;
+      case PresetType::mutable_preset: return MUTABLE;
       case PresetType::highest_quality: return HIGHEST_QUALITY;
       case PresetType::UNDEFINED: return static_cast<mt_kahypar_preset_type_t>(0);
     }
