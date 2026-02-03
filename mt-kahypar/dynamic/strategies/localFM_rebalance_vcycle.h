@@ -353,9 +353,9 @@ namespace mt_kahypar::dyn {
             gain_cache_nodes.push_back(hn);
           }
 
-          //reset pin counts of added edges
           for (const HyperedgeID& he : change.added_edges) {
-            hypergraph_m.addHyperedge({}, 1);
+            const HyperedgeID new_he = hypergraph_m.addHyperedge({}, 1);
+            ASSERT(he == new_he);
             partitioned_hypergraph_m.addEdge(he);
           }
 

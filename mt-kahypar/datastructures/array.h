@@ -361,6 +361,9 @@ class Array {
   void assign(const size_type count,
               const value_type value,
               const bool assign_parallel = true) {
+    if (count == 0) {
+      return;
+    }
     if ( _underlying_data ) {
       ASSERT(count <= _size);
       if ( assign_parallel ) {

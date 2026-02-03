@@ -257,7 +257,7 @@ namespace mt_kahypar {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     if ( context.preprocessing.use_community_detection ) {
       timer.start_timer("detect_graph_structure", "Detect Graph Structure");
-      is_graph = isGraph(hypergraph);
+      // is_graph = isGraph(hypergraph);
       if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
         use_community_detection = !isMeshGraph(hypergraph);
       }

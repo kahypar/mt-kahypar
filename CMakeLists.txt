@@ -279,7 +279,7 @@ endif(KAHYPAR_USE_GCOV)
 find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+#  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
 else ()
   message(STATUS "Did not find LLVM linker lld")
@@ -287,6 +287,7 @@ endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
                                                       $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
+#          $<$<CONFIG:RELWITHDEBINFO>:-g3 -fno-omit-frame-pointer>
                                                       $<$<CONFIG:DEBUG>:-g3 -O0 -fno-omit-frame-pointer>)
 target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
 

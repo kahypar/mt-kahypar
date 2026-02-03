@@ -26,6 +26,14 @@
             }
         },
         {
+            "name": "Release with debug info",
+            "displayName": "Release build with debug info",
+            "inherits": ["default"],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "default",
             "displayName": "Default config",
             "cacheVariables": {

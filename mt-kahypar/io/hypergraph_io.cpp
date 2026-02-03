@@ -386,7 +386,7 @@ namespace mt_kahypar::io {
             hyperedge.resize(j);
           }
 
-          ASSERT(hyperedge.size() >= 2);
+          ASSERT(hyperedge.size() >= 2, V(current_id));
           ++current_id;
         } else {
           goto_next_line(mapped_file, current_pos, current_end);

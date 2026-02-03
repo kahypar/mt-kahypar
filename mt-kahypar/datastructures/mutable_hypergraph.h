@@ -1008,7 +1008,7 @@ namespace mt_kahypar {
             void deleteHypernode(const HypernodeID u) {
               ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
               ASSERT(!hypernode(u).is_deleted(), "Hypernode" << u << "is deleted");
-              // _num_hypernodes--; When deleting a node with a small ID this would possibly cause the node Iterator from ignoring the largest ID
+              // _num_hypernodes--; // When deleting a node with a small ID this would possibly cause the node Iterator from ignoring the largest ID
               _total_weight -= hypernode(u).weight();
               bool recompute_max_edge_size = false;
               for (const HyperedgeID& e : incident_nets_of(u)) {
@@ -1057,8 +1057,8 @@ namespace mt_kahypar {
             void deleteHyperedge(const HyperedgeID he) {
               ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
               ASSERT(!hyperedge(he).is_deleted(), "Hyperedge" << he << "is deleted");
-              // _num_hyperedges--; When deleting a edge with a small ID this would possibly cause the edge Iterator from ignoring the largest ID
-              bool recompute_max_edge_size = hyperedge(he).size() == _max_edge_size;
+              // _num_hyperedges--; // When deleting a edge with a small ID this would possibly cause the edge Iterator from ignoring the largest ID
+              bool recompute_max_edge_size = hyperedge(he).size() == _max_edge_size && _max_edge_size > 1;
               for (const HypernodeID& pin : hyperedge(he).pins()) {
                 --_num_pins;
                 --_total_degree;
