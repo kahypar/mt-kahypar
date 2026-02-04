@@ -176,17 +176,16 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
 HypernodeID generate_constraints_from_partitioned_hg_old_way(const fs::path hg_path, 
                                                         const fs::path part_hg_path, 
                                                         const fs::path constraints_path, 
-                                                        HypernodeID num_constraints, 
-                                                        const HypernodeID max_constraints_per_node) {
+                                                        const float constraints_percentage, 
+                                                        const HypernodeID max_constraints_per_node,
+                                                        const HypernodeID desired_node_degree) {
     HyperedgeID num_edges;
     HypernodeID num_nodes;
     std::vector<PartitionID> partitions;
     io::onlyReadHGRHeader(hg_path.string(), num_edges, num_nodes);
     io::readPartitionFile(part_hg_path.string(), num_nodes, partitions);
 
-    if (num_constraints <= 0) {
-        num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
-    }
+    HypernodeID num_constraints = num_nodes * constraints_percentage;
 
     vec<std::pair<HypernodeID, HypernodeID>> constraint_list;
     constraint_list.reserve(num_nodes * max_constraints_per_node);
