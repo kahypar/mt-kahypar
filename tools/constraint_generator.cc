@@ -173,6 +173,45 @@ HypernodeID generate_constraints_from_partitioned_hg(const fs::path hg_path,
     return constraint_count;
 }
 
+HypernodeID generate_constraints_from_partitioned_hg_old_way(const fs::path hg_path, 
+                                                        const fs::path part_hg_path, 
+                                                        const fs::path constraints_path, 
+                                                        HypernodeID num_constraints, 
+                                                        const HypernodeID max_constraints_per_node) {
+    HyperedgeID num_edges;
+    HypernodeID num_nodes;
+    std::vector<PartitionID> partitions;
+    io::onlyReadHGRHeader(hg_path.string(), num_edges, num_nodes);
+    io::readPartitionFile(part_hg_path.string(), num_nodes, partitions);
+
+    if (num_constraints <= 0) {
+        num_constraints = num_nodes * DEFAULT_CONSTRAINT_FRACTION;
+    }
+
+    vec<std::pair<HypernodeID, HypernodeID>> constraint_list;
+    constraint_list.reserve(num_nodes * max_constraints_per_node);
+    HypernodeID constraint_count = 0;
+    std::unordered_map<HypernodeID, HypernodeID> constraints_per_node;
+    for (HypernodeID node = 0; node < num_nodes; node++) {
+        PartitionID node_partition = partitions[node];
+        for (HypernodeID other_node = node + 1; other_node < num_nodes; other_node++) {
+            if (constraints_per_node[node] >= max_constraints_per_node) break;
+            if (constraints_per_node[other_node] >= max_constraints_per_node) continue;
+
+            if (node_partition != partitions[other_node]) {
+                constraint_count++;
+                constraints_per_node[node]++;
+                constraints_per_node[other_node]++;
+                constraint_list.push_back(std::make_pair(node, other_node));
+            }
+        }
+        constraints_per_node.erase(node);
+    }
+    num_constraints = std::min(num_constraints, constraint_count);
+    print_constraints(constraints_path, constraint_list, num_constraints);
+    return num_constraints;
+}
+
 int main(int argc, char* argv[]) {
     fs::path hypergraph_path;
     vec<fs::path> hypergraph_files;
@@ -181,6 +220,7 @@ int main(int argc, char* argv[]) {
     HypernodeID k;
     HypernodeID desired_node_degree;
     float num_constraints_percentage;
+    bool generate_from_partitioned_hg_old_way;
     HypernodeID max_constraints_per_node;
 
     po::options_description options("Options");
@@ -200,6 +240,9 @@ int main(int argc, char* argv[]) {
         ("num-constraints,n",
         po::value<float>(&num_constraints_percentage)->value_name("<float>")->default_value(1.0),
         "Number of constraints (optional)")
+        ("old",
+        po::bool_switch(&generate_from_partitioned_hg_old_way),
+        "Generate constraints from part hg the old way (optional)")
         ("part-hypergraph,p",
         po::value<fs::path>()->notifier([&](const fs::path& path) {
             partitioned_hypergraph_path = path;
@@ -248,7 +291,11 @@ int main(int argc, char* argv[]) {
                     std::make_error_code(std::errc::not_a_directory)
                 );
             }
-            generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
+            if(generate_from_partitioned_hg_old_way) {
+                generated_constraints = generate_constraints_from_partitioned_hg_old_way(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
+            } else {
+                generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
+            }
         } else {
             generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
         }
