@@ -32,6 +32,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/constraints.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -60,7 +61,15 @@ namespace mt_kahypar {
                                     hypergraph.partWeight(best_move.to) + 1 &&
                                     hypergraph.partWeight(best_move.to) <
                                     _context.partition.perfect_balance_part_weights[best_move.to]);
-      const bool perform_move = positive_gain || zero_gain_move;
+      const bool anti_constraints_met = (hypergraph.hasNegativeConstraints() ? (
+                                            constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.to) ||
+                                            !constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.from)
+                                          ) : true);
+      const bool improved_anti_constraints_hold_cut = hypergraph.hasNegativeConstraints() && 
+                                            !constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.from) && 
+                                            constraints::isNodeAllowedInPartition(hypergraph, hn, best_move.to) &&
+                                            best_move.gain <= 0;
+      const bool perform_move = (positive_gain || zero_gain_move || improved_anti_constraints_hold_cut) && anti_constraints_met ;
       if (best_move.from != best_move.to && perform_move) {
         PartitionID from = best_move.from;
         PartitionID to = best_move.to;

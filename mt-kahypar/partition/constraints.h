@@ -409,16 +409,16 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
   if (num_broken_constraints == 0) LOG <<"Constrains are respected before partitioner";
   else LOG << "! Constrains are not respected before partitioner !" << num_broken_constraints;
 
-  frontToBackConstraints(partitioned_hg, context, gain_cache);
-  //descendingConstraintDegree(partitioned_hg, context, gain_cache);
+  descendingConstraintDegree(partitioned_hg, context, gain_cache);
 
   Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
-  std::unique_ptr<IRefiner> label_propagation = LabelPropagationFactory::getInstance().createObject(
+  std::unique_ptr<IRefiner> fm = FMFactory::getInstance().createObject(
           context.refinement.label_propagation.algorithm,
           partitioned_hg.initialNumNodes(), partitioned_hg.initialNumEdges(), context, gain_cache, *rebalancer);
-  label_propagation->refine(phg, {}, metrics,
+  fm->refine(phg, {}, metrics,
           std::numeric_limits<double>::max());
+  frontToBackConstraints(partitioned_hg, context, gain_cache);
   rebalancer->initialize(phg);
   rebalancer->refine(phg, {}, metrics, 0.0);
   LOG << "-------------- stats after postprocessing --------------";
