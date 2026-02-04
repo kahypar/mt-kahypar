@@ -350,7 +350,7 @@ void descendingConstraintDegree(PartitionedHypergraph& partitioned_hg,
   // initialize PQ
   const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
   std::vector<PosT> positions(constraint_graph.numNodes(), invalid_position);
-  PQ heap(positions.data(), positions.size());
+  PQ<std::less<Key>, 4> heap(positions.data(), positions.size());
   for (auto node : constraint_graph.nodes()) {
     HypernodeID node_id = constraint_graph.nodeWeight(node);
     heap.insert(node, {incientNodesInSamePart(partitioned_hg, node), constraint_graph.nodeDegree(node), node});
