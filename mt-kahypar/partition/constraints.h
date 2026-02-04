@@ -413,12 +413,13 @@ void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
 
   Metrics metrics { metrics::quality(partitioned_hg, context), metrics::imbalance(partitioned_hg, context) };
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
-  std::unique_ptr<IRefiner> fm = FMFactory::getInstance().createObject(
-          context.refinement.label_propagation.algorithm,
-          partitioned_hg.initialNumNodes(), partitioned_hg.initialNumEdges(), context, gain_cache, *rebalancer);
-  fm->refine(phg, {}, metrics,
-          std::numeric_limits<double>::max());
-  frontToBackConstraints(partitioned_hg, context, gain_cache);
+  // std::unique_ptr<IRefiner> fm = FMFactory::getInstance().createObject(
+  //         context.refinement.label_propagation.algorithm,
+  //         partitioned_hg.initialNumNodes(), partitioned_hg.initialNumEdges(), context, gain_cache, *rebalancer);
+  // fm->refine(phg, {}, metrics,
+  //         std::numeric_limits<double>::max());
+
+  // frontToBackConstraints(partitioned_hg, context, gain_cache);
   rebalancer->initialize(phg);
   rebalancer->refine(phg, {}, metrics, 0.0);
   LOG << "-------------- stats after postprocessing --------------";
