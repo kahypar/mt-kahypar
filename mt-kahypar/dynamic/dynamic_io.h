@@ -1,5 +1,6 @@
 #pragma once
 
+#include <charconv>
 #include <mt-kahypar/io/hypergraph_factory.h>
 #include <filesystem>
 #include <fstream>
@@ -49,15 +50,31 @@ namespace mt_kahypar::dyn {
       std::cout.flush();
     }
 
-  inline std::vector<HypernodeID> parseIDs(const std::string& line) {
-      std::vector<HypernodeID> ids;
-      std::stringstream ss(line);
-      int id;
-      while (ss >> id) {
-        ids.push_back(id);
-      }
-      return ids;
+inline std::vector<HypernodeID> parseIDs(const std::string& line) {
+  std::vector<HypernodeID> ids;
+  ids.reserve(2);
+
+  const char* p = line.data();
+  const char* end = p + line.size();
+
+  while (p < end) {
+    // skip whitespace
+    while (p < end && *p <= ' ') ++p;
+    if (p >= end) break;
+
+    HypernodeID id;
+    auto [np, ec] = std::from_chars(p, end, id);
+    if (ec == std::errc()) {
+      ids.push_back(id);
+      p = np;
+    } else {
+      // skip malformed token
+      while (p < end && *p > ' ') ++p;
     }
+  }
+
+  return ids;
+}
 
     inline std::vector<PinChange> parsePins(const std::string& line) {
       std::vector<PinChange> pins;
@@ -77,6 +94,47 @@ namespace mt_kahypar::dyn {
       }
       return pins;
     }
+
+  inline std::vector<PinChange> parsePins_fast(const std::string& line) {
+    std::vector<PinChange> pins;
+    pins.reserve(16);
+
+    const char* p   = line.data();
+    const char* end = p + line.size();
+
+    while (p < end) {
+      // Skip whitespace
+      while (p < end && *p <= ' ') ++p;
+      if (p >= end) break;
+
+      if (*p != '(') {
+        // Malformed token, skip
+        while (p < end && *p > ' ') ++p;
+        continue;
+      }
+      ++p; // skip '('
+
+      HypernodeID node;
+      auto [p1, ec1] = std::from_chars(p, end, node);
+      if (ec1 != std::errc()) break;
+      p = p1;
+
+      if (p >= end || *p != ',') break;
+      ++p; // skip ','
+
+      HyperedgeID edge;
+      auto [p2, ec2] = std::from_chars(p, end, edge);
+      if (ec2 != std::errc()) break;
+      p = p2;
+
+      if (p >= end || *p != ')') break;
+      ++p; // skip ')'
+
+      pins.push_back({node, edge});
+    }
+
+    return pins;
+  }
 
     inline std::string getNextNonCommentLine(std::ifstream& file) {
       std::string line;
@@ -98,7 +156,6 @@ namespace mt_kahypar::dyn {
     // removed_edges_id1 removed_edges_id2, ...
     // (removed_pins1.hypernode,removed_pins1.hyperedge) (removed_pins2.hypernode,removed_pins2.hyperedge), ...
     inline std::vector<Change> parseChanges(const std::string& filename) {
-      std::vector<Change> changes;
       std::ifstream file(filename);
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
@@ -110,35 +167,46 @@ namespace mt_kahypar::dyn {
       size_t num_changes = std::stoi(line);
       // file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Move to the next line
 
-      for (size_t i = 0; i < num_changes; ++i) {
-        Change change;
+      std::vector<Change> changes;
+      changes.reserve(num_changes);
+      for (size_t i = 0; i < num_changes; ++i) {        // Parse added nodes
 
-        // Parse added nodes
-        line = getNextNonCommentLine(file);
-        change.added_nodes = parseIDs(line);
+        // line = getNextNonCommentLine(file);
+        // change.added_nodes = parseIDs(line);
+        //
+        // // Parse added edges
+        // line = getNextNonCommentLine(file);
+        // change.added_edges = parseIDs(line);
+        //
+        // // Parse added pins
+        // line = getNextNonCommentLine(file);
+        // change.added_pins = parsePins_fast(line);
+        //
+        // // Parse removed nodes
+        // line = getNextNonCommentLine(file);
+        // change.removed_nodes = parseIDs(line);
+        //
+        // // Parse removed edges
+        // line = getNextNonCommentLine(file);
+        // change.removed_edges = parseIDs(line);
+        //
+        // // Parse removed pins
+        // line = getNextNonCommentLine(file);
+        // change.removed_pins = parsePins_fast(line);
 
-        // Parse added edges
-        line = getNextNonCommentLine(file);
-        change.added_edges = parseIDs(line);
+        changes.emplace_back(Change{
+          parseIDs(getNextNonCommentLine(file)), // added nodes
+          parseIDs(getNextNonCommentLine(file)), // added edges
+          parsePins_fast(getNextNonCommentLine(file)), // added pins
+          parseIDs(getNextNonCommentLine(file)), // removed nodes
+          parseIDs(getNextNonCommentLine(file)), // removed edges
+          parsePins_fast(getNextNonCommentLine(file)) // removed pins
+        });
 
-        // Parse added pins
-        line = getNextNonCommentLine(file);
-        change.added_pins = parsePins(line);
+        if (i % 1000000 == 0) {
+          std::cout << "Parsed " << i << "/" << num_changes << " changes\r" << std::flush;
+        }
 
-        // Parse removed nodes
-        line = getNextNonCommentLine(file);
-        change.removed_nodes = parseIDs(line);
-
-        // Parse removed edges
-        line = getNextNonCommentLine(file);
-        change.removed_edges = parseIDs(line);
-
-        // Parse removed pins
-        line = getNextNonCommentLine(file);
-        change.removed_pins = parsePins(line);
-
-        // Add the parsed change to the list
-        changes.push_back(change);
       }
 
       file.close();
