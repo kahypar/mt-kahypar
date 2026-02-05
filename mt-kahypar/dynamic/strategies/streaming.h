@@ -68,7 +68,7 @@ namespace mt_kahypar::dyn {
         }
 
         void partition(Change& change, size_t changes_size) override {
-          (void) changes_size
+          (void) changes_size;
           ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
           ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
 

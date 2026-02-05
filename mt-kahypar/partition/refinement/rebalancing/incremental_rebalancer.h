@@ -118,7 +118,7 @@ public:
       HyperedgeWeight total_gain = 0;
       std::vector<HypernodeID> moved_nodes;
       std::vector<std::tuple<PartitionID, HyperedgeWeight>> violations;
-      while (!_blocks[block_pull_target].pull.empty()) {
+      while (!_blocks[block_pull_target].pull.empty() && partitioned_hypergraph_m->partWeight(block_pull_target) < _context->partition.max_part_weights[block_pull_target]) {
         const HypernodeID u = _blocks[block_pull_target].pull.top();
         const HyperedgeWeight stored_gain = _blocks[block_pull_target].pull.topKey();
 
