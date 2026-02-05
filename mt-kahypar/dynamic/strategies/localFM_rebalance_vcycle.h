@@ -342,11 +342,13 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes) {
             const HypernodeID new_hn = hypergraph_m.addHypernode({}, 1);
-            GainCachePtr::cast<Km1GainCache>(_gain_cache).addNode(hn);
+            (void) new_hn;
             ASSERT(hn == new_hn);
+            GainCachePtr::cast<Km1GainCache>(_gain_cache).addNode(hn);
             changed_weight += hypergraph_m.nodeWeight(hn);
             updateMaxPartWeight(context, hypergraph_m);
             const PartitionID assigned_part = add_node_to_partitioned_hypergraph(hn);
+            (void) assigned_part;
             ASSERT(assigned_part != kInvalidPartition);
             _rebalancer.insertOrUpdateNode(hn);
             local_fm_nodes.push_back(hn);
@@ -355,6 +357,7 @@ namespace mt_kahypar::dyn {
 
           for (const HyperedgeID& he : change.added_edges) {
             const HyperedgeID new_he = hypergraph_m.addHyperedge({}, 1);
+            (void) new_he;
             ASSERT(he == new_he);
             partitioned_hypergraph_m.addEdge(he);
           }
