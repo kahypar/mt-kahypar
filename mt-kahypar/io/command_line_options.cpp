@@ -932,12 +932,6 @@ namespace mt_kahypar {
        "Multiconstraint: whether using L1 metric for rollback."
     )->capture_default_str();
     app.add_option(
-      (initial_partitioning ? "--i-r-rebalancing-finalize-sequential": "--r-rebalancing-finalize-sequential"),
-      (!initial_partitioning ? context.refinement.rebalancing.finalize_sequential :
-        context.initial_partitioning.refinement.rebalancing.finalize_sequential ),
-       "Multiconstraint: whether using L1 metric for rollback."
-    )->capture_default_str();
-    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-reduced-weight-fallback": "--r-rebalancing-reduced-weight-fallback"),
       (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_fallback :
         context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback ),
