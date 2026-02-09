@@ -343,11 +343,11 @@ namespace impl {
       const PartitionID from = phg.partID(u);
       if (!_is_overloaded[from] || phg.isFixed(u)) return;
 
-      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, from, _context.partition.max_part_weights,
+      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, from, _target_part_weights,
                                                          _best_target_block_weight.local(), _tmp_hn_weight.local(), _weight_normalizer);
       ASSERT(target == kInvalidPartition || _context.refinement.rebalancing.allow_any_progress ||
              gain == impl::transformGain(_gain_cache.recomputeBenefitTerm(phg, u, target) - _gain_cache.recomputePenaltyTerm(phg, u),
-                                         phg.nodeWeight(u), phg.partWeight(from), _context.partition.max_part_weights[from]),
+                                         phg.nodeWeight(u), phg.partWeight(phg.partID(u)), _target_part_weights[phg.partID(u)]),
              "Gain cache is in invalid state!");
       if (target == kInvalidPartition) return;
 
@@ -380,7 +380,6 @@ namespace impl {
     const bool any_progress = _context.refinement.rebalancing.allow_any_progress;
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = _overloaded_blocks.size();
-    const HypernodeWeightArray& target_part_weights = _context.partition.max_part_weights;
 
     AllocatedHNWeight inf_weight;
     if (any_progress) {
@@ -396,7 +395,7 @@ namespace impl {
       const int seed = phg.initialNumNodes() + task_id;
 
       impl::NextMoveFinder<PartitionedHypergraph, GainCache> next_move_finder(
-        seed, _context, target_part_weights, _weight_normalizer, phg, _gain_cache, _pqs, _target_part, _node_state,
+        seed, _context, _target_part_weights, _weight_normalizer, phg, _gain_cache, _pqs, _target_part, _node_state,
         _best_target_block_weight.local(), _tmp_hn_weight.local());
 
       while (std::atomic_ref(num_overloaded_blocks).load(std::memory_order_relaxed) > 0 && next_move_finder.findNextMove()) {
@@ -478,10 +477,10 @@ namespace impl {
                     }
                     float new_gain;
                     if (!any_progress) {
-                      new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), target_part_weights[from]);
+                      new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), _target_part_weights[from]);
                     } else {
-                      float progress = impl::computeBalanceProgress(phg.nodeWeight(v), phg.partWeight(from), target_part_weights[from],
-                                                                    phg.partWeight(to), target_part_weights[to], _weight_normalizer);
+                      float progress = impl::computeBalanceProgress(phg.nodeWeight(v), phg.partWeight(from), _target_part_weights[from],
+                                                                    phg.partWeight(to), _target_part_weights[to], _weight_normalizer);
                       new_gain = impl::transformGainFromProgress(new_gain_int, progress);
                     }
                     pq.adjustKey(v, new_gain);
@@ -525,7 +524,7 @@ namespace impl {
     ASSERT(phg.dimension() > 1);
     HypernodeWeightArray part_weights = phg.partWeights().copy();
 
-    double best_imbalance = impl::imbalanceSum(part_weights, _context, _weight_normalizer);
+    double best_imbalance = impl::imbalanceSum(part_weights, _target_part_weights, _context, _weight_normalizer);
     size_t best_move_id = global_move_id;
     for (size_t i = global_move_id; i > old_move_id; --i) {
       const size_t move_id = i - 1;
@@ -535,7 +534,7 @@ namespace impl {
       // revert the move
       part_weights[m.to] -= weight;
       part_weights[m.from] += weight;
-      double curr_imbalance = impl::imbalanceSum(part_weights, _context, _weight_normalizer);
+      double curr_imbalance = impl::imbalanceSum(part_weights, _target_part_weights, _context, _weight_normalizer);
       // TODO: quality tie break?
       // note: < seems better than <= since it has a better chance of allowing progress
       if (curr_imbalance < best_imbalance) {
@@ -558,7 +557,7 @@ namespace impl {
       }
     }
     if (debug && best_move_id < global_move_id) {
-      float overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      float overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
       DBG << "Rolling back" << (global_move_id - best_move_id) << "moves, overweight:" << overweight;
     }
     global_move_id = best_move_id;
@@ -617,7 +616,7 @@ namespace impl {
                                                                                        int64_t& attributed_gain,
                                                                                        size_t& global_move_id) {
     size_t num_overloaded_blocks = 0;
-    double old_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+    double old_overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
     double new_overweight = old_overweight;
     size_t num_moves_first_round = 0;
     bool moved_nodes = false;
@@ -628,12 +627,11 @@ namespace impl {
         runGreedyRebalancingRound(phg, global_move_id);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
-      new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      new_overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
       moved_nodes = global_move_id > old_id;
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
       }
-      ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
              && new_overweight < old_overweight
@@ -712,6 +710,8 @@ namespace impl {
       _weight_normalizer[d] = 1 / static_cast<double>(total_weight.at(d));
     }
 
+    initializeTargetPartWeights(phg);
+
     size_t global_move_id = 0;
     int64_t attributed_gain = 0;
     _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain, [&](const Move& m) {
@@ -787,6 +787,23 @@ namespace impl {
     return num_overloaded_blocks == 0;
   }
 
+template <typename GraphAndGainTypes>
+void AdvancedRebalancer<GraphAndGainTypes>::initializeTargetPartWeights(const PartitionedHypergraph& phg) {
+  _target_part_weights = _context.partition.max_part_weights.copy();
+  if (phg.dimension() > 1 && _context.refinement.rebalancing.reduced_weight_from_block > 0) {
+    double block_factor = std::min(_context.refinement.rebalancing.reduced_weight_from_block, _context.partition.epsilon);
+    for (size_t part = 0; part < _target_part_weights.size(); ++part) {
+      auto weight_diff = weight::min(
+        weight::map(_target_part_weights[part], [=](HNWeightScalar val) {
+          return std::ceil(block_factor * static_cast<double>(val));
+        }), phg.maxNodeWeight());
+      _target_part_weights[part] -= weight_diff;
+      if (part == 0) {
+        DBG << "Reduced target weight of block 0 by" << weight_diff;
+      }
+    }
+  }
+}
 
 template <typename GraphAndGainTypes>
 AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
@@ -801,7 +818,8 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),
         _node_state(num_nodes),
-        _repair_empty_blocks(context, gain_cache) { }
+        _repair_empty_blocks(context, gain_cache),
+        _target_part_weights() { }
 
 template <typename GraphAndGainTypes>
 AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(

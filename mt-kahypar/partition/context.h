@@ -221,6 +221,7 @@ struct RebalancingParameters {
   bool allow_any_progress = true;
   bool allow_multiple_moves = true;
   bool use_rollback = true;
+  double reduced_weight_from_block = 0.0;  // relative to block weight
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;

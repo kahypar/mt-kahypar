@@ -154,6 +154,8 @@ private:
                                                            int64_t& attributed_gain,
                                                            size_t& global_move_id);
 
+  void initializeTargetPartWeights(const PartitionedHypergraph& phg);
+
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
@@ -172,6 +174,7 @@ private:
 
   // ! For computing node weight related metrics
   vec<double> _weight_normalizer;
+  HypernodeWeightArray _target_part_weights;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _best_target_block_weight;
   tbb::enumerable_thread_specific<AllocatedHNWeight> _tmp_hn_weight;
 
