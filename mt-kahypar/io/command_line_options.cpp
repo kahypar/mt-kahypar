@@ -944,6 +944,12 @@ namespace mt_kahypar {
        "Multiconstraint: whether to use reduced weight for rollback / evaluation."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-fitting-weight": "--r-rebalancing-fitting-weight"),
+      (!initial_partitioning ? context.refinement.rebalancing.require_fitting_weight :
+        context.initial_partitioning.refinement.rebalancing.require_fitting_weight ),
+       "Multiconstraint: only include nodes where the weight of overloaded dimensions is at least the average weight."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-reduced-weight-fallback": "--r-rebalancing-reduced-weight-fallback"),
       (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_fallback :
         context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback ),
