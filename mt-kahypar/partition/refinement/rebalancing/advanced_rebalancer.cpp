@@ -104,7 +104,7 @@ namespace impl {
             if (!is_adjacent && to != kInvalidPartition) continue;  // skip expensive gain recomputation
           }
 
-          auto [progress, negative_progress] = computeBalanceProgress(wu, best_to_weight, max_from_weight,
+          auto [progress, negative_progress] = computeBalanceProgress(wu, best_to_weight.get(), max_from_weight,
                                                                       phg.partWeight(i), reduced_part_weights[i], weight_normalizer);
           if (progress > 0) {
             if (!skip_non_adjacent) {
@@ -124,8 +124,7 @@ namespace impl {
 
       if (to != kInvalidPartition) {
         Gain gain = to_benefit - gain_cache.penaltyTerm(u, phg.partID(u));
-        best_to_weight = phg.partWeight(from);
-        auto [progress, negative_progress] = computeBalanceProgress(wu, best_to_weight, max_from_weight,
+        auto [progress, negative_progress] = computeBalanceProgress(wu, phg.partWeight(from), max_from_weight,
                                                                     phg.partWeight(to), reduced_part_weights[to], weight_normalizer);
         return std::make_pair(to, transformGainFromProgress(gain, progress, negative_progress,
                                                             context.refinement.rebalancing.negative_progress_penalty));
@@ -493,12 +492,21 @@ namespace impl {
                   if (_target_part[v] != kInvalidPartition) {
                     Gain new_gain_int;
                     const PartitionID from = phg.partID(v);
-                    if (_gain_cache.blockIsAdjacent(v, _target_part[v])) {
-                      new_gain_int = _gain_cache.gain(v, from, _target_part[v]);
+                    const PartitionID to = _target_part[v];
+                    if (_gain_cache.blockIsAdjacent(v, to)) {
+                      new_gain_int = _gain_cache.gain(v, from, to);
                     } else {
-                      new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, _target_part[v]) - _gain_cache.penaltyTerm(v, from);
+                      new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, to) - _gain_cache.penaltyTerm(v, from);
                     }
-                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), reduced_part_weights[from]);
+                    float new_gain;
+                    if (!any_progress) {
+                      new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v), phg.partWeight(from), reduced_part_weights[from]);
+                    } else {
+                      auto [progress, negative_progress] = impl::computeBalanceProgress(phg.nodeWeight(v), phg.partWeight(from), reduced_part_weights[from],
+                                                                                        phg.partWeight(to), reduced_part_weights[to], _weight_normalizer);
+                      new_gain = impl::transformGainFromProgress(new_gain_int, progress, negative_progress,
+                                                                 _context.refinement.rebalancing.negative_progress_penalty);
+                    }
                     pq.adjustKey(v, new_gain);
                   } else {
                     pq.remove(v);
