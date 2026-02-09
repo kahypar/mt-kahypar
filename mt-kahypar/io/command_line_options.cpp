@@ -643,6 +643,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.negative_progress_penalty))->value_name(
                     "<double>")->default_value(1.0),
              "Multiconstraint: penalty factor for negative progress.")
+            ((initial_partitioning ? "i-r-reduced-target-weight-factor": "r-reduced-target-weight-factor"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.reduced_target_weight_factor :
+                              &context.initial_partitioning.refinement.rebalancing.reduced_target_weight_factor))->value_name(
+                    "<double>")->default_value(0.0),
+             "Multiconstraint: penalty factor for negative progress.")
             ((initial_partitioning ? "i-r-rebalancing-use-deadlock-fallback": "r-rebalancing-use-deadlock-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_deadlock_fallback :
                               &context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback))->value_name(

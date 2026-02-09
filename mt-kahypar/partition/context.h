@@ -241,6 +241,7 @@ struct RebalancingParameters {
   bool use_rollback = true;
   bool l1_rollback = true;
   double negative_progress_penalty = 1.0;
+  double reduced_target_weight_factor = 0.0;  // relative to average node weight
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;

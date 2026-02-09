@@ -652,6 +652,17 @@ namespace impl {
                                                                                                 size_t& global_move_id,
                                                                                                 const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    HypernodeWeightArray reduced_part_weights = _context.partition.max_part_weights.copy();
+    if (_context.refinement.rebalancing.reduced_target_weight_factor > 0) {
+      double factor = _context.refinement.rebalancing.reduced_target_weight_factor / static_cast<double>(phg.initialNumNodes());
+      auto weight_diff = weight::map(phg.totalWeight(), [=](HNWeightScalar val) {
+        return std::ceil(factor * static_cast<double>(val));
+      });
+      DBG << "reducing target weight by" << weight_diff;
+      for (HNWeightRef weight: reduced_part_weights) {
+        weight -= weight_diff;
+      }
+    }
 
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = 0;
@@ -663,7 +674,7 @@ namespace impl {
       old_overweight = new_overweight;
       const size_t old_id = global_move_id;
       auto [attr_gain, n_overloaded] =
-        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, is_locked, true);
+        runGreedyRebalancingRound(hypergraph, reduced_part_weights, global_move_id, is_locked, true);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
       new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
