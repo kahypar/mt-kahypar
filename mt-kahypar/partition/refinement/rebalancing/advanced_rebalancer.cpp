@@ -680,16 +680,6 @@ namespace impl {
              && new_overweight < old_overweight
              && global_move_id < phg.initialNumNodes());
     DBG << V(old_overweight) << V(new_overweight) << V(global_move_id) << V(moved_nodes);
-
-    if (_context.refinement.rebalancing.finalize_sequential && !moved_nodes) {
-      auto [attr_gain, n_overloaded] =
-        runGreedyRebalancingRound(hypergraph, _context.partition.max_part_weights, global_move_id, is_locked, false);
-      attributed_gain += attr_gain;
-      num_overloaded_blocks = n_overloaded;
-      old_overweight = new_overweight;
-      new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
-      DBG << "sequential round:" << V(old_overweight) << V(new_overweight) << V(global_move_id);
-    }
     return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
   }
 

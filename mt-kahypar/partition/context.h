@@ -240,7 +240,6 @@ struct RebalancingParameters {
   bool allow_multiple_moves = true;
   bool use_rollback = true;
   bool l1_rollback = true;
-  bool finalize_sequential = false;
   double negative_progress_penalty = 1.0;
 
   // fallback for multiconstraint
