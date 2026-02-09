@@ -633,6 +633,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.rebalancing.l1_rollback))->value_name(
                     "<bool>")->default_value(true),
              "Multiconstraint: whether using L1 metric for rollback.")
+            ((initial_partitioning ? "i-r-rebalancing-fitting-weight": "r-rebalancing-fitting-weight"),
+            po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.require_fitting_weight :
+                              &context.initial_partitioning.refinement.rebalancing.require_fitting_weight))->value_name(
+                    "<bool>")->default_value(false),
+             "Multiconstraint: only include nodes where the weight of overloaded dimensions is at least the average weight.")
             ((initial_partitioning ? "i-r-rebalancing-reduced-weight-fallback": "r-rebalancing-reduced-weight-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_fallback :
                               &context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback))->value_name(

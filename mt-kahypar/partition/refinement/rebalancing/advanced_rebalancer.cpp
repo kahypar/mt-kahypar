@@ -360,10 +360,40 @@ namespace impl {
       return impl::AccessToken(seed.fetch_add(1, std::memory_order_relaxed), num_pqs);
     });
 
+    vec<Dimension> overloaded_dimension_per_block;
+    if (_context.refinement.rebalancing.require_fitting_weight) {
+      overloaded_dimension_per_block.resize(_context.partition.k, std::numeric_limits<Dimension>::max());
+      for (PartitionID block = 0; block < _context.partition.k; ++block) {
+        bool found_overloaded = false;
+        auto weight = phg.partWeight(block);
+        for (Dimension d = 0; d < _context.dimension(); ++d) {
+          if (weight.at(d) > _context.partition.max_part_weights[block].at(d)) {
+            if (!found_overloaded) {
+              overloaded_dimension_per_block[block] = d;
+              found_overloaded = true;
+            } else {
+              overloaded_dimension_per_block[block] = std::numeric_limits<Dimension>::max();
+              break;
+            }
+          }
+        }
+      }
+    }
+
     // insert nodes into PQs
     phg.doParallelForAllNodes([&](HypernodeID u) {
       const PartitionID b = phg.partID(u);
       if (!_is_overloaded[b] || phg.isFixed(u) || (is_locked != nullptr && is_locked[u])) return;
+
+      if (_context.refinement.rebalancing.require_fitting_weight) {
+        Dimension overloaded_dimension = overloaded_dimension_per_block[phg.partID(u)];
+        if (overloaded_dimension != std::numeric_limits<Dimension>::max()) {
+          const HNWeightConstRef weight_u = phg.nodeWeight(u);
+          if (_context.dimension() * weight_u.at(overloaded_dimension) < weight::sum(weight_u)) {
+            return;
+          }
+        }
+      }
 
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u), reduced_part_weights,
                                                          _best_target_block_weight.local(), _tmp_hn_weight.local(), _weight_normalizer);

@@ -240,6 +240,7 @@ struct RebalancingParameters {
   bool allow_multiple_moves = true;
   bool use_rollback = true;
   bool l1_rollback = true;
+  bool require_fitting_weight = false;
   double negative_progress_penalty = 1.0;
   double reduced_target_weight_factor = 0.0;  // relative to average node weight
 
