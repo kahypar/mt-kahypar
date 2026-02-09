@@ -164,7 +164,8 @@ inline float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightAtomicCRef f
   }
 }
 
-inline std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeightConstRef from_weight, HNWeightConstRef max_part_weight_from,
+template<typename HNWeightExpression>
+inline std::pair<float, bool> computeBalanceProgress(HNWeightConstRef wu, HNWeightExpression from_weight, HNWeightConstRef max_part_weight_from,
                                                      HNWeightAtomicCRef to_weight, HNWeightConstRef max_part_weight_to, const vec<double>& weight_normalizer) {
   ASSERT(wu.dimension() > 1);
   float relative_progress = 0;
