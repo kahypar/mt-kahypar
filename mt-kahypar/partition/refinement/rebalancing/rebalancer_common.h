@@ -116,11 +116,14 @@ inline double imbalance(const HypernodeWeightArray& part_weights, const Context&
   return max_balance - 1.0;
 }
 
-inline double imbalanceSum(const HypernodeWeightArray& part_weights, const Context& context, const vec<double>& weight_normalizer) {
+inline double imbalanceSum(const HypernodeWeightArray& part_weights,
+                           const HypernodeWeightArray& max_part_weights,
+                           const Context& context,
+                           const vec<double>& weight_normalizer) {
   double sum = 0;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
     for (Dimension d = 0; d < part_weights.dimension(); ++d) {
-      HNWeightScalar diff = part_weights[i].at(d) - context.partition.max_part_weights[i].at(d);
+      HNWeightScalar diff = part_weights[i].at(d) - max_part_weights[i].at(d);
       if (diff > 0) {
         sum += weight_normalizer[d] * static_cast<double>(diff);
       }

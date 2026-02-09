@@ -924,6 +924,12 @@ namespace mt_kahypar {
        "Multiconstraint: whether to use a rollback."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-reduced-target-weight-block": "--r-reduced-target-weight-block"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_from_block :
+        context.initial_partitioning.refinement.rebalancing.reduced_weight_from_block ),
+       "Multiconstraint: factor of block weight for target reduction of L1 metric."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-use-deadlock-fallback": "--r-rebalancing-use-deadlock-fallback"),
       (!initial_partitioning ? context.refinement.rebalancing.use_deadlock_fallback :
         context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback ),
