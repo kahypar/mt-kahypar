@@ -932,6 +932,12 @@ namespace mt_kahypar {
        "Multiconstraint: whether using L1 metric for rollback."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-reduced-rollback": "--r-rebalancing-reduced-rollback"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_rollback :
+        context.initial_partitioning.refinement.rebalancing.reduced_rollback ),
+       "Multiconstraint: whether to use reduced weight for rollback / evaluation."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-reduced-weight-fallback": "--r-rebalancing-reduced-weight-fallback"),
       (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_fallback :
         context.initial_partitioning.refinement.rebalancing.reduced_weight_fallback ),
@@ -942,6 +948,18 @@ namespace mt_kahypar {
       (!initial_partitioning ? context.refinement.rebalancing.negative_progress_penalty :
         context.initial_partitioning.refinement.rebalancing.negative_progress_penalty ),
        "Multiconstraint: penalty factor for negative progress."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-reduced-target-weight-factor": "--r-reduced-target-weight-factor"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_target_weight_factor :
+        context.initial_partitioning.refinement.rebalancing.reduced_target_weight_factor ),
+       "Multiconstraint: factor of average node weight for target reduction of L1 metric."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-reduced-target-weight-block": "--r-reduced-target-weight-block"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_weight_from_block :
+        context.initial_partitioning.refinement.rebalancing.reduced_weight_from_block ),
+       "Multiconstraint: factor of block weight for target reduction of L1 metric."
     )->capture_default_str();
     app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-use-deadlock-fallback": "--r-rebalancing-use-deadlock-fallback"),
