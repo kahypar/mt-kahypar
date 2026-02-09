@@ -42,7 +42,7 @@ inline void getExtremalDimensions(HNWeightConstRef weight, const vec<double>& we
   for (Dimension d = 0; d < weight.dimension(); ++d) {
     float normalized_weight = weight_normalizer[d] * weight.at(d);
     if (maximimize ? (normalized_weight >= max_weight) : (normalized_weight <= max_weight)) {
-    out_ptr[d] = static_cast<uint8_t>(true);
+      out_ptr[d] = static_cast<uint8_t>(true);
     }
   }
 }
@@ -50,7 +50,7 @@ inline void getExtremalDimensions(HNWeightConstRef weight, const vec<double>& we
 inline bool hasMatchingDimension(HNWeightConstRef weight, const uint8_t* lhs, const uint8_t* rhs) {
   for (Dimension d = 0; d < weight.dimension(); ++d) {
     if (lhs[d] && rhs[d]) {
-    return true;
+      return true;
     }
   }
   return false;
@@ -60,7 +60,7 @@ inline float weightOfMatchingDimension(HNWeightConstRef weight, const uint8_t* v
   double sum = 0;
   for (Dimension d = 0; d < weight.dimension(); ++d) {
     if (valid_dims[d] && sum == 0) {
-    sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
+      sum += weight_normalizer[d] * static_cast<double>(weight.at(d));
     }
   }
   return sum;
@@ -117,10 +117,10 @@ inline double imbalance(const HypernodeWeightArray& part_weights, const Context&
 }
 
 inline double imbalanceSum(const HypernodeWeightArray& part_weights, const Context& context, const vec<double>& weight_normalizer) {
-double sum = 0;
+  double sum = 0;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
     for (Dimension d = 0; d < part_weights.dimension(); ++d) {
-    HNWeightScalar diff = part_weights[i].at(d) - context.partition.max_part_weights[i].at(d);
+      HNWeightScalar diff = part_weights[i].at(d) - context.partition.max_part_weights[i].at(d);
       if (diff > 0) {
         sum += weight_normalizer[d] * static_cast<double>(diff);
       }
@@ -146,11 +146,11 @@ inline float transformGainFromProgress(Gain gain_, float progress, bool has_nega
 inline float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightAtomicCRef from_weight, HNWeightConstRef max_part_weight) {
   // here: positive gain means improvement
   if (wu.dimension() == 1) {
-    float gain = gain_;
+      float gain = gain_;
     if (gain > 0) {
-    gain *= wu.at(0);
+      gain *= wu.at(0);
     } else if (gain < 0) {
-    gain /= wu.at(0);
+      gain /= wu.at(0);
     }
     return gain;
   } else {

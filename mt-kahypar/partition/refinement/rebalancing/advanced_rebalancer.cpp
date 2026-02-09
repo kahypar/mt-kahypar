@@ -574,7 +574,7 @@ namespace impl {
         [&](const SynchronizedEdgeUpdate& sync_update) {
           attributed_gain += AttributedGains::gain(sync_update);
         });
-      ASSERT(success);
+      ASSERT(success); unused(success);
       if (_context.refinement.rebalancing.allow_multiple_moves && _move_id_of_node[m.node] == move_id) {
         _move_id_of_node[m.node] = kInvalidMove;
       }
