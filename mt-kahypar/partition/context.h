@@ -306,6 +306,7 @@ struct DynamicParameters {
   std::string changes_file = "";
   std::string strategy = "";
   double vcycle_step_size_pct = 0.01;
+  size_t fm_buffer = 0;
   std::string output_file_suffix = "";
   size_t version = 0;
 
@@ -348,6 +349,7 @@ struct DynamicParameters {
     file_name += std::to_string(vcycle_num) + "_";
     // round to 2 decimal places
     file_name += std::to_string(static_cast<int>(vcycle_step_size_pct * 100)) + "_";
+    file_name += std::to_string(static_cast<int>(fm_buffer)) + "_";
     file_name += output_file_suffix;
     return file_name;
   }

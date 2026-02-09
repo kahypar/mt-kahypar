@@ -23,6 +23,8 @@ namespace mt_kahypar::dyn {
         size_t _fm_num_nodes = 0;
         size_t _fm_num_edges = 0;
 
+        vec<HypernodeID> _local_fm_nodes_buffer = vec<HypernodeID>();
+
         void init_local_fm() {
           _gain_cache = GainCachePtr::constructGainCache(context);
           _global_rebalancer = RebalancerFactory::getInstance().createObject(
@@ -99,9 +101,14 @@ namespace mt_kahypar::dyn {
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
 
-          if (local_fm_nodes.size() == 0) {
+          if (local_fm_nodes.size() == 0 || context.dynamic.fm_buffer > _local_fm_nodes_buffer.capacity()) {
+          // if (local_fm_nodes.size() == 0) {
+            _local_fm_nodes_buffer.insert(_local_fm_nodes_buffer.end(), local_fm_nodes.begin(), local_fm_nodes.end());
             return;
           }
+
+          local_fm_nodes = std::move(_local_fm_nodes_buffer);
+          _local_fm_nodes_buffer.clear();
 
           auto rebalance_push_duration = std::chrono::high_resolution_clock::now() - start;
           context.dynamic.rebalance_duration_sum_push += rebalance_push_duration;

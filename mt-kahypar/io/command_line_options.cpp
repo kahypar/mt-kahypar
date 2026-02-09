@@ -879,6 +879,10 @@ namespace mt_kahypar {
       ("d-lazy-pull-updates",
         po::value<bool>(&context.dynamic.lazy_pull_updates)->value_name("<bool>"),
         "Default true, pull updates only improvements");
+      dynamic_options.add_options()
+        ("d-fm-buffer",
+          po::value<size_t>(&context.dynamic.fm_buffer)->value_name("<size_t>"),
+          "Buffer size for FM moves in dynamic partitioning");
     return dynamic_options;
   }
 
