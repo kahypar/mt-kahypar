@@ -38,6 +38,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using namespace mt_kahypar;
@@ -116,9 +117,6 @@ void writeHMetisOutput(std::ofstream& out_stream,
 
   // Write header
   out_stream << hg.initialNumEdges() << " " << hg.initialNumNodes() << " ";
-  if (hn_weights.dimension() > 1) {
-    out_stream << "1";
-  }
   out_stream << "1";
   out_stream << (has_edge_weights ? "1" : "0");
   if (hn_weights.dimension() > 1) {
@@ -152,9 +150,6 @@ void writeMetisOutput(std::ofstream& out_stream,
 
   // Write header
   out_stream << graph.initialNumNodes() << " " << (graph.initialNumEdges() / 2) << " ";
-  if (hn_weights.dimension() > 1) {
-    out_stream << "1";
-  }
   out_stream << "1";
   out_stream << (has_edge_weights ? "1" : "0");
   if (hn_weights.dimension() > 1) {
@@ -187,6 +182,7 @@ int main(int argc, char* argv[]) {
   bool unit_weights = false;
   bool degree_weights = false;
   int n_random_weights = 0;
+  int threads = 4;
 
   po::options_description options("Options");
   options.add_options()
@@ -195,6 +191,9 @@ int main(int argc, char* argv[]) {
     "Hypergraph (or graph) filename")
     ("out,o",
     po::value<std::string>(&out_filename)->value_name("<string>")->required(),
+    "Output filename")
+    ("threads,t",
+    po::value<int>(&threads)->value_name("<int>"),
     "Output filename")
     ("is-metis,m",
     po::value<bool>(&is_metis)->value_name("<bool>"),
@@ -211,6 +210,8 @@ int main(int argc, char* argv[]) {
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
+
+  parallel::initialize_tbb(threads);
 
   std::ofstream out_stream(out_filename.c_str());
 
