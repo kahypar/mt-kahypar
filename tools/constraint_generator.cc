@@ -19,6 +19,20 @@ namespace fs = std::filesystem;
 
 const std::string CONSTRAINT_FILE_EXTENSION = ".constraints.txt";
 
+inline std::string to_trimmed_string(double x) {
+    std::ostringstream oss;
+    oss << x;
+    std::string s = oss.str();
+
+    if (s.find('.') != std::string::npos) {
+        s.erase(s.find_last_not_of('0') + 1);
+        if (s.back() == '.') {
+            s.pop_back();
+        }
+    }
+    return s;
+}
+
 std::optional<fs::path> findFileWithPrefix(const fs::path& path, const std::string& prefix) {
     if (fs::is_regular_file(path)) {
         auto name = path.filename().string();
@@ -179,6 +193,7 @@ HypernodeID generate_constraints_from_partitioned_hg_old_way(const fs::path hg_p
                                                         const float constraints_percentage, 
                                                         const HypernodeID max_constraints_per_node,
                                                         const HypernodeID desired_node_degree) {
+    unused(desired_node_degree);
     HyperedgeID num_edges;
     HypernodeID num_nodes;
     std::vector<PartitionID> partitions;
@@ -291,11 +306,14 @@ int main(int argc, char* argv[]) {
                 );
             }
             if(generate_from_partitioned_hg_old_way) {
+                constraint_file.replace_filename(constraint_file.stem().string() + ".restricted_induced_" + to_trimmed_string(num_constraints_percentage) + constraint_file.extension().string());
                 generated_constraints = generate_constraints_from_partitioned_hg_old_way(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
             } else {
+                constraint_file.replace_filename(constraint_file.stem().string() + ".random_induced_" + to_trimmed_string(num_constraints_percentage) + constraint_file.extension().string());
                 generated_constraints = generate_constraints_from_partitioned_hg(hg_file, part_hg_file.value(), constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
             }
         } else {
+            constraint_file.replace_filename(constraint_file.stem().string() + ".random_" + to_trimmed_string(num_constraints_percentage) + constraint_file.extension().string());
             generated_constraints = generate_constraints_from_hg(hg_file, constraint_file, num_constraints_percentage, max_constraints_per_node, desired_node_degree);
         }
         LOG << "";
