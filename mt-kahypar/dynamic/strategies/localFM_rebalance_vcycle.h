@@ -18,7 +18,7 @@ namespace mt_kahypar::dyn {
         vec<Gain>& _benefit_aggregator;
         IncrementalRebalancer _rebalancer;
         HyperedgeWeight prior_total_weight = 0;
-        HyperedgeWeight changed_weight = 0;
+        double changed_weight = 0;
         size_t change_count = 0;
         size_t _fm_num_nodes = 0;
         size_t _fm_num_edges = 0;
@@ -217,7 +217,7 @@ namespace mt_kahypar::dyn {
 
       LocalFMRebalanceVCycleV4(ds::MutableHypergraph& hypergraph_m, Context& context)
           : DynamicStrategy(hypergraph_m, context), _benefit_aggregator(*new vec<Gain>()) {}
-      
+
         MutablePartitionedHypergraph& init() override {
             partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
           init_local_fm();
@@ -250,6 +250,8 @@ namespace mt_kahypar::dyn {
           for (const auto& [hn, he] : change.removed_pins)
           {
             size_t pin_count_in_part_prior_removal = partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn));
+
+            changed_weight += hypergraph_m.edgeWeight(he)/hypergraph_m.edgeSize(he);
 
             //decrement km1 if pin is single pin in partition for this edge prior to removal
             if (pin_count_in_part_prior_removal == 1 &&
@@ -299,7 +301,6 @@ namespace mt_kahypar::dyn {
           }
 
           for (const HypernodeID& hn : change.removed_nodes) {
-            changed_weight += hypergraph_m.nodeWeight(hn);
             empty_blocks.push_back(partitioned_hypergraph_m.partID(hn));
             for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn)) {
               size_t nodes_in_removed_partition_prior_removal = 0;
@@ -360,7 +361,6 @@ namespace mt_kahypar::dyn {
             (void) new_hn;
             ASSERT(hn == new_hn);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).addNode(hn);
-            changed_weight += hypergraph_m.nodeWeight(hn);
             updateMaxPartWeight(context, hypergraph_m);
             const PartitionID assigned_part = add_node_to_partitioned_hypergraph(hn);
             (void) assigned_part;
@@ -379,6 +379,7 @@ namespace mt_kahypar::dyn {
           for (const auto& [node, edge] : change.added_pins)
           {
             hypergraph_m.addPin(edge, node);
+            changed_weight += hypergraph_m.edgeWeight(edge)/hypergraph_m.edgeSize(edge);
             local_fm_nodes.push_back(node);
             partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
             // gain_cache_nodes.push_back(node);
@@ -467,7 +468,7 @@ namespace mt_kahypar::dyn {
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
           if (changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) {
-            // std::cout << "Starting v-cycle " << change_count << "/" << changes_size << " after processing " << changed_weight << " weight changes (" << (100.0 * changed_weight / prior_total_weight) << "% of total weight)" << std::endl;
+            std::cout << "Starting v-cycle " << change_count << "/" << changes_size << " after processing " << changed_weight << " weight changes (" << (100.0 * changed_weight / prior_total_weight) << "% of total weight)" << std::endl;
 
             HighResClockTimepoint vcycle_start = std::chrono::high_resolution_clock::now();
 
@@ -511,8 +512,8 @@ namespace mt_kahypar::dyn {
             }
 
             context.partition.num_vcycles = 0;
+            prior_total_weight += changed_weight;
             changed_weight = 0;
-            prior_total_weight = hypergraph_m.totalWeight();
 
             // std::cout << "Verifying v-cycle partition for " << hypergraph_m.initialNumNodes() << " nodes." << std::endl;
             for (HypernodeID hn = 0; hn < hypergraph_m.initialNumNodes(); ++hn) {
