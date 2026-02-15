@@ -286,8 +286,9 @@ else ()
 endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
-                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
-#          $<$<CONFIG:RELWITHDEBINFO>:-g3 -fno-omit-frame-pointer>
+#                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
+#        $<$<CONFIG:RELWITHDEBINFO>:-g3>
+          $<$<CONFIG:RELWITHDEBINFO>:-g3 -fno-omit-frame-pointer>
                                                       $<$<CONFIG:DEBUG>:-g3 -O0 -fno-omit-frame-pointer>)
 target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
 

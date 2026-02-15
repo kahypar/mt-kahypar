@@ -26,11 +26,25 @@ namespace mt_kahypar::dyn {
       register_algorithms_and_policies();
 
       // Parse changes
-      std::vector<Change> changes = parseChanges(context.dynamic.changes_file);
+      std::ifstream changes_file(context.dynamic.changes_file);
+      if (!changes_file.is_open()) {
+        throw std::runtime_error("Could not open file: " + context.dynamic.changes_file);
+      }
 
-      // Process and delete setup changes
-      DynamicStrategy::process_setup_changes(hypergraph_m, context, changes);
-      changes.erase(changes.begin(), changes.begin() + context.dynamic.setup_moves_count);
+      size_t num_changes = getNumChanges(changes_file);
+      std::vector<Change> changes;
+      if (!context.dynamic.stream_changes) {
+          changes = parseChanges(std::move(changes_file), num_changes);
+          // Process and delete setup changes
+          DynamicStrategy::process_setup_changes(hypergraph_m, context, changes);
+          changes.erase(changes.begin(), changes.begin() + context.dynamic.setup_moves_count);
+      } else {
+          // Process setup changes
+          for (size_t i = 0; i < context.dynamic.setup_moves_count; ++i) {
+            Change change = parseChange(changes_file);
+            DynamicStrategy::process_change(hypergraph_m, context, change);
+          }
+      }
 
       mt_kahypar::dyn::DynamicStrategy* strategy;
 
@@ -51,26 +65,31 @@ namespace mt_kahypar::dyn {
 
       try {
 
-        std::cout << "Processing " << changes.size() << " changes" << std::endl;
+        std::cout << "Processing " << num_changes << " changes" << std::endl;
 
         auto& hypergraph_p =  strategy->init();
 
         std::cout << "Initial km1: " << metrics::quality(hypergraph_p, context) << ", imbalance: " << metrics::imbalance(hypergraph_p, context) << std::endl;
 
-        size_t log_step_size = changes.size() * context.dynamic.logging_step_size_pct;
+        size_t log_step_size = num_changes * context.dynamic.logging_step_size_pct;
 
         auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
-        for (size_t i = 0; i < changes.size(); ++i) {
-          Change& change = changes[i];
+        for (size_t i = 0; i < num_changes; ++i) {
+          Change change;
+          if (!context.dynamic.stream_changes) {
+            change = changes[i];
+          } else {
+            change = parseChange(changes_file);
+          }
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-          strategy->partition(change, changes.size());
+            strategy->partition(change, num_changes);
           auto duration = std::chrono::high_resolution_clock::now() - start;
           duration_sum += duration;
           if (log_step_size != 0 && i % log_step_size != 0) {
             continue;
           }
-          log_km1_live(i+1, changes.size(), context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
+          log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
         }
 
         strategy->printAdditionalFinalStats();

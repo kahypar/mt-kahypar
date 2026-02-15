@@ -306,7 +306,7 @@ struct DynamicParameters {
   std::string changes_file = "";
   std::string strategy = "";
   double vcycle_step_size_pct = 0.01;
-  size_t fm_buffer = 0;
+  int fm_buffer = 0;
   std::string output_file_suffix = "";
   size_t version = 0;
 
@@ -315,6 +315,7 @@ struct DynamicParameters {
   bool server = false;
   size_t setup_moves_count = 0;
   size_t small_blocks_threshold = 5;
+  bool stream_changes = false; // if true, changes are read and processed one by one, otherwise all changes are read in memory and then processed
   bool lazy_pull_updates = true; // ignore updates for the rebalancer that decrement gain
 
   // not a parameter

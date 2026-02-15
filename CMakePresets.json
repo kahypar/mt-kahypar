@@ -10,7 +10,7 @@
             "name": "minimal",
             "displayName": "Minimal config to reduce compile time",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_BUILD_TYPE": "Release",
                 "KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS": "ON",
                 "KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS": "ON",
                 "KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES": "OFF",

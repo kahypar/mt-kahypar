@@ -146,6 +146,23 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
       return "";
     }
 
+    Change parseChange(std::ifstream& file) {
+      return Change{
+        parseIDs(getNextNonCommentLine(file)), // added nodes
+        parseIDs(getNextNonCommentLine(file)), // added edges
+        parsePins_fast(getNextNonCommentLine(file)), // added pins
+        parseIDs(getNextNonCommentLine(file)), // removed nodes
+        parseIDs(getNextNonCommentLine(file)), // removed edges
+        parsePins_fast(getNextNonCommentLine(file)) // removed pins
+      };
+    }
+
+    inline size_t getNumChanges(std::ifstream& file)
+    {
+      const std::string line = getNextNonCommentLine(file);
+      return  std::stoi(line);
+    }
+
     // parse the changes from a file
     //
     // Number of changes
@@ -155,60 +172,13 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
     // removed_nodes_id1 removed_nodes_id2, ...
     // removed_edges_id1 removed_edges_id2, ...
     // (removed_pins1.hypernode,removed_pins1.hyperedge) (removed_pins2.hypernode,removed_pins2.hyperedge), ...
-    inline std::vector<Change> parseChanges(const std::string& filename) {
-      std::ifstream file(filename);
-      if (!file.is_open()) {
-        throw std::runtime_error("Could not open file: " + filename);
-      }
-
-      //ignore comments
-      std::string line = getNextNonCommentLine(file);
-
-      size_t num_changes = std::stoi(line);
-      // file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Move to the next line
-
+    inline std::vector<Change> parseChanges(std::ifstream file, size_t num_changes) {
       std::vector<Change> changes;
       changes.reserve(num_changes);
-      for (size_t i = 0; i < num_changes; ++i) {        // Parse added nodes
-
-        // line = getNextNonCommentLine(file);
-        // change.added_nodes = parseIDs(line);
-        //
-        // // Parse added edges
-        // line = getNextNonCommentLine(file);
-        // change.added_edges = parseIDs(line);
-        //
-        // // Parse added pins
-        // line = getNextNonCommentLine(file);
-        // change.added_pins = parsePins_fast(line);
-        //
-        // // Parse removed nodes
-        // line = getNextNonCommentLine(file);
-        // change.removed_nodes = parseIDs(line);
-        //
-        // // Parse removed edges
-        // line = getNextNonCommentLine(file);
-        // change.removed_edges = parseIDs(line);
-        //
-        // // Parse removed pins
-        // line = getNextNonCommentLine(file);
-        // change.removed_pins = parsePins_fast(line);
-
-        changes.emplace_back(Change{
-          parseIDs(getNextNonCommentLine(file)), // added nodes
-          parseIDs(getNextNonCommentLine(file)), // added edges
-          parsePins_fast(getNextNonCommentLine(file)), // added pins
-          parseIDs(getNextNonCommentLine(file)), // removed nodes
-          parseIDs(getNextNonCommentLine(file)), // removed edges
-          parsePins_fast(getNextNonCommentLine(file)) // removed pins
-        });
-
-        if (i % 1000000 == 0) {
-          std::cout << "Parsed " << i << "/" << num_changes << " changes\r" << std::flush;
-        }
-
+      for (size_t i = 0; i < 10000000; ++i) {
+        Change change = parseChange(file);
+        changes.emplace_back(change);
       }
-
       file.close();
       return changes;
     }

@@ -101,6 +101,11 @@ namespace mt_kahypar::dyn {
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
 
+          if (context.dynamic.fm_buffer == -1)
+          {
+            return;
+          }
+
           if (local_fm_nodes.size() == 0 || context.dynamic.fm_buffer > _local_fm_nodes_buffer.capacity()) {
           // if (local_fm_nodes.size() == 0) {
             _local_fm_nodes_buffer.insert(_local_fm_nodes_buffer.end(), local_fm_nodes.begin(), local_fm_nodes.end());
@@ -127,7 +132,8 @@ namespace mt_kahypar::dyn {
                     context.refinement.fm.algorithm,
                     hypergraph_m.initialNumNodes() * 2, _fm_num_edges, context, _gain_cache, *_global_rebalancer);
             _fm_num_nodes = hypergraph_m.initialNumNodes() * 2;
-          } else if (_fm_num_edges < hypergraph_m.initialNumEdges()) {
+          }
+          if (_fm_num_edges < hypergraph_m.initialNumEdges()) {
             // in case edges were added to the hypergraph, we need to initialize the gain cache entries for these edges
             _fm = FMFactory::getInstance().createObject(
                     context.refinement.fm.algorithm,
@@ -157,6 +163,8 @@ namespace mt_kahypar::dyn {
             context.dynamic.incremental_km1 -= move.gain;
             context.dynamic.km1_gain_localFM += move.gain;
             context.dynamic.move_count++;
+            GainCachePtr::cast<Km1GainCache>(_gain_cache).initializeGainCacheEntryForNode(
+                    partitioned_hypergraph_m, move.node, _benefit_aggregator);
           }
 
           _rebalancer.updateGainForMoves(context.dynamic.local_fm_round->moves);
@@ -359,7 +367,6 @@ namespace mt_kahypar::dyn {
             ASSERT(assigned_part != kInvalidPartition);
             _rebalancer.insertOrUpdateNode(hn);
             local_fm_nodes.push_back(hn);
-            gain_cache_nodes.push_back(hn);
           }
 
           for (const HyperedgeID& he : change.added_edges) {
@@ -374,7 +381,21 @@ namespace mt_kahypar::dyn {
             hypergraph_m.addPin(edge, node);
             local_fm_nodes.push_back(node);
             partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
-            gain_cache_nodes.push_back(node);
+            // gain_cache_nodes.push_back(node);
+            if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) > 1)
+            {
+              GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(node, hypergraph_m.edgeWeight(edge));
+            } else
+            {
+              for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
+                if (hn2 != node) {
+                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), partitioned_hypergraph_m.partID(hn2));
+                }
+              }
+            }
+            _rebalancer.insertOrUpdateNode(node);
+
+            // update gain for all nodes in connectivity set of edge because connectivity might have changed for all these nodes
             PartitionID part_id = partitioned_hypergraph_m.partID(node);
             HyperedgeWeight edge_weight = partitioned_hypergraph_m.edgeWeight(edge);
             if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) == 1) {
