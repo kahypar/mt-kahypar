@@ -126,7 +126,7 @@ bool isNodeAllowedInPartition(const PartitionedHypergraph& partitioned_hg,
   HypernodeID node;
   if(partitioned_hg.fixedVertexSupport().getConstraintIdFromHypergraphId(node_id, node)) {
     const ds::DynamicGraph& constraint_graph = partitioned_hg.fixedVertexSupport().getConstraintGraph();
-    PartitionID upper_level_allowed_constraints = context.initial_partitioning.allowed_numer_of_constraints;
+    PartitionID upper_level_allowed_constraints = context.coarsening.allowed_constraint_degree;
 
     // only allow that amount of constraints in block k that can be later be put in different blocks
     HypernodeID allowed_constraints = upper_level_allowed_constraints / 2 - 1;

@@ -96,7 +96,7 @@ namespace rb {
     if (context.partition.mode == Mode::direct) {
       b_context.type = ContextType::initial_partitioning;
     }
-    b_context.initial_partitioning.allowed_numer_of_constraints = context.partition.k;
+    b_context.coarsening.allowed_constraint_degree = context.partition.k;
 
     // Setup Part Weights
     const HypernodeWeight total_weight = hypergraph.totalWeight();
@@ -164,7 +164,7 @@ namespace rb {
     ASSERT((k1 - k0) >= 2);
     Context rb_context(context);
     rb_context.partition.k = k1 - k0;
-    rb_context.initial_partitioning.allowed_numer_of_constraints = k1 - k0;
+    rb_context.coarsening.allowed_constraint_degree = k1 - k0;
     if (context.partition.mode == Mode::direct) {
       rb_context.type = ContextType::initial_partitioning;
     }
