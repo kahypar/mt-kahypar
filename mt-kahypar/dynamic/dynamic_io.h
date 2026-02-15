@@ -31,6 +31,23 @@ namespace mt_kahypar::dyn {
       }
     }
 
+  inline size_t getCurrentRAMUsage() {
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    while (std::getline(status_file, line)) {
+      if (line.rfind("VmRSS:", 0) == 0) {
+        std::istringstream iss(line);
+        std::string key;
+        size_t value_kb;
+        std::string unit;
+        if (iss >> key >> value_kb >> unit) {
+          return value_kb / 1024; // Convert from KB to MB
+        }
+      }
+    }
+    return 0; // Could not determine RAM usage
+  }
+
   inline void print_progress_bar(size_t i, size_t total, size_t km1, double imbalance) {
       // clear the line
       std::cout << "\r\033[K" << std::flush;
@@ -46,6 +63,7 @@ namespace mt_kahypar::dyn {
       }
       output += "]";
       output += " " + std::to_string(i) + "/" + std::to_string(total);
+      // output += " RAM: " + std::to_string(getCurrentRAMUsage()) + "MB";
       std::cout << output;
       std::cout.flush();
     }
