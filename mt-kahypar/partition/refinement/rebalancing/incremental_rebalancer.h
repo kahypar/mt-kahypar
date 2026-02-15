@@ -189,22 +189,24 @@ public:
       for (HyperedgeID he : partitioned_hypergraph_m->hypergraph().incidentEdges(u)) {
         ASSERT(partitioned_hypergraph_m->partID(u) == move.to);
         if (partitioned_hypergraph_m->pinCountInPart(he, move.to) == 1) {
-          //all other nodes in the from block gain a benefit because u left their block
+          //all other nodes in the from block lose a penalty since u already connects that block
           for (HypernodeID v : partitioned_hypergraph_m->hypergraph().pins(he)) {
             if (v == u || !partitioned_hypergraph_m->nodeIsEnabled(v)) {
               continue;
             }
-            insertOrUpdateNode(v, partitioned_hypergraph_m->partID(v), move.to, partitioned_hypergraph_m->edgeWeight(he));
+            // updateNode(v, partitioned_hypergraph_m->partID(v), move.to, partitioned_hypergraph_m->edgeWeight(he));
+            HyperedgeWeight old_pull_value = _blocks[move.to].pull.keyOf(v);
+            _blocks[move.to].pull.adjustKey(v, partitioned_hypergraph_m->edgeWeight(he) + old_pull_value);
           }
         }
         if (partitioned_hypergraph_m->pinCountInPart(he, move.from) == 1) {
-          //all other nodes in the to block lose a benefit because u joined their block
+          //The other node in the block loses penaltys since u would still connect that block if v moves
           for (HypernodeID v : partitioned_hypergraph_m->hypergraph().pins(he)) {
             if (v == u || !partitioned_hypergraph_m->nodeIsEnabled(v)) {
               continue;
             }
             if (partitioned_hypergraph_m->partID(v) == move.from) {
-              insertOrUpdateNode(v);
+              updateNode(v);
             }
           }
         }
@@ -216,6 +218,31 @@ public:
     void insertOrUpdateNode(const HyperedgeID u)
     {
       insertOrUpdateNode(u, partitioned_hypergraph_m->partID(u), kInvalidPartition, 0);
+    }
+
+    void addPenalty(const HyperedgeID u, HyperedgeWeight penalty)
+    {
+      for (PartitionID b = 0; b < _context->partition.k; ++b) {
+        if (b == partitioned_hypergraph_m->partID(u)) {
+          continue;
+        }
+          const auto old_pull_value = _blocks[b].pull.keyOf(u);
+          _blocks[b].pull.adjustKey(u, old_pull_value - penalty);
+      }
+    }
+
+    void adjustPullQueue(const HyperedgeID u, PartitionID part, HyperedgeWeight delta)
+    {
+      ASSERT(partitioned_hypergraph_m->nodeIsEnabled(u));
+      ASSERT(partitioned_hypergraph_m->partID(u) != part);
+      ASSERT(_blocks[part].pull.get_positions_size() > u);
+      const auto old_pull_value = _blocks[part].pull.keyOf(u);
+      _blocks[part].pull.adjustKey(u, delta + old_pull_value);
+    }
+
+    void updateNode(const HyperedgeID u)
+    {
+      updateNode(u, partitioned_hypergraph_m->partID(u), kInvalidPartition, 0);
     }
 
     //insert node into new pull queues and push queue
@@ -261,6 +288,52 @@ public:
       HyperedgeWeight weighted_push_gain = (highest_gain > 0) ? highest_gain * partitioned_hypergraph_m->nodeWeight(u) : highest_gain / partitioned_hypergraph_m->nodeWeight(u);
       ASSERT(u < _blocks[from].push.get_positions_size());
       _blocks[from].push.insertOrAdjustKey(u, weighted_push_gain);
+    }
+
+    //insert node into new pull queues and push queue
+    //if the node was deleted and reinserted, the queues are updated to prevent duplicate entries
+    //TODO this currently only helps very few cases but many cases could profit from specifying whether its an insert or an update
+    void updateNode(HypernodeID u, PartitionID from, PartitionID to, HyperedgeWeight delta) {
+      ASSERT(partitioned_hypergraph_m->nodeIsEnabled(u));
+      ASSERT(partitioned_hypergraph_m->partID(u) == from);
+      HyperedgeWeight highest_gain = std::numeric_limits<HyperedgeWeight>::min();
+
+      if (_blocks[from].push.get_positions_size() <= u)
+      {
+        reset();
+      }
+
+      if (to != kInvalidPartition) {
+        ASSERT(partitioned_hypergraph_m->partID(u) != to);
+        ASSERT(_blocks[to].pull.get_positions_size() > u);
+        const auto old_pull_value = _blocks[to].pull.keyOf(u);
+        _blocks[to].pull.adjustKey(u, delta + old_pull_value);
+        // TODO maybe push queues are not worth the effort
+        // ASSERT(partitioned_hypergraph_m->partID(u) == from);
+        // ASSERT(_blocks[from].push.get_positions_size() > u);
+        // if (_blocks[from].push.contains(u))
+        // {
+        //   const auto old_push_value = _blocks[from].push.keyOf(u);
+        //   _blocks[from].push.insertOrAdjustKey(u, delta + old_push_value);
+        return;
+        // }
+      }
+
+      for (PartitionID b = 0; b < _context->partition.k; ++b) {
+        if (b == from) {
+          continue;
+        }
+        const Gain gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, from, b);
+        if (gain > highest_gain) {
+          highest_gain = gain;
+        }
+        HyperedgeWeight weighted_pull_gain = (gain > 0) ? gain / partitioned_hypergraph_m->nodeWeight(u) : gain * partitioned_hypergraph_m->nodeWeight(u);
+        ASSERT(u < _blocks[b].pull.get_positions_size());
+        _blocks[b].pull.adjustKey(u, weighted_pull_gain);
+      }
+      HyperedgeWeight weighted_push_gain = (highest_gain > 0) ? highest_gain * partitioned_hypergraph_m->nodeWeight(u) : highest_gain / partitioned_hypergraph_m->nodeWeight(u);
+      ASSERT(u < _blocks[from].push.get_positions_size());
+      _blocks[from].push.adjustKey(u, weighted_push_gain);
     }
 
     bool checkBlockQueues() {

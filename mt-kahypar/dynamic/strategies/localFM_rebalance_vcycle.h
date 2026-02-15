@@ -385,15 +385,17 @@ namespace mt_kahypar::dyn {
             if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) > 1)
             {
               GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(node, hypergraph_m.edgeWeight(edge));
+              _rebalancer.addPenalty(node,  hypergraph_m.edgeWeight(edge));
             } else
             {
               for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
                 if (hn2 != node) {
                   GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), partitioned_hypergraph_m.partID(hn2));
+                  _rebalancer.adjustPullQueue(node, partitioned_hypergraph_m.partID(hn2), hypergraph_m.edgeWeight(edge));
                 }
               }
             }
-            _rebalancer.insertOrUpdateNode(node);
+            // _rebalancer.insertOrUpdateNode(node);
 
             // update gain for all nodes in connectivity set of edge because connectivity might have changed for all these nodes
             PartitionID part_id = partitioned_hypergraph_m.partID(node);
@@ -419,8 +421,7 @@ namespace mt_kahypar::dyn {
                   if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(node))
                   {
                     GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(hn2, edge_weight);
-
-                  _rebalancer.insertOrUpdateNode(hn2);
+                    _rebalancer.addPenalty(hn2, edge_weight);
                   }
                   // if hn2 is in small block, add to local_fm_nodes
                   if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
