@@ -204,7 +204,6 @@ namespace {
       if (num_broken_constraints == 0) LOG << "Constrains were respected from initial partitioning";
       else LOG << "!!! initial partitioning destroyed" << num_broken_constraints << "constrains !!!";
       LOG <<"";
-      constraints::postprocessNegativeConstraints(phg, context);
     }
     timer.stop_timer("initial_partitioning");
 

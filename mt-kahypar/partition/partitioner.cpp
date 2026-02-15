@@ -330,7 +330,7 @@ namespace mt_kahypar {
   void postprocessNegativeConstraints(PartitionedHypergraph& partitioned_hg,
                                       const Context& context) {
     if (partitioned_hg.hasNegativeConstraints()) {
-      constraints::postprocessNegativeConstraints(partitioned_hg, context);
+      //constraints::postprocessNegativeConstraints(partitioned_hg, context);
       LOG << (constraints::constraintsMet(partitioned_hg, context)? "Constrains were respected from partitioner" : "!!! Partitioner destroyed constrains !!!");
     }
   }
