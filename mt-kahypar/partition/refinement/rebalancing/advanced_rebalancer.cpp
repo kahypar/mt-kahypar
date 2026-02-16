@@ -688,9 +688,15 @@ namespace impl {
       auto weight_diff = weight::map(phg.totalWeight(), [=](HNWeightScalar val) {
         return std::ceil(factor * static_cast<double>(val));
       });
-      DBG << "reducing target weight by" << weight_diff;
-      for (HNWeightRef weight: reduced_part_weights) {
-        weight -= weight_diff;
+      for (size_t part = 0; part < reduced_part_weights.size(); ++part) {
+        auto block_weight_diff = weight::min(
+          weight::map(reduced_part_weights[part], [=](HNWeightScalar val) {
+            return std::ceil(_context.refinement.rebalancing.reduced_weight_from_block * static_cast<double>(val));
+          }), phg.maxNodeWeight());
+        if (part == 0) {
+          DBG << "reducing target weight by" << V(weight_diff) << V(block_weight_diff);
+        }
+        reduced_part_weights[part] -= weight::max(weight_diff, block_weight_diff);
       }
     }
 

@@ -652,7 +652,12 @@ namespace mt_kahypar {
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.reduced_target_weight_factor :
                               &context.initial_partitioning.refinement.rebalancing.reduced_target_weight_factor))->value_name(
                     "<double>")->default_value(0.0),
-             "Multiconstraint: penalty factor for negative progress.")
+             "Multiconstraint: factor of average node weight for target reduction of L1 metric.")
+            ((initial_partitioning ? "i-r-reduced-target-weight-block": "r-reduced-target-weight-block"),
+            po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_from_block :
+                              &context.initial_partitioning.refinement.rebalancing.reduced_weight_from_block))->value_name(
+                    "<double>")->default_value(0.0),
+             "Multiconstraint: factor of block weight for target reduction of L1 metric.")
             ((initial_partitioning ? "i-r-rebalancing-use-deadlock-fallback": "r-rebalancing-use-deadlock-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_deadlock_fallback :
                               &context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback))->value_name(

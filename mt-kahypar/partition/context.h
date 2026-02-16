@@ -243,6 +243,7 @@ struct RebalancingParameters {
   bool require_fitting_weight = false;
   double negative_progress_penalty = 1.0;
   double reduced_target_weight_factor = 0.0;  // relative to average node weight
+  double reduced_weight_from_block = 0.0;  // relative to block weight
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
