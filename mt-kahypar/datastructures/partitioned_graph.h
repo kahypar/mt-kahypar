@@ -315,6 +315,11 @@ private:
     return _hg->totalWeight();
   }
 
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _hg->maxNodeWeight();
+  }
+
   // ! Number of blocks this hypergraph is partitioned into
   PartitionID k() const {
     return _k;

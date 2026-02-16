@@ -497,7 +497,8 @@ namespace mt_kahypar::ds {
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
     }
 
-    hypergraph._total_weight = _total_weight.copy();   // didn't lose any vertices
+    hypergraph._total_weight = _total_weight;   // didn't lose any vertices
+    hypergraph._max_weight = _max_weight;
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -515,7 +516,8 @@ namespace mt_kahypar::ds {
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
-    hypergraph._total_weight = _total_weight.copy();
+    hypergraph._total_weight = _total_weight;
+    hypergraph._max_weight = _max_weight;
 
     tbb::parallel_invoke([&] {
       hypergraph._hypernodes.resize(_hypernodes.size());
@@ -554,7 +556,8 @@ namespace mt_kahypar::ds {
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
-    hypergraph._total_weight = _total_weight.copy();
+    hypergraph._total_weight = _total_weight;
+    hypergraph._max_weight = _max_weight;
 
     hypergraph._hypernodes.resize(_hypernodes.size());
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
