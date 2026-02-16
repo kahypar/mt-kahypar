@@ -683,15 +683,16 @@ namespace impl {
                                                                                                 const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HypernodeWeightArray reduced_part_weights = _context.partition.max_part_weights.copy();
-    if (_context.refinement.rebalancing.reduced_target_weight_factor > 0) {
+    if (_context.refinement.rebalancing.reduced_target_weight_factor > 0 || _context.refinement.rebalancing.reduced_weight_from_block > 0) {
       double factor = _context.refinement.rebalancing.reduced_target_weight_factor / static_cast<double>(phg.initialNumNodes());
       auto weight_diff = weight::map(phg.totalWeight(), [=](HNWeightScalar val) {
         return std::ceil(factor * static_cast<double>(val));
       });
       for (size_t part = 0; part < reduced_part_weights.size(); ++part) {
+        double block_factor = std::min(_context.refinement.rebalancing.reduced_weight_from_block, _context.partition.epsilon);
         auto block_weight_diff = weight::min(
           weight::map(reduced_part_weights[part], [=](HNWeightScalar val) {
-            return std::ceil(_context.refinement.rebalancing.reduced_weight_from_block * static_cast<double>(val));
+            return std::ceil(block_factor * static_cast<double>(val));
           }), phg.maxNodeWeight());
         if (part == 0) {
           DBG << "reducing target weight by" << V(weight_diff) << V(block_weight_diff);
