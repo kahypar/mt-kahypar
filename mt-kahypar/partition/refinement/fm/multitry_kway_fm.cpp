@@ -142,7 +142,7 @@ namespace mt_kahypar {
 
         // compute rebalancing moves
         timer.start_timer("rebalance_fm", "Rebalance");
-        Metrics tmp_metrics;
+        Metrics tmp_metrics{0, 0};
         // the correct quality is only required for assertions
         ENABLE_ASSERTIONS(tmp_metrics.quality = metrics::quality(phg, context));
 
