@@ -185,10 +185,11 @@ namespace rb {
 
   template<typename Hypergraph>
   void setupFixedVerticesForBipartitioning(Hypergraph& hg,
-                                           const PartitionID k) {
+                                           const PartitionID k,
+                                           const PartitionID allowed_constraint_degree) {
     if ( hg.hasFixedVertices() || hg.hasNegativeConstraints() ) {
       const PartitionID m = k / 2 + (k % 2);
-      ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2);
+      ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2, allowed_constraint_degree);
       fixed_vertices.setHypergraph(&hg);
       if (hg.hasFixedVertices()) {
         hg.doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -241,10 +242,11 @@ namespace rb {
                                       Hypergraph& extracted_hg,
                                       const vec<HypernodeID>& input2extracted,
                                       const PartitionID k0,
-                                      const PartitionID k1) {
+                                      const PartitionID k1,
+                                      const PartitionID allowed_constraint_degree) {
     if ( input_hg.hasFixedVertices() || input_hg.hasNegativeConstraints() ) {
       ds::FixedVertexSupport<Hypergraph> fixed_vertices(
-        extracted_hg.initialNumNodes(), k1 - k0);
+        extracted_hg.initialNumNodes(), k1 - k0, allowed_constraint_degree);
       fixed_vertices.setHypergraph(&extracted_hg);
       if (input_hg.hasFixedVertices()) {
         input_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -312,7 +314,7 @@ namespace rb {
       Hypergraph& hg = phg.hypergraph();
       ds::FixedVertexSupport<Hypergraph> fixed_vertices = hg.copyOfFixedVertexSupport();
       Context b_context = setupBipartitioningContext(hg, context, info);
-      setupFixedVerticesForBipartitioning(hg, k);
+      setupFixedVerticesForBipartitioning(hg, k, b_context.coarsening.allowed_constraint_degree);
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
       DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
       PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
@@ -388,7 +390,7 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
     cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
   Hypergraph& rb_hg = extracted_block.hg;
   auto& mapping = extracted_block.hn_mapping;
-  setupFixedVerticesForRecursion(phg.hypergraph(), rb_hg, mapping, k0, k1);
+  setupFixedVerticesForRecursion(phg.hypergraph(), rb_hg, mapping, k0, k1, rb_context.coarsening.allowed_constraint_degree);
 
   if ( rb_hg.initialNumNodes() > 0 ) {
     // Recursively partition the given block into (k1 - k0) blocks

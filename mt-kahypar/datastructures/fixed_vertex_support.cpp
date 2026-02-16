@@ -58,6 +58,24 @@ FixedVertexSupport<Hypergraph>::FixedVertexSupport(const HypernodeID num_nodes,
   _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
   _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
   _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }),
+  _allowed_constraint_degree(k),
+  _constraint_graph(nullptr),
+  _hypergraph_id_to_graph_id(
+        std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(0)
+    ) { }
+
+template<typename Hypergraph>
+FixedVertexSupport<Hypergraph>::FixedVertexSupport(const HypernodeID num_nodes,
+                                                   const PartitionID k,
+                                                   const PartitionID allowed_constraint_degree) :
+  _num_nodes(num_nodes),
+  _k(k),
+  _hg(nullptr),
+  _total_fixed_vertex_weight(0),
+  _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
+  _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
+  _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }),
+  _allowed_constraint_degree(allowed_constraint_degree),
   _constraint_graph(nullptr),
   _hypergraph_id_to_graph_id(
         std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(0)
@@ -175,7 +193,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
               // both hg nodes point to the same new contracted node u1
               _hypergraph_id_to_graph_id->operator[](v) = u1;
               _constraint_graph->setNodeWeight(u1, HypernodeWeight(u));
-              if (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1) >= _k) LOG << "Number after contraction too high" << constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1);
+              //if (constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1) >= _k) LOG << "Number after contraction too high" << constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1);
             }
           } else {
             ASSERT(false, "could not register contraction beteween nodes" << u1 << v1);
@@ -335,7 +353,7 @@ bool FixedVertexSupport<Hypergraph>::allowedConstraintDegreeAfterContraction(con
   HypernodeID u1;
   HypernodeID v1;
   if (getConstraintIdFromHypergraphId(u, u1) && getConstraintIdFromHypergraphId(v, v1)) {
-    return constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) < _k;
+    return constraints::numberOfDistinctNeighbors<Hypergraph>(*_constraint_graph, u1, v1) < 4 * _allowed_constraint_degree;
   }
   return true;
 }
@@ -361,6 +379,7 @@ FixedVertexSupport<Hypergraph> FixedVertexSupport<Hypergraph>::copy() const {
   cpy._max_block_weights = _max_block_weights;
   cpy._fixed_vertex_data = _fixed_vertex_data;
   if (_constraint_graph != nullptr) {
+    cpy._allowed_constraint_degree = _allowed_constraint_degree;
     cpy._constraint_graph = std::make_unique<DynamicGraph>(_constraint_graph->copy());
     cpy._constraints = _constraints;
     cpy._hypergraph_id_to_graph_id = std::make_unique<ds::FixedSizeSparseMap<HypernodeID, HypernodeID>>(_hypergraph_id_to_graph_id->copy());

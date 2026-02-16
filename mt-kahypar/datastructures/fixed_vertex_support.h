@@ -61,6 +61,10 @@ class FixedVertexSupport {
 
   FixedVertexSupport(const HypernodeID num_nodes,
                      const PartitionID k);
+                
+  FixedVertexSupport(const HypernodeID num_nodes,
+                     const PartitionID k,
+                     const PartitionID allowd_constraint_degree);
 
   FixedVertexSupport(const FixedVertexSupport&) = delete;
   FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;
@@ -226,6 +230,8 @@ class FixedVertexSupport {
   vec<FixedVertexData> _fixed_vertex_data;
 
   // TODO: if necessary, add more members
+
+  PartitionID _allowed_constraint_degree;
 
   // ! Graph that represents the negative constraints
   std::unique_ptr<DynamicGraph> _constraint_graph;
