@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
@@ -58,7 +59,8 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
                                                                             ds::Array<MoveID>& move_id_of_node,
                                                                             ds::Array<uint8_t>& node_is_locked,
                                                                             const vec<double>& weight_normalizer,
-                                                                            size_t& global_move_id) {
+                                                                            size_t& global_move_id,
+                                                                            bool is_toplevel) {
   tmp_potential_moves.resize(context.partition.k);
   for (auto& moves: tmp_potential_moves) {
     moves.clear_sequential();
@@ -275,6 +277,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     node_is_locked.assign(phg.initialNumNodes(), static_cast<uint8_t>(false), true);
   }
 
+  auto& stats = utils::Utilities::instance().getStats(context.utility_id);
   const size_t old_id = global_move_id;
   int64_t attributed_gain = 0;
   for (const auto& m: move_list) {
@@ -290,6 +293,10 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     ASSERT(best_to_part != kInvalidPartition);
 
     DBG << V(weight) << V(from) << V(phg.partWeight(from)) << V(best_to_part) << V(phg.partWeight(best_to_part));
+    stats.update_stat("fallback_moves", 1);
+    if (is_toplevel) {
+      stats.update_stat("fallback_moves_toplevel", 1);
+    }
 
     int64_t gain = 0;
     phg.changeNodePart(gain_cache, m.node, from, best_to_part,

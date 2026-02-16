@@ -680,8 +680,11 @@ namespace impl {
   template <typename GraphAndGainTypes>
   std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                                                                 size_t& global_move_id,
-                                                                                                const uint8_t* is_locked) {
+                                                                                                const uint8_t* is_locked,
+                                                                                                bool is_fallback) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
+
     HypernodeWeightArray reduced_part_weights = _context.partition.max_part_weights.copy();
     if (_context.refinement.rebalancing.reduced_target_weight_factor > 0 || _context.refinement.rebalancing.reduced_weight_from_block > 0) {
       double factor = _context.refinement.rebalancing.reduced_target_weight_factor / static_cast<double>(phg.initialNumNodes());
@@ -700,6 +703,8 @@ namespace impl {
         reduced_part_weights[part] -= weight::max(weight_diff, block_weight_diff);
       }
     }
+
+    auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
 
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = 0;
@@ -722,6 +727,16 @@ namespace impl {
       if (!_context.refinement.rebalancing.fallback_full_locking) {
         is_locked = nullptr;
       }
+      stats.update_stat("rebalancing_greedy_rounds", 1);
+      if (is_top_level) {
+        stats.update_stat("rebalancing_greedy_rounds_toplevel", 1);
+      }
+      if (!is_fallback) {
+        stats.update_stat("rebalancing_greedy_rounds_base", 1);
+        if (is_top_level) {
+          stats.update_stat("rebalancing_greedy_rounds_base_toplevel", 1);
+        }
+      }
       ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
@@ -735,8 +750,9 @@ namespace impl {
   std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                                                         size_t& global_move_id) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
     return rebalancer::Fallback<GraphAndGainTypes>::runDeadlockFallback(phg, _gain_cache, _context, _tmp_potential_moves, _moves,
-                                                                        _move_id_of_node, _node_is_locked, _weight_normalizer, global_move_id);
+                                                                        _move_id_of_node, _node_is_locked, _weight_normalizer, global_move_id, is_top_level);
   }
 
   template <typename GraphAndGainTypes>
@@ -746,19 +762,30 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
-    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, is_locked);
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, is_locked, false);
 
     if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
         && (!_context.refinement.rebalancing.deadlock_fallback_only_toplevel || is_top_level)) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
+      auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
       const size_t old_id = global_move_id;
       for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
+        stats.update_stat("fallback_calls", 1);
+        if (is_top_level) {
+          stats.update_stat("fallback_calls_toplevel", 1);
+        }
+        if (round == 1) {
+          stats.update_stat("fallback_second_round", 1);
+          if (is_top_level) {
+            stats.update_stat("fallback_second_round_toplevel", 1);
+          }
+        }
         auto [added_gain, n_moved] = runDeadlockFallback(hypergraph, global_move_id);
         if (n_moved == 0) break;
 
         attributed_gain += added_gain;
         const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
-        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks);
+        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks, true);
         attributed_gain += attr_gain;
         num_overloaded_blocks = n_overloaded;
       }
@@ -795,6 +822,12 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance << " initial cut =" << best_metric.quality;
+
+    auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
+    stats.update_stat("rebalancer_calls", 1);
+    if (phg.initialNumNodes() == _top_level_num_nodes) {
+      stats.update_stat("rebalancer_calls_toplevel", 1);
+    }
 
     if (_context.refinement.rebalancing.allow_multiple_moves) {
       _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);

@@ -345,6 +345,10 @@ namespace mt_kahypar {
       GainCachePtr::deleteGainCache(gain_cache);
       timer.stop_timer("rebalance");
       timer.stop_timer("refinement");
+
+      utils::Utilities::instance().getStats(context.utility_id).add_stat("d0_rebalancing", true);
+    } else {
+      utils::Utilities::instance().getStats(context.utility_id).add_stat("d0_rebalancing", false);
     }
   }
 
