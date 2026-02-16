@@ -101,7 +101,7 @@ namespace mt_kahypar::io {
           for (Dimension d = 0; d < dimension; d++) {
             const auto& stats = hn_weight_stats[d];
             uint8_t double_width = (std::round(stats.avg) == stats.avg && std::round(stats.sd) == stats.sd) ?
-                                    1 : reduced_precision + 1;
+                                    1 : reduced_precision + 2;
             uint8_t hn_weight_digits = std::max(kahypar::math::digits(stats.max), double_width);
             ss << std::left << std::setw(hn_weight_digits + 2);
             ss << std::setprecision(hn_weight_digits - 1) << accessor_fn(stats);
