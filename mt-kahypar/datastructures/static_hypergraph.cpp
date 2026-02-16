@@ -590,22 +590,28 @@ namespace mt_kahypar::ds {
     }
   }
 
-  AllocatedHNWeight StaticHypergraph::computeTotalNodeWeight(parallel_tag_t) {
+  std::pair<AllocatedHNWeight, AllocatedHNWeight> StaticHypergraph::computeTotalNodeWeightAndMax(parallel_tag_t) {
     tbb::enumerable_thread_specific<AllocatedHNWeight> local_sum(dimension(), 0);
-    doParallelForAllNodes([this, &local_sum](const HypernodeID hn) {
-      local_sum.local() += this->_hypernode_weights[hn];
+    tbb::enumerable_thread_specific<AllocatedHNWeight> local_max(dimension(), 0);
+    doParallelForAllNodes([this, &local_sum, &local_max](const HypernodeID hn) {
+      auto hn_weight = this->_hypernode_weights[hn];
+      local_sum.local() += hn_weight;
+      local_max.local() = weight::max(local_max.local(), hn_weight);
     });
-    AllocatedHNWeight result;
-    result = weight::broadcast(0, dimension());
+    AllocatedHNWeight result(dimension(), 0);
+    AllocatedHNWeight result_max(dimension(), 0);
     for (const auto& weight: local_sum) {
       result += weight;
     }
-    return result;
+    for (const auto& weight: local_max) {
+      result_max = weight::max(result_max, weight);
+    }
+    return {std::move(result), std::move(result_max)};
   }
 
   // ! Computes the total node weight of the hypergraph
   void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-    _total_weight = computeTotalNodeWeight(parallel_tag_t());
+    std::tie(_total_weight, _max_weight) = computeTotalNodeWeightAndMax(parallel_tag_t());
   }
 
 } // namespace

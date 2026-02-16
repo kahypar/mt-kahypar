@@ -453,6 +453,7 @@ class StaticGraph {
     _num_removed_nodes(0),
     _num_edges(0),
     _total_weight(),
+    _max_weight(),
     _nodes(),
     _node_weights(),
     _edges(),
@@ -469,6 +470,7 @@ class StaticGraph {
     _num_removed_nodes(other._num_removed_nodes),
     _num_edges(other._num_edges),
     _total_weight(std::move(other._total_weight)),
+    _max_weight(std::move(other._max_weight)),
     _nodes(std::move(other._nodes)),
     _node_weights(std::move(other._node_weights)),
     _edges(std::move(other._edges)),
@@ -485,6 +487,7 @@ class StaticGraph {
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
     _total_weight = std::move(other._total_weight);
+    _max_weight = std::move(other._max_weight);
     _nodes = std::move(other._nodes);
     _node_weights = std::move(other._node_weights);
     _edges = std::move(other._edges);
@@ -553,8 +556,13 @@ class StaticGraph {
     return _total_weight;
   }
 
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _max_weight;
+  }
+
   // ! Computes the total node weight of the hypergraph
-  AllocatedHNWeight computeTotalNodeWeight(parallel_tag_t);
+  std::pair<AllocatedHNWeight, AllocatedHNWeight> computeTotalNodeWeightAndMax(parallel_tag_t);
 
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
@@ -946,6 +954,8 @@ class StaticGraph {
   HyperedgeID _num_edges;
   // ! Total weight of the graph
   AllocatedHNWeight _total_weight;
+  // ! Max node weight of the graph
+  AllocatedHNWeight _max_weight;
 
   // ! Nodes
   Array<Node> _nodes;
