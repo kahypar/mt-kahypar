@@ -971,6 +971,7 @@ namespace impl {
     best_metric.quality += attributed_gain;
     best_metric.imbalance = metrics::imbalance(phg, _context);
     if (num_overloaded_blocks > 0) {
+      stats.update_stat("unsuccessful_rebalancing_calls", 1);
       DBG << RED << "Rebalancing:   final imbalance =" << best_metric.imbalance << " final cut =" << best_metric.quality << END;
     } else {
       DBG << GREEN << "Rebalancing:   final imbalance =" << best_metric.imbalance << " final cut =" << best_metric.quality << END;
