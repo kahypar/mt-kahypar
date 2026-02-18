@@ -156,16 +156,13 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
         }
       };
 
-      HyperedgeWeight gain = 0;
-      if (context.refinement.rebalancing.fallback_relative_block_priority || rating == best_rating) {
-        HyperedgeWeight benefit;
-        if (gain_cache.blockIsAdjacent(hn, to)) {
-          benefit = gain_cache.benefitTerm(hn, to);
-        } else {
-          benefit = gain_cache.recomputeBenefitTerm(phg, hn, to);
-        }
-        gain = benefit - penalty_term;
+      HyperedgeWeight benefit;
+      if (gain_cache.blockIsAdjacent(hn, to)) {
+        benefit = gain_cache.benefitTerm(hn, to);
+      } else {
+        benefit = gain_cache.recomputeBenefitTerm(phg, hn, to);
       }
+      HyperedgeWeight gain = benefit - penalty_term;
       if (context.refinement.rebalancing.fallback_relative_block_priority) {
         ASSERT(adjacent_weight + gain >= 0);
         rating *= (2 * adjacent_weight + gain);
