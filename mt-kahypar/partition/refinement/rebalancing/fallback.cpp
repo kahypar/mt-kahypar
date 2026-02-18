@@ -165,7 +165,7 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
       HyperedgeWeight gain = benefit - penalty_term;
       if (context.refinement.rebalancing.fallback_relative_block_priority) {
         ASSERT(adjacent_weight + gain >= 0);
-        rating *= (2 * adjacent_weight + gain);
+        rating *= (adjacent_weight + gain);
       }
       ASSERT(rating >= 0);
       if (rating > best_rating || (rating == best_rating && gain > best_gain)) {
