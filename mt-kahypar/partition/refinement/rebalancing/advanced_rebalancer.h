@@ -134,7 +134,10 @@ private:
                     size_t& global_move_id,
                     bool parallel);
 
-  int64_t applyRollback(mt_kahypar_partitioned_hypergraph_t& hypergraph, const size_t old_move_id, size_t& global_move_id);
+  int64_t applyRollback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                        const HypernodeWeightArray& reduced_part_weights,
+                        const size_t old_move_id,
+                        size_t& global_move_id);
 
   std::pair<int64_t, size_t> runGreedyRebalancingRound(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                        const HypernodeWeightArray& reduced_part_weights,
@@ -143,6 +146,7 @@ private:
                                                        bool parallel);
 
   std::tuple<int64_t, size_t, size_t> runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                         const HypernodeWeightArray& reduced_part_weights,
                                                          size_t& global_move_id,
                                                          const uint8_t* is_locked,
                                                          bool is_fallback);
@@ -150,6 +154,7 @@ private:
   std::pair<int64_t, size_t> runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
 
   std::tuple<int64_t, size_t, size_t> runGreedyAlgorithmWithFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                     const HypernodeWeightArray& reduced_part_weights,
                                                                      size_t& global_move_id,
                                                                      const uint8_t* is_locked);
 

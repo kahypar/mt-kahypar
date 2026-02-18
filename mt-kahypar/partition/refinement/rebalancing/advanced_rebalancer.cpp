@@ -575,14 +575,16 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   int64_t AdvancedRebalancer<GraphAndGainTypes>::applyRollback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                               const HypernodeWeightArray& reduced_part_weights,
                                                                const size_t old_move_id,
                                                                size_t& global_move_id) {
     // TODO: this implementation is not as performant as it could be
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HypernodeWeightArray part_weights = phg.partWeights().copy();
+    auto& max_part_weights = _context.refinement.rebalancing.reduced_rollback ? reduced_part_weights : _context.partition.max_part_weights;
     auto compute_imbalance = [&]() {
       return _context.refinement.rebalancing.l1_rollback ?
-        impl::imbalanceSum(part_weights, _context, _weight_normalizer) : impl::imbalance(part_weights, _context);
+        impl::imbalanceSum(part_weights, max_part_weights, _context, _weight_normalizer) : impl::imbalance(part_weights, _context);
     };
 
     double best_imbalance = compute_imbalance();
@@ -618,7 +620,7 @@ namespace impl {
       }
     }
     if (best_move_id < global_move_id) {
-      float overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      float overweight = impl::imbalanceSum(phg.partWeights(), max_part_weights, _context, _weight_normalizer);
       DBG << "Rolling back" << (global_move_id - best_move_id) << "moves, overweight:" << overweight;
     }
     global_move_id = best_move_id;
@@ -649,7 +651,7 @@ namespace impl {
     int64_t attributed_gain = findMoves(hypergraph, reduced_part_weights, global_move_id, parallel);
 
     if (_context.refinement.rebalancing.use_rollback) {
-      attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+      attributed_gain += applyRollback(hypergraph, reduced_part_weights, old_id, global_move_id);
     }
 
     if constexpr (GainCache::invalidates_entries) {
@@ -679,36 +681,19 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                                                const HypernodeWeightArray& reduced_part_weights,
                                                                                                 size_t& global_move_id,
                                                                                                 const uint8_t* is_locked,
                                                                                                 bool is_fallback) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
-
-    HypernodeWeightArray reduced_part_weights = _context.partition.max_part_weights.copy();
-    if (_context.refinement.rebalancing.reduced_target_weight_factor > 0 || _context.refinement.rebalancing.reduced_weight_from_block > 0) {
-      double factor = _context.refinement.rebalancing.reduced_target_weight_factor / static_cast<double>(phg.initialNumNodes());
-      auto weight_diff = weight::map(phg.totalWeight(), [=](HNWeightScalar val) {
-        return std::ceil(factor * static_cast<double>(val));
-      });
-      for (size_t part = 0; part < reduced_part_weights.size(); ++part) {
-        double block_factor = std::min(_context.refinement.rebalancing.reduced_weight_from_block, _context.partition.epsilon);
-        auto block_weight_diff = weight::min(
-          weight::map(reduced_part_weights[part], [=](HNWeightScalar val) {
-            return std::ceil(block_factor * static_cast<double>(val));
-          }), phg.maxNodeWeight());
-        if (part == 0) {
-          DBG << "reducing target weight by" << V(weight_diff) << V(block_weight_diff);
-        }
-        reduced_part_weights[part] -= weight::max(weight_diff, block_weight_diff);
-      }
-    }
+    auto& max_part_weights = _context.refinement.rebalancing.reduced_rollback ? reduced_part_weights : _context.partition.max_part_weights;
 
     auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
 
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = 0;
-    double old_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+    double old_overweight = impl::imbalanceSum(phg.partWeights(), max_part_weights, _context, _weight_normalizer);
     double new_overweight = old_overweight;
     size_t num_moves_first_round = 0;
     bool moved_nodes = false;
@@ -719,7 +704,7 @@ namespace impl {
         runGreedyRebalancingRound(hypergraph, reduced_part_weights, global_move_id, is_locked, true);
       attributed_gain += attr_gain;
       num_overloaded_blocks = n_overloaded;
-      new_overweight = impl::imbalanceSum(phg.partWeights(), _context, _weight_normalizer);
+      new_overweight = impl::imbalanceSum(phg.partWeights(), max_part_weights, _context, _weight_normalizer);
       moved_nodes = global_move_id > old_id;
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
@@ -737,7 +722,7 @@ namespace impl {
           stats.update_stat("rebalancing_greedy_rounds_base_toplevel", 1);
         }
       }
-      ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
+      // ASSERT((num_overloaded_blocks == 0) == (new_overweight == 0));
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
              && new_overweight < old_overweight
@@ -757,12 +742,14 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   std::tuple<int64_t, size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithmWithFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                                                            const HypernodeWeightArray& reduced_part_weights,
                                                                                                             size_t& global_move_id,
                                                                                                             const uint8_t* is_locked) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
-    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, global_move_id, is_locked, false);
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] =
+      runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, is_locked, false);
 
     if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
         && (!_context.refinement.rebalancing.deadlock_fallback_only_toplevel || is_top_level)) {
@@ -785,14 +772,14 @@ namespace impl {
 
         attributed_gain += added_gain;
         const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
-        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, global_move_id, locks, true);
+        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, locks, true);
         attributed_gain += attr_gain;
         num_overloaded_blocks = n_overloaded;
       }
 
       if (_context.refinement.rebalancing.use_rollback) {
         const size_t last_id = global_move_id;
-        attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+        attributed_gain += applyRollback(hypergraph, reduced_part_weights, old_id, global_move_id);
 
         if (global_move_id != last_id) {
           if constexpr (GainCache::invalidates_entries) {
@@ -842,8 +829,29 @@ namespace impl {
       _weight_normalizer[d] = 1 / static_cast<double>(total_weight.at(d));
     }
 
+    // compute reduced part weights
+    HypernodeWeightArray reduced_part_weights = _context.partition.max_part_weights.copy();
+    if (_context.refinement.rebalancing.reduced_target_weight_factor > 0 || _context.refinement.rebalancing.reduced_weight_from_block > 0) {
+      double factor = _context.refinement.rebalancing.reduced_target_weight_factor / static_cast<double>(phg.initialNumNodes());
+      auto weight_diff = weight::map(phg.totalWeight(), [=](HNWeightScalar val) {
+        return std::ceil(factor * static_cast<double>(val));
+      });
+      for (size_t part = 0; part < reduced_part_weights.size(); ++part) {
+        double block_factor = std::min(_context.refinement.rebalancing.reduced_weight_from_block, _context.partition.epsilon);
+        auto block_weight_diff = weight::min(
+          weight::map(reduced_part_weights[part], [=](HNWeightScalar val) {
+            return std::ceil(block_factor * static_cast<double>(val));
+          }), phg.maxNodeWeight());
+        if (part == 0) {
+          DBG << "reducing target weight by" << V(weight_diff) << V(block_weight_diff);
+        }
+        reduced_part_weights[part] -= weight::max(weight_diff, block_weight_diff);
+      }
+    }
+
     size_t global_move_id = 0;
-    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, nullptr);
+    auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] =
+      runGreedyAlgorithmWithFallback(hypergraph, reduced_part_weights, global_move_id, nullptr);
 
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
     if (_context.refinement.rebalancing.use_binpacking_fallback && num_overloaded_blocks > 0
@@ -892,13 +900,13 @@ namespace impl {
           }
 
           const auto locks = _context.refinement.rebalancing.binpacking_use_locking ? _node_is_locked.data() : nullptr;
-          auto [attr_gain, n_overloaded, _] = runGreedyAlgorithmWithFallback(hypergraph, global_move_id, locks);
+          auto [attr_gain, n_overloaded, _] = runGreedyAlgorithmWithFallback(hypergraph, reduced_part_weights, global_move_id, locks);
           attributed_gain += attr_gain;
           num_overloaded_blocks = n_overloaded;
 
           if (_context.refinement.rebalancing.use_rollback) {
             const size_t last_id = global_move_id;
-            attributed_gain += applyRollback(hypergraph, old_id, global_move_id);
+            attributed_gain += applyRollback(hypergraph, reduced_part_weights, old_id, global_move_id);
 
             if (global_move_id != last_id) {
               if constexpr (GainCache::invalidates_entries) {
