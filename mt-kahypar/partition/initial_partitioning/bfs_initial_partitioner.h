@@ -65,6 +65,7 @@ class BFSInitialPartitioner : public IInitialPartitioner {
   bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
                             const HypernodeID hn,
                             const PartitionID block) const {
+    return true;
     if (hypergraph.hasNegativeConstraints()) {
       if (!constraints::isNodeAllowedInPartition(hypergraph, hn, block)){
         // if there is no allowed partition just put it in the one requested

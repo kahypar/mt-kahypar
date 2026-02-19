@@ -76,6 +76,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
   bool constraintsAllowBlock(PartitionedHypergraph& hypergraph,
                             const HypernodeID hn,
                             const PartitionID block) const {
+    return true;
     if (hypergraph.hasNegativeConstraints()) {
       if (!constraints::isNodeAllowedInAnyPartition(hypergraph, hn)) return true;
       return constraints::isNodeAllowedInPartition(hypergraph, hn, block);
