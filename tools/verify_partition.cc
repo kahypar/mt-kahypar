@@ -78,6 +78,17 @@ int main(int argc, char* argv[]) {
           ("partition-file,b",
            po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
            "Partition Filename")
+          ("input-file-format,file-format",
+            po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
+              if (s == "hmetis") {
+                context.partition.file_format = FileFormat::hMetis;
+              } else if (s == "metis") {
+                context.partition.file_format = FileFormat::Metis;
+              }
+            }),
+            "Input file format: \n"
+            " - hmetis : hMETIS hypergraph file format \n"
+            " - metis : METIS graph file format")
           ("blocks,k",
            po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
            "Number of Blocks")
@@ -96,7 +107,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
       context.partition.graph_filename, PresetType::default_preset,
-      InstanceType::hypergraph, FileFormat::hMetis, true);
+      InstanceType::hypergraph, context.partition.file_format, true);
   Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
