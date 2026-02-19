@@ -113,10 +113,7 @@ int main(int argc, char* argv[]) {
   bool success = readPartitionFile(context.partition.graph_partition_filename, phg);
 
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
-    if ( phg.partWeight(i) == 0 ) {
-      LOG << RED << "[ERROR]" << END << "Block" << (i + 1) << "is empty" << END;
-      success = false;
-    } else if ( phg.partWeight(i) > context.partition.max_part_weights[i] ) {
+    if ( !(phg.partWeight(i) <= context.partition.max_part_weights[i]) ) {
       LOG << RED << "[ERROR]" << END << "Block" << (i + 1) << "has weight"
           << phg.partWeight(i) << ", but maximum allowed block weight is"
           << context.partition.max_part_weights[i] << END;
