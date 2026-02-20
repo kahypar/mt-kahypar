@@ -190,13 +190,13 @@ namespace {
       utils::Utilities::instance().getInitialPartitioningStats(
         context.utility_id).printInitialPartitioningStats();
     }
-    if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
-      LOG <<"";
-      LOG << (constraints::verifyConstraints(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
-      LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
-      LOG <<"";
-      constraints::postprocessNegativeConstraints(phg, context);
-    }
+    // if(context.type == ContextType::main && phg.hasNegativeConstraints()) {
+    //   LOG <<"";
+    //   LOG << (constraints::verifyConstraints(phg)? "Constrains were respected from initial partitioning" : "!!! initial partitioning destroyed constrains !!!");
+    //   LOG << (constraints::allNodesAllowedNumberOfNeighbors(phg)? "Node degrees were respected from initial partitioning" : "!!! initial partitioning destroyed node degrees !!!");
+    //   LOG <<"";
+    //   constraints::postprocessNegativeConstraints(phg, context);
+    // }
     timer.stop_timer("initial_partitioning");
 
     // ################## UNCOARSENING ##################
