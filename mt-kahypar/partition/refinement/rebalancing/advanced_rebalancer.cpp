@@ -615,11 +615,13 @@ namespace impl {
   std::tuple<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(PartitionedHypergraph& phg,
                                                                                        int64_t& attributed_gain,
                                                                                        size_t& global_move_id) {
+    size_t round = 0;
     size_t num_overloaded_blocks = 0;
     double old_overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
     double new_overweight = old_overweight;
     size_t num_moves_first_round = 0;
     bool moved_nodes = false;
+    const size_t max_rounds = _context.refinement.rebalancing.max_rounds;
     do {
       old_overweight = new_overweight;
       const size_t old_id = global_move_id;
@@ -632,10 +634,12 @@ namespace impl {
       if (num_moves_first_round == 0) {
         num_moves_first_round = global_move_id;
       }
+      ++round;
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
              && new_overweight < old_overweight
-             && global_move_id < phg.initialNumNodes());
+             && global_move_id < phg.initialNumNodes()
+             && (max_rounds == 0 || round < max_rounds));
     DBG << V(old_overweight) << V(new_overweight) << V(global_move_id) << V(moved_nodes);
     return {num_overloaded_blocks, num_moves_first_round};
   }
