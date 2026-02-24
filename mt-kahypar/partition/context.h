@@ -218,6 +218,7 @@ struct DeterministicRefinementParameters {
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
+  size_t max_rounds = 0;
   bool allow_any_progress = true;
   bool use_rollback = true;
   double reduced_weight_from_block = 0.0;  // relative to block weight
