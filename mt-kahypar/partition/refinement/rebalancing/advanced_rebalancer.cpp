@@ -658,9 +658,12 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
     auto& max_part_weights = _context.refinement.rebalancing.reduced_rollback ? reduced_part_weights : _context.partition.max_part_weights;
+    const size_t max_rounds = _context.refinement.rebalancing.max_rounds;
 
     auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
     const size_t id_before_repair = global_move_id;
+
+    size_t round = 0;
     int64_t attributed_gain = 0;
     _repair_empty_blocks.repairEmptyBlocks(hypergraph, _gain, [&](const Move& m) {
       bool success = phg.changeNodePart(
@@ -685,6 +688,7 @@ namespace impl {
     }
 
     size_t num_overloaded_blocks = 0;
+    // TODO: measure progress without target weight reduction?
     double old_overweight = impl::imbalanceSum(phg.partWeights(), max_part_weights, _context, _weight_normalizer);
     double new_overweight = old_overweight;
     size_t num_moves_first_round = 0;
@@ -704,6 +708,8 @@ namespace impl {
       if (!_context.refinement.rebalancing.fallback_full_locking) {
         is_locked = nullptr;
       }
+      ++round;
+
       stats.update_stat("rebalancing_greedy_rounds", 1);
       if (is_top_level) {
         stats.update_stat("rebalancing_greedy_rounds_toplevel", 1);
@@ -717,7 +723,8 @@ namespace impl {
     } while (_context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
              && new_overweight < old_overweight
-             && global_move_id < phg.initialNumNodes());
+             && global_move_id < phg.initialNumNodes()
+             && (max_rounds == 0 || round < max_rounds));
     DBG << V(old_overweight) << V(new_overweight) << V(global_move_id) << V(moved_nodes);
     return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
   }

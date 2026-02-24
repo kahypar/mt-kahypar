@@ -908,6 +908,12 @@ namespace mt_kahypar {
       "- do_nothing"
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-rounds": "--r-rebalancing-rounds"),
+      (!initial_partitioning ? context.refinement.rebalancing.max_rounds :
+        context.initial_partitioning.refinement.rebalancing.max_rounds ),
+       "Multiconstraint: maximum number of rebalancing rounds (0 = unlimited)."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-any-progress": "--r-rebalancing-any-progress"),
       (!initial_partitioning ? context.refinement.rebalancing.allow_any_progress :
         context.initial_partitioning.refinement.rebalancing.allow_any_progress ),
