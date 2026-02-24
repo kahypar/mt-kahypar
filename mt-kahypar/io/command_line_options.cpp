@@ -613,6 +613,11 @@ namespace mt_kahypar {
              "- simple_rebalancer\n"
              "- advanced_rebalancer\n"
              "- do_nothing")
+            ((initial_partitioning ? "i-r-rebalancing-rounds": "r-rebalancing-rounds"),
+            po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.max_rounds :
+                              &context.initial_partitioning.refinement.rebalancing.max_rounds))->value_name(
+                    "<int>")->default_value(0),
+             "Multiconstraint: maximum number of rebalancing rounds.")
             ((initial_partitioning ? "i-r-rebalancing-any-progress": "r-rebalancing-any-progress"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.allow_any_progress :
                               &context.initial_partitioning.refinement.rebalancing.allow_any_progress))->value_name(
