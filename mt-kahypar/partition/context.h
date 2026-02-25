@@ -295,6 +295,14 @@ struct EvolutionaryParameters {
   bool modified_combine_use_random_partitions = false;
   bool modified_combine_use_degree_sorted_partitions = false;
   bool modified_combine_mixed = false;
+
+  struct ImprovementRateStoppingParameters {
+    bool enabled = false;
+    int early_window_improvs = 5;
+    int recent_window_improvs = 5;
+    double alpha = 0.05;
+    int max_iters_without_improv = 100;
+  } improvement_rate_stopping;
 };
 
 class Context {

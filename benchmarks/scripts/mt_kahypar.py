@@ -338,11 +338,14 @@ if __name__ == "__main__":
   # run Mt-KaHyPar
   result, success = {}, False
 
+  user_has_preset = ("--preset-type" in args.args) if args.args else False
+  default_args = {} if user_has_preset else {"--preset-type": "quality"}
+  
   if evo:
     #print("DEBUG: Running Mt-KaHyPar in evolutionary mode.", file=sys.stderr)
-    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args={"--preset-type": "quality"}, detect_instance_type=True)
+    result, success = run_mtkahypar_evo(EXECUTABLE, args, default_args=default_args, detect_instance_type=True)
   else:
-    result, success = run_mtkahypar(EXECUTABLE, args, default_args={"--preset-type": "quality"}, detect_instance_type=True)
+    result, success = run_mtkahypar(EXECUTABLE, args, default_args=default_args, detect_instance_type=True)
   
   set_results()
   if success:

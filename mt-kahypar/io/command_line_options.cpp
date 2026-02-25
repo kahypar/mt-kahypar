@@ -1253,6 +1253,31 @@ namespace mt_kahypar {
       context.evolutionary.modified_combine_mixed,
       "Use mixed mode for modified combine external parent"
     )->capture_default_str();
+    app.add_option(
+      "--evo-improvement-rate-stopping",
+      context.evolutionary.improvement_rate_stopping.enabled,
+      "Enable stopping based on improvement rate (sliding window)"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-early-window-improvs",
+      context.evolutionary.improvement_rate_stopping.early_window_improvs,
+      "Number of improvements for early window rate calculation"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-recent-window-improvs",
+      context.evolutionary.improvement_rate_stopping.recent_window_improvs,
+      "Number of improvements for recent window rate calculation"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-stopping-alpha",
+      context.evolutionary.improvement_rate_stopping.alpha,
+      "Alpha factor for improvement rate comparison (recent < alpha * early)"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-max-iters-without-improv",
+      context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
+      "Maximum iterations without improvement (plateau) before stopping"
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {

@@ -69,7 +69,10 @@ namespace internal {
     context.evolutionary.mutate_strategy=EvoMutateStrategy::vcycle;
     context.evolutionary.random_vcycles=true;*/
 
-    if (context.partition_evolutionary && context.partition.time_limit > 0) {
+    if (context.partition_evolutionary) {
+      ASSERT(context.partition.time_limit > 0 ||
+             context.evolutionary.improvement_rate_stopping.enabled,
+              "Evolutionary partitioning requires a time limit or improvement rate stopping.");
       partitioned_hg =
         EvoPartitioner<TypeTraits>::partition(hg, context, target_graph);
     } else {
