@@ -607,15 +607,13 @@ std::vector<std::string> load_large_k_preset() {
     // main -> initial_partitioning
     create_option("i-mode", "direct"),
     create_option("i-runs", "5"),
-    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_fm
-    create_option("i-enabled-ip-algos", "1"),    // greedy_global_fm
-    create_option("i-enabled-ip-algos", "0"),    // greedy_sequential_fm
-    create_option("i-enabled-ip-algos", "1"),    // random
-    create_option("i-enabled-ip-algos", "1"),    // bfs
-    create_option("i-enabled-ip-algos", "0"),    // label_propagation
-    create_option("i-enabled-ip-algos", "1"),    // greedy_round_robin_max_net
-    create_option("i-enabled-ip-algos", "0"),    // greedy_global_max_net
-    create_option("i-enabled-ip-algos", "1"),    // greedy_sequential_max_net
+    // disabled ip algos: greedy_sequential_fm, label_propagation, greedy_global_max_net
+    create_option("i-enabled-ip-algos", "greedy_round_robin_fm"),
+    create_option("i-enabled-ip-algos", "greedy_global_fm"),
+    create_option("i-enabled-ip-algos", "random"),
+    create_option("i-enabled-ip-algos", "bfs"),
+    create_option("i-enabled-ip-algos", "greedy_round_robin_max_net"),
+    create_option("i-enabled-ip-algos", "greedy_sequential_max_net"),
     create_option("i-use-adaptive-ip-runs", "true"),
     create_option("i-min-adaptive-ip-runs", "3"),
     create_option("i-perform-refinement-on-best-partitions", "true"),

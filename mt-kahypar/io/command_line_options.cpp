@@ -996,22 +996,27 @@ namespace mt_kahypar {
       "- deep\n"
       "- rb"
     )->capture_default_str();
-    app.add_option(
-      "--i-enabled-ip-algos",
-      context.initial_partitioning.enabled_ip_algos,
-      "Indicate which IP algorithms should be executed. E.g. i-enabled-ip-algos=1 1 0 1 0 1 1 1 0 "
-      "indicates that\n"
-      "  1.) greedy_round_robin_fm      (is executed)\n"
-      "  2.) greedy_global_fm           (is executed)\n"
-      "  3.) greedy_sequential_fm       (is NOT executed)\n"
-      "  4.) random                     (is executed)\n"
-      "  5.) bfs                        (is NOT executed)\n"
-      "  6.) label_propagation          (is executed)\n"
-      "  7.) greedy_round_robin_max_net (is executed)\n"
-      "  8.) greedy_global_max_net      (is executed)\n"
-      "  9.) greedy_sequential_max_net  (is NOT executed)\n"
-      "Note that the vector must contain exactly 9 values."
-    )->expected(9)->capture_default_str();
+    app.add_option_function<std::vector<std::string>>(
+      "--i-enabled-ip-algos", [&](const std::vector<std::string>& list) {
+        std::vector<bool>& enabled_ip_algos = context.initial_partitioning.enabled_ip_algos;
+        enabled_ip_algos.assign(enabled_ip_algos.size(), false);
+        for (const auto& name: list) {
+          auto algo = initialPartitioningAlgorithmFromString(name);
+          enabled_ip_algos.at(static_cast<size_t>(algo)) = true;
+        }
+      },
+      "Indicate which IP algorithms should be executed, as a list of enabled algorithms:\n"
+      "- greedy_round_robin_fm\n"
+      "- greedy_global_fm\n"
+      "- greedy_sequential_fm\n"
+      "- random\n"
+      "- bfs\n"
+      "- label_propagation\n"
+      "- greedy_round_robin_max_net\n"
+      "- greedy_global_max_net\n"
+      "- greedy_sequential_max_net\n"
+      "For example, 'i-enabled-ip-algos=random bfs' enables the random and bfs algorithms."
+    )->expected(1, 9)->capture_default_str();
     app.add_option(
       "--i-runs",
       context.initial_partitioning.runs,
