@@ -298,7 +298,7 @@ struct EvolutionaryParameters {
 
   // Meta-Evo Parameters
   bool meta_evo_mode = false;
-  int meta_evo_solutions_per_run = 2;
+  int meta_evo_solutions_per_run = 5;
 
   struct ImprovementRateStoppingParameters {
     bool enabled = false;
