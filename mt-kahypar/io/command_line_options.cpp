@@ -1229,7 +1229,7 @@ namespace mt_kahypar {
       "Factor to multiply base k for modified combine external parent"
     )->capture_default_str();
     app.add_option(
-      "--evo-modified-combine-epsilon",
+      "--evo-modified-combine-epsilon-multiplier",
       context.evolutionary.modified_combine_epsilon_multiplier,
       "Epsilon value for modified combine external parent"
     )->capture_default_str();
@@ -1242,6 +1242,11 @@ namespace mt_kahypar {
       "--evo-modified-combine-use-random-partitions",
       context.evolutionary.modified_combine_use_random_partitions,
       "Use random partitions for modified combine external parent"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-use-degree-sorted-partitions",
+      context.evolutionary.modified_combine_use_degree_sorted_partitions,
+      "Use degree sorted partitions for modified combine external parent"
     )->capture_default_str();
   }
 
@@ -1295,8 +1300,18 @@ namespace mt_kahypar {
       ERR(e.what());
     }
 
-    if (context.evolutionary.enable_modified_combine && cmd_vm.count("evo-modified-combine-chance") == 0) {
-      context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
+    if (context.evolutionary.enable_modified_combine) {
+      // Only override probabilities if the user did NOT explicitly provide
+      // --evo-modified-combine-chance
+      bool chance_provided_explicitly = false;
+      if (cmd_vm.count("evo-modified-combine-chance")) {
+        chance_provided_explicitly = !cmd_vm["evo-modified-combine-chance"].defaulted();
+      }
+      if (!chance_provided_explicitly) {
+        // set to 1/3 each
+        context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
+        context.evolutionary.mutation_chance = 1.0f / 3.0f;
+      }
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);

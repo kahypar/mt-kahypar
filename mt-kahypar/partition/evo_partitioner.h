@@ -13,6 +13,7 @@ class TargetGraph;
 
 struct ContextModifierParameters {
     bool use_random_partitions = false;
+    bool use_degree_sorted_partitions = false;
     PartitionID k = 2;
     double epsilon = 0.03;
     bool recursive_bipartitioning = false;
@@ -59,7 +60,8 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static void clearThreadLocalTemporaries();
 
     static EvoDecision decideNextMove(const Context& context);
-    static vec<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
+    static std::vector<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
+    static std::vector<PartitionID> createRandomPartition(const Hypergraph& hypergraph, const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
     static vec<PartitionID> combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions);

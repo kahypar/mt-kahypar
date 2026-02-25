@@ -329,35 +329,68 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    vec<PartitionID> EvoPartitioner<TypeTraits>::createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context) {
-        vec<std::pair<HypernodeID, HypernodeDegree>> degrees;
+    std::vector<PartitionID> EvoPartitioner<TypeTraits>::createRandomPartition(const Hypergraph& hypergraph, const Context& context) {
         Hypergraph hg = hypergraph.copy(parallel_tag_t{});
+        Context c(context);
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hg);
 
-        for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            degrees.push_back({hn, hypergraph.degree(hn)});
+        // Randomly assign nodes to blocks
+        hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+            PartitionID block = utils::Randomize::instance().getRandomInt(0, context.partition.k - 1, THREAD_ID);
+            partitioned_hypergraph.setOnlyNodePart(hn, block);
+        });
+
+        // Iinitialize partition data structures
+        partitioned_hypergraph.initializePartition();
+
+        // V-Cycle to improve partitioning
+        Multilevel<TypeTraits>::partitionVCycle(hg, partitioned_hypergraph, c, nullptr);
+        
+        // extract partition
+        std::vector<PartitionID> partition(hg.initialNumNodes(), 0);
+        partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+            partition[hn] = partitioned_hypergraph.partID(hn);
+        });
+        return partition;
+    }
+
+
+    template<typename TypeTraits>
+    std::vector<PartitionID> EvoPartitioner<TypeTraits>::createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context) {
+        std::vector<std::pair<HypernodeID, size_t>> degrees;
+        Hypergraph hg = hypergraph.copy(parallel_tag_t{});
+        Context c(context);
+        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hg);
+
+        for ( const HypernodeID& hn : hg.nodes() ) {
+            degrees.emplace_back(hn, hg.nodeDegree(hn));
         }
         std::sort(degrees.begin(), degrees.end(),
-                  [](const std::pair<HypernodeID, HypernodeDegree>& a,
-                     const std::pair<HypernodeID, HypernodeDegree>& b) {
+                  [](const std::pair<HypernodeID, size_t>& a,
+                     const std::pair<HypernodeID, size_t>& b) {
                         return a.second > b.second;
                   });
 
-        vec<PartitionID> partition(hg.initialNumNodes(), 0);
+        std::vector<PartitionID> partition(hg.initialNumNodes(), 0);
         
         // Split partition based on degree -- equisize blocks
         size_t block_size = hg.initialNumNodes() / context.partition.k;
         for ( size_t i = 0; i < degrees.size(); ++i ) {
-            PartitionID block = std::min(i / block_size, static_cast<PartitionID>(context.partition.k - 1));
-            partition[degrees[i].first] = block;
+            PartitionID block = std::min(static_cast<PartitionID>(i / block_size), static_cast<PartitionID>(context.partition.k - 1));
             partitioned_hypergraph.setOnlyNodePart(degrees[i].first, block);
         }
         
         // Iinitialize partition data structures
         partitioned_hypergraph.initializePartition();
 
-        // Refinement and V-cycle to improve partitioning
+        // V-Cycle to improve partitioning
+        Multilevel<TypeTraits>::partitionVCycle(hg, partitioned_hypergraph, c, nullptr);
         
+        // extract partition
+        partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+            partition[hn] = partitioned_hypergraph.partID(hn);
+        });
+        return partition;
 
     }
 
@@ -404,12 +437,21 @@ namespace mt_kahypar {
 
         modified_context.setupPartWeights(input_hg.totalWeight());
 
-        const Individual& modified_parent = generateIndividual(input_hg, modified_context, target_graph, population, false);
+        std::vector<PartitionID> modified_partition;
+        
+        ASSERT(params.use_random_partitions + params.use_degree_sorted_partitions <= 1,
+               "Can only use one of random or degree-sorted partitions");
+        if (params.use_random_partitions) {
+            modified_partition = createRandomPartition(input_hg, modified_context);
+        } else if (params.use_degree_sorted_partitions) {
+            modified_partition = createDegreeSortedPartition(input_hg, modified_context);
+        } else {
+            modified_partition = generateIndividual(input_hg, modified_context, target_graph, population, false).partition();
+        }
         
         std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
         parent_partitions.push_back(best_partition);
-        parent_partitions.push_back(modified_parent.partition());
-
+        parent_partitions.push_back(modified_partition);
         std::unordered_map<PartitionID, int> comm_to_block;
 
         vec<PartitionID> comms = combineModifiedPartitions(context, parent_partitions);
