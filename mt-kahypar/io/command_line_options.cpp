@@ -1155,7 +1155,7 @@ namespace mt_kahypar {
     app.add_option(
       "--evo-dynamic-population-size",
       context.evolutionary.dynamic_population_size,
-      "Use dynamic population siez for the evolution"
+      "Use dynamic population size for the evolution"
     )->capture_default_str();
     app.add_option(
       "--evo-dynamic-population-time",

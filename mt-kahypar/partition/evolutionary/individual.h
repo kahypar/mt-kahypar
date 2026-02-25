@@ -59,6 +59,7 @@ class Individual {
     _strong_cut_edges(),
     _fitness() {
     for (const HypernodeID& hn : hypergraph.nodes()) {
+      // TODO: Fix indexing/size with preprocessed hypergraphs
       _partition.push_back(hypergraph.partID(hn));
     }
 
