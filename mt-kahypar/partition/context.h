@@ -271,6 +271,7 @@ struct SharedMemoryParameters {
 struct EvolutionaryParameters {
   size_t population_size = 10;
   float mutation_chance = 0.5;
+  size_t num_threads_per_worker = 0; // 0 means automatic
   EvoReplaceStrategy replace_strategy;
   mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
   int diversify_interval = -1;  // -1 disables diversification

@@ -452,8 +452,18 @@ namespace mt_kahypar {
         std::atomic<bool> stop_flag(false);
 
         const int total_threads = context.shared_memory.num_threads;
-        const int num_evo_workers = std::max(1, total_threads / 2);
-        const int num_multilevel_threads = std::max(1, total_threads / num_evo_workers);
+        int num_evo_workers = 0;
+        int num_multilevel_threads = 0;
+
+        if (context.evolutionary.num_threads_per_worker > 0) {
+            num_multilevel_threads = std::min(total_threads, static_cast<int>(context.evolutionary.num_threads_per_worker));
+            num_evo_workers = std::max(1, total_threads / num_multilevel_threads);
+        } else {
+            // Default behavior
+            num_evo_workers = std::max(1, total_threads / 2);
+            num_multilevel_threads = std::max(1, total_threads / num_evo_workers);
+        }
+        
         std::atomic<int> total_mutations(0);
         std::atomic<int> total_combinations(0);
         std::atomic<int> total_iterations(0);

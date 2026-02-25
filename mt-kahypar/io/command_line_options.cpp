@@ -1189,6 +1189,11 @@ namespace mt_kahypar {
       "Output file for evolution difference matrix"
     );
     app.add_option(
+      "--evo-threads-per-worker",
+      context.evolutionary.num_threads_per_worker,
+      "Number of threads to use per evolutionary worker. 0 means automatic (roughly total_threads / 2 workers)."
+    )->capture_default_str();
+    app.add_option(
       "--evo-kway",
       context.evolutionary.kway_combine,
       "How many individsuals to combine for the combine step"
