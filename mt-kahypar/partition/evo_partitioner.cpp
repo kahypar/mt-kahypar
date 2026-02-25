@@ -192,6 +192,79 @@ namespace mt_kahypar {
         auto duration = std::chrono::seconds(context.partition.time_limit);
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
 
+        // META-EVO LOGIC
+        if (context.evolutionary.meta_evo_mode) {
+            LOG << "DEBUG: Starting Meta-Evo Initial Population Generation";
+            
+            int target_pop_size = context.evolutionary.population_size;
+            int solutions_per_run = context.evolutionary.meta_evo_solutions_per_run; // Default 2
+            int num_meta_runs = (target_pop_size + solutions_per_run - 1) / solutions_per_run;
+
+            for (int run = 0; run < num_meta_runs; run++) {
+                now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                if (context.partition.time_limit > 0 && (now - start) >= duration) {
+                    LOG << "DEBUG: Meta-Evo aborted due to global time limit.";
+                    break;
+                }
+
+                LOG << "DEBUG: Meta-Evo Run " << (run + 1) << "/" << num_meta_runs;
+
+                // Setup Sub-Context
+                Context sub_context(context);
+                sub_context.evolutionary.meta_evo_mode = false; // Prevent recursion
+                
+                // Sub-runs use stopping criteria, NOT the global time limit
+                sub_context.partition.time_limit = 0; 
+                sub_context.evolutionary.improvement_rate_stopping.enabled = true;
+                Population sub_population;
+                
+                // Adjust seed for sub-runs if in deterministic mode
+                if (sub_context.partition.deterministic) {
+                    sub_context.partition.seed += run + 1; // +1 to differ from main run
+                }
+                // Reset global state for this sub-run to ensure stopping criteria works correctly
+                {
+                    std::lock_guard<std::mutex> lock(best_tracking_mutex_);
+                    global_best_fitness_ = std::numeric_limits<HyperedgeWeight>::max();
+                    global_best_time_ = std::chrono::milliseconds(0);
+                    improvement_log_entries.clear();
+                }
+                {
+                    std::lock_guard<std::mutex> lock(iteration_log_mutex);
+                    iteration_log_entries.clear();
+                }
+                generateInitialPopulation(hg, sub_context, target_graph, sub_population);
+                performEvolution(hg, sub_context, target_graph, sub_population);
+
+                LOG << "DEBUG: Finished generating sub population";
+
+                // Extract Best Individuals
+                std::vector<std::pair<HyperedgeWeight, size_t>> fitness_indices;
+                for (size_t i = 0; i < sub_population.size(); i++) {
+                    LOG << "DEBUG: iterating";
+                    fitness_indices.push_back({sub_population.fitnessAtSafe(i), i});
+                }
+                std::sort(fitness_indices.begin(), fitness_indices.end()); // Ascending (lower is better)
+
+                int extracted = 0;
+                for (const auto& pair : fitness_indices) {
+                    if (extracted >= solutions_per_run) break;
+                    if (population.size() >= static_cast<size_t>(target_pop_size)) break;
+
+                    LOG << "DEBUG: Before copying";
+                    size_t idx = pair.second;
+                    // Copy individual from sub_population to main population
+                    Individual ind_copy = sub_population.individualAtSafe(idx).copy(); 
+                    LOG << "DEBUG: Before inserting";
+                    // Add starting individuals to "real" population
+                    population.addStartingIndividual(ind_copy, context);
+                    extracted++;
+                }
+            }         
+            context.partition.verbose_output = true;
+            return history;
+        }
+
         // if deterministic, save original seed to reset after initial population generation
         const int original_seed = context.partition.seed;
         if (context.partition.deterministic && context.partition.enable_benchmark_mode) {
@@ -969,10 +1042,6 @@ namespace mt_kahypar {
                             stop_flag = true;
                             break;
                         }
-                        else if (total_iterations.load(std::memory_order_acquire) >= 1500) {
-                            stop_flag = true;
-                            break;
-                        }
 
                         if (context.evolutionary.improvement_rate_stopping.enabled) {
                             std::unique_lock<std::mutex> stop_lock(stopping_criterion_mutex, std::try_to_lock);
@@ -995,10 +1064,10 @@ namespace mt_kahypar {
                                     context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
                                     early_window_improvement_rate
                                 );
-                                LOG << "Evo Worker " << worker_id << ": Early Window Improvement Rate: " << early_window_improvement_rate;
-                                LOG << "Evo Worker " << worker_id << ": Should Stop: " << should_stop;
-                                LOG << "Evo Worker " << worker_id << ": Last Improvement Iteration: " << last_improv_iter;
-                                LOG << "Evo Worker " << worker_id << ": Current iteration: " << total_iterations.load(std::memory_order_acquire);
+                                // LOG << "Evo Worker " << worker_id << ": Early Window Improvement Rate: " << early_window_improvement_rate;
+                                // LOG << "Evo Worker " << worker_id << ": Should Stop: " << should_stop;
+                                // LOG << "Evo Worker " << worker_id << ": Last Improvement Iteration: " << last_improv_iter;
+                                // LOG << "Evo Worker " << worker_id << ": Current iteration: " << total_iterations.load(std::memory_order_acquire);
 
                                 if (should_stop) {
                                     stop_flag = true;

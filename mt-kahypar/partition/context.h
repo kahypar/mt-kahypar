@@ -296,6 +296,10 @@ struct EvolutionaryParameters {
   bool modified_combine_use_degree_sorted_partitions = false;
   bool modified_combine_mixed = false;
 
+  // Meta-Evo Parameters
+  bool meta_evo_mode = false;
+  int meta_evo_solutions_per_run = 2;
+
   struct ImprovementRateStoppingParameters {
     bool enabled = false;
     int early_window_improvs = 5;

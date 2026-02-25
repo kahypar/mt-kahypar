@@ -16,20 +16,12 @@ bool sliding_window_improvement_rate_stop(
   const int max_iters_without_improv,
   double& early_window_improvement_rate)
 {
-    std::cout << "entering stopping method";
     if (iteration_log_entries.empty()) {
         return false;
     }
 
     const int last_iter = iteration_log_entries.back().iteration;
-
-    // TEMP: internal debug
-    std::cout << "[STOP] plateau check: last_iter=" << last_iter
-                << " last_impr_iter=" << last_improvement_iteration
-                << " max_idle=" << max_iters_without_improv
-                << " n_impr=" << improvement_log_entries.size()
-                << " early_rate=" << early_window_improvement_rate
-                << std::endl;
+    
     // Plateau fallback: too many iterations since last improvement
     if (last_improvement_iteration >= 0 &&
         last_improvement_iteration + max_iters_without_improv < last_iter) {

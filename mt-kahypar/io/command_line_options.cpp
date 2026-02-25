@@ -1278,6 +1278,16 @@ namespace mt_kahypar {
       context.evolutionary.improvement_rate_stopping.max_iters_without_improv,
       "Maximum iterations without improvement (plateau) before stopping"
     )->capture_default_str();
+    app.add_option(
+      "--evo-meta-mode",
+      context.evolutionary.meta_evo_mode,
+      "Enable Meta-Evo mode: Initial population is built by running multiple short evolutionary runs."
+    )->capture_default_str();
+    app.add_option(
+      "--evo-meta-solutions-per-run",
+      context.evolutionary.meta_evo_solutions_per_run,
+      "Number of best solutions to take from each meta-evo run into the main population."
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {
@@ -1342,6 +1352,14 @@ namespace mt_kahypar {
         context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
         context.evolutionary.mutation_chance = 1.0f / 3.0f;
       }
+    }
+
+    // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
+    if (context.evolutionary.meta_evo_mode && !context.evolutionary.improvement_rate_stopping.enabled) {
+        context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
+        context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
+        context.evolutionary.improvement_rate_stopping.alpha = 0.15;
+        context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
