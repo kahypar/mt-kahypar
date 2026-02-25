@@ -302,6 +302,11 @@ namespace mt_kahypar {
     );
     if (detailed) {
       app.add_flag(
+        "--enable-benchmark",
+        context.partition.enable_benchmark_mode,
+        "Enables benchmark mode with additional timing and statistics output"
+      );
+      app.add_flag(
         "--show-detailed-clustering-timings",
         context.partition.show_detailed_clustering_timings,
         "Show detailed timings of each clustering iteration."
@@ -1177,6 +1182,11 @@ namespace mt_kahypar {
       "--evo-history-file",
       context.evolutionary.history_file,
       "Output file for evolution history"
+    );
+    app.add_option(
+      "--evo-diff-matrix-file",
+      context.evolutionary.diff_matrix_file,
+      "Output file for evolution difference matrix"
     );
     app.add_option(
       "--evo-kway",

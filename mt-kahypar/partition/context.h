@@ -72,6 +72,7 @@ struct PartitioningParameters {
   bool csv_output = false;
   bool write_partition_file = false;
   bool deterministic = false;
+  bool enable_benchmark_mode = false;
 
   std::string graph_filename { };
   std::string fixed_vertex_filename { };
@@ -278,6 +279,7 @@ struct EvolutionaryParameters {
   mutable int iteration;
   mutable std::chrono::milliseconds time_elapsed;
   std::string history_file;
+  std::string diff_matrix_file;
   int kway_combine = 2;
 };
 

@@ -10,7 +10,6 @@
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
 
-#include <mutex>
 #include "mt-kahypar/io/hypergraph_io.h"
 #include <fstream>
 #include <string>
@@ -40,6 +39,13 @@ namespace mt_kahypar {
         }
         #endif
 
+        // init global timers for benchmark mode
+        {
+        std::lock_guard<std::mutex> lock(best_tracking_mutex_);
+        global_best_fitness_ = std::numeric_limits<HyperedgeWeight>::max();
+        global_best_time_ = std::chrono::milliseconds(0);
+        }
+
         // ################## PREPROCESSING ##################
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         timer.start_timer("preprocessing", "Preprocessing");
@@ -61,10 +67,18 @@ namespace mt_kahypar {
         LOG << "DEBUG: performEvolution finished.";
 
         if (context.evolutionary.history_file != "") {
-            std::ofstream out_stream(context.evolutionary.history_file.c_str());
+            std::ofstream out_stream(context.evolutionary.history_file.c_str(), 
+                                   std::ios::out | std::ios::app); // append mode
             out_stream << history;
             out_stream.close();
         }
+        if (context.evolutionary.diff_matrix_file != "") {
+            std::ofstream out_stream(context.evolutionary.diff_matrix_file.c_str(), 
+                                   std::ios::out | std::ios::app); // append mode
+            out_stream << diff_matrix_history;
+            out_stream.close();
+        }
+
 
         // ################## FINALIZATION ##################
         // After evolution, we take the best individual and create the final partition.
@@ -136,7 +150,15 @@ namespace mt_kahypar {
             timer.start_timer("evolutionary", "Evolutionary");
             auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            history += "" + std::to_string(now.count()) + ", Initial, " + std::to_string(fitness) + "\n";
+
+            // best result tracking for benchmark
+            if (context.partition.enable_benchmark_mode) {
+                std::string improvement = checkAndLogNewBest(fitness, "Initial", now);
+                if (!improvement.empty()) {
+                    history += improvement;
+                }
+            }
+
             timer.stop_timer("evolutionary");
 
             ++context.evolutionary.iteration;
@@ -163,10 +185,18 @@ namespace mt_kahypar {
             timer.stop_timer("evolutionary");
             LOG << "DEBUG: Generated one individual with fitness" << cur;
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            if (iteration == 0 || (cur < best)) {
-                best = cur;
-                history += "" + std::to_string(now.count()) + ", Repetition, " + std::to_string(cur) + "\n";
+            
+            if (context.partition.enable_benchmark_mode) {
+                std::string improvement = checkAndLogNewBest(cur, "Initial", now);
+                if (!improvement.empty()) {
+                    history += improvement;
+                }
             }
+            
+            // if (iteration == 0 || (cur < best)) {
+            //     best = cur;
+            //     history += "" + std::to_string(now.count()) + ", Repetition, " + std::to_string(cur) + "\n";
+            // }
             iteration++;
             time_elapsed = now - start;
         }
@@ -291,13 +321,19 @@ namespace mt_kahypar {
         }
 
         Individual individual(partitioned_hypergraph, context);
+        
         //LOG << "Combined Individuals with fitness: " << population.individualAt(position1).fitness() << "," << population.individualAt(position2).fitness() << " into " << individual.fitness();
         std::string ret = "";
-        if (individual.fitness() < population.bestFitnessSafe()) { // FIXED
+        if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            ret = "" + std::to_string(time.count()) + ", Combine, " + std::to_string(individual.fitness()) + "\n";
+            ret = checkAndLogNewBest(individual.fitness(), "Combine", time);
         }
         population.insert(std::move(individual), context);
+        if (context.partition.enable_benchmark_mode && !ret.empty()) {
+            std::string diff_matrix = population.updateDiffMatrix();
+            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            diff_matrix_history += diff_matrix;
+        }
         return ret;
     }
 
@@ -344,16 +380,32 @@ namespace mt_kahypar {
             partitioned_hypergraph = Partitioner<TypeTraits>::partition(hypergraph, mut_context, target_graph);
         }
         Individual individual(partitioned_hypergraph, context);
+
         std::string ret = "";
-        if (individual.fitness() < population.bestFitnessSafe()) { // FIXED
+        if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            if (mutation == EvoMutateStrategy::vcycle) {
-                ret = "" + std::to_string(time.count()) + ", MutateOld, " + std::to_string(individual.fitness()) + "\n";
-            } else {
-                ret = "" + std::to_string(time.count()) + ", MutateNew, " + std::to_string(individual.fitness()) + "\n";
-            }
+            std::string operation_type = (mutation == EvoMutateStrategy::vcycle) ? "MutateOld" : "MutateNew";
+            ret = checkAndLogNewBest(individual.fitness(), operation_type, time);
         }
+
+        // std::string ret = "";
+        // if (individual.fitness() < population.bestFitnessSafe()) { // FIXED
+        //     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        //     if (mutation == EvoMutateStrategy::vcycle) {
+        //         ret = "" + std::to_string(time.count()) + ", MutateOld, " + std::to_string(individual.fitness()) + "\n";
+        //     } else {
+        //         ret = "" + std::to_string(time.count()) + ", MutateNew, " + std::to_string(individual.fitness()) + "\n";
+        //     }
+        // }
         population.insert(std::move(individual), context);
+        if (context.partition.enable_benchmark_mode && !ret.empty()) {
+            population.updateDiffMatrix();
+            // TODO: append diff_history
+            std::string diff_matrix = population.updateDiffMatrix();
+            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            diff_matrix_history += diff_matrix;
+        }
+
         return ret;
     }
 
@@ -470,5 +522,42 @@ namespace mt_kahypar {
 
         return history;
     }
+
+    // Static member definitions for all TypeTraits (template required)
+    template<typename TypeTraits>
+    std::mutex EvoPartitioner<TypeTraits>::best_tracking_mutex_;
+
+    template<typename TypeTraits>
+    HyperedgeWeight EvoPartitioner<TypeTraits>::global_best_fitness_ = std::numeric_limits<HyperedgeWeight>::max();
+
+    template<typename TypeTraits>
+    std::chrono::milliseconds EvoPartitioner<TypeTraits>::global_best_time_{ 0 };
+
+    template<typename TypeTraits>
+    std::string EvoPartitioner<TypeTraits>::checkAndLogNewBest(
+        HyperedgeWeight fitness,
+        const std::string& operation_type,
+        std::chrono::milliseconds current_time) {
+    
+        std::lock_guard<std::mutex> lock(best_tracking_mutex_);
+        
+        if (fitness < global_best_fitness_) {
+            global_best_fitness_ = fitness;
+            global_best_time_ = current_time;
+                    
+            return std::to_string(current_time.count()) + ", " + operation_type + ", " + 
+                std::to_string(fitness) + "\n";
+        }
+    
+    return "";
+
+    
+}
+
+template<typename TypeTraits>
+std::string EvoPartitioner<TypeTraits>::diff_matrix_history = "";
+
+template<typename TypeTraits>
+std::mutex EvoPartitioner<TypeTraits>::diff_matrix_history_mutex;
 
 }  // namespace mt_kahypar

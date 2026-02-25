@@ -2,6 +2,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
+#include <mutex>
 
 namespace mt_kahypar {
 
@@ -35,11 +36,18 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Population& population);
 
     private:
+    static std::mutex best_tracking_mutex_;
+    static HyperedgeWeight global_best_fitness_;
+    static std::chrono::milliseconds global_best_time_;
+    static std::string diff_matrix_history;
+    static std::mutex diff_matrix_history_mutex;
+
     static EvoDecision decideNextMove(const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
     static std::string performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
     static std::string performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static std::string checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time);
 };
 
 }  // namespace mt_kahypar
