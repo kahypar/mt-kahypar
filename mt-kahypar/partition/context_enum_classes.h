@@ -129,6 +129,11 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class RatingPartitionPolicy : uint8_t {
+  normal,
+  evolutionary
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_fm = 0,
   greedy_global_fm = 1,
@@ -183,6 +188,29 @@ enum class SteinerTreeFlowValuePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class EvoReplaceStrategy : uint8_t {
+  worst,
+  diverse,
+  strong_diverse
+};
+
+enum class EvoCombineStrategy : uint8_t {
+  basic,
+  edge_frequency,
+  UNDEFINED
+};
+enum class EvoMutateStrategy : uint8_t {
+  new_initial_partitioning_vcycle,
+  vcycle,
+  UNDEFINED
+};
+
+enum class EvoDecision : uint8_t {
+  normal,
+  mutation,
+  combine
+};
+
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const InstanceType& type);
@@ -226,6 +254,16 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
 
 std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
+
+std::ostream & operator<< (std::ostream& os, const EvoReplaceStrategy& replace);
+
+std::ostream & operator<< (std::ostream& os, const EvoCombineStrategy& combine);
+
+std::ostream & operator<< (std::ostream& os, const EvoMutateStrategy& mutation);
+
+std::ostream & operator<< (std::ostream& os, const EvoDecision& decision);
+
+std::ostream & operator<< (std::ostream& os, const RatingPartitionPolicy& policy);
 
 Mode modeFromString(const std::string& mode);
 

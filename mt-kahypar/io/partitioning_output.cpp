@@ -28,6 +28,7 @@
 #include "partitioning_output.h"
 
 #include <vector>
+#include <set>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_invoke.h>
@@ -214,6 +215,17 @@ namespace mt_kahypar::io {
     for (HypernodeID u : hypergraph.nodes()) {
       part_sizes[hypergraph.partID(u)]++;
     }
+    std::set<HypernodeID> test;
+    for (HypernodeID u : hypergraph.nodes()) {
+      test.insert(hypergraph.partID(u));
+    }
+    std::cout << "test ";
+    for (HypernodeID v : test) {
+      std::cout <<  v << ", ";
+    }
+    std::cout << "\n";
+
+
     PartitionID min_block = kInvalidPartition;
     HypernodeWeight min_part_weight = std::numeric_limits<HypernodeWeight>::max();
     HypernodeWeight avg_part_weight = 0;

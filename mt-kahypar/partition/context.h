@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/evolutionary/action.h"
 
 namespace mt_kahypar {
 
@@ -100,6 +101,7 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::heavy_edge;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+  RatingPartitionPolicy partition_policy = RatingPartitionPolicy::normal;
 };
 
 struct CoarseningParameters {
@@ -265,6 +267,28 @@ struct SharedMemoryParameters {
   double degree_of_parallelism = 1.0;
 };
 
+struct EvolutionaryParameters {
+  size_t population_size;
+  float mutation_chance;
+  float edge_frequency_chance;
+  EvoReplaceStrategy replace_strategy;
+  mutable EvoCombineStrategy combine_strategy = EvoCombineStrategy::UNDEFINED;
+  mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
+  int diversify_interval;  // -1 disables diversification
+  double gamma;
+  size_t edge_frequency_amount;
+  bool dynamic_population_size;
+  double dynamic_population_amount_of_time;
+  bool random_combine_strategy;
+  mutable int iteration;
+  mutable Action action;
+  const std::vector<PartitionID>* parent1 = nullptr;
+  const std::vector<PartitionID>* parent2 = nullptr;
+  mutable std::vector<size_t> edge_frequency;
+  bool unlimited_coarsening_contraction;
+  bool random_vcycles;
+};
+
 class Context {
  public:
   PartitioningParameters partition { };
@@ -274,11 +298,13 @@ class Context {
   RefinementParameters refinement { };
   MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
+  EvolutionaryParameters evolutionary { };
   ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
   size_t utility_id = std::numeric_limits<size_t>::max();
+  bool partition_evolutionary = false;
 
   Context(const bool register_utilities = true);
 
