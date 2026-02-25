@@ -1,6 +1,7 @@
 #include "evo_partitioner.h"
 #include "partitioner.cpp"
 #include <mutex>
+#include "mt-kahypar/io/hypergraph_io.h"
 
 namespace mt_kahypar {
 
@@ -35,6 +36,38 @@ namespace mt_kahypar {
 
         Population population;
         std::string history = generateInitialPopulation(hypergraph, context, target_graph, population);
+
+        /*for (int i = 0; i < context.evolutionary.population_size; i++) {
+            std::string epsilon_str = std::to_string(context.partition.epsilon);
+            epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
+            std::string partition_filename =
+                context.partition.graph_filename
+                + ".part"
+                + std::to_string(context.partition.k)
+                + ".epsilon"
+                + epsilon_str
+                + ".seed"
+                + std::to_string(i)
+                + ".KaHyPar";
+        
+            PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+        
+            std::vector<PartitionID> precomputed;
+            io::readPartitionFile(partition_filename, precomputed);
+            partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+                partitioned_hypergraph.setOnlyNodePart(hn, precomputed[hn]);
+            });
+            partitioned_hypergraph.initializePartition();
+
+            Individual individual(partitioned_hypergraph, context);
+            population.addStartingIndividual(individual, context);
+        }
+
+        auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+        std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
+        history += "" + std::to_string(start.count()) + ", Initial, " + std::to_string(population.bestFitness()) + "\n";
+        
+        LOG << "Loaded precomputed partitions. Current best quality: " << population.bestFitness();*/
 
         history += performEvolution(hypergraph, context, target_graph, population);
 
