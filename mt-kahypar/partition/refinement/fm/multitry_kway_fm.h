@@ -87,15 +87,6 @@ class MultiTryKWayFM final : public IRefiner {
                                                   const std::vector<HypernodeWeight>& max_part_weights,
                                                   vec<Move>& rebalancing_moves);
 
-  bool isBalanced(const PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > max_part_weights[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
     return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
   }
