@@ -217,6 +217,7 @@ namespace {
     const TargetGraph* target_graph,
     const bool is_vcycle,
     std::unordered_map<PartitionID, int> comm_to_block) {
+    disableTimerAndStats(context);
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     PartitionedHypergraph partitioned_hg;
@@ -228,7 +229,6 @@ namespace {
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-    timer.start_timer("coarsening", "Coarsening");
     {
       std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
         context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
@@ -242,11 +242,9 @@ namespace {
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
     }
-    timer.stop_timer("coarsening");
 
     // ################## INITIAL PARTITIONING ##################
     io::printInitialPartitioningBanner(context);
-    timer.start_timer("initial_partitioning", "Initial Partitioning");
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
 
     { 
@@ -295,11 +293,9 @@ namespace {
       utils::Utilities::instance().getInitialPartitioningStats(
         context.utility_id).printInitialPartitioningStats();
     }
-    timer.stop_timer("initial_partitioning");
 
     // ################## UNCOARSENING ##################
     io::printLocalSearchBanner(context);
-    timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
       uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
@@ -311,8 +307,8 @@ namespace {
     partitioned_hg = uncoarsener->uncoarsen();
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
-    timer.stop_timer("refinement");
 
+    enableTimerAndStats(context);
     return partitioned_hg;
   }
 }
@@ -384,6 +380,7 @@ void Multilevel<TypeTraits>::evolutionPartitionVCycle(Hypergraph& hypergraph,
                                              std::unordered_map<PartitionID, int> comm_to_block,
                                              const TargetGraph* target_graph) {
 
+  //disableTimerAndStats(context);
   // Reset memory pool
   hypergraph.reset();
   parallel::MemoryPool::instance().reset();

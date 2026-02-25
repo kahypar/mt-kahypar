@@ -303,4 +303,6 @@ OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& typ
 
 SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
 
+EvoReplaceStrategy EvoReplaceStrategyFromString(const std::string& type);
+
 }  // namesapce mt_kahypar

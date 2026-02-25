@@ -1135,6 +1135,51 @@ namespace mt_kahypar {
     )->capture_default_str();
   }
 
+  void addEvoOptions(Context& context, CLI::App& app) {
+    app.option_defaults()->group("Evolutionary Partitioning Options");
+    app.add_option(
+      "--partition-evolutionary",
+      context.partition_evolutionary,
+      "Use memetic algorithm for partitioning"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-population-size",
+      context.evolutionary.population_size,
+      "Size of the population for the evolution"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-dynamic-population-size",
+      context.evolutionary.dynamic_population_size,
+      "Use dynamic population siez for the evolution"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-dynamic-population-time",
+      context.evolutionary.dynamic_population_amount_of_time,
+      "Time to generate the population, when dynamic population is enabled"
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--evo-replacement-strategy", [&](const std::string& s) {
+        context.evolutionary.replace_strategy = EvoReplaceStrategyFromString(s);
+      },
+      "Replacement strategy"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-diversify-interval",
+      context.evolutionary.diversify_interval,
+      "The frequency in which diversfication should be performed (-1 = disabled)"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-mutate-chance",
+      context.evolutionary.mutation_chance,
+      "The chance of a mutation being selected as operation"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-history-file",
+      context.evolutionary.history_file,
+      "Output file for evolution history"
+    );
+  }
+
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {
     addUserOptions(context, app, preset_option, detailed);
     addDisplayOptions(context, app, detailed);
@@ -1147,6 +1192,7 @@ namespace mt_kahypar {
       addFlowRefinementOptions(context, app, false);
       addMappingOptions(context, app);
       addSharedMemoryOptions(context, app);
+      addEvoOptions(context, app);
     }
   }
 
