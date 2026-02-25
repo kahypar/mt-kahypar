@@ -1,4 +1,11 @@
 #include "evo_partitioner.h"
+
+#include <fstream>
+#include <string>
+#include <tbb/task_arena.h>
+#include <csignal>
+
+#include "mt-kahypar/partition/evolutionary/evo_logs.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
@@ -9,15 +16,11 @@
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
-
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/presets.h"
 #include "mt-kahypar/io/command_line_options.h"
-#include "mt-kahypar/partition/evolutionary/evo_logs.h" 
-#include <fstream>
-#include <string>
-#include <tbb/task_arena.h>
-#include <csignal>
+#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -171,7 +174,7 @@ namespace mt_kahypar {
             }
         #endif
 
-        if (context.partition.verbose_output) {
+        if (context.partition.enable_logging) {
             io::printHypergraphInfo(final_partition.hypergraph(), context,
                                     "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
             io::printStripe();
@@ -183,7 +186,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     std::string EvoPartitioner<TypeTraits>::generateInitialPopulation(const Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) {
-        context.partition.verbose_output = false;
+        context.partition.enable_logging = false;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
         auto now = start;
@@ -270,7 +273,7 @@ namespace mt_kahypar {
                 if (context.partition.time_limit < 1) context.partition.time_limit = 1; // leave at least 1 sec
             }
 
-            context.partition.verbose_output = true;
+            context.partition.enable_logging = true;
             return history;
         }
 
@@ -351,7 +354,7 @@ namespace mt_kahypar {
         }
 
         context.evolutionary.time_elapsed = time_elapsed;
-        context.partition.verbose_output = true;
+        context.partition.enable_logging = true;
         return history;
     }
 
@@ -845,7 +848,7 @@ namespace mt_kahypar {
 
     template<typename TypeTraits>
     std::string EvoPartitioner<TypeTraits>::performEvolution(const Hypergraph& hg, Context& context, TargetGraph* target_graph, Population& population) {
-        context.partition.verbose_output = false;
+        context.partition.enable_logging = false;
         int timelimit = context.partition.time_limit;
         utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
         auto time_start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
@@ -1184,7 +1187,7 @@ namespace mt_kahypar {
         }
 
         context.evolutionary.iteration += total_iterations.load();
-        context.partition.verbose_output = true;
+        context.partition.enable_logging = true;
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations" << "\n";
         LOG << "    " << total_mutations.load() << " Mutations" << "\n";
         LOG << "    " << total_combinations.load() << " Combinations" << "\n";

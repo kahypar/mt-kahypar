@@ -236,7 +236,7 @@ namespace {
         context, uncoarsening::to_pointer(uncoarseningData));
       coarsener->coarsen();
 
-      if (context.partition.verbose_output) {
+      if (context.partition.enable_logging) {
         mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
         mt_kahypar::io::printHypergraphInfo(
           utils::cast<Hypergraph>(coarsestHypergraph), context,
@@ -291,7 +291,7 @@ namespace {
       phg.setTargetGraph(target_graph);
     }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
-    if ( context.partition.verbose_output && !is_vcycle ) {
+    if ( context.partition.enable_logging && !is_vcycle ) {
       utils::Utilities::instance().getInitialPartitioningStats(
         context.utility_id).printInitialPartitioningStats();
     }

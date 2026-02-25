@@ -1345,42 +1345,44 @@ namespace mt_kahypar {
       ERR(e.what());
     }
 
-    if (context.evolutionary.enable_modified_combine) {
+    // NOTE: code below doesn't work with new CLI library
+
+    // if (context.evolutionary.enable_modified_combine) {
       // Only override probabilities if the user did NOT explicitly provide
       // --evo-modified-combine-chance
-      bool chance_provided_explicitly = false;
-      if (cmd_vm.count("evo-modified-combine-chance")) {
-        chance_provided_explicitly = !cmd_vm["evo-modified-combine-chance"].defaulted();
-      }
-      if (!chance_provided_explicitly) {
-        // set to 1/3 each
-        context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
-        context.evolutionary.mutation_chance = 1.0f / 3.0f;
-      }
-    }
+      // bool chance_provided_explicitly = false;
+      // if (cmd_vm.count("evo-modified-combine-chance")) {
+      //   chance_provided_explicitly = !cmd_vm["evo-modified-combine-chance"].defaulted();
+      // }
+      // if (!chance_provided_explicitly) {
+      //   // set to 1/3 each
+      //   context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
+      //   context.evolutionary.mutation_chance = 1.0f / 3.0f;
+      // }
+    // }
 
     // If meta-evo mode is enabled and stopping criterion parameters not manually set, set them to aggressive defaults
-    if (context.evolutionary.meta_evo_mode) {
-        if (cmd_vm["evo-improvement-rate-stopping"].defaulted()) {
-             context.evolutionary.improvement_rate_stopping.enabled = false;
-        }
+    // if (context.evolutionary.meta_evo_mode) {
+    //     if (cmd_vm["evo-improvement-rate-stopping"].defaulted()) {
+    //          context.evolutionary.improvement_rate_stopping.enabled = false;
+    //     }
 
-        if (cmd_vm["evo-early-window-improvs"].defaulted()) {
-            context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
-        }
+    //     if (cmd_vm["evo-early-window-improvs"].defaulted()) {
+    //         context.evolutionary.improvement_rate_stopping.early_window_improvs = 5;
+    //     }
         
-        if (cmd_vm["evo-recent-window-improvs"].defaulted()) {
-            context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
-        }
+    //     if (cmd_vm["evo-recent-window-improvs"].defaulted()) {
+    //         context.evolutionary.improvement_rate_stopping.recent_window_improvs = 5;
+    //     }
 
-        if (cmd_vm["evo-stopping-alpha"].defaulted()) {
-            context.evolutionary.improvement_rate_stopping.alpha = 0.15;
-        }
+    //     if (cmd_vm["evo-stopping-alpha"].defaulted()) {
+    //         context.evolutionary.improvement_rate_stopping.alpha = 0.15;
+    //     }
 
-        if (cmd_vm["evo-max-iters-without-improv"].defaulted()) {
-            context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
-        }
-    }
+    //     if (cmd_vm["evo-max-iters-without-improv"].defaulted()) {
+    //         context.evolutionary.improvement_rate_stopping.max_iters_without_improv = 60;
+    //     }
+    // }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
     epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
