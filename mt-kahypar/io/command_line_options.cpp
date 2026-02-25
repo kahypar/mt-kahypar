@@ -1248,6 +1248,11 @@ namespace mt_kahypar {
       context.evolutionary.modified_combine_use_degree_sorted_partitions,
       "Use degree sorted partitions for modified combine external parent"
     )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-mixed",
+      context.evolutionary.modified_combine_mixed,
+      "Use mixed mode for modified combine external parent"
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {
