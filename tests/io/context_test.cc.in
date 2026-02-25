@@ -71,7 +71,7 @@ void comparePresetWithIniFile(PresetType preset, std::string ini_filename) {
     std::getline(ss, value, del);
     ASSERT_TRUE(name.size() > 2 && name[0] == '-' && name[1] == '-');
     name = name.substr(2);
-    ASSERT_TRUE(value.size() == 1 || preset_mapping.find(name) == preset_mapping.end());
+    ASSERT_TRUE(name == "i-enabled-ip-algos" || preset_mapping.find(name) == preset_mapping.end());
     preset_mapping[name] += value;
   }
 
@@ -79,8 +79,8 @@ void comparePresetWithIniFile(PresetType preset, std::string ini_filename) {
     if (ini_mapping.find(name) == ini_mapping.end()) {
       LOG << "Missing value in config file:" << name;
     }
-    ASSERT_TRUE(ini_mapping.find(name) != ini_mapping.end());
-    ASSERT_EQ(value, ini_mapping[name]);
+    ASSERT_TRUE(ini_mapping.find(name) != ini_mapping.end()) << V(name);
+    ASSERT_EQ(value, ini_mapping[name]) << V(name);
   }
   for (const auto& [name, _]: ini_mapping) {
     if (preset_mapping.find(name) == preset_mapping.end()) {

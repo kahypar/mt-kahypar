@@ -110,24 +110,15 @@ namespace mt_kahypar {
       }
     }
 
-    // Setup enabled IP algorithms
-    if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
-         context.initial_partitioning.enabled_ip_algos.size() <
-         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
+    // Check enabled IP algorithms
+    ALWAYS_ASSERT(context.initial_partitioning.enabled_ip_algos.size() == static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED));
+    bool is_one_ip_algo_enabled = false;
+    for ( size_t i = 0; i < context.initial_partitioning.enabled_ip_algos.size(); ++i ) {
+      is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
+    }
+    if ( !is_one_ip_algo_enabled ) {
       throw InvalidParameterException(
-        "Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
-    } else if ( context.initial_partitioning.enabled_ip_algos.size() == 0 ) {
-      context.initial_partitioning.enabled_ip_algos.assign(
-        static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true);
-    } else {
-      bool is_one_ip_algo_enabled = false;
-      for ( size_t i = 0; i < context.initial_partitioning.enabled_ip_algos.size(); ++i ) {
-        is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
-      }
-      if ( !is_one_ip_algo_enabled ) {
-        throw InvalidParameterException(
-          "At least one initial partitioning algorithm must be enabled!");
-      }
+        "At least one initial partitioning algorithm must be enabled!");
     }
 
     // Check fixed vertex support compatibility
