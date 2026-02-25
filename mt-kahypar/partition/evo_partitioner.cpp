@@ -11,6 +11,8 @@
 #endif
 
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/presets.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include <fstream>
 #include <string>
 #include <tbb/task_arena.h>
@@ -186,12 +188,12 @@ namespace mt_kahypar {
         auto duration = std::chrono::seconds(context.partition.time_limit);
         std::string history = "Starttime: " + std::to_string(start.count()) + "\n";
 
-        // if benchmark mode is enabled, temporarily limit threads to 1 to ensure deterministic intial population
-        size_t original_thread_count = context.shared_memory.num_threads;
-        if (context.partition.enable_benchmark_mode) {
-            context.shared_memory.num_threads = 1;
+        // if deterministic, save original seed to reset after initial population generation
+        const int original_seed = context.partition.seed;
+        if (context.partition.deterministic && context.partition.enable_benchmark_mode) {
+            context.partition.seed = 0;
         }
-        
+               
         // INITIAL POPULATION
         if (context.evolutionary.dynamic_population_size) {
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -226,6 +228,11 @@ namespace mt_kahypar {
 
             LOG << context.evolutionary.population_size;
             //LOG << population;
+
+            // increment seed if deterministic
+            if (context.partition.deterministic) {
+                context.partition.seed++;
+            }
         }
         LOG << "DEBUG: Initial population target size =" << context.evolutionary.population_size;
         int best = std::numeric_limits<HyperedgeWeight>::max();
@@ -239,7 +246,6 @@ namespace mt_kahypar {
            
             auto cur = generateIndividual(hg, context, target_graph, population).fitness();
             timer.stop_timer("evolutionary");
-            //LOG << "DEBUG: Generated one individual with fitness" << cur;
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             
             if (context.partition.enable_benchmark_mode) {
@@ -255,11 +261,17 @@ namespace mt_kahypar {
             // }
             iteration++;
             time_elapsed = now - start;
+
+            // increment seed if in benchmark mode
+            
+            if (context.partition.deterministic) {
+                context.partition.seed++;
+            }
         }
 
-        // reset number of threads to original value
-        if (context.partition.enable_benchmark_mode) {
-            context.shared_memory.num_threads = original_thread_count;
+        // reset seed after initial population generation
+        if (context.partition.deterministic && context.partition.enable_benchmark_mode) {
+            context.partition.seed = original_seed;
         }
 
         context.evolutionary.time_elapsed = time_elapsed;
@@ -313,8 +325,18 @@ namespace mt_kahypar {
     } 
 
     template<typename TypeTraits>
-    EvoDecision EvoPartitioner<TypeTraits>::decideNextMove(const Context& context) {
-        float rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
+    EvoDecision EvoPartitioner<TypeTraits>::decideNextMove(const Context& context, std::mt19937* rng) {
+
+        float rand_val;
+        if (!context.partition.deterministic)
+             rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
+        else if (rng != nullptr) {
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            rand_val = dist(rng);
+        }
+        else {
+            throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
+        }
   
         if (!context.evolutionary.enable_modified_combine) {
             if ( rand_val < context.evolutionary.mutation_chance ) {
@@ -378,11 +400,25 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    EvoMutateStrategy EvoPartitioner<TypeTraits>::decideNextMutation(const Context& context) {
-        if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
-            return EvoMutateStrategy::vcycle;
+    EvoMutateStrategy EvoPartitioner<TypeTraits>::decideNextMutation(const Context& context, std::mt19937* rng) {
+        if (context.partition.deterministic) {
+            if (rng == nullptr) {
+                throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
+            }
+            float rand_val;
+            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+            rand_val = dist(rng);
+            if ( rand_val < 0.5f ) {
+                return EvoMutateStrategy::vcycle;
+            }
+            return EvoMutateStrategy::new_initial_partitioning_vcycle;
         }
-        return EvoMutateStrategy::new_initial_partitioning_vcycle;
+        else {
+            if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
+                return EvoMutateStrategy::vcycle;
+            }
+            return EvoMutateStrategy::new_initial_partitioning_vcycle;
+        }
     }
 
     template<typename TypeTraits>
@@ -391,9 +427,19 @@ namespace mt_kahypar {
         Context c(context);
         PartitionedHypergraph partitioned_hypergraph(context.partition.k, hg);
 
+        const size_t base_seed = context.partition.seed;
         // Randomly assign nodes to blocks
         hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-            PartitionID block = utils::Randomize::instance().getRandomInt(0, context.partition.k - 1, THREAD_ID);
+            PartitionID block;
+            if (context.partition.deterministic) {
+                // derive a per-node seed deterministically
+                const size_t node_seed = utils::seed_iteration(static_cast<size_t>(base_seed), static_cast<size_t>(hn));
+                std::mt19937 prng(static_cast<uint32_t>(node_seed));
+                std::uniform_int_distribution<PartitionID> dist(0, context.partition.k - 1);
+                block = dist(prng);
+            } else {
+                block = utils::Randomize::instance().getRandomInt(0, context.partition.k - 1, THREAD_ID);
+            }
             partitioned_hypergraph.setOnlyNodePart(hn, block);
         });
 
@@ -484,10 +530,17 @@ namespace mt_kahypar {
 
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population) {
+    Individual EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng) {
         
         std::vector<std::vector<PartitionID>> parent_partitions;
-        size_t best = population.randomIndividualSafe(); 
+        size_t best;
+
+        if (context.partition.deterministic) {
+            best = population.randomIndividualSafeDeterministic(context.partition.seed);
+        }
+        else {
+            best = population.randomIndividualSafe();
+        }
         
         // generate new parent individual with modified context
         Context modified_context = modifyContext(context, params);
@@ -538,19 +591,7 @@ namespace mt_kahypar {
         }
 
         Individual individual(partitioned_hypergraph, context);
-        
-        std::string ret = "";
-        if (context.partition.enable_benchmark_mode) {
-            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            ret = checkAndLogNewBest(individual.fitness(), "ModifiedCombine", time);
-        }
-        population.insert(std::move(individual), context);
-        if (context.partition.enable_benchmark_mode && !ret.empty()) {
-            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-            std::string diff_matrix = population.updateDiffMatrix();
-            diff_matrix_history += diff_matrix;
-        }
-        return ret;
+        return individual;
     }
 
 
@@ -583,50 +624,11 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performCombine(const Hypergraph& input_hg, const Context& context, TargetGraph* target_graph, Population& population) {
-        std::vector<size_t> parents;
-        size_t best = population.randomIndividualSafe(); // FIXED
-        parents.push_back(best);
-        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-            size_t new_parent = population.randomIndividualSafe(); // FIXED
-            parents.push_back(new_parent);
-            if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) { // FIXED
-                best = new_parent;
-            }
-        }
-        
-        std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
-        
-        std::unordered_map<PartitionID, int> comm_to_block;
-        vec<PartitionID> comms = combinePartitions(context, population, parents);
-
-        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);  
-
-        for (const HypernodeID& hn : hypergraph.nodes()) {
-            partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
-            if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
-                comm_to_block[comms[hn]] = best_partition[hn];
-            }
-        }
-
-        partitioned_hypergraph.initializePartition();
-        hypergraph.setCommunityIDs(std::move(comms));
-        if (context.partition.mode == Mode::direct) {
-            //V-cycle requires a context with initialized part weights
-            Context vc_context(context);
-            vc_context.setupPartWeights(hypergraph.totalWeight());
-            Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-        } else {
-            throw InvalidParameterException("Invalid partitioning mode!");
-        }
-
-        Individual individual(partitioned_hypergraph, context);
-        
+    std::string EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population) {
         std::string ret = "";
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            ret = checkAndLogNewBest(individual.fitness(), "Combine", time);
+            ret = checkAndLogNewBest(individual.fitness(), "Insert", time);
         }
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && !ret.empty()) {
@@ -638,73 +640,128 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::string EvoPartitioner<TypeTraits>::performMutation(const Hypergraph& input_hg, const Context& context, TargetGraph* target_graph, Population& population) {
-        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-        const size_t mutation_position = population.randomIndividualSafe(); // FIXED
-        std::vector<PartitionID> cur = population.individualAtSafe(mutation_position).partition(); // FIXED
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-        EvoMutateStrategy mutation = decideNextMutation(context);
-        if (mutation == EvoMutateStrategy::vcycle) {
-            //LOG << "Mutating old: ";
-            vec<PartitionID> comms(hypergraph.initialNumNodes());
-            std::unordered_map<PartitionID, int> comm_to_block;
-            for ( const HypernodeID& hn : hypergraph.nodes() ) {
-                partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
-                comms[hn] = cur[hn];
-            }
-            for (PartitionID i = 0; i < context.partition.k; i++) {
-                comm_to_block[i] = i;
-            }
-            partitioned_hypergraph.initializePartition();
-            hypergraph.setCommunityIDs(std::move(comms));
-            if (context.partition.mode == Mode::direct) {
-                // Ensure part weights are initialized for metrics inside the V-cycle
-                Context vc_context(context);
-                vc_context.setupPartWeights(hypergraph.totalWeight());
-                Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-            } else {
-                throw InvalidParameterException("Invalid partitioning mode!");
-            }
-        } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
-            //LOG << "Mutating new: ";
-            vec<PartitionID> comms(hypergraph.initialNumNodes());
-            for ( const HypernodeID& hn : hypergraph.nodes() ) {
-                comms[hn] = cur[hn];
-            }
-            hypergraph.setCommunityIDs(std::move(comms));
-            // Create a mutable context copy for a fresh standard partitioning run.
-            Context mut_context(context);
-            if (!mut_context.partition.use_individual_part_weights) {
-                mut_context.partition.max_part_weights.clear();
-            }
-            partitioned_hypergraph = Partitioner<TypeTraits>::partition(hypergraph, mut_context, target_graph);
-        }
-        Individual individual(partitioned_hypergraph, context);
+    Individual EvoPartitioner<TypeTraits>::performCombine(
+        const Hypergraph& input_hg,
+        const Context& context,
+        TargetGraph* target_graph,
+        Population& population) {
+    std::vector<size_t> parents;
 
-        std::string ret = "";
-        if (context.partition.enable_benchmark_mode) {
-            auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            std::string operation_type = (mutation == EvoMutateStrategy::vcycle) ? "MutateOld" : "MutateNew";
-            ret = checkAndLogNewBest(individual.fitness(), operation_type, time);
+    if (context.partition.deterministic) {
+        // use dedicated deterministic method
+        size_t best = population.randomIndividualSafeDeterministic(context.partition.seed);
+        parents.push_back(best);
+        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
+            size_t new_parent = population.randomIndividualSafeDeterministic(context.partition.seed + x);
+            parents.push_back(new_parent);
+            if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
+                best = new_parent;
+            }
         }
-
-        // std::string ret = "";
-        // if (individual.fitness() < population.bestFitnessSafe()) { // FIXED
-        //     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-        //     if (mutation == EvoMutateStrategy::vcycle) {
-        //         ret = "" + std::to_string(time.count()) + ", MutateOld, " + std::to_string(individual.fitness()) + "\n";
-        //     } else {
-        //         ret = "" + std::to_string(time.count()) + ", MutateNew, " + std::to_string(individual.fitness()) + "\n";
-        //     }
-        // }
-        population.insert(std::move(individual), context);
-        if (context.partition.enable_benchmark_mode && !ret.empty()) {;
-            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-            std::string diff_matrix = population.updateDiffMatrix();
-            diff_matrix_history += diff_matrix;
+    }
+    else {
+        size_t best = population.randomIndividualSafe();
+        parents.push_back(best);
+        for (int x = 1; x < context.evolutionary.kway_combine; x++) {
+            size_t new_parent = population.randomIndividualSafe();
+            parents.push_back(new_parent);
+            if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
+                best = new_parent;
+            }
         }
+    }
 
-        return ret;
+    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+    std::unordered_map<PartitionID, int> comm_to_block;
+    vec<PartitionID> comms = combinePartitions(context, population, parents);
+
+    Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+        partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
+        if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
+        comm_to_block[comms[hn]] = best_partition[hn];
+        }
+    }
+
+    partitioned_hypergraph.initializePartition();
+    hypergraph.setCommunityIDs(std::move(comms));
+
+    if (context.partition.mode == Mode::direct) {
+        Context vc_context(context);
+        vc_context.setupPartWeights(hypergraph.totalWeight());
+        Multilevel<TypeTraits>::evolutionPartitionVCycle(
+            hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+    } else {
+        throw InvalidParameterException("Invalid partitioning mode!");
+    }
+
+    return Individual(partitioned_hypergraph, context);
+    }
+
+    template<typename TypeTraits>
+    Individual EvoPartitioner<TypeTraits>::performMutation(
+        const Hypergraph& input_hg,
+        const Context& context,
+        TargetGraph* target_graph,
+        Population& population,
+        std::mt19937* rng = nullptr) {
+    Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+
+    size_t mutation_position;
+    std::vector<PartitionID> cur;
+    PartitionedHypergraph partitioned_hypergraph;
+    EvoMutateStrategy mutation;
+    if (context.partition.deterministic) {
+        mutation_position = population.randomIndividualSafeDeterministic(context.partition.seed);
+        cur = population.individualAtSafe(mutation_position).partition();
+        partitioned_hypergraph(context.partition.k, hypergraph);
+        mutation = decideNextMutation(context, rng);
+    }
+    else {
+        mutation_position = population.randomIndividualSafe();
+        cur = population.individualAtSafe(mutation_position).partition();
+        partitioned_hypergraph(context.partition.k, hypergraph);
+        mutation = decideNextMutation(context);
+    }
+
+
+    if (mutation == EvoMutateStrategy::vcycle) {
+        vec<PartitionID> comms(hypergraph.initialNumNodes());
+        std::unordered_map<PartitionID, int> comm_to_block;
+        for (const HypernodeID& hn : hypergraph.nodes()) {
+            partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
+            comms[hn] = cur[hn];
+        }
+        for (PartitionID i = 0; i < context.partition.k; i++) {
+            comm_to_block[i] = i;
+        }
+        partitioned_hypergraph.initializePartition();
+        hypergraph.setCommunityIDs(std::move(comms));
+        if (context.partition.mode == Mode::direct) {
+            Context vc_context(context);
+            vc_context.setupPartWeights(hypergraph.totalWeight());
+            Multilevel<TypeTraits>::evolutionPartitionVCycle(
+                hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+        } else {
+            throw InvalidParameterException("Invalid partitioning mode!");
+        }
+    } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
+        vec<PartitionID> comms(hypergraph.initialNumNodes());
+        for (const HypernodeID& hn : hypergraph.nodes()) {
+            comms[hn] = cur[hn];
+        }
+        hypergraph.setCommunityIDs(std::move(comms));
+        Context mut_context(context);
+        if (!mut_context.partition.use_individual_part_weights) {
+            mut_context.partition.max_part_weights.clear();
+        }
+        partitioned_hypergraph = Partitioner<TypeTraits>::partition(
+            hypergraph, mut_context, target_graph);
+    }
+
+    return Individual(partitioned_hypergraph, context);
     }
 
     inline void disableTimerAndStatsEvo(const Context& context) {
@@ -783,96 +840,191 @@ namespace mt_kahypar {
         const bool iteration_logging_enabled = context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode;
         const size_t log_limit = std::max<size_t>(1, context.evolutionary.iteration_log_limit);
 
-        // task arenas for each worker to ensure isolated thread pools
-        std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
-        for (int i = 0; i < num_evo_workers; i++) {
-            worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
+
+        const int global_seed = context.partition.seed;
+        //standard mode non-deterministic
+        if (!context.partition.deterministic) {
+            // task arenas for each worker to ensure isolated thread pools
+            std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
+            for (int i = 0; i < num_evo_workers; i++) {
+                worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
+            }
+
+            tbb::parallel_for(0, num_evo_workers, [&](int worker_id) {
+                // Each evo worker uses own arena
+                worker_arenas[worker_id]->execute([&] {
+                    while (!stop_flag) {
+                        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+                        if (now - time_start >= duration) {
+                            stop_flag = true;
+                            break;
+                        }
+                        // Create a context for the inner run and set its thread limit
+                        Context evo_context(context);
+                        evo_context.type = ContextType::main;
+                        evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+                        evo_context.shared_memory.num_threads = num_multilevel_threads;
+
+                        EvoDecision decision = decideNextMove(context);
+                        EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy(parallel_tag_t{});
+
+                        // Ensure sanityCheck preconditions hold for any standard partitioning
+                        // calls executed within workers by keeping part weights vector empty
+                        // unless individual part weights are explicitly enabled by the user.
+                        if (!evo_context.partition.use_individual_part_weights) {
+                            evo_context.partition.max_part_weights.clear();
+                        }
+                        
+                        switch (decision) {
+                            case EvoDecision::mutation:
+                                {
+                                    Individual ind = performMutation(hg_copy, evo_context, target_graph, population);
+                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
+                                    if (!h.empty()) {
+                                        std::lock_guard<std::mutex> lock(_history_mutex);
+                                        history += h;
+                                    }
+                                    total_mutations++;
+                                    total_iterations++;
+                                    break;
+                                }
+                            case EvoDecision::combine:
+                                {
+                                    Individual ind = performCombine(hg_copy, evo_context, target_graph, population);
+                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
+                                    if (!h.empty()) {
+                                        std::lock_guard<std::mutex> lock(_history_mutex);
+                                        history += h;
+                                    }
+                                    total_combinations++;
+                                    total_iterations++;
+                                    break;
+                                }
+                            case EvoDecision::modified_combine:
+                                {
+                                    // decide modified combine parameters if mixed strategy is enabled
+                                    Individual ind = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
+                                    std::string h = insert_individual_into_population(std::move(ind), evo_context, population);
+                                    if (!h.empty()) {
+                                        std::lock_guard<std::mutex> lock(_history_mutex);
+                                        history += h;
+                                    }
+                                    total_modifiedCombinations++;
+                                    total_iterations++;
+                                    break;
+                                }
+                            default:
+                                LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
+                                std::exit(EXIT_FAILURE);
+                        }
+
+                        // Log current best KM1 after each iteration if enabled (iteration, timestamp, km1)
+                        if ( iteration_logging_enabled ) {
+                            // get current best KM1 from population
+                            size_t best_idx = population.bestSafe();
+                            auto current_km1 = population.individualAtSafe(best_idx).fitness();
+                            auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            std::chrono::high_resolution_clock::now().time_since_epoch()
+                                            ).count();
+                            std::lock_guard<std::mutex> lg(iteration_log_mutex);
+                            iteration_log_history += std::to_string(total_iterations.load()) + ", " +
+                                                    std::to_string(ts_ms) + ", " +
+                                                    std::to_string(current_km1) + "\n";
+                        }
+                    }
+                });
+            });
+        }
+        else {
+
+            //determinstic mode
+            size_t batch_size = 5;
+            tbb::concurrent_vector<Individual> batch_individuals (batch_size);
+            std::atomic<size_t> last_batch_filled = 0;
+
+            std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
+            for (int i = 0; i < num_evo_workers; i++) {
+                worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
+            }
+
+            tbb::parallel_for(0, num_evo_workers, [&](int worker_id) {
+                // Each evo worker uses its own arena
+                worker_arenas[worker_id]->execute([&] {
+
+                    while (!stop_flag) {
+
+                        // Assign unique iteration ID
+                        int iteration_id = total_iterations.fetch_add(1, std::memory_order_relaxed);
+                        int batch_id = iteration_id / batch_size;
+                        int batch_pos = iteration_id % batch_size;
+
+                        if (batch_id > last_batch_filled.load(std::memory_order_acquire)) {
+                            // wait until previous batch is filled
+                            while (last_batch_filled.load(std::memory_order_acquire) < batch_id) {
+                                std::this_thread::yield();
+                            }
+                        }
+
+                        // Create a thread-local copy of the context
+                        Context evo_context(context);
+                        evo_context.type = ContextType::main;
+                        evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+                        evo_context.shared_memory.num_threads = num_multilevel_threads;
+
+
+                        evo_context.partition.seed = global_seed + iteration_id;
+
+                        // Initialize task-local RNG
+                        std::mt19937 rng(evo_context.partition.seed);
+
+                        EvoDecision decision = decideNextMove(evo_context, rng);
+                        Hypergraph hg_copy = hg.copy(parallel_tag_t{});
+                        Individual child;
+
+                        switch (decision) {
+                            case EvoDecision::mutation: {
+                                child = performMutation(hg_copy, evo_context, target_graph, population, &rng);
+                                total_mutations.fetch_add(1, std::memory_order_relaxed);
+                                break;
+                            }
+                            case EvoDecision::combine: {
+                                child = performCombine(hg_copy, evo_context, target_graph, population);
+                                total_combinations.fetch_add(1, std::memory_order_relaxed);
+                                break;
+                            }
+                            case EvoDecision::modified_combine: {
+                                child = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population, &rng);
+                                total_modifiedCombinations.fetch_add(1, std::memory_order_relaxed);
+                                break;
+                            }
+                            default:
+                                LOG << "Error: Non-covered case in decision making";
+                                std::exit(EXIT_FAILURE);
+                        }
+
+                        // Store individual in batch
+                        batch_individuals[batch_pos] = std::move(child);
+
+                        if (batch_pos == batch_size - 1) {
+                            // Insert entire batch into population
+                            for (size_t i = 0; i < batch_size; ++i) {
+                                std::string h = insert_individual_into_population(std::move(batch_individuals[i]), evo_context, population);
+                                if (!h.empty()) {
+                                    std::lock_guard<std::mutex> lock(_history_mutex);
+                                    history += h;
+                                }
+                            }
+                            // Mark batch as filled
+                            last_batch_filled.fetch_add(1, std::memory_order_release);
+                        }
+
+                    } 
+                });
+            });
         }
 
-        tbb::parallel_for(0, num_evo_workers, [&](int worker_id) {
-            // Each evo worker uses own arena
-            worker_arenas[worker_id]->execute([&] {
-                while (!stop_flag) {
-                    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-                    if (now - time_start >= duration) {
-                        stop_flag = true;
-                        break;
-                    }
-                    // Create a context for the inner run and set its thread limit
-                    Context evo_context(context);
-                    evo_context.type = ContextType::main;
-                    evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
-                    evo_context.shared_memory.num_threads = num_multilevel_threads;
 
-                    EvoDecision decision = decideNextMove(context);
-                    EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy(parallel_tag_t{});
 
-                    // Ensure sanityCheck preconditions hold for any standard partitioning
-                    // calls executed within workers by keeping part weights vector empty
-                    // unless individual part weights are explicitly enabled by the user.
-                    if (!evo_context.partition.use_individual_part_weights) {
-                        evo_context.partition.max_part_weights.clear();
-                    }
-                    
-                    switch (decision) {
-                        case EvoDecision::mutation:
-                            {
-                                std::string h = performMutation(hg_copy, evo_context, target_graph, population);
-                                if (!h.empty()) {
-                                    std::lock_guard<std::mutex> lock(_history_mutex);
-                                    history += h;
-                                }
-                                total_mutations++;
-                                total_iterations++;
-                                break;
-                            }
-                        case EvoDecision::combine:
-                            {
-                                std::string h = performCombine(hg_copy, evo_context, target_graph, population);
-                                if (!h.empty()) {
-                                    std::lock_guard<std::mutex> lock(_history_mutex);
-                                    history += h;
-                                }
-                                total_combinations++;
-                                total_iterations++;
-                                break;
-                            }
-                        case EvoDecision::modified_combine:
-                            {
-                                // decide modified combine parameters if mixed strategy is enabled
-                                if (context.evolutionary.modified_combine_mixed) {
-                                    modified_combine_params = decideContextModificationParameters(context);
-                                }
-                                std::string h = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
-                                if (!h.empty()) {
-                                    std::lock_guard<std::mutex> lock(_history_mutex);
-                                    history += h;
-                                }
-                                total_modifiedCombinations++;
-                                total_iterations++;
-                                break;
-                            }
-                        default:
-                            LOG << "Error in evo_partitioner.cpp: Non-covered case in decision making";
-                            std::exit(EXIT_FAILURE);
-                    }
-
-                    // Log current best KM1 after each iteration if enabled (iteration, timestamp, km1)
-                    if ( iteration_logging_enabled ) {
-                        // get current best KM1 from population
-                        size_t best_idx = population.bestSafe();
-                        auto current_km1 = population.individualAtSafe(best_idx).fitness();
-                        auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        std::chrono::high_resolution_clock::now().time_since_epoch()
-                                        ).count();
-                        std::lock_guard<std::mutex> lg(iteration_log_mutex);
-                        iteration_log_history += std::to_string(total_iterations.load()) + ", " +
-                                                std::to_string(ts_ms) + ", " +
-                                                std::to_string(current_km1) + "\n";
-                    }
-                }
-            });
-        });
         timer.stop_timer("evolutionary");
 
         // Update final diff matrix
