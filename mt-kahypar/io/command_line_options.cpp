@@ -1198,6 +1198,31 @@ namespace mt_kahypar {
       context.evolutionary.kway_combine,
       "How many individsuals to combine for the combine step"
     )->capture_default_str();
+    app.add_option(
+      "--evo-enable-modified-combine",
+      context.evolutionary.enable_modified_combine,
+      "Enable modified combine operator for evolutionary partitioning"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-k-multiplier",
+      context.evolutionary.modified_combine_k_multiplier,
+      "Factor to multiply base k for modified combine external parent"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-epsilon",
+      context.evolutionary.modified_combine_epsilon_multiplier,
+      "Epsilon value for modified combine external parent"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-recursive-bipartitioning",
+      context.evolutionary.modified_combine_recursive_bipartitioning,
+      "Use recursive bipartitioning mode for modified combine external parent"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-modified-combine-use-random-partitions",
+      context.evolutionary.modified_combine_use_random_partitions,
+      "Use random partitions for modified combine external parent"
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {

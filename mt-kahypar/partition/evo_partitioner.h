@@ -9,6 +9,13 @@ namespace mt_kahypar {
 // Forward Declaration
 class TargetGraph;
 
+struct ContextModifierParameters {
+    bool use_random_partitions = false;
+    PartitionID k = 2;
+    double epsilon = 0.03;
+    bool recursive_bipartitioning = false;
+};
+
 template<typename TypeTraits>
 class EvoPartitioner : public Partitioner<TypeTraits> {
 
@@ -29,7 +36,8 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static const Individual & generateIndividual(const Hypergraph& hg,
                                             Context& context,
                                             TargetGraph* target_graph,
-                                            Population& population);
+                                            Population& population,
+                                            bool insert_into_population = true);
     static std::string performEvolution(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
@@ -45,7 +53,10 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static EvoDecision decideNextMove(const Context& context);
     static EvoMutateStrategy decideNextMutation(const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
+    static vec<PartitionID> combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions);
     static std::string performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static std::string performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population);
+    static Context modifyContext(const Context& context, ContextModifierParameters params);
     static std::string performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
     static std::string checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time);
 };

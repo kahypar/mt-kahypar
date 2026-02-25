@@ -282,6 +282,13 @@ struct EvolutionaryParameters {
   std::string history_file;
   std::string diff_matrix_file;
   int kway_combine = 2;
+
+  // Modified combine parameters
+  bool enable_modified_combine = false;
+  double modified_combine_k_multiplier = 1;
+  double modified_combine_epsilon_multiplier = 1;
+  bool modified_combine_recursive_bipartitioning = false;
+  bool modified_combine_use_random_partitions = false;
 };
 
 class Context {
