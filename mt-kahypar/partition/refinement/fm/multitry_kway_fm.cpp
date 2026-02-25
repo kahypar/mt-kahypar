@@ -143,10 +143,8 @@ namespace mt_kahypar {
         // compute rebalancing moves
         timer.start_timer("rebalance_fm", "Rebalance");
         Metrics tmp_metrics;
-        ASSERT([&]{ // correct quality only required for assertions
-          tmp_metrics.quality = metrics::quality(phg, context);
-          return true;
-        }());
+        // the correct quality is only required for assertions
+        ENABLE_ASSERTIONS(tmp_metrics.quality = metrics::quality(phg, context));
 
         if constexpr (GainCache::invalidates_entries) {
           tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
