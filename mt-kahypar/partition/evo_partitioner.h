@@ -18,7 +18,7 @@ class EvoPartitioner {
     static PartitionedHypergraph partition(Hypergraph& hypergraph,
                                            Context& context,
                                            TargetGraph* target_graph = nullptr);
-    static void generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg,
+    static std::string generateInitialPopulation(EvoPartitioner<TypeTraits>::Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
@@ -26,7 +26,7 @@ class EvoPartitioner {
                                             Context& context,
                                             TargetGraph* target_graph,
                                             Population& population);
-    static void performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg,
+    static std::string performEvolution(EvoPartitioner<TypeTraits>::Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);

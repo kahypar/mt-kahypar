@@ -1178,6 +1178,11 @@ namespace mt_kahypar {
       context.evolutionary.history_file,
       "Output file for evolution history"
     );
+    app.add_option(
+      "--evo-kway",
+      context.evolutionary.kway_combine,
+      "How many individsuals to combine for the combine step"
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {

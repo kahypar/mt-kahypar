@@ -278,6 +278,7 @@ struct EvolutionaryParameters {
   mutable int iteration;
   mutable std::chrono::milliseconds time_elapsed;
   std::string history_file;
+  int kway_combine = 2;
 };
 
 class Context {
