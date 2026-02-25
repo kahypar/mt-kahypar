@@ -264,8 +264,9 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
-  HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::steiner_tree);
-  double best_imbalance = metrics::imbalance(communication_hg, context);
+  Metrics best_metrics;
+  best_metrics.quality = metrics::quality(communication_hg, Objective::steiner_tree);
+  best_metrics.imbalance = metrics::imbalance(communication_hg, context);
   HypernodeID best_hn_id = kInvalidHypernode;
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
@@ -282,22 +283,13 @@ void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHyper
     }
 
     // Check if new mapping is better than the currently best mapping
-    const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
-    const double imbalance = metrics::imbalance(tmp_communication_phg, context);
+    Metrics current_metrics;
+    current_metrics.quality = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
+    current_metrics.imbalance = metrics::imbalance(tmp_communication_phg, context);
     best_lock.lock();
-    // TODO: make this less ugly along with the metrics refactoring
-    bool equal_metric = objective == best_objective;
-    bool improved_metric = objective < best_objective;
-    bool improved_imbalance = imbalance < best_imbalance;
-    bool is_feasible = imbalance <= context.partition.epsilon;
-    bool is_best_feasible = best_imbalance <= context.partition.epsilon;
-    if ( ( improved_metric && (is_feasible || improved_imbalance) ) ||
-         ( equal_metric && improved_imbalance ) ||
-         ( is_feasible && !is_best_feasible ) ||
-         ( improved_imbalance && !is_feasible && !is_best_feasible ) ||
-         ( equal_metric && imbalance == best_imbalance && hn > best_hn_id)) {
-      best_objective = objective;
-      best_imbalance = imbalance;
+    if ( current_metrics.isBetter(best_metrics) ||
+         (current_metrics.isEqual(best_metrics) && hn > best_hn_id) ) {
+      best_metrics = current_metrics;
       best_hn_id = hn;
       for ( const HypernodeID& u : tmp_communication_phg.nodes() ) {
         best_mapping[u] = tmp_communication_phg.partID(u);
