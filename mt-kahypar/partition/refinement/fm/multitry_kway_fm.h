@@ -85,15 +85,7 @@ class MultiTryKWayFM final : public IRefiner {
   void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
                                                   const vec<HypernodeWeight>& initialPartWeights,
                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                  vec<vec<Move>>& rebalancing_moves_by_part);
-
-  void insertMovesToBalanceBlock(const PartitionedHypergraph& phg,
-                                 const PartitionID block,
-                                 const std::vector<HypernodeWeight>& max_part_weights,
-                                 const vec<vec<Move>>& rebalancing_moves_by_part,
-                                 MoveID& next_move_index,
-                                 vec<HypernodeWeight>& current_part_weights,
-                                 vec<MoveID>& current_rebalancing_move_index);
+                                                  vec<Move>& rebalancing_moves);
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
     return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
