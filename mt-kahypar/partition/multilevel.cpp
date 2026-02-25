@@ -217,7 +217,7 @@ namespace {
     const TargetGraph* target_graph,
     const bool is_vcycle,
     std::unordered_map<PartitionID, int> comm_to_block) {
-    disableTimerAndStats(context);
+    //disableTimerAndStats(context);
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     PartitionedHypergraph partitioned_hg;
@@ -308,7 +308,7 @@ namespace {
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
 
-    enableTimerAndStats(context);
+    //enableTimerAndStats(context);
     return partitioned_hg;
   }
 }
