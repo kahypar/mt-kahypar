@@ -315,7 +315,8 @@ namespace mt_kahypar {
       case EvoDecision::normal:  return os << "normal";
       case EvoDecision::mutation:  return os << "mutation";
       case EvoDecision::combine:  return os << "combine";
-        // omit default case to trigger compiler warning for missing cases
+      case EvoDecision::modified_combine: return os << "modified_combine";
+      // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(decision);
   }

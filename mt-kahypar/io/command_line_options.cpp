@@ -1179,6 +1179,11 @@ namespace mt_kahypar {
       "The chance of a mutation being selected as operation"
     )->capture_default_str();
     app.add_option(
+      "--evo-modified-combine-chance",
+      context.evolutionary.modified_combine_chance,
+      "The chance of using the modified combine operator"
+    )->capture_default_str();
+    app.add_option(
       "--evo-history-file",
       context.evolutionary.history_file,
       "Output file for evolution history"
@@ -1188,6 +1193,21 @@ namespace mt_kahypar {
       context.evolutionary.diff_matrix_file,
       "Output file for evolution difference matrix"
     );
+    app.add_option(
+      "--evo-iteration-log-file",
+      context.evolutionary.iteration_log_file,
+      "Output file for evolution iteration log"
+    );
+    app.add_option(
+      "--evo-enable-iteration-logging",
+      context.evolutionary.enable_iteration_logging,
+      "Enable iteration logging for evolutionary partitioning"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-iteration-log-limit",
+      context.evolutionary.iteration_log_limit,
+      "Limit for iteration logging for evolutionary partitioning"
+    )->capture_default_str();
     app.add_option(
       "--evo-threads-per-worker",
       context.evolutionary.num_threads_per_worker,
@@ -1273,6 +1293,10 @@ namespace mt_kahypar {
       app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
       ERR(e.what());
+    }
+
+    if (context.evolutionary.enable_modified_combine && cmd_vm.count("evo-modified-combine-chance") == 0) {
+      context.evolutionary.modified_combine_chance = 1.0f / 3.0f;
     }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
