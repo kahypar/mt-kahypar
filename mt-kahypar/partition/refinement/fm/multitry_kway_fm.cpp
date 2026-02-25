@@ -232,7 +232,7 @@ namespace impl {
                              num_tasks, num_seeds, round);
       timer.stop_timer("find_moves");
 
-      if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
+      if (is_unconstrained && !metrics::imbalance(phg, context, max_part_weights).isValidPartition()) {
         vec<Move> rebalancing_moves;
 
         // compute rebalancing moves
