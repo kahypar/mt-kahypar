@@ -1288,6 +1288,11 @@ namespace mt_kahypar {
       context.evolutionary.meta_evo_solutions_per_run,
       "Number of best solutions to take from each meta-evo run into the main population."
     )->capture_default_str();
+    app.add_option(
+      "--evo-batch-size",
+      context.evolutionary.batch_size,
+      "Batch size determining the amount of individuals inserted when using deterministic mode."
+    )->capture_default_str();
   }
 
   void addNonRequiredOptions(Context& context, CLI::App& app, CLI::Option* preset_option, bool detailed) {
