@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
         io::readInputFile<ds::StaticGraph>(
           context.mapping.target_graph_file, FileFormat::Metis, true));
     } else {
-      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
+      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph=<file>)!");
     }
   }
 

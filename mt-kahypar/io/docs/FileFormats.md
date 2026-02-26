@@ -36,7 +36,7 @@ Otherwise, there is one line for each hypernode containing a single entry, which
 
 ## Metis Format for Input Graphs
 
-Mt-KaHyPar can also read input *graphs* in Metis format via `--input-file-format=metis`.
+Mt-KaHyPar can also read input *graphs* in Metis format via `--file-format=metis`.
 Also, target graphs for the Steiner tree metric need to be provided in the Metis format:
 [Unweighted Example](/tests/instances/unweighted_graph.graph), [Weighted Example](/tests/instances/graph_with_node_and_edge_weights.graph), [Metis manual](https://karypis.github.io/glaros/files/sw/metis/manual.pdf)
 
