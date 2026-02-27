@@ -46,7 +46,7 @@ enum class MoveSequenceState : uint8_t {
 // apply the moves
 struct MoveSequence {
   vec<Move> moves;
-  Gain expected_improvement; // >= 0
+  Gain expected_improvement = 0; // >= 0
   MoveSequenceState state = MoveSequenceState::IN_PROGRESS;
 };
 

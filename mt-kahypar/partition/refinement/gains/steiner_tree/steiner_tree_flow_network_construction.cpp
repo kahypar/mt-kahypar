@@ -121,7 +121,7 @@ FlowNetworkEdgeParameters SteinerTreeFlowNetworkConstruction::getParameters(cons
     const HyperedgeWeight distance_without_block_1 = target_graph.distanceWithoutBlock(connectivity_set, block_1);
     const HyperedgeWeight gain_0 = (current_distance - distance_without_block_0) * edge_weight;
     const HyperedgeWeight gain_1 = (current_distance - distance_without_block_1) * edge_weight;
-    parameters.capacity = capacity_for_cut_edge(context.refinement.flows.steiner_tree_policy, gain_0, gain_1);
+    parameters.capacity = std::max(0, capacity_for_cut_edge(context.refinement.flows.steiner_tree_policy, gain_0, gain_1));
   }
   return parameters;
 }
