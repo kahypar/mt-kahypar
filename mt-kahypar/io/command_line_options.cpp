@@ -73,8 +73,13 @@ namespace mt_kahypar {
             ("help", "show help message")
             ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
              "Enables deterministic mode.")
-            ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
+            ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>"),
              "Verbose main partitioning output")
+            ("quiet,q", po::bool_switch()->notifier(
+                     [&](const bool& val) {
+                        if (val) context.partition.verbose_output = false;
+                     }),
+             "Disable partitioning output")
             ("fixed,f",
              po::value<std::string>(&context.partition.fixed_vertex_filename)->value_name("<string>"),
              "Fixed vertex filename")
