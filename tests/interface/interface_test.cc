@@ -1020,6 +1020,10 @@ namespace mt_kahypar {
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
+  TEST_F(APartitioner, PartitionsAHypergraphWithSinglePinsAndSpaces) {
+    Partition("test_instances/single_pin_hes.hgr", HMETIS, DEFAULT, 2, 0.03, KM1, true);
+  }
+
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, KM1, false);
   }

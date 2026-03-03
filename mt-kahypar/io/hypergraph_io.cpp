@@ -242,15 +242,20 @@ namespace mt_kahypar::io {
     const HyperedgeID num_hyperedges;
   };
 
-  inline bool isSinglePinHyperedge(char* mapped_file,
-                                          size_t pos,
-                                          const size_t length,
-                                          const bool has_hyperedge_weights) {
+  bool isSinglePinHyperedge(char* mapped_file,
+                            size_t pos,
+                            const size_t length,
+                            const bool has_hyperedge_weights) {
+    ASSERT(!is_line_ending(mapped_file, pos), "Empty line where hyperedge was expected");
+    ASSERT(mapped_file[pos] != ' ', "Line may not start with space");
+    ++pos;
+
     size_t num_spaces = 0;
     for ( ; pos < length; ++pos ) {
       if (is_line_ending(mapped_file, pos)) {
         break;
-      } else if ( mapped_file[pos] == ' ' ) {
+        // shift the check by -1 so that we can tolerate a space at the end of the line
+      } else if ( mapped_file[pos - 1] == ' ' ) {
         ++num_spaces;
       }
 
