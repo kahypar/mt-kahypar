@@ -4,6 +4,9 @@
 #include "mt-kahypar/dynamic/strategies/localFM_rebalance_vcycle.h"
 #include "mt-kahypar/dynamic/strategies/repartition.h"
 #include "mt-kahypar/dynamic/strategies/streaming.h"
+#include "mt-kahypar/dynamic/strategies/hashing.h"
+#include "mt-kahypar/dynamic/competitors/hermes.h"
+#include "mt-kahypar/dynamic/competitors/leopard.h"
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
@@ -52,8 +55,14 @@ namespace mt_kahypar::dyn {
         strategy = new LocalFMRebalanceVCycleV4(hypergraph_m, context);
       } else if (context.dynamic.strategy == "streaming") {
         strategy = new Streaming(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "hashing") {
+        strategy = new Hashing(hypergraph_m, context);
       } else if (context.dynamic.strategy == "repartition") {
         strategy = new Repartition(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "hermes") {
+          strategy = new Hermes(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "leopard") {
+        strategy = new Leopard(hypergraph_m, context);
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }

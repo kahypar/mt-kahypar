@@ -4,49 +4,14 @@
 
 namespace mt_kahypar::dyn {
 
-    class Streaming : public DynamicStrategy {
+    class Hashing : public DynamicStrategy {
 
     private:
 
-        PartitionID move_node_to_best_partition(const HypernodeID& hn) {
-          const PartitionID current_part = partitioned_hypergraph_m.partID(hn);
-          ASSERT(current_part != kInvalidPartition);
-
-          // compute for each block the number of nodes the new node connected to
-          std::vector block_connectivities(context.partition.k, std::make_tuple(0,0));
-          for ( PartitionID p = 0; p < context.partition.k; ++p ) {
-            block_connectivities[p] = std::make_tuple(0, p);
-          }
-          for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
-            for ( const PartitionID& p : partitioned_hypergraph_m.connectivitySet(he) ) {
-              block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
-            }
-          }
-
-          // sort block_connectivities in descending order
-          std::sort(block_connectivities.begin(), block_connectivities.end(), [](const auto& a, const auto& b) {
-            return std::get<0>(a) > std::get<0>(b);
-          });
-
-          //Add node to block with the highest connectivity if it doesn't violate max_part_weights (imbalance)
-          for (const auto& block_connectivity : block_connectivities) {
-            if (std::get<1>(block_connectivity) != current_part)
-            {
-              if (partitioned_hypergraph_m.partWeight(std::get<1>(block_connectivity)) + hypergraph_m.nodeWeight(hn) <=
-                  context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
-                partitioned_hypergraph_m.changeNodePart(hn, current_part,  std::get<1>(block_connectivity));
-                return std::get<1>(block_connectivity);
-              }
-            }
-          }
-          // if no other partition could accommodate the node, stay in current partition
-          return current_part;
-        }
-
-        PartitionID assign_node_first_free_partition(const HypernodeID& hn) {
+        PartitionID hash_assign(const HypernodeID& hn) {
           for (PartitionID p = 0; p < context.partition.k; ++p) {
-              if (PartitionID p_prime = (p + hn) % context.partition.k; partitioned_hypergraph_m.partWeight(p_prime) + hypergraph_m.nodeWeight(hn) <=
-            context.partition.max_part_weights[p_prime]) {
+            if (PartitionID p_prime = (p + hn) % context.partition.k; partitioned_hypergraph_m.partWeight(p_prime) + hypergraph_m.nodeWeight(hn) <=
+                context.partition.max_part_weights[p_prime]) {
               partitioned_hypergraph_m.addNode(hn, p_prime);
               return p_prime;
             }
@@ -58,7 +23,7 @@ namespace mt_kahypar::dyn {
 
     public:
 
-      Streaming(ds::MutableHypergraph& hypergraph_m, Context& context)
+      Hashing(ds::MutableHypergraph& hypergraph_m, Context& context)
           : DynamicStrategy(hypergraph_m, context) {}
       
         MutablePartitionedHypergraph& init() override {
@@ -83,7 +48,7 @@ namespace mt_kahypar::dyn {
             (void) new_hn;
             ASSERT(hn == new_hn);
             updateMaxPartWeight(context, hypergraph_m);
-            const PartitionID assigned_part = assign_node_first_free_partition(hn);
+            const PartitionID assigned_part = hash_assign(hn);
             (void) assigned_part;
             ASSERT(assigned_part != kInvalidPartition);
           }
@@ -97,11 +62,6 @@ namespace mt_kahypar::dyn {
           {
             hypergraph_m.addPin(edge, node);
             partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
-          }
-
-          for (const HypernodeID& hn : change.added_nodes)
-          {
-            PartitionID target = move_node_to_best_partition(hn);
           }
       }
         void printAdditionalFinalStats() override {
