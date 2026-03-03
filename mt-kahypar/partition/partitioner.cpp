@@ -160,17 +160,18 @@ namespace mt_kahypar {
 
     timer.start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
     const HypernodeID num_removed_large_hyperedges =
-            large_he_remover.removeLargeHyperedges(hypergraph);
+            large_he_remover.removeSinglePinAndLargeHyperedges(hypergraph);
     timer.stop_timer("large_hyperedge_removal");
 
-    const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
+    const HyperedgeID total_removed_hes = hypergraph.numRemovedHyperedges();
+    const HyperedgeID num_removed_single_node_hes = total_removed_hes - num_removed_large_hyperedges;
     if (context.partition.enable_logging && context.partition.verbose_logging &&
         ( num_removed_single_node_hes > 0 ||
           num_removed_degree_zero_hypernodes > 0 ||
           num_removed_large_hyperedges > 0 )) {
       LOG << "Performed single-node/large HE removal and degree-zero HN contractions:";
       LOG << "\033[1m\033[31m" << " # removed"
-          << num_removed_single_node_hes << "single-pin hyperedges during hypergraph file parsing"
+          << num_removed_single_node_hes << "single-pin hyperedges"
           << "\033[0m";
       LOG << "\033[1m\033[31m" << " # removed"
           << num_removed_large_hyperedges << "large hyperedges with |e| >" << large_he_remover.largeHyperedgeThreshold() << "\033[0m";
@@ -366,7 +367,7 @@ namespace mt_kahypar {
 
     // ################## POSTPROCESSING ##################
     timer.start_timer("postprocessing", "Postprocessing");
-    large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+    large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     forceFixedVertexAssignment(partitioned_hypergraph, context);
     timer.stop_timer("postprocessing");
@@ -428,7 +429,7 @@ namespace mt_kahypar {
 
     // ################## POSTPROCESSING ##################
     timer.start_timer("postprocessing", "Postprocessing");
-    large_he_remover.restoreLargeHyperedges(partitioned_hg);
+    large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hg);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
     forceFixedVertexAssignment(partitioned_hg, context);
     timer.stop_timer("postprocessing");

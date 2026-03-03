@@ -872,6 +872,17 @@ class DynamicHypergraph {
   }
 
   /*!
+   * Restores a hyperedge previously removed from the hypergraph.
+   */
+  void restoreEdge(const HyperedgeID he) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "is enabled");
+    enableHyperedge(he);
+    for ( const HypernodeID& pin : pins(he) ) {
+      _incident_nets.restoreIncidentNets(pin);
+    }
+  }
+
+  /*!
   * Removes a hyperedge from the hypergraph. This includes the removal of he from all
   * of its pins and to disable the hyperedge. Note, in contrast to removeEdge, this function
   * removes hyperedge from all its pins in parallel.

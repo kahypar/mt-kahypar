@@ -476,6 +476,19 @@ class PartitionedHypergraph {
     }
   }
 
+  /*!
+   * Restores a single pin hyperedge previously removed from the hypergraph.
+   */
+  void restoreSinglePinEdge(const HyperedgeID& he) {
+    _hg->restoreEdge(he);
+    ASSERT(edgeSize(he) == 1);  // trying to get the size before restoring triggers another assertion
+
+    const HypernodeID pin = _hg->_incidence_array[_hg->hyperedge(he).firstEntry()];
+    const PartitionID block = partID(pin);
+    _con_info.setPinCountInPart(he, block, 1);
+    _con_info.addBlock(he, block);
+  }
+
   /**
    * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
    * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).

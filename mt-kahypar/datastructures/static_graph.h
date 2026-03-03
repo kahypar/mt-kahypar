@@ -796,12 +796,23 @@ class StaticGraph {
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
-  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
-  * of its pins and to disable the hyperedge. Noze, in contrast to removeEdge, this function
-  * removes hyperedge from all its pins in parallel.
-  *
-  * NOTE, this function is not thread-safe and should only be called in a single-threaded
-  * setting.
+  * (Not supported.)
+  */
+  void removeEdge(const HyperedgeID) {
+    throw UnsupportedOperationException(
+      "removeEdge is not supported in static graph");
+  }
+
+  /*!
+  * (Not supported.)
+  */
+  void restoreEdge(const HyperedgeID he) {
+    throw UnsupportedOperationException(
+      "restoreEdge is not supported in static graph");
+  }
+
+  /*!
+  * (Not supported.)
   */
   void removeLargeEdge(const HyperedgeID) {
     throw UnsupportedOperationException(
@@ -809,8 +820,8 @@ class StaticGraph {
   }
 
   /*!
-   * Restores a large hyperedge previously removed from the hypergraph.
-   */
+  * (Not supported.)
+  */
   void restoreLargeEdge(const HyperedgeID&) {
     throw UnsupportedOperationException(
       "restoreLargeEdge() is not supported in static graph");

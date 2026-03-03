@@ -775,6 +775,14 @@ class DynamicGraph {
   /*!
   * (Not supported.)
   */
+  void restoreEdge(const HyperedgeID he) {
+    throw UnsupportedOperationException(
+      "restoreEdge is not supported in dynamic graph");
+  }
+
+  /*!
+  * (Not supported.)
+  */
   void removeLargeEdge(const HyperedgeID) {
     throw UnsupportedOperationException(
       "removeLargeEdge is not supported in dynamic graph");

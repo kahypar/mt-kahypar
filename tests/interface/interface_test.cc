@@ -991,6 +991,35 @@ namespace mt_kahypar {
     }
   };
 
+  TEST_F(APartitioner, PartitionsAHypergraphWithSinglePinHyperedges) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 1; hyperedge_indices[2] = 5;
+    hyperedge_indices[3] = 8; hyperedge_indices[4] = 11;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(11);
+    hyperedges[0] = 0;                                                            // Hyperedge 0
+    hyperedges[1] = 0;  hyperedges[2] = 1; hyperedges[3] = 3;  hyperedges[4] = 4; // Hyperedge 1
+    hyperedges[5] = 3;  hyperedges[6] = 4; hyperedges[7] = 6;                     // Hyperedge 2
+    hyperedges[8] = 2; hyperedges[9] = 5; hyperedges[10] = 6;                     // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
+      context, num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr, &error);
+
+    mt_kahypar_set_partitioning_parameters(context, 2, 0.03, KM1);
+    // mt_kahypar_set_context_parameter(context, VERBOSE, "1", &error);
+
+    mt_kahypar_partitioned_hypergraph_t partitioned_hg = mt_kahypar_partition(hypergraph, context, &error);
+
+    mt_kahypar_free_context(context);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+  }
+
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, KM1, false);
   }

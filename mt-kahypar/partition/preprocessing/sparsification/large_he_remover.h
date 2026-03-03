@@ -41,7 +41,8 @@ class LargeHyperedgeRemover {
  public:
   LargeHyperedgeRemover(const Context& context) :
     _context(context),
-    _removed_hes() { }
+    _removed_hes(),
+    _removed_single_pin_hes() { }
 
   LargeHyperedgeRemover(const LargeHyperedgeRemover&) = delete;
   LargeHyperedgeRemover & operator= (const LargeHyperedgeRemover &) = delete;
@@ -49,13 +50,17 @@ class LargeHyperedgeRemover {
   LargeHyperedgeRemover(LargeHyperedgeRemover&&) = delete;
   LargeHyperedgeRemover & operator= (LargeHyperedgeRemover &&) = delete;
 
-  // ! Removes large hyperedges from the hypergraph
+  // ! Removes single pin and large hyperedges from the hypergraph
   // ! Returns the number of removed large hyperedges.
-  HypernodeID removeLargeHyperedges(Hypergraph& hypergraph) {
+  HypernodeID removeSinglePinAndLargeHyperedges(Hypergraph& hypergraph) {
     HypernodeID num_removed_large_hyperedges = 0;
     if constexpr ( !Hypergraph::is_graph ) {
       for ( const HyperedgeID& he : hypergraph.edges() ) {
-        if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
+        ASSERT(hypergraph.edgeSize(he) > 0);
+        if ( hypergraph.edgeSize(he) == 1 ) {
+          hypergraph.removeEdge(he);
+          _removed_single_pin_hes.push_back(he);
+        } else if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
           hypergraph.removeLargeEdge(he);
           _removed_hes.push_back(he);
           ++num_removed_large_hyperedges;
@@ -75,14 +80,21 @@ class LargeHyperedgeRemover {
       hypergraph.enableHyperedge(he);
       hypergraph.removeLargeEdge(he);
     }
+    for ( const HyperedgeID& he : _removed_single_pin_hes ) {
+      hypergraph.enableHyperedge(he);
+      hypergraph.removeEdge(he);
+    }
   }
 
   // ! Restores all previously removed large hyperedges
-  void restoreLargeHyperedges(PartitionedHypergraph& hypergraph) {
+  void restoreSinglePinAndLargeHyperedges(PartitionedHypergraph& hypergraph) {
     HyperedgeWeight delta = 0;
     for ( const HyperedgeID& he : _removed_hes ) {
       hypergraph.restoreLargeEdge(he);
       delta += metrics::contribution(hypergraph, he, _context.partition.objective);
+    }
+    for ( const HyperedgeID& he : _removed_single_pin_hes ) {
+      hypergraph.restoreSinglePinEdge(he);
     }
 
     if ( _context.partition.enable_logging && _context.partition.verbose_logging && delta > 0 ) {
@@ -100,11 +112,13 @@ class LargeHyperedgeRemover {
 
   void reset() {
     _removed_hes.clear();
+    _removed_single_pin_hes.clear();
   }
 
  private:
   const Context& _context;
   parallel::scalable_vector<HypernodeID> _removed_hes;
+  parallel::scalable_vector<HypernodeID> _removed_single_pin_hes;
 };
 
 }  // namespace mt_kahypar
