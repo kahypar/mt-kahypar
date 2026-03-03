@@ -806,7 +806,7 @@ class StaticGraph {
   /*!
   * (Not supported.)
   */
-  void restoreEdge(const HyperedgeID he) {
+  void restoreEdge(const HyperedgeID) {
     throw UnsupportedOperationException(
       "restoreEdge is not supported in static graph");
   }
