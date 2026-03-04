@@ -118,7 +118,7 @@ public:
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      context.partition.graph_filename, FileFormat::hMetis, true);
+      context.partition.graph_filename, FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
             context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());

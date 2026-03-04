@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
       hgr_filename, PresetType::default_preset,
-      InstanceType::hypergraph, FileFormat::hMetis, true);
+      InstanceType::hypergraph, FileFormat::hMetis, true, true, true);
   Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
   for ( int p = 0; p < num_procs; ++p ) {

@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t gr =
     mt_kahypar::io::readInputFile(
       graph_filename, PresetType::default_preset,
-      InstanceType::graph, FileFormat::Metis, true);
+      InstanceType::graph, FileFormat::Metis, true, true, true);
   Graph& graph = utils::cast<Graph>(gr);
 
   writeScotchGraphFile(graph, out_filename);

@@ -100,11 +100,11 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    context.partition.graph_filename, context.partition.file_format, true, true);
+    context.partition.graph_filename, context.partition.file_format, true, true, true);
 
   // Read Target Graph
   TargetGraph target_graph(io::readInputFile<Graph>(
-    context.mapping.target_graph_file, FileFormat::Metis, true, true));
+    context.mapping.target_graph_file, FileFormat::Metis, true, true, true));
   context.partition.k = target_graph.numBlocks();
   context.setupPartWeights(hg.totalWeight());
 

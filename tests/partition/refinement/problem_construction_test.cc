@@ -65,7 +65,7 @@ class AProblemConstruction : public Test {
 
     // Read hypergraph
     hg = io::readInputFile<Hypergraph>(
-      context.partition.graph_filename, FileFormat::hMetis, true);
+      context.partition.graph_filename, FileFormat::hMetis, true, true, true);
     phg = PartitionedHypergraph(
       context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());

@@ -53,7 +53,7 @@ namespace {
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
+    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true, true, true);
   PartitionID k = 2;
 
   PartitionedHypergraph phg(k, hg);
@@ -113,7 +113,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 TEST(RollbackTests, GainRecalculation2) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
+    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true, true, true);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);

@@ -290,7 +290,8 @@ mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
                                              const Context& context,
                                              const InstanceType instance_type,
                                              const FileFormat file_format) {
-  return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format, true);
+  return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format,
+                           /*stable_construnction=*/true, /*remove_single_pin_hes=*/true, context.partition.enable_logging);
 }
 
 mt_kahypar_hypergraph_t create_hypergraph(const Context& context,

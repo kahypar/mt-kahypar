@@ -98,7 +98,8 @@ mt_kahypar_hypergraph_t constructHypergraph(const mt_kahypar_hypergraph_type_t& 
 mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
                                        const mt_kahypar_hypergraph_type_t& type,
                                        const bool stable_construction,
-                                       const bool remove_single_pin_hes) {
+                                       const bool remove_single_pin_hes,
+                                       const bool print_warnings) {
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
   HyperedgeID num_removed_single_pin_hyperedges = 0;
@@ -107,7 +108,7 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
   vec<HypernodeWeight> hypernodes_weight;
   readHypergraphFile(filename, num_hyperedges, num_hypernodes,
                      num_removed_single_pin_hyperedges, hyperedges,
-                     hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
+                     hyperedges_weight, hypernodes_weight, remove_single_pin_hes, print_warnings);
   return constructHypergraph(type, num_hypernodes, num_hyperedges, hyperedges,
                              hyperedges_weight, hypernodes_weight,
                              num_removed_single_pin_hyperedges, stable_construction);
@@ -115,7 +116,8 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
 
 mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
                                       const mt_kahypar_hypergraph_type_t& type,
-                                      const bool stable_construction) {
+                                      const bool stable_construction,
+                                      const bool) {
   HyperedgeID num_edges = 0;
   HypernodeID num_vertices = 0;
   HyperedgeVector edges;
@@ -133,13 +135,14 @@ mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
                                       const InstanceType& instance,
                                       const FileFormat& format,
                                       const bool stable_construction,
-                                      const bool remove_single_pin_hes) {
+                                      const bool remove_single_pin_hes,
+                                      const bool print_warnings) {
   mt_kahypar_hypergraph_type_t type = to_hypergraph_c_type(preset, instance);
   switch ( format ) {
     case FileFormat::hMetis: return readHMetisFile(
-      filename, type, stable_construction, remove_single_pin_hes);
+      filename, type, stable_construction, remove_single_pin_hes, print_warnings);
     case FileFormat::Metis: return readMetisFile(
-      filename, type, stable_construction);
+      filename, type, stable_construction, print_warnings);
   }
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
@@ -148,14 +151,15 @@ template<typename Hypergraph>
 Hypergraph readInputFile(const std::string& filename,
                          const FileFormat& format,
                          const bool stable_construction,
-                         const bool remove_single_pin_hes) {
+                         const bool remove_single_pin_hes,
+                         const bool print_warnings) {
   mt_kahypar_hypergraph_t hypergraph { nullptr, NULLPTR_HYPERGRAPH };
   switch ( format ) {
     case FileFormat::hMetis: hypergraph = readHMetisFile(
-      filename, Hypergraph::TYPE, stable_construction, remove_single_pin_hes);
+      filename, Hypergraph::TYPE, stable_construction, remove_single_pin_hes, print_warnings);
       break;
     case FileFormat::Metis: hypergraph = readMetisFile(
-      filename, Hypergraph::TYPE, stable_construction);
+      filename, Hypergraph::TYPE, stable_construction, print_warnings);
   }
   return std::move(utils::cast<Hypergraph>(hypergraph));
 }
@@ -251,7 +255,8 @@ namespace {
   #define READ_INPUT_FILE(X) X readInputFile(const std::string& filename,       \
                                              const FileFormat& format,          \
                                              const bool stable_construction,    \
-                                             const bool remove_single_pin_hes)
+                                             const bool remove_single_pin_hes,  \
+                                             const bool logging)
 }
 
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(READ_INPUT_FILE)
@@ -260,7 +265,8 @@ INSTANTIATE_FUNC_WITH_HYPERGRAPHS(READ_INPUT_FILE)
 template ds::StaticGraph readInputFile(const std::string& filename,
                                        const FileFormat& format,
                                        const bool stable_construction,
-                                       const bool remove_single_pin_hes);
+                                       const bool remove_single_pin_hes,
+                                       const bool logging);
 #endif
 
 }  // namespace io

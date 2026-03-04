@@ -79,7 +79,7 @@ class AFlatInitialPartitionerTest : public Test {
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/test_instance.hgr", FileFormat::hMetis, true);
+      "../tests/instances/test_instance.hgr", FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());

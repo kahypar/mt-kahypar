@@ -101,7 +101,8 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph = io::readInputFile(
       context.partition.graph_filename, context.partition.preset_type,
       context.partition.instance_type, context.partition.file_format,
-      context.preprocessing.stable_construction_of_incident_edges);
+      context.preprocessing.stable_construction_of_incident_edges,
+      /*remove_single_pin_hes=*/true, /*print_warnings=*/true);
   timer.stop_timer("io_hypergraph");
 
   // Read Target Graph
@@ -110,7 +111,8 @@ int main(int argc, char* argv[]) {
     if ( context.mapping.target_graph_file != "" ) {
       target_graph = std::make_unique<TargetGraph>(
         io::readInputFile<ds::StaticGraph>(
-          context.mapping.target_graph_file, FileFormat::Metis, true));
+          context.mapping.target_graph_file, FileFormat::Metis,
+          /*stable_construnction=*/true, /*remove_single_pin_hes=*/true, /*print_warnings=*/true));
     } else {
       throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph=<file>)!");
     }

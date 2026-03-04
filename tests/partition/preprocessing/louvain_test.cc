@@ -62,7 +62,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph> {
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readInputFile<Hypergraph>(
-      context.partition.graph_filename, FileFormat::hMetis, true);
+      context.partition.graph_filename, FileFormat::hMetis, true, true, true);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   }
 
