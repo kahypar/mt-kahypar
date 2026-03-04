@@ -164,6 +164,55 @@ namespace mt_kahypar {
     mt_kahypar_free_hypergraph(hypergraph);
   }
 
+  TEST(MtKaHyPar, StaticHypergraphConstructionHandlesErrors) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph;
+
+    auto attempt_construction = [&](const char* issue){
+      hypergraph = mt_kahypar_create_hypergraph(
+        context, num_vertices, num_hyperedges, hyperedge_indices.get(),
+        hyperedges.get(), nullptr, nullptr, &error);
+      ASSERT_EQ(error.status, INVALID_INPUT) << V(issue);
+      mt_kahypar_free_error_content(&error);
+    };
+
+    hyperedge_indices[0] = 1;
+    attempt_construction("first index");
+    hyperedge_indices[0] = 0;
+
+    hyperedge_indices[3] = 5;
+    attempt_construction("not ascending");
+    hyperedge_indices[3] = 9;
+
+    hyperedge_indices[3] = 6;
+    attempt_construction("empty hyperedge");
+    hyperedge_indices[3] = 9;
+
+    hyperedges[3] = 77;
+    attempt_construction("invalid pin");
+    hyperedges[3] = 1;
+
+    hyperedge_indices[4] = 10e8;
+    attempt_construction("giant HE");
+    hyperedge_indices[4] = 12;
+
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
   TEST(MtKaHyPar, ConstructUnweightedDynamicHypergraph) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
@@ -189,6 +238,55 @@ namespace mt_kahypar {
     ASSERT_EQ(4, mt_kahypar_num_hyperedges(hypergraph));
     ASSERT_EQ(12, mt_kahypar_num_pins(hypergraph));
     ASSERT_EQ(7, mt_kahypar_hypergraph_weight(hypergraph));
+
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  TEST(MtKaHyPar, DynamicHypergraphConstructionHandlesErrors) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t hypergraph;
+
+    auto attempt_construction = [&](const char* issue){
+      hypergraph = mt_kahypar_create_hypergraph(
+        context, num_vertices, num_hyperedges, hyperedge_indices.get(),
+        hyperedges.get(), nullptr, nullptr, &error);
+      ASSERT_EQ(error.status, INVALID_INPUT) << V(issue);
+      mt_kahypar_free_error_content(&error);
+    };
+
+    hyperedge_indices[0] = 1;
+    attempt_construction("first index");
+    hyperedge_indices[0] = 0;
+
+    hyperedge_indices[3] = 5;
+    attempt_construction("not ascending");
+    hyperedge_indices[3] = 9;
+
+    hyperedge_indices[3] = 6;
+    attempt_construction("empty hyperedge");
+    hyperedge_indices[3] = 9;
+
+    hyperedges[3] = 77;
+    attempt_construction("invalid pin");
+    hyperedges[3] = 1;
+
+    hyperedge_indices[4] = 10e8;
+    attempt_construction("giant HE");
+    hyperedge_indices[4] = 12;
 
     mt_kahypar_free_hypergraph(hypergraph);
   }
@@ -219,6 +317,39 @@ namespace mt_kahypar {
     mt_kahypar_free_hypergraph(graph);
   }
 
+  TEST(MtKaHyPar, StaticGraphConstructionHandlesErrors) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
+    const mt_kahypar_hypernode_id_t num_vertices = 5;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+
+    std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
+      std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
+    edges[0] = 0;  edges[1] = 1;
+    edges[2] = 0;  edges[3] = 2;
+    edges[4] = 1;  edges[5] = 2;
+    edges[6] = 1;  edges[7] = 3;
+    edges[8] = 2;  edges[9] = 3;
+    edges[10] = 3; edges[11] = 4;
+
+    mt_kahypar_hypergraph_t graph;
+
+    auto attempt_construction = [&](const char* issue){
+      graph = mt_kahypar_create_graph(
+        context, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr, &error);
+      ASSERT_EQ(error.status, INVALID_INPUT) << V(issue);
+      mt_kahypar_free_error_content(&error);
+    };
+
+    edges[2] = 42;
+    attempt_construction("invalid endpoint");
+
+    edges[2] = 2;
+    attempt_construction("self loop");
+
+    mt_kahypar_free_hypergraph(graph);
+  }
+
   TEST(MtKaHyPar, ConstructUnweightedDynamicGraph) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
@@ -241,6 +372,39 @@ namespace mt_kahypar {
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
     ASSERT_EQ(12, mt_kahypar_num_hyperedges(graph));
     ASSERT_EQ(5, mt_kahypar_hypergraph_weight(graph));
+
+    mt_kahypar_free_hypergraph(graph);
+  }
+
+  TEST(MtKaHyPar, DynamicGraphConstructionHandlesErrors) {
+    mt_kahypar_error_t error;
+    mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
+    const mt_kahypar_hypernode_id_t num_vertices = 5;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+
+    std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
+      std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
+    edges[0] = 0;  edges[1] = 1;
+    edges[2] = 0;  edges[3] = 2;
+    edges[4] = 1;  edges[5] = 2;
+    edges[6] = 1;  edges[7] = 3;
+    edges[8] = 2;  edges[9] = 3;
+    edges[10] = 3; edges[11] = 4;
+
+    mt_kahypar_hypergraph_t graph;
+
+    auto attempt_construction = [&](const char* issue){
+      graph = mt_kahypar_create_graph(
+        context, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr, &error);
+      ASSERT_EQ(error.status, INVALID_INPUT) << V(issue);
+      mt_kahypar_free_error_content(&error);
+    };
+
+    edges[2] = 42;
+    attempt_construction("invalid endpoint");
+
+    edges[2] = 2;
+    attempt_construction("self loop");
 
     mt_kahypar_free_hypergraph(graph);
   }

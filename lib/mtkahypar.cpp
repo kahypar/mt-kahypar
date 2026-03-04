@@ -317,19 +317,10 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t*
                                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                      const mt_kahypar_hypernode_weight_t* vertex_weights,
                                                      mt_kahypar_error_t* error) {
-  // Transform adjacence array into adjacency list
-  vec<vec<HypernodeID>> edge_vector(num_hyperedges);
-  tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
-    const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
-    edge_vector[he].resize(num_pins);
-    for ( size_t i = 0; i < num_pins; ++i ) {
-      edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
-    }
-  });
-
   const Context& c = *reinterpret_cast<const Context*>(context);
   try {
-    return lib::create_hypergraph(c, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
+    return lib::create_hypergraph_from_adjacency_array(
+      c, num_vertices, num_hyperedges, hyperedge_indices, hyperedges, hyperedge_weights, vertex_weights);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }
