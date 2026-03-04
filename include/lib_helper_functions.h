@@ -353,6 +353,7 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
       edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
     }
 
+    // TODO: this might not be free, should we allow to disable it?
     utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
   });
 
