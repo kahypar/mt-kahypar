@@ -69,8 +69,11 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
   DynamicGraph graph;
-  ASSERT(edge_vector.size() == num_edges);
   graph._num_edges = 2 * num_edges;
+
+  if (edge_vector.size() != num_edges) {
+    throw InvalidInputException("Number of edges does not match length of input data!");
+  }
 
   // TODO: calculate required id range
   tbb::parallel_invoke([&] {

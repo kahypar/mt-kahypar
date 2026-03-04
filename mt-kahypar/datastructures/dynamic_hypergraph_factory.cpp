@@ -62,12 +62,18 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
   });
   hypergraph._he_bitset = ThreadLocalBitset(num_hyperedges);
 
-  ASSERT(edge_vector.size() == num_hyperedges);
+  if (edge_vector.size() != num_hyperedges) {
+    throw InvalidInputException("Number of hyperedges does not match length of input data!");
+  }
 
   // Compute number of pins per hyperedge
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
   tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
+    if (edge_vector[pos].size() == 0) {
+      throw InvalidInputException(std::string("Hyperedge ") + STR(pos) + " is empty (hyperedges must contain at least 1 pin)");
+    }
+
     num_pins_per_hyperedge[pos] = edge_vector[pos].size();
     local_max_edge_size.local() = std::max(
       local_max_edge_size.local(), edge_vector[pos].size());
@@ -105,7 +111,9 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
       size_t hash = kEdgeHashSeed;
       for ( const HypernodeID& pin : edge_vector[pos] ) {
         ASSERT(incidence_array_pos < hyperedge.firstInvalidEntry());
-        ASSERT(pin < num_hypernodes);
+        if (pin >= num_hypernodes) {
+          throw InvalidInputException(std::string("Hyperedge ") + STR(pos) + " contains invalid pin: " + STR(pin));
+        }
         // Compute hash of hyperedge
         hash += kahypar::math::hash(pin);
         // Add pin to incidence array
