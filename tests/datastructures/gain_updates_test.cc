@@ -49,7 +49,7 @@ class AGainUpdate : public Test {
  public:
   AGainUpdate() :
     hg(io::readInputFile<Hypergraph>(
-      "../tests/instances/twocenters.hgr", FileFormat::hMetis, true)),
+      "../tests/instances/twocenters.hgr", FileFormat::hMetis, true, true, true)),
     phg(),
     gain_cache() {
     phg = PartitionedHypergraph(2, hg);

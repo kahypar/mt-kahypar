@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    context.partition.graph_filename, FileFormat::hMetis, true, true);
+    context.partition.graph_filename, FileFormat::hMetis, true, true, true);
   context.setupPartWeights(hg.totalWeight());
 
   // Read Partition
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
       context.partition.graph_filename + ".k" + std::to_string(context.partition.k);
   }
   TargetGraph target_graph(io::readInputFile<Graph>(
-    context.mapping.target_graph_file, FileFormat::Metis, true, true));
+    context.mapping.target_graph_file, FileFormat::Metis, true, true, true));
   partitioned_hg.setTargetGraph(&target_graph);
 
   // Precompute Steiner Trees

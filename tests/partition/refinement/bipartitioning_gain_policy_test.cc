@@ -58,7 +58,7 @@ class ABipartitioningPolicy : public Test {
     partitioned_hg(),
     context() {
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
+      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
     partitioned_hg = PartitionedHypergraph(4, hypergraph, parallel_tag_t { });
 
     presetToContext(context, PresetType::default_preset, true);

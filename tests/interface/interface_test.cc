@@ -907,6 +907,7 @@ namespace mt_kahypar {
 
     void SetUp()  {
       mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
+      context = mt_kahypar_context_from_preset(DEFAULT);
       target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE, context, &error);
       ASSERT_NE(target_graph, nullptr);
     }
@@ -1021,7 +1022,7 @@ namespace mt_kahypar {
   }
 
   TEST_F(APartitioner, PartitionsAHypergraphWithSinglePinsAndSpaces) {
-    Partition("test_instances/single_pin_hes.hgr", HMETIS, DEFAULT, 2, 0.03, KM1, true);
+    Partition("test_instances/single_pin_hes.hgr", HMETIS, DEFAULT, 2, 0.03, KM1, false);
   }
 
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {

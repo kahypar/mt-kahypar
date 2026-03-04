@@ -426,7 +426,8 @@ namespace mt_kahypar::io {
                           HyperedgeVector& hyperedges,
                           vec<HyperedgeWeight>& hyperedges_weight,
                           vec<HypernodeWeight>& hypernodes_weight,
-                          const bool remove_single_pin_hes) {
+                          const bool remove_single_pin_hes,
+                          const bool print_warnings) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
@@ -444,7 +445,7 @@ namespace mt_kahypar::io {
     num_hyperedges -= res.num_removed_single_pin_hyperedges;
     num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
 
-    if ( res.num_hes_with_duplicated_pins > 0 ) {
+    if ( print_warnings && res.num_hes_with_duplicated_pins > 0 ) {
       WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
         << res.num_hes_with_duplicated_pins << "hyperedges!");
     }

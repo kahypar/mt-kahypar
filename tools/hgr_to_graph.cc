@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
   vec<HypernodeWeight> hypernodes_weight;
 
   io::readHypergraphFile(hgr_filename, num_edges, num_nodes, num_removed_single_pin_hyperedges,
-                         hyperedges, hyperedges_weight, hypernodes_weight);
+                         hyperedges, hyperedges_weight, hypernodes_weight, true, true);
   ALWAYS_ASSERT(hyperedges.size() == num_edges);
   ALWAYS_ASSERT(num_removed_single_pin_hyperedges == 0);
 

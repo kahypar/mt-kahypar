@@ -296,10 +296,11 @@ mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_na
 mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name,
                                                                   const mt_kahypar_context_t* context,
                                                                   mt_kahypar_error_t* error) {
-  unused(context);
+  const Context& c = *reinterpret_cast<const Context*>(context);
   TargetGraph* target_graph = nullptr;
   try {
-    ds::StaticGraph graph = io::readInputFile<ds::StaticGraph>(file_name, FileFormat::Metis, true);
+    ds::StaticGraph graph = io::readInputFile<ds::StaticGraph>(file_name, FileFormat::Metis, /*stable_construnction=*/true,
+                                                               /*remove_single_pin_hes=*/true, c.partition.enable_logging);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
     *error = to_error(ex);

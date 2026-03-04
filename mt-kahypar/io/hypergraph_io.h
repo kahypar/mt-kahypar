@@ -44,7 +44,8 @@ namespace io {
                           HyperedgeVector& hyperedges,
                           vec<HyperedgeWeight>& hyperedges_weight,
                           vec<HypernodeWeight>& hypernodes_weight,
-                          const bool remove_single_pin_hes = true);
+                          const bool remove_single_pin_hes,
+                          const bool print_warnings);
 
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,

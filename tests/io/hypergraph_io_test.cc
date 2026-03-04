@@ -43,7 +43,7 @@ class AnInputReader : public Test {
     hypergraph() { }
 
   void readHypergraph(const std::string& filename, const FileFormat format) {
-    hypergraph = readInputFile<Hypergraph>(filename, format, true);
+    hypergraph = readInputFile<Hypergraph>(filename, format, true, true, true);
   }
 
   void verifyIncidentNets(const std::vector< std::set<HyperedgeID> >& references) {
