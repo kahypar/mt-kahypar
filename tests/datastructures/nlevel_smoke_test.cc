@@ -176,8 +176,12 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     parallel::scalable_vector<HypernodeID> net;
     if constexpr ( Hypergraph::is_graph ) {
       unused(max_edge_size);
-      std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID),
-                                               rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID)};
+      std::pair<HypernodeID, HypernodeID> edge;
+      do {
+        edge = {rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID),
+                rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID)};
+      } while (edge.first == edge.second);
+
       graph_edges.insert({edge});
       graph_edges.insert({edge.first, edge.second});
       net.push_back(edge.first);

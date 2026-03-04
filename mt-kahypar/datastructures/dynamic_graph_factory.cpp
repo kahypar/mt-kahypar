@@ -28,6 +28,8 @@
 
 #include "dynamic_graph_factory.h"
 
+#include <limits>
+
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 
@@ -68,11 +70,20 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HyperedgeWeight* edge_weight,
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
+  if (num_edges > std::numeric_limits<HyperedgeID>::max() / 2) {
+    std::string msg = std::string("number of edges overflows ID range (note: graph edges are duplicated, require +1 bit)");
+    if constexpr (sizeof(HyperedgeID) < 8) {
+      msg += "; build with -DKAHYPAR_USE_64_BIT_IDS=ON to support larger ID ranges";
+    }
+    throw InvalidInputException(msg);
+  }
+  if (edge_vector.size() != num_edges) {
+    throw InvalidInputException("Number of edges does not match length of input data!");
+  }
+
   DynamicGraph graph;
-  ASSERT(edge_vector.size() == num_edges);
   graph._num_edges = 2 * num_edges;
 
-  // TODO: calculate required id range
   tbb::parallel_invoke([&] {
     graph._nodes.resize(num_nodes + 1);
     tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID n) {
