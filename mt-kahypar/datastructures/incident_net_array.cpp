@@ -373,7 +373,9 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
       parallel::scalable_vector<size_t>& num_incident_nets_per_vertex =
         local_incident_nets_per_vertex.local();
       for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < _num_hypernodes, V(pin) << V(_num_hypernodes));
+        if (pin >= _num_hypernodes) {
+          throw InvalidInputException("Hyperedge " + STR(pos) + " contains invalid pin: " + STR(pin));
+        }
         ++num_incident_nets_per_vertex[pin + 1];
       }
     });
