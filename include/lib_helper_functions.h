@@ -34,6 +34,7 @@
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/conversion.h"
@@ -44,6 +45,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/deduplicate.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/command_line_options.h"
@@ -319,6 +321,45 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
       break;
   }
   throw InvalidParameterException("Invalid preset type.");
+}
+
+mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& context,
+                                                               const mt_kahypar_hypernode_id_t num_vertices,
+                                                               const mt_kahypar_hyperedge_id_t num_hyperedges,
+                                                               const size_t* hyperedge_indices,
+                                                               const mt_kahypar_hyperedge_id_t* hyperedges,
+                                                               const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
+                                                               const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  if (hyperedge_indices[0] != 0) {
+    throw InvalidInputException("First entry in hyperedge indices must be 0, but is: " + STR(hyperedge_indices[0]));
+  }
+
+  // Transform adjacence array into adjacency list
+  size_t num_duplicated_pins = 0;
+  size_t num_hes_with_duplicated_pins = 0;
+  vec<vec<HypernodeID>> edge_vector(num_hyperedges);
+  tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
+    const char* help_msg = "(Note: the last element of 'hyperedge_indices' must be a sentinel with value "
+      "equal to the number of pins; hyperedge_indices has one more element than the number of hyperedges)";
+    if (hyperedge_indices[he + 1] < hyperedge_indices[he]) {
+      throw InvalidInputException(std::string("Hyperedge indices must be in ascending order ") + help_msg);
+    } else if (hyperedge_indices[he + 1] - hyperedge_indices[he] > num_vertices) {
+      throw InvalidInputException("Hyperedge " + STR(he) + " has too many entries " + help_msg);
+    }
+
+    const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
+    edge_vector[he].resize(num_pins);
+    for ( size_t i = 0; i < num_pins; ++i ) {
+      edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
+    }
+
+    utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
+  });
+
+  if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
+    WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
+  }
+  return create_hypergraph(context, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 }
 
 mt_kahypar_hypergraph_t create_graph(const Context& context,
