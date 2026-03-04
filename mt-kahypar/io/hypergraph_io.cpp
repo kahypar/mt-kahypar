@@ -40,6 +40,7 @@
 #include "mt-kahypar/io/io_utils.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/deduplicate.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::io {
@@ -159,23 +160,7 @@ namespace mt_kahypar::io {
         do_line_ending(mapped_file, current_pos);
         ++current_hyperedge_id;
 
-        if ( remove_single_pin_hes ) {
-          // Detect duplicated pins
-          std::sort(hyperedge.begin(), hyperedge.end());
-          size_t j = 1;
-          for ( size_t i = 1; i < hyperedge.size(); ++i ) {
-            if ( hyperedge[j - 1] != hyperedge[i] ) {
-              std::swap(hyperedge[i], hyperedge[j++]);
-            }
-          }
-          if ( j < hyperedge.size() ) {
-            // Remove duplicated pins
-            __atomic_fetch_add(&res.num_hes_with_duplicated_pins, 1, __ATOMIC_RELAXED);
-            __atomic_fetch_add(&res.num_duplicated_pins, hyperedge.size() - j, __ATOMIC_RELAXED);
-            hyperedge.resize(j);
-          }
-        }
-
+        utils::deduplicateHyperedgePins(hyperedge, res.num_duplicated_pins, res.num_hes_with_duplicated_pins);
         if ( !remove_single_pin_hes || hyperedge.size() > 1 ) {
           my_edges.emplace_back(std::move(hyperedge));
         } else {
