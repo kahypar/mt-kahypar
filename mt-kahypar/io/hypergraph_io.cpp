@@ -490,6 +490,7 @@ namespace mt_kahypar::io {
     vec<VertexRange> vertex_ranges;
     tbb::parallel_invoke([&] {
       // Sequential pass over all vertices to determine ranges in the
+      HighResClockTimepoint first_pass_start = std::chrono::high_resolution_clock::now();
       // input file that are read in parallel.
       // Additionally, we need to sum the vertex degrees to determine edge indices.
       size_t current_range_start = pos;
@@ -551,8 +552,15 @@ namespace mt_kahypar::io {
       }
       ASSERT(current_range_vertex_id == num_vertices);
       ASSERT(current_range_edge_id == num_edges);
+      HighResClockTimepoint first_pass_end = std::chrono::high_resolution_clock::now();
+      double first_pass_time = std::chrono::duration<double>(first_pass_end - first_pass_start).count();
+      LOG << V(first_pass_time);
     }, [&] {
+      HighResClockTimepoint edge_alloc_start = std::chrono::high_resolution_clock::now();
       edges.resize(num_edges);
+      HighResClockTimepoint edge_alloc_end = std::chrono::high_resolution_clock::now();
+      double edge_alloc_time = std::chrono::duration<double>(edge_alloc_end - edge_alloc_start).count();
+      LOG << V(edge_alloc_time);
     }, [&] {
       if ( has_edge_weights ) {
         edges_weight.resize(num_edges);
@@ -574,6 +582,8 @@ namespace mt_kahypar::io {
         return true;
       }()
     );
+
+    HighResClockTimepoint second_pass_start = std::chrono::high_resolution_clock::now();
 
     // Process all ranges in parallel, build edge vector and assign weights
     tbb::parallel_for(UL(0), vertex_ranges.size(), [&](const size_t i) {
@@ -621,6 +631,10 @@ namespace mt_kahypar::io {
         ++current_vertex_id;
       }
     });
+
+    HighResClockTimepoint second_pass_end = std::chrono::high_resolution_clock::now();
+    double second_pass_time = std::chrono::duration<double>(second_pass_end - second_pass_start).count();
+    LOG << V(second_pass_time);
   }
 
   template<typename EdgeT>
@@ -631,7 +645,13 @@ namespace mt_kahypar::io {
                      vec<HyperedgeWeight>& edges_weight,
                      vec<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
+
+    HighResClockTimepoint mmap_start = std::chrono::high_resolution_clock::now();
     FileHandle handle = mmap_file(filename);
+    HighResClockTimepoint mmap_end = std::chrono::high_resolution_clock::now();
+    double mmap_time = std::chrono::duration<double>(mmap_end - mmap_start).count();
+    LOG << V(mmap_time);
+
     size_t pos = 0;
 
     // Read Metis Header
@@ -650,7 +670,11 @@ namespace mt_kahypar::io {
     }
     ASSERT(pos == handle.length);
 
+    HighResClockTimepoint unmap_start = std::chrono::high_resolution_clock::now();
     munmap_file(handle);
+    HighResClockTimepoint unmap_end = std::chrono::high_resolution_clock::now();
+    double unmap_time = std::chrono::duration<double>(unmap_end - unmap_start).count();
+    LOG << V(unmap_time);
   }
 
   template<typename InitFunc>

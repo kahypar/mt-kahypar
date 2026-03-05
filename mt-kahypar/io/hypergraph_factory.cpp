@@ -160,6 +160,8 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
                                       const mt_kahypar_hypergraph_type_t& type,
                                       const bool stable_construction,
                                       const bool) {
+  HighResClockTimepoint first = std::chrono::high_resolution_clock::now();
+
   HyperedgeID num_edges = 0;
   HypernodeID num_vertices = 0;
   vec<HyperedgeWeight> edges_weight;
@@ -167,8 +169,19 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   if (type == STATIC_GRAPH || type == DYNAMIC_GRAPH) {
     EdgeVector edges;
     readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
-    return constructGraph(type, num_vertices, num_edges, edges,
+
+    HighResClockTimepoint second = std::chrono::high_resolution_clock::now();
+
+    auto result = constructGraph(type, num_vertices, num_edges, edges,
                           edges_weight, nodes_weight, stable_construction);
+
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    double file_time = std::chrono::duration<double>(second - first).count();
+    double constr_time = std::chrono::duration<double>(end - second).count();
+    LOG << V(file_time);
+    LOG << V(constr_time);
+
+    return result;
   } else {
     HyperedgeVector edges;
     readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
