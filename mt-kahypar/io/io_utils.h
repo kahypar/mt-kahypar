@@ -44,10 +44,13 @@
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace io {
+
+constexpr size_t LOOP_UNROLLING_VALUE = 8;
 
 #if _WIN32
 struct FileHandle {
@@ -177,6 +180,24 @@ void goto_next_line(char* mapped_file, size_t& pos, const size_t /*length*/) {
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+void goto_next_line_unrolled(char* mapped_file, size_t& pos, const size_t length) {
+  for ( ; ; pos += LOOP_UNROLLING_VALUE ) {
+    ASSERT(pos + LOOP_UNROLLING_VALUE <= length);
+    // TODO: premature line ending?
+    uint32_t flags = 0;
+    for (size_t i = 0; i < LOOP_UNROLLING_VALUE; ++i) {
+      flags |= static_cast<uint32_t>(mapped_file[pos + i] == '\n') << i;
+    }
+    if (flags == 0) continue;
+
+    int offset = utils::lowest_set_bit_32(flags);
+    ASSERT(is_line_ending(mapped_file, pos + offset));
+    pos += (offset + 1);
+    break;
+  }
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
   int64_t number = 0;
   while ( mapped_file[pos] == ' ' ) {
@@ -214,6 +235,19 @@ vec<LineRange> split_lines(char* mapped_file,
   vec<size_t> line_positions;
   line_positions.reserve(expected_num_lines + 1);
 
+  // speed up bulk of processing via loop unrolling
+  while ( line_positions.size() + LOOP_UNROLLING_VALUE < expected_num_lines ) {
+    // skip comments
+    while ( mapped_file[pos] == '%' ) {
+      goto_next_line(mapped_file, pos, length);
+      ASSERT(pos < length); // TODO: pos >= length
+    }
+    if (line_positions.size() + LOOP_UNROLLING_VALUE >= expected_num_lines) break;
+
+    line_positions.push_back(pos);
+    goto_next_line_unrolled(mapped_file, pos, length);
+  }
+  // handle remainder without unrolling
   while ( line_positions.size() < expected_num_lines ) {
     // skip comments
     while ( mapped_file[pos] == '%' ) {

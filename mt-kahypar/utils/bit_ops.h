@@ -36,6 +36,10 @@ inline int popcount_64(const uint64_t x) {
   return __builtin_popcountll(x);
 }
 
+inline int lowest_set_bit_32(const uint32_t x) {
+  return __builtin_ctz(x);
+}
+
 inline int lowest_set_bit_64(const uint64_t x) {
   return __builtin_ctzll(x);
 }
