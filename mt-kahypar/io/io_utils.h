@@ -30,6 +30,7 @@
 
 #include <fcntl.h>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <sys/stat.h>
 
@@ -178,6 +179,19 @@ void goto_next_line(char* mapped_file, size_t& pos, const size_t /*length*/) {
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+void goto_next_line_unchecked(char* mapped_file, size_t& pos, const size_t length) {
+  std::string_view sv(mapped_file + pos, length - pos);
+  size_t offset = sv.find('\n');  // compiles to memchr
+
+  if (offset != std::string_view::npos) {
+    ASSERT(is_line_ending(mapped_file, pos + offset));
+    pos += (offset + 1);
+  } else {
+    pos = length;
+  }
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
   int64_t number = 0;
   while ( mapped_file[pos] == ' ' ) {
@@ -215,17 +229,21 @@ vec<LineRange> split_lines(char* mapped_file,
   vec<size_t> line_positions;
   line_positions.reserve(expected_num_lines + 1);
 
-  while ( line_positions.size() < expected_num_lines ) {
+  // find line endings very fast
+  line_positions.emplace_back(pos);
+  while ( line_positions.size() < expected_num_lines + 1 && pos < length ) {
     // skip comments
-    while ( mapped_file[pos] == '%' ) {
-      goto_next_line(mapped_file, pos, length);
-      ASSERT(pos < length); // TODO: pos >= length
+    while ( mapped_file[pos] == '%' && pos < length ) {
+      goto_next_line_unchecked(mapped_file, pos, length);
     }
 
-    line_positions.push_back(pos);
-    goto_next_line(mapped_file, pos, length);
+    goto_next_line_unchecked(mapped_file, pos, length);
+    line_positions.emplace_back(pos);
   }
-  line_positions.push_back(pos);
+  if ( line_positions.size() < expected_num_lines + 1 && mapped_file[pos - 1] == '\n' ) {
+    // special case for last line that is not terminated by a newline (might be end of file or empty line)
+    line_positions.emplace_back(pos);
+  }
 
   // split the lines into ranges that can be processed in parallel
   const size_t num_ranges = num_parallel_ranges();
@@ -233,17 +251,20 @@ vec<LineRange> split_lines(char* mapped_file,
 
   vec<LineRange> result;
   result.reserve(num_ranges);
-
   size_t line_index = 0;
   while (line_index + 1 < line_positions.size()) {
     const size_t start_index = line_index;
     const size_t start_pos = line_positions[start_index];
+
     size_t delta_pos = 0;
     do {
       ++line_index;
       delta_pos = line_positions[line_index] - start_pos;
     } while (line_index + 1 < line_positions.size() && delta_pos < bytes_per_range);
-    result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+
+    if (delta_pos > 0) {
+      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+    }
   }
   ASSERT(result.back().end == line_positions.back());
   return result;
