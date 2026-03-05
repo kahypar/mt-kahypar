@@ -28,27 +28,17 @@
 #include "hypergraph_io.h"
 
 #include <cstring>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
 #include <memory>
 #include <vector>
-#include <fcntl.h>
-#include <sys/stat.h>
-
-#if _WIN32
-#include <windows.h>
-#include <process.h>
-#include <memoryapi.h>
-#else
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
-
 
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/io_utils.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/deduplicate.h"
@@ -56,151 +46,7 @@
 
 namespace mt_kahypar::io {
 
-  #if _WIN32
-  struct FileHandle {
-    HANDLE hFile;
-    HANDLE hMem;
-    char* mapped_file;
-    size_t length;
-
-    void closeHandle() {
-      CloseHandle(hFile);
-      CloseHandle(hMem);
-    }
-  };
-  #else
-  struct FileHandle {
-    int fd;
-    char* mapped_file;
-    size_t length;
-
-    void closeHandle() {
-      close(fd);
-    }
-  };
-  #endif
-
-  size_t file_size(const std::string& filename) {
-    struct stat stat_buf;
-    const int res = stat( filename.c_str(), &stat_buf);
-    if (res < 0) {
-      throw InvalidInputException("Could not open: " + filename);
-    }
-    return static_cast<size_t>(stat_buf.st_size);
-  }
-
-  FileHandle mmap_file(const std::string& filename) {
-    FileHandle handle;
-    handle.length = file_size(filename);
-
-    #ifdef _WIN32
-      PSECURITY_DESCRIPTOR pSD;
-      SECURITY_ATTRIBUTES  sa;
-
-      /* create security descriptor (needed for Windows NT) */
-      pSD = (PSECURITY_DESCRIPTOR) malloc( SECURITY_DESCRIPTOR_MIN_LENGTH );
-      if( pSD == NULL ) {
-        throw SystemException("Error while creating security descriptor!");
-      }
-
-      InitializeSecurityDescriptor(pSD, SECURITY_DESCRIPTOR_REVISION);
-      SetSecurityDescriptorDacl(pSD, TRUE, (PACL) NULL, FALSE);
-
-      sa.nLength = sizeof(sa);
-      sa.lpSecurityDescriptor = pSD;
-      sa.bInheritHandle = TRUE;
-
-      // open file
-      handle.hFile = CreateFile ( filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
-        &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-      if (handle.hFile == INVALID_HANDLE_VALUE) {
-        free( pSD);
-        throw InvalidInputException("Invalid file handle when opening: " + filename);
-      }
-
-      // Create file mapping
-      handle.hMem = CreateFileMapping( handle.hFile, &sa, PAGE_READONLY, 0, handle.length, NULL);
-      free(pSD);
-      if (handle.hMem == NULL) {
-        throw InvalidInputException("Invalid file mapping when opening: " + filename);
-      }
-
-      // map file to memory
-      handle.mapped_file = (char*) MapViewOfFile(handle.hMem, FILE_MAP_READ, 0, 0, 0);
-      if ( handle.mapped_file == NULL ) {
-        throw SystemException("Failed to map file to main memory:" + filename);
-      }
-    #else
-      handle.fd = open(filename.c_str(), O_RDONLY);
-      if ( handle.fd < -1 ) {
-        throw InvalidInputException("Could not open: " + filename);
-      }
-      handle.mapped_file = (char*) mmap(0, handle.length, PROT_READ, MAP_SHARED, handle.fd, 0);
-      if ( handle.mapped_file == MAP_FAILED ) {
-        close(handle.fd);
-        throw SystemException("Error while mapping file to memory");
-      }
-    #endif
-
-    return handle;
-  }
-
-  void munmap_file(FileHandle& handle) {
-    #ifdef _WIN32
-    UnmapViewOfFile(handle.mapped_file);
-    #else
-    munmap(handle.mapped_file, handle.length);
-    #endif
-    handle.closeHandle();
-  }
-
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool is_line_ending(char* mapped_file, size_t pos) {
-    return mapped_file[pos] == '\r' || mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void do_line_ending(char* mapped_file, size_t& pos) {
-    ASSERT(is_line_ending(mapped_file, pos));
-    if (mapped_file[pos] != '\0') {
-      if (mapped_file[pos] == '\r') {     // windows line ending
-        ++pos;
-        ASSERT(mapped_file[pos] == '\n');
-      }
-      ++pos;
-    }
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
-    for ( ; ; ++pos ) {
-      if ( pos == length || is_line_ending(mapped_file, pos) ) {
-        do_line_ending(mapped_file, pos);
-        break;
-      }
-    }
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
-    int64_t number = 0;
-    while ( mapped_file[pos] == ' ' ) {
-      ++pos;
-    }
-    for ( ; pos < length; ++pos ) {
-      if ( mapped_file[pos] == ' ' || is_line_ending(mapped_file, pos) ) {
-        while ( mapped_file[pos] == ' ' ) {
-          ++pos;
-        }
-        break;
-      }
-      ASSERT(mapped_file[pos] >= '0' && mapped_file[pos] <= '9');
-      number = number * 10 + (mapped_file[pos] - '0');
-    }
-    return number;
-  }
+  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
   void readFormatInfo(char* mapped_file,
                       size_t& pos,
@@ -487,80 +333,29 @@ namespace mt_kahypar::io {
                     vec<EdgeT>& edges,
                     vec<HyperedgeWeight>& edges_weight,
                     vec<HypernodeWeight>& vertices_weight) {
-    vec<VertexRange> vertex_ranges;
+    HighResClockTimepoint first_pass_start = std::chrono::high_resolution_clock::now();
+    vec<LineRange> line_ranges;
+    vec<vec<EdgeT>> local_edges;
+    vec<vec<HyperedgeWeight>> local_edges_weight;
     tbb::parallel_invoke([&] {
-      // Sequential pass over all vertices to determine ranges in the
-      HighResClockTimepoint first_pass_start = std::chrono::high_resolution_clock::now();
+      HighResClockTimepoint split_start = std::chrono::high_resolution_clock::now();
+
+      // Sequential pass over all lines to determine ranges in the
       // input file that are read in parallel.
-      // Additionally, we need to sum the vertex degrees to determine edge indices.
-      size_t current_range_start = pos;
-      HypernodeID current_range_vertex_id = 0;
-      HypernodeID current_range_num_vertices = 0;
-      HyperedgeID current_range_edge_id = 0;
-      HyperedgeID current_range_num_edges = 0;
-      const HypernodeID num_vertices_per_range = std::max(
-              (num_vertices / ( 2 * std::thread::hardware_concurrency())), ID(1));
-      while ( current_range_vertex_id + current_range_num_vertices < num_vertices ) {
-        // Skip Comments
-        ASSERT(pos < length);
-        while ( mapped_file[pos] == '%' ) {
-          goto_next_line(mapped_file, pos, length);
-          ASSERT(pos < length);
-        }
+      line_ranges = split_lines(mapped_file, pos, length, num_vertices);
 
-        ASSERT(mapped_file[pos - 1] == '\n');
-        ++current_range_num_vertices;
-
-        // Count the forward edges, ignore backward edges.
-        // This is necessary because we can only calculate unique edge ids
-        // efficiently if the edges are deduplicated.
-        if ( has_vertex_weights ) {
-          read_number(mapped_file, pos, length);
-        }
-        HyperedgeID vertex_degree = 0;
-        while (!is_line_ending(mapped_file, pos) && pos < length) {
-          const HypernodeID source = current_range_vertex_id + current_range_num_vertices;
-          const HypernodeID target = read_number(mapped_file, pos, length);
-          ASSERT(source != target);
-          if ( source < target ) {
-            ++vertex_degree;
-          }
-          if ( has_edge_weights ) {
-            read_number(mapped_file, pos, length);
-          }
-        }
-        do_line_ending(mapped_file, pos);
-        current_range_num_edges += vertex_degree;
-
-        // If there are enough vertices in the current scanned range
-        // we store that range, which will be processed in parallel later
-        if ( current_range_num_vertices == num_vertices_per_range ) {
-          vertex_ranges.push_back(VertexRange {
-                  current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_range_edge_id});
-          current_range_start = pos;
-          current_range_vertex_id += current_range_num_vertices;
-          current_range_num_vertices = 0;
-          current_range_edge_id += current_range_num_edges;
-          current_range_num_edges = 0;
-        }
-      }
-      if ( current_range_num_vertices > 0 ) {
-        vertex_ranges.push_back(VertexRange {
-                current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_range_edge_id});
-        current_range_vertex_id += current_range_num_vertices;
-        current_range_edge_id += current_range_num_edges;
-      }
-      ASSERT(current_range_vertex_id == num_vertices);
-      ASSERT(current_range_edge_id == num_edges);
-      HighResClockTimepoint first_pass_end = std::chrono::high_resolution_clock::now();
-      double first_pass_time = std::chrono::duration<double>(first_pass_end - first_pass_start).count();
-      LOG << V(first_pass_time);
+      HighResClockTimepoint split_end = std::chrono::high_resolution_clock::now();
+      double split_time = std::chrono::duration<double>(split_end - split_start).count();
+      LOG << V(split_time);
     }, [&] {
       HighResClockTimepoint edge_alloc_start = std::chrono::high_resolution_clock::now();
       edges.resize(num_edges);
       HighResClockTimepoint edge_alloc_end = std::chrono::high_resolution_clock::now();
       double edge_alloc_time = std::chrono::duration<double>(edge_alloc_end - edge_alloc_start).count();
       LOG << V(edge_alloc_time);
+    }, [&] {
+      local_edges.resize(num_parallel_ranges());
+      local_edges_weight.resize(num_parallel_ranges());
     }, [&] {
       if ( has_edge_weights ) {
         edges_weight.resize(num_edges);
@@ -571,28 +366,20 @@ namespace mt_kahypar::io {
       }
     });
 
-    ASSERT([&]() {
-        HyperedgeID last_end = 0;
-        for(const auto& range: vertex_ranges) {
-          if (last_end > range.start) {
-            return false;
-          }
-          last_end = range.end;
-        }
-        return true;
-      }()
-    );
-
     HighResClockTimepoint second_pass_start = std::chrono::high_resolution_clock::now();
+    double first_pass_time = std::chrono::duration<double>(second_pass_start - first_pass_start).count();
+    LOG << V(first_pass_time);
 
     // Process all ranges in parallel, build edge vector and assign weights
-    tbb::parallel_for(UL(0), vertex_ranges.size(), [&](const size_t i) {
-      const VertexRange& range = vertex_ranges[i];
+    tbb::parallel_for(UL(0), line_ranges.size(), [&](const size_t i) {
+      vec<EdgeT>& my_edges = local_edges[i];
+      vec<HyperedgeWeight>& my_edges_weight = local_edges_weight[i];
+
+      const LineRange& range = line_ranges[i];
       size_t current_pos = range.start;
       const size_t current_end = range.end;
-      HypernodeID current_vertex_id = range.vertex_start_id;
-      const HypernodeID last_vertex_id = current_vertex_id + range.num_vertices;
-      HyperedgeID current_edge_id = range.edge_start_id;
+      HypernodeID current_vertex_id = range.line_start_index;
+      const HypernodeID last_vertex_id = current_vertex_id + range.num_lines;
 
       while ( current_vertex_id < last_vertex_id ) {
         // Skip Comments
@@ -613,16 +400,11 @@ namespace mt_kahypar::io {
 
           // process forward edges, ignore backward edges
           if ( current_vertex_id < (target - 1) ) {
-            ASSERT(current_edge_id < edges.size());
-            // At this point, some magic is involved:
-            // In case of the graph partitioner, the right handed expression is considered a pair.
-            // In case of the hypergraph partitioner, the right handed expression is considered  a vector.
-            edges[current_edge_id] = {current_vertex_id, target - 1};
+            my_edges.push_back({current_vertex_id, target - 1});
 
             if ( has_edge_weights ) {
-              edges_weight[current_edge_id] = read_number(mapped_file, current_pos, current_end);
+              my_edges_weight.push_back(read_number(mapped_file, current_pos, current_end));
             }
-            ++current_edge_id;
           } else if ( has_edge_weights ) {
             read_number(mapped_file, current_pos, current_end);
           }
@@ -635,6 +417,28 @@ namespace mt_kahypar::io {
     HighResClockTimepoint second_pass_end = std::chrono::high_resolution_clock::now();
     double second_pass_time = std::chrono::duration<double>(second_pass_end - second_pass_start).count();
     LOG << V(second_pass_time);
+
+    // finally, we copy the local edge lists to the global list
+    copy_to_global_list(local_edges, edges);
+    if ( has_edge_weights ) {
+      copy_to_global_list(local_edges_weight, edges_weight);
+    }
+
+    // parallel free
+    tbb::parallel_invoke([&] {
+      parallel::free(line_ranges);
+      if ( has_edge_weights ) {
+        parallel::parallel_free(local_edges_weight);
+      }
+    }, [&] {
+      parallel::parallel_free(local_edges);
+    });
+
+    HighResClockTimepoint copy_end = std::chrono::high_resolution_clock::now();
+    double copy_time = std::chrono::duration<double>(copy_end - second_pass_end).count();
+    LOG << V(copy_time);
+    double total_vertices_time = std::chrono::duration<double>(copy_end - first_pass_start).count();
+    LOG << V(total_vertices_time);
   }
 
   template<typename EdgeT>
@@ -645,7 +449,6 @@ namespace mt_kahypar::io {
                      vec<HyperedgeWeight>& edges_weight,
                      vec<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
-
     HighResClockTimepoint mmap_start = std::chrono::high_resolution_clock::now();
     FileHandle handle = mmap_file(filename);
     HighResClockTimepoint mmap_end = std::chrono::high_resolution_clock::now();
