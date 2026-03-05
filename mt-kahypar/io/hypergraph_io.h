@@ -36,6 +36,7 @@ namespace mt_kahypar {
 namespace io {
   using Hyperedge = vec<HypernodeID>;
   using HyperedgeVector = vec<Hyperedge>;
+  using EdgeVector = vec<std::pair<HypernodeID, HypernodeID>>;
 
   void readHypergraphFile(const std::string& filename,
                           HyperedgeID& num_hyperedges,
@@ -47,10 +48,11 @@ namespace io {
                           const bool remove_single_pin_hes,
                           const bool print_warnings);
 
+  template<typename EdgeT>
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
-                     HyperedgeVector& hyperedges,
+                     vec<EdgeT>& hyperedges,
                      vec<HyperedgeWeight>& hyperedges_weight,
                      vec<HypernodeWeight>& hypernodes_weight);
 

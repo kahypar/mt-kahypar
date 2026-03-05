@@ -489,6 +489,7 @@ namespace mt_kahypar::io {
     const HyperedgeID edge_start_id;
   };
 
+  template<typename EdgeT>
   void readVertices(char* mapped_file,
                     size_t& pos,
                     const size_t length,
@@ -496,7 +497,7 @@ namespace mt_kahypar::io {
                     const HypernodeID num_vertices,
                     const bool has_edge_weights,
                     const bool has_vertex_weights,
-                    HyperedgeVector& edges,
+                    vec<EdgeT>& edges,
                     vec<HyperedgeWeight>& edges_weight,
                     vec<HypernodeWeight>& vertices_weight) {
     vec<VertexRange> vertex_ranges;
@@ -635,10 +636,11 @@ namespace mt_kahypar::io {
     });
   }
 
+  template<typename EdgeT>
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_edges,
                      HypernodeID& num_vertices,
-                     HyperedgeVector& edges,
+                     vec<EdgeT>& edges,
                      vec<HyperedgeWeight>& edges_weight,
                      vec<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
@@ -722,5 +724,19 @@ namespace mt_kahypar::io {
   }
 
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(WRITE_PARTITION_FILE)
+
+  template void readGraphFile(const std::string& filename,
+                              HyperedgeID& num_hyperedges,
+                              HypernodeID& num_hypernodes,
+                              HyperedgeVector& hyperedges,
+                              vec<HyperedgeWeight>& hyperedges_weight,
+                              vec<HypernodeWeight>& hypernodes_weight);
+
+  template void readGraphFile(const std::string& filename,
+                              HyperedgeID& num_hyperedges,
+                              HypernodeID& num_hypernodes,
+                              EdgeVector& hyperedges,
+                              vec<HyperedgeWeight>& hyperedges_weight,
+                              vec<HypernodeWeight>& hypernodes_weight);
 
 } // namespace
