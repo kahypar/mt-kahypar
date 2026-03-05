@@ -42,6 +42,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
 
@@ -214,6 +215,8 @@ int main(int argc, char* argv[]) try {
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, opts), vm);
   po::notify(vm);
+
+  parallel::initialize_tbb(4);
 
   /*------------------------------------------------------------------*/
   /* 2. Read hypergraph                                               */
