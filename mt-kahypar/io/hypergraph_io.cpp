@@ -267,6 +267,7 @@ namespace mt_kahypar::io {
                           const bool remove_single_pin_hes,
                           const bool print_warnings) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
+    HighResClockTimepoint mmap_start = std::chrono::high_resolution_clock::now();
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
     size_t current_line = 0;
@@ -278,6 +279,7 @@ namespace mt_kahypar::io {
       num_hyperedges, num_hypernodes, has_hyperedge_weights, has_vertex_weights);
 
     // Read Hyperedges
+    HighResClockTimepoint hyperedges_start = std::chrono::high_resolution_clock::now();
     HyperedgeReadResult res =
             readHyperedges(handle.mapped_file, pos, current_line, handle.length, num_hyperedges,
               has_hyperedge_weights, hyperedges, hyperedges_weight, remove_single_pin_hes);
@@ -288,6 +290,9 @@ namespace mt_kahypar::io {
       WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
         << res.num_hes_with_duplicated_pins << "hyperedges!");
     }
+    HighResClockTimepoint hyperedges_end = std::chrono::high_resolution_clock::now();
+    double hyperedges_time = std::chrono::duration<double>(hyperedges_end - hyperedges_start).count();
+    LOG << V(hyperedges_time);
 
     // Read Hypernode Weights
     readHypernodeWeights(handle.mapped_file, pos, current_line, handle.length, num_hypernodes,
@@ -302,6 +307,10 @@ namespace mt_kahypar::io {
     }
 
     munmap_file(handle);
+
+    HighResClockTimepoint all_end = std::chrono::high_resolution_clock::now();
+    double all_time = std::chrono::duration<double>(all_end - mmap_start).count();
+    LOG << V(all_time);
   }
 
   void readMetisHeader(char* mapped_file,
