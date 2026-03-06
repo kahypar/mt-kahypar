@@ -61,14 +61,14 @@ namespace mt_kahypar::ds {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
       if (num_pins_per_hyperedge[pos] == 0) {
-        throw InvalidInputException(std::string("Hyperedge ") + STR(pos) + " is empty (hyperedges must contain at least 1 pin)");
+        throw InvalidInputException("Hyperedge " + STR(pos) + " is empty (hyperedges must contain at least 1 pin)");
       }
 
       local_max_edge_size.local() = std::max(
               local_max_edge_size.local(), edge_vector[pos].size());
       for ( const HypernodeID& pin : edge_vector[pos] ) {
         if (pin >= num_hypernodes) {
-          throw InvalidInputException(std::string("Hyperedge ") + STR(pos) + " contains invalid pin: " + STR(pin));
+          throw InvalidInputException("Hyperedge " + STR(pos) + " contains invalid pin: " + STR(pin));
         }
         ++num_incident_nets_per_vertex[pin];
       }

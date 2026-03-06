@@ -152,14 +152,14 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
       const HypernodeID pins[2] = {edge_vector[pos].first, edge_vector[pos].second};
       if (pins[0] == pins[1]) {
-        throw InvalidInputException(std::string("Edge ") + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
+        throw InvalidInputException("Edge " + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
       }
 
       parallel::scalable_vector<size_t>& num_incident_nets_per_vertex =
         local_incident_nets_per_vertex.local();
       for (const HypernodeID& pin: pins) {
         if (pin >= _num_nodes) {
-          throw InvalidInputException(std::string("Edge ") + STR(pos) + " points to invalid node: " + STR(pin));
+          throw InvalidInputException("Edge " + STR(pos) + " points to invalid node: " + STR(pin));
         }
         ++num_incident_nets_per_vertex[pin];
       }

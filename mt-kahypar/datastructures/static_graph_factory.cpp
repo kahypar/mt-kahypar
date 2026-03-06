@@ -112,12 +112,12 @@ namespace mt_kahypar::ds {
       Counter& num_degree_per_vertex = local_degree_per_vertex.local();
       const HypernodeID pins[2] = {edge_vector[pos].first, edge_vector[pos].second};
       if (pins[0] == pins[1]) {
-        throw InvalidInputException(std::string("Edge ") + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
+        throw InvalidInputException("Edge " + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
       }
 
       for (const HypernodeID& pin : pins) {
         if (pin >= num_nodes) {
-          throw InvalidInputException(std::string("Edge ") + STR(pos) + " points to invalid node: " + STR(pin));
+          throw InvalidInputException("Edge " + STR(pos) + " points to invalid node: " + STR(pin));
         }
         ++num_degree_per_vertex[pin];
       }

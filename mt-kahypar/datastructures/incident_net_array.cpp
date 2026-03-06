@@ -374,7 +374,7 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
         local_incident_nets_per_vertex.local();
       for ( const HypernodeID& pin : edge_vector[pos] ) {
         if (pin >= _num_hypernodes) {
-          throw InvalidInputException(std::string("Hyperedge ") + STR(pos) + " contains invalid pin: " + STR(pin));
+          throw InvalidInputException("Hyperedge " + STR(pos) + " contains invalid pin: " + STR(pin));
         }
         ++num_incident_nets_per_vertex[pin + 1];
       }

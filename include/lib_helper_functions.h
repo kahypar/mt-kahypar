@@ -331,7 +331,7 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
                                                                const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                                const mt_kahypar_hypernode_weight_t* vertex_weights) {
   if (hyperedge_indices[0] != 0) {
-    throw InvalidInputException(std::string("First entry in hyperedge indices must be 0, but is: ") + STR(hyperedge_indices[0]));
+    throw InvalidInputException("First entry in hyperedge indices must be 0, but is: " + STR(hyperedge_indices[0]));
   }
 
   // Transform adjacence array into adjacency list
@@ -344,7 +344,7 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
     if (hyperedge_indices[he + 1] < hyperedge_indices[he]) {
       throw InvalidInputException(std::string("Hyperedge indices must be in ascending order ") + help_msg);
     } else if (hyperedge_indices[he + 1] - hyperedge_indices[he] > num_vertices) {
-      throw InvalidInputException(std::string("Hyperedge ") + STR(he) + " has too many entries " + help_msg);
+      throw InvalidInputException("Hyperedge " + STR(he) + " has too many entries " + help_msg);
     }
 
     const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
