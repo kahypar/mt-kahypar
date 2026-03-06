@@ -136,72 +136,37 @@ namespace mt_kahypar::io {
                                      vec<HyperedgeWeight>& hyperedges_weight,
                                      const bool remove_single_pin_hes) {
     HyperedgeReadResult res;
-    vec<HyperedgeRange> hyperedge_ranges;
+    vec<LineRange> line_ranges;
+    vec<HyperedgeVector> local_edges;
+    vec<vec<HyperedgeWeight>> local_edges_weight;
     tbb::parallel_invoke([&] {
-      // Sequential pass over all hyperedges to determine ranges in the
+      // Sequential pass over all lines to determine ranges in the
       // input file that are read in parallel.
-      size_t current_range_start = pos;
-      HyperedgeID current_range_start_id = 0;
-      HyperedgeID current_range_num_hyperedges = 0;
-      HyperedgeID current_num_hyperedges = 0;
-      const HyperedgeID num_hyperedges_per_range = std::max(
-              (num_hyperedges / ( 2 * std::thread::hardware_concurrency())), ID(1));
-      while ( current_num_hyperedges < num_hyperedges ) {
-        // Skip Comments
-        ASSERT(pos < length);
-        while ( mapped_file[pos] == '%' ) {
-          goto_next_line(mapped_file, pos, current_line, length);
-          ASSERT(pos < length);
-        }
-
-        // This check is fine even with windows line endings!
-        ASSERT(mapped_file[pos - 1] == '\n');
-        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
-          ++current_range_num_hyperedges;
-        } else {
-          ++res.num_removed_single_pin_hyperedges;
-        }
-        ++current_num_hyperedges;
-        goto_next_line(mapped_file, pos, current_line, length);
-
-        // If there are enough hyperedges in the current scanned range
-        // we store that range, which will be later processed in parallel
-        if ( current_range_num_hyperedges == num_hyperedges_per_range ) {
-          hyperedge_ranges.push_back(HyperedgeRange {
-                  current_range_start, pos, current_range_start_id, current_range_num_hyperedges});
-          current_range_start = pos;
-          current_range_start_id += current_range_num_hyperedges;
-          current_range_num_hyperedges = 0;
-        }
-      }
-      if ( current_range_num_hyperedges > 0 ) {
-        hyperedge_ranges.push_back(HyperedgeRange {
-                current_range_start, pos, current_range_start_id, current_range_num_hyperedges});
-      }
+      line_ranges = split_lines(mapped_file, pos, current_line, length, num_hyperedges);
     }, [&] {
       hyperedges.resize(num_hyperedges);
+    }, [&] {
+      local_edges.resize(num_parallel_ranges());
+      local_edges_weight.resize(num_parallel_ranges());
     }, [&] {
       if ( has_hyperedge_weights ) {
         hyperedges_weight.resize(num_hyperedges);
       }
     });
 
-    const HyperedgeID tmp_num_hyperedges = num_hyperedges - res.num_removed_single_pin_hyperedges;
-    hyperedges.resize(tmp_num_hyperedges);
-    if ( has_hyperedge_weights ) {
-      hyperedges_weight.resize(tmp_num_hyperedges);
-    }
-
     // Process all ranges in parallel and build hyperedge vector
-    tbb::parallel_for(UL(0), hyperedge_ranges.size(), [&](const size_t i) {
-      HyperedgeRange& range = hyperedge_ranges[i];
-      size_t current_pos = range.start;
-      size_t current_line = 0;
-      const size_t current_end = range.end;
-      HyperedgeID current_id = range.start_id;
-      const HyperedgeID last_id = current_id + range.num_hyperedges;
+    tbb::parallel_for(UL(0), line_ranges.size(), [&](const size_t i) {
+      HyperedgeVector& my_edges = local_edges[i];
+      vec<HyperedgeWeight>& my_edges_weight = local_edges_weight[i];
 
-      while ( current_id < last_id ) {
+      const LineRange& range = line_ranges[i];
+      size_t current_pos = range.start;
+      size_t current_line = range.first_line_number_in_file;
+      const size_t current_end = range.end;
+      HyperedgeID current_hyperedge_id = range.line_start_index;
+      const HyperedgeID last_hyperedge_id = current_hyperedge_id + range.num_lines;
+
+      while ( current_hyperedge_id < last_hyperedge_id ) {
         // Skip Comments
         ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
@@ -209,32 +174,61 @@ namespace mt_kahypar::io {
           ASSERT(current_pos < current_end);
         }
 
-        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
-          ASSERT(current_id < hyperedges.size());
-          if ( has_hyperedge_weights ) {
-            hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_line, current_end);
-          }
-
-          Hyperedge& hyperedge = hyperedges[current_id];
-          // Note, a hyperedge line must contain at least one pin
-          HypernodeID pin = read_number(mapped_file, current_pos, current_line, current_end);
-          ASSERT(pin > 0, V(current_id));
-          hyperedge.push_back(pin - 1);
-          while ( !is_line_ending(mapped_file, current_pos) ) {
-            pin = read_number(mapped_file, current_pos, current_line, current_end);
-            ASSERT(pin > 0, V(current_id));
-            hyperedge.push_back(pin - 1);
-          }
-          do_line_ending(mapped_file, current_pos, current_line);
-
-          utils::deduplicateHyperedgePins(hyperedge, res.num_duplicated_pins, res.num_hes_with_duplicated_pins);
-          ASSERT(hyperedge.size() >= 2);
-          ++current_id;
-        } else {
-          goto_next_line(mapped_file, current_pos, current_line, current_end);
+        if ( has_hyperedge_weights ) {
+          my_edges_weight.push_back(read_number(mapped_file, current_pos, current_line, current_end));
         }
+
+        Hyperedge hyperedge;
+        // Note, a hyperedge line must contain at least one pin
+        HypernodeID pin = read_number(mapped_file, current_pos, current_line, current_end);
+        ASSERT(pin > 0, V(current_hyperedge_id));
+        hyperedge.push_back(pin - 1);
+        while ( !is_line_ending(mapped_file, current_pos) ) {
+          pin = read_number(mapped_file, current_pos, current_line, current_end);
+          ASSERT(pin > 0, V(current_hyperedge_id));
+          hyperedge.push_back(pin - 1);
+        }
+        do_line_ending(mapped_file, current_pos, current_line);
+        ++current_hyperedge_id;
+
+        if (hyperedge.empty()) {
+          parsing_exception(current_line, "empty hyperedges are not allowed; must contain at least 1 pin");
+        }
+
+        utils::deduplicateHyperedgePins(hyperedge, res.num_duplicated_pins, res.num_hes_with_duplicated_pins);
+        if ( !remove_single_pin_hes || hyperedge.size() > 1 ) {
+          my_edges.emplace_back(std::move(hyperedge));
+        } else {
+          __atomic_fetch_add(&res.num_removed_single_pin_hyperedges, 1, __ATOMIC_RELAXED);
+          my_edges_weight.pop_back();  // also remove the previously added weight
+        };
       }
     });
+
+    // update lengths for removed hyperedges
+    const HyperedgeID tmp_num_hyperedges = num_hyperedges - res.num_removed_single_pin_hyperedges;
+    hyperedges.resize(tmp_num_hyperedges);
+    if ( has_hyperedge_weights ) {
+      hyperedges_weight.resize(tmp_num_hyperedges);
+    }
+
+    // finally, we copy the local edge lists to the global list
+    copy_to_global_list(local_edges, hyperedges);
+    if ( has_hyperedge_weights ) {
+      copy_to_global_list(local_edges_weight, hyperedges_weight);
+      ASSERT(hyperedges.size() == hyperedges_weight.size());
+    }
+
+    // parallel free
+    tbb::parallel_invoke([&] {
+      parallel::free(line_ranges);
+      if ( has_hyperedge_weights ) {
+        parallel::parallel_free(local_edges_weight);
+      }
+    }, [&] {
+      parallel::parallel_free(local_edges);
+    });
+
     return res;
   }
 
