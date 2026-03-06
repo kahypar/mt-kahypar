@@ -79,8 +79,8 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
     if ( num_available_cpus < num_threads ) {
       P = num_available_cpus;
       if (print_warnings) {
-        WARNING("There are currently only" << num_available_cpus << "cpus available."
-          << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
+        WARNING("There are currently only " << num_available_cpus << " cpus available. "
+          << "Setting number of threads from " << num_threads << " to " << num_available_cpus);
       }
     }
   }

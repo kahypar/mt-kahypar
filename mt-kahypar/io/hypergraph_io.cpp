@@ -446,8 +446,8 @@ namespace mt_kahypar::io {
     num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
 
     if ( print_warnings && res.num_hes_with_duplicated_pins > 0 ) {
-      WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
-        << res.num_hes_with_duplicated_pins << "hyperedges!");
+      WARNING("Removed " << res.num_duplicated_pins << " duplicated pins in "
+        << res.num_hes_with_duplicated_pins << " hyperedges!");
     }
 
     // Read Hypernode Weights

@@ -78,9 +78,9 @@ int main(int argc, char* argv[]) {
   if constexpr (parallel::provides_hardware_information) {
     size_t num_available_cpus = parallel::num_hardware_cpus();
     if ( num_available_cpus < context.shared_memory.num_threads ) {
-      WARNING("There are currently only" << num_available_cpus << "cpus available."
-        << "Setting number of threads from" << context.shared_memory.num_threads
-        << "to" << num_available_cpus);
+      WARNING("There are currently only " << num_available_cpus << " cpus available. "
+        << "Setting number of threads from " << context.shared_memory.num_threads
+        << " to " << num_available_cpus);
       context.shared_memory.num_threads = num_available_cpus;
     }
   }
