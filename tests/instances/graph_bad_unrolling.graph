@@ -1,0 +1,8 @@
+% contains lines crafted to break the unrolling
+6 6
+3 2 5
+1 3 5
+2 1 5
+
+%
+1 2 3 
