@@ -29,6 +29,7 @@
 
 #include <fcntl.h>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <sys/stat.h>
 
@@ -195,19 +196,16 @@ void goto_next_line(char* mapped_file, size_t& pos, size_t& current_line, const 
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void goto_next_line_unrolled(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
-  for ( ; pos + LOOP_UNROLLING_VALUE <= length; pos += LOOP_UNROLLING_VALUE ) {
-    uint32_t flags = 0;
-    for (size_t i = 0; i < LOOP_UNROLLING_VALUE; ++i) {
-      flags |= static_cast<uint32_t>(mapped_file[pos + i] == '\n') << i;
-    }
-    if (flags == 0) continue;
+void goto_next_line_unchecked(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
+  std::string_view sv(mapped_file + pos, length - pos);
+  size_t offset = sv.find('\n');  // compiles to memchr
 
-    int offset = utils::lowest_set_bit_32(flags);
+  if (offset != std::string_view::npos) {
     ASSERT(is_line_ending(mapped_file, pos + offset));
     pos += (offset + 1);
     ++current_line;
-    break;
+  } else {
+    pos = length;
   }
 }
 
@@ -253,38 +251,26 @@ vec<LineRange> split_lines(char* mapped_file,
   vec<std::pair<size_t, size_t>> line_positions;
   line_positions.reserve(expected_num_lines + 1);
 
-  // speed up bulk of processing via loop unrolling
-  while ( line_positions.size() + 1 < expected_num_lines &&
-          pos + LOOP_UNROLLING_VALUE <= length ) {
-    // skip comments
-    while ( mapped_file[pos] == '%' && pos < length ) {
-      goto_next_line(mapped_file, pos, current_line, length);
-    }
-
-    line_positions.emplace_back(pos, current_line);
-    goto_next_line_unrolled(mapped_file, pos, current_line, length);
-  }
-
-  // handle remainder without unrolling
-  if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back().first) ) {
-    // if the unrolled loop stopped at a weird position, fix it
-    size_t dummy_line = current_line;
-    goto_next_line(mapped_file, pos, dummy_line, length);
-  }
-  while ( line_positions.size() < expected_num_lines ) {
-    // skip comments
-    while ( mapped_file[pos] == '%' && pos < length ) {
-      goto_next_line(mapped_file, pos, current_line, length);
-    }
-
-    if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back().first) ) {
-      parsing_exception("expected " + STR(expected_num_lines + 1) + " lines, but there are only " +
-                        STR(line_positions.size()) + " lines (excluding comments)");
-    }
-    line_positions.emplace_back(pos, current_line);
-    goto_next_line(mapped_file, pos, current_line, length);
-  }
+  // find line endings very fast
   line_positions.emplace_back(pos, current_line);
+  while ( line_positions.size() < expected_num_lines + 1 && pos < length ) {
+    // skip comments
+    while ( mapped_file[pos] == '%' && pos < length ) {
+      goto_next_line_unchecked(mapped_file, pos, current_line, length);
+    }
+
+    goto_next_line_unchecked(mapped_file, pos, current_line, length);
+    line_positions.emplace_back(pos, current_line);
+  }
+  if ( line_positions.size() < expected_num_lines + 1 && mapped_file[pos - 1] == '\n' ) {
+    // special case for last line that is not terminated by a newline (might be end of file or empty line)
+    line_positions.emplace_back(pos, current_line);
+  }
+
+  if ( line_positions.size() < expected_num_lines + 1 ) {  // note: +1 for header line
+    parsing_exception("expected " + STR(expected_num_lines + 1) + " lines, but there are only " +
+                      STR(line_positions.size()) + " lines (excluding comments)");
+  }
 
   // split the lines into ranges that can be processed in parallel
   const size_t num_ranges = num_parallel_ranges();
