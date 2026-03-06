@@ -442,6 +442,7 @@ namespace mt_kahypar::io {
     copy_to_global_list(local_edges, edges);
     if ( has_edge_weights ) {
       copy_to_global_list(local_edges_weight, edges_weight);
+      ASSERT(edges.size() == edges_weight.size());
     }
 
     // parallel free
