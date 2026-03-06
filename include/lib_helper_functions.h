@@ -81,8 +81,8 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
     if ( num_available_cpus < num_threads ) {
       P = num_available_cpus;
       if (print_warnings) {
-        WARNING("There are currently only" << num_available_cpus << "cpus available."
-          << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
+        WARNING("There are currently only " << num_available_cpus << " cpus available. "
+          << "Setting number of threads from " << num_threads << " to " << num_available_cpus);
       }
     }
   }
@@ -358,7 +358,7 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
   });
 
   if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
-    WARNING("Removed" << num_duplicated_pins << "duplicated pins in" << num_hes_with_duplicated_pins << "hyperedges!");
+    WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
   }
   return create_hypergraph(context, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 }
