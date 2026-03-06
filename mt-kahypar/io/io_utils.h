@@ -151,6 +151,13 @@ void munmap_file(FileHandle& handle) {
   handle.closeHandle();
 }
 
+void parsing_exception(std::string msg) {
+  throw InvalidInputException("input file: " + msg);
+}
+
+void parsing_exception(size_t line, std::string msg) {
+  throw InvalidInputException("input file (line " + STR(line) + "): " + msg);
+}
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 bool is_line_ending(char* mapped_file, size_t pos) {
@@ -158,29 +165,37 @@ bool is_line_ending(char* mapped_file, size_t pos) {
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void do_line_ending(char* mapped_file, size_t& pos) {
-  ASSERT(is_line_ending(mapped_file, pos));
+void do_line_ending(char* mapped_file, size_t& pos, size_t& current_line) {
+  if (!is_line_ending(mapped_file, pos)) {
+    parsing_exception(current_line, "unexpected content at end of line");
+  }
+
   if (mapped_file[pos] != '\0') {
     if (mapped_file[pos] == '\r') {     // windows line ending
       ++pos;
-      ASSERT(mapped_file[pos] == '\n');
+      if (mapped_file[pos] != '\n') {
+        parsing_exception(current_line, "invalid symbol (carriage return without newline)");
+      }
     }
     ++pos;
+    ++current_line;
   }
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void goto_next_line(char* mapped_file, size_t& pos, const size_t /*length*/) {
+void goto_next_line(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
+  unused(length);
   for ( ; ; ++pos ) {
+    ASSERT(pos < length || mapped_file[pos] == '\0');
     if ( is_line_ending(mapped_file, pos) ) {
-      do_line_ending(mapped_file, pos);
+      do_line_ending(mapped_file, pos, current_line);
       break;
     }
   }
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void goto_next_line_unrolled(char* mapped_file, size_t& pos, const size_t length) {
+void goto_next_line_unrolled(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
   for ( ; pos + LOOP_UNROLLING_VALUE <= length; pos += LOOP_UNROLLING_VALUE ) {
     uint32_t flags = 0;
     for (size_t i = 0; i < LOOP_UNROLLING_VALUE; ++i) {
@@ -191,12 +206,13 @@ void goto_next_line_unrolled(char* mapped_file, size_t& pos, const size_t length
     int offset = utils::lowest_set_bit_32(flags);
     ASSERT(is_line_ending(mapped_file, pos + offset));
     pos += (offset + 1);
+    ++current_line;
     break;
   }
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
+int64_t read_number(char* mapped_file, size_t& pos, const size_t current_line, const size_t length) {
   int64_t number = 0;
   while ( mapped_file[pos] == ' ' ) {
     ++pos;
@@ -208,7 +224,9 @@ int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
       }
       break;
     }
-    ASSERT(mapped_file[pos] >= '0' && mapped_file[pos] <= '9');
+    if (mapped_file[pos] < '0' || mapped_file[pos] > '9') {
+      parsing_exception(current_line, "invalid symbol: " + std::string(1, mapped_file[pos]));
+    }
     number = number * 10 + (mapped_file[pos] - '0');
   }
   return number;
@@ -219,6 +237,7 @@ struct LineRange {
   const size_t end;
   const size_t line_start_index;
   const size_t num_lines;
+  const size_t first_line_number_in_file;
 };
 
 size_t num_parallel_ranges() {
@@ -227,10 +246,11 @@ size_t num_parallel_ranges() {
 
 vec<LineRange> split_lines(char* mapped_file,
                            size_t& pos,
+                           size_t& current_line,
                            const size_t length,
                            const size_t expected_num_lines) {
   const size_t initial_pos = pos;
-  vec<size_t> line_positions;
+  vec<std::pair<size_t, size_t>> line_positions;
   line_positions.reserve(expected_num_lines + 1);
 
   // speed up bulk of processing via loop unrolling
@@ -238,32 +258,33 @@ vec<LineRange> split_lines(char* mapped_file,
           pos + LOOP_UNROLLING_VALUE <= length ) {
     // skip comments
     while ( mapped_file[pos] == '%' && pos < length ) {
-      goto_next_line(mapped_file, pos, length);
+      goto_next_line(mapped_file, pos, current_line, length);
     }
 
-    line_positions.push_back(pos);
-    goto_next_line_unrolled(mapped_file, pos, length);
+    line_positions.emplace_back(pos, current_line);
+    goto_next_line_unrolled(mapped_file, pos, current_line, length);
   }
 
   // handle remainder without unrolling
-  if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back()) ) {
+  if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back().first) ) {
     // if the unrolled loop stopped at a weird position, fix it
-    goto_next_line(mapped_file, pos, length);
+    size_t dummy_line = current_line;
+    goto_next_line(mapped_file, pos, dummy_line, length);
   }
   while ( line_positions.size() < expected_num_lines ) {
     // skip comments
     while ( mapped_file[pos] == '%' && pos < length ) {
-      goto_next_line(mapped_file, pos, length);
+      goto_next_line(mapped_file, pos, current_line, length);
     }
 
-    if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back()) ) {
-      throw InvalidInputException("input file: expected " + STR(expected_num_lines + 1) +
-        " lines, but there are only " + STR(line_positions.size()) + " lines (excluding comments)");
+    if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back().first) ) {
+      parsing_exception("expected " + STR(expected_num_lines + 1) + " lines, but there are only " +
+                        STR(line_positions.size()) + " lines (excluding comments)");
     }
-    line_positions.push_back(pos);
-    goto_next_line(mapped_file, pos, length);
+    line_positions.emplace_back(pos, current_line);
+    goto_next_line(mapped_file, pos, current_line, length);
   }
-  line_positions.push_back(pos);
+  line_positions.emplace_back(pos, current_line);
 
   // split the lines into ranges that can be processed in parallel
   const size_t num_ranges = num_parallel_ranges();
@@ -274,19 +295,19 @@ vec<LineRange> split_lines(char* mapped_file,
   size_t line_index = 0;
   while (line_index + 1 < line_positions.size()) {
     const size_t start_index = line_index;
-    const size_t start_pos = line_positions[start_index];
+    const auto [start_pos, line_in_file] = line_positions[start_index];
 
     size_t delta_pos = 0;
     do {
       ++line_index;
-      delta_pos = line_positions[line_index] - start_pos;
+      delta_pos = line_positions[line_index].first - start_pos;
     } while (line_index + 1 < line_positions.size() && delta_pos < bytes_per_range);
 
     if (delta_pos > 0) {
-      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index, line_in_file });
     }
   }
-  ASSERT(result.back().end == line_positions.back());
+  ASSERT(result.back().end == line_positions.back().first);
   return result;
 }
 
