@@ -128,6 +128,7 @@ namespace mt_kahypar::io {
 
   HyperedgeReadResult readHyperedges(char* mapped_file,
                                      size_t& pos,
+                                     size_t& current_line,
                                      const size_t length,
                                      const HyperedgeID num_hyperedges,
                                      const bool has_hyperedge_weights,
@@ -149,7 +150,7 @@ namespace mt_kahypar::io {
         // Skip Comments
         ASSERT(pos < length);
         while ( mapped_file[pos] == '%' ) {
-          goto_next_line(mapped_file, pos, length);
+          goto_next_line(mapped_file, pos, current_line, length);
           ASSERT(pos < length);
         }
 
@@ -161,7 +162,7 @@ namespace mt_kahypar::io {
           ++res.num_removed_single_pin_hyperedges;
         }
         ++current_num_hyperedges;
-        goto_next_line(mapped_file, pos, length);
+        goto_next_line(mapped_file, pos, current_line, length);
 
         // If there are enough hyperedges in the current scanned range
         // we store that range, which will be later processed in parallel
@@ -195,6 +196,7 @@ namespace mt_kahypar::io {
     tbb::parallel_for(UL(0), hyperedge_ranges.size(), [&](const size_t i) {
       HyperedgeRange& range = hyperedge_ranges[i];
       size_t current_pos = range.start;
+      size_t current_line = 0;
       const size_t current_end = range.end;
       HyperedgeID current_id = range.start_id;
       const HyperedgeID last_id = current_id + range.num_hyperedges;
@@ -203,33 +205,33 @@ namespace mt_kahypar::io {
         // Skip Comments
         ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
-          goto_next_line(mapped_file, current_pos, current_end);
+          goto_next_line(mapped_file, current_pos, current_line, current_end);
           ASSERT(current_pos < current_end);
         }
 
         if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
           ASSERT(current_id < hyperedges.size());
           if ( has_hyperedge_weights ) {
-            hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_end);
+            hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_line, current_end);
           }
 
           Hyperedge& hyperedge = hyperedges[current_id];
           // Note, a hyperedge line must contain at least one pin
-          HypernodeID pin = read_number(mapped_file, current_pos, current_end);
+          HypernodeID pin = read_number(mapped_file, current_pos, current_line, current_end);
           ASSERT(pin > 0, V(current_id));
           hyperedge.push_back(pin - 1);
           while ( !is_line_ending(mapped_file, current_pos) ) {
-            pin = read_number(mapped_file, current_pos, current_end);
+            pin = read_number(mapped_file, current_pos, current_line, current_end);
             ASSERT(pin > 0, V(current_id));
             hyperedge.push_back(pin - 1);
           }
-          do_line_ending(mapped_file, current_pos);
+          do_line_ending(mapped_file, current_pos, current_line);
 
           utils::deduplicateHyperedgePins(hyperedge, res.num_duplicated_pins, res.num_hes_with_duplicated_pins);
           ASSERT(hyperedge.size() >= 2);
           ++current_id;
         } else {
-          goto_next_line(mapped_file, current_pos, current_end);
+          goto_next_line(mapped_file, current_pos, current_line, current_end);
         }
       }
     });
@@ -277,7 +279,7 @@ namespace mt_kahypar::io {
 
     // Read Hyperedges
     HyperedgeReadResult res =
-            readHyperedges(handle.mapped_file, pos, handle.length, num_hyperedges,
+            readHyperedges(handle.mapped_file, pos, current_line, handle.length, num_hyperedges,
               has_hyperedge_weights, hyperedges, hyperedges_weight, remove_single_pin_hes);
     num_hyperedges -= res.num_removed_single_pin_hyperedges;
     num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
@@ -288,7 +290,7 @@ namespace mt_kahypar::io {
     }
 
     // Read Hypernode Weights
-    readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes,
+    readHypernodeWeights(handle.mapped_file, pos, current_line, handle.length, num_hypernodes,
       has_vertex_weights, hypernodes_weight);
 
     // Check the end of the file
