@@ -181,9 +181,7 @@ void goto_next_line(char* mapped_file, size_t& pos, const size_t /*length*/) {
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 void goto_next_line_unrolled(char* mapped_file, size_t& pos, const size_t length) {
-  for ( ; ; pos += LOOP_UNROLLING_VALUE ) {
-    ASSERT(pos + LOOP_UNROLLING_VALUE <= length);
-    // TODO: premature line ending?
+  for ( ; pos + LOOP_UNROLLING_VALUE <= length; pos += LOOP_UNROLLING_VALUE ) {
     uint32_t flags = 0;
     for (size_t i = 0; i < LOOP_UNROLLING_VALUE; ++i) {
       flags |= static_cast<uint32_t>(mapped_file[pos + i] == '\n') << i;
@@ -236,25 +234,32 @@ vec<LineRange> split_lines(char* mapped_file,
   line_positions.reserve(expected_num_lines + 1);
 
   // speed up bulk of processing via loop unrolling
-  while ( line_positions.size() + LOOP_UNROLLING_VALUE < expected_num_lines ) {
+  while ( line_positions.size() + 1 < expected_num_lines &&
+          pos + LOOP_UNROLLING_VALUE <= length ) {
     // skip comments
-    while ( mapped_file[pos] == '%' ) {
+    while ( mapped_file[pos] == '%' && pos < length ) {
       goto_next_line(mapped_file, pos, length);
-      ASSERT(pos < length); // TODO: pos >= length
     }
-    if (line_positions.size() + LOOP_UNROLLING_VALUE >= expected_num_lines) break;
 
     line_positions.push_back(pos);
     goto_next_line_unrolled(mapped_file, pos, length);
   }
+
   // handle remainder without unrolling
+  if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back()) ) {
+    // if the unrolled loop stopped at a weird position, fix it
+    goto_next_line(mapped_file, pos, length);
+  }
   while ( line_positions.size() < expected_num_lines ) {
     // skip comments
-    while ( mapped_file[pos] == '%' ) {
+    while ( mapped_file[pos] == '%' && pos < length ) {
       goto_next_line(mapped_file, pos, length);
-      ASSERT(pos < length); // TODO: pos >= length
     }
 
+    if ( mapped_file[pos - 1] != '\n' || (!line_positions.empty() && pos == line_positions.back()) ) {
+      throw InvalidInputException("input file: expected " + STR(expected_num_lines + 1) +
+        " lines, but there are only " + STR(line_positions.size()) + " lines (excluding comments)");
+    }
     line_positions.push_back(pos);
     goto_next_line(mapped_file, pos, length);
   }
@@ -266,17 +271,20 @@ vec<LineRange> split_lines(char* mapped_file,
 
   vec<LineRange> result;
   result.reserve(num_ranges);
-
   size_t line_index = 0;
   while (line_index + 1 < line_positions.size()) {
     const size_t start_index = line_index;
     const size_t start_pos = line_positions[start_index];
+
     size_t delta_pos = 0;
     do {
       ++line_index;
       delta_pos = line_positions[line_index] - start_pos;
     } while (line_index + 1 < line_positions.size() && delta_pos < bytes_per_range);
-    result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+
+    if (delta_pos > 0) {
+      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+    }
   }
   ASSERT(result.back().end == line_positions.back());
   return result;
