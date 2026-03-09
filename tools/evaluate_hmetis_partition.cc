@@ -73,6 +73,7 @@ int main(int argc, char* argv[]) {
 
   po::options_description options("Options");
   options.add_options()
+          ("help", "Show help message")
           ("hypergraph,h",
            po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
            "Hypergraph Filename")
@@ -85,6 +86,12 @@ int main(int argc, char* argv[]) {
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
+
+  if (cmd_vm.count("help")) {
+    std::cout << options << std::endl;
+    return 0;
+  }
+
   po::notify(cmd_vm);
 
   // Read Hypergraph
