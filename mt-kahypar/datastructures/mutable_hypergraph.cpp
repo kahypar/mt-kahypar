@@ -4,6 +4,7 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
 
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
