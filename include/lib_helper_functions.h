@@ -27,6 +27,7 @@
 #pragma once
 
 #include <chrono>
+#include <limits>
 #include <string>
 #include <sstream>
 #include <type_traits>
@@ -131,6 +132,17 @@ bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypa
              partitioned_hg.type == N_LEVEL_HYPERGRAPH_PARTITIONING;
   }
   return false;
+}
+
+template<typename OutType, typename InType>
+void check_overflow(const InType& value, const char* what) {
+  if (value > static_cast<InType>(std::numeric_limits<OutType>::max())) {
+    std::string msg = std::string(what) + " overflows input range of internal data type: " + STR(value);
+    if constexpr (sizeof(OutType) < 8) {
+      msg += " (build with -DKAHYPAR_USE_64_BIT_IDS=ON to support larger ID ranges)";
+    }
+    throw InvalidInputException(msg);
+  }
 }
 
 void check_if_all_relevant_parameters_are_set(Context& context) {
@@ -302,6 +314,9 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const vec<vec<HypernodeID>>& edge_vector,
                                           const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                           const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of vertices");
+  check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
+
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:
@@ -327,9 +342,11 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
                                                                const mt_kahypar_hypernode_id_t num_vertices,
                                                                const mt_kahypar_hyperedge_id_t num_hyperedges,
                                                                const size_t* hyperedge_indices,
-                                                               const mt_kahypar_hyperedge_id_t* hyperedges,
+                                                               const mt_kahypar_hypernode_id_t* hyperedges,
                                                                const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                                const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of vertices");
+  check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
   if (hyperedge_indices[0] != 0) {
     throw InvalidInputException("First entry in hyperedge indices must be 0, but is: " + STR(hyperedge_indices[0]));
   }
@@ -350,7 +367,9 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
     const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
     edge_vector[he].resize(num_pins);
     for ( size_t i = 0; i < num_pins; ++i ) {
-      edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
+      mt_kahypar_hypernode_id_t pin = hyperedges[hyperedge_indices[he] + i];
+      check_overflow<HypernodeID>(pin, "pin");
+      edge_vector[he][i] = pin;
     }
 
     utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
@@ -368,6 +387,9 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
                                      const mt_kahypar_hyperedge_weight_t* edge_weights,
                                      const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of nodes");
+  check_overflow<HyperedgeID>(num_edges, "number of edges");
+
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:

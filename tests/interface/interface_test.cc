@@ -167,8 +167,8 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, StaticHypergraphConstructionHandlesErrors) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
-    const mt_kahypar_hypernode_id_t num_vertices = 7;
-    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+    mt_kahypar_hypernode_id_t num_vertices = 7;
+    mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
     std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
     hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
@@ -209,6 +209,23 @@ namespace mt_kahypar {
     hyperedge_indices[4] = 10e8;
     attempt_construction("giant HE");
     hyperedge_indices[4] = 12;
+
+    if constexpr (sizeof(HypernodeID) < 8) {
+      hyperedges[3] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 1;
+      attempt_construction("overflow pin");
+      hyperedges[3] = 1;
+
+      hyperedge_indices[4] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 13;
+      attempt_construction("overflow HE index");
+      hyperedge_indices[4] = 12;
+
+      num_vertices = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 8;
+      attempt_construction("overflow num vertices");
+      num_vertices = 7;
+
+      num_hyperedges = static_cast<mt_kahypar_hyperedge_id_t>(std::numeric_limits<HyperedgeID>::max()) + 5;
+      attempt_construction("overflow num hyperedges");
+    }
 
     mt_kahypar_free_hypergraph(hypergraph);
   }
@@ -245,8 +262,8 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, DynamicHypergraphConstructionHandlesErrors) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
-    const mt_kahypar_hypernode_id_t num_vertices = 7;
-    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+    mt_kahypar_hypernode_id_t num_vertices = 7;
+    mt_kahypar_hyperedge_id_t num_hyperedges = 4;
 
     std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
     hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
@@ -288,6 +305,23 @@ namespace mt_kahypar {
     attempt_construction("giant HE");
     hyperedge_indices[4] = 12;
 
+    if constexpr (sizeof(HypernodeID) < 8) {
+      hyperedges[3] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 1;
+      attempt_construction("overflow pin");
+      hyperedges[3] = 1;
+
+      hyperedge_indices[4] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 13;
+      attempt_construction("overflow HE index");
+      hyperedge_indices[4] = 12;
+
+      num_vertices = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 8;
+      attempt_construction("overflow num vertices");
+      num_vertices = 7;
+
+      num_hyperedges = static_cast<mt_kahypar_hyperedge_id_t>(std::numeric_limits<HyperedgeID>::max()) + 5;
+      attempt_construction("overflow num hyperedges");
+    }
+
     mt_kahypar_free_hypergraph(hypergraph);
   }
 
@@ -320,8 +354,8 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, StaticGraphConstructionHandlesErrors) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
-    const mt_kahypar_hypernode_id_t num_vertices = 5;
-    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+    mt_kahypar_hypernode_id_t num_vertices = 5;
+    mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
     std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
       std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
@@ -346,6 +380,15 @@ namespace mt_kahypar {
 
     edges[2] = 2;
     attempt_construction("self loop");
+
+    if constexpr (sizeof(HypernodeID) < 8) {
+      edges[2] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 1;
+      attempt_construction("overflow node ID");
+      edges[2] = 0;
+
+      num_vertices = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 6;
+      attempt_construction("overflow num nodes");
+    }
 
     mt_kahypar_free_hypergraph(graph);
   }
@@ -379,8 +422,8 @@ namespace mt_kahypar {
   TEST(MtKaHyPar, DynamicGraphConstructionHandlesErrors) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(HIGHEST_QUALITY);
-    const mt_kahypar_hypernode_id_t num_vertices = 5;
-    const mt_kahypar_hyperedge_id_t num_hyperedges = 6;
+    mt_kahypar_hypernode_id_t num_vertices = 5;
+    mt_kahypar_hyperedge_id_t num_hyperedges = 6;
 
     std::unique_ptr<mt_kahypar_hypernode_id_t[]> edges =
       std::make_unique<mt_kahypar_hypernode_id_t[]>(12);
@@ -405,6 +448,15 @@ namespace mt_kahypar {
 
     edges[2] = 2;
     attempt_construction("self loop");
+
+    if constexpr (sizeof(HypernodeID) < 8) {
+      edges[2] = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 1;
+      attempt_construction("overflow node ID");
+      edges[2] = 0;
+
+      num_vertices = static_cast<mt_kahypar_hypernode_id_t>(std::numeric_limits<HypernodeID>::max()) + 6;
+      attempt_construction("overflow num nodes");
+    }
 
     mt_kahypar_free_hypergraph(graph);
   }

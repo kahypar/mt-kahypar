@@ -336,12 +336,14 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* cont
                                                 mt_kahypar_error_t* error) {
   // Transform adjacence array into adjacence list
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
-  tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
-    edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
-  });
 
   const Context& c = *reinterpret_cast<const Context*>(context);
   try {
+    tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
+      lib::check_overflow<HypernodeID>(edges[2*he], "endpoint of edge");
+      lib::check_overflow<HypernodeID>(edges[2*he + 1], "endpoint of edge");
+      edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
+    });
     return lib::create_graph(c, num_vertices, num_edges, edge_vector, edge_weights, vertex_weights);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
