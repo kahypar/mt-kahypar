@@ -313,7 +313,7 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_context_t*
                                                      const mt_kahypar_hypernode_id_t num_vertices,
                                                      const mt_kahypar_hyperedge_id_t num_hyperedges,
                                                      const size_t* hyperedge_indices,
-                                                     const mt_kahypar_hyperedge_id_t* hyperedges,
+                                                     const mt_kahypar_hypernode_id_t* hyperedges,
                                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                      const mt_kahypar_hypernode_weight_t* vertex_weights,
                                                      mt_kahypar_error_t* error) {
