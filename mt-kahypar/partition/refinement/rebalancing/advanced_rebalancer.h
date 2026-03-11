@@ -149,8 +149,7 @@ private:
                                                          const HypernodeWeightArray& reduced_part_weights,
                                                          size_t& global_move_id,
                                                          const uint8_t* is_locked,
-                                                         bool is_fallback,
-                                                         bool& is_deadlocked);
+                                                         bool is_fallback);
 
   std::pair<int64_t, size_t> runDeadlockFallback(mt_kahypar_partitioned_hypergraph_t& hypergraph, size_t& global_move_id);
 

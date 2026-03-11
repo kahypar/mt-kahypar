@@ -684,8 +684,7 @@ namespace impl {
                                                                                                 const HypernodeWeightArray& reduced_part_weights,
                                                                                                 size_t& global_move_id,
                                                                                                 const uint8_t* is_locked,
-                                                                                                bool is_fallback,
-                                                                                                bool& is_deadlocked) {
+                                                                                                bool is_fallback) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
     auto& max_part_weights = _context.refinement.rebalancing.reduced_rollback ? reduced_part_weights : _context.partition.max_part_weights;
@@ -734,9 +733,7 @@ namespace impl {
              && new_overweight < old_overweight
              && global_move_id < phg.initialNumNodes()
              && (max_rounds == 0 || round < max_rounds));
-
     DBG << V(old_overweight) << V(new_overweight) << V(global_move_id) << V(moved_nodes);
-    is_deadlocked = (max_rounds == 0 || round == max_rounds);
     return {attributed_gain, num_overloaded_blocks, num_moves_first_round};
   }
 
@@ -757,11 +754,10 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
-    bool is_deadlocked = false;
     auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] =
-      runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, is_locked, false, is_deadlocked);
+      runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, is_locked, false);
 
-    if (is_deadlocked && _context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
+    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
         && (!_context.refinement.rebalancing.deadlock_fallback_only_toplevel || is_top_level)) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
       auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
@@ -782,7 +778,7 @@ namespace impl {
 
         attributed_gain += added_gain;
         const auto locks = _context.refinement.rebalancing.fallback_use_locking ? _node_is_locked.data() : nullptr;
-        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, locks, true, is_deadlocked);
+        auto [attr_gain, n_overloaded, _] = runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, locks, true);
         attributed_gain += attr_gain;
         num_overloaded_blocks = n_overloaded;
       }
