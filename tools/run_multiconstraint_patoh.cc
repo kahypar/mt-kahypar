@@ -180,9 +180,9 @@ void print_info(int k, const std::vector<int>& partweights, int nconst) {
     }
     std::cout << '\n';
   }
-  std::cout << " Max. imbalance (percent): ";
+  std::cout << " Max. imbalance: ";
   for (int j = 0; j < nconst; ++j)
-    std::cout << std::fixed << std::setprecision(3) << 100.0 * maxi[j] << ' ';
+    std::cout << std::fixed << std::setprecision(4) << maxi[j] << ' ';
   std::cout << "\n------------------------------------------------------------\n";
 }
 
