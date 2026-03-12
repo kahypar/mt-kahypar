@@ -94,8 +94,6 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         node.setWeight(node_weight[n]);
       }
     });
-    // Compute total weight of graph
-    graph.updateTotalWeight(parallel_tag_t());
   }, [&] {
     graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
     if (stable_construction_of_incident_edges) {
@@ -108,8 +106,8 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
     graph._contraction_tree.initialize(num_nodes);
   });
 
-  // Compute total weight of the graph
-  graph.updateTotalWeight(parallel_tag_t());
+  // Compute total weight of graph
+  graph.computeAndSetTotalNodeWeight(parallel_tag_t());
   return graph;
 }
 
@@ -172,8 +170,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   // Construct compactified graph
   DynamicGraph compactified_graph = DynamicGraphFactory::construct_from_graph_edges(
     num_nodes, num_edges, edge_vector, edge_weights.data(), node_weights.data());
-  compactified_graph._removed_degree_zero_hn_weight = graph._removed_degree_zero_hn_weight;
-  compactified_graph._total_weight += graph._removed_degree_zero_hn_weight;
+  compactified_graph._total_weight = graph._total_weight;
 
   tbb::parallel_invoke([&] {
     // Set community ids

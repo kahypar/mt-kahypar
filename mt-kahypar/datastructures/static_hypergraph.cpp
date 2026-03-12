@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/hypergraph_utils.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
@@ -584,16 +585,7 @@ namespace mt_kahypar::ds {
 
   // ! Computes the total node weight of the hypergraph
   void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
-                                         [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-                                           HypernodeWeight weight = init;
-                                           for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-                                             if (nodeIsEnabled(hn)) {
-                                               weight += this->_hypernodes[hn].weight();
-                                             }
-                                           }
-                                           return weight;
-                                         }, std::plus<>());
+    _total_weight = computeTotalNodeWeightParallel(*this, _num_hypernodes);
   }
 
 } // namespace

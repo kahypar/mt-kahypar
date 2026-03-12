@@ -139,13 +139,12 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
         hypernode.setWeight(hypernode_weight[hn]);
       }
     });
+    // Compute total weight of hypergraph
+    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   }, [&] {
     // Construct incident net array
     hypergraph._incident_nets = IncidentNetArray(num_hypernodes, edge_vector);
   });
-
-  // Compute total weight of hypergraph
-  hypergraph.updateTotalWeight(parallel_tag_t());
   return hypergraph;
 }
 
@@ -213,8 +212,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   // Construct compactified hypergraph
   DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
     num_hypernodes, num_hyperedges, edge_vector, hyperedge_weights.data(), hypernode_weights.data());
-  compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
-  compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
+  compactified_hypergraph._total_weight = hypergraph._total_weight;
 
   tbb::parallel_invoke([&] {
     // Set community ids

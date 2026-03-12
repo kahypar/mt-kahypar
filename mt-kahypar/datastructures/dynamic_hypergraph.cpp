@@ -35,36 +35,12 @@
 
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/hypergraph_utils.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
-
-// ! Recomputes the total weight of the hypergraph (parallel)
-void DynamicHypergraph::updateTotalWeight(parallel_tag_t) {
-  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
-    [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-      HypernodeWeight weight = init;
-      for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-        if ( nodeIsEnabled(hn) ) {
-          weight += this->_hypernodes[hn].weight();
-        }
-      }
-      return weight;
-    }, std::plus<HypernodeWeight>()) + _removed_degree_zero_hn_weight;
-}
-
-// ! Recomputes the total weight of the hypergraph (sequential)
-void DynamicHypergraph::updateTotalWeight() {
-  _total_weight = 0;
-  for ( const HypernodeID& hn : nodes() ) {
-    if ( nodeIsEnabled(hn) ) {
-      _total_weight += nodeWeight(hn);
-    }
-  }
-  _total_weight += _removed_degree_zero_hn_weight;
-}
 
 /**!
  * Registers a contraction in the hypergraph whereas vertex u is the representative
@@ -388,7 +364,6 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
 
   hypergraph._num_hypernodes = _num_hypernodes;
   hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
-  hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_hyperedges = _num_hyperedges;
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
@@ -447,7 +422,6 @@ DynamicHypergraph DynamicHypergraph::copy() const {
 
   hypergraph._num_hypernodes = _num_hypernodes;
   hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
-  hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_hyperedges = _num_hyperedges;
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
@@ -760,6 +734,11 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
 BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                                            const size_t version) {
   return _contraction_tree.createBatchUncontractionHierarchyForVersion(batch_assigner, version);
+}
+
+// ! Computes the total weight of the hypergraph (parallel)
+void DynamicHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
+  _total_weight = computeTotalNodeWeightParallel(*this, _num_hypernodes);
 }
 
 } // namespace ds
