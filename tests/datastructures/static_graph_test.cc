@@ -120,7 +120,7 @@ TEST_F(AStaticGraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
+  hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
@@ -171,6 +171,12 @@ TEST_F(AStaticGraph, VerifiesEdgeSizes) {
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(2, hypergraph.edgeSize(he));
   }
+}
+
+TEST_F(AStaticGraph, PreventsWeightOverflow) {
+  hypergraph.setNodeWeight(0, std::numeric_limits<HypernodeWeight>::max() / 2);
+  hypergraph.setNodeWeight(1, std::numeric_limits<HypernodeWeight>::max() / 2);
+  ASSERT_THROW(hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t()), InvalidInputException);
 }
 
 TEST_F(AStaticGraph, SetsCommunityIDsForEachVertex) {

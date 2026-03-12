@@ -36,36 +36,12 @@
 
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/hypergraph_utils.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
-
-// ! Recomputes the total weight of the hypergraph (parallel)
-void DynamicGraph::updateTotalWeight(parallel_tag_t) {
-  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), numNodes()), 0,
-    [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-      HypernodeWeight weight = init;
-      for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-        if ( nodeIsEnabled(hn) ) {
-          weight += this->_nodes[hn].weight();
-        }
-      }
-      return weight;
-    }, std::plus<HypernodeWeight>()) + _removed_degree_zero_hn_weight;
-}
-
-// ! Recomputes the total weight of the hypergraph (sequential)
-void DynamicGraph::updateTotalWeight() {
-  _total_weight = 0;
-  for ( const HypernodeID& hn : nodes() ) {
-    if ( nodeIsEnabled(hn) ) {
-      _total_weight += nodeWeight(hn);
-    }
-  }
-  _total_weight += _removed_degree_zero_hn_weight;
-}
 
 /**!
  * Registers a contraction in the hypergraph whereas vertex u is the representative
@@ -300,7 +276,6 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
   DynamicGraph hypergraph;
 
   hypergraph._num_removed_nodes = _num_removed_nodes;
-  hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
   hypergraph._version = _version;
@@ -331,7 +306,6 @@ DynamicGraph DynamicGraph::copy() const {
   DynamicGraph hypergraph;
 
   hypergraph._num_removed_nodes = _num_removed_nodes;
-  hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
   hypergraph._version = _version;
@@ -401,6 +375,11 @@ bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
     });
   });
   return success;
+}
+
+// ! Computes the total weight of the hypergraph (parallel)
+void DynamicGraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
+  _total_weight = computeTotalNodeWeightParallel(*this, numNodes());
 }
 
 } // namespace ds

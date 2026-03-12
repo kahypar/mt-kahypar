@@ -181,6 +181,12 @@ TEST_F(AStaticHypergraph, VerifiesEdgeSizes) {
   ASSERT_EQ(3, hypergraph.edgeSize(3));
 }
 
+TEST_F(AStaticHypergraph, PreventsWeightOverflow) {
+  hypergraph.setNodeWeight(0, std::numeric_limits<HypernodeWeight>::max() / 2);
+  hypergraph.setNodeWeight(1, std::numeric_limits<HypernodeWeight>::max() / 2);
+  ASSERT_THROW(hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t()), InvalidInputException);
+}
+
 TEST_F(AStaticHypergraph, SetsCommunityIDsForEachVertex) {
   hypergraph.setCommunityID(0, 1);
   hypergraph.setCommunityID(1, 1);
