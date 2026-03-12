@@ -47,22 +47,29 @@ namespace mt_kahypar::io {
 
   void readFormatInfo(char* mapped_file,
                       size_t& pos,
+                      const size_t current_line,
                       const size_t length,
                       bool& has_edge_weights,
                       bool& has_vertex_weights) {
     if (!is_line_ending(mapped_file, pos)) {
       // read the (up to) three 0/1 format digits
-      uint32_t format_num = read_number(mapped_file, pos, length);
-      ASSERT(format_num < 100, "Vertex sizes in input file are not supported.");
-      ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
+      uint32_t format_num = read_number<uint32_t>(mapped_file, pos, current_line, length, "weight type");
+      if (format_num >= 100) {
+        parsing_exception(current_line, "header has invalid weight type: " + STR(format_num) +
+                          " (should be one of 00/01/10/11; note that vertex sizes are not supported)");
+      }
+      bool format_is_valid = (format_num / 10 == 0 || format_num / 10 == 1) && (format_num % 10 == 0 || format_num % 10 == 1);
+      if (!format_is_valid) {
+        parsing_exception(current_line, "header has invalid weight type: " + STR(format_num) + " (should be one of 00/01/10/11)");
+      }
       has_vertex_weights = (format_num / 10 == 1);
-      ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
       has_edge_weights = (format_num % 10 == 1);
     }
   }
 
   void readHGRHeader(char* mapped_file,
                      size_t& pos,
+                     size_t& current_line,
                      const size_t length,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
@@ -70,13 +77,13 @@ namespace mt_kahypar::io {
                      bool& has_vertex_weights) {
     // Skip comments
     while ( mapped_file[pos] == '%' ) {
-      goto_next_line(mapped_file, pos, length);
+      goto_next_line(mapped_file, pos, current_line, length);
     }
 
-    num_hyperedges = read_number(mapped_file, pos, length);
-    num_hypernodes = read_number(mapped_file, pos, length);
-    readFormatInfo(mapped_file, pos, length, has_hyperedge_weights, has_vertex_weights);
-    do_line_ending(mapped_file, pos);
+    num_hyperedges = read_number<HyperedgeID>(mapped_file, pos, current_line, length, "number of hyperedges");
+    num_hypernodes = read_number<HypernodeID>(mapped_file, pos, current_line, length, "number of vertices");
+    readFormatInfo(mapped_file, pos, current_line, length, has_hyperedge_weights, has_vertex_weights);
+    do_line_ending(mapped_file, pos, current_line);
   }
 
   struct HyperedgeRange {
@@ -99,8 +106,10 @@ namespace mt_kahypar::io {
 
   HyperedgeReadResult readHyperedges(char* mapped_file,
                                      size_t& pos,
+                                     size_t& current_line,
                                      const size_t length,
                                      const HyperedgeID num_hyperedges,
+                                     const HypernodeID num_hypernodes,
                                      const bool has_hyperedge_weights,
                                      HyperedgeVector& hyperedges,
                                      vec<HyperedgeWeight>& hyperedges_weight,
@@ -112,7 +121,7 @@ namespace mt_kahypar::io {
     tbb::parallel_invoke([&] {
       // Sequential pass over all lines to determine ranges in the
       // input file that are read in parallel.
-      line_ranges = split_lines(mapped_file, pos, length, num_hyperedges);
+      line_ranges = split_lines(mapped_file, pos, current_line, length, num_hyperedges);
     }, [&] {
       hyperedges.resize(num_hyperedges);
     }, [&] {
@@ -131,6 +140,7 @@ namespace mt_kahypar::io {
 
       const LineRange& range = line_ranges[i];
       size_t current_pos = range.start;
+      size_t current_line = range.first_line_number_in_file;
       const size_t current_end = range.end;
       HyperedgeID current_hyperedge_id = range.line_start_index;
       const HyperedgeID last_hyperedge_id = current_hyperedge_id + range.num_lines;
@@ -139,33 +149,42 @@ namespace mt_kahypar::io {
         // Skip Comments
         ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
-          goto_next_line(mapped_file, current_pos, current_end);
+          goto_next_line(mapped_file, current_pos, current_line, current_end);
           ASSERT(current_pos < current_end);
         }
 
+        HyperedgeWeight he_weight = 0;
         if ( has_hyperedge_weights ) {
-          my_edges_weight.push_back(read_number(mapped_file, current_pos, current_end));
+          he_weight = read_number<HyperedgeWeight>(mapped_file, current_pos, current_line, current_end, "hyperedge weight");
         }
 
-        Hyperedge hyperedge;
         // Note, a hyperedge line must contain at least one pin
-        HypernodeID pin = read_number(mapped_file, current_pos, current_end);
-        ASSERT(pin > 0, V(current_hyperedge_id));
-        hyperedge.push_back(pin - 1);
+        Hyperedge hyperedge;
         while ( !is_line_ending(mapped_file, current_pos) ) {
-          pin = read_number(mapped_file, current_pos, current_end);
-          ASSERT(pin > 0, V(current_hyperedge_id));
+          HypernodeID pin = read_number<HypernodeID>(mapped_file, current_pos, current_line, current_end, "vertex ID");
+          if (pin == 0) {
+            parsing_exception(current_line, "0 is not a valid vertex ID; the hMETIS file format requires that IDs start at 1");
+          }
+          if (pin > num_hypernodes) {
+            parsing_exception(current_line, "invalid vertex ID: " + STR(pin) + " (larger than number of vertices)");
+          }
           hyperedge.push_back(pin - 1);
         }
-        do_line_ending(mapped_file, current_pos);
+        do_line_ending(mapped_file, current_pos, current_line);
         ++current_hyperedge_id;
+
+        if (hyperedge.empty()) {
+          parsing_exception(current_line, "empty hyperedges are not allowed; must contain at least 1 pin");
+        }
 
         utils::deduplicateHyperedgePins(hyperedge, res.num_duplicated_pins, res.num_hes_with_duplicated_pins);
         if ( !remove_single_pin_hes || hyperedge.size() > 1 ) {
           my_edges.emplace_back(std::move(hyperedge));
+          if ( has_hyperedge_weights ) {
+            my_edges_weight.push_back(he_weight);
+          }
         } else {
           __atomic_fetch_add(&res.num_removed_single_pin_hyperedges, 1, __ATOMIC_RELAXED);
-          my_edges_weight.pop_back();  // also remove the previously added weight
         };
       }
     });
@@ -199,6 +218,7 @@ namespace mt_kahypar::io {
 
   void readHypernodeWeights(char* mapped_file,
                             size_t& pos,
+                            size_t& current_line,
                             const size_t length,
                             const HypernodeID num_hypernodes,
                             const bool has_hypernode_weights,
@@ -206,10 +226,12 @@ namespace mt_kahypar::io {
     if ( has_hypernode_weights ) {
       hypernodes_weight.resize(num_hypernodes);
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
-        ASSERT(pos > 0 && pos < length);
+        if (pos >= length) {
+          parsing_exception("found only " + STR(hn) + " hypernode weights, but there are " + STR(num_hypernodes) + " hypernodes");
+        }
         ASSERT(mapped_file[pos - 1] == '\n');
-        hypernodes_weight[hn] = read_number(mapped_file, pos, length);
-        do_line_ending(mapped_file, pos);
+        hypernodes_weight[hn] = read_number<HypernodeWeight>(mapped_file, pos, current_line, length, "vertex weight");
+        do_line_ending(mapped_file, pos, current_line);
       }
     }
   }
@@ -227,16 +249,17 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
+    size_t current_line = 1;
 
     // Read Hypergraph Header
     bool has_hyperedge_weights = false;
     bool has_vertex_weights = false;
-    readHGRHeader(handle.mapped_file, pos, handle.length, num_hyperedges,
-      num_hypernodes, has_hyperedge_weights, has_vertex_weights);
+    readHGRHeader(handle.mapped_file, pos, current_line, handle.length,
+      num_hyperedges, num_hypernodes, has_hyperedge_weights, has_vertex_weights);
 
     // Read Hyperedges
     HyperedgeReadResult res =
-            readHyperedges(handle.mapped_file, pos, handle.length, num_hyperedges,
+            readHyperedges(handle.mapped_file, pos, current_line, handle.length, num_hyperedges, num_hypernodes,
               has_hyperedge_weights, hyperedges, hyperedges_weight, remove_single_pin_hes);
     num_hyperedges -= res.num_removed_single_pin_hyperedges;
     num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
@@ -247,20 +270,23 @@ namespace mt_kahypar::io {
     }
 
     // Read Hypernode Weights
-    readHypernodeWeights(handle.mapped_file, pos, handle.length, num_hypernodes,
+    readHypernodeWeights(handle.mapped_file, pos, current_line, handle.length, num_hypernodes,
       has_vertex_weights, hypernodes_weight);
 
     // Check the end of the file
     while ( handle.mapped_file[pos] == '%' ) {
-      goto_next_line(handle.mapped_file, pos, handle.length);
+      goto_next_line(handle.mapped_file, pos, current_line, handle.length);
     }
-    ASSERT(pos == handle.length);
+    if (pos != handle.length) {
+      parsing_exception(current_line, "unexpected content; hypergraph data is already complete");
+    }
 
     munmap_file(handle);
   }
 
   void readMetisHeader(char* mapped_file,
                        size_t& pos,
+                       size_t& current_line,
                        const size_t length,
                        HyperedgeID& num_edges,
                        HypernodeID& num_vertices,
@@ -268,13 +294,13 @@ namespace mt_kahypar::io {
                        bool& has_vertex_weights) {
     // Skip comments
     while ( mapped_file[pos] == '%' ) {
-      goto_next_line(mapped_file, pos, length);
+      goto_next_line(mapped_file, pos, current_line, length);
     }
 
-    num_vertices = read_number(mapped_file, pos, length);
-    num_edges = read_number(mapped_file, pos, length);
-    readFormatInfo(mapped_file, pos, length, has_edge_weights, has_vertex_weights);
-    do_line_ending(mapped_file, pos);
+    num_vertices = read_number<HypernodeID>(mapped_file, pos, current_line, length, "number of nodes");
+    num_edges = read_number<HyperedgeID>(mapped_file, pos, current_line, length, "number of edges");
+    readFormatInfo(mapped_file, pos, current_line, length, has_edge_weights, has_vertex_weights);
+    do_line_ending(mapped_file, pos, current_line);
   }
 
   struct VertexRange {
@@ -288,6 +314,7 @@ namespace mt_kahypar::io {
   template<typename EdgeT>
   void readVertices(char* mapped_file,
                     size_t& pos,
+                    size_t& current_line,
                     const size_t length,
                     const HyperedgeID num_edges,
                     const HypernodeID num_vertices,
@@ -302,7 +329,7 @@ namespace mt_kahypar::io {
     tbb::parallel_invoke([&] {
       // Sequential pass over all lines to determine ranges in the
       // input file that are read in parallel.
-      line_ranges = split_lines(mapped_file, pos, length, num_vertices);
+      line_ranges = split_lines(mapped_file, pos, current_line, length, num_vertices);
     }, [&] {
       edges.resize(num_edges);
     }, [&] {
@@ -325,6 +352,7 @@ namespace mt_kahypar::io {
 
       const LineRange& range = line_ranges[i];
       size_t current_pos = range.start;
+      size_t current_line = range.first_line_number_in_file;
       const size_t current_end = range.end;
       HypernodeID current_vertex_id = range.line_start_index;
       const HypernodeID last_vertex_id = current_vertex_id + range.num_lines;
@@ -333,18 +361,23 @@ namespace mt_kahypar::io {
         // Skip Comments
         ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
-          goto_next_line(mapped_file, current_pos, current_end);
+          goto_next_line(mapped_file, current_pos, current_line, current_end);
           ASSERT(current_pos < current_end);
         }
 
         if ( has_vertex_weights ) {
           ASSERT(current_vertex_id < vertices_weight.size());
-          vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
+          vertices_weight[current_vertex_id] = read_number<HypernodeWeight>(mapped_file, current_pos, current_line, current_end, "node weight");
         }
 
         while ( !is_line_ending(mapped_file, current_pos) ) {
-          const HypernodeID target = read_number(mapped_file, current_pos, current_end);
-          ASSERT(target > 0 && (target - 1) < num_vertices, V(target));
+          const HypernodeID target = read_number<HypernodeID>(mapped_file, current_pos, current_line, current_end, "node ID");
+          if (target == 0) {
+            parsing_exception(current_line, "0 is not a valid node ID; the METIS file format requires that IDs start at 1");
+          }
+          if (target > num_vertices) {
+            parsing_exception(current_line, "invalid node ID: " + STR(target) + " (larger than number of nodes)");
+          }
 
           // process forward edges, ignore backward edges
           if ( current_vertex_id < (target - 1) ) {
@@ -353,19 +386,23 @@ namespace mt_kahypar::io {
             my_edges.push_back({current_vertex_id, target - 1});
 
             if ( has_edge_weights ) {
-              my_edges_weight.push_back(read_number(mapped_file, current_pos, current_end));
+              my_edges_weight.push_back(read_number<HyperedgeWeight>(mapped_file, current_pos, current_line, current_end, "edge weight"));
             }
           } else if ( has_edge_weights ) {
-            read_number(mapped_file, current_pos, current_end);
+            read_number<HyperedgeWeight>(mapped_file, current_pos, current_line, current_end, "edge weight");
           }
         }
-        do_line_ending(mapped_file, current_pos);
+        do_line_ending(mapped_file, current_pos, current_line);
         ++current_vertex_id;
       }
     });
 
     // finally, we copy the local edge lists to the global list
-    copy_to_global_list(local_edges, edges);
+    size_t actual_num_edges = copy_to_global_list(local_edges, edges);
+    if (actual_num_edges != num_edges) {
+      parsing_exception("number of edges in header (=" + STR(num_edges) +
+                        ") does not match actual number of (forward) edges in file (=" + STR(actual_num_edges) + ")");
+    }
     if ( has_edge_weights ) {
       copy_to_global_list(local_edges_weight, edges_weight);
       ASSERT(edges.size() == edges_weight.size());
@@ -392,22 +429,26 @@ namespace mt_kahypar::io {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
+    size_t current_line = 1;
 
     // Read Metis Header
     bool has_edge_weights = false;
     bool has_vertex_weights = false;
-    readMetisHeader(handle.mapped_file, pos, handle.length, num_edges,
+    readMetisHeader(handle.mapped_file, pos, current_line, handle.length, num_edges,
       num_vertices, has_edge_weights, has_vertex_weights);
 
     // Read Vertices
-    readVertices(handle.mapped_file, pos, handle.length, num_edges, num_vertices,
+    readVertices(handle.mapped_file, pos, current_line, handle.length, num_edges, num_vertices,
       has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
 
     // Check the end of the file
     while ( handle.mapped_file[pos] == '%' ) {
-      goto_next_line(handle.mapped_file, pos, handle.length);
+      goto_next_line(handle.mapped_file, pos, current_line, handle.length);
+      ++current_line;
     }
-    ASSERT(pos == handle.length);
+    if (pos != handle.length) {
+      parsing_exception(current_line, "unexpected content; graph data is already complete");
+    }
 
     munmap_file(handle);
   }

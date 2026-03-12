@@ -150,6 +150,13 @@ void munmap_file(FileHandle& handle) {
   handle.closeHandle();
 }
 
+void parsing_exception(const std::string& msg) {
+  throw InvalidInputException("input file: " + msg);
+}
+
+void parsing_exception(size_t line, const std::string& msg) {
+  throw InvalidInputException("input file (line " + STR(line) + "): " + msg);
+}
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
 bool is_line_ending(char* mapped_file, size_t pos) {
@@ -157,46 +164,60 @@ bool is_line_ending(char* mapped_file, size_t pos) {
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void do_line_ending(char* mapped_file, size_t& pos) {
-  ASSERT(is_line_ending(mapped_file, pos));
+void do_line_ending(char* mapped_file, size_t& pos, size_t& current_line) {
+  if (!is_line_ending(mapped_file, pos)) {
+    parsing_exception(current_line, "unexpected content at end of line");
+  }
+
   if (mapped_file[pos] != '\0') {
     if (mapped_file[pos] == '\r') {     // windows line ending
       ++pos;
-      ASSERT(mapped_file[pos] == '\n');
+      if (mapped_file[pos] != '\n') {
+        parsing_exception(current_line, "invalid symbol (carriage return without newline)");
+      }
     }
     ++pos;
+    ++current_line;
   }
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void goto_next_line(char* mapped_file, size_t& pos, const size_t /*length*/) {
+void goto_next_line(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
+  unused(length);
   for ( ; ; ++pos ) {
+    ASSERT(pos < length || mapped_file[pos] == '\0');
     if ( is_line_ending(mapped_file, pos) ) {
-      do_line_ending(mapped_file, pos);
+      do_line_ending(mapped_file, pos, current_line);
       break;
     }
   }
 }
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-void goto_next_line_unchecked(char* mapped_file, size_t& pos, const size_t length) {
+void goto_next_line_unchecked(char* mapped_file, size_t& pos, size_t& current_line, const size_t length) {
   std::string_view sv(mapped_file + pos, length - pos);
   size_t offset = sv.find('\n');  // compiles to memchr
 
   if (offset != std::string_view::npos) {
     ASSERT(is_line_ending(mapped_file, pos + offset));
     pos += (offset + 1);
+    ++current_line;
   } else {
     pos = length;
   }
 }
 
+template<typename ResultType>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
-  int64_t number = 0;
+ResultType read_number(char* mapped_file, size_t& pos, const size_t current_line, const size_t length, const char* expected_type) {
   while ( mapped_file[pos] == ' ' ) {
     ++pos;
   }
+  if ( is_line_ending(mapped_file, pos) ) {
+    parsing_exception(current_line, std::string("expected to find ") + expected_type + ", but line already ends");
+  }
+
+  ResultType number = 0;
   for ( ; pos < length; ++pos ) {
     if ( mapped_file[pos] == ' ' || is_line_ending(mapped_file, pos) ) {
       while ( mapped_file[pos] == ' ' ) {
@@ -204,7 +225,23 @@ int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
       }
       break;
     }
-    ASSERT(mapped_file[pos] >= '0' && mapped_file[pos] <= '9');
+    if (mapped_file[pos] < '0' || mapped_file[pos] > '9') {
+      parsing_exception(current_line, "invalid symbol: " + std::string(1, mapped_file[pos]));
+    }
+
+    ResultType digit = mapped_file[pos] - '0';
+    if (number > (std::numeric_limits<ResultType>::max() - digit) / 10) {
+      // if the number would overflow, read the whole number and return a nice error message
+      std::string number_as_string = STR(number);
+      for ( ; mapped_file[pos] != ' ' && !is_line_ending(mapped_file, pos); ++pos ) {
+        number_as_string += mapped_file[pos];
+      }
+      std::string msg = std::string("number overflows input range for ") + expected_type + ": " + number_as_string;
+      if constexpr (sizeof(ResultType) < 8) {
+        msg += " (build with -DKAHYPAR_USE_64_BIT_IDS=ON to support larger ID ranges)";
+      }
+      parsing_exception(current_line, msg);
+    }
     number = number * 10 + (mapped_file[pos] - '0');
   }
   return number;
@@ -215,6 +252,7 @@ struct LineRange {
   const size_t end;
   const size_t line_start_index;
   const size_t num_lines;
+  const size_t first_line_number_in_file;
 };
 
 size_t num_parallel_ranges() {
@@ -223,26 +261,34 @@ size_t num_parallel_ranges() {
 
 vec<LineRange> split_lines(char* mapped_file,
                            size_t& pos,
+                           size_t& current_line,
                            const size_t length,
                            const size_t expected_num_lines) {
   const size_t initial_pos = pos;
-  vec<size_t> line_positions;
+  vec<std::pair<size_t, size_t>> line_positions;
   line_positions.reserve(expected_num_lines + 1);
 
   // find line endings very fast
-  line_positions.emplace_back(pos);
-  while ( line_positions.size() < expected_num_lines + 1 && pos < length ) {
+  line_positions.emplace_back(pos, current_line);
+  while ( true ) {
     // skip comments
     while ( mapped_file[pos] == '%' && pos < length ) {
-      goto_next_line_unchecked(mapped_file, pos, length);
+      goto_next_line_unchecked(mapped_file, pos, current_line, length);
     }
 
-    goto_next_line_unchecked(mapped_file, pos, length);
-    line_positions.emplace_back(pos);
+    if ( line_positions.size() > expected_num_lines || pos >= length ) break;
+
+    goto_next_line_unchecked(mapped_file, pos, current_line, length);
+    line_positions.emplace_back(pos, current_line);
   }
   if ( line_positions.size() < expected_num_lines + 1 && mapped_file[pos - 1] == '\n' ) {
     // special case for last line that is not terminated by a newline (might be end of file or empty line)
-    line_positions.emplace_back(pos);
+    line_positions.emplace_back(pos, current_line);
+  }
+
+  if ( line_positions.size() < expected_num_lines + 1 ) {  // note: +1 for header line
+    parsing_exception("expected " + STR(expected_num_lines + 1) + " lines, but there are only " +
+                      STR(line_positions.size()) + " lines (excluding comments)");
   }
 
   // split the lines into ranges that can be processed in parallel
@@ -254,25 +300,25 @@ vec<LineRange> split_lines(char* mapped_file,
   size_t line_index = 0;
   while (line_index + 1 < line_positions.size()) {
     const size_t start_index = line_index;
-    const size_t start_pos = line_positions[start_index];
+    const auto [start_pos, line_in_file] = line_positions[start_index];
 
     size_t delta_pos = 0;
     do {
       ++line_index;
-      delta_pos = line_positions[line_index] - start_pos;
+      delta_pos = line_positions[line_index].first - start_pos;
     } while (line_index + 1 < line_positions.size() && delta_pos < bytes_per_range);
 
     if (delta_pos > 0) {
-      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
+      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index, line_in_file });
     }
   }
   ASSERT(result.size() <= num_ranges);
-  ASSERT(result.back().end == line_positions.back());
+  ASSERT(result.empty() || result.back().end == line_positions.back().first);
   return result;
 }
 
 template<typename T>
-void copy_to_global_list(const vec<vec<T>>& source, vec<T>& target) {
+size_t copy_to_global_list(const vec<vec<T>>& source, vec<T>& target) {
   vec<size_t> prefix_sum;
   prefix_sum.reserve(source.size() + 1);
   prefix_sum.push_back(0);
@@ -285,11 +331,12 @@ void copy_to_global_list(const vec<vec<T>>& source, vec<T>& target) {
   tbb::parallel_for(UL(0), source.size(), [&](const size_t i) {
     const size_t start = prefix_sum[i];
     const size_t end = prefix_sum[i + 1];
-    for (size_t j = 0; start + j < end; ++j) {
-      ASSERT(start + j < target.size() && j < source[i].size());
+    for (size_t j = 0; start + j < std::min(end, target.size()); ++j) {
+      ASSERT(j < source[i].size());
       target[start + j] = source[i][j];
     }
   });
+  return prefix_sum.back();
 }
 
 }  // namespace io
