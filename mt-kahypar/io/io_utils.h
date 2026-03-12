@@ -247,7 +247,7 @@ vec<LineRange> split_lines(char* mapped_file,
 
   // split the lines into ranges that can be processed in parallel
   const size_t num_ranges = num_parallel_ranges();
-  const size_t bytes_per_range = std::max((pos - initial_pos) / num_ranges, UL(1));
+  const size_t bytes_per_range = (pos - initial_pos) / num_ranges + 1;
 
   vec<LineRange> result;
   result.reserve(num_ranges);
@@ -266,6 +266,7 @@ vec<LineRange> split_lines(char* mapped_file,
       result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index });
     }
   }
+  ASSERT(result.size() <= num_ranges);
   ASSERT(result.back().end == line_positions.back());
   return result;
 }
