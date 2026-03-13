@@ -147,11 +147,10 @@ namespace mt_kahypar::io {
 
       while ( current_hyperedge_id < last_hyperedge_id ) {
         // Skip Comments
-        ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
           goto_next_line(mapped_file, current_pos, current_line, current_end);
-          ASSERT(current_pos < current_end);
         }
+        ASSERT(current_pos <= current_end);  // == is possible if last line is not terminated
 
         HyperedgeWeight he_weight = 0;
         if ( has_hyperedge_weights ) {
@@ -359,11 +358,10 @@ namespace mt_kahypar::io {
 
       while ( current_vertex_id < last_vertex_id ) {
         // Skip Comments
-        ASSERT(current_pos < current_end);
         while ( mapped_file[current_pos] == '%' ) {
           goto_next_line(mapped_file, current_pos, current_line, current_end);
-          ASSERT(current_pos < current_end);
         }
+        ASSERT(current_pos <= current_end);  // == is possible if last line is not terminated
 
         if ( has_vertex_weights ) {
           ASSERT(current_vertex_id < vertices_weight.size());
