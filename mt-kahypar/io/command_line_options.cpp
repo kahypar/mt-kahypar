@@ -394,7 +394,6 @@ namespace mt_kahypar {
       context.partition.time_limit,
       "Time limit in seconds (not supported)"
     )->capture_default_str();
-    CLI::retire_option(app, time_limit);
   }
 
   void addPreprocessingOptions(Context& context, CLI::App& app) {
