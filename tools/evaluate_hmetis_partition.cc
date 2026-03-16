@@ -30,6 +30,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <filesystem>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
@@ -59,7 +60,11 @@ void readPartitionFile(const std::string& partition_file, PartitionedHypergraph&
       node++;
     }
     if (node != hypergraph.initialNumNodes()) {
-      std::cerr << "Number of nodes doesnt match partition file size" << std::endl;
+      std::cerr << "Number of nodes doesnt match partition file size 1" << std::endl;
+      std::cout << "Number of nodes in hypergraph: " << hypergraph.initialNumNodes() << std::endl;
+      std::cout << "Number of nodes in partition file: " << node << std::endl;
+      std::cerr << "Error: Number of nodes in hypergraph does not match partition file size" << std::endl;
+      exit(1);
     }
     hypergraph.initializePartition();
     file.close();
@@ -92,8 +97,13 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+
   po::notify(cmd_vm);
 
+  std::cout << "Evaluating partition file " << context.partition.graph_partition_filename
+            << " for hypergraph " << context.partition.graph_filename
+            << " with k=" << context.partition.k << std::endl;
+  std::cout << "Current directory: " << std::filesystem::current_path() << std::endl;
   // Read Hypergraph
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
