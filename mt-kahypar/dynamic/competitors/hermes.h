@@ -99,6 +99,7 @@ namespace mt_kahypar::dyn {
           {
             const PartitionID target_part = getTargetPart(hn, stage);
             if (target_part != partitioned_hypergraph_m.partID(hn)) {
+              context.dynamic.move_count++;
               partitioned_hypergraph_m.changeNodePart(hn, partitioned_hypergraph_m.partID(hn), target_part);
             }
           }
