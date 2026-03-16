@@ -887,6 +887,10 @@ namespace mt_kahypar {
       ("d-stream-changes",
         po::value<bool>(&context.dynamic.stream_changes)->value_name("<bool>"),
         "If true, then the partitioner is started in streaming mode, which means that it processes changes one by one and does not store them in memory.");
+      dynamic_options.add_options()
+      ("d-simulate-opt-vcycle",
+        po::value<bool>(&context.dynamic.simulate_opt_vcycle)->value_name("<bool>"),
+        "If true, then the partitioner simulates an optimal v-cycle by triggering a vcycle at the very last change.");
     return dynamic_options;
   }
 
