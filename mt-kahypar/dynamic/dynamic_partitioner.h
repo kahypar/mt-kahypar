@@ -95,7 +95,7 @@ namespace mt_kahypar::dyn {
             strategy->partition(change, num_changes);
           auto duration = std::chrono::high_resolution_clock::now() - start;
           duration_sum += duration;
-          if (log_step_size != 0 && i % log_step_size != 0) {
+          if (log_step_size != 0 && i % log_step_size != 0 && i != num_changes - 1) {
             continue;
           }
           log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
