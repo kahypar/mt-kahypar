@@ -48,11 +48,11 @@ namespace mt_kahypar::dyn {
     return 0; // Could not determine RAM usage
   }
 
-  inline void print_progress_bar(size_t i, size_t total, size_t km1, double imbalance, double cut) {
+  inline void print_progress_bar(size_t i, size_t total, size_t km1, double moved_nodes, double cut) {
       // clear the line
       std::cout << "\r\033[K" << std::flush;
       std::string output = "";
-      output += "km1: " + std::to_string(km1) + ", cut:" + std::to_string(cut) + ", imb: " + std::to_string(imbalance);
+      output += "km1: " + std::to_string(km1) + ", cut:" + std::to_string(cut) + ", moved nodes:" + std::to_string(moved_nodes);
       output += "    [";
       for (size_t j = 0; j < 50; ++j) {
         if (j < i * 50 / total) {
@@ -231,7 +231,7 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
 
       if (!context.dynamic.server) {
         double cut = (km1 / static_cast<double>(hypergraph.initialNumEdges())) * 100;
-        print_progress_bar(i, max_changes, km1, imbalance, cut);
+        print_progress_bar(i, max_changes, km1, context.dynamic.move_count, cut);
       }
 
     }

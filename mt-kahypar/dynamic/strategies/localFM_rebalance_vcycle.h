@@ -171,6 +171,7 @@ namespace mt_kahypar::dyn {
 
           auto rebalancer_duration = std::chrono::high_resolution_clock::now() - start;
           context.dynamic.rebalance_duration_sum_push += rebalancer_duration;
+          context.dynamic.move_count += context.dynamic.local_fm_round->moves.size();
 
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
@@ -229,7 +230,7 @@ namespace mt_kahypar::dyn {
 
         void partition(Change& change, size_t changes_size) override {
 
-          context.dynamic.move_count = 0;
+          // context.dynamic.move_count = 0;
 
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
