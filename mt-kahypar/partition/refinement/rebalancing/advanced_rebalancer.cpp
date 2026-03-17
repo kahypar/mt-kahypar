@@ -825,14 +825,18 @@ namespace impl {
     if (_context.refinement.rebalancing.allow_multiple_moves) {
       _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
     }
-    // recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise
-    AllocatedHNWeight total_weight(phg.dimension(), 0);
+
+    // Recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise.
+    // We use double to avoid any danger of overflow
+    vec<double> total_weight(phg.dimension(), 0);
     for (PartitionID block = 0; block < _context.partition.k; ++block) {
-      total_weight += _context.partition.max_part_weights[block];
+      for (Dimension d = 0; d < phg.dimension(); ++d) {
+        total_weight[d] += _context.partition.max_part_weights[block].at(d);
+      }
     }
     _weight_normalizer.resize(phg.dimension(), 0);
     for (Dimension d = 0; d < phg.dimension(); ++d) {
-      _weight_normalizer[d] = 1 / static_cast<double>(total_weight.at(d));
+      _weight_normalizer[d] = 1 / static_cast<double>(total_weight[d]);
     }
 
     // compute reduced part weights
