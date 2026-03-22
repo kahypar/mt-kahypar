@@ -103,8 +103,13 @@ namespace mt_kahypar::dyn {
 
         strategy->printAdditionalFinalStats();
 
-        utils::delete_hypergraph(hypergraph_t);
+        if (context.partition.write_partition_file) {
+          PartitionerFacade::writePartitionFile(
+            utils::partitioned_hg_cast(strategy->getPartitionedHypergraphCopy(*strategy)), context.partition.graph_partition_filename);
+          std::cout << "Final partition written to file: " << context.partition.graph_partition_filename << std::endl;
+        }
 
+        utils::delete_hypergraph(hypergraph_t);
         } catch (std::exception& e) {
           std::cerr << "Error: " << e.what() << std::endl;
           generateErrorFile(context, strategy, e);

@@ -28,7 +28,7 @@ namespace mt_kahypar::dyn {
           PartitionID target_part = current_part;
           for ( PartitionID p = 0; p < context.partition.k; ++p ) {
             if (p != current_part) {
-              if (stage == 1 && p > current_part || stage == 2 && p < current_part) {
+              if ((stage == 1 && p > current_part) || (stage == 2 && p < current_part)) {
                 size_t gain = 0;
                 for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
                   if (partitioned_hypergraph_m.pinCountInPart(he, p) == 0) {
