@@ -13,13 +13,23 @@ else
   ./scripts/checkout_submodules.sh
 fi
 CMAKE_COMMANDS=$1
-if [ ! -f build/Makefile ]; then
-  mkdir -p build
-fi
+mkdir -p build_debug
+mkdir -p build
 
-cd build_debug && cmake .. -DCMAKE_BUILD_TYPE=Debug $CMAKE_COMMANDS && cd ${ROOT}
-cmake  --build build_debug --parallel "$(get_num_cores)" --target MtKaHyPar
-cd build && cmake .. -DCMAKE_BUILD_TYPE=Release $CMAKE_COMMANDS && cd ${ROOT}
-cmake  --build build --parallel "$(get_num_cores)" --target MtKaHyPar
+# Enable tests (keep both flags; one of them will match your CMake setup)
+TEST_FLAGS="-DKAHYPAR_ENABLE_TESTING=ON"
+
+cd build_debug && cmake .. -DCMAKE_BUILD_TYPE=Debug ${TEST_FLAGS} ${CMAKE_COMMANDS} && cd "${ROOT}"
+cmake --build build_debug --parallel "$(get_num_cores)" --target MtKaHyPar
+cmake --build build_debug --parallel "$(get_num_cores)" --target mtkahypar_tests
+
+cd build && cmake .. -DCMAKE_BUILD_TYPE=Release ${TEST_FLAGS} ${CMAKE_COMMANDS} && cd "${ROOT}"
+cmake --build build --parallel "$(get_num_cores)" --target MtKaHyPar
+cmake --build build --parallel "$(get_num_cores)" --target mtkahypar_tests
+
+#cd build_debug && cmake .. -DCMAKE_BUILD_TYPE=Debug $CMAKE_COMMANDS && cd ${ROOT}
+#cmake  --build build_debug --parallel "$(get_num_cores)" --target MtKaHyPar
+#cd build && cmake .. -DCMAKE_BUILD_TYPE=Release $CMAKE_COMMANDS && cd ${ROOT}
+#cmake  --build build --parallel "$(get_num_cores)" --target MtKaHyPar
 #cd build && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_COMMANDS && cd ${ROOT}
 #cmake  --build build --parallel "$(get_num_cores)" --target MtKaHyPar
