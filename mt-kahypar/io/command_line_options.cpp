@@ -546,6 +546,21 @@ namespace mt_kahypar {
       "Whether to resolve node swaps in a postprocessing step for deterministic coarsening."
     )->capture_default_str();
     app.add_option(
+      "--c-use-two-hop",
+      context.coarsening.use_two_hop,
+      "Multilevel coarsener: use two-hop clustering, which clusters non-adjacent nodes, if the hypergraph would not shrink enough otherwise."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-full-shrinkage",
+      context.coarsening.two_hop_full_shrinkage,
+      "Use full hierarchy contraction factor for two-hop clustering (otherwise: use c-two-hop-threshold)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-threshold",
+      context.coarsening.two_hop_shrink_threshold,
+      "If the hypergraph shrinks less than this factor in a clustering pass, two-hop clustering is used."
+    )->capture_default_str();
+    app.add_option(
       "--c-two-hop-cluster-size",
       context.coarsening.two_hop_cluster_size,
       "Two-hop clustering: maximum number of nodes in one cluster"

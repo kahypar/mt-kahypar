@@ -93,6 +93,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " coarsening_vertex_degree_sampling_threshold=" << context.coarsening.vertex_degree_sampling_threshold
         << " coarsening_num_sub_rounds_deterministic=" << context.coarsening.num_sub_rounds_deterministic
         << " coarsening_det_resolve_swaps=" << std::boolalpha << context.coarsening.det_resolve_swaps
+        << " coarsening_use_two_hop=" << std::boolalpha << context.coarsening.use_two_hop
+        << " coarsening_two_hop_full_shrinkage=" << std::boolalpha << context.coarsening.two_hop_full_shrinkage
+        << " coarsening_two_hop_shrink_threshold=" << context.coarsening.two_hop_shrink_threshold
+        << " coarsening_two_hop_cluster_size=" << context.coarsening.two_hop_cluster_size
+        << " coarsening_two_hop_degree_threshold=" << context.coarsening.two_hop_degree_threshold
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy

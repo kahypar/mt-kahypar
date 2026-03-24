@@ -41,11 +41,13 @@
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/num_nodes_tracker.h"
+#include "mt-kahypar/partition/coarsening/multilevel/two_hop_clustering.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
@@ -77,6 +79,7 @@ class MultilevelCoarsener : public ICoarsener,
     Base(utils::cast<Hypergraph>(hypergraph),
          context,
          uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+    _two_hop_clustering(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), context),
     _rater(utils::cast<Hypergraph>(hypergraph).initialNumNodes(),
            utils::cast<Hypergraph>(hypergraph).maxEdgeSize(), context),
     _clustering_data(_hg.initialNumNodes(), context),
@@ -85,6 +88,16 @@ class MultilevelCoarsener : public ICoarsener,
     _pass_nr(0),
     _progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     _enable_randomization(true) {
+    if (_context.coarsening.two_hop_shrink_threshold <= 1) {
+      throw InvalidParameterException("Value for c-two-hop-threshold too small, must be larger than 1");
+    }
+    if (_context.coarsening.minimum_shrink_factor <= 1) {
+      throw InvalidParameterException("Value for c-min-shrink-factor too small, must be larger than 1");
+    }
+    if (_context.coarsening.maximum_shrink_factor <= _context.coarsening.minimum_shrink_factor) {
+      throw InvalidParameterException("Value for c-max-shrink-factor too small, must be larger than c-min-shrink-factor");
+    }
+
     _progress_bar += _hg.numRemovedHypernodes();
     _current_vertices.resize(_hg.initialNumNodes());
   }
@@ -120,6 +133,7 @@ class MultilevelCoarsener : public ICoarsener,
     // initialization of various things
     parallel::scalable_vector<HypernodeID> cluster_ids;
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    const HypernodeID two_hop_contraction_limit = twoHopContractionThreshold(current_hg);
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,
                                      _rater, _clustering_data);
     cc.initializeCoarseningPass(current_hg, _context);
@@ -137,6 +151,22 @@ class MultilevelCoarsener : public ICoarsener,
       current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
     HypernodeID current_num_nodes = performClustering(current_hg, cc);
     DBG << V(current_num_nodes) << V(hierarchy_contraction_limit);
+
+    if (_context.coarsening.use_two_hop && current_num_nodes > two_hop_contraction_limit) {
+      // if not enough nodes have been contracted, use two hop clustering
+      _timer.start_timer("two_hop_clustering", "Two-Hop Clustering");
+      if (!_context.coarsening.two_hop_full_shrinkage) {
+        cc.hierarchy_contraction_limit = two_hop_contraction_limit;
+      }
+      if ( _enable_randomization ) {
+        utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
+      }
+      _two_hop_clustering.performClustering(current_hg, _current_vertices, cc, current_hg.hasFixedVertices());
+      _timer.stop_timer("two_hop_clustering");
+
+      current_num_nodes =  cc.finalNumNodes();
+      DBG << "Two-Hop Clustering: " << V(current_num_nodes) << V(hierarchy_contraction_limit);
+    }
 
     bool should_continue = cc.finalize(current_hg, _context);
     if (!should_continue) {
@@ -215,10 +245,17 @@ class MultilevelCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
+  HypernodeID twoHopContractionThreshold(const Hypergraph& hypergraph) const {
+    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
+      hypergraph.numRemovedHypernodes()) / _context.coarsening.two_hop_shrink_threshold ),
+      _context.coarsening.contraction_limit );
+  }
+
   using Base::_hg;
   using Base::_context;
   using Base::_timer;
   using Base::_uncoarseningData;
+  TwoHopClustering _two_hop_clustering;
   MultilevelVertexPairRater _rater;
   ConcurrentClusteringData _clustering_data;
   HypernodeID _initial_num_nodes;
