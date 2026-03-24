@@ -7,6 +7,7 @@
 #include "mt-kahypar/dynamic/strategies/hashing.h"
 #include "mt-kahypar/dynamic/competitors/hermes.h"
 #include "mt-kahypar/dynamic/competitors/leopard.h"
+#include "mt-kahypar/dynamic/strategies/greedy.h"
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
@@ -63,6 +64,8 @@ namespace mt_kahypar::dyn {
           strategy = new Hermes(hypergraph_m, context);
       } else if (context.dynamic.strategy == "leopard") {
         strategy = new Leopard(hypergraph_m, context);
+      } else if (context.dynamic.strategy == "greedy") {
+        strategy = new Greedy(hypergraph_m, context);
       } else {
         throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
       }
