@@ -128,6 +128,7 @@ namespace mt_kahypar {
       str << "  Number of Subrounds:                " << params.num_sub_rounds_deterministic << std::endl;
       str << "  Resolve Node Swaps:                 " << std::boolalpha << params.det_resolve_swaps << std::endl;
     } else {
+      str << "  Target Shrink Factor:               " << params.target_shrink_factor << std::endl;
       str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     }
     if ( verbose && (params.algorithm == CoarseningAlgorithm::multilevel_coarsener
