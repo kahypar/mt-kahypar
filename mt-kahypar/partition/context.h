@@ -119,6 +119,9 @@ struct CoarseningParameters {
   bool det_resolve_swaps = true;
 
   // parameters for two-hop clustering
+  bool use_two_hop = false;
+  bool two_hop_full_shrinkage = true;
+  double two_hop_shrink_threshold = 1.75;
   HypernodeID two_hop_cluster_size = 4;
   size_t two_hop_degree_threshold = 100;
 

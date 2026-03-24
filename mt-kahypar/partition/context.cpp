@@ -134,6 +134,13 @@ namespace mt_kahypar {
     } else {
       str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     }
+    if ( verbose && params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+      str << "  Use Two-Hop Coarsening:             " << std::boolalpha << params.use_two_hop << std::endl;
+      str << "  Two-Hop Threshold Factor:           " << params.two_hop_shrink_threshold << std::endl;
+      str << "  Two-Hop Cluster Size:               " << params.two_hop_cluster_size << std::endl;
+    } else if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+      str << "  Two-Hop Threshold Factor:           " << (params.use_two_hop ? params.two_hop_shrink_threshold : -1) << std::endl;
+    }
     if ( verbose && (params.algorithm == CoarseningAlgorithm::multilevel_coarsener
                      || params.algorithm == CoarseningAlgorithm::nlevel_coarsener) ) {
       str << std::endl;
