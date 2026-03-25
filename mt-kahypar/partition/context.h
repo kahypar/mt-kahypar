@@ -111,11 +111,11 @@ struct RatingParameters {
   double acceptance_limit_bound = 0.25;
 
   // Guided coarsening
-  GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::none;
+  GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::quadratic;
   GuidedEdgeAccumulation ge_accumulation = GuidedEdgeAccumulation::linear;
-  double guiding_treshold = 1.0;
-  double guiding_treshold_max = 1.0;
-  size_t num_guided_subrounds = 1;
+  double guiding_treshold = 0.2;
+  double guiding_treshold_max = 0.8;
+  size_t num_guided_subrounds = 5;
   size_t guided_coarsening_levels = 100;
   bool consider_edges_deleted = false;
 };
