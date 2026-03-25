@@ -109,7 +109,7 @@ TYPED_TEST_SUITE(APopulation, tests::HypergraphTestTypeTraits);
 
 TYPED_TEST(APopulation, InsertTooManyStartingIndividualsDies) {
     Individual ind(15);
-    EXPECT_DEATH({ this->population.addStartingIndividual(ind, this->context); }, "");
+    EXPECT_DEBUG_DEATH({ this->population.addStartingIndividual(ind, this->context); }, "");
 }
 
 TYPED_TEST(APopulation, AddStartingIndividualReturnsInsertedIndividual) {
