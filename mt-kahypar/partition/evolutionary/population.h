@@ -99,10 +99,7 @@ class Population {
 
   inline const Individual & addStartingIndividual(Individual& individual, Context& context) {
     _individuals.emplace_back(std::move(individual));
-    if (_individuals.size() > context.evolutionary.population_size) {
-      std::cout << "Error, tried to fill Population above limit " << _individuals.size() << " > " <<  context.evolutionary.population_size << std::endl;
-      std::exit(1);
-    }
+    ASSERT(_individuals.size() <= context.evolutionary.population_size);
     DBG << "Individual" << _individuals.size() - 1
         << V(_individuals.back().fitness());
 
