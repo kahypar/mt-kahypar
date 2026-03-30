@@ -33,13 +33,10 @@ bool sliding_window_improvement_rate_stop(
     }
 
     // Identify evolutionary (non-"Initial") improvements
-    // Only needs to be done if early rate not yet computed
     std::vector<int> evo_indices;
-    if (early_window_improvement_rate < 0.0) {
-        for (int i = 0; i < static_cast<int>(improvement_log_entries.size()); ++i) {
-            if (improvement_log_entries[i].operation_type != "Initial") {
-                evo_indices.push_back(i);
-            }
+    for (int i = 0; i < static_cast<int>(improvement_log_entries.size()); ++i) {
+        if (improvement_log_entries[i].operation_type != "Initial") {
+            evo_indices.push_back(i);
         }
     }
 
