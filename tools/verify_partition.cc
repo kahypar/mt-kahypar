@@ -35,6 +35,7 @@
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/connectivity_info.h"
+#include "mt-kahypar/partition/connected_components/compute_components.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -101,6 +102,11 @@ int main(int argc, char* argv[]) {
     " - metis: METIS graph file format"
   )->default_str("hmetis");
   app.add_option(
+    "--connected-blocks",
+    context.partition.connected_blocks,
+    "Ensure that the blocks of the resulting partition are connected"
+  )->capture_default_str();
+  app.add_option(
     "-f,--fixed,--fixed-vertices",
     context.partition.fixed_vertex_filename,
     "Fixed vertex file"
@@ -145,6 +151,19 @@ int main(int argc, char* argv[]) {
       if ( phg.isFixed(hn) && phg.fixedVertexBlock(hn) != phg.partID(hn) ) {
         LOG << RED << "Node" << hn << "is fixed to block" << phg.fixedVertexBlock(hn)
             << ", but assigned to block" << phg.partID(hn) << END;
+        success = false;
+      }
+    }
+  }
+
+  // Check connected blocks
+  if ( context.partition.connected_blocks ) {
+    vec<vec<connected_components::ConnectedComponent>> components;
+    connected_components::compute_components_per_block(phg, context, components);
+
+    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+      if ( components[i].size() > 1 ) {
+        LOG << RED << "Block" << i << "has" << components[i].size() << "components and is therefore not connected" << END;
         success = false;
       }
     }
