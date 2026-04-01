@@ -234,6 +234,11 @@ namespace mt_kahypar {
       if (preset_option != nullptr) option->excludes(preset_option);
     }
     app.add_option(
+      "--connected-blocks",
+      context.partition.connected_blocks,
+      "Ensure that the blocks of the resulting partition are connected"
+    )->capture_default_str();
+    app.add_option(
       // keep --target-graph-file for backwards compatibility
       detailed ? "-g,--target-graph,--target-graph-file" : "-g,--target-graph",
       context.mapping.target_graph_file,

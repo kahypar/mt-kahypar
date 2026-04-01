@@ -71,6 +71,7 @@ struct PartitioningParameters {
   bool csv_output = false;
   bool write_partition_file = false;
   bool deterministic = false;
+  bool connected_blocks = true;
 
   std::string graph_filename { };
   std::string fixed_vertex_filename { };
