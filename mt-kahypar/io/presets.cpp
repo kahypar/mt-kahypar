@@ -55,7 +55,7 @@ std::vector<option> load_default_preset() {
     create_option("p-louvain-min-vertex-move-fraction", "0.01"),
     create_option("p-vertex-degree-sampling-threshold", "200000"),
     // main -> coarsening
-    create_option("c-type", "multilevel_coarsener"),
+    create_option("c-type", "three_phase_coarsener"),
     create_option("c-use-adaptive-edge-size", "true"),
     create_option("c-min-shrink-factor", "1.01"),
     create_option("c-max-shrink-factor", "2.5"),

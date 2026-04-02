@@ -247,7 +247,7 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& ctype) {
                        context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
-                     })->default_value("multilevel_coarsener"),
+                     })->default_value("three_phase_coarsener"),
              "Coarsening Algorithm:\n"
              " - multilevel_coarsener"
              " - three_phase_coarsener"
@@ -319,8 +319,9 @@ namespace mt_kahypar {
                      [&](const std::string& ds) {
                        context.coarsening.rating.degree_similarity_policy =
                                degreeSimilarityFromString(ds);
-                     })->default_value("preserve_rebalancing_nodes"),
+                     })->default_value("guided"),
              "Policy that determines which contractions between low and high degree nodes are accepted:\n"
+             "- guided\n"
              "- preserve_rebalancing_nodes")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
@@ -364,7 +365,7 @@ namespace mt_kahypar {
              "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted).")
             ("c-guiding-by-integrated-model",
              po::value<bool>(&context.coarsening.rating.guiding_by_integrated_model)->value_name(
-                     "<double>")->default_value(false),
+                     "<double>")->default_value(true),
              "If true, use the integrated model to perform guided coarsening.")
             ("c-guided-edge-scaling",
              po::value<std::string>()->notifier(
