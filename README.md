@@ -7,6 +7,7 @@ License|Linux, MacOS & Windows Build|Code Coverage|Zenodo
 Table of Contents
 -----------
 
+   * [SEA 2026 Reproduction](#sea-2026-sea)
    * [About Mt-KaHyPar](#about-mt-kahypar)
    * [Features](#features)
    * [Installing Mt-KaHyPar](#installing-mt-kahypar)
@@ -17,6 +18,24 @@ Table of Contents
    * [Supported Objective Functions](#supported-objective-functions)
    * [Improving Compile Times](#improving-compile-times)
    * [Licensing](#licensing)
+
+SEA 2026 Reproduction
+-----------
+This is a short guide how to reproduce the results from our SEA 2026 paper "Engineering Learned Heuristics to Improve Clustering for Multilevel Graph Partitioning".
+The code is configured such that the default preset executes our ML guided coarsening algorithm from the paper.
+I.e., running Mt-KaHyPar (see [below](#running-mt-kahypar)) with the following parameters will reproduce the results of our main configuration:
+```
+--preset=default --input-file-format=metis
+```
+
+To instead reproduce the results of our modified baseline, you need to also add the parameters:
+```
+--c-guiding-by-integrated-model=false --c-rating-degree-similarity-policy=always_accept
+```
+
+To reproduce results for different ML models than our final model, a small modification of the source code is necessary.
+The header file `mt-kahypar/partition/coarsening/multilevel/ml/model_definition.h` defines which of the ML models is used.
+Swapping out the include statement and then recompiling Mt-KaHyPar will allow to use a different model.
 
 About Mt-KaHyPar
 -----------
