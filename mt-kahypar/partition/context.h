@@ -221,11 +221,11 @@ struct DeterministicRefinementParameters {
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
-  size_t max_rounds = 0;
+  size_t max_rounds = 10;
   size_t reduced_rounds = 3;
   bool allow_any_progress = true;
   bool use_rollback = true;
-  double reduced_weight_from_block = 0.0;  // relative to block weight
+  double reduced_weight_from_block = 0.0025;  // relative to block weight
 
   // fallback for multiconstraint
   bool low_effort_skip_fallback = true;

@@ -114,6 +114,8 @@ std::vector<std::string> load_default_preset() {
     // main -> refinement
     create_option("r-rebalancer-type", "advanced_rebalancer"),
     create_option("r-refine-until-no-improvement", "false"),
+    create_option("r-coarsest-epsilon-relaxation", "0.01"),
+    create_option("r-relax-only-by-imbalance", "true"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
     create_option("r-lp-unconstrained", "true"),
@@ -219,6 +221,8 @@ std::vector<std::string> load_quality_preset() {
     // main -> refinement
     create_option("r-rebalancer-type", "advanced_rebalancer"),
     create_option("r-refine-until-no-improvement", "false"),
+    create_option("r-coarsest-epsilon-relaxation", "0.01"),
+    create_option("r-relax-only-by-imbalance", "true"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
     create_option("r-lp-unconstrained", "true"),
