@@ -32,7 +32,7 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/coarsening/multilevel/ml/compute_features.h"
-#include "mt-kahypar/partition/coarsening/multilevel/ml/feature_definitions.h"
+#include "mt-kahypar/partition/coarsening/multilevel/ml/model_definition.h"
 #include "mt-kahypar/partition/coarsening/multilevel/ml/mlp.h"
 
 #include "mt-kahypar/utils/timer.h"

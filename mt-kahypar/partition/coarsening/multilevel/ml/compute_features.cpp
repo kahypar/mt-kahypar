@@ -42,7 +42,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/partition/coarsening/multilevel/ml/feature_definitions.h"
+#include "mt-kahypar/partition/coarsening/multilevel/ml/model_definition.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"

@@ -4,7 +4,7 @@
 
 #undef __cplusplus
 
-#include "mt-kahypar/partition/coarsening/multilevel/ml/feature_definitions.h"
+#include "mt-kahypar/partition/coarsening/multilevel/ml/model_definition.h"
 
 
 static inline void kernel_32_48(const float *A, const float *B, const float *bias, float *C)
