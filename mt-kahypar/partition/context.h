@@ -235,7 +235,7 @@ std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParamet
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
-  size_t max_rounds = 0;
+  size_t max_rounds = 10;
   bool allow_any_progress = true;
   bool reduced_weight_fallback = true;
   bool allow_multiple_moves = true;
@@ -245,12 +245,12 @@ struct RebalancingParameters {
   bool require_fitting_weight = false;
   double negative_progress_penalty = 1.0;
   double reduced_target_weight_factor = 0.0;  // relative to average node weight
-  double reduced_weight_from_block = 0.0;  // relative to block weight
+  double reduced_weight_from_block = 0.0025;  // relative to block weight
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
   bool deadlock_fallback_only_toplevel = false;
-  bool use_binpacking_fallback = true;
+  bool use_binpacking_fallback = false;
   bool binpacking_fallback_only_toplevel = false;
   bool fallback_use_locking = true;
   bool binpacking_use_locking = true;
@@ -264,7 +264,7 @@ struct RebalancingParameters {
   RbFallbackNodeSelectionPolicy fallback_node_selection = RbFallbackNodeSelectionPolicy::by_internal_imbalance;
   bool fallback_relative_block_priority = false;
   RbFallbackBlockSelectionPolicy fallback_block_selection = RbFallbackBlockSelectionPolicy::by_progress;
-  size_t fallback_rounds = 3;
+  size_t fallback_rounds = 1;
   size_t bin_packing_tasks = 10;
 
   // deterministic rebalancer

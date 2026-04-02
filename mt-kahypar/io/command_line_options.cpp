@@ -621,7 +621,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-rebalancing-rounds": "r-rebalancing-rounds"),
             po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.max_rounds :
                               &context.initial_partitioning.refinement.rebalancing.max_rounds))->value_name(
-                    "<int>")->default_value(0),
+                    "<int>")->default_value(10),
              "Multiconstraint: maximum number of rebalancing rounds.")
             ((initial_partitioning ? "i-r-rebalancing-any-progress": "r-rebalancing-any-progress"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.allow_any_progress :
@@ -671,7 +671,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-reduced-target-weight-block": "r-reduced-target-weight-block"),
             po::value<double>((!initial_partitioning ? &context.refinement.rebalancing.reduced_weight_from_block :
                               &context.initial_partitioning.refinement.rebalancing.reduced_weight_from_block))->value_name(
-                    "<double>")->default_value(0.0),
+                    "<double>")->default_value(0.0025),
              "Multiconstraint: factor of block weight for target reduction of L1 metric.")
             ((initial_partitioning ? "i-r-rebalancing-use-deadlock-fallback": "r-rebalancing-use-deadlock-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_deadlock_fallback :
@@ -686,7 +686,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-rebalancing-use-binpacking-fallback": "r-rebalancing-use-binpacking-fallback"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.use_binpacking_fallback :
                               &context.initial_partitioning.refinement.rebalancing.use_binpacking_fallback))->value_name(
-                    "<bool>")->default_value(true),
+                    "<bool>")->default_value(false),
              "Multiconstraint: whether to use a binpacking fallback if rebalancing does not succeed.")
             ((initial_partitioning ? "i-r-rebalancing-binpacking-fallback-only-toplevel": "r-rebalancing-binpacking-fallback-only-toplevel"),
             po::value<bool>((!initial_partitioning ? &context.refinement.rebalancing.binpacking_fallback_only_toplevel :
@@ -771,7 +771,7 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-rebalancing-fallback-rounds": "r-rebalancing-fallback-rounds"),
             po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.fallback_rounds :
                               &context.initial_partitioning.refinement.rebalancing.fallback_rounds))->value_name(
-                    "<size_t>")->default_value(3),
+                    "<size_t>")->default_value(1),
             "Multiconstraint: maximum number of attempted 'deadlock' fallback rounds")
             ((initial_partitioning ? "i-r-rebalancing-binpacking-tasks": "r-rebalancing-binpacking-tasks"),
             po::value<size_t>((!initial_partitioning ? &context.refinement.rebalancing.bin_packing_tasks :
