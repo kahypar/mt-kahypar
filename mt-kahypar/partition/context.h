@@ -217,7 +217,7 @@ struct DeterministicRefinementParameters {
 
 struct RebalancingParameters {
   RebalancingAlgorithm algorithm = RebalancingAlgorithm::do_nothing;
-  size_t max_rounds = 0;
+  size_t max_rounds = 10;
   bool allow_any_progress = true;
   bool reduced_weight_fallback = true;
   bool allow_multiple_moves = true;
@@ -226,14 +226,14 @@ struct RebalancingParameters {
   bool reduced_rollback = true;
   double negative_progress_penalty = 1.0;
   double reduced_target_weight_factor = 0.0;  // relative to average node weight
-  double reduced_weight_from_block = 0.0;  // relative to block weight
+  double reduced_weight_from_block = 0.0025;  // relative to block weight
 
   // fallback for multiconstraint
   bool use_deadlock_fallback = true;
   bool deadlock_fallback_only_toplevel = false;
   bool use_binpacking_fallback = false;
   bool binpacking_fallback_only_toplevel = false;
-  bool fallback_use_locking = true;
+  bool fallback_use_locking = false;
   bool binpacking_use_locking = true;
   bool fallback_full_locking = false;
   double fallback_weight_threshold = 0.7;  // relative to max block weight

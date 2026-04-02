@@ -232,7 +232,7 @@ std::vector<std::string> load_quality_preset() {
     create_option("r-lp-he-size-activation-threshold", "100"),
     create_option("r-lp-relative-improvement-threshold", "0.001"),
     // main -> refinement -> fm
-    create_option("r-fm-type", "unconstrained_fm"),
+    create_option("r-fm-type", "kway_fm"),
     create_option("r-fm-multitry-rounds", "10"),
     create_option("r-fm-unconstrained-rounds", "8"),
     create_option("r-fm-rollback-parallel", "true"),
