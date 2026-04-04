@@ -286,6 +286,7 @@ struct EvolutionaryParameters {
   size_t iteration_log_limit = 1000;
   bool enable_iteration_logging = false;
   int kway_combine = 2;
+  int max_iterations = 0;
 
   // Modified combine parameters
   bool enable_modified_combine = false;

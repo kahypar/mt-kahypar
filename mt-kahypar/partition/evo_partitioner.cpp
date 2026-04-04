@@ -927,6 +927,10 @@ namespace mt_kahypar {
                             stop_flag = true;
                             break;
                         }
+                        if (context.evolutionary.max_iterations != 0 && total_iterations.load(std::memory_order_relaxed) >= context.evolutionary.max_iterations) {
+                            stop_flag = true;
+                            break;
+                        }
                         if (context.evolutionary.improvement_rate_stopping.enabled) {
                             std::unique_lock<std::mutex> stop_lock(stopping_criterion_mutex, std::try_to_lock);
                             if (stop_lock.owns_lock()) {
@@ -1040,6 +1044,10 @@ namespace mt_kahypar {
                     while (!stop_flag) {
                         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
                         if (enforce_time_limit && (now - time_start >= duration)) {
+                            stop_flag = true;
+                            break;
+                        }
+                        if (context.evolutionary.max_iterations != 0 && total_iterations.load(std::memory_order_relaxed) >= context.evolutionary.max_iterations) {
                             stop_flag = true;
                             break;
                         }
