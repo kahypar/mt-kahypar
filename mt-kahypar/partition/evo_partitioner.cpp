@@ -5,7 +5,7 @@
 #include <tbb/task_arena.h>
 #include <csignal>
 
-#include "evolutionary/probability_tables.h"
+#include "evolutionary/strategy_picker.h"
 #include "mt-kahypar/partition/evolutionary/evo_logs.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/multilevel.h"
@@ -404,40 +404,6 @@ namespace mt_kahypar {
         return population.addStartingIndividual(individual, context);
     } 
 
-    template<typename TypeTraits>
-    EvoDecision EvoPartitioner<TypeTraits>::decideNextMove(const Context& context, std::mt19937* rng) {
-
-        float rand_val;
-        if (!context.partition.deterministic)
-             rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
-        else if (rng != nullptr) {
-            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-            rand_val = dist(*rng);
-        }
-        else {
-            throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
-        }
-  
-        if (!context.evolutionary.enable_modified_combine) {
-            if ( rand_val < context.evolutionary.mutation_chance ) {
-                return EvoDecision::mutation;
-            } 
-            return EvoDecision::combine;
-        }
-        else {
-            if ( rand_val < context.evolutionary.mutation_chance) {
-                return EvoDecision::mutation;
-            } 
-            else if ( rand_val < context.evolutionary.mutation_chance + context.evolutionary.modified_combine_chance ) {
-                return EvoDecision::modified_combine;
-            }
-            else {
-                return EvoDecision::combine;
-            }
-        }
-        
-        return EvoDecision::combine;
-    }
 
     template<typename TypeTraits>
     ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context, std::mt19937* rng) {
@@ -945,7 +911,7 @@ namespace mt_kahypar {
                         evo_context.utility_id = utils::Utilities::instance().registerNewUtilityObjects();
                         evo_context.shared_memory.num_threads = num_multilevel_threads;
 
-                        EvoDecision decision = decideNextMove(context);
+                        EvoDecision decision = pick::decideNextMove(context);
                         EvoPartitioner<TypeTraits>::Hypergraph hg_copy = hg.copy(parallel_tag_t{});
 
                         // Ensure sanityCheck preconditions hold for any standard partitioning
@@ -1072,7 +1038,7 @@ namespace mt_kahypar {
                         // Initialize task-local RNG
                         std::mt19937 rng(evo_context.partition.seed);
 
-                        EvoDecision decision = decideNextMove(evo_context, &rng);
+                        EvoDecision decision = pick::decideNextMove(evo_context, &rng);
                         Hypergraph hg_copy = hg.copy(parallel_tag_t{});
                         Individual child;
 

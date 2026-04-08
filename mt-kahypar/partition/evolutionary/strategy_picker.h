@@ -27,26 +27,7 @@
 
 
 namespace mt_kahypar::pick {
-// NOTE: edge-frequency-information will not be picked by the random strategy.
-inline EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr) {
-  if (context.partition.deterministic) {
-    if (rng == nullptr) {
-      throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
-    }
-    float rand_val;
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    rand_val = dist(*rng);
-    if ( rand_val < 0.5f ) {
-      return EvoMutateStrategy::vcycle;
-    }
-    return EvoMutateStrategy::new_initial_partitioning_vcycle;
-  }
-  else {
-    if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
-      return EvoMutateStrategy::vcycle;
-    }
-    return EvoMutateStrategy::new_initial_partitioning_vcycle;
-  }
-}
+EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr);
+EvoDecision decideNextMove(const Context& context, std::mt19937* rng = nullptr) ;
 } // namespace mt_kahypar::pick
 

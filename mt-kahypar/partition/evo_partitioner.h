@@ -63,7 +63,6 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static const Individual& addThreadLocalTemporary(Individual&& individual);
     static void clearThreadLocalTemporaries();
 
-    static EvoDecision decideNextMove(const Context& context, std::mt19937* rng = nullptr);
     static ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
     static std::vector<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
     static std::vector<PartitionID> createRandomPartition(const Hypergraph& hypergraph, const Context& context);

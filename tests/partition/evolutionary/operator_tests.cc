@@ -11,6 +11,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/evo_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/evolutionary/strategy_picker.h"
 
 using ::testing::Test;
 
@@ -101,7 +102,7 @@ class EvoOperatorTest : public Test {
 	}
 
 	EvoDecision decideNextMove(const Context& decision_context, std::mt19937* rng) {
-		return EvoPartitioner<TypeTraits>::decideNextMove(decision_context, rng);
+		return pick::decideNextMove(decision_context, rng);
 	}
 
 	Context modifyContext(Context old_context, const ContextModifierParameters &params) {

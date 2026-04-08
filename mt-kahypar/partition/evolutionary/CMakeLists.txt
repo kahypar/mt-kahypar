@@ -10,6 +10,7 @@ set(EvolutionarySources
         population.h
         population.cpp
         strategy_picker.h
+        strategy_picker.cpp
         stopping_criteria.h
         stopping_criteria.cpp)
 
