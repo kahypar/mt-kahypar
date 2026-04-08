@@ -167,7 +167,24 @@ TEST_F(EvoDeterminismTest, MutationOnlyDeterministicRunIsStableForSameSeed) {
 	EXPECT_DOUBLE_EQ(first.imbalance, second.imbalance);
 }
 
-	TEST_F(EvoDeterminismTest, DifferentThreadDeterministicRunIsStableForSameSeed) {
+TEST_F(EvoDeterminismTest, ModifiedCombineOnlyDeterministicRunIsStableForSameSeed) {
+	context.evolutionary.mutation_chance = 0.0f;
+	context.evolutionary.enable_modified_combine = true;
+	context.evolutionary.modified_combine_chance = 1.0f;
+
+	const int seed = 42;
+	const size_t num_threads = 8;
+	const size_t threads_per_worker = 8;
+
+	RunResult first = runEvoOnce(seed, num_threads, threads_per_worker);
+	RunResult second = runEvoOnce(seed, num_threads, threads_per_worker);
+
+	EXPECT_EQ(first.assignment, second.assignment);
+	EXPECT_EQ(first.quality, second.quality);
+	EXPECT_DOUBLE_EQ(first.imbalance, second.imbalance);
+}
+
+TEST_F(EvoDeterminismTest, DifferentThreadDeterministicRunIsStableForSameSeed) {
 
 	const int seed = 42;
 	RunResult first = runEvoOnce(seed, 8, 2);
