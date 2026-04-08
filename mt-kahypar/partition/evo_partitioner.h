@@ -49,6 +49,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Population& population);
 
     private:
+    friend class EvoOperatorTest;
     static std::mutex best_tracking_mutex_;
     static HyperedgeWeight global_best_fitness_;
     static std::chrono::milliseconds global_best_time_;
