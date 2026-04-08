@@ -19,33 +19,34 @@
  *
 ******************************************************************************/
 #pragma once
-#include "mt-kahypar/utils/randomize.h"
+#include <kahypar-resources/utils/randomize.h>
 
-namespace mt_kahypar {
-namespace pick {
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
+
+
+namespace mt_kahypar::pick {
 // NOTE: edge-frequency-information will not be picked by the random strategy.
-inline static EvoCombineStrategy appropriateCombineStrategy(const Context& context) {
-  if (context.evolutionary.random_combine_strategy) {
-    const float random_pick = Randomize::instance().getRandomFloat(0, 1);
-    if (context.evolutionary.edge_frequency_chance >= random_pick) {
-      return EvoCombineStrategy::edge_frequency;
-    } else {
-      return EvoCombineStrategy::basic;
+inline EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr) {
+  if (context.partition.deterministic) {
+    if (rng == nullptr) {
+      throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
     }
-  } else {
-    return context.evolutionary.combine_strategy;
-  }
-}
-inline static EvoMutateStrategy appropriateMutateStrategy(const Context& context) {
-  if (context.evolutionary.random_vcycles) {
-    if (Randomize::instance().flipCoin()) {
+    float rand_val;
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    rand_val = dist(*rng);
+    if ( rand_val < 0.5f ) {
       return EvoMutateStrategy::vcycle;
-    } else {
-      return EvoMutateStrategy::new_initial_partitioning_vcycle;
     }
-  } else {
-    return context.evolutionary.mutate_strategy;
+    return EvoMutateStrategy::new_initial_partitioning_vcycle;
+  }
+  else {
+    if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
+      return EvoMutateStrategy::vcycle;
+    }
+    return EvoMutateStrategy::new_initial_partitioning_vcycle;
   }
 }
-}  // namespace pick
-}  // namespace mt_kahypar
+} // namespace mt_kahypar::pick
+

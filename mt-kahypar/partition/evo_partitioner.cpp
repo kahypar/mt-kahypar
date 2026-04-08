@@ -5,6 +5,7 @@
 #include <tbb/task_arena.h>
 #include <csignal>
 
+#include "evolutionary/probability_tables.h"
 #include "mt-kahypar/partition/evolutionary/evo_logs.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/multilevel.h"
@@ -467,28 +468,6 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    EvoMutateStrategy EvoPartitioner<TypeTraits>::decideNextMutation(const Context& context, std::mt19937* rng) {
-        if (context.partition.deterministic) {
-            if (rng == nullptr) {
-                throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
-            }
-            float rand_val;
-            std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-            rand_val = dist(*rng);
-            if ( rand_val < 0.5f ) {
-                return EvoMutateStrategy::vcycle;
-            }
-            return EvoMutateStrategy::new_initial_partitioning_vcycle;
-        }
-        else {
-            if (utils::Randomize::instance().flipCoin(THREAD_ID)) {
-                return EvoMutateStrategy::vcycle;
-            }
-            return EvoMutateStrategy::new_initial_partitioning_vcycle;
-        }
-    }
-
-    template<typename TypeTraits>
     std::vector<PartitionID> EvoPartitioner<TypeTraits>::createRandomPartition(const Hypergraph& hypergraph, const Context& context) {
         Hypergraph hg = hypergraph.copy(parallel_tag_t{});
         Context c(context);
@@ -783,11 +762,11 @@ namespace mt_kahypar {
     EvoMutateStrategy mutation;
     if (context.partition.deterministic) {
         cur = population.randomIndividualPartitionCopySafeDeterministic(context.partition.seed);
-        mutation = decideNextMutation(context, rng);
+        mutation = pick::decideNextMutation(context, rng);
     }
     else {
         cur = population.randomIndividualPartitionCopySafe();
-        mutation = decideNextMutation(context);
+        mutation = pick::decideNextMutation(context);
     }
 
 

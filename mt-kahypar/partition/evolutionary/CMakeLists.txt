@@ -9,7 +9,7 @@ set(EvolutionarySources
         mutate.h
         population.h
         population.cpp
-        probability_tables.h
+        strategy_picker.h
         stopping_criteria.h
         stopping_criteria.cpp)
 
