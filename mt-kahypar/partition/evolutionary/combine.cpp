@@ -2,12 +2,7 @@
 
 
 namespace mt_kahypar::combine {
-  vec<PartitionID> combinePartitions(mt_kahypar::Population& population, const std::vector<size_t>& ids) {
-    // aquire lock --- possibly unnecessary
-    std::vector<std::vector<PartitionID>> parent_partitions;
-    for (auto id : ids) {
-      parent_partitions.push_back(population.partitionCopySafe(id)); // FIXED
-    }
+  vec<PartitionID> combinePartitions(const std::vector<std::vector<PartitionID>> &parent_partitions) {
 
     vec<PartitionID> combined(parent_partitions[0].size());
     std::unordered_map<std::string, int> tuple_to_block;

@@ -521,29 +521,6 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    vec<PartitionID> EvoPartitioner<TypeTraits>::combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions) {
-        vec<PartitionID> combined(parent_partitions[0].size());
-        std::unordered_map<std::string, int> tuple_to_block;
-        int current_community = 0;
-
-        for (int vertex = 0; vertex < combined.size(); vertex++) {
-            std::string partition_tuple;
-            for (size_t i = 0; i < parent_partitions.size(); ++i) {
-                partition_tuple += std::to_string(parent_partitions[i][vertex]) + ",";
-            }
-
-            if (tuple_to_block.find(partition_tuple) == tuple_to_block.end()) {
-                tuple_to_block[partition_tuple] = current_community++;
-            }
-
-            combined[vertex] = tuple_to_block[partition_tuple];
-        }
-
-        return combined;
-    }
-
-
-    template<typename TypeTraits>
     Individual EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng) {
         
         std::vector<std::vector<PartitionID>> parent_partitions;
@@ -571,7 +548,7 @@ namespace mt_kahypar {
         parent_partitions.push_back(modified_partition);
         std::unordered_map<PartitionID, int> comm_to_block;
 
-        vec<PartitionID> comms = combineModifiedPartitions(context, parent_partitions);
+        vec<PartitionID> comms = combine::combinePartitions(parent_partitions);
 
         // release the temporary individual(s)
         EvoPartitioner<TypeTraits>::clearThreadLocalTemporaries();

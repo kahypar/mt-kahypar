@@ -35,7 +35,7 @@
 namespace mt_kahypar::combine {
 static constexpr bool debug = false;
 
-  vec<PartitionID> combinePartitions(Population& population, const std::vector<size_t>& ids);
+  vec<PartitionID> combinePartitions(const std::vector<std::vector<PartitionID>> &parent_partitions);
 
   template <typename TypeTraits>
   Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, Context context, std::mt19937* rng) {
@@ -53,7 +53,14 @@ static constexpr bool debug = false;
 
     std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
     std::unordered_map<PartitionID, int> comm_to_block;
-    vec<PartitionID> comms = combinePartitions(population, parents);
+
+    // aquire lock --- possibly unnecessary
+    std::vector<std::vector<PartitionID>> parent_partitions;
+    for (auto parent_id : parents) {
+      parent_partitions.push_back(population.partitionCopySafe(parent_id)); // FIXED
+    }
+
+    vec<PartitionID> comms = combinePartitions(parent_partitions);
 
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
