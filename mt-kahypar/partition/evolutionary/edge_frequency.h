@@ -25,8 +25,8 @@
 #include "mt-kahypar/partition/evolutionary/individual.h"
 
 namespace mt_kahypar {
-std::vector<size_t> computeEdgeFrequency(const Individuals& edge_frequency_targets,
-                                         const HyperedgeID num_hyperedges) {
+  inline std::vector<size_t> computeEdgeFrequency(const Individuals& edge_frequency_targets,
+                                                  const HyperedgeID num_hyperedges) {
   std::vector<size_t> result(num_hyperedges, 0);
   for (const auto& individual : edge_frequency_targets) {
     for (const HyperedgeID cut_he : individual.get().cutEdges()) {

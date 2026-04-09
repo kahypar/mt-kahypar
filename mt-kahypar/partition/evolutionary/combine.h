@@ -84,7 +84,6 @@ Individual partitions(Hypergraph& hg,
 
 template<typename Hypergraph>
 Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
-Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
   Context temporary_context(context);
 
   temporary_context.evolutionary.action =
@@ -98,8 +97,6 @@ Individual usingTournamentSelection(Hypergraph& hg, const Context& context, cons
   return combine::partitions(hg, parents, temporary_context);
 }
 template<typename Hypergraph>
-Individual edgeFrequency(Hypergraph& hg, const Context& context, const Population& population) {
-
 Individual edgeFrequency(Hypergraph& hg, const Context& context, const Population& population) {
   const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   hg.reset();
