@@ -334,14 +334,14 @@ TYPED_TEST(APopulation, ConcurrentSafeAccessorsKeepIndicesAndFitnessValid) {
 
     executeConcurrent([&] {
         for (size_t i = 0; i < 200; ++i) {
-            const size_t idx = pop.randomIndividualSafe();
+            const size_t idx = pop.randomIndividualSafe(this->context);
             EXPECT_LT(idx, pop.size());
             EXPECT_EQ(pop.bestFitnessSafe(), expected_best_fitness);
             EXPECT_LT(pop.bestSafe(), pop.size());
         }
     }, [&] {
         for (size_t i = 0; i < 200; ++i) {
-            const size_t idx = pop.randomIndividualSafe();
+            const size_t idx = pop.randomIndividualSafe(this->context);
             EXPECT_LT(idx, pop.size());
             EXPECT_EQ(pop.fitnessAtSafe(pop.bestSafe()), expected_best_fitness);
             EXPECT_EQ(pop.bestPartitionCopySafe().size(), 7);
@@ -390,19 +390,25 @@ TYPED_TEST(APopulation, DeterministicSafeRandomMethodsAreStableAcrossThreads) {
     Context ctx(this->context);
     ctx.partition.deterministic = true;
     ctx.partition.seed = 1337;
-    const size_t expected_idx = pop.randomIndividualSafeDeterministic(ctx.partition.seed );
-    const std::vector<PartitionID> expected_partition =
-        pop.randomIndividualPartitionCopySafe(ctx);
-
+    std::mt19937 rng(ctx.partition.seed);
+    std::vector<size_t> expected_idxs;
+    std::vector<std::vector<PartitionID>> expected_partitions;
+    expected_partitions.reserve(100);
+    for (size_t i = 0; i < 100; ++i) {
+        expected_idxs.push_back(pop.randomIndividualSafe(ctx, &rng));
+        expected_partitions.push_back(pop.randomIndividualPartitionCopySafe(ctx, &rng));
+    }
     executeConcurrent([&] {
+        std::mt19937 thread_rng(ctx.partition.seed);
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafeDeterministic(ctx.partition.seed ), expected_idx);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx), expected_partition);
+            EXPECT_EQ(pop.randomIndividualSafe(ctx, &thread_rng), expected_idxs[i]);
+            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx, &thread_rng), expected_partitions[i]);
         }
     }, [&] {
+        std::mt19937 thread_rng(ctx.partition.seed);
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafeDeterministic(ctx.partition.seed ), expected_idx);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx), expected_partition);
+            EXPECT_EQ(pop.randomIndividualSafe(ctx, &thread_rng), expected_idxs[i]);
+            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx, &thread_rng), expected_partitions[i]);
         }
     });
 }
@@ -438,7 +444,7 @@ TYPED_TEST(APopulation, ConcurrentInsertsAndSafeReadsRemainConsistent) {
         }
     }, [&] {
         for (size_t i = 0; i < 300; ++i) {
-            const size_t idx = this->population.randomIndividualSafe();
+            const size_t idx = this->population.randomIndividualSafe(this->context);
             EXPECT_LT(idx, this->population.size());
             EXPECT_LT(this->population.bestSafe(), this->population.size());
 

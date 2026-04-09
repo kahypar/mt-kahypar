@@ -68,7 +68,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::vector<PartitionID> createRandomPartition(const Hypergraph& hypergraph, const Context& context);
     static vec<PartitionID> combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids);
     static vec<PartitionID> combineModifiedPartitions(const Context& context, std::vector<std::vector<PartitionID>> parent_partitions);
-    static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population);
+    static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Context modifyContext(const Context& context, ContextModifierParameters params);
     static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);

@@ -546,14 +546,7 @@ namespace mt_kahypar {
     Individual EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph& input_hg, const Context& context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng) {
         
         std::vector<std::vector<PartitionID>> parent_partitions;
-        size_t best;
-
-        if (context.partition.deterministic) {
-            best = population.randomIndividualSafeDeterministic(context.partition.seed);
-        }
-        else {
-            best = population.randomIndividualSafe();
-        }
+        size_t best(population.randomIndividualSafe(context, rng));
         
         // generate new parent individual with modified context
         Context modified_context = modifyContext(context, params);
@@ -657,16 +650,18 @@ namespace mt_kahypar {
         const Hypergraph& input_hg,
         const Context& context,
         TargetGraph* target_graph,
-        Population& population) {
+        Population& population,
+        std::mt19937* rng
+        ) {
 
         std::vector<size_t> parents;
         size_t best;
         if (context.partition.deterministic) {
             // use dedicated deterministic method
-            best = population.randomIndividualSafeDeterministic(context.partition.seed);
+            best = population.randomIndividualSafe(context, rng);
             parents.push_back(best);
             for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-                size_t new_parent = population.randomIndividualSafeDeterministic(context.partition.seed + x);
+                size_t new_parent = population.randomIndividualSafe(context, rng);
                 parents.push_back(new_parent);
                 if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
                     best = new_parent;
@@ -674,10 +669,10 @@ namespace mt_kahypar {
             }
         }
         else {
-            best = population.randomIndividualSafe();
+            best = population.randomIndividualSafe(context, rng);
             parents.push_back(best);
             for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-                size_t new_parent = population.randomIndividualSafe();
+                size_t new_parent = population.randomIndividualSafe(context, rng);
                 parents.push_back(new_parent);
                 if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
                     best = new_parent;
@@ -723,7 +718,7 @@ namespace mt_kahypar {
         std::mt19937* rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
-    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context));
+    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context, rng));
     switch (pick::decideNextMutation(context, rng)) {
         case EvoMutateStrategy::new_initial_partitioning_vcycle:
             return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
@@ -1011,7 +1006,7 @@ namespace mt_kahypar {
                                 break;
                             }
                             case EvoDecision::combine: {
-                                child = performCombine(hg_copy, evo_context, target_graph, population);
+                                child = performCombine(hg_copy, evo_context, target_graph, population, &rng);
                                 total_combinations.fetch_add(1, std::memory_order_relaxed);
                                 break;
                             }
