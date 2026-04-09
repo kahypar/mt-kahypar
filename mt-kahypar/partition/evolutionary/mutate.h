@@ -30,14 +30,14 @@ namespace mt_kahypar::mutate {
   static constexpr bool debug = false;
 
   template<typename TypeTraits>
-  Individual vCycle(typename TypeTraits::Hypergraph& hypergraph, std::vector<PartitionID> cur, TargetGraph* target_graph, Context context) {
+  Individual vCycle(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
     vec<PartitionID> comms(hypergraph.initialNumNodes());
     std::unordered_map<PartitionID, int> comm_to_block;
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
-      comms[hn] = cur[hn];
+      partitioned_hypergraph.setOnlyNodePart(hn, ind_partition[hn]);
+      comms[hn] = ind_partition[hn];
     }
     for (PartitionID i = 0; i < context.partition.k; i++) {
       comm_to_block[i] = i;
@@ -57,10 +57,10 @@ namespace mt_kahypar::mutate {
   }
 
   template<typename TypeTraits>
-  Individual vCycleWithNewInitialPartitioning(typename TypeTraits::Hypergraph& hypergraph, std::vector<PartitionID> cur, TargetGraph* target_graph, Context context) {
+  Individual vCycleWithNewInitialPartitioning(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
     vec<PartitionID> comms(hypergraph.initialNumNodes());
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      comms[hn] = cur[hn];
+      comms[hn] = ind_partition[hn];
     }
     hypergraph.setCommunityIDs(std::move(comms));
     Context mut_context(context);

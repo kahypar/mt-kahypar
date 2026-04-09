@@ -204,17 +204,16 @@ class Population {
     return _individuals[best_position].partition(); // returns copy
   }
 
-  inline std::vector<PartitionID> randomIndividualPartitionCopySafe() {
+  inline std::vector<PartitionID> randomIndividualPartitionCopySafe(const Context& context) {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    size_t random_position = utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
-    return _individuals[random_position].partition(); // returns copy
-  }
-
-  inline std::vector<PartitionID> randomIndividualPartitionCopySafeDeterministic(const size_t seed) {
-    std::lock_guard<std::mutex> guard(_population_mutex);
-    std::mt19937 gen(seed);
-    std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
-    size_t random_position = dist(gen);
+    size_t random_position;
+    if (context.partition.deterministic) {
+      std::mt19937 gen(context.partition.seed);
+      std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
+      random_position = dist(gen);
+    } else {
+      random_position = utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
+    }
     return _individuals[random_position].partition(); // returns copy
   }
 

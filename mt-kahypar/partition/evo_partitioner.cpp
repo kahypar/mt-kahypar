@@ -723,22 +723,15 @@ namespace mt_kahypar {
         std::mt19937* rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
-    size_t mutation_position;
-    std::vector<PartitionID> cur;
-    EvoMutateStrategy mutation;
-    if (context.partition.deterministic) {
-        cur = population.randomIndividualPartitionCopySafeDeterministic(context.partition.seed);
-        mutation = pick::decideNextMutation(context, rng);
-    }
-    else {
-        cur = population.randomIndividualPartitionCopySafe();
-        mutation = pick::decideNextMutation(context);
-    }
-
-    if (mutation == EvoMutateStrategy::vcycle) {
-        return mutate::vCycle<TypeTraits>(hypergraph, cur, target_graph, context);
-    } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
-        return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, cur, target_graph, context);
+    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context));
+    switch (pick::decideNextMutation(context, rng)) {
+        case EvoMutateStrategy::new_initial_partitioning_vcycle:
+            return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
+                                                                        context);
+        case EvoMutateStrategy::vcycle:
+            return mutate::vCycle<TypeTraits>(hypergraph, rnd_ind_partition, target_graph, context);
+        case EvoMutateStrategy::UNDEFINED:
+            throw UnsupportedOperationException("Next Mutation Strategy is UNDEFINED");
     }
     }
 

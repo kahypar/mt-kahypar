@@ -346,7 +346,7 @@ TYPED_TEST(APopulation, ConcurrentSafeAccessorsKeepIndicesAndFitnessValid) {
             EXPECT_EQ(pop.fitnessAtSafe(pop.bestSafe()), expected_best_fitness);
             EXPECT_EQ(pop.bestPartitionCopySafe().size(), 7);
             EXPECT_EQ(pop.partitionCopySafe(idx).size(), 7);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe().size(), 7);
+            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(this->context).size(), 7);
         }
     });
 }
@@ -387,20 +387,22 @@ TYPED_TEST(APopulation, DeterministicSafeRandomMethodsAreStableAcrossThreads) {
         {0, 1, 0, 1, 1, 2, 2},
         {0, 2, 0, 1, 2, 1, 2}
     });
-    const size_t seed = 1337;
-    const size_t expected_idx = pop.randomIndividualSafeDeterministic(seed);
+    Context ctx(this->context);
+    ctx.partition.deterministic = true;
+    ctx.partition.seed = 1337;
+    const size_t expected_idx = pop.randomIndividualSafeDeterministic(ctx.partition.seed );
     const std::vector<PartitionID> expected_partition =
-        pop.randomIndividualPartitionCopySafeDeterministic(seed);
+        pop.randomIndividualPartitionCopySafe(ctx);
 
     executeConcurrent([&] {
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafeDeterministic(seed), expected_idx);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafeDeterministic(seed), expected_partition);
+            EXPECT_EQ(pop.randomIndividualSafeDeterministic(ctx.partition.seed ), expected_idx);
+            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx), expected_partition);
         }
     }, [&] {
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafeDeterministic(seed), expected_idx);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafeDeterministic(seed), expected_partition);
+            EXPECT_EQ(pop.randomIndividualSafeDeterministic(ctx.partition.seed ), expected_idx);
+            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx), expected_partition);
         }
     });
 }
