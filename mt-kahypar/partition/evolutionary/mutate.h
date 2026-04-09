@@ -22,67 +22,54 @@
 
 #include <vector>
 
-#include "mt-kahypar/io/sql_plottools_serializer.h"
+#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/partitioner.h"
 
-namespace mt_kahypar {
-namespace mutate {
-static constexpr bool debug = false;
+namespace mt_kahypar::mutate {
+  static constexpr bool debug = false;
 
-template<typename Hypergraph>
-Individual vCycleWithNewInitialPartitioning(Hypergraph& hg, const Individual& in,
-                                            const Context& context) {
-  const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  hg.reset();
-  hg.setPartition(in.partition());
-  Context temporary_context(context);
-  temporary_context.evolutionary.action =
-    Action(meta::Int2Type<static_cast<int>(EvoDecision::mutation)>(),
-           meta::Int2Type<static_cast<int>(EvoMutateStrategy::new_initial_partitioning_vcycle)>());
+  template<typename TypeTraits>
+  Individual vCycle(typename TypeTraits::Hypergraph& hypergraph, std::vector<PartitionID> cur, TargetGraph* target_graph, Context context) {
+    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
-  DBG << V(temporary_context.evolutionary.action.decision());
-  DBG << "initial" << V(in.fitness()) << V(metrics::imbalance(hg, context));
-  DBG << "initial" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
+    vec<PartitionID> comms(hypergraph.initialNumNodes());
+    std::unordered_map<PartitionID, int> comm_to_block;
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
+      comms[hn] = cur[hn];
+    }
+    for (PartitionID i = 0; i < context.partition.k; i++) {
+      comm_to_block[i] = i;
+    }
+    partitioned_hypergraph.initializePartition();
+    hypergraph.setCommunityIDs(std::move(comms));
+    if (context.partition.mode == Mode::direct) {
+      Context vc_context(context);
+      vc_context.setupPartWeights(hypergraph.totalWeight());
+      Multilevel<TypeTraits>::evolutionPartitionVCycle(
+          hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+    } else {
+      throw InvalidParameterException("Invalid partitioning mode!");
+    }
 
+    return Individual(partitioned_hypergraph, context);
+  }
 
-  Partitioner().partition(hg, temporary_context);
+  template<typename TypeTraits>
+  Individual vCycleWithNewInitialPartitioning(typename TypeTraits::Hypergraph& hypergraph, std::vector<PartitionID> cur, TargetGraph* target_graph, Context context) {
+    vec<PartitionID> comms(hypergraph.initialNumNodes());
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      comms[hn] = cur[hn];
+    }
+    hypergraph.setCommunityIDs(std::move(comms));
+    Context mut_context(context);
+    if (!mut_context.partition.use_individual_part_weights) {
+      mut_context.partition.max_part_weights.clear();
+    }
+    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Partitioner<TypeTraits>::partition(
+        hypergraph, mut_context, target_graph);
 
-  const HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  Timer::instance().add(context, Timepoint::evolutionary,
-                        std::chrono::duration<double>(end - start).count());
-
-
-  DBG << "after mutate" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
-  io::serializer::serializeEvolutionary(temporary_context, hg);
-  return Individual(hg, context);
+    return Individual(partitioned_hypergraph, context);
+  }
 }
-template<typename Hypergraph>
-Individual vCycle(Hypergraph& hg, const Individual& in,
-                  const Context& context) {
-                  const Context& context) {
-  const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  hg.reset();
-  hg.setPartition(in.partition());
-  Context temporary_context(context);
-  temporary_context.evolutionary.action =
-    Action(meta::Int2Type<static_cast<int>(EvoDecision::mutation)>(),
-           meta::Int2Type<static_cast<int>(EvoMutateStrategy::vcycle)>());
-
-  DBG << V(temporary_context.evolutionary.action.decision());
-  DBG << "initial" << V(in.fitness()) << V(metrics::imbalance(hg, context));
-  DBG << "initial" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
-
-
-  Partitioner().partition(hg, temporary_context);
-
-  const HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  Timer::instance().add(context, Timepoint::evolutionary,
-                        std::chrono::duration<double>(end - start).count());
-
-  DBG << "after mutate" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
-  io::serializer::serializeEvolutionary(temporary_context, hg);
-  return Individual(hg, context);
-}
-}  // namespace mutate
-}  // namespace mt_kahypar

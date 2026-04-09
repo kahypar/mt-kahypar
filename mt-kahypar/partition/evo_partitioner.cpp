@@ -5,6 +5,7 @@
 #include <tbb/task_arena.h>
 #include <csignal>
 
+#include "evolutionary/mutate.h"
 #include "evolutionary/strategy_picker.h"
 #include "mt-kahypar/partition/evolutionary/evo_logs.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -724,7 +725,6 @@ namespace mt_kahypar {
 
     size_t mutation_position;
     std::vector<PartitionID> cur;
-    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
     EvoMutateStrategy mutation;
     if (context.partition.deterministic) {
         cur = population.randomIndividualPartitionCopySafeDeterministic(context.partition.seed);
@@ -735,42 +735,11 @@ namespace mt_kahypar {
         mutation = pick::decideNextMutation(context);
     }
 
-
     if (mutation == EvoMutateStrategy::vcycle) {
-        vec<PartitionID> comms(hypergraph.initialNumNodes());
-        std::unordered_map<PartitionID, int> comm_to_block;
-        for (const HypernodeID& hn : hypergraph.nodes()) {
-            partitioned_hypergraph.setOnlyNodePart(hn, cur[hn]);
-            comms[hn] = cur[hn];
-        }
-        for (PartitionID i = 0; i < context.partition.k; i++) {
-            comm_to_block[i] = i;
-        }
-        partitioned_hypergraph.initializePartition();
-        hypergraph.setCommunityIDs(std::move(comms));
-        if (context.partition.mode == Mode::direct) {
-            Context vc_context(context);
-            vc_context.setupPartWeights(hypergraph.totalWeight());
-            Multilevel<TypeTraits>::evolutionPartitionVCycle(
-                hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-        } else {
-            throw InvalidParameterException("Invalid partitioning mode!");
-        }
+        return mutate::vCycle<TypeTraits>(hypergraph, cur, target_graph, context);
     } else if (mutation == EvoMutateStrategy::new_initial_partitioning_vcycle) {
-        vec<PartitionID> comms(hypergraph.initialNumNodes());
-        for (const HypernodeID& hn : hypergraph.nodes()) {
-            comms[hn] = cur[hn];
-        }
-        hypergraph.setCommunityIDs(std::move(comms));
-        Context mut_context(context);
-        if (!mut_context.partition.use_individual_part_weights) {
-            mut_context.partition.max_part_weights.clear();
-        }
-        partitioned_hypergraph = Partitioner<TypeTraits>::partition(
-            hypergraph, mut_context, target_graph);
+        return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, cur, target_graph, context);
     }
-
-    return Individual(partitioned_hypergraph, context);
     }
 
     inline void disableTimerAndStatsEvo(const Context& context) {
