@@ -26,63 +26,65 @@
 #include <vector>
 
 #include "mt-kahypar/io/sql_plottools_serializer.h"
+#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
 
 
-namespace mt_kahypar {
-namespace combine {
+
+namespace mt_kahypar::combine {
 static constexpr bool debug = false;
 
-template<typename Hypergraph>
-Individual partitions(Hypergraph& hg,
-                      const Parents& parents,
-                      Context& context) {
-  const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  DBG << V(context.evolutionary.action.decision());
-  DBG << "Parent 1: initial" << V(parents.first.fitness());
-  DBG << "Parent 2: initial" << V(parents.second.fitness());
-  context.evolutionary.parent1 = &parents.first.partition();
-  context.evolutionary.parent2 = &parents.second.partition();
-#ifndef NDEBUG
-  ASSERT(parents.first.fitness() == ([](Hypergraph& hg, const Parents& parents) -> int {
-        hg.setPartition(parents.first.partition());
-        HyperedgeWeight metric = metrics::km1(hg);
-        hg.reset();
-        return metric;
-      })(hg, parents));
-  DBG << "initial" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
+  vec<PartitionID> combinePartitions(Population& population, const std::vector<size_t>& ids);
 
-  ASSERT(parents.second.fitness() == ([](Hypergraph& hg, const Parents& parents) -> int {
-        hg.setPartition(parents.second.partition());
-        HyperedgeWeight metric = metrics::km1(hg);
-        hg.reset();
-        return metric;
-      })(hg, parents));
+  template <typename TypeTraits>
+  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, Context context, std::mt19937* rng) {
+    std::vector<size_t> parents;
+    //Maybe change to actually use Tournament Selection
+    size_t best(population.randomIndividualSafe(context, rng));
+    parents.push_back(best);
+    for (int x = 1; x < context.evolutionary.kway_combine; x++) {
+      size_t new_parent = population.randomIndividualSafe(context, rng);
+      parents.push_back(new_parent);
+      if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
+        best = new_parent;
+      }
+    }
 
-#endif
+    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+    std::unordered_map<PartitionID, int> comm_to_block;
+    vec<PartitionID> comms = combinePartitions(population, parents);
 
-  hg.reset();
-  const HypernodeID original_contraction_limit_multiplier =
-    context.coarsening.contraction_limit_multiplier;
-  if (context.evolutionary.unlimited_coarsening_contraction) {
-    context.coarsening.contraction_limit_multiplier = 1;
+    typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
+
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
+      if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
+        comm_to_block[comms[hn]] = best_partition[hn];
+      }
+    }
+
+    partitioned_hypergraph.initializePartition();
+    hypergraph.setCommunityIDs(std::move(comms));
+
+    if (context.partition.mode == Mode::direct) {
+      Context vc_context(context);
+      vc_context.setupPartWeights(hypergraph.totalWeight());
+      Multilevel<TypeTraits>::evolutionPartitionVCycle(
+          hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+    } else {
+      throw InvalidParameterException("Invalid partitioning mode!");
+    }
+
+    return Individual(partitioned_hypergraph, context);
+
+
+
+    return Individual(2);
   }
 
-  Partitioner().partition(hg, context);
-
-  const HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  Timer::instance().add(context, Timepoint::evolutionary,
-                        std::chrono::duration<double>(end - start).count());
-
-  context.coarsening.contraction_limit_multiplier = original_contraction_limit_multiplier;
-  DBG << "Offspring" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
-  ASSERT(metrics::km1(hg) <= std::min(parents.first.fitness(), parents.second.fitness()));
-  io::serializer::serializeEvolutionary(context, hg);
-  return Individual(hg, context);
-}
-
-template<typename Hypergraph>
+/*template<typename Hypergraph>
 Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
   Context temporary_context(context);
 
@@ -128,6 +130,6 @@ Individual edgeFrequency(Hypergraph& hg, const Context& context, const Populatio
   DBG << "final result" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
   io::serializer::serializeEvolutionary(temporary_context, hg);
   return Individual(hg, context);
-}
-}  // namespace combine
-}  // namespace mt_kahypar
+}*/
+} // namespace mt_kahypar::combine
+

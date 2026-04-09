@@ -5,6 +5,7 @@
 #include <tbb/task_arena.h>
 #include <csignal>
 
+#include "evolutionary/combine.h"
 #include "evolutionary/mutate.h"
 #include "evolutionary/strategy_picker.h"
 #include "mt-kahypar/partition/evolutionary/evo_logs.h"
@@ -600,35 +601,6 @@ namespace mt_kahypar {
         return individual;
     }
 
-
-    template<typename TypeTraits>
-    vec<PartitionID> EvoPartitioner<TypeTraits>::combinePartitions(const Context& context, Population& population, const std::vector<size_t>& ids) {
-        // aquire lock --- possibly unnecessary
-        std::vector<std::vector<PartitionID>> parent_partitions;
-        for (auto id : ids) {
-            parent_partitions.push_back(population.partitionCopySafe(id)); // FIXED
-        }
-
-        vec<PartitionID> combined(parent_partitions[0].size());
-        std::unordered_map<std::string, int> tuple_to_block;
-        int current_community = 0;
-
-        for (int vertex = 0; vertex < combined.size(); vertex++) {
-            std::string partition_tuple;
-            for (size_t i = 0; i < parent_partitions.size(); ++i) {
-                partition_tuple += std::to_string(parent_partitions[i][vertex]) + ",";
-            }
-
-            if (tuple_to_block.find(partition_tuple) == tuple_to_block.end()) {
-                tuple_to_block[partition_tuple] = current_community++;
-            }
-
-            combined[vertex] = tuple_to_block[partition_tuple];
-        }
-
-        return combined;
-    }
-
     template<typename TypeTraits>
     bool EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration) {
         bool improved = false;
@@ -654,59 +626,7 @@ namespace mt_kahypar {
         std::mt19937* rng
         ) {
 
-        std::vector<size_t> parents;
-        size_t best;
-        if (context.partition.deterministic) {
-            // use dedicated deterministic method
-            best = population.randomIndividualSafe(context, rng);
-            parents.push_back(best);
-            for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-                size_t new_parent = population.randomIndividualSafe(context, rng);
-                parents.push_back(new_parent);
-                if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
-                    best = new_parent;
-                }
-            }
-        }
-        else {
-            best = population.randomIndividualSafe(context, rng);
-            parents.push_back(best);
-            for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-                size_t new_parent = population.randomIndividualSafe(context, rng);
-                parents.push_back(new_parent);
-                if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
-                    best = new_parent;
-                }
-            }
-        }
-
-        std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
-        std::unordered_map<PartitionID, int> comm_to_block;
-        vec<PartitionID> comms = combinePartitions(context, population, parents);
-
-        Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-        PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-
-        for (const HypernodeID& hn : hypergraph.nodes()) {
-            partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
-            if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
-            comm_to_block[comms[hn]] = best_partition[hn];
-            }
-        }
-
-        partitioned_hypergraph.initializePartition();
-        hypergraph.setCommunityIDs(std::move(comms));
-
-        if (context.partition.mode == Mode::direct) {
-            Context vc_context(context);
-            vc_context.setupPartWeights(hypergraph.totalWeight());
-            Multilevel<TypeTraits>::evolutionPartitionVCycle(
-                hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-        } else {
-            throw InvalidParameterException("Invalid partitioning mode!");
-        }
-
-        return Individual(partitioned_hypergraph, context);
+       return combine::usingKWaySelection<TypeTraits>(input_hg, target_graph, population, context, rng);
     }
 
     template<typename TypeTraits>
