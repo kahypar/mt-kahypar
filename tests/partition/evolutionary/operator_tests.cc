@@ -11,6 +11,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/evo_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/evolutionary/combine.h"
 #include "mt-kahypar/partition/evolutionary/strategy_picker.h"
 
 using ::testing::Test;
@@ -106,7 +107,7 @@ class EvoOperatorTest : public Test {
 	}
 
 	Context modifyContext(Context old_context, const ContextModifierParameters &params) {
-		return EvoPartitioner<TypeTraits>::modifyContext(old_context, params);;
+		return combine::modifyContext(old_context, params);;
 	}
 };
 

@@ -47,6 +47,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
+    static void clearThreadLocalTemporaries();
 
     private:
     friend class EvoOperatorTest;
@@ -61,7 +62,6 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
 
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
     static const Individual& addThreadLocalTemporary(Individual&& individual);
-    static void clearThreadLocalTemporaries();
 
     static ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
     static std::vector<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);

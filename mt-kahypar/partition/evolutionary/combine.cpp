@@ -24,5 +24,16 @@ namespace mt_kahypar::combine {
     return combined;
   }
 
+
+  Context modifyContext(const Context& context, ContextModifierParameters params) {
+    Context modifiedContext(context);
+    modifiedContext.partition.k = params.k;
+    modifiedContext.partition.epsilon = params.epsilon;
+    modifiedContext.partition.mode = params.recursive_bipartitioning ? Mode::recursive_bipartitioning : modifiedContext.partition.mode;
+    return modifiedContext;
+  }
+
+
+
 }
 
