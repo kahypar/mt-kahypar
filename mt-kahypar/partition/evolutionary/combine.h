@@ -117,10 +117,10 @@ static constexpr bool debug = false;
   Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, Context context, std::mt19937* rng) {
     std::vector<size_t> parents;
     //Maybe change to actually use Tournament Selection
-    size_t best(population.randomIndividualSafe(context, rng));
+    size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
     parents.push_back(best);
     for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-      size_t new_parent = population.randomIndividualSafe(context, rng);
+      size_t new_parent = population.randomIndividualSafe(context.partition.deterministic, rng);
       parents.push_back(new_parent);
       if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
         best = new_parent;
@@ -166,7 +166,7 @@ static constexpr bool debug = false;
   template <typename TypeTraits>
   Individual usingArtificialSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context context, std::mt19937* rng) {
      std::vector<std::vector<PartitionID>> parent_partitions;
-        size_t best(population.randomIndividualSafe(context, rng));
+        size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
 
         // generate new parent individual with modified context
         Context modified_context = modifyContext(context, params);

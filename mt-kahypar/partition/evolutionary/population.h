@@ -173,9 +173,9 @@ class Population {
   }
 
   // Thread-safe accessors
-  inline size_t randomIndividualSafe(Context context, std::mt19937* rng = nullptr) {
+  inline size_t randomIndividualSafe(const bool deterministic, std::mt19937* rng = nullptr) {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    if (context.partition.deterministic) {
+    if (deterministic) {
       ASSERT(rng != nullptr, "Deterministic mode requires a valid RNG");
       std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
       return dist(*rng);
@@ -202,10 +202,10 @@ class Population {
     return _individuals[best_position].partition(); // returns copy
   }
 
-  inline std::vector<PartitionID> randomIndividualPartitionCopySafe(const Context& context, std::mt19937* rng = nullptr) {
+  inline std::vector<PartitionID> randomIndividualPartitionCopySafe(const bool deterministic, std::mt19937* rng = nullptr) {
     std::lock_guard<std::mutex> guard(_population_mutex);
     size_t random_position;
-    if (context.partition.deterministic) {
+    if (deterministic) {
       ASSERT(rng != nullptr, "Deterministic mode requires a valid RNG");
       std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
       random_position = dist(*rng);

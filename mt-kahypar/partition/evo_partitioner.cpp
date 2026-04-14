@@ -489,7 +489,7 @@ namespace mt_kahypar {
         std::mt19937* rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
-    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context, rng));
+    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context.partition.deterministic, rng));
     switch (pick::decideNextMutation(context, rng)) {
         case EvoMutateStrategy::new_initial_partitioning_vcycle:
             return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
