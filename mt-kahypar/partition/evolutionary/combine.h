@@ -182,7 +182,7 @@ static constexpr bool debug = false;
         } else if (params.use_degree_sorted_partitions) {
             modified_partition = combine::createDegreeSortedPartition<TypeTraits>(input_hg, modified_context);
         } else {
-            modified_partition = EvoPartitioner<TypeTraits>::generateIndividual(input_hg, modified_context, target_graph, population, false).partition();
+            modified_partition = EvoPartitioner<TypeTraits>::createPartition(input_hg, modified_context, target_graph);
         }
 
         std::vector<PartitionID> best_partition = population.partitionCopySafe(best);

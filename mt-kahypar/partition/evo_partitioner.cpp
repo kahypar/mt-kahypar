@@ -290,7 +290,7 @@ namespace mt_kahypar {
         if (context.evolutionary.dynamic_population_size) {
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             timer.start_timer("evolutionary", "Evolutionary");
-            auto fitness = generateIndividual(hg, context, target_graph, population).fitness();
+            auto fitness = createInsertIndividual(hg, context, target_graph, population).fitness();
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 
             // best result tracking for benchmark
@@ -329,7 +329,7 @@ namespace mt_kahypar {
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
            
-            auto cur = generateIndividual(hg, context, target_graph, population).fitness();
+            auto cur = createInsertIndividual(hg, context, target_graph, population).fitness();
             timer.stop_timer("evolutionary");
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             
@@ -360,9 +360,9 @@ namespace mt_kahypar {
         context.partition.enable_logging = true;
         return history;
     }
-
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::generateIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population, bool insert_into_population) {
+    Individual EvoPartitioner<TypeTraits>::createIndividual(const Hypergraph &input_hg, Context &context,
+                                                                       TargetGraph *target_graph) {
         Hypergraph hypergraph_copy = input_hg.copy(parallel_tag_t{});
 
         //LOG << "DEBUG: generateIndividual: Calling standard partitioner...";
@@ -371,7 +371,7 @@ namespace mt_kahypar {
 
         // If we are not using individual part weights, ensure max_part_weights is empty
         if (!ip_context.partition.use_individual_part_weights) {
-                ip_context.partition.max_part_weights.clear();
+            ip_context.partition.max_part_weights.clear();
         }
 
         // PREPROCESSING
@@ -399,13 +399,20 @@ namespace mt_kahypar {
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
         //Partitioner<TypeTraits>::forceFixedVertexAssignment(partitioned_hypergraph, context);
 
-        Individual individual(partitioned_hypergraph, context);
-        if (!insert_into_population) {
-            return EvoPartitioner<TypeTraits>::addThreadLocalTemporary(std::move(individual));
-        }
-        return population.addStartingIndividual(individual, context);
-    } 
+        return Individual(partitioned_hypergraph, context);
+    }
 
+    template<typename TypeTraits>
+    const Individual & EvoPartitioner<TypeTraits>::createInsertIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
+        Individual individual(createIndividual(input_hg, context, target_graph));
+        return population.addStartingIndividual(individual, context);
+    }
+
+    template<typename TypeTraits>
+    std::vector<PartitionID> EvoPartitioner<TypeTraits>::createPartition(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph) {
+        const Individual individual(createIndividual(input_hg, context, target_graph));
+        return individual.partition();
+    }
 
     template<typename TypeTraits>
     ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context, std::mt19937* rng) {

@@ -38,15 +38,16 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
-    static const Individual & generateIndividual(const Hypergraph& hg,
+    static const Individual & createInsertIndividual(const Hypergraph& hg,
                                             Context& context,
                                             TargetGraph* target_graph,
-                                            Population& population,
-                                            bool insert_into_population = true);
+                                            Population& population);
     static std::string performEvolution(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
+
+    static std::vector<PartitionID> createPartition(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
     static void clearThreadLocalTemporaries();
 
     private:
@@ -63,12 +64,10 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
     static const Individual& addThreadLocalTemporary(Individual&& individual);
 
+    static Individual createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
     static ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
-    static std::vector<PartitionID> createDegreeSortedPartition(const Hypergraph& hypergraph, const Context& context);
-    static std::vector<PartitionID> createRandomPartition(const Hypergraph& hypergraph, const Context& context);
     static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
-    static Context modifyContext(const Context& context, ContextModifierParameters params);
     static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
     static bool insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration);
