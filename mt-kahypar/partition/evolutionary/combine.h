@@ -113,49 +113,32 @@ static constexpr bool debug = false;
 
   }
 
-  template <typename TypeTraits>
-  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, Context context, std::mt19937* rng) {
-    std::vector<size_t> parents;
-    //Maybe change to actually use Tournament Selection
-    size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
-    parents.push_back(best);
-    for (int x = 1; x < context.evolutionary.kway_combine; x++) {
-      size_t new_parent = population.randomIndividualSafe(context.partition.deterministic, rng);
-      parents.push_back(new_parent);
-      if (population.fitnessAtSafe(new_parent) <= population.fitnessAtSafe(best)) {
-        best = new_parent;
-      }
-    }
+  template<typename TypeTraits>
+  Individual combineParentsWithVCycle(const std::vector<std::vector<PartitionID>>& parent_partitions,
+                               std::vector<PartitionID> best_partition, const Context &context, TargetGraph* target_graph,
+                               const typename TypeTraits::Hypergraph &input_hg) {
 
-    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
     std::unordered_map<PartitionID, int> comm_to_block;
-
-    // aquire lock --- possibly unnecessary
-    std::vector<std::vector<PartitionID>> parent_partitions;
-    for (auto parent_id : parents) {
-      parent_partitions.push_back(population.partitionCopySafe(parent_id)); // FIXED
-    }
-
     vec<PartitionID> comms = combinePartitions(parent_partitions);
+
 
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
-    for (const HypernodeID& hn : hypergraph.nodes()) {
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
       partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
-      if (comm_to_block.find(comms[hn]) == comm_to_block.end()) {
+      if ( comm_to_block.find(comms[hn]) == comm_to_block.end() ) {
         comm_to_block[comms[hn]] = best_partition[hn];
       }
     }
 
     partitioned_hypergraph.initializePartition();
     hypergraph.setCommunityIDs(std::move(comms));
-
     if (context.partition.mode == Mode::direct) {
+      //V-cycle requires a context with initialized part weights
       Context vc_context(context);
       vc_context.setupPartWeights(hypergraph.totalWeight());
-      Multilevel<TypeTraits>::evolutionPartitionVCycle(
-          hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+      Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
     } else {
       throw InvalidParameterException("Invalid partitioning mode!");
     }
@@ -164,7 +147,24 @@ static constexpr bool debug = false;
   }
 
   template <typename TypeTraits>
-  Individual usingArtificialSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context context, std::mt19937* rng) {
+  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, const Context& context, std::mt19937* rng) {
+    std::vector<size_t> parents;
+    //Maybe change to actually use Tournament Selection
+    const size_t best(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine, context.partition.deterministic, rng));
+
+    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+
+    // aquire lock --- possibly unnecessary
+    std::vector<std::vector<PartitionID>> parent_partitions;
+    for (auto parent_id : parents) {
+      parent_partitions.push_back(population.partitionCopySafe(parent_id)); // FIXED
+    }
+
+    return combineParentsWithVCycle<TypeTraits>(parent_partitions, best_partition, context, target_graph, input_hg);
+  }
+
+  template <typename TypeTraits>
+  Individual usingArtificialSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
      std::vector<std::vector<PartitionID>> parent_partitions;
         size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
 
@@ -188,84 +188,8 @@ static constexpr bool debug = false;
         std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
         parent_partitions.push_back(best_partition);
         parent_partitions.push_back(modified_partition);
-        std::unordered_map<PartitionID, int> comm_to_block;
 
-        vec<PartitionID> comms = combinePartitions(parent_partitions);
-
-        // release the temporary individual(s)
-        EvoPartitioner<TypeTraits>::clearThreadLocalTemporaries();
-
-        typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-        typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
-
-        for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            partitioned_hypergraph.setOnlyNodePart(hn, best_partition[hn]);
-            if ( comm_to_block.find(comms[hn]) == comm_to_block.end() ) {
-                comm_to_block[comms[hn]] = best_partition[hn];
-            }
-        }
-
-        partitioned_hypergraph.initializePartition();
-        hypergraph.setCommunityIDs(std::move(comms));
-        if (context.partition.mode == Mode::direct) {
-            //V-cycle requires a context with initialized part weights
-            Context vc_context(context);
-            vc_context.setupPartWeights(hypergraph.totalWeight());
-            Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-        } else {
-            throw InvalidParameterException("Invalid partitioning mode!");
-        }
-
-        Individual individual(partitioned_hypergraph, context);
-        return individual;
+    return combineParentsWithVCycle<TypeTraits>(parent_partitions, best_partition, context, target_graph, input_hg);
   }
-
-/*template<typename Hypergraph>
-Individual usingTournamentSelection(Hypergraph& hg, const Context& context, const Population& population) {
-  Context temporary_context(context);
-
-  temporary_context.evolutionary.action =
-    Action { meta::Int2Type<static_cast<int>(EvoDecision::combine)>() };
-  temporary_context.coarsening.rating.rating_function = RatingFunction::heavy_edge;
-  temporary_context.coarsening.rating.partition_policy = RatingPartitionPolicy::evolutionary;
-
-  const auto& parents = population.tournamentSelect();
-
-
-  return combine::partitions(hg, parents, temporary_context);
-}
-template<typename Hypergraph>
-Individual edgeFrequency(Hypergraph& hg, const Context& context, const Population& population) {
-  const HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  hg.reset();
-  Context temporary_context(context);
-
-  temporary_context.evolutionary.action =
-    Action { meta::Int2Type<static_cast<int>(EvoDecision::combine)>(),
-             meta::Int2Type<static_cast<int>(EvoCombineStrategy::edge_frequency)>() };
-
-  temporary_context.coarsening.rating.rating_function = RatingFunction::edge_frequency;
-  temporary_context.coarsening.rating.partition_policy = RatingPartitionPolicy::normal;
-  temporary_context.coarsening.rating.heavy_node_penalty_policy =
-    HeavyNodePenaltyPolicy::edge_frequency_penalty;
-
-  temporary_context.evolutionary.edge_frequency =
-    computeEdgeFrequency(population.listOfBest(context.evolutionary.edge_frequency_amount),
-                         hg.initialNumEdges());
-
-  DBG << V(temporary_context.evolutionary.action.decision());
-
-
-  Partitioner().partition(hg, temporary_context);
-
-  const HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  Timer::instance().add(context, Timepoint::evolutionary,
-                        std::chrono::duration<double>(end - start).count());
-
-
-  DBG << "final result" << V(metrics::km1(hg)) << V(metrics::imbalance(hg, context));
-  io::serializer::serializeEvolutionary(temporary_context, hg);
-  return Individual(hg, context);
-}*/
 } // namespace mt_kahypar::combine
 
