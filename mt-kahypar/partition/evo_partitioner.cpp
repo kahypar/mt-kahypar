@@ -581,27 +581,42 @@ namespace mt_kahypar {
         const bool iteration_logging_enabled = context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode;
         const size_t log_limit = std::max<size_t>(1, context.evolutionary.iteration_log_limit);
 
+        const auto create_worker_arenas = [&]() {
+            std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
+            worker_arenas.reserve(static_cast<size_t>(num_evo_workers));
+            for (int i = 0; i < num_evo_workers; ++i) {
+                worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
+            }
+            return worker_arenas;
+        };
+
+        const auto reached_global_stop_condition = [&]() {
+            const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::high_resolution_clock::now().time_since_epoch());
+            if (enforce_time_limit && (now - time_start >= duration)) {
+                stop_flag = true;
+                return true;
+            }
+            if (context.evolutionary.max_iterations != 0 &&
+                total_iterations.load(std::memory_order_relaxed) >= context.evolutionary.max_iterations) {
+                stop_flag = true;
+                return true;
+            }
+            return false;
+        };
+
 
         const int global_seed = context.partition.seed;
         //standard mode non-deterministic
         if (!context.partition.deterministic) {
             // task arenas for each worker to ensure isolated thread pools
-            std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
-            for (int i = 0; i < num_evo_workers; i++) {
-                worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
-            }
+            auto worker_arenas = create_worker_arenas();
 
             tbb::parallel_for(0, num_evo_workers, [&](int worker_id) {
                 // Each evo worker uses own arena
                 worker_arenas[worker_id]->execute([&] {
                     while (!stop_flag) {
-                        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-                        if (enforce_time_limit && (now - time_start >= duration)) {
-                            stop_flag = true;
-                            break;
-                        }
-                        if (context.evolutionary.max_iterations != 0 && total_iterations.load(std::memory_order_relaxed) >= context.evolutionary.max_iterations) {
-                            stop_flag = true;
+                        if (reached_global_stop_condition()) {
                             break;
                         }
                         if (context.evolutionary.improvement_rate_stopping.enabled) {
@@ -705,23 +720,14 @@ namespace mt_kahypar {
             std::atomic<size_t> last_batch_filled = 0;
             std::atomic<int> items_finished_in_current_batch = 0;
 
-            std::vector<std::unique_ptr<tbb::task_arena>> worker_arenas;
-            for (int i = 0; i < num_evo_workers; i++) {
-                worker_arenas.push_back(std::make_unique<tbb::task_arena>(num_multilevel_threads));
-            }
+            auto worker_arenas = create_worker_arenas();
 
             tbb::parallel_for(0, num_evo_workers, [&](int worker_id) {
                 // Each evo worker uses its own arena
                 worker_arenas[worker_id]->execute([&] {
 
                     while (!stop_flag) {
-                        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-                        if (enforce_time_limit && (now - time_start >= duration)) {
-                            stop_flag = true;
-                            break;
-                        }
-                        if (context.evolutionary.max_iterations != 0 && total_iterations.load(std::memory_order_relaxed) >= context.evolutionary.max_iterations) {
-                            stop_flag = true;
+                        if (reached_global_stop_condition()) {
                             break;
                         }
 
