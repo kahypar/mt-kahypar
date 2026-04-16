@@ -22,6 +22,7 @@
 
 #include <vector>
 
+#include "combine.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -42,18 +43,7 @@ namespace mt_kahypar::mutate {
     for (PartitionID i = 0; i < context.partition.k; i++) {
       comm_to_block[i] = i;
     }
-    partitioned_hypergraph.initializePartition();
-    hypergraph.setCommunityIDs(std::move(comms));
-    if (context.partition.mode == Mode::direct) {
-      Context vc_context(context);
-      vc_context.setupPartWeights(hypergraph.totalWeight());
-      Multilevel<TypeTraits>::evolutionPartitionVCycle(
-          hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-    } else {
-      throw InvalidParameterException("Invalid partitioning mode!");
-    }
-
-    return Individual(partitioned_hypergraph, context);
+    return combine::runEvolutionVCycle<TypeTraits>(partitioned_hypergraph, hypergraph, comms, context, comm_to_block, target_graph);
   }
 
   template<typename TypeTraits>

@@ -112,10 +112,25 @@ static constexpr bool debug = false;
     return partition;
 
   }
+  template<typename TypeTraits>
+  Individual runEvolutionVCycle(typename TypeTraits::PartitionedHypergraph& partitioned_hypergraph, typename TypeTraits::Hypergraph& hypergraph, vec<PartitionID>& comms, const Context& context, std::unordered_map<PartitionID, int>& comm_to_block, TargetGraph* target_graph) {
+    partitioned_hypergraph.initializePartition();
+    hypergraph.setCommunityIDs(std::move(comms));
+    if (context.partition.mode == Mode::direct) {
+      //V-cycle requires a context with initialized part weights
+      Context vc_context(context);
+      vc_context.setupPartWeights(hypergraph.totalWeight());
+      Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+    } else {
+      throw InvalidParameterException("Invalid partitioning mode!");
+    }
+
+    return Individual(partitioned_hypergraph, context);
+  }
 
   template<typename TypeTraits>
   Individual combineParentsWithVCycle(const std::vector<std::vector<PartitionID>>& parent_partitions,
-                               std::vector<PartitionID> best_partition, const Context &context, TargetGraph* target_graph,
+                               std::vector<PartitionID> best_partition, const Context& context, TargetGraph* target_graph,
                                const typename TypeTraits::Hypergraph &input_hg) {
 
     std::unordered_map<PartitionID, int> comm_to_block;
@@ -131,26 +146,16 @@ static constexpr bool debug = false;
         comm_to_block[comms[hn]] = best_partition[hn];
       }
     }
-
-    partitioned_hypergraph.initializePartition();
-    hypergraph.setCommunityIDs(std::move(comms));
-    if (context.partition.mode == Mode::direct) {
-      //V-cycle requires a context with initialized part weights
-      Context vc_context(context);
-      vc_context.setupPartWeights(hypergraph.totalWeight());
-      Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
-    } else {
-      throw InvalidParameterException("Invalid partitioning mode!");
-    }
-
-    return Individual(partitioned_hypergraph, context);
+    return runEvolutionVCycle<TypeTraits>(partitioned_hypergraph, hypergraph, comms, context, comm_to_block,
+                                          target_graph);
   }
 
   template <typename TypeTraits>
   Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, const Context& context, std::mt19937* rng) {
     std::vector<size_t> parents;
     //Maybe change to actually use Tournament Selection
-    const size_t best(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine, context.partition.deterministic, rng));
+    const size_t best(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine,
+                                                               context.partition.deterministic, rng));
 
     std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
 
