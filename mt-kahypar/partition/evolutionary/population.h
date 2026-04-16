@@ -173,6 +173,36 @@ class Population {
   }
 
   // Thread-safe accessors
+  size_t sampleKParentsReturnBestIndex(std::vector<size_t>& parents, const size_t k, const bool deterministic, std::mt19937* rng = nullptr) {
+    ASSERT(k > 0);
+    ASSERT(k <= _individuals.size());
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    size_t best=0;
+    HyperedgeWeight best_fitness = std::numeric_limits<HyperedgeWeight>::max();
+    std::vector<size_t> indices(_individuals.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    for (size_t t = 0; t < k; ++t) {
+      const size_t i = _individuals.size() - 1 - t;
+      size_t rnd;
+      if (deterministic) {
+        ASSERT(rng != nullptr, "Deterministic mode requires a valid RNG");
+        std::uniform_int_distribution<size_t> gen(0, i);
+        rnd = gen(*rng);
+      } else {
+        rnd = utils::Randomize::instance().getRandomInt(0, i, THREAD_ID);
+      }
+      std::swap(indices[i], indices[rnd]);
+      const size_t candidate = indices[i];
+      if (const HyperedgeWeight candidate_fitness = _individuals[candidate].fitness(); candidate_fitness < best_fitness) {
+        best_fitness = candidate_fitness;
+        best = candidate;
+      }
+      parents.push_back(indices[i]);
+    }
+    return best;
+  }
+
+
   inline size_t randomIndividualSafe(const bool deterministic, std::mt19937* rng = nullptr) {
     std::lock_guard<std::mutex> guard(_population_mutex);
     if (deterministic) {

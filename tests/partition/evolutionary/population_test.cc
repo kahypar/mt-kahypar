@@ -1,6 +1,7 @@
 #include <atomic>
 #include <array>
 #include <limits>
+#include <random>
 #include <set>
 #include <sstream>
 #include <type_traits>
@@ -460,6 +461,55 @@ TYPED_TEST(APopulation, ConcurrentInsertsAndSafeReadsRemainConsistent) {
     EXPECT_EQ(this->population.size(), 5);
     EXPECT_LT(this->population.best(), this->population.size());
     EXPECT_LT(this->population.worst(), this->population.size());
+}
+
+TYPED_TEST(APopulation, ReturnsKRandomParentsAndBest) {
+    std::mt19937 rng(42);
+    std::vector<size_t> parents;
+    const int k = 3;
+
+    const size_t best = this->population.sampleKParentsReturnBestIndex(
+        parents, k, true, &rng);
+
+    ASSERT_EQ(parents.size(), static_cast<size_t>(k));
+    EXPECT_TRUE(std::all_of(parents.begin(), parents.end(), [&](const size_t idx) {
+        return idx < this->population.size();
+    }));
+
+    std::set<size_t> unique(parents.begin(), parents.end());
+    EXPECT_EQ(unique.size(), parents.size());
+    EXPECT_TRUE(unique.find(best) != unique.end());
+
+    const HyperedgeWeight sampled_best_fitness = this->population.individualAt(best).fitness();
+    for (const size_t idx : parents) {
+        EXPECT_LE(sampled_best_fitness, this->population.individualAt(idx).fitness());
+    }
+}
+
+TYPED_TEST(APopulation, ReturnsBestOverallWhenSamplingWholePopulation) {
+    std::mt19937 rng(7);
+    std::vector<size_t> parents;
+
+    const size_t best = this->population.sampleKParentsReturnBestIndex(
+        parents, static_cast<int>(this->population.size()), true, &rng);
+
+    ASSERT_EQ(parents.size(), this->population.size());
+    std::set<size_t> unique(parents.begin(), parents.end());
+    EXPECT_EQ(unique.size(), this->population.size());
+    EXPECT_EQ(best, this->population.best());
+}
+
+TYPED_TEST(APopulation, DeterministicSamplingIsStableForSameSeed) {
+    std::vector<size_t> parents_a;
+    std::vector<size_t> parents_b;
+    std::mt19937 rng_a(1337);
+    std::mt19937 rng_b(1337);
+
+    const size_t best_a = this->population.sampleKParentsReturnBestIndex(parents_a, 4, true, &rng_a);
+    const size_t best_b = this->population.sampleKParentsReturnBestIndex(parents_b, 4, true, &rng_b);
+
+    EXPECT_EQ(parents_a, parents_b);
+    EXPECT_EQ(best_a, best_b);
 }
 
 } // namespace mt_kahypar
