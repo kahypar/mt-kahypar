@@ -220,7 +220,7 @@ class Population {
 
   inline std::vector<PartitionID> bestPartitionCopySafe() {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    size_t best_position = bestUnsafe();
+    size_t best_position = best();
     return _individuals[best_position].partition(); // returns copy
   }
 
@@ -259,22 +259,9 @@ class Population {
     return _individuals[pos].fitness();
   }
 
-  inline size_t bestUnsafe() {
-    size_t best_position = 0;
-    HyperedgeWeight best_fitness = _individuals[0].fitness();
-    for (size_t i = 1; i < _individuals.size(); ++i) {
-      const HyperedgeWeight result = _individuals[i].fitness();
-      if (result < best_fitness) {
-        best_position = i;
-        best_fitness = result;
-      }
-    }
-    return best_position;
-  }
-
   inline size_t bestSafe() {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    return bestUnsafe();
+    return best();
   }
 
   inline Individuals listOfBest(const size_t& amount) const {
