@@ -53,6 +53,32 @@ namespace mt_kahypar::pick {
 
     return EvoDecision::combine;
   }
+   ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng) {
+
+    ContextModifierParameters params;
+    params.k = context.partition.k;
+    params.epsilon = context.partition.epsilon;
+
+    int choice = 0;
+    if (context.partition.deterministic) {
+      if (!rng) throw UnsupportedOperationException("Deterministic mode requires rng");
+      std::uniform_int_distribution<int> dist(0, 4);
+      choice = dist(*rng);
+    } else {
+      choice = utils::Randomize::instance().getRandomInt(0, 4, THREAD_ID);
+    }
+
+    switch (choice) {
+      case 0: params.epsilon = 3.0 * context.partition.epsilon; break;
+      case 1: params.use_random_partitions = true; break;
+      case 2: params.use_degree_sorted_partitions = true; break;
+      case 3: params.k = 2 * context.partition.k; break;
+      case 4: params.recursive_bipartitioning = true; break;
+      default: throw InvalidParameterException("Invalid choice for modified combine strategy");
+    }
+    return params;
+
+  }
 
 }
 

@@ -65,7 +65,6 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static const Individual& addThreadLocalTemporary(Individual&& individual);
 
     static Individual createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
-    static ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
     static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);

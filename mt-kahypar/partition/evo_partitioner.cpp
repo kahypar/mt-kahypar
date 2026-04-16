@@ -414,34 +414,6 @@ namespace mt_kahypar {
         return individual.partition();
     }
 
-    template<typename TypeTraits>
-    ContextModifierParameters EvoPartitioner<TypeTraits>::decideContextModificationParameters(const Context& context, std::mt19937* rng) {
-        
-    ContextModifierParameters params;
-    params.k = context.partition.k;
-    params.epsilon = context.partition.epsilon;
-
-    int choice = 0;
-    if (context.partition.deterministic) {
-        if (!rng) throw UnsupportedOperationException("Deterministic mode requires rng");
-        std::uniform_int_distribution<int> dist(0, 4);
-        choice = dist(*rng);
-    } else {
-        choice = utils::Randomize::instance().getRandomInt(0, 4, THREAD_ID);
-    }
-
-    switch (choice) {
-        case 0: params.epsilon = 3.0 * context.partition.epsilon; break;
-        case 1: params.use_random_partitions = true; break;
-        case 2: params.use_degree_sorted_partitions = true; break;
-        case 3: params.k = 2 * context.partition.k; break;
-        case 4: params.recursive_bipartitioning = true; break;
-        default: throw InvalidParameterException("Invalid choice for modified combine strategy");
-    }
-    return params;
-
-    }
-
 
     template<typename TypeTraits>
     Individual EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph &input_hg, const Context &context,
@@ -685,7 +657,7 @@ namespace mt_kahypar {
                                 {
                                     // decide modified combine parameters if mixed strategy is enabled
                                     if (context.evolutionary.modified_combine_mixed) {
-                                        modified_combine_params = decideContextModificationParameters(context);
+                                        modified_combine_params = pick::decideContextModificationParameters(context);
                                     }
                                     Individual ind = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
                                     insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
@@ -790,7 +762,7 @@ namespace mt_kahypar {
                             case EvoDecision::modified_combine: {
                                 // decide modified combine parameters if mixed strategy is enabled
                                 if (context.evolutionary.modified_combine_mixed) {
-                                    modified_combine_params = decideContextModificationParameters(context, &rng);
+                                    modified_combine_params = pick::decideContextModificationParameters(context, &rng);
                                 }
                                 child = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population, &rng);
                                 total_modifiedCombinations.fetch_add(1, std::memory_order_relaxed);

@@ -24,10 +24,12 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/evo_partitioner.h"
 
 
 namespace mt_kahypar::pick {
 EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr);
 EvoDecision decideNextMove(const Context& context, std::mt19937* rng = nullptr) ;
+ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
 } // namespace mt_kahypar::pick
 
