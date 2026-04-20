@@ -48,7 +48,6 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Population& population);
 
     static std::vector<PartitionID> createPartition(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
-    static void clearThreadLocalTemporaries();
 
     private:
     friend class EvoOperatorTest;
@@ -62,7 +61,6 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::vector<evolutionary::ImprovementLogEntry> improvement_log_entries;
 
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
-    static const Individual& addThreadLocalTemporary(Individual&& individual);
 
     static Individual createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
     static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);

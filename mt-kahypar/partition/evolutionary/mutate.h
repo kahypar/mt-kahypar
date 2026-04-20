@@ -60,6 +60,6 @@ namespace mt_kahypar::mutate {
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Partitioner<TypeTraits>::partition(
         hypergraph, mut_context, target_graph);
 
-    return Individual(partitioned_hypergraph, context);
+    return Individual(partitioned_hypergraph, mut_context);
   }
 }

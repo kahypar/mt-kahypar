@@ -20,24 +20,10 @@
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/io/presets.h"
-#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
-
-
-    template<typename TypeTraits>
-    const Individual& EvoPartitioner<TypeTraits>::addThreadLocalTemporary(Individual&& individual) {
-        thread_local_temporaries_.push_back(std::make_unique<Individual>(std::move(individual)));
-        return *thread_local_temporaries_.back();
-    }
-
-    template<typename TypeTraits>
-    void EvoPartitioner<TypeTraits>::clearThreadLocalTemporaries() {
-        thread_local_temporaries_.clear();
-    }
 
     template<typename TypeTraits>
     typename EvoPartitioner<TypeTraits>::PartitionedHypergraph EvoPartitioner<TypeTraits>::partition(
