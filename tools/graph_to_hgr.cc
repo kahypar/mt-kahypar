@@ -34,6 +34,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using namespace mt_kahypar;
 
@@ -60,11 +61,12 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   HyperedgeID num_edges = 0;
   HypernodeID num_nodes = 0;
+  Dimension dimension = 0;
   io::HyperedgeVector hyperedges;
   vec<HyperedgeWeight> hyperedges_weight;
-  vec<HypernodeWeight> hypernodes_weight;
+  HypernodeWeightArray hypernodes_weight;
 
-  io::readGraphFile(graph_filename, num_edges, num_nodes,
+  io::readGraphFile(graph_filename, num_edges, num_nodes, dimension,
                     hyperedges, hyperedges_weight, hypernodes_weight);
   ALWAYS_ASSERT(hyperedges.size() == num_edges);
 
@@ -91,8 +93,11 @@ int main(int argc, char* argv[]) {
   }
 
   // Write node weights
-  for (HypernodeWeight weight: hypernodes_weight) {
-    out_stream << weight << std::endl;
+  for (auto weight: hypernodes_weight) {
+    for (Dimension d = 0; d < weight.dimension(); ++d) {
+      out_stream << weight.at(d) << " ";
+    }
+    out_stream << std::endl;
   }
 
   out_stream.close();

@@ -35,6 +35,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using namespace mt_kahypar;
 
@@ -61,12 +62,13 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   HyperedgeID num_edges = 0;
   HypernodeID num_nodes = 0;
+  Dimension dimension = 0;
   HyperedgeID num_removed_single_pin_hyperedges = 0;
   io::HyperedgeVector hyperedges;
   vec<HyperedgeWeight> hyperedges_weight;
-  vec<HypernodeWeight> hypernodes_weight;
+  HypernodeWeightArray hypernodes_weight;
 
-  io::readHypergraphFile(hgr_filename, num_edges, num_nodes, num_removed_single_pin_hyperedges,
+  io::readHypergraphFile(hgr_filename, num_edges, dimension, num_nodes, num_removed_single_pin_hyperedges,
                          hyperedges, hyperedges_weight, hypernodes_weight, true, true);
   ALWAYS_ASSERT(hyperedges.size() == num_edges);
   ALWAYS_ASSERT(num_removed_single_pin_hyperedges == 0);
@@ -97,7 +99,10 @@ int main(int argc, char* argv[]) {
   for (size_t he = 0; he < hyperedges.size();) {
     const auto& pins = hyperedges[he];
     if (!hypernodes_weight.empty() && at_start_of_line) {
-      out_stream << hypernodes_weight[i] << " ";
+      auto weight = hypernodes_weight[i];
+      for (Dimension d = 0; d < weight.dimension(); ++d) {
+        out_stream << weight.at(d) << " ";
+      }
     }
     if (pins[0] == i) {
       out_stream << (pins[1] + 1) << " ";
