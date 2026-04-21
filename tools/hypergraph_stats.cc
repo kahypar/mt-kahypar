@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   std::vector<HypernodeID> he_sizes;
   std::vector<HyperedgeWeight> he_weights;
   std::vector<HyperedgeID> hn_degrees;
-  std::vector<HypernodeWeight> hn_weights;
+  std::vector<HNWeightScalar> hn_weights;
 
   tbb::parallel_invoke([&] {
     he_sizes.resize(hg.initialNumEdges());
@@ -122,14 +122,17 @@ int main(int argc, char* argv[]) {
   }, [&] {
     hn_degrees.resize(hg.initialNumNodes());
   }, [&] {
-    hn_weights.resize(hg.initialNumNodes());
+    hn_weights.resize(hg.initialNumNodes() * hg.dimension());
   });
 
   HypernodeID num_hypernodes = hg.initialNumNodes();
   const double avg_hn_degree = utils::avgHypernodeDegree(hg);
   hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     hn_degrees[hn] = hg.nodeDegree(hn);
-    hn_weights[hn] = hg.nodeWeight(hn);
+    for (Dimension d = 0; d < hg.dimension(); ++d)
+    {
+      hn_weights[hg.dimension() * hn + d] = hg.nodeWeight(hn).at(d);
+    }
   });
   const double avg_hn_weight = utils::parallel_avg(hn_weights, num_hypernodes);
   const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
