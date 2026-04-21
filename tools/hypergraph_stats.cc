@@ -214,9 +214,13 @@ int main(int argc, char* argv[]) {
              << " maxHnDegree=" << hn_degree_stats.max
              << " Q1HNdegree=" << hn_degree_stats.q1
              << " medHNdegree=" << hn_degree_stats.med
-             << " Q3HNdegree=" << hn_degree_stats.q3
-             << " totalHNweight=" << hg.totalWeight()
-             << " avgHNweight=" << hn_weight_stats.avg
+             << " Q3HNdegree=" << hn_degree_stats.q3;
+
+  for (Dimension d = 0; d < hg.dimension(); ++d) {
+    std::cout << " totalHNweight" << d << "=" << hg.totalWeight().at(d);
+  }
+
+  std::cout  << " avgHNweight=" << hn_weight_stats.avg
              << " sdHNweight=" << hn_weight_stats.sd
              << " minHNweight=" << hn_weight_stats.min
              << " Q1HNweight=" << hn_weight_stats.q1
