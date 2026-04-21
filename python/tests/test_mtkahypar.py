@@ -36,6 +36,12 @@ logging = False
 
 mtk = mtkahypar.initialize(multiprocessing.cpu_count())
 
+# See test_partition_hypergraph_keeps_graph_alive.
+# When `hypergraph` goes out of scope, it should _not_ be deleted.
+def _make_partitioned_hg(context):
+  hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+  return hypergraph.partition(context)
+
 class MainTest(unittest.TestCase):
 
   def test_set_partitioning_parameters_in_context(self):
@@ -1111,6 +1117,13 @@ class MainTest(unittest.TestCase):
     partitioner.addFixedVertices()
     partitioner.partition()
     partitioner.improvePartition(1)
+
+  def test_partition_hypergraph_keeps_graph_alive(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+    partitioned_hg = _make_partitioned_hg(context)
+    self.assertEqual(len(partitioned_hg.get_partition()), 7)
+
 
 if __name__ == '__main__':
   unittest.main()
