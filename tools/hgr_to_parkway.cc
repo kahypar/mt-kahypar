@@ -37,6 +37,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using namespace mt_kahypar;
 
@@ -48,6 +49,7 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
                                           const std::string& hgr_filename,
                                           const size_t num_procs,
                                           const int rank) {
+  ALWAYS_ASSERT(hypergraph.dimension() == 1);
   const size_t num_vertices = hypergraph.initialNumNodes();
   const size_t num_edges = hypergraph.initialNumEdges();
   const size_t vertices_per_proc = num_vertices / num_procs;
@@ -62,7 +64,7 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
 
   std::vector<int> hypernode_weight;
   for ( HypernodeID hn = hn_start; hn < hn_end; ++hn ) {
-    hypernode_weight.push_back(hypergraph.nodeWeight(hn));
+    hypernode_weight.push_back(hypergraph.nodeWeight(hn).at(0));
   }
 
   std::vector<int> hyperedge_data;
