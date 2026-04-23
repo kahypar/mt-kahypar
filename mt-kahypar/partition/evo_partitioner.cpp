@@ -834,11 +834,11 @@ namespace mt_kahypar {
 
         context.evolutionary.iteration += total_iterations.load();
         context.partition.enable_logging = true;
-        LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations" << "\n";
-        LOG << "    " << total_mutations.load() << " Mutations" << "\n";
-        LOG << "    " << total_combinations.load() << " Combinations" << "\n";
+        LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations";
+        LOG << "    " << total_mutations.load() << " Mutations";
+        LOG << "    " << total_combinations.load() << " Combinations";
         if (context.evolutionary.enable_modified_combine) {
-            LOG << "    " << total_modifiedCombinations.load() << " Modified Combinations" << "\n";
+            LOG << "    " << total_modifiedCombinations.load() << " Modified Combinations";
         }
 
         return history;
