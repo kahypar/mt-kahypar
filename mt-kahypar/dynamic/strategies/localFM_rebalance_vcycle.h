@@ -48,7 +48,7 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_m
-        void local_fm(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
+        void refinement(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
           (void) change;
           (void) empty_blocks;
 
@@ -77,6 +77,7 @@ namespace mt_kahypar::dyn {
             context.dynamic.incremental_km1 -= gain;
             context.dynamic.km1_gain_rebalance_pull += gain;
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
+            // Add nodes moved nodes neighbours to fm nodes?
             context.dynamic.move_count += moved_nodes.size();
           }
 
@@ -388,12 +389,14 @@ namespace mt_kahypar::dyn {
             {
               GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(node, hypergraph_m.edgeWeight(edge));
               _rebalancer.addPenalty(node,  hypergraph_m.edgeWeight(edge));
-            } else
+            }
+            for (const PartitionID& p : partitioned_hypergraph_m.connectivitySet(edge))
             {
-              for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
-                if (hn2 != node) {
-                  GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), partitioned_hypergraph_m.partID(hn2));
-                  _rebalancer.adjustPullQueue(node, partitioned_hypergraph_m.partID(hn2), hypergraph_m.edgeWeight(edge));
+              if (p != partitioned_hypergraph_m.partID(node)) {
+                GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), p);
+                if (!context.dynamic.lazy_pull_updates)
+                {
+                  _rebalancer.insertOrUpdateNode(node, partitioned_hypergraph_m.partID(node), p, hypergraph_m.edgeWeight(edge));
                 }
               }
             }
@@ -465,7 +468,7 @@ namespace mt_kahypar::dyn {
           context.dynamic.sorting_duration_sum += sorting_duration_sum;
 
         // ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
-        local_fm(local_fm_nodes, gain_cache_nodes, change, empty_blocks);
+        refinement(local_fm_nodes, gain_cache_nodes, change, empty_blocks);
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
           if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
