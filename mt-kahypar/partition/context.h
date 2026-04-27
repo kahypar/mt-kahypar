@@ -76,10 +76,12 @@ struct PartitioningParameters {
 
   std::string graph_filename { };
   std::string fixed_vertex_filename { };
+  std::string frequencies_filename { };
   std::string graph_partition_output_folder {};
   std::string graph_partition_filename { };
   std::string graph_community_filename { };
   std::string preset_file { };
+  bool frequencies_default_file = false;
 };
 
 struct CommunityDetectionParameters {
@@ -96,6 +98,9 @@ struct PreprocessingParameters {
   bool use_community_detection = true;
   bool disable_community_detection_for_mesh_graphs = true;
   CommunityDetectionParameters community_detection = { };
+
+  // hacky way to save computed communities
+  const std::vector<std::tuple<ds::Clustering, HypernodeID, double>>* community_stack = nullptr;
 };
 
 struct RatingParameters {
@@ -103,6 +108,23 @@ struct RatingParameters {
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
   RatingPartitionPolicy partition_policy = RatingPartitionPolicy::normal;
+  DegreeSimilarityPolicy degree_similarity_policy = DegreeSimilarityPolicy::UNDEFINED;
+
+  // Similarity policy
+  uint32_t incident_weight_scaling_constant = 1;
+  double preserve_nodes_scaling_factor = 0.5;
+  double preserve_nodes_relative_weight_limit = 0.001;
+  double acceptance_limit_bound = 0.25;
+
+  // Guided coarsening
+  bool guiding_by_integrated_model = false;
+  GuidedEdgeScaling ge_scaling = GuidedEdgeScaling::quadratic;
+  GuidedEdgeAccumulation ge_accumulation = GuidedEdgeAccumulation::linear;
+  double guiding_treshold = 0.2;
+  double guiding_treshold_max = 0.8;
+  size_t num_guided_subrounds = 5;
+  size_t guided_coarsening_levels = 100;
+  bool consider_edges_deleted = false;
 };
 
 struct CoarseningParameters {
@@ -114,11 +136,20 @@ struct CoarseningParameters {
   double max_allowed_weight_multiplier = 1;
   double minimum_shrink_factor = 1.01;
   double maximum_shrink_factor = 2.5;
+  double target_shrink_factor = 2.5;
+  bool two_hop_full_shrinkage = false;
+  bool two_hop_restrict_hyperedges = false;
+  bool two_hop_contract_communities = false;
   size_t vertex_degree_sampling_threshold = 200000;
 
   // parameters for deterministic coarsening
   size_t num_sub_rounds_deterministic = 16;
   bool det_resolve_swaps = true;
+
+  // Two-Hop Coarsening
+  double two_hop_required_connectivity = 0.25;
+  HypernodeID two_hop_cluster_size = 4;
+  size_t two_hop_degree_threshold = 100;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;

@@ -120,7 +120,8 @@ static constexpr bool debug = false;
       //V-cycle requires a context with initialized part weights
       Context vc_context(context);
       vc_context.setupPartWeights(hypergraph.totalWeight());
-      Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, vc_context, comm_to_block, target_graph);
+      vec<EdgeMetadata> edge_md;
+      Multilevel<TypeTraits>::evolutionPartitionVCycle(hypergraph, partitioned_hypergraph, std::move(edge_md), vc_context, comm_to_block, target_graph);
     } else {
       throw InvalidParameterException("Invalid partitioning mode!");
     }

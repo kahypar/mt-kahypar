@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
@@ -41,14 +42,16 @@ mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
                                       const PresetType& preset,
                                       const InstanceType& instance,
                                       const FileFormat& format,
-                                      const bool stable_construction = false,
-                                      const bool remove_single_pin_hes = true);
+                                      const bool stable_construction,
+                                      const bool remove_single_pin_hes,
+                                      const bool print_warnings);
 
 template<typename Hypergraph>
 Hypergraph readInputFile(const std::string& filename,
                          const FileFormat& format,
-                         const bool stable_construction = false,
-                         const bool remove_single_pin_hes = true);
+                         const bool stable_construction,
+                         const bool remove_single_pin_hes,
+                         const bool print_warnings);
 
 void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
                       const mt_kahypar_partition_id_t* fixed_vertices,
@@ -59,6 +62,9 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
                               const PartitionID k);
 
 void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
+
+vec<EdgeMetadata> getEdgeMetadataFromFile(mt_kahypar_hypergraph_t hypergraph,
+                                          const std::string& filename);
 
 }  // namespace io
 }  // namespace mt_kahypar

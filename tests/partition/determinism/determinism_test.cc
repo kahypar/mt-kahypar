@@ -34,7 +34,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
@@ -118,7 +118,7 @@ public:
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      context.partition.graph_filename, FileFormat::hMetis, true);
+      context.partition.graph_filename, FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
             context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
@@ -222,7 +222,7 @@ TEST_F(DeterminismTest, Preprocessing) {
   Graph graph(hypergraph, edge_weight_type);
   ds::Clustering first;
   for (size_t i = 0; i < num_repetitions; ++i) {
-    ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
+    ds::Clustering communities = std::get<0>(community_detection::run_parallel_louvain(graph, context)[0]);
     if (i == 0) {
       first = std::move(communities);
     } else {
@@ -234,7 +234,8 @@ TEST_F(DeterminismTest, Preprocessing) {
 TEST_F(DeterminismTest, Coarsening) {
   Hypergraph first;
   for (size_t i = 0; i < num_repetitions; ++i) {
-    UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph, context);
+    vec<EdgeMetadata> edge_md;
+    UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph,std::move(edge_md), context);
     uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
@@ -291,7 +292,8 @@ TEST_F(DeterminismTest, LPRefinementK2) {
 }
 
 TEST_F(DeterminismTest, LPRefinementOnCoarseHypergraph) {
-  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph, context);
+  vec<EdgeMetadata> edge_md;
+  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph,std::move(edge_md), context);
   uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
   mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
   DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
@@ -322,7 +324,8 @@ TEST_F(DeterminismTest, JetRefinementK2) {
 }
 
 TEST_F(DeterminismTest, JetRefinementOnCoarseHypergraph) {
-  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph, context);
+  vec<EdgeMetadata> edge_md;
+  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph,std::move(edge_md), context);
   uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
   mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
   DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);
@@ -353,7 +356,8 @@ TEST_F(DeterminismTest, FlowRefinementK2) {
 }
 
 TEST_F(DeterminismTest, FlowRefinementOnCoarseHypergraph) {
-  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph, context);
+  vec<EdgeMetadata> edge_md;
+  UncoarseningData<TypeTraits> uncoarseningData(false, hypergraph,std::move(edge_md), context);
   uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(uncoarseningData);
   mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
   DeterministicMultilevelCoarsener<TypeTraits> coarsener(hg, context, data_ptr);

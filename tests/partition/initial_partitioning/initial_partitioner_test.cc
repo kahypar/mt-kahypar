@@ -112,7 +112,7 @@ class AInitialPartitionerTest : public Test {
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
+      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
@@ -130,9 +130,10 @@ class AInitialPartitionerTest : public Test {
   }
 
   void runInitialPartitioning() {
+    vec<EdgeMetadata> edge_md;
     switch ( context.initial_partitioning.mode ) {
       case Mode::recursive_bipartitioning:
-        RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context); break;
+        RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, std::move(edge_md), context); break;
       case Mode::deep_multilevel:
         DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context); break;
       case Mode::direct:

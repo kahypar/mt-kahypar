@@ -102,8 +102,9 @@ class ACoarsener : public Test {
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.setupPartWeights(hypergraph.totalWeight());
 
+    vec<EdgeMetadata> edge_md;
     uncoarseningData = std::make_unique<UncoarseningData<TypeTraits>>(
-      PRESET != PresetType::default_preset, hypergraph, context);
+      PRESET != PresetType::default_preset, hypergraph, std::move(edge_md), context);
 
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(*uncoarseningData);

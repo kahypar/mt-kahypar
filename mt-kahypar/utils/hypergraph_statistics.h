@@ -37,6 +37,22 @@ namespace mt_kahypar {
 namespace utils {
 
 template<typename T>
+double parallel_skew(const std::vector<T>& data, const double avg, const double stdev, const size_t n) {
+    if (stdev == 0) {
+        return 0.0;
+    }
+    return tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
+            [&](tbb::blocked_range<size_t>& range, double init) -> double {
+            double tmp_skew = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                tmp_skew += (data[i] - avg) * (data[i] - avg) * (data[i] - avg);
+            }
+            return tmp_skew;
+            }, std::plus<double>()) / (static_cast<double>(n) * std::pow(stdev, 3));
+}
+
+template<typename T>
 double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
     return std::sqrt(tbb::parallel_reduce(
             tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
@@ -46,7 +62,7 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
                 tmp_stdev += (data[i] - avg) * (data[i] - avg);
             }
             return tmp_stdev;
-            }, std::plus<double>()) / ( n- 1 ));
+            }, std::plus<double>()) / static_cast<double>(n));
 }
 
 template<typename T>
@@ -73,6 +89,25 @@ static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
 template<typename Hypergraph>
 static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
+}
+
+template<typename Hypergraph>
+static inline PartitionID communityCount(const Hypergraph& hypergraph) {
+    PartitionID num_communities =
+        tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()), 0,
+        [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+            PartitionID my_range_num_communities = init;
+            for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                if ( hypergraph.nodeIsEnabled(hn) ) {
+                    my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+                }
+            }
+            return my_range_num_communities;
+        },
+        [](const PartitionID lhs, const PartitionID rhs) {
+            return std::max(lhs, rhs);
+        });
+    return std::max(num_communities, 1);
 }
 
 } // namespace utils

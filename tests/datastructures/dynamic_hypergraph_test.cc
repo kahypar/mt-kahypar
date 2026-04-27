@@ -155,7 +155,7 @@ TEST_F(ADynamicHypergraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-  hypergraph.updateTotalWeight(parallel_tag_t());
+  hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
@@ -194,6 +194,12 @@ TEST_F(ADynamicHypergraph, VerifiesEdgeSizes) {
   ASSERT_EQ(4, hypergraph.edgeSize(1));
   ASSERT_EQ(3, hypergraph.edgeSize(2));
   ASSERT_EQ(3, hypergraph.edgeSize(3));
+}
+
+TEST_F(ADynamicHypergraph, PreventsWeightOverflow) {
+  hypergraph.setNodeWeight(0, std::numeric_limits<HypernodeWeight>::max() / 2);
+  hypergraph.setNodeWeight(1, std::numeric_limits<HypernodeWeight>::max() / 2);
+  ASSERT_THROW(hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t()), InvalidInputException);
 }
 
 TEST_F(ADynamicHypergraph, SetsCommunityIDsForEachVertex) {

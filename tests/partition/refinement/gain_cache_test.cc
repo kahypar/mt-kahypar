@@ -85,10 +85,10 @@ class AGainCache : public Test {
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true);
+        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true, true, true);
     } else {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
+        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
     }
     partitioned_hg = PartitionedHypergraph(k, hypergraph, parallel_tag_t { });
     delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context);

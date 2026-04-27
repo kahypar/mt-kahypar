@@ -46,6 +46,10 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
         const HyperedgeWeight* hyperedge_weight,
         const HypernodeWeight* hypernode_weight,
         const bool) {
+  if (edge_vector.size() != num_hyperedges) {
+    throw InvalidInputException("Number of hyperedges does not match length of input data!");
+  }
+
   DynamicHypergraph hypergraph;
   hypergraph._num_hypernodes = num_hypernodes;
   hypergraph._num_hyperedges = num_hyperedges;
@@ -62,12 +66,14 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
   });
   hypergraph._he_bitset = ThreadLocalBitset(num_hyperedges);
 
-  ASSERT(edge_vector.size() == num_hyperedges);
-
   // Compute number of pins per hyperedge
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
   tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
+    if (edge_vector[pos].size() == 0) {
+      throw InvalidInputException("Hyperedge " + STR(pos) + " is empty (hyperedges must contain at least 1 pin)");
+    }
+
     num_pins_per_hyperedge[pos] = edge_vector[pos].size();
     local_max_edge_size.local() = std::max(
       local_max_edge_size.local(), edge_vector[pos].size());
@@ -105,7 +111,9 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
       size_t hash = kEdgeHashSeed;
       for ( const HypernodeID& pin : edge_vector[pos] ) {
         ASSERT(incidence_array_pos < hyperedge.firstInvalidEntry());
-        ASSERT(pin < num_hypernodes);
+        if (pin >= num_hypernodes) {
+          throw InvalidInputException("Hyperedge " + STR(pos) + " contains invalid pin: " + STR(pin));
+        }
         // Compute hash of hyperedge
         hash += kahypar::math::hash(pin);
         // Add pin to incidence array
@@ -131,13 +139,12 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
         hypernode.setWeight(hypernode_weight[hn]);
       }
     });
+    // Compute total weight of hypergraph
+    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   }, [&] {
     // Construct incident net array
     hypergraph._incident_nets = IncidentNetArray(num_hypernodes, edge_vector);
   });
-
-  // Compute total weight of hypergraph
-  hypergraph.updateTotalWeight(parallel_tag_t());
   return hypergraph;
 }
 
@@ -205,8 +212,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   // Construct compactified hypergraph
   DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
     num_hypernodes, num_hyperedges, edge_vector, hyperedge_weights.data(), hypernode_weights.data());
-  compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
-  compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
+  compactified_hypergraph._total_weight = hypergraph._total_weight;
 
   tbb::parallel_invoke([&] {
     // Set community ids

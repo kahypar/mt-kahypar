@@ -42,13 +42,15 @@ namespace mt_kahypar::ds {
           const HyperedgeWeight* hyperedge_weight,
           const HypernodeWeight* hypernode_weight,
           const bool stable_construction_of_incident_edges) {
+    if (edge_vector.size() != num_hyperedges) {
+      throw InvalidInputException("Number of hyperedges does not match length of input data!");
+    }
+
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
     hypergraph._hypernodes.resize(num_hypernodes + 1);
     hypergraph._hyperedges.resize(num_hyperedges + 1);
-
-    ASSERT(edge_vector.size() == num_hyperedges);
 
     // Compute number of pins per hyperedge and number
     // of incident nets per vertex
@@ -58,10 +60,16 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
+      if (num_pins_per_hyperedge[pos] == 0) {
+        throw InvalidInputException("Hyperedge " + STR(pos) + " is empty (hyperedges must contain at least 1 pin)");
+      }
+
       local_max_edge_size.local() = std::max(
               local_max_edge_size.local(), edge_vector[pos].size());
       for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < num_hypernodes, V(pin) << V(num_hypernodes));
+        if (pin >= num_hypernodes) {
+          throw InvalidInputException("Hyperedge " + STR(pos) + " contains invalid pin: " + STR(pin));
+        }
         ++num_incident_nets_per_vertex[pin];
       }
     });
@@ -121,7 +129,8 @@ namespace mt_kahypar::ds {
           // Add pin to incidence array
           hypergraph._incidence_array[incidence_array_pos++] = pin;
           // Add hyperedge he as a incident net to pin
-          const size_t incident_nets_pos = incident_net_prefix_sum[pin] + incident_nets_position[pin]++;
+          const size_t incident_nets_pos = incident_net_prefix_sum[pin] +
+                  incident_nets_position[pin].fetch_add(1, std::memory_order_relaxed);
           ASSERT(incident_nets_pos < incident_net_prefix_sum[pin + 1]);
           hypergraph._incident_nets[incident_nets_pos] = he;
         }

@@ -370,10 +370,11 @@ namespace mt_kahypar {
         EvoPartitioner<TypeTraits>::PartitionedHypergraph partitioned_hypergraph;
         // PartitionedHypergraph partitioned_hypergraph =
         //     Partitioner<TypeTraits>::partition(hypergraph_copy, ip_context, target_graph);
+        vec<EdgeMetadata> edge_md;
         if (context.partition.mode == Mode::direct) {
-            partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph_copy, context, target_graph);
+            partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph_copy, std::move(edge_md), context, target_graph);
         } else if (context.partition.mode == Mode::recursive_bipartitioning) {
-            partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph_copy, context, target_graph);
+            partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph_copy,std::move(edge_md), context, target_graph);
         } else if (context.partition.mode == Mode::deep_multilevel) {
             partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph_copy, context);
         } else {
@@ -382,7 +383,7 @@ namespace mt_kahypar {
         DBG << "DEBUG: generateIndividual: Partitioner finished.";
 
         // POSTPROCESSING
-        large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+        large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hypergraph);
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
         //Partitioner<TypeTraits>::forceFixedVertexAssignment(partitioned_hypergraph, context);
 

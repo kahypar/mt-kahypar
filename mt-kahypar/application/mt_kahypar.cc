@@ -78,9 +78,9 @@ int main(int argc, char* argv[]) {
   if constexpr (parallel::provides_hardware_information) {
     size_t num_available_cpus = parallel::num_hardware_cpus();
     if ( num_available_cpus < context.shared_memory.num_threads ) {
-      WARNING("There are currently only" << num_available_cpus << "cpus available."
-        << "Setting number of threads from" << context.shared_memory.num_threads
-        << "to" << num_available_cpus);
+      WARNING("There are currently only " << num_available_cpus << " cpus available. "
+        << "Setting number of threads from " << context.shared_memory.num_threads
+        << " to " << num_available_cpus);
       context.shared_memory.num_threads = num_available_cpus;
     }
   }
@@ -101,7 +101,8 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph = io::readInputFile(
       context.partition.graph_filename, context.partition.preset_type,
       context.partition.instance_type, context.partition.file_format,
-      context.preprocessing.stable_construction_of_incident_edges);
+      context.preprocessing.stable_construction_of_incident_edges,
+      /*remove_single_pin_hes=*/true, /*print_warnings=*/true);
   timer.stop_timer("io_hypergraph");
 
   // Read Target Graph
@@ -110,10 +111,20 @@ int main(int argc, char* argv[]) {
     if ( context.mapping.target_graph_file != "" ) {
       target_graph = std::make_unique<TargetGraph>(
         io::readInputFile<ds::StaticGraph>(
-          context.mapping.target_graph_file, FileFormat::Metis, true));
+          context.mapping.target_graph_file, FileFormat::Metis,
+          /*stable_construnction=*/true, /*remove_single_pin_hes=*/true, /*print_warnings=*/true));
     } else {
-      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
+      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph=<file>)!");
     }
+  }
+
+  // Read Frequencies
+  vec<EdgeMetadata> edge_metadata;
+  if ( context.partition.frequencies_filename != "" ) {
+    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, context.partition.frequencies_filename);
+  } else if ( context.partition.frequencies_default_file ) {
+    std::string frequencies_file = context.partition.graph_filename + ".freq.csv";
+    edge_metadata = io::getEdgeMetadataFromFile(hypergraph, frequencies_file);
   }
 
   if ( context.partition.fixed_vertex_filename != "" ) {
@@ -130,7 +141,7 @@ int main(int argc, char* argv[]) {
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
-    PartitionerFacade::partition(hypergraph, context, target_graph.get());
+    PartitionerFacade::partition(hypergraph, std::move(edge_metadata), context, target_graph.get());
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats

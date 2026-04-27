@@ -28,6 +28,8 @@
 
 #include "dynamic_graph_factory.h"
 
+#include <limits>
+
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 
@@ -68,11 +70,20 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HyperedgeWeight* edge_weight,
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
+  if (num_edges > std::numeric_limits<HyperedgeID>::max() / 2) {
+    std::string msg = std::string("number of edges overflows ID range (note: graph edges are duplicated, require +1 bit)");
+    if constexpr (sizeof(HyperedgeID) < 8) {
+      msg += "; build with -DKAHYPAR_USE_64_BIT_IDS=ON to support larger ID ranges";
+    }
+    throw InvalidInputException(msg);
+  }
+  if (edge_vector.size() != num_edges) {
+    throw InvalidInputException("Number of edges does not match length of input data!");
+  }
+
   DynamicGraph graph;
-  ASSERT(edge_vector.size() == num_edges);
   graph._num_edges = 2 * num_edges;
 
-  // TODO: calculate required id range
   tbb::parallel_invoke([&] {
     graph._nodes.resize(num_nodes + 1);
     tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID n) {
@@ -83,8 +94,6 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         node.setWeight(node_weight[n]);
       }
     });
-    // Compute total weight of graph
-    graph.updateTotalWeight(parallel_tag_t());
   }, [&] {
     graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
     if (stable_construction_of_incident_edges) {
@@ -97,8 +106,8 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
     graph._contraction_tree.initialize(num_nodes);
   });
 
-  // Compute total weight of the graph
-  graph.updateTotalWeight(parallel_tag_t());
+  // Compute total weight of graph
+  graph.computeAndSetTotalNodeWeight(parallel_tag_t());
   return graph;
 }
 
@@ -161,8 +170,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   // Construct compactified graph
   DynamicGraph compactified_graph = DynamicGraphFactory::construct_from_graph_edges(
     num_nodes, num_edges, edge_vector, edge_weights.data(), node_weights.data());
-  compactified_graph._removed_degree_zero_hn_weight = graph._removed_degree_zero_hn_weight;
-  compactified_graph._total_weight += graph._removed_degree_zero_hn_weight;
+  compactified_graph._total_weight = graph._total_weight;
 
   tbb::parallel_invoke([&] {
     // Set community ids

@@ -28,14 +28,19 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
+
+#include "growt/utils/hash/murmur2_hash.hpp"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace io {
   using Hyperedge = vec<HypernodeID>;
   using HyperedgeVector = vec<Hyperedge>;
+  using EdgeVector = vec<std::pair<HypernodeID, HypernodeID>>;
 
   void readHypergraphFile(const std::string& filename,
                           HyperedgeID& num_hyperedges,
@@ -44,17 +49,28 @@ namespace io {
                           HyperedgeVector& hyperedges,
                           vec<HyperedgeWeight>& hyperedges_weight,
                           vec<HypernodeWeight>& hypernodes_weight,
-                          const bool remove_single_pin_hes = true);
+                          const bool remove_single_pin_hes,
+                          const bool print_warnings);
 
+  template<typename EdgeT>
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
-                     HyperedgeVector& hyperedges,
+                     vec<EdgeT>& hyperedges,
                      vec<HyperedgeWeight>& hyperedges_weight,
                      vec<HypernodeWeight>& hypernodes_weight);
 
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);
+
+  void readFrequencyFile(const std::string& filename, ds::DynamicSparseMap<__uint128_t, float>& frequencies);
+
+  inline __uint128_t hashedEdgeKey(const utils_tm::hash_tm::murmur2_hash& hasher, HypernodeID u, HypernodeID v) {
+    // this is a bit ugly, but we need it to avoid collisions (since we don't have a good hashmap with a non-trivial hash function)
+    uint32_t u_val = u, v_val = v;
+    uint64_t key_left = (static_cast<uint64_t>(u_val) << 32) | static_cast<uint64_t>(v_val);
+    return (static_cast<__uint128_t>(key_left) << 64) | static_cast<__uint128_t>(hasher(key_left));
+  }
 
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);

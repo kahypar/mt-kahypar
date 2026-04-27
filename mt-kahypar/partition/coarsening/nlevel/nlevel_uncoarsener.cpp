@@ -26,7 +26,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel/nlevel_uncoarsener.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/progress_bar.h"
@@ -240,7 +240,8 @@ namespace mt_kahypar {
 
   template<typename TypeTraits>
   void NLevelUncoarsener<TypeTraits>::refineImpl() {
-    const double time_limit = Base::refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
+    const double time_limit = _uncoarseningData.round_coarsening_times.empty() ?
+      std::numeric_limits<double>::max() : Base::refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
     globalRefine(*_uncoarseningData.partitioned_hg, time_limit);
   }
 

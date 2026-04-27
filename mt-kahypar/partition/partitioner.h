@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -44,6 +45,7 @@ class Partitioner {
 
  public:
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                         vec<EdgeMetadata>&& edge_md,
                                          Context& context,
                                          TargetGraph* target_graph = nullptr);
 
@@ -51,10 +53,10 @@ class Partitioner {
                               Context& context,
                               TargetGraph* target_graph = nullptr);
 
-  protected: 
+  protected:
     static void configurePreprocessing(const Hypergraph& hypergraph, Context& context);
     static void setupContext(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
-    static void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
+    static std::vector<std::tuple<ds::Clustering, HypernodeID, double>> preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph);
     static void sanitize(
     Hypergraph& hypergraph,
     Context& context,

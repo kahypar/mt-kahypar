@@ -105,6 +105,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
+  three_phase_coarsener,
   deterministic_multilevel_coarsener,
   nlevel_coarsener,
   do_nothing_coarsener,
@@ -133,6 +134,28 @@ enum class AcceptancePolicy : uint8_t {
 enum class RatingPartitionPolicy : uint8_t {
   normal,
   evolutionary
+};
+
+enum class DegreeSimilarityPolicy : uint8_t {
+  preserve_rebalancing_nodes,
+  always_accept,
+  guided,
+  UNDEFINED
+};
+
+enum class GuidedEdgeScaling : uint8_t {
+  none,
+  linear,
+  quadratic,
+  cubic,
+  UNDEFINED
+};
+
+enum class GuidedEdgeAccumulation : uint8_t {
+  linear,
+  quadratic,
+  max,
+  UNDEFINED
 };
 
 enum class InitialPartitioningAlgorithm : uint8_t {
@@ -239,6 +262,12 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
 
 std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy);
 
+std::ostream & operator<< (std::ostream& os, const DegreeSimilarityPolicy& ds_policy);
+
+std::ostream & operator<< (std::ostream& os, const GuidedEdgeScaling& ge_scaling);
+
+std::ostream & operator<< (std::ostream& os, const GuidedEdgeAccumulation& ge_acc);
+
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
@@ -286,6 +315,12 @@ CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty);
 
 AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
+
+DegreeSimilarityPolicy degreeSimilarityFromString(const std::string& ds);
+
+GuidedEdgeScaling guidedEdgeScalingFromString(const std::string& ds);
+
+GuidedEdgeAccumulation guidedEdgeAccumulationFromString(const std::string& ds);
 
 RatingFunction ratingFunctionFromString(const std::string& function);
 

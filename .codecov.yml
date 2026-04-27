@@ -9,6 +9,7 @@ coverage:
         target: 0%
 ignore:
   - "external_tools/kahypar/**/*"  # ignore KaHyPar
+  - "build/_deps/**/*"
   - "tests/**/*"
   - "tools/*"
   - "python/**/*"

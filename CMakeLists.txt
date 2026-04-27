@@ -68,6 +68,7 @@ target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtK
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
                            KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
                            KAHYPAR_ENABLE_SOED_METRIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+set_source_files_properties(${CMAKE_SOURCE_DIR}/mt-kahypar/partition/coarsening/multilevel/ml/mlp.cpp PROPERTIES COMPILE_OPTIONS "-mfma")
 # building shared libraries requires position independent code
 if(BUILD_SHARED_LIBS)
   set_target_properties(MtKaHyPar-LibraryBuildSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -311,14 +312,7 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   endif()
 endif()
 
-# check this after include(CheckSSE4_2) so BUILTIN_POPCNT is available
-if (NOT KAHYPAR_DISABLE_GROWT AND KAHYPAR_ENABLE_STEINER_TREE_METRIC
-    AND KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
-    # growt requires SSE instructions
-    set(KAHYPAR_USE_GROWT TRUE)
-else()
-    set(KAHYPAR_USE_GROWT FALSE)
-endif()
+set(KAHYPAR_USE_GROWT TRUE)
 
 if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>

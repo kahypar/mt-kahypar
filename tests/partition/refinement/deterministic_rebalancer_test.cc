@@ -90,10 +90,10 @@ class DeterministicRebalancerTest : public Test {
   void constructFromFile() {
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true);
+        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true, true, true);
     } else {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
+        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
     }
   }
 

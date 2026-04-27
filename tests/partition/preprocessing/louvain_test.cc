@@ -62,7 +62,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph> {
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readInputFile<Hypergraph>(
-      context.partition.graph_filename, FileFormat::hMetis, true);
+      context.partition.graph_filename, FileFormat::hMetis, true, true, true);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   }
 
@@ -189,7 +189,7 @@ TEST_F(ALouvain, KarateClubTest) {
       communities = run_parallel_louvain(*karate_club_graph, context, true);
     });
 #else
-    ds::Clustering communities = sequential_arena.execute([&] {
+     std::vector<std::tuple<ds::Clustering, HypernodeID, double>> communities = sequential_arena.execute([&] {
       return run_parallel_louvain(*karate_club_graph, context, true);
     });
 #endif
@@ -198,8 +198,8 @@ TEST_F(ALouvain, KarateClubTest) {
 
   karate_club_graph = std::make_unique<Graph>(
     karate_club_hg, LouvainEdgeWeight::uniform, true);
-  ASSERT_EQ(expected_comm, communities);
-  ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),
+  ASSERT_EQ(expected_comm, std::get<0>(communities[communities.size()-1]));
+  ASSERT_EQ(metrics::modularity(*karate_club_graph, std::get<0>(communities[communities.size()-1])),
             metrics::modularity(*karate_club_graph, expected_comm));
 }
 

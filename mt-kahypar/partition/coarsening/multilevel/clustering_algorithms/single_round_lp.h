@@ -1,0 +1,89 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * This file is part of Mt-KaHyPar.
+ *
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2023 Nikolai Maas <nikolai.maas@kit.edu>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ ******************************************************************************/
+
+#pragma once
+
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
+
+#include "mt-kahypar/partition/coarsening/multilevel/clustering_context.h"
+#include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
+#include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
+#include "mt-kahypar/partition/coarsening/multilevel/num_nodes_tracker.h"
+
+
+namespace mt_kahypar {
+
+template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy>
+class SingleRoundLP {
+  using Rating = MultilevelVertexPairRater::Rating;
+
+ public:
+  SingleRoundLP(const HypernodeID /*num_nodes*/, const Context& context):
+    _context(context) { }
+
+  template<typename Hypergraph, typename DegreeSimilarityPolicy>
+  void performClustering(const Hypergraph& hg,
+                         const parallel::scalable_vector<HypernodeID>& node_mapping,
+                         const DegreeSimilarityPolicy& similarity_policy,
+                         ClusteringContext<Hypergraph>& cc,
+                         bool has_fixed_vertices) {
+    if (has_fixed_vertices) {
+      performClusteringImpl<true>(hg, node_mapping, similarity_policy, cc);
+    } else {
+      performClusteringImpl<false>(hg, node_mapping, similarity_policy, cc);
+    }
+  }
+
+  template<bool has_fixed_vertices, typename Hypergraph, typename DegreeSimilarityPolicy>
+  void performClusteringImpl(const Hypergraph& hg,
+                             const parallel::scalable_vector<HypernodeID>& node_mapping,
+                             const DegreeSimilarityPolicy& similarity_policy,
+                             ClusteringContext<Hypergraph>& cc) {
+    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
+    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID id) {
+      ASSERT(id < node_mapping.size());
+      const HypernodeID hn = node_mapping[id];
+      // We perform rating if ...
+      //  1.) The contraction limit of the current level is not reached
+      //  2.) Vertex hn is not matched before
+      if (hg.nodeIsEnabled(hn) && cc.shouldContinue() && cc.vertexIsUnmatched(hn)) {
+        const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>(
+                                hg, hn, similarity_policy, has_fixed_vertices);
+        if (rating.target != kInvalidHypernode) {
+          cc.matchVertices(hg, hn, rating.target, has_fixed_vertices);
+        }
+      }
+    });
+  }
+
+ private:
+  const Context& _context;
+};
+
+}  // namespace mt_kahypar

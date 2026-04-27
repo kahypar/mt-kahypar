@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
       context.partition.graph_filename, PresetType::default_preset,
-      InstanceType::hypergraph, FileFormat::hMetis, true);
+      InstanceType::hypergraph, FileFormat::hMetis, true, true, true);
   Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 

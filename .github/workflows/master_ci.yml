@@ -124,8 +124,8 @@ jobs:
       - name: Report Code Coverage
         run: |
           cd build
-          lcov --directory . --capture --output-file coverage.info --exclude '**/external_tools/**/*' --exclude '**/tests/**/*' --exclude '**/googletest-src/**/*'
-          lcov --remove coverage.info '/usr/**/*' '**/external_tools/**/*' '**/tests/**/*' --output-file coverage.info
+          lcov --directory . --capture --output-file coverage.info --exclude '**/external_tools/**/*' --exclude '**/tests/**/*' --exclude '**/googletest-src/**/*' --exclude '**/_deps/**/*'
+          lcov --remove coverage.info '/usr/**/*' '**/external_tools/**/*' '**/tests/**/*' '**/_deps/**/*' --output-file coverage.info
           lcov --list coverage.info
           gcovr -r ../ -x > report.xml
           cd ..

@@ -79,7 +79,7 @@ TYPED_TEST(AFMStrategy, FindNextMove) {
   context.partition.k = k;
   context.partition.epsilon = 0.03;
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {

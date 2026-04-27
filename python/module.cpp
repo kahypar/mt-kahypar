@@ -339,7 +339,7 @@ Construct a target graph.
         unused(context);
         return mt_kahypar_py_target_graph_t{
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
-            io::readInputFile<ds::StaticGraph>(file_name, file_format, true))),
+            io::readInputFile<ds::StaticGraph>(file_name, file_format, true, true, context.partition.enable_logging))),
             STATIC_GRAPH };
       }, "Reads a target graph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::Metis);

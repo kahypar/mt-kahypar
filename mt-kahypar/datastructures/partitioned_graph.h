@@ -497,6 +497,14 @@ private:
     _hg->restoreLargeEdge(he);
   }
 
+  /*!
+   * Restores a single pin hyperedge previously removed from the hypergraph.
+   */
+  void restoreSinglePinEdge(const HyperedgeID& he) {
+    throw UnsupportedOperationException(
+      "restoreSinglePinEdge is not supported in partitioned graph");
+  }
+
   template<typename GainCache>
   void restoreSinglePinAndParallelNets(const vec<typename Hypergraph::ParallelHyperedge>& hes_to_restore,
                                        GainCache& gain_cache) {

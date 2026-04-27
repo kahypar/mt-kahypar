@@ -1,9 +1,13 @@
 set(MultilevelCoarseningSources
-        deterministic_multilevel_coarsener.cpp
-        multilevel_uncoarsener.cpp)
+        multilevel/deterministic_multilevel_coarsener.cpp
+        multilevel/multilevel_uncoarsener.cpp
+        multilevel/concurrent_clustering_data.cpp
+        multilevel/ml/compute_ml_results.cpp
+        multilevel/ml/compute_features.cpp
+        multilevel/ml/mlp.cpp)
 
 set(NLevelCoarseningSources
-        nlevel_uncoarsener.cpp)
+        nlevel/nlevel_uncoarsener.cpp)
 
 target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelCoarseningSources})
 

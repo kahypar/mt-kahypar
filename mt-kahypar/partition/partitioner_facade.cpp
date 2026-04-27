@@ -45,6 +45,7 @@ namespace internal {
 
   template<typename TypeTraits>
   mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hypergraph,
+                                                vec<EdgeMetadata>&& edge_md,
                                                 Context& context,
                                                 TargetGraph* target_graph) {
     using Hypergraph = typename TypeTraits::Hypergraph;
@@ -75,7 +76,7 @@ namespace internal {
         EvoPartitioner<TypeTraits>::partition(hg, context, target_graph);
     } else {
       partitioned_hg =
-        Partitioner<TypeTraits>::partition(hg, context, target_graph);
+        Partitioner<TypeTraits>::partition(hg, std::move(edge_md), context, target_graph);
     }
 
     return mt_kahypar_partitioned_hypergraph_t {
@@ -122,6 +123,7 @@ namespace internal {
 } // namespace internal
 
   mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
+                                                                   vec<EdgeMetadata>&& edge_md,
                                                                    Context& context,
                                                                    TargetGraph* target_graph) {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
@@ -130,21 +132,21 @@ namespace internal {
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
-        return internal::partition<StaticGraphTypeTraits>(hypergraph, context, target_graph);
+        return internal::partition<StaticGraphTypeTraits>(hypergraph, std::move(edge_md), context, target_graph);
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return internal::partition<StaticHypergraphTypeTraits>(hypergraph, std::move(edge_md), context, target_graph);
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
-        return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, std::move(edge_md), context, target_graph);
       #endif
       #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
-        return internal::partition<DynamicGraphTypeTraits>(hypergraph, context, target_graph);
+        return internal::partition<DynamicGraphTypeTraits>(hypergraph, std::move(edge_md), context, target_graph);
       #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, std::move(edge_md), context, target_graph);
       #endif
       default:
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };

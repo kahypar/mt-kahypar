@@ -150,12 +150,16 @@
   std::exit(-1)
 
 #ifdef MT_KAHYPAR_LIBRARY_MODE
+#define MT_KAHYPAR_IS_LIBRARY_MODE true
+
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
   std::stringstream ss;                                                        \
   ss << error_msg;                                                             \
   throw InvalidInputException(ss.str())
 #else
+#define MT_KAHYPAR_IS_LIBRARY_MODE false
+
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
   WARNING(warning_msg);                                                        \

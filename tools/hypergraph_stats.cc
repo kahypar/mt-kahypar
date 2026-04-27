@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar::io::readInputFile(
       context.partition.graph_filename, PresetType::default_preset,
-      InstanceType::hypergraph, context.partition.file_format, true);
+      InstanceType::hypergraph, context.partition.file_format, true, true, true);
   Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
   std::vector<HypernodeID> he_sizes;

@@ -130,6 +130,7 @@ namespace mt_kahypar {
       str << "  Number of Subrounds:                " << params.num_sub_rounds_deterministic << std::endl;
       str << "  Resolve Node Swaps:                 " << std::boolalpha << params.det_resolve_swaps << std::endl;
     } else {
+      str << "  Target Shrink Factor:               " << params.target_shrink_factor << std::endl;
       str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     }
     if ( verbose && (params.algorithm == CoarseningAlgorithm::multilevel_coarsener
@@ -469,7 +470,7 @@ namespace mt_kahypar {
       }
       if ( !target_graph ) {
         partition.objective = Objective::km1;
-        INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
+        if (partition.enable_logging) INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
       } else {
         if ( partition.mode == Mode::deep_multilevel ) {
           ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for steiner tree metric."
@@ -488,7 +489,7 @@ namespace mt_kahypar {
       }
       if (mapping.max_steiner_tree_size < 2) {
         mapping.max_steiner_tree_size = 2;
-        INFO("For steiner tree metric, max-steiner-tree-size needs to be at least 2. Setting value to 2.");
+        if (partition.enable_logging) INFO("For steiner tree metric, max-steiner-tree-size needs to be at least 2. Setting value to 2.");
       }
     }
 
@@ -496,23 +497,27 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
+      auto print_warning = [&](const char* msg) {
+        if (partition.enable_logging || !MT_KAHYPAR_IS_LIBRARY_MODE) WARNING(msg);
+      };
+
       // ensure deterministic construction
       if ( !preprocessing.stable_construction_of_incident_edges ) {
         preprocessing.stable_construction_of_incident_edges = true;
-        WARNING("Enabling stable construction of incident edges since deterministic mode is active");
+        print_warning("Enabling stable construction of incident edges since deterministic mode is active");
       }
 
       // disable adaptive IP
       if ( initial_partitioning.use_adaptive_ip_runs ) {
         initial_partitioning.use_adaptive_ip_runs = false;
-        WARNING("Disabling adaptive initial partitioning runs since deterministic mode is active");
+        print_warning("Disabling adaptive initial partitioning runs since deterministic mode is active");
       }
 
       // disable FM since there is no deterministic version
       if ( refinement.fm.algorithm != FMAlgorithm::do_nothing || initial_partitioning.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         refinement.fm.algorithm = FMAlgorithm::do_nothing;
         initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
-        WARNING("Disabling FM refinement since deterministic mode is active");
+        print_warning("Disabling FM refinement since deterministic mode is active");
       }
 
       // switch to deterministic algorithms
@@ -559,7 +564,7 @@ namespace mt_kahypar {
       }
 
       if (switched) {
-        WARNING("Switching to deterministic algorithm variants since deterministic mode is active");
+        print_warning("Switching to deterministic algorithm variants since deterministic mode is active");
       }
     }
 
@@ -614,7 +619,7 @@ namespace mt_kahypar {
     } else if ( partition.instance_type == InstanceType::graph ) {
       if ( partition.objective != Objective::cut && partition.objective != Objective::steiner_tree ) {
         partition.objective = Objective::cut;
-        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
+        if (partition.enable_logging) INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
       }
       if ( partition.objective == Objective::cut ) {
         partition.gain_policy = GainPolicy::cut_for_graphs;

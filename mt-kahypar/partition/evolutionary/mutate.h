@@ -57,8 +57,9 @@ namespace mt_kahypar::mutate {
     if (!mut_context.partition.use_individual_part_weights) {
       mut_context.partition.max_part_weights.clear();
     }
+    vec<EdgeMetadata> edge_md;
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Partitioner<TypeTraits>::partition(
-        hypergraph, mut_context, target_graph);
+        hypergraph, std::move(edge_md), mut_context, target_graph);
 
     return Individual(partitioned_hypergraph, mut_context);
   }

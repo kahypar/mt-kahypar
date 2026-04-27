@@ -84,7 +84,7 @@ private:
 
   std::unique_ptr<IFlowRefiner> constructFlowRefiner();
 
-  HyperedgeWeight applyMoves(const BlockPair& blocks, MoveSequence& sequence, PartitionedHypergraph& phg);
+  HyperedgeWeight applyMoves(const BlockPair& blocks, const MoveSequence& sequence, PartitionedHypergraph& phg);
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 

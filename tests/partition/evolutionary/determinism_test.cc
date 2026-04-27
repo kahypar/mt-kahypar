@@ -62,7 +62,7 @@ class EvoDeterminismTest : public Test {
 	context.evolutionary.time_elapsed = std::chrono::milliseconds(0);
 
 	hypergraph = io::readInputFile<Hypergraph>(context.partition.graph_filename,
-											   FileFormat::hMetis, true);
+											   FileFormat::hMetis, true, true, true);
 	partitioned_hypergraph = PartitionedHypergraph(
 		context.partition.k, hypergraph, parallel_tag_t());
   }

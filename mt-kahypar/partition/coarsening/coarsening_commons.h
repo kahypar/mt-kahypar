@@ -29,11 +29,14 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
+
+using EdgeMetadata = float;
 
 template<typename TypeTraits>
 class Level {
@@ -43,9 +46,11 @@ class Level {
 public:
   explicit Level(Hypergraph&& contracted_hypergraph,
                  parallel::scalable_vector<HypernodeID>&& communities,
+                 parallel::scalable_vector<EdgeMetadata>&& edge_md,
                  double coarsening_time) :
     _contracted_hypergraph(std::move(contracted_hypergraph)),
     _communities(std::move(communities)),
+    _edge_metadata(std::move(edge_md)),
     _coarsening_time(coarsening_time) { }
 
   Hypergraph& contractedHypergraph() {
@@ -54,6 +59,10 @@ public:
 
   const Hypergraph& contractedHypergraph() const {
     return _contracted_hypergraph;
+  }
+
+  const parallel::scalable_vector<EdgeMetadata>& edgeMetadata() const {
+    return _edge_metadata;
   }
 
   // ! Maps a global vertex id of the representative hypergraph
@@ -81,6 +90,8 @@ private:
   // ! Defines the communities that are contracted
   // ! in the coarse hypergraph
   parallel::scalable_vector<HypernodeID> _communities;
+  // ! Metadata for guided coarsening (frequencies / ML results)
+  parallel::scalable_vector<EdgeMetadata> _edge_metadata;
   // ! Time to create the coarsened hypergraph
   // ! (includes coarsening + contraction time)
   double _coarsening_time;
@@ -95,9 +106,10 @@ class UncoarseningData {
   using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
 
 public:
-  explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
+  explicit UncoarseningData(bool n_level, Hypergraph& hg, parallel::scalable_vector<EdgeMetadata>&& edge_md, const Context& context) :
     nlevel(n_level),
     _hg(hg),
+    _edge_metadata(std::move(edge_md)),
     _context(context) {
       if (n_level) {
         compactified_hg = std::make_unique<Hypergraph>();
@@ -167,14 +179,21 @@ public:
 
   void performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
-          const HighResClockTimepoint& round_start) {
+          const HighResClockTimepoint& round_start, bool accumulate_metadata) {
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    Hypergraph contracted_hg = current_hg.contract(communities, deterministic);
+    Hypergraph contracted_hg;
+    vec<EdgeMetadata> contracted_md;
+    if constexpr (Hypergraph::is_graph && Hypergraph::is_static_hypergraph) {
+      contracted_hg = current_hg.contract(communities, deterministic, accumulate_metadata ? coarsestEdgeMetadata() : vec<EdgeMetadata>{}, &contracted_md);
+    } else {
+      ALWAYS_ASSERT(!accumulate_metadata);
+      contracted_hg = current_hg.contract(communities, deterministic);
+    }
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-    hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
+    hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), std::move(contracted_md), elapsed_time);
   }
 
   PartitionedHypergraph& coarsestPartitionedHypergraph() {
@@ -183,6 +202,19 @@ public:
     } else {
       return *partitioned_hg;
     }
+  }
+
+  const vec<EdgeMetadata>& coarsestEdgeMetadata() const {
+    if (!hierarchy.empty()) {
+      return hierarchy.back().edgeMetadata();
+    } else {
+      return _edge_metadata;
+    }
+  }
+
+  void setEdgeMetadata(vec<EdgeMetadata>&& metadata) {
+    ALWAYS_ASSERT(_edge_metadata.empty());
+    _edge_metadata = std::move(metadata);
   }
 
   // Multilevel Data
@@ -213,6 +245,7 @@ public:
 
 private:
   Hypergraph& _hg;
+  vec<EdgeMetadata> _edge_metadata;
   const Context& _context;
 };
 

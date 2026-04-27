@@ -60,7 +60,7 @@ class EvoOperatorTest : public Test {
 
 	hypergraph = io::readInputFile<Hypergraph>(context.partition.graph_filename,
 											   FileFormat::hMetis,
-											   true);
+											   true, true, true);
   }
 
   Hypergraph hypergraph;

@@ -245,6 +245,16 @@ namespace mt_kahypar {
       "Fixed vertex file: allows to pre-assign vertices to a block."
     )->check(CLI::ExistingFile);
     app.add_option(
+      "--frequencies",
+      context.partition.frequencies_filename,
+      "Frequencies filename"
+    )->check(CLI::ExistingFile);
+    app.add_flag(
+      "--frequencies-default-file",
+      context.partition.frequencies_default_file,
+      "Use default frequencies file (<graph_file>.freq.csv)"
+    );
+    app.add_option(
       "--part-weights",
       context.partition.max_part_weights,
       "Use the specified individual part weights instead of epsilon."
@@ -461,6 +471,7 @@ namespace mt_kahypar {
       },
       "Coarsening Algorithm:\n"
       " - multilevel_coarsener\n"
+      " - three_phase_coarsener\n"
       " - nlevel_coarsener\n"
       " - deterministic_multilevel_coarsener\n"
       " - do_nothing"
@@ -497,6 +508,26 @@ namespace mt_kahypar {
       context.coarsening.maximum_shrink_factor,
       "Maximum factor a hypergraph is allowed to shrink in a clustering pass"
     )->capture_default_str();
+    app.add_option(
+      "--c-target-shrink-factor",
+      context.coarsening.target_shrink_factor,
+      "If the hypergraph shrinks less than this factor in a clustering pass, additional techniques (such as two-hop clustering) are used."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-full-shrinkage",
+      context.coarsening.two_hop_full_shrinkage,
+      "Use full hierarchy contraction factor for two hop coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-restrict-hyperedges",
+      context.coarsening.two_hop_restrict_hyperedges,
+      "Two hop coarsening: require that considered hyperedges are only incident to one cluster."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-contract-communities",
+      context.coarsening.two_hop_contract_communities,
+      "Two hop coarsening: allow contraction of communities as last measure."
+    )->capture_default_str();
     app.add_option_function<std::string>(
       "--c-rating-score", [&](const std::string& s) {
         context.coarsening.rating.rating_function = ratingFunctionFromString(s);
@@ -528,6 +559,13 @@ namespace mt_kahypar {
       #endif
       "- best_prefer_unmatched"
     )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-rating-degree-similarity-policy", [&](const std::string& s) {
+        context.coarsening.rating.degree_similarity_policy = degreeSimilarityFromString(s);
+      },
+      "Policy that determines which contractions between low and high degree nodes are accepted:\n"
+      "- preserve_rebalancing_nodes"
+    )->capture_default_str();
     app.add_option(
       "--c-vertex-degree-sampling-threshold",
       context.coarsening.vertex_degree_sampling_threshold,
@@ -543,6 +581,84 @@ namespace mt_kahypar {
       "--c-resolve-swaps",
       context.coarsening.det_resolve_swaps,
       "Whether to resolve node swaps in a postprocessing step for deterministic coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-required-connectivity",
+      context.coarsening.two_hop_required_connectivity,
+      "Only consider nodes for two-hop coarsening if at least this fraction of their incident edge weight "
+      "is incident to a single cluster."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-cluster-size",
+      context.coarsening.two_hop_cluster_size,
+      "Two-hop coarsening: maximum number of degree one nodes in one cluster."
+    )->capture_default_str();
+    app.add_option(
+      "--c-two-hop-degree-threshold",
+      context.coarsening.two_hop_degree_threshold,
+      "If set, then vertices with more neighbors than the provided threshold are ignored during two-hop coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-incident-weight-scaling",
+      context.coarsening.rating.incident_weight_scaling_constant,
+      "Scales how incident weight is computed when determining similarity thresholds."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-preserve-nodes-scaling-factor",
+      context.coarsening.rating.preserve_nodes_scaling_factor,
+      "Scales the similarity threshold for rejecting contractions (lower = more accepting)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-preserve-nodes-relative-weight-limit",
+      context.coarsening.rating.preserve_nodes_relative_weight_limit,
+      "Relative total weight of hypergraph that is acceptable to consider as one rebalancing cluster."
+    )->capture_default_str();
+    app.add_option(
+      "--c-sim-acceptance-limit-bound",
+      context.coarsening.rating.acceptance_limit_bound,
+      "Lower bound for similarity acceptance limit (nodes with at most this difference are always accepted)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-by-integrated-model",
+      context.coarsening.rating.guiding_by_integrated_model,
+      "If true, use the integrated model to perform guided coarsening."
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-guided-edge-scaling", [&](const std::string& s) {
+        context.coarsening.rating.ge_scaling = guidedEdgeScalingFromString(s);
+      },
+      "Whether guided coarsening should also scale edge weights for non-forbidden edges."
+    )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--c-guided-edge-accumulation", [&](const std::string& s) {
+        context.coarsening.rating.ge_accumulation = guidedEdgeAccumulationFromString(s);
+      },
+      "Accumulation operator for edge metadata in guided coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-threshold",
+      context.coarsening.rating.guiding_treshold,
+      "Treshold for guided coarsening (e.g. by ML)."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-threshold-max",
+      context.coarsening.rating.guiding_treshold_max,
+      "Max. treshold for guided coarsening when using multiple LP subrounds."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guided-subrounds",
+      context.coarsening.rating.num_guided_subrounds,
+      "Number of LP subrounds for guided coarsening."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guided-coarsening-levels",
+      context.coarsening.rating.guided_coarsening_levels,
+      "The number of coarsening levels where guided coarsening is applied."
+    )->capture_default_str();
+    app.add_option(
+      "--c-guiding-delete-edges",
+      context.coarsening.rating.consider_edges_deleted,
+      "If true, edges over the threshold are considered deleted instead of blocking the whole contraction."
     )->capture_default_str();
   }
 

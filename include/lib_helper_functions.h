@@ -27,6 +27,7 @@
 #pragma once
 
 #include <chrono>
+#include <limits>
 #include <string>
 #include <sstream>
 #include <type_traits>
@@ -34,6 +35,7 @@
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/conversion.h"
@@ -44,6 +46,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/deduplicate.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/command_line_options.h"
@@ -79,8 +82,8 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
     if ( num_available_cpus < num_threads ) {
       P = num_available_cpus;
       if (print_warnings) {
-        WARNING("There are currently only" << num_available_cpus << "cpus available."
-          << "Setting number of threads from" << num_threads << "to" << num_available_cpus);
+        WARNING("There are currently only " << num_available_cpus << " cpus available. "
+          << "Setting number of threads from " << num_threads << " to " << num_available_cpus);
       }
     }
   }
@@ -129,6 +132,17 @@ bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypa
              partitioned_hg.type == N_LEVEL_HYPERGRAPH_PARTITIONING;
   }
   return false;
+}
+
+template<typename OutType, typename InType>
+void check_overflow(const InType& value, const char* what) {
+  if (value > static_cast<InType>(std::numeric_limits<OutType>::max())) {
+    std::string msg = std::string(what) + " overflows input range of internal data type: " + STR(value);
+    if constexpr (sizeof(OutType) < 8) {
+      msg += " (build with -DKAHYPAR_USE_64_BIT_IDS=ON to support larger ID ranges)";
+    }
+    throw InvalidInputException(msg);
+  }
 }
 
 void check_if_all_relevant_parameters_are_set(Context& context) {
@@ -290,7 +304,8 @@ mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
                                              const Context& context,
                                              const InstanceType instance_type,
                                              const FileFormat file_format) {
-  return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format, true);
+  return io::readInputFile(file_name, context.partition.preset_type, instance_type, file_format,
+                           /*stable_construnction=*/true, /*remove_single_pin_hes=*/true, context.partition.enable_logging);
 }
 
 mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
@@ -299,6 +314,9 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const vec<vec<HypernodeID>>& edge_vector,
                                           const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                           const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of vertices");
+  check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
+
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:
@@ -320,12 +338,58 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
   throw InvalidParameterException("Invalid preset type.");
 }
 
+mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& context,
+                                                               const mt_kahypar_hypernode_id_t num_vertices,
+                                                               const mt_kahypar_hyperedge_id_t num_hyperedges,
+                                                               const size_t* hyperedge_indices,
+                                                               const mt_kahypar_hypernode_id_t* hyperedges,
+                                                               const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
+                                                               const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of vertices");
+  check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
+  if (hyperedge_indices[0] != 0) {
+    throw InvalidInputException("First entry in hyperedge indices must be 0, but is: " + STR(hyperedge_indices[0]));
+  }
+
+  // Transform adjacence array into adjacency list
+  size_t num_duplicated_pins = 0;
+  size_t num_hes_with_duplicated_pins = 0;
+  vec<vec<HypernodeID>> edge_vector(num_hyperedges);
+  tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
+    const char* help_msg = "(Note: the last element of 'hyperedge_indices' must be a sentinel with value "
+      "equal to the number of pins; hyperedge_indices has one more element than the number of hyperedges)";
+    if (hyperedge_indices[he + 1] < hyperedge_indices[he]) {
+      throw InvalidInputException(std::string("Hyperedge indices must be in ascending order ") + help_msg);
+    } else if (hyperedge_indices[he + 1] - hyperedge_indices[he] > num_vertices) {
+      throw InvalidInputException("Hyperedge " + STR(he) + " has too many entries " + help_msg);
+    }
+
+    const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
+    edge_vector[he].resize(num_pins);
+    for ( size_t i = 0; i < num_pins; ++i ) {
+      mt_kahypar_hypernode_id_t pin = hyperedges[hyperedge_indices[he] + i];
+      check_overflow<HypernodeID>(pin, "pin");
+      edge_vector[he][i] = pin;
+    }
+
+    utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
+  });
+
+  if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
+    WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
+  }
+  return create_hypergraph(context, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
+}
+
 mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const mt_kahypar_hypernode_id_t num_vertices,
                                      const mt_kahypar_hyperedge_id_t num_edges,
                                      const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
                                      const mt_kahypar_hyperedge_weight_t* edge_weights,
                                      const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  check_overflow<HypernodeID>(num_vertices, "number of nodes");
+  check_overflow<HyperedgeID>(num_edges, "number of edges");
+
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:

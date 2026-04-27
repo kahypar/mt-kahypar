@@ -160,17 +160,18 @@ namespace mt_kahypar {
 
     timer.start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
     const HypernodeID num_removed_large_hyperedges =
-            large_he_remover.removeLargeHyperedges(hypergraph);
+            large_he_remover.removeSinglePinAndLargeHyperedges(hypergraph);
     timer.stop_timer("large_hyperedge_removal");
 
-    const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
+    const HyperedgeID total_removed_hes = hypergraph.numRemovedHyperedges();
+    const HyperedgeID num_removed_single_node_hes = total_removed_hes - num_removed_large_hyperedges;
     if (context.partition.enable_logging && context.partition.verbose_logging &&
         ( num_removed_single_node_hes > 0 ||
           num_removed_degree_zero_hypernodes > 0 ||
           num_removed_large_hyperedges > 0 )) {
       LOG << "Performed single-node/large HE removal and degree-zero HN contractions:";
       LOG << "\033[1m\033[31m" << " # removed"
-          << num_removed_single_node_hes << "single-pin hyperedges during hypergraph file parsing"
+          << num_removed_single_node_hes << "single-pin hyperedges"
           << "\033[0m";
       LOG << "\033[1m\033[31m" << " # removed"
           << num_removed_large_hyperedges << "large hyperedges with |e| >" << large_he_remover.largeHyperedgeThreshold() << "\033[0m";
@@ -241,7 +242,7 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
-  void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
@@ -249,12 +250,13 @@ namespace mt_kahypar {
     if ( context.preprocessing.use_community_detection ) {
       timer.start_timer("detect_graph_structure", "Detect Graph Structure");
       is_graph = isGraph(hypergraph);
-      if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
-        use_community_detection = !isMeshGraph(hypergraph);
-      }
+      // if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
+      //   use_community_detection = !isMeshGraph(hypergraph);
+      // }
       timer.stop_timer("detect_graph_structure");
     }
 
+    std::vector<std::tuple<ds::Clustering, HypernodeID, double>> community_stack;
     if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
@@ -266,9 +268,10 @@ namespace mt_kahypar {
       }
       timer.stop_timer("construct_graph");
       timer.start_timer("perform_community_detection", "Perform Community Detection");
-      ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
+      community_stack = community_detection::run_parallel_louvain(graph, context);
+      ds::Clustering& communities = std::get<0>(community_stack.back());
       graph.restrictClusteringToHypernodes(hypergraph, communities);
-      hypergraph.setCommunityIDs(std::move(communities));
+      hypergraph.setCommunityIDs(ds::Clustering(communities));  // intentional copy
       timer.stop_timer("perform_community_detection");
       timer.stop_timer("community_detection");
 
@@ -278,6 +281,8 @@ namespace mt_kahypar {
     precomputeSteinerTrees(hypergraph, target_graph, context);
 
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+    return community_stack;
   }
 
   template<typename PartitionedHypergraph>
@@ -309,8 +314,7 @@ namespace mt_kahypar {
 
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
-    Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
-
+    Hypergraph& hypergraph, vec<EdgeMetadata>&& edge_md, Context& context, TargetGraph* target_graph) {
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 
@@ -333,16 +337,20 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, target_graph);
+    auto community_stack = preprocess(hypergraph, context, target_graph);
+    while (community_stack.size() < 3) {
+      community_stack.insert(community_stack.begin(), community_stack.front());
+    }
+    context.preprocessing.community_stack = &community_stack;
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
     if (context.partition.mode == Mode::direct) {
-      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
+      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, std::move(edge_md), context, target_graph);
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
-      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, target_graph);
+      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, std::move(edge_md), context, target_graph);
     } else if (context.partition.mode == Mode::deep_multilevel) {
       ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
@@ -367,7 +375,7 @@ namespace mt_kahypar {
 
     // ################## POSTPROCESSING ##################
     timer.start_timer("postprocessing", "Postprocessing");
-    large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
+    large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     forceFixedVertexAssignment(partitioned_hypergraph, context);
     timer.stop_timer("postprocessing");
@@ -429,7 +437,7 @@ namespace mt_kahypar {
 
     // ################## POSTPROCESSING ##################
     timer.start_timer("postprocessing", "Postprocessing");
-    large_he_remover.restoreLargeHyperedges(partitioned_hg);
+    large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hg);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
     forceFixedVertexAssignment(partitioned_hg, context);
     timer.stop_timer("postprocessing");
@@ -468,8 +476,8 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits>
-  void Partitioner<TypeTraits>::preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
-    ::mt_kahypar::preprocess(hypergraph, context, target_graph);
+  std::vector<std::tuple<ds::Clustering, HypernodeID, double>> Partitioner<TypeTraits>::preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+    return mt_kahypar::preprocess(hypergraph, context, target_graph);
   }
 
   template<typename TypeTraits>
