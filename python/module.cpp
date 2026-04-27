@@ -520,7 +520,7 @@ corresponding node or -1 if the node is not fixed.
       [&](mt_kahypar_hypergraph_t hypergraph, const Context& context) {
         return lib::partition(hypergraph, context);
       }, "Partitions the hypergraph with the parameters given in the partitioning context",
-      py::arg("context"))
+      py::arg("context"), py::keep_alive<0, 1>())
     .def("map_onto_graph",
       [&](mt_kahypar_hypergraph_t hypergraph, mt_kahypar_py_target_graph_t graph, const Context& context) {
         TargetGraph target_graph(target_graph_cast(graph).copy());
@@ -534,7 +534,7 @@ corresponding node or -1 if the node is not fixed.
   that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
   is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
   processors do not communicate directly with each other or different speeds.
-          )pbdoc", py::arg("target_graph"), py::arg("context"))
+          )pbdoc", py::arg("target_graph"), py::arg("context"), py::keep_alive<0, 1>())
   .def("create_partitioned_hypergraph",
     [&](mt_kahypar_hypergraph_t hypergraph,
         const Context& context,
