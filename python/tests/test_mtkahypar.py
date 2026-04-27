@@ -42,6 +42,10 @@ def _make_partitioned_hg(context):
   hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
   return hypergraph.partition(context)
 
+def _make_mapped_hg(context, target_graph):
+  hypergraph = mtk.hypergraph_from_file(mydir + "/test_instances/ibm01.hgr", context)
+  return hypergraph.map_onto_graph(target_graph, context)
+
 class MainTest(unittest.TestCase):
 
   def test_set_partitioning_parameters_in_context(self):
@@ -1123,6 +1127,13 @@ class MainTest(unittest.TestCase):
     context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
     partitioned_hg = _make_partitioned_hg(context)
     self.assertEqual(len(partitioned_hg.get_partition()), 7)
+
+  def test_map_onto_hypergraph(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    context.set_partitioning_parameters(8, 0.03, mtkahypar.Objective.KM1)
+    target_graph = mtk.target_graph_from_file(mydir + "/test_instances/target.graph", context)
+    partitioned_hg = _make_mapped_hg(context, target_graph)
+    self.assertGreater(len(partitioned_hg.get_partition()), 0)
 
 
 if __name__ == '__main__':
