@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/partitioner.h"
 
 
 namespace mt_kahypar::combine {
@@ -171,31 +172,61 @@ static constexpr bool debug = false;
 
   template <typename TypeTraits>
   Individual usingArtificialSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
-     std::vector<std::vector<PartitionID>> parent_partitions;
-        size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
+      std::vector<std::vector<PartitionID>> parent_partitions;
+      size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
 
-        // generate new parent individual with modified context
-        Context modified_context = modifyContext(context, params);
+      // generate new parent individual with modified context
+      Context modified_context = modifyContext(context, params);
 
-        modified_context.setupPartWeights(input_hg.totalWeight());
+      modified_context.setupPartWeights(input_hg.totalWeight());
 
-        std::vector<PartitionID> modified_partition;
+      std::vector<PartitionID> modified_partition;
 
-        ASSERT(params.use_random_partitions + params.use_degree_sorted_partitions <= 1,
-               "Can only use one of random or degree-sorted partitions");
-        if (params.use_random_partitions) {
-            modified_partition = combine::createRandomPartition<TypeTraits>(input_hg, modified_context);
-        } else if (params.use_degree_sorted_partitions) {
-            modified_partition = combine::createDegreeSortedPartition<TypeTraits>(input_hg, modified_context);
-        } else {
-            modified_partition = EvoPartitioner<TypeTraits>::createPartition(input_hg, modified_context, target_graph);
-        }
+      ASSERT(params.use_random_partitions + params.use_degree_sorted_partitions <= 1,
+             "Can only use one of random or degree-sorted partitions");
+      if (params.use_random_partitions) {
+          modified_partition = combine::createRandomPartition<TypeTraits>(input_hg, modified_context);
+      } else if (params.use_degree_sorted_partitions) {
+          modified_partition = combine::createDegreeSortedPartition<TypeTraits>(input_hg, modified_context);
+      } else {
+          modified_partition = EvoPartitioner<TypeTraits>::createPartition(input_hg, modified_context, target_graph);
+      }
 
-        std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
-        parent_partitions.push_back(best_partition);
-        parent_partitions.push_back(modified_partition);
+      std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+      parent_partitions.push_back(best_partition);
+      parent_partitions.push_back(modified_partition);
 
     return combineParentsWithVCycle<TypeTraits>(parent_partitions, best_partition, context, target_graph, input_hg);
+  }
+
+  template <typename TypeTraits>
+  Individual usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
+    Context sub_context = Context(context);
+    typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+
+    if (!sub_context.partition.use_individual_part_weights) {
+      sub_context.partition.max_part_weights.clear();
+    }
+
+    sub_context.coarsening.algorithm = CoarseningAlgorithm::three_phase_coarsener;
+    sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
+
+
+    std::vector<size_t> parents;
+    population.sampleKParentsReturnBestIndex(parents, 2, context.partition.deterministic, rng);
+    //compute edge frequencies
+    vec<EdgeMetadata> edge_md(hypergraph.initialNumEdges(), 0);
+    for (auto parent_id : parents) {
+      std::vector<HyperedgeID> cut_edges = population.cutEdgesCopySave(parent_id);
+      for (auto edge : cut_edges) {
+        edge_md[edge] += 1.0 / 2.0;
+      }
+    }
+    //run three phase coarsener with computed edge frequencies of parents
+    //individual is created as a complete new partition with new initial partitioning and new coarsening
+    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph =
+    Partitioner<TypeTraits>::partition(hypergraph, std::move(edge_md), sub_context, target_graph);
+    return Individual(partitioned_hypergraph, sub_context);
   }
 } // namespace mt_kahypar::combine
 

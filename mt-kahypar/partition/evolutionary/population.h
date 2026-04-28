@@ -63,6 +63,7 @@ class Population {
   std::vector<PartitionID> bestPartitionCopySafe() ;
   std::vector<PartitionID> randomIndividualPartitionCopySafe(bool deterministic, std::mt19937* rng = nullptr) ;
   std::vector<PartitionID> partitionCopySafe(size_t pos) ;
+  std::vector<HyperedgeID> cutEdgesCopySave(size_t pos);
   HyperedgeWeight bestFitnessSafe() ;
   HyperedgeWeight fitnessAtSafe( size_t pos) ;
   size_t bestSafe() ;

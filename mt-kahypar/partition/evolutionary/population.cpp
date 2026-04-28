@@ -229,6 +229,11 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     return _individuals[pos].partition(); // returns copy
   }
 
+  std::vector<HyperedgeID> Population::cutEdgesCopySave(size_t pos) {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return _individuals[pos].cutEdges();
+  }
+
   HyperedgeWeight Population::bestFitnessSafe() {
     std::lock_guard<std::mutex> guard(_population_mutex);
     HyperedgeWeight best_fitness = _individuals[0].fitness();
