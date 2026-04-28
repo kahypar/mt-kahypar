@@ -149,6 +149,7 @@ namespace mt_kahypar::dyn {
 
           start = std::chrono::high_resolution_clock::now();
 
+          // This needs to be done since updates further down require the moved nodes to be in the correct pull queues
           for (Move move : context.dynamic.local_fm_round->moves) {
             if (move.to != partitioned_hypergraph_m.partID(move.node)) {
               continue;
@@ -394,6 +395,7 @@ namespace mt_kahypar::dyn {
             {
               if (p != partitioned_hypergraph_m.partID(node)) {
                 GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), p);
+                _rebalancer.insertOrUpdateNode(node, partitioned_hypergraph_m.partID(node), p, hypergraph_m.edgeWeight(edge));
                 if (!context.dynamic.lazy_pull_updates)
                 {
                   _rebalancer.insertOrUpdateNode(node, partitioned_hypergraph_m.partID(node), p, hypergraph_m.edgeWeight(edge));
