@@ -254,7 +254,7 @@ namespace mt_kahypar::dyn {
           {
             size_t pin_count_in_part_prior_removal = partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn));
 
-            changed_weight += hypergraph_m.edgeWeight(he)/hypergraph_m.edgeSize(he);
+            // changed_weight += hypergraph_m.edgeWeight(he)/hypergraph_m.edgeSize(he);
 
             //decrement km1 if pin is single pin in partition for this edge prior to removal
             if (pin_count_in_part_prior_removal == 1 &&
@@ -382,7 +382,7 @@ namespace mt_kahypar::dyn {
           for (const auto& [node, edge] : change.added_pins)
           {
             hypergraph_m.addPin(edge, node);
-            changed_weight += hypergraph_m.edgeWeight(edge)/hypergraph_m.edgeSize(edge);
+            // changed_weight += hypergraph_m.edgeWeight(edge)/hypergraph_m.edgeSize(edge);
             local_fm_nodes.push_back(node);
             partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
             // gain_cache_nodes.push_back(node);
@@ -473,8 +473,12 @@ namespace mt_kahypar::dyn {
         refinement(local_fm_nodes, gain_cache_nodes, change, empty_blocks);
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
-          // if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
-          if ((change_count % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0  && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
+        changed_weight += change.added_nodes.size() + change.removed_nodes.size();
+        // TODO fix weight change calculation
+        // std::cout << "changed weight: " << changed_weight << " prior total weight: " << prior_total_weight << " change count: " << change_count << " changes size: " << changes_size << std::endl;
+          if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
+          // if ((change_count % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0  && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
+          // if ((changed_weight  % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0  && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
           // if (change_count % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0 && false) {
             std::cout << "Starting v-cycle " << change_count << "/" << changes_size << " after processing " << changed_weight << " weight changes (" << (100.0 * changed_weight / prior_total_weight) << "% of total weight)" << std::endl;
 
@@ -520,7 +524,7 @@ namespace mt_kahypar::dyn {
             }
 
             context.partition.num_vcycles = 0;
-            prior_total_weight += changed_weight;
+            // prior_total_weight += changed_weight;
             changed_weight = 0;
 
             // std::cout << "Verifying v-cycle partition for " << hypergraph_m.initialNumNodes() << " nodes." << std::endl;
