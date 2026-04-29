@@ -107,9 +107,9 @@ namespace mt_kahypar::dyn {
             return;
           }
 
+          _local_fm_nodes_buffer.insert(_local_fm_nodes_buffer.end(), local_fm_nodes.begin(), local_fm_nodes.end());
+
           if (local_fm_nodes.size() == 0 || context.dynamic.fm_buffer > _local_fm_nodes_buffer.capacity()) {
-          // if (local_fm_nodes.size() == 0) {
-            _local_fm_nodes_buffer.insert(_local_fm_nodes_buffer.end(), local_fm_nodes.begin(), local_fm_nodes.end());
             return;
           }
 
