@@ -95,13 +95,6 @@ enum class LouvainEdgeWeight : uint8_t {
   UNDEFINED
 };
 
-enum class SimiliarNetCombinerStrategy : uint8_t {
-  union_nets,
-  max_size,
-  importance,
-  UNDEFINED
-};
-
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
@@ -201,8 +194,6 @@ std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
 
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
-std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
-
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy);
@@ -238,8 +229,6 @@ PresetType presetTypeFromString(const std::string& type);
 Objective objectiveFromString(const std::string& obj);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
-
-SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
 
 CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type);
 
