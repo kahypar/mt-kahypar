@@ -72,7 +72,7 @@ class Action {
     return _decision;
   }
 
-  const Requirements & requires() const {
+  const Requirements & requires_() const {
     return _requires;
   }
 

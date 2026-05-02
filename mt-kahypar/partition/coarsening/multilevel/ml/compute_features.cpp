@@ -83,7 +83,7 @@ double parallel_skew(const Container& data, const double avg, const double stdev
     }
     return tbb::parallel_reduce(
             tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
-            [&](tbb::blocked_range<size_t>& range, double init) -> double {
+            [&](const tbb::blocked_range<size_t>& range, double init) -> double {
             double tmp_skew = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {
                 tmp_skew += (data[i] - avg) * (data[i] - avg) * (data[i] - avg);
