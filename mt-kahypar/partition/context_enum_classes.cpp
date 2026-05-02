@@ -328,6 +328,7 @@ namespace mt_kahypar {
     switch (combine) {
       case EvoCombineStrategy::basic: return os << "basic";
       case EvoCombineStrategy::edge_frequency: return os << "edge_frequency";
+      case EvoCombineStrategy::synthetic_parent: return os << "synthetic_parent";
       case EvoCombineStrategy::UNDEFINED: return os << "-";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -350,7 +351,6 @@ namespace mt_kahypar {
       case EvoDecision::normal:  return os << "normal";
       case EvoDecision::mutation:  return os << "mutation";
       case EvoDecision::combine:  return os << "combine";
-      case EvoDecision::modified_combine: return os << "modified_combine";
       // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(decision);

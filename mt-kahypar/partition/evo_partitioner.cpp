@@ -402,16 +402,6 @@ namespace mt_kahypar {
         return individual.partition();
     }
 
-
-    template<typename TypeTraits>
-    Individual EvoPartitioner<TypeTraits>::performModifiedCombine(const Hypergraph &input_hg, const Context &context,
-                                                                  ContextModifierParameters params,
-                                                                  TargetGraph *target_graph, Population &population,
-                                                                  std::mt19937 *rng) {
-        
-        return combine::usingArtificialSecondParent<TypeTraits>(input_hg, population, target_graph, params,context, rng);
-    }
-
     template<typename TypeTraits>
     bool EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration) {
         bool improved = false;
@@ -429,15 +419,39 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    Individual EvoPartitioner<TypeTraits>::performCombine(
+    CombineResult EvoPartitioner<TypeTraits>::performCombine(
         const Hypergraph& input_hg,
         const Context& context,
         TargetGraph* target_graph,
         Population& population,
+        ContextModifierParameters modified_combine_params,
         std::mt19937* rng
         ) {
 
-       return combine::usingKWaySelection<TypeTraits>(input_hg, target_graph, population, context, rng);
+        EvoCombineStrategy combine_strategy = pick::decideNextCombination(context, rng);
+        switch (combine_strategy) {
+            case EvoCombineStrategy::basic:
+                return {
+                    combine::usingKWaySelection<TypeTraits>(input_hg,population, context, target_graph, rng),
+                    combine_strategy,
+                };
+            case EvoCombineStrategy::edge_frequency:
+                return {
+                    combine::usingMultiEdgeFrequency<TypeTraits>(input_hg, population, context, target_graph, rng),
+                    combine_strategy,
+                };
+            case EvoCombineStrategy::synthetic_parent:
+                // decide modified combine parameters if mixed strategy is enabled
+                if (context.evolutionary.modified_combine_mixed) {
+                    modified_combine_params = pick::decideContextModificationParameters(context, rng);
+                }
+                return {
+                    combine::usingSyntheticSecondParent<TypeTraits>(input_hg, population, target_graph, modified_combine_params, context, rng),
+                    combine_strategy,
+                };
+            case EvoCombineStrategy::UNDEFINED:
+                break;
+        }
     }
 
     template<typename TypeTraits>
@@ -505,7 +519,9 @@ namespace mt_kahypar {
         
         std::atomic<int> total_mutations(0);
         std::atomic<int> total_combinations(0);
-        std::atomic<int> total_modifiedCombinations(0);
+        std::atomic<int> total_basic_combinations(0);
+        std::atomic<int> total_edge_frequency_combinations(0);
+        std::atomic<int> total_synthetic_parent_combinations(0);
         std::atomic<int> total_iterations(0);
 
         // State for stopping criterion
@@ -514,7 +530,7 @@ namespace mt_kahypar {
 
         // Calculate ContextModifierParameters once before any workers start
         ContextModifierParameters modified_combine_params;
-        if (context.evolutionary.enable_modified_combine) {
+        if (context.evolutionary.synthetic_parent_combine_weight > 0) {
             const double k_result = context.partition.k * context.evolutionary.modified_combine_k_multiplier;
             ASSERT(k_result >= 1.0, "k multiplier result must be >= 1: " << k_result);
             ASSERT(std::abs(k_result - std::round(k_result)) < 1e-10, 
@@ -635,22 +651,23 @@ namespace mt_kahypar {
                                 }
                             case EvoDecision::combine:
                                 {
-                                    Individual ind = performCombine(hg_copy, evo_context, target_graph, population);
-                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
+                                    auto result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
+                                    insert_individual_into_population(std::move(result.individual), evo_context, population, total_iterations.load() + 1);
                                     total_combinations++;
                                     total_iterations++;
-                                    break;
+                                switch (result.strategy) {
+                                    case EvoCombineStrategy::basic:
+                                        ++total_basic_combinations;
+                                        break;
+                                    case EvoCombineStrategy::edge_frequency:
+                                        ++total_edge_frequency_combinations;
+                                        break;
+                                    case EvoCombineStrategy::synthetic_parent:
+                                        ++total_synthetic_parent_combinations;
+                                        break;
+                                    default:
+                                        break;
                                 }
-                            case EvoDecision::modified_combine:
-                                {
-                                    // decide modified combine parameters if mixed strategy is enabled
-                                    if (context.evolutionary.modified_combine_mixed) {
-                                        modified_combine_params = pick::decideContextModificationParameters(context);
-                                    }
-                                    Individual ind = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population);
-                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
-                                    total_modifiedCombinations++;
-                                    total_iterations++;
                                     break;
                                 }
                             default:
@@ -743,17 +760,22 @@ namespace mt_kahypar {
                                 break;
                             }
                             case EvoDecision::combine: {
-                                child = performCombine(hg_copy, evo_context, target_graph, population, &rng);
+                                auto result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params, &rng);
+                                child = std::move(result.individual);
                                 total_combinations.fetch_add(1, std::memory_order_relaxed);
-                                break;
-                            }
-                            case EvoDecision::modified_combine: {
-                                // decide modified combine parameters if mixed strategy is enabled
-                                if (context.evolutionary.modified_combine_mixed) {
-                                    modified_combine_params = pick::decideContextModificationParameters(context, &rng);
+                                switch (result.strategy) {
+                                   case EvoCombineStrategy::basic:
+                                        total_basic_combinations.fetch_add(1, std::memory_order_relaxed);
+                                        break;
+                                    case EvoCombineStrategy::edge_frequency:
+                                        total_edge_frequency_combinations.fetch_add(1, std::memory_order_relaxed);
+                                        break;
+                                    case EvoCombineStrategy::synthetic_parent:
+                                        total_synthetic_parent_combinations.fetch_add(1, std::memory_order_relaxed);
+                                        break;
+                                    default:
+                                        break;
                                 }
-                                child = performModifiedCombine(hg_copy, evo_context, modified_combine_params, target_graph, population, &rng);
-                                total_modifiedCombinations.fetch_add(1, std::memory_order_relaxed);
                                 break;
                             }
                             default:
@@ -836,12 +858,17 @@ namespace mt_kahypar {
         context.evolutionary.iteration += total_iterations.load();
         context.partition.enable_logging = true;
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations";
-        LOG << "    " << total_mutations.load() << " Mutations";
-        LOG << "    " << total_combinations.load() << " Combinations";
-        if (context.evolutionary.enable_modified_combine) {
-            LOG << "    " << total_modifiedCombinations.load() << " Modified Combinations";
+        LOG << "  " << total_mutations.load() << " Mutations";
+        LOG << "  " << total_combinations.load() << " Combinations";
+        if (context.evolutionary.basic_combine_weight > 0) {
+            LOG << "    " << total_basic_combinations.load() << " Basic";
         }
-
+        if (context.evolutionary.edge_frequency_combine_weight > 0) {
+            LOG << "    " << total_edge_frequency_combinations.load() << " Edge Frequency";
+        }
+        if (context.evolutionary.synthetic_parent_combine_weight > 0) {
+            LOG << "    " << total_synthetic_parent_combinations.load() << " Synthetic Parent";
+        }
         return history;
     }
 

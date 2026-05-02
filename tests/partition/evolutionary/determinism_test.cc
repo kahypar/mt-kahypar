@@ -55,7 +55,6 @@ class EvoDeterminismTest : public Test {
 
 	context.evolutionary.dynamic_population_size = false;
 	context.evolutionary.meta_evo_mode = false;
-	context.evolutionary.enable_modified_combine = false;
 	context.evolutionary.modified_combine_mixed = false;
 
 	context.evolutionary.iteration = 0;
@@ -137,7 +136,6 @@ TEST_F(EvoDeterminismTest, SameSeedIsStableEvenAfterDifferentSeedRun) {
 
 TEST_F(EvoDeterminismTest, CombineOnlyDeterministicRunIsStableForSameSeed) {
   context.evolutionary.mutation_chance = 0.0f;
-  context.evolutionary.enable_modified_combine = false;
 
   const int seed = 42;
   const size_t num_threads = 8;
@@ -152,7 +150,6 @@ TEST_F(EvoDeterminismTest, CombineOnlyDeterministicRunIsStableForSameSeed) {
 }
 TEST_F(EvoDeterminismTest, PWayCombineOnlyDeterministicRunIsStableForSameSeed) {
 	context.evolutionary.mutation_chance = 0.0f;
-	context.evolutionary.enable_modified_combine = false;
 	context.evolutionary.kway_combine = 4;
 
 	const int seed = 42;
@@ -169,7 +166,6 @@ TEST_F(EvoDeterminismTest, PWayCombineOnlyDeterministicRunIsStableForSameSeed) {
 
 TEST_F(EvoDeterminismTest, MutationOnlyDeterministicRunIsStableForSameSeed) {
 	context.evolutionary.mutation_chance = 1.0f;
-	context.evolutionary.enable_modified_combine = false;
 
 	const int seed = 42;
 	const size_t num_threads = 8;
@@ -185,8 +181,7 @@ TEST_F(EvoDeterminismTest, MutationOnlyDeterministicRunIsStableForSameSeed) {
 
 TEST_F(EvoDeterminismTest, ModifiedCombineOnlyDeterministicRunIsStableForSameSeed) {
 	context.evolutionary.mutation_chance = 0.0f;
-	context.evolutionary.enable_modified_combine = true;
-	context.evolutionary.modified_combine_chance = 1.0f;
+	context.evolutionary.synthetic_parent_combine_weight = 1.0f;
 
 	const int seed = 42;
 	const size_t num_threads = 8;

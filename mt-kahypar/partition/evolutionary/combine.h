@@ -34,7 +34,7 @@
 
 
 namespace mt_kahypar::combine {
-static constexpr bool debug = false;
+static constexpr bool debug = true;
 
   vec<PartitionID> combinePartitions(const std::vector<std::vector<PartitionID>> &parent_partitions);
   Context modifyContext(const Context& context, ContextModifierParameters params);
@@ -153,7 +153,7 @@ static constexpr bool debug = false;
   }
 
   template <typename TypeTraits>
-  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, TargetGraph* target_graph, Population& population, const Context& context, std::mt19937* rng) {
+  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, Population& population, const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     std::vector<size_t> parents;
     //Maybe change to actually use Tournament Selection
     const size_t best(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine,
@@ -171,7 +171,7 @@ static constexpr bool debug = false;
   }
 
   template <typename TypeTraits>
-  Individual usingArtificialSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
+  Individual usingSyntheticSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
       std::vector<std::vector<PartitionID>> parent_partitions;
       size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
 
@@ -203,7 +203,8 @@ static constexpr bool debug = false;
   Individual usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     Context sub_context = Context(context);
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
-    size_t parent_amount = std::ceil(std::sqrt(context.evolutionary.population_size));
+    const size_t parent_amount = std::max(2.0, std::ceil(std::sqrt(context.evolutionary.population_size)));
+    DBG << "Parent amount: " << parent_amount;
 
     if (!sub_context.partition.use_individual_part_weights) {
       sub_context.partition.max_part_weights.clear();

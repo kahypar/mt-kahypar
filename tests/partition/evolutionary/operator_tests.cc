@@ -29,7 +29,7 @@ using PartitionedHypergraph = TypeTraits::PartitionedHypergraph;
 class EvoOperatorTest : public Test {
  public:
   EvoOperatorTest() : hypergraph(), context() {
-	context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
+	context.partition.graph_filename = "../tests/instances/delaunay_n10.graph";
 	context.partition.mode = Mode::direct;
 	context.partition.preset_type = PresetType::deterministic;
 	context.partition.instance_type = InstanceType::hypergraph;
@@ -114,8 +114,8 @@ class EvoOperatorTest : public Test {
 TEST_F(EvoOperatorTest, SingleModifiedCombineRandomPartitionsIterationKeepsPopulationAndPartitionValid) {
   Context run_context(context);
   run_context.evolutionary.mutation_chance = 0.0f;
-  run_context.evolutionary.modified_combine_chance = 1.0f;
-  run_context.evolutionary.enable_modified_combine = true;
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+  run_context.evolutionary.synthetic_parent_combine_weight = 1.0f;
   run_context.evolutionary.modified_combine_use_random_partitions = true;
   run_context.evolutionary.modified_combine_use_degree_sorted_partitions = false;
   run_context.evolutionary.modified_combine_mixed = false;
@@ -127,8 +127,8 @@ TEST_F(EvoOperatorTest, SingleModifiedCombineRandomPartitionsIterationKeepsPopul
 TEST_F(EvoOperatorTest, SingleModifiedCombineDegreeSortedPartitionsIterationKeepsPopulationAndPartitionValid) {
 	Context run_context(context);
 	run_context.evolutionary.mutation_chance = 0.0f;
-	run_context.evolutionary.modified_combine_chance = 1.0f;
-	run_context.evolutionary.enable_modified_combine = true;
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 1.0f;
 	run_context.evolutionary.modified_combine_use_random_partitions = false;
 	run_context.evolutionary.modified_combine_use_degree_sorted_partitions = true;
 	run_context.evolutionary.modified_combine_mixed = false;
@@ -140,8 +140,8 @@ TEST_F(EvoOperatorTest, SingleModifiedCombineDegreeSortedPartitionsIterationKeep
 TEST_F(EvoOperatorTest, SingleModifiedCombineIterationKeepsPopulationAndPartitionValid) {
 	Context run_context(context);
 	run_context.evolutionary.mutation_chance = 0.0f;
-	run_context.evolutionary.modified_combine_chance = 1.0f;
-	run_context.evolutionary.enable_modified_combine = true;
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 1.0f;
 	run_context.evolutionary.modified_combine_use_random_partitions = false;
 	run_context.evolutionary.modified_combine_use_degree_sorted_partitions = false;
 	run_context.evolutionary.modified_combine_mixed = false;
@@ -153,8 +153,8 @@ TEST_F(EvoOperatorTest, SingleModifiedCombineIterationKeepsPopulationAndPartitio
 TEST_F(EvoOperatorTest, SingleModifiedCombineMixedIterationKeepsPopulationAndPartitionValid) {
 	Context run_context(context);
 	run_context.evolutionary.mutation_chance = 0.0f;
-	run_context.evolutionary.modified_combine_chance = 1.0f;
-	run_context.evolutionary.enable_modified_combine = true;
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 1.0f;
 	run_context.evolutionary.modified_combine_use_random_partitions = false;
 	run_context.evolutionary.modified_combine_use_degree_sorted_partitions = false;
 	run_context.evolutionary.modified_combine_mixed = true;
@@ -163,11 +163,22 @@ TEST_F(EvoOperatorTest, SingleModifiedCombineMixedIterationKeepsPopulationAndPar
 	runSingleEvoIterationAndValidate(run_context, std::move(hg));
 
 }
+	
 
+TEST_F(EvoOperatorTest, SingleEdgeFrequencyCombineIterationKeepsPopulationAndPartitionValid) {
+	Context run_context(context);
+	run_context.evolutionary.mutation_chance = 0.0f;
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 0.0f;
+	run_context.evolutionary.edge_frequency_combine_weight = 1.0f;
+
+	Hypergraph hg = hypergraph.copy(parallel_tag_t{});
+	runSingleEvoIterationAndValidate(run_context, std::move(hg));
+
+}
 TEST_F(EvoOperatorTest, SingleCombineIterationKeepsPopulationAndPartitionValid) {
 	Context run_context(context);
 	run_context.evolutionary.mutation_chance = 0.0f;
-	run_context.evolutionary.enable_modified_combine = false;
 
 	Hypergraph hg = hypergraph.copy(parallel_tag_t{});
 	runSingleEvoIterationAndValidate(run_context, std::move(hg));
@@ -176,7 +187,6 @@ TEST_F(EvoOperatorTest, SingleCombineIterationKeepsPopulationAndPartitionValid) 
 TEST_F(EvoOperatorTest, SingleMutationIterationKeepsPopulationAndPartitionValid) {
 	Context run_context(context);
 	run_context.evolutionary.mutation_chance = 1.0f;
-	run_context.evolutionary.enable_modified_combine = false;
 
 	Hypergraph hg = hypergraph.copy(parallel_tag_t{});
 	runSingleEvoIterationAndValidate(run_context, std::move(hg));
@@ -189,19 +199,30 @@ TEST_F(EvoOperatorTest, DecideNextMoveSelectsExpectedEvoBranch) {
 	std::mt19937 rng(0);
 
 	run_context.evolutionary.mutation_chance = 1.0f;
-	run_context.evolutionary.enable_modified_combine = false;
 	EXPECT_EQ(decideNextMove(run_context, &rng),
 	          EvoDecision::mutation);
 
 	run_context.evolutionary.mutation_chance = 0.0f;
-	run_context.evolutionary.enable_modified_combine = false;
 	EXPECT_EQ(decideNextMove(run_context, &rng),
 	          EvoDecision::combine);
 
-	run_context.evolutionary.enable_modified_combine = true;
-	run_context.evolutionary.modified_combine_chance = 1.0f;
-	EXPECT_EQ(decideNextMove(run_context, &rng),
-	          EvoDecision::modified_combine);
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 1.0f;
+	run_context.evolutionary.edge_frequency_combine_weight = 0.0f;
+	EXPECT_EQ(pick::decideNextCombination(run_context, &rng),
+	          EvoCombineStrategy::synthetic_parent);
+
+	run_context.evolutionary.basic_combine_weight = 1.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 0.0f;
+	run_context.evolutionary.edge_frequency_combine_weight = 0.0f;
+	EXPECT_EQ(pick::decideNextCombination(run_context, &rng),
+						EvoCombineStrategy::basic);
+
+	run_context.evolutionary.basic_combine_weight = 0.0f;
+	run_context.evolutionary.synthetic_parent_combine_weight = 0.0f;
+	run_context.evolutionary.edge_frequency_combine_weight = 1.0f;
+	EXPECT_EQ(pick::decideNextCombination(run_context, &rng),
+						EvoCombineStrategy::edge_frequency);
 }
 
 TEST_F(EvoOperatorTest, ModifyContextAppliesModifiedCombineParameters) {

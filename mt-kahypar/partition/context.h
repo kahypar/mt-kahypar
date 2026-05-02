@@ -302,7 +302,9 @@ struct SharedMemoryParameters {
 struct EvolutionaryParameters {
   size_t population_size = 10;
   float mutation_chance = 0.5;
-  float modified_combine_chance = 1.0f / 3.0f;
+  float basic_combine_weight = 1;
+  float synthetic_parent_combine_weight = 0;
+  float edge_frequency_combine_weight = 0;
   size_t num_threads_per_worker = 0; // 0 means automatic
   EvoReplaceStrategy replace_strategy;
   mutable EvoMutateStrategy mutate_strategy = EvoMutateStrategy::UNDEFINED;
@@ -320,7 +322,6 @@ struct EvolutionaryParameters {
   int max_iterations = 0;
 
   // Modified combine parameters
-  bool enable_modified_combine = false;
   double modified_combine_k_multiplier = 1;
   double modified_combine_epsilon_multiplier = 1;
   bool modified_combine_recursive_bipartitioning = false;

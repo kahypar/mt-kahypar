@@ -221,6 +221,7 @@ enum class EvoReplaceStrategy : uint8_t {
 enum class EvoCombineStrategy : uint8_t {
   basic,
   edge_frequency,
+  synthetic_parent,
   UNDEFINED
 };
 enum class EvoMutateStrategy : uint8_t {
@@ -233,7 +234,6 @@ enum class EvoDecision : uint8_t {
   normal,
   mutation,
   combine,
-  modified_combine
 };
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);

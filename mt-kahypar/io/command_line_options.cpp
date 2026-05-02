@@ -1294,9 +1294,19 @@ namespace mt_kahypar {
       "The chance of a mutation being selected as operation"
     )->capture_default_str();
     app.add_option(
-      "--evo-modified-combine-chance",
-      context.evolutionary.modified_combine_chance,
-      "The chance of using the modified combine operator"
+      "--evo-synthetic-parent-combine-weight",
+      context.evolutionary.synthetic_parent_combine_weight,
+      "The weight of using the synthetic parent combine operator"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-basic-combine-weight",
+      context.evolutionary.basic_combine_weight,
+      "The weight of using the basic k-way combine operator"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-edge-frequency-combine-weight",
+      context.evolutionary.edge_frequency_combine_weight,
+      "The weight of using the multi edge frequency combine operator"
     )->capture_default_str();
     app.add_option(
       "--evo-history-file",
@@ -1332,11 +1342,6 @@ namespace mt_kahypar {
       "--evo-kway",
       context.evolutionary.kway_combine,
       "How many individsuals to combine for the combine step"
-    )->capture_default_str();
-    app.add_option(
-      "--evo-enable-modified-combine",
-      context.evolutionary.enable_modified_combine,
-      "Enable modified combine operator for evolutionary partitioning"
     )->capture_default_str();
     app.add_option(
       "--evo-modified-combine-k-multiplier",

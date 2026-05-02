@@ -30,6 +30,7 @@
 namespace mt_kahypar::pick {
 EvoMutateStrategy decideNextMutation(const Context& context, std::mt19937* rng = nullptr);
 EvoDecision decideNextMove(const Context& context, std::mt19937* rng = nullptr) ;
+EvoCombineStrategy decideNextCombination(const Context& context, std::mt19937* rng = nullptr);
 ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng = nullptr);
 } // namespace mt_kahypar::pick
 

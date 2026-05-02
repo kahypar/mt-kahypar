@@ -20,8 +20,7 @@ namespace mt_kahypar::pick {
     }
   }
 
-  EvoDecision decideNextMove(const Context& context, std::mt19937* rng) {
-
+  EvoCombineStrategy decideNextCombination(const Context& context, std::mt19937* rng) {
     float rand_val;
     if (!context.partition.deterministic)
       rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
@@ -33,26 +32,43 @@ namespace mt_kahypar::pick {
       throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
     }
 
-    if (!context.evolutionary.enable_modified_combine) {
-      if ( rand_val < context.evolutionary.mutation_chance ) {
-        return EvoDecision::mutation;
-      }
-      return EvoDecision::combine;
-    }
-    else {
-      if ( rand_val < context.evolutionary.mutation_chance) {
-        return EvoDecision::mutation;
-      }
-      else if ( rand_val < context.evolutionary.mutation_chance + context.evolutionary.modified_combine_chance ) {
-        return EvoDecision::modified_combine;
-      }
-      else {
-        return EvoDecision::combine;
-      }
+    const float basic = context.evolutionary.basic_combine_weight;
+    const float edge_frequency = context.evolutionary.edge_frequency_combine_weight;
+    const float synthetic_parent = context.evolutionary.synthetic_parent_combine_weight;
+    const float total = basic + edge_frequency + synthetic_parent;
+
+    if (total <= 0.0) {
+      throw UnsupportedOperationException("No combine operator enabled");
     }
 
-    return EvoDecision::combine;
+    rand_val = rand_val * total;
+
+    if (rand_val < basic) return EvoCombineStrategy::basic;
+    if (rand_val < basic + edge_frequency) return EvoCombineStrategy::edge_frequency;
+    return EvoCombineStrategy::synthetic_parent;
+
   }
+
+  EvoDecision decideNextMove(const Context& context, std::mt19937* rng) {
+    float rand_val;
+    if (!context.partition.deterministic)
+      rand_val = utils::Randomize::instance().getRandomFloat(0, 1, THREAD_ID);
+    else if (rng != nullptr) {
+      std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+      rand_val = dist(*rng);
+    }
+    else {
+      throw UnsupportedOperationException("Catastrophic Error! Deterministic mode requires passing rng!");
+    }
+
+    if ( rand_val < context.evolutionary.mutation_chance) {
+      return EvoDecision::mutation;
+    } else {
+      return EvoDecision::combine;
+    }
+  }
+
+
    ContextModifierParameters decideContextModificationParameters(const Context& context, std::mt19937* rng) {
 
     ContextModifierParameters params;

@@ -21,6 +21,11 @@ struct ContextModifierParameters {
     bool recursive_bipartitioning = false;
 };
 
+struct CombineResult {
+  Individual individual;
+  EvoCombineStrategy strategy;
+};
+
 template<typename TypeTraits>
 class EvoPartitioner : public Partitioner<TypeTraits> {
 
@@ -63,8 +68,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
 
     static Individual createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
-    static Individual performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
-    static Individual performModifiedCombine(const Hypergraph& hg, const Context&  context, ContextModifierParameters params, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
+    static CombineResult performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, ContextModifierParameters modified_combine_params,std::mt19937* rng = nullptr);
     static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
     static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
     static bool insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration);
