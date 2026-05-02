@@ -203,6 +203,7 @@ static constexpr bool debug = false;
   Individual usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     Context sub_context = Context(context);
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+    size_t parent_amount = std::ceil(std::sqrt(context.evolutionary.population_size));
 
     if (!sub_context.partition.use_individual_part_weights) {
       sub_context.partition.max_part_weights.clear();
@@ -211,15 +212,15 @@ static constexpr bool debug = false;
     sub_context.coarsening.algorithm = CoarseningAlgorithm::three_phase_coarsener;
     sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
 
-
+    //parent amount maybe sqrt(population.size) rounded up
     std::vector<size_t> parents;
-    population.sampleKParentsReturnBestIndex(parents, 2, context.partition.deterministic, rng);
+    population.sampleKParentsReturnBestIndex(parents, parent_amount, context.partition.deterministic, rng);
     //compute edge frequencies
     vec<EdgeMetadata> edge_md(hypergraph.initialNumEdges(), 0);
     for (auto parent_id : parents) {
       std::vector<HyperedgeID> cut_edges = population.cutEdgesCopySave(parent_id);
       for (auto edge : cut_edges) {
-        edge_md[edge] += 1.0 / 2.0;
+        edge_md[edge] += 1.0 / parent_amount;
       }
     }
     //run three phase coarsener with computed edge frequencies of parents
