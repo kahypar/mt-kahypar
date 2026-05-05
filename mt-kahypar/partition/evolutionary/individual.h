@@ -126,6 +126,7 @@ class Individual {
     LOG << "\n--------------------------------------------------";
   }
 
+  // NM: after changing to shared_ptr, copying Individuals should never be necessary => delete method
   Individual copy() const {
     Individual ind;
     ind._partition = _partition;
@@ -137,6 +138,7 @@ class Individual {
 
  private:
   std::vector<PartitionID> _partition;
+  // NM: do we actually need both _cut_edges and _strong_cut_edges?
   std::vector<HyperedgeID> _cut_edges;
   std::vector<HyperedgeID> _strong_cut_edges;
   HyperedgeWeight _fitness;

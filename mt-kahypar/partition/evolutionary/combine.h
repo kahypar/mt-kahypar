@@ -135,6 +135,7 @@ static constexpr bool debug = true;
                                std::vector<PartitionID> best_partition, const Context& context, TargetGraph* target_graph,
                                const typename TypeTraits::Hypergraph &input_hg) {
 
+    // NM: since the community IDs are contiguous (see combinePartitions), I think we can use a vector for this instead of a hashmap
     std::unordered_map<PartitionID, int> comm_to_block;
     vec<PartitionID> comms = combinePartitions(parent_partitions);
 

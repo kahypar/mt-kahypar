@@ -29,6 +29,12 @@ std::ostream& operator<< (std::ostream& os, const Population& population) {
 }
 
 size_t Population::insert(Individual&& individual, const Context& context) {
+    // NM: rewrite this method as follows (requires that Individuals already use shared_ptr):
+    // 1. copy the vector of individuals, release lock after copy
+    // 2. determine replacement on copied vector
+    // 3. take lock and check whether individual at determined index is still the same
+    // 4. if yes, replace individual, if no, go back to 1.
+
     std::lock_guard<std::mutex> guard(_population_mutex);
     DBG << context.evolutionary.replace_strategy;
     switch (context.evolutionary.replace_strategy) {

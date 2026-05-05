@@ -41,6 +41,8 @@ class Population {
     _population_mutex(),
     _individuals() { }
 
+  // NM: remove distinction between thread-safe / non thread-safe methods, all public methods should be thread-safe
+
   size_t insert(Individual&& individual, const Context& context);
   size_t forceInsert(Individual&& individual, size_t position) ;
   size_t forceInsertSaveBest(Individual&& individual, size_t position) ;
@@ -59,7 +61,10 @@ class Population {
   // Thread-safe accessors
   size_t sampleKParentsReturnBestIndex(std::vector<size_t>& parents, size_t k, bool deterministic, std::mt19937* rng = nullptr) ;
   size_t randomIndividualSafe(bool deterministic, std::mt19937* rng = nullptr) ;
+
+  // NM: not actually thread-safe, the individual could be destroyed at some later point and invalidate the reference
   const Individual& individualAtSafe(size_t pos);
+
   std::vector<PartitionID> bestPartitionCopySafe() ;
   std::vector<PartitionID> randomIndividualPartitionCopySafe(bool deterministic, std::mt19937* rng = nullptr) ;
   std::vector<PartitionID> partitionCopySafe(size_t pos) ;
@@ -67,19 +72,26 @@ class Population {
   HyperedgeWeight bestFitnessSafe() ;
   HyperedgeWeight fitnessAtSafe( size_t pos) ;
   size_t bestSafe() ;
+
+  // NM: same as `individualAtSafe`
   Individuals listOfBest(const size_t& amount) const ;
 
   void print() const ;
   void printDebug() const ;
   size_t difference(const Individual& individual,  size_t position, bool strong_set) const ;
   std::string toString(const std::vector<size_t>& values) const ;
+
+  // NM: return new std::vector<std::vector<size_t>> instead of updating member
   std::string updateDiffMatrix();
 
  private:
    size_t replaceDiverse(Individual&& individual,  bool strong_set) ;
 
   std::mutex _population_mutex;
+  // NM: store shared_ptr instead of storing Individual directly (=> see meeting)
   std::vector<Individual> _individuals;
+
+  // NM: remove diff_matrix + mutex
   std::vector<std::vector<size_t>> _diff_matrix;
   std::mutex _diff_mutex;
 };

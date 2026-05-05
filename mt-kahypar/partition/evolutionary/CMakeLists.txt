@@ -1,3 +1,4 @@
+# NM: remove headers
 set(EvolutionarySources
         action.h
         combine.h

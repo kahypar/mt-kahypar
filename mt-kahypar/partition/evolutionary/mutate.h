@@ -34,7 +34,7 @@ namespace mt_kahypar::mutate {
   Individual vCycle(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
-    vec<PartitionID> comms(hypergraph.initialNumNodes());
+    vec<PartitionID> comms(hypergraph.initialNumNodes());  // NM: seems to be a copy of ind_partition, is this necessary?
     std::unordered_map<PartitionID, int> comm_to_block;
     for (const HypernodeID& hn : hypergraph.nodes()) {
       partitioned_hypergraph.setOnlyNodePart(hn, ind_partition[hn]);

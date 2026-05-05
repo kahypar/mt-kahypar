@@ -212,6 +212,10 @@ namespace {
     return partitioned_hg;
   }
 
+  // NM: it is likely better to extend the normal multilevel_partitioning function
+  // to also optionally support a mapping of community to block, than to duplicate the whole method.
+  // Also: use vector instead of hashmap for mapping (see combine.h)
+
   template<typename TypeTraits>
   typename TypeTraits::PartitionedHypergraph evolution_multilevel_partitioning(
     typename TypeTraits::Hypergraph& hypergraph,

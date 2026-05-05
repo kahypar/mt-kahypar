@@ -3,6 +3,10 @@
 
 namespace mt_kahypar::combine {
   vec<PartitionID> combinePartitions(const std::vector<std::vector<PartitionID>> &parent_partitions) {
+    // NM: ugly implementation, alternative suggestion: use something like MSD radix sort, i.e., split in k
+    // buckets and recurse on each non-empty bucket, with each recursion level corresponding to a different parent
+    // partition. Return first non-used index so it is possible to still guarantee contiguous community indices
+    // (low prio)
 
     vec<PartitionID> combined(parent_partitions[0].size());
     std::unordered_map<std::string, int> tuple_to_block;

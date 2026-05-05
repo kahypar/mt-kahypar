@@ -20,6 +20,8 @@
 ******************************************************************************/
 #pragma once
 
+// NM: unused file, delete?
+
 namespace mt_kahypar {
 namespace partition {
 static void diversify(Context& context) {

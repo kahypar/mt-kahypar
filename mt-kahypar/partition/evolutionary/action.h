@@ -19,6 +19,7 @@
  *
  ******************************************************************************/
 
+// NM: do we need this class? Doesn't seem to be used
 
 namespace mt_kahypar {
 // Actions encapsulate Requirements for the non-evolutionary

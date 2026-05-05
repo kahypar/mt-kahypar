@@ -24,6 +24,8 @@
 
 #include "mt-kahypar/partition/evolutionary/individual.h"
 
+// NM: unused file, delete?
+
 namespace mt_kahypar {
   inline std::vector<size_t> computeEdgeFrequency(const Individuals& edge_frequency_targets,
                                                   const HyperedgeID num_hyperedges) {
