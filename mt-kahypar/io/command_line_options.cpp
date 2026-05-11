@@ -891,6 +891,10 @@ namespace mt_kahypar {
       ("d-simulate-opt-vcycle",
         po::value<bool>(&context.dynamic.simulate_opt_vcycle)->value_name("<bool>"),
         "If true, then the partitioner simulates an optimal v-cycle by triggering a vcycle at the very last change.");
+      dynamic_options.add_options()
+      ("run",
+        po::value<size_t>(&context.dynamic.run)->default_value(0),
+        "Run number for dynamic partitioning, used for logging and result storage");
     return dynamic_options;
   }
 

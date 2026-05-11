@@ -19,6 +19,8 @@ namespace mt_kahypar::dyn {
       // create folder
       std::filesystem::create_directories(context.dynamic.output_path);
       // add file name
+      context.dynamic.output_path += "run_" + std::to_string(context.dynamic.run) + "_";
+      context.dynamic.output_path += "seed_" + std::to_string(context.partition.seed) + "_";
       context.dynamic.output_path += std::to_string(context.partition.k) + "k_";
       context.dynamic.output_path += context.dynamic.getOutputFileName();
       // add

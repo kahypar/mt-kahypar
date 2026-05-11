@@ -309,6 +309,7 @@ struct DynamicParameters {
   int fm_buffer = 0;
   std::string output_file_suffix = "";
   size_t version = 0;
+  size_t run = 0;
 
   // not included in the output file ending
   std::string result_folder = "";
