@@ -30,6 +30,7 @@ class EvoOperatorTest : public Test {
  public:
   EvoOperatorTest() : hypergraph(), context() {
 	context.partition.graph_filename = "../tests/instances/delaunay_n10.graph";
+  //context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
 	context.partition.mode = Mode::direct;
 	context.partition.preset_type = PresetType::deterministic;
 	context.partition.instance_type = InstanceType::hypergraph;

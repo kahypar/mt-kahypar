@@ -127,14 +127,7 @@ class Individual {
   }
 
   // NM: after changing to shared_ptr, copying Individuals should never be necessary => delete method
-  Individual copy() const {
-    Individual ind;
-    ind._partition = _partition;
-    ind._cut_edges = _cut_edges;
-    ind._strong_cut_edges = _strong_cut_edges;
-    ind._fitness = _fitness;
-    return ind;
-  }
+  Individual copy() const = delete;
 
  private:
   std::vector<PartitionID> _partition;
@@ -144,6 +137,6 @@ class Individual {
   HyperedgeWeight _fitness;
 };
 std::ostream& operator<< (std::ostream& os, const Individual& individual);
-using Individuals = std::vector<std::reference_wrapper<const Individual> >;
+using Individuals = std::vector<std::reference_wrapper<const std::shared_ptr<Individual>>>;
 using Parents = std::pair<const Individual&, const Individual&>;
 }  // namespace mt_kahypar

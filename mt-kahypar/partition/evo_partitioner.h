@@ -22,7 +22,7 @@ struct ContextModifierParameters {
 };
 
 struct CombineResult {
-  Individual individual;
+  std::shared_ptr<Individual> individual;
   EvoCombineStrategy strategy;
 };
 
@@ -43,7 +43,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
                                     Context& context,
                                     TargetGraph* target_graph,
                                     Population& population);
-    static const Individual & createInsertIndividual(const Hypergraph& hg,
+    static const std::shared_ptr<Individual> createInsertIndividual(const Hypergraph& hg,
                                             Context& context,
                                             TargetGraph* target_graph,
                                             Population& population);
@@ -67,11 +67,13 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
 
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
 
-    static Individual createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
+    static std::shared_ptr<Individual> createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
     static CombineResult performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, ContextModifierParameters modified_combine_params,std::mt19937* rng = nullptr);
-    static Individual performMutation(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, std::mt19937* rng = nullptr);
+    static std::shared_ptr<Individual> performMutation(const Hypergraph &hg, const Context &context,
+                                                       TargetGraph *target_graph, Population &population,
+                                                       std::mt19937 *rng = nullptr);
     static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
-    static bool insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration);
+    static bool insert_individual_into_population(std::shared_ptr<Individual> individual, const Context &context, Population &population, int iteration);
 };
 
 }  // namespace mt_kahypar

@@ -247,11 +247,11 @@ namespace mt_kahypar {
 
                     DBG << "DEBUG: Before copying";
                     size_t idx = pair.second;
-                    // Copy individual from sub_population to main population
-                    Individual ind_copy = sub_population.individualAtSafe(idx).copy(); 
+                    // Copy shared individual pointer from sub_population to main population
+                    auto individual = sub_population.individualAtSafe(idx);
                     DBG << "DEBUG: Before inserting";
                     // Add starting individuals to "real" population
-                    population.addStartingIndividual(ind_copy, context);
+                    population.addStartingIndividual(individual, context);
                     extracted++;
                 }
             }
@@ -277,7 +277,7 @@ namespace mt_kahypar {
         if (context.evolutionary.dynamic_population_size) {
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             timer.start_timer("evolutionary", "Evolutionary");
-            auto fitness = createInsertIndividual(hg, context, target_graph, population).fitness();
+            auto fitness = createInsertIndividual(hg, context, target_graph, population)->fitness();
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 
             // best result tracking for benchmark
@@ -316,7 +316,7 @@ namespace mt_kahypar {
             ++context.evolutionary.iteration;
             timer.start_timer("evolutionary", "Evolutionary");
            
-            auto cur = createInsertIndividual(hg, context, target_graph, population).fitness();
+            auto cur = createInsertIndividual(hg, context, target_graph, population)->fitness();
             timer.stop_timer("evolutionary");
             now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
             
@@ -348,7 +348,7 @@ namespace mt_kahypar {
         return history;
     }
     template<typename TypeTraits>
-    Individual EvoPartitioner<TypeTraits>::createIndividual(const Hypergraph &input_hg, Context &context,
+    std::shared_ptr<Individual> EvoPartitioner<TypeTraits>::createIndividual(const Hypergraph &input_hg, Context &context,
                                                                        TargetGraph *target_graph) {
         Hypergraph hypergraph_copy = input_hg.copy(parallel_tag_t{});
 
@@ -386,28 +386,28 @@ namespace mt_kahypar {
         large_he_remover.restoreSinglePinAndLargeHyperedges(partitioned_hypergraph);
         degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
         //Partitioner<TypeTraits>::forceFixedVertexAssignment(partitioned_hypergraph, context);
-
-        return Individual(partitioned_hypergraph, context);
+        return std::make_shared<Individual>(partitioned_hypergraph, context);
     }
 
     template<typename TypeTraits>
-    const Individual & EvoPartitioner<TypeTraits>::createInsertIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
-        Individual individual(createIndividual(input_hg, context, target_graph));
-        return population.addStartingIndividual(individual, context);
+    const std::shared_ptr<Individual>  EvoPartitioner<TypeTraits>::createInsertIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph, Population& population) {
+        auto individual = createIndividual(input_hg, context, target_graph);
+        population.addStartingIndividual(individual, context);
+        return individual;
     }
 
     template<typename TypeTraits>
     std::vector<PartitionID> EvoPartitioner<TypeTraits>::createPartition(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph) {
-        const Individual individual(createIndividual(input_hg, context, target_graph));
-        return individual.partition();
+        auto individual= createIndividual(input_hg, context, target_graph);
+        return individual->partition();
     }
 
     template<typename TypeTraits>
-    bool EvoPartitioner<TypeTraits>::insert_individual_into_population(Individual&& individual, const Context& context, Population& population, int iteration) {
+    bool EvoPartitioner<TypeTraits>::insert_individual_into_population(std::shared_ptr<Individual> individual, const Context& context, Population& population, int iteration) {
         bool improved = false;
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            improved = checkAndLogNewBest(individual.fitness(), "Insert", time, iteration);
+            improved = checkAndLogNewBest(individual->fitness(), "Insert", time, iteration);
         }
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && improved) {
@@ -455,12 +455,12 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    Individual EvoPartitioner<TypeTraits>::performMutation(
-        const Hypergraph& input_hg,
-        const Context& context,
-        TargetGraph* target_graph,
-        Population& population,
-        std::mt19937* rng) {
+    std::shared_ptr<Individual> EvoPartitioner<TypeTraits>::performMutation(
+        const Hypergraph &input_hg,
+        const Context &context,
+        TargetGraph *target_graph,
+        Population &population,
+        std::mt19937 *rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
     const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context.partition.deterministic, rng));
@@ -643,16 +643,16 @@ namespace mt_kahypar {
                         switch (decision) {
                             case EvoDecision::mutation:
                                 {
-                                    Individual ind = performMutation(hg_copy, evo_context, target_graph, population);
-                                    insert_individual_into_population(std::move(ind), evo_context, population, total_iterations.load() + 1);
+                                    auto individual = performMutation(hg_copy, evo_context, target_graph, population);
+                                    insert_individual_into_population(individual, evo_context, population, total_iterations.load() + 1);
                                     total_mutations++;
                                     total_iterations++;
                                     break;
                                 }
                             case EvoDecision::combine:
                                 {
-                                    auto result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
-                                    insert_individual_into_population(std::move(result.individual), evo_context, population, total_iterations.load() + 1);
+                                    const CombineResult result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
+                                    insert_individual_into_population(result.individual, evo_context, population, total_iterations.load() + 1);
                                     total_combinations++;
                                     total_iterations++;
                                 switch (result.strategy) {
@@ -678,8 +678,7 @@ namespace mt_kahypar {
                         // Log current best KM1 after each iteration if enabled (iteration, timestamp, km1)
                         if ( iteration_logging_enabled ) {
                             // get current best KM1 from population
-                            size_t best_idx = population.bestSafe();
-                            auto current_km1 = population.individualAtSafe(best_idx).fitness();
+                            auto current_km1 = population.best()->fitness();
                             auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                             std::chrono::high_resolution_clock::now().time_since_epoch()
                                             ).count();
@@ -693,7 +692,7 @@ namespace mt_kahypar {
         else {
             //determinstic mode
             const int batch_size = context.evolutionary.batch_size;
-            std::vector<std::unique_ptr<Individual>> batch_individuals (batch_size);
+            std::vector<std::shared_ptr<Individual>> batch_individuals (batch_size);
             std::atomic<size_t> last_batch_filled = 0;
             std::atomic<int> items_finished_in_current_batch = 0;
 
@@ -751,7 +750,7 @@ namespace mt_kahypar {
 
                         EvoDecision decision = pick::decideNextMove(evo_context, &rng);
                         Hypergraph hg_copy = hg.copy(parallel_tag_t{});
-                        Individual child;
+                        std::shared_ptr<Individual> child;
 
                         switch (decision) {
                             case EvoDecision::mutation: {
@@ -784,7 +783,7 @@ namespace mt_kahypar {
                         }
 
                         // Store individual in batch
-                        batch_individuals[static_cast<size_t>(batch_pos)] = std::make_unique<Individual>(std::move(child));
+                        batch_individuals[static_cast<size_t>(batch_pos)] = std::move(child);
                         
                         int finished_count = items_finished_in_current_batch.fetch_add(1, std::memory_order_acq_rel) + 1;
 
@@ -792,12 +791,11 @@ namespace mt_kahypar {
                             // Insert entire batch into population
                             for (size_t i = 0; i < batch_size; ++i) {
                                 const int current_batch_start_id = batch_id * batch_size;
-                                insert_individual_into_population(std::move(*batch_individuals[i]), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1);
+                                insert_individual_into_population(std::make_unique<Individual>(std::move(*batch_individuals[i])), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1);
 
                                 if (iteration_logging_enabled) {
                                 // One "iteration" per inserted individual
-                                size_t best_idx = population.bestSafe();
-                                auto current_km1 = population.individualAtSafe(best_idx).fitness();
+                                auto current_km1 = population.best()->fitness();
                                 auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                                 std::chrono::high_resolution_clock::now().time_since_epoch()
                                             ).count();

@@ -4,7 +4,6 @@ set(EvolutionarySources
         combine.h
         combine.cpp
         diversifier.h
-        edge_frequency.h
         evo_logs.h
         individual.h
         individual.cpp

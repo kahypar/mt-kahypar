@@ -23,12 +23,12 @@
 namespace mt_kahypar {
 std::ostream& operator<< (std::ostream& os, const Population& population) {
   for (size_t i = 0; i < population.size(); ++i) {
-    os << population.individualAt(i).fitness() << " ";
+    os << population.individualAt(i)->fitness() << " ";
   }
   return os;
 }
 
-size_t Population::insert(Individual&& individual, const Context& context) {
+size_t Population::insert(std::shared_ptr<Individual> individual, const Context& context) {
     // NM: rewrite this method as follows (requires that Individuals already use shared_ptr):
     // 1. copy the vector of individuals, release lock after copy
     // 2. determine replacement on copied vector
@@ -40,7 +40,6 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     switch (context.evolutionary.replace_strategy) {
       case EvoReplaceStrategy::worst:
         return forceInsert(std::move(individual), worst());
-
       case EvoReplaceStrategy::diverse:
         return replaceDiverse(std::move(individual), false);
 
@@ -50,56 +49,23 @@ size_t Population::insert(Individual&& individual, const Context& context) {
         return std::numeric_limits<int>::max();
     }
   }
-  size_t Population::forceInsert(Individual&& individual, const size_t position) {
-    DBG << V(position) << V(individual.fitness());
+
+  void Population::addStartingIndividual(std::shared_ptr<Individual> individual, const Context& context) {
+  std::lock_guard<std::mutex> guard(_population_mutex);
+  _individuals.emplace_back(std::move(individual));
+    ASSERT(_individuals.size() <= context.evolutionary.population_size);
+    DBG << "Individual" << _individuals.size() - 1
+        << V(_individuals.back()->fitness());
+  }
+
+  size_t Population::forceInsert(std::shared_ptr<Individual> individual, const size_t position) {
+    DBG << V(position) << V(individual->fitness());
     _individuals[position] = std::move(individual);
 
     return position;
   }
-  size_t Population::forceInsertSaveBest(Individual&& individual, const size_t position) {
-    DBG << V(position) << V(individual.fitness());
-    if (individual.fitness() <= _individuals[position].fitness() || position != best()) {
-      _individuals[position] = std::move(individual);
-    }
-    return position;
-  }
-  const Individual & Population::singleTournamentSelection() const {
-    const size_t first_pos = randomIndividual();
-    const size_t second_pos = randomIndividualExcept(first_pos);
-    const Individual& first = individualAt(first_pos);
-    const Individual& second = individualAt(second_pos);
-    DBG << V(first_pos) << V(first.fitness()) << V(second_pos) << V(second.fitness());
-    return first.fitness() < second.fitness() ? first : second;
-  }
 
-  std::pair<std::reference_wrapper<const Individual>,
-                   std::reference_wrapper<const Individual> > Population::tournamentSelect() const {
-    const Individual& first_tournament_winner = singleTournamentSelection();
-    const size_t first_pos = randomIndividual();
-    const size_t second_pos = randomIndividualExcept(first_pos);
-    const Individual& first = individualAt(first_pos);
-    const Individual& second = individualAt(second_pos);
-    size_t second_winner_pos = first.fitness() < second.fitness() ? first_pos : second_pos;
-
-    if (first_tournament_winner.fitness() == individualAt(second_winner_pos).fitness()) {
-      second_winner_pos = first.fitness() >= second.fitness() ? first_pos : second_pos;
-    }
-
-    DBG << V(first_tournament_winner.fitness()) << V(individualAt(second_winner_pos).fitness());
-    return std::make_pair(std::cref(first_tournament_winner),
-                          std::cref(individualAt(second_winner_pos)));
-  }
-
-  const Individual & Population::addStartingIndividual(Individual& individual, Context& context) {
-    _individuals.emplace_back(std::move(individual));
-    ASSERT(_individuals.size() <= context.evolutionary.population_size);
-    DBG << "Individual" << _individuals.size() - 1
-        << V(_individuals.back().fitness());
-
-    return _individuals.back();
-  }
-
-
+  //possibly unnecesary -->
   size_t Population::size() const {
     return _individuals.size();
   }
@@ -113,23 +79,38 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     }
     return target;
   }
+  // <--
 
-  size_t Population::best() const {
-    size_t best_position = std::numeric_limits<size_t>::max();
+  std::shared_ptr<Individual> Population::best() const {
+    std::shared_ptr<Individual> best_individual;
     HyperedgeWeight best_fitness = std::numeric_limits<int>::max();
-
+    std::lock_guard<std::mutex> guard(_population_mutex);
     for (size_t i = 0; i < size(); ++i) {
-      const HyperedgeWeight result = _individuals[i].fitness();
+      const HyperedgeWeight result = _individuals[i]->fitness();
       if (result < best_fitness) {
-        best_position = i;
+        best_individual = _individuals[i];
         best_fitness = result;
       }
     }
-    ASSERT(best_position != std::numeric_limits<size_t>::max());
-    DBG << V(best_position) << V(best_fitness);
-    return best_position;
+    DBG << V(best_individual) << V(best_fitness);
+    return best_individual;
   }
+  std::shared_ptr<Individual> Population::worstInd() const {
+  size_t worst_position = std::numeric_limits<size_t>::max();
+  HyperedgeWeight worst_fitness = std::numeric_limits<int>::min();
+  for (size_t i = 0; i < size(); ++i) {
+    HyperedgeWeight result = _individuals[i]->fitness();
+    if (result > worst_fitness) {
+      worst_position = i;
+      worst_fitness = result;
+    }
+  }
+  DBG << V(worst_position) << V(worst_fitness);
+  return _individuals[worst_position];
+}
+
   HyperedgeWeight Population::bestFitness() const {
+    std::lock_guard<std::mutex> guard(_population_mutex);
     size_t best_position = std::numeric_limits<size_t>::max();
     HyperedgeWeight best_fitness = std::numeric_limits<int>::max();
     if (size() == 0) {
@@ -137,7 +118,7 @@ size_t Population::insert(Individual&& individual, const Context& context) {
       return best_fitness;
     }
     for (size_t i = 0; i < size(); ++i) {
-      const HyperedgeWeight result = _individuals[i].fitness();
+      const HyperedgeWeight result = _individuals[i]->fitness();
       if (result < best_fitness) {
         best_position = i;
         best_fitness = result;
@@ -147,11 +128,13 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     DBG << V(best_position) << V(best_fitness);
     return best_fitness;
   }
-  size_t Population::worst() {
+
+
+  size_t Population::worst() const {
     size_t worst_position = std::numeric_limits<size_t>::max();
     HyperedgeWeight worst_fitness = std::numeric_limits<int>::min();
     for (size_t i = 0; i < size(); ++i) {
-      HyperedgeWeight result = _individuals[i].fitness();
+      HyperedgeWeight result = _individuals[i]->fitness();
       if (result > worst_fitness) {
         worst_position = i;
         worst_fitness = result;
@@ -161,19 +144,20 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     return worst_position;
   }
 
-  const Individual & Population::individualAt(const size_t pos) const {
+  const std::shared_ptr<Individual> Population::individualAt(const size_t pos) const {
     return _individuals[pos];
   }
 
   // Thread-safe accessors
-  size_t Population::sampleKParentsReturnBestIndex(std::vector<size_t>& parents, const size_t k, const bool deterministic, std::mt19937* rng) {
+  std::shared_ptr<Individual> Population::sampleKParentsReturnBestIndex(std::vector<size_t>& parents, const size_t k, const bool deterministic, std::mt19937* rng) const {
     ASSERT(k > 0);
     ASSERT(k <= _individuals.size());
     std::lock_guard<std::mutex> guard(_population_mutex);
-    size_t best=0;
+    std::shared_ptr<Individual> best;
     HyperedgeWeight best_fitness = std::numeric_limits<HyperedgeWeight>::max();
     std::vector<size_t> indices(_individuals.size());
     std::iota(indices.begin(), indices.end(), 0);
+    //TODO: Make forloop less confusing
     for (size_t t = 0; t < k; ++t) {
       const size_t i = _individuals.size() - 1 - t;
       size_t rnd;
@@ -185,10 +169,10 @@ size_t Population::insert(Individual&& individual, const Context& context) {
         rnd = utils::Randomize::instance().getRandomInt(0, i, THREAD_ID);
       }
       std::swap(indices[i], indices[rnd]);
-      const size_t candidate = indices[i];
-      if (const HyperedgeWeight candidate_fitness = _individuals[candidate].fitness(); candidate_fitness < best_fitness) {
+      auto candidate = indices[i];
+      if (const HyperedgeWeight candidate_fitness = _individuals[candidate]->fitness(); candidate_fitness < best_fitness) {
         best_fitness = candidate_fitness;
-        best = candidate;
+        best = _individuals[candidate];
       }
       parents.push_back(indices[i]);
     }
@@ -196,25 +180,27 @@ size_t Population::insert(Individual&& individual, const Context& context) {
   }
 
 
-  size_t Population::randomIndividualSafe(const bool deterministic, std::mt19937* rng) {
+  std::shared_ptr<Individual> Population::randomIndividualSafe(const bool deterministic, std::mt19937* rng) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
+    size_t pos;
     if (deterministic) {
       ASSERT(rng != nullptr, "Deterministic mode requires a valid RNG");
       std::uniform_int_distribution<size_t> dist(0, _individuals.size() - 1);
-      return dist(*rng);
+      pos = dist(*rng);
+    } else {
+      pos = utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
     }
-    return utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
+    return _individuals[pos];
   }
 
-  const Individual& Population::individualAtSafe(const size_t pos) {
+  const std::shared_ptr<Individual> Population::individualAtSafe(const size_t pos) {
     std::lock_guard<std::mutex> guard(_population_mutex);
     return _individuals[pos];
   }
 
-   std::vector<PartitionID> Population::bestPartitionCopySafe() {
-    std::lock_guard<std::mutex> guard(_population_mutex);
-    size_t best_position = best();
-    return _individuals[best_position].partition(); // returns copy
+  //Not thread safe anymore
+  std::vector<PartitionID> Population::bestPartitionCopySafe() const {
+    return best()->partition();// returns copy
   }
 
   std::vector<PartitionID> Population::randomIndividualPartitionCopySafe(const bool deterministic, std::mt19937* rng) {
@@ -227,45 +213,28 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     } else {
       random_position = utils::Randomize::instance().getRandomInt(0, _individuals.size() - 1, THREAD_ID);
     }
-    return _individuals[random_position].partition(); // returns copy
+    return _individuals[random_position]->partition(); // returns copy
   }
 
-  std::vector<PartitionID> Population::partitionCopySafe(const size_t pos) {
+  std::vector<PartitionID> Population::partitionCopySafe(const size_t pos) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    return _individuals[pos].partition(); // returns copy
+    return _individuals[pos]->partition(); // returns copy
   }
 
-  std::vector<HyperedgeID> Population::cutEdgesCopySave(size_t pos) {
+  std::vector<HyperedgeID> Population::cutEdgesCopySave(size_t pos) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    return _individuals[pos].cutEdges();
+    return _individuals[pos]->cutEdges();
   }
 
-  HyperedgeWeight Population::bestFitnessSafe() {
+  HyperedgeWeight Population::fitnessAtSafe(const size_t pos) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
-    HyperedgeWeight best_fitness = _individuals[0].fitness();
-    for (size_t i = 1; i < _individuals.size(); ++i) {
-      const HyperedgeWeight result = _individuals[i].fitness();
-      if (result < best_fitness) {
-        best_fitness = result;
-      }
-    }
-    return best_fitness;
-  }
-
-  HyperedgeWeight Population::fitnessAtSafe(const size_t pos) {
-    std::lock_guard<std::mutex> guard(_population_mutex);
-    return _individuals[pos].fitness();
-  }
-
-  size_t Population::bestSafe() {
-    std::lock_guard<std::mutex> guard(_population_mutex);
-    return best();
+    return _individuals[pos]->fitness();
   }
 
   Individuals Population::listOfBest(const size_t& amount) const {
     std::vector<std::pair<HyperedgeWeight, size_t> > sorting;
     for (size_t i = 0; i < _individuals.size(); ++i) {
-      sorting.push_back(std::make_pair(_individuals[i].fitness(), i));
+      sorting.push_back(std::make_pair(_individuals[i]->fitness(), i));
     }
 
     std::partial_sort(sorting.begin(), sorting.begin() + amount, sorting.end());
@@ -280,37 +249,37 @@ size_t Population::insert(Individual&& individual, const Context& context) {
   void Population::print() const {
     std::cout << std::endl << "Population Fitness: ";
     for (size_t i = 0; i < _individuals.size(); ++i) {
-      std::cout << _individuals[i].fitness() << " ";
+      std::cout << _individuals[i]->fitness() << " ";
     }
     std::cout << std::endl;
   }
   void Population::printDebug() const {
     for (size_t i = 0; i < _individuals.size(); ++i) {
-      _individuals[i].printDebug();
+      _individuals[i]->printDebug();
     }
   }
-  size_t Population::difference(const Individual& individual, const size_t position,
+  size_t Population::difference(std::shared_ptr<Individual> individual, const size_t position,
                            const bool strong_set) const {
     std::vector<HyperedgeID> output_diff;
     if (strong_set) {
-      ASSERT(std::is_sorted(_individuals[position].strongCutEdges().begin(),
-                            _individuals[position].strongCutEdges().end()));
-      ASSERT(std::is_sorted(individual.strongCutEdges().begin(),
-                            individual.strongCutEdges().end()));
-      std::set_symmetric_difference(_individuals[position].strongCutEdges().begin(),
-                                    _individuals[position].strongCutEdges().end(),
-                                    individual.strongCutEdges().begin(),
-                                    individual.strongCutEdges().end(),
+      ASSERT(std::is_sorted(_individuals[position]->strongCutEdges().begin(),
+                            _individuals[position]->strongCutEdges().end()));
+      ASSERT(std::is_sorted(individual->strongCutEdges().begin(),
+                            individual->strongCutEdges().end()));
+      std::set_symmetric_difference(_individuals[position]->strongCutEdges().begin(),
+                                    _individuals[position]->strongCutEdges().end(),
+                                    individual->strongCutEdges().begin(),
+                                    individual->strongCutEdges().end(),
                                     std::back_inserter(output_diff));
     } else {
-      ASSERT(std::is_sorted(_individuals[position].cutEdges().begin(),
-                            _individuals[position].cutEdges().end()));
-      ASSERT(std::is_sorted(individual.cutEdges().begin(),
-                            individual.cutEdges().end()));
-      std::set_symmetric_difference(_individuals[position].cutEdges().begin(),
-                                    _individuals[position].cutEdges().end(),
-                                    individual.cutEdges().begin(),
-                                    individual.cutEdges().end(),
+      ASSERT(std::is_sorted(_individuals[position]->cutEdges().begin(),
+                            _individuals[position]->cutEdges().end()));
+      ASSERT(std::is_sorted(individual->cutEdges().begin(),
+                            individual->cutEdges().end()));
+      std::set_symmetric_difference(_individuals[position]->cutEdges().begin(),
+                                    _individuals[position]->cutEdges().end(),
+                                    individual->cutEdges().begin(),
+                                    individual->cutEdges().end(),
                                     std::back_inserter(output_diff));
     }
     DBG << V(output_diff.size());
@@ -364,15 +333,15 @@ size_t Population::insert(Individual&& individual, const Context& context) {
     return matrix_string;
   }
 
-  size_t Population::replaceDiverse(Individual&& individual, const bool strong_set) {
+  size_t Population::replaceDiverse(std::shared_ptr<Individual> individual, const bool strong_set) {
   size_t max_similarity = std::numeric_limits<size_t>::max();
   size_t max_similarity_id = 0;
-  if (individual.fitness() > individualAt(worst()).fitness()) {
+  if (individual->fitness() > individualAt(worst())->fitness()) {
     DBG << "COLLAPSE";
     return std::numeric_limits<unsigned>::max();
   }
   for (size_t i = 0; i < size(); ++i) {
-    if (_individuals[i].fitness() >= individual.fitness()) {
+    if (_individuals[i]->fitness() >= individual->fitness()) {
       const size_t similarity = difference(individual, i, strong_set);
       DBG << "SYMMETRIC DIFFERENCE:" << similarity << " from" << i;
       if (similarity < max_similarity) {

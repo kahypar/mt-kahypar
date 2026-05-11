@@ -55,10 +55,10 @@ class AIndividual : public Test {
     return ctx;
   }
 
-  Individual makeDefault() { return Individual(); }
+  Individual makeDefault() { return {}; }
   Individual makeWithFitness(HyperedgeWeight f) { return Individual(f); }
   Individual makeWithPartition(const std::vector<PartitionID>& p) { return Individual(p); }
-  Individual makeFromPHG() { return Individual(partitioned_hypergraph, context); }
+  std::shared_ptr<Individual> makeFromPHG() { return std::make_shared<Individual>(Individual(partitioned_hypergraph, context)); }
 
 
   Hypergraph hypergraph;
@@ -109,7 +109,7 @@ TYPED_TEST(AIndividual, PartitionOnlyIndividualDiesOnFitnessAccess) {
 TYPED_TEST(AIndividual, CanBeConstructedFromPartitionedHypergraph) {
   auto ind = this->makeFromPHG();
   
-  const auto& partition = ind.partition();
+  const auto& partition = ind->partition();
   ASSERT_EQ(partition.size(), 7);
   for (HypernodeID hn : this->hypergraph.nodes()) {
     EXPECT_EQ(partition[hn], this->partitioned_hypergraph.partID(hn));
@@ -119,12 +119,12 @@ TYPED_TEST(AIndividual, CanBeConstructedFromPartitionedHypergraph) {
 TYPED_TEST(AIndividual, PartitionedHypergraphConstructorComputesFitnessCorrectly) {
   auto ind = this->makeFromPHG();
   HyperedgeWeight expected_fitness = mt_kahypar::metrics::quality(this->partitioned_hypergraph, this->context);
-  EXPECT_EQ(ind.fitness(), expected_fitness);
+  EXPECT_EQ(ind->fitness(), expected_fitness);
 }
 
 TYPED_TEST(AIndividual, PartitionedHypergraphConstructorIdentifiesCutEdgesCorrectly) {
   auto ind = this->makeFromPHG();
-  const auto& cut_edges = ind.cutEdges();
+  const auto& cut_edges = ind->cutEdges();
   
   // Every entry in cut_edges must have connectivity > 1
   for (HyperedgeID he : cut_edges) {
@@ -144,7 +144,7 @@ TYPED_TEST(AIndividual, PartitionedHypergraphConstructorIdentifiesCutEdgesCorrec
 
 TYPED_TEST(AIndividual, PartitionedHypergraphConstructorComputesStrongCutEdgesCorrectly) {
   auto ind = this->makeFromPHG();
-  const auto& strong_cut_edges = ind.strongCutEdges();
+  const auto& strong_cut_edges = ind->strongCutEdges();
   
   // Compute expected size: sum of (connectivity - 1) for all cut edges
   size_t expected_size = 0;
@@ -169,51 +169,16 @@ TYPED_TEST(AIndividual, PartitionedHypergraphConstructorComputesStrongCutEdgesCo
 
 TYPED_TEST(AIndividual, CutEdgesAreSorted) {
   auto ind = this->makeFromPHG();
-  const auto& cut_edges = ind.cutEdges();
+  const auto& cut_edges = ind->cutEdges();
   
   EXPECT_TRUE(std::is_sorted(cut_edges.begin(), cut_edges.end()));
 }
 
 TYPED_TEST(AIndividual, StrongCutEdgesAreSorted) {
   auto ind = this->makeFromPHG();
-  const auto& strong_cut_edges = ind.strongCutEdges();
+  const auto& strong_cut_edges = ind->strongCutEdges();
   
   EXPECT_TRUE(std::is_sorted(strong_cut_edges.begin(), strong_cut_edges.end()));
-}
-
-TYPED_TEST(AIndividual, CopyConstructorCreatesIdenticalIndividual) {
-  auto ind = this->makeFromPHG();
-  auto copy = ind.copy();
-  
-  EXPECT_EQ(ind.fitness(), copy.fitness());
-  EXPECT_EQ(ind.partition(), copy.partition());
-  EXPECT_EQ(ind.cutEdges(), copy.cutEdges());
-  EXPECT_EQ(ind.strongCutEdges(), copy.strongCutEdges());
-}
-
-TYPED_TEST(AIndividual, MoveConstructorMovesIndividual) {
-  auto ind = this->makeFromPHG();
-  auto copy = ind.copy();
-  
-  Individual moved(std::move(ind));
-  
-  EXPECT_EQ(copy.fitness(), moved.fitness());
-  EXPECT_EQ(copy.partition(), moved.partition());
-  EXPECT_EQ(copy.cutEdges(), moved.cutEdges());
-  EXPECT_EQ(copy.strongCutEdges(), moved.strongCutEdges());
-}
-
-TYPED_TEST(AIndividual, MoveAssignmentMovesIndividual) {
-  auto ind = this->makeFromPHG();
-  auto copy = ind.copy();
-  
-  Individual moved;
-  moved = std::move(ind);
-  
-  EXPECT_EQ(copy.fitness(), moved.fitness());
-  EXPECT_EQ(copy.partition(), moved.partition());
-  EXPECT_EQ(copy.cutEdges(), moved.cutEdges());
-  EXPECT_EQ(copy.strongCutEdges(), moved.strongCutEdges());
 }
 
 TYPED_TEST(AIndividual, PartitionedHypergraphConstructorHandlesHigherConnectivityEdge) {
@@ -259,7 +224,7 @@ TYPED_TEST(AIndividual, PartitionedHypergraphConstructorCanProduceNoCutEdges) {
 
 TYPED_TEST(AIndividual, PrintMethodsDoNotCrashForInitializedIndividual) {
   auto ind = this->makeFromPHG();
-  EXPECT_NO_FATAL_FAILURE(ind.print());
-  EXPECT_NO_FATAL_FAILURE(ind.printDebug());
+  EXPECT_NO_FATAL_FAILURE(ind->print());
+  EXPECT_NO_FATAL_FAILURE(ind->printDebug());
 }
 }

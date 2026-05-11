@@ -27,7 +27,6 @@
 
 #include "mt-kahypar/partition/evo_partitioner.h"
 #include "mt-kahypar/partition/multilevel.h"
-#include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -114,7 +113,7 @@ static constexpr bool debug = true;
 
   }
   template<typename TypeTraits>
-  Individual runEvolutionVCycle(typename TypeTraits::PartitionedHypergraph& partitioned_hypergraph, typename TypeTraits::Hypergraph& hypergraph, vec<PartitionID>& comms, const Context& context, std::unordered_map<PartitionID, int>& comm_to_block, TargetGraph* target_graph) {
+  std::shared_ptr<Individual> runEvolutionVCycle(typename TypeTraits::PartitionedHypergraph& partitioned_hypergraph, typename TypeTraits::Hypergraph& hypergraph, vec<PartitionID>& comms, const Context& context, std::unordered_map<PartitionID, int>& comm_to_block, TargetGraph* target_graph) {
     partitioned_hypergraph.initializePartition();
     hypergraph.setCommunityIDs(std::move(comms));
     if (context.partition.mode == Mode::direct) {
@@ -127,11 +126,11 @@ static constexpr bool debug = true;
       throw InvalidParameterException("Invalid partitioning mode!");
     }
 
-    return Individual(partitioned_hypergraph, context);
+    return std::make_shared<Individual>(partitioned_hypergraph, context);
   }
 
   template<typename TypeTraits>
-  Individual combineParentsWithVCycle(const std::vector<std::vector<PartitionID>>& parent_partitions,
+  std::shared_ptr<Individual> combineParentsWithVCycle(const std::vector<std::vector<PartitionID>>& parent_partitions,
                                std::vector<PartitionID> best_partition, const Context& context, TargetGraph* target_graph,
                                const typename TypeTraits::Hypergraph &input_hg) {
 
@@ -154,13 +153,14 @@ static constexpr bool debug = true;
   }
 
   template <typename TypeTraits>
-  Individual usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, Population& population, const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
+  std::shared_ptr<Individual> usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, Population& population, const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     std::vector<size_t> parents;
     //Maybe change to actually use Tournament Selection
-    const size_t best(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine,
+    auto best_individual(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine,
                                                                context.partition.deterministic, rng));
 
-    std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+    //!PartitionCopy
+    std::vector<PartitionID> best_partition = best_individual->partition();
 
     // aquire lock --- possibly unnecessary
     std::vector<std::vector<PartitionID>> parent_partitions;
@@ -172,9 +172,9 @@ static constexpr bool debug = true;
   }
 
   template <typename TypeTraits>
-  Individual usingSyntheticSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
+  std::shared_ptr<Individual> usingSyntheticSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
       std::vector<std::vector<PartitionID>> parent_partitions;
-      size_t best(population.randomIndividualSafe(context.partition.deterministic, rng));
+      auto best_individual = population.randomIndividualSafe(context.partition.deterministic, rng);
 
       // generate new parent individual with modified context
       Context modified_context = modifyContext(context, params);
@@ -193,7 +193,8 @@ static constexpr bool debug = true;
           modified_partition = EvoPartitioner<TypeTraits>::createPartition(input_hg, modified_context, target_graph);
       }
 
-      std::vector<PartitionID> best_partition = population.partitionCopySafe(best);
+      //!PartitionCopy
+      const std::vector<PartitionID> best_partition = best_individual->partition();
       parent_partitions.push_back(best_partition);
       parent_partitions.push_back(modified_partition);
 
@@ -201,9 +202,10 @@ static constexpr bool debug = true;
   }
 
   template <typename TypeTraits>
-  Individual usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
+  std::shared_ptr<Individual> usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     Context sub_context = Context(context);
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
+    //parent amount maybe sqrt(population.size) rounded up
     const size_t parent_amount = std::max(2.0, std::ceil(std::sqrt(context.evolutionary.population_size)));
     DBG << "Parent amount: " << parent_amount;
 
@@ -214,7 +216,6 @@ static constexpr bool debug = true;
     sub_context.coarsening.algorithm = CoarseningAlgorithm::three_phase_coarsener;
     sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
 
-    //parent amount maybe sqrt(population.size) rounded up
     std::vector<size_t> parents;
     population.sampleKParentsReturnBestIndex(parents, parent_amount, context.partition.deterministic, rng);
     //compute edge frequencies
@@ -229,7 +230,7 @@ static constexpr bool debug = true;
     //individual is created as a complete new partition with new initial partitioning and new coarsening
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph =
     Partitioner<TypeTraits>::partition(hypergraph, std::move(edge_md), sub_context, target_graph);
-    return Individual(partitioned_hypergraph, sub_context);
+    return std::make_shared<Individual>(partitioned_hypergraph, sub_context);
   }
 } // namespace mt_kahypar::combine
 

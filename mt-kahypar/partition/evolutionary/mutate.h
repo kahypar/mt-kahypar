@@ -23,15 +23,13 @@
 #include <vector>
 
 #include "combine.h"
-#include "mt-kahypar/partition/multilevel.h"
-#include "mt-kahypar/partition/evolutionary/edge_frequency.h"
 #include "mt-kahypar/partition/partitioner.h"
 
 namespace mt_kahypar::mutate {
   static constexpr bool debug = false;
 
   template<typename TypeTraits>
-  Individual vCycle(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
+  std::shared_ptr<Individual> vCycle(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph);
 
     vec<PartitionID> comms(hypergraph.initialNumNodes());  // NM: seems to be a copy of ind_partition, is this necessary?
@@ -47,7 +45,7 @@ namespace mt_kahypar::mutate {
   }
 
   template<typename TypeTraits>
-  Individual vCycleWithNewInitialPartitioning(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
+  std::shared_ptr<Individual> vCycleWithNewInitialPartitioning(typename TypeTraits::Hypergraph& hypergraph, const std::vector<PartitionID>& ind_partition, TargetGraph* target_graph, Context context) {
     vec<PartitionID> comms(hypergraph.initialNumNodes());
     for (const HypernodeID& hn : hypergraph.nodes()) {
       comms[hn] = ind_partition[hn];
@@ -61,6 +59,6 @@ namespace mt_kahypar::mutate {
     typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Partitioner<TypeTraits>::partition(
         hypergraph, std::move(edge_md), mut_context, target_graph);
 
-    return Individual(partitioned_hypergraph, mut_context);
+    return std::make_shared<Individual>(partitioned_hypergraph, mut_context);
   }
 }
