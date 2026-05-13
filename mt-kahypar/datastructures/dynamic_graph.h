@@ -340,6 +340,7 @@ class DynamicGraph {
 
   explicit DynamicGraph() :
     _num_removed_nodes(0),
+    _max_removed_degree_zero_hn_weight(0),
     _num_edges(0),
     _total_weight(0),
     _version(0),
@@ -355,6 +356,7 @@ class DynamicGraph {
 
   DynamicGraph(DynamicGraph&& other) :
     _num_removed_nodes(other._num_removed_nodes),
+    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
     _version(other._version),
@@ -370,6 +372,7 @@ class DynamicGraph {
   DynamicGraph & operator= (DynamicGraph&& other) {
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
+    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
     _total_weight = other._total_weight;
     _version = other._version;
     _contraction_index.store(other._contraction_index.load());
@@ -396,6 +399,11 @@ class DynamicGraph {
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
     return _num_removed_nodes;
+  }
+
+  // ! Max weight of removed degree zero vertex
+  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+    return _max_removed_degree_zero_hn_weight;
   }
 
   // ! Initial number of hyperedges
@@ -525,12 +533,15 @@ class DynamicGraph {
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
     removeHypernode(u);
+    _max_removed_degree_zero_hn_weight =
+      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
+    _max_removed_degree_zero_hn_weight = 0;
   }
 
   // ####################### Hyperedge Information #######################
@@ -899,6 +910,7 @@ class DynamicGraph {
 
   // ! Number of removed hypernodes
   HypernodeID _num_removed_nodes;
+  HypernodeWeight _max_removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_edges;
   // ! Total weight of hypergraph
