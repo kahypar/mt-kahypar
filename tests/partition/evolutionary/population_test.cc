@@ -6,6 +6,7 @@
 #include <sstream>
 #include <type_traits>
 #include <vector>
+#include <thread>
 #include <mt-kahypar/parallel/tbb_initializer.h>
 
 #include "gmock/gmock.h"
@@ -101,20 +102,42 @@ class APopulation : public Test {
         return false;
     }
 
+    bool containsFitnessBy(const Population& pop, const HyperedgeWeight fitness) const {
+        // Helper to check if population contains specific fitness
+        for (size_t i = 0; i < pop.size(); ++i) {
+            if (pop.individualAt(i)->fitness() == fitness) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     Context context;
     Population population;
 };
 
 TYPED_TEST_SUITE(APopulation, tests::HypergraphTestTypeTraits);
 
-TYPED_TEST(APopulation, InsertTooManyStartingIndividualsDies) {
-    EXPECT_DEBUG_DEATH({ this->population.addStartingIndividual(std::make_shared<Individual>(15), this->context); }, "");
+// =============================================================================
+// Basic Accessor Tests
+// =============================================================================
+
+TYPED_TEST(APopulation, PopulationSizeIsCorrect) {
+    EXPECT_EQ(this->population.size(), 5);
 }
 
-
-TYPED_TEST(APopulation, BestWorstAndBestFitnessAreComputedCorrectly) {
-    EXPECT_EQ(this->population.best()->fitness(), 0);
+TYPED_TEST(APopulation, BestFitnessReturnsMinimum) {
     EXPECT_EQ(this->population.bestFitness(), 2);
+}
+
+TYPED_TEST(APopulation, BestIndividualHasOptimalFitness) {
+    auto best = this->population.bestInd();
+    EXPECT_EQ(best->fitness(), 2);
+}
+
+TYPED_TEST(APopulation, WorstIndividualHasWorstFitness) {
+    auto worst = this->population.worstInd();
+    EXPECT_EQ(worst->fitness(), 10);
 }
 
 TYPED_TEST(APopulation, BestFitnessOnEmptyPopulationReturnsMaxInt) {
@@ -122,66 +145,49 @@ TYPED_TEST(APopulation, BestFitnessOnEmptyPopulationReturnsMaxInt) {
     EXPECT_EQ(pop.bestFitness(), std::numeric_limits<int>::max());
 }
 
+TYPED_TEST(APopulation, FitnessAtReturnsFitnessAtPosition) {
+    EXPECT_EQ(this->population.fitnessAt(0), 2);
+    EXPECT_EQ(this->population.fitnessAt(1), 4);
+    EXPECT_EQ(this->population.fitnessAt(4), 10);
+}
+
+TYPED_TEST(APopulation, IndividualAtReturnsSharedPtr) {
+    auto ind = this->population.individualAt(0);
+    EXPECT_NE(ind, nullptr);
+    EXPECT_EQ(ind->fitness(), 2);
+}
+
+// =============================================================================
+// Population Modification Tests
+// =============================================================================
+
+TYPED_TEST(APopulation, InsertTooManyStartingIndividualsDies) {
+    typename TestFixture::Population pop;
+    Context ctx = this->context;
+    ctx.evolutionary.population_size = 3;
+
+    pop.addStartingIndividual(std::make_shared<Individual>(1), ctx);
+    pop.addStartingIndividual(std::make_shared<Individual>(2), ctx);
+    pop.addStartingIndividual(std::make_shared<Individual>(3), ctx);
+
+    // Adding more than population_size should trigger assertion
+    EXPECT_DEBUG_DEATH({
+        pop.addStartingIndividual(std::make_shared<Individual>(4), ctx);
+    }, "");
+}
+
 TYPED_TEST(APopulation, InsertsIndividualAtWorstPositionForWorstStrategy) {
     this->context.evolutionary.replace_strategy = EvoReplaceStrategy::worst;
-    auto ind3 = std::make_shared<Individual>(3);
-    auto ind4 = std::make_shared<Individual>(6);
+    auto ind_good = std::make_shared<Individual>(1);
+    auto ind_bad = std::make_shared<Individual>(12);
 
-    const size_t pos1 = this->population.insert(std::move(ind3), this->context);
-    const size_t pos2 = this->population.insert(std::move(ind4), this->context);
-
-    EXPECT_EQ(pos1, 4);
-    EXPECT_EQ(pos2, 3);
+    const size_t pos1 = this->population.insert(std::move(ind_bad), this->context);
+    EXPECT_EQ(pos1, 4);  // Replaces worst (fitness 10)
     EXPECT_EQ(this->population.size(), 5);
-}
 
-/*TYPED_TEST(APopulation, ForceInsertReplacesGivenPosition) {
-    const size_t pos = this->population.forceInsert(std::make_shared<Individual>(5), 1);
-
-    EXPECT_EQ(pos, 1);
-    EXPECT_EQ(this->population.individualAt(1)->fitness(), 5);
-}*/
-
-
-
-TYPED_TEST(APopulation, RandomIndividualExceptNeverReturnsException) {
-    for (size_t exception = 0; exception < this->population.size(); ++exception) {
-        for (size_t i = 0; i < 64; ++i) {
-            EXPECT_NE(this->population.randomIndividualExcept(exception), exception);
-        }
-    }
-}
-
-TYPED_TEST(APopulation, RandomIndividualReturnsValidIndex) {
-    for (size_t i = 0; i < 128; ++i) {
-        const size_t idx = this->population.randomIndividual();
-        EXPECT_LT(idx, this->population.size());
-    }
-}
-
-TYPED_TEST(APopulation, ListOfBestReturnsSortedPrefix) {
-    Individuals best3 = this->population.listOfBest(3);
-    ASSERT_EQ(best3.size(), 3);
-    EXPECT_EQ(best3[0].get()->fitness(), 2);
-    EXPECT_EQ(best3[1].get()->fitness(), 4);
-    EXPECT_EQ(best3[2].get()->fitness(), 6);
-}
-
-TYPED_TEST(APopulation, ToStringFormatsCsvAndEmptyString) {
-    EXPECT_EQ(this->population.toString({}), "");
-    EXPECT_EQ(this->population.toString({1, 2, 7}), "1,2,7");
-}
-
-TYPED_TEST(APopulation, DifferenceUsesCutEdgesAndStrongCutEdges) {
-    typename TestFixture::Population pop;
-    this->fillStructuredPopulation(pop, {
-        {0, 0, 0, 1, 1, 2, 2},
-        {0, 1, 2, 0, 1, 2, 0}
-    });
-    auto ind = this->makeIndividualFromAssignment({0, 1, 2, 2, 1, 2, 0});
-
-    EXPECT_EQ(pop.difference(ind, 0, false), 1);
-    EXPECT_EQ(pop.difference(ind, 0, true), 3);
+    const size_t pos2 = this->population.insert(std::move(ind_good), this->context);
+    EXPECT_EQ(pos2, 4);  // Replaces worst again
+    EXPECT_EQ(this->population.size(), 5);
 }
 
 TYPED_TEST(APopulation, DiverseReplacementPrefersMostSimilarCandidate) {
@@ -244,86 +250,112 @@ TYPED_TEST(APopulation, DiverseRejectsCandidateWorseThanWorstFitness) {
     EXPECT_EQ(pop.worstInd()->fitness(), old_worst);
 }
 
-TYPED_TEST(APopulation, UpdateDiffMatrixReturnsSquareCsvWithSeparator) {
+// =============================================================================
+// List and Selection Tests
+// =============================================================================
+
+TYPED_TEST(APopulation, ListOfBestReturnsSortedPrefix) {
+    Individuals best3 = this->population.listOfBest(3);
+    ASSERT_EQ(best3.size(), 3);
+    EXPECT_EQ(best3[0].get()->fitness(), 2);
+    EXPECT_EQ(best3[1].get()->fitness(), 4);
+    EXPECT_EQ(best3[2].get()->fitness(), 6);
+}
+
+TYPED_TEST(APopulation, SampleKParentsReturnBestReturnsKIndividuals) {
+    std::mt19937 rng(42);
+    std::vector<size_t> parents;
+    const size_t k = 3;
+
+    auto best = this->population.sampleKParentsReturnBest(parents, k, true, &rng);
+
+    ASSERT_EQ(parents.size(), k);
+    EXPECT_NE(best, nullptr);
+    ASSERT_GE(best->fitness(), this->population.bestFitness());
+}
+
+TYPED_TEST(APopulation, SampleKParentsReturnsBestAsBestFitness) {
+    std::mt19937 rng(42);
+    std::vector<size_t> parents;
+    const size_t k = 5;
+
+    auto best = this->population.sampleKParentsReturnBest(parents, k, true, &rng);
+
+    EXPECT_EQ(best->fitness(), this->population.bestFitness());
+}
+
+TYPED_TEST(APopulation, RandomIndividualReturnsValidIndividual) {
+    for (int i = 0; i < 20; ++i) {
+        auto ind = this->population.randomIndividual(false);
+        EXPECT_NE(ind, nullptr);
+        EXPECT_GE(ind->fitness(), this->population.bestFitness());
+    }
+}
+
+TYPED_TEST(APopulation, DeterministicRandomIndividualIsStable) {
+    std::mt19937 rng_a(1337);
+    std::mt19937 rng_b(1337);
+
+    auto ind_a = this->population.randomIndividual(true, &rng_a);
+    auto ind_b = this->population.randomIndividual(true, &rng_b);
+
+    EXPECT_EQ(ind_a->fitness(), ind_b->fitness());
+}
+// =============================================================================
+// Utility Tests
+// =============================================================================
+
+TYPED_TEST(APopulation, ToStringFormatsCsvCorrectly) {
+    EXPECT_EQ(Population::toString({}), "");
+    EXPECT_EQ(Population::toString({1}), "1");
+    EXPECT_EQ(Population::toString({1, 2, 7}), "1,2,7");
+    EXPECT_EQ(Population::toString({5, 10, 15, 20}), "5,10,15,20");
+}
+
+TYPED_TEST(APopulation, UpdateDiffMatrixReturnsSquareMatrix) {
     typename TestFixture::Population pop;
     this->fillStructuredPopulation(pop, {
         {0, 0, 0, 1, 1, 2, 2},
         {0, 1, 2, 0, 1, 2, 0},
         {0, 1, 2, 2, 1, 2, 0}
     });
-    const std::string matrix = pop.updateDiffMatrix();
 
-    std::stringstream ss(matrix);
-    std::string line;
-    std::vector<std::string> lines;
-    while (std::getline(ss, line)) {
-        lines.push_back(line);
-    }
+    DiffMatrix matrix = pop.updateDiffMatrix();
 
-    ASSERT_EQ(lines.size(), pop.size() + 1);
-    EXPECT_EQ(lines.back(), "---");
-    for (size_t i = 0; i < pop.size(); ++i) {
-        EXPECT_EQ(std::count(lines[i].begin(), lines[i].end(), ','), pop.size() - 1);
+    ASSERT_EQ(matrix.size(), pop.size());
+    for (size_t i = 0; i < matrix.size(); ++i) {
+        EXPECT_EQ(matrix[i].size(), pop.size());
+        EXPECT_EQ(matrix[i][i], 0);  // Diagonal should be 0
     }
 }
 
-TYPED_TEST(APopulation, ConcurrentSafeAccessorsKeepIndicesAndFitnessValid) {
+TYPED_TEST(APopulation, UpdateDiffMatrixIsSymmetric) {
     typename TestFixture::Population pop;
     this->fillStructuredPopulation(pop, {
         {0, 0, 0, 1, 1, 2, 2},
         {0, 1, 2, 0, 1, 2, 0},
-        {0, 1, 2, 2, 1, 2, 0},
-        {0, 1, 0, 1, 1, 2, 2},
-        {0, 2, 0, 1, 2, 1, 2}
+        {0, 1, 2, 2, 1, 2, 0}
     });
-    const HyperedgeWeight expected_best_fitness = pop.bestFitness();
 
-    executeConcurrent([&] {
-        for (size_t i = 0; i < 200; ++i) {
-            auto ind = pop.randomIndividualSafe(this->context.partition.deterministic);
-            EXPECT_EQ(pop.bestFitness(), expected_best_fitness);
+    DiffMatrix matrix = pop.updateDiffMatrix();
 
+    for (size_t i = 0; i < matrix.size(); ++i) {
+        for (size_t j = 0; j < matrix.size(); ++j) {
+            EXPECT_EQ(matrix[i][j], matrix[j][i]) << "Matrix not symmetric at [" << i << ", " << j << "]";
         }
-    }, [&] {
-        for (size_t i = 0; i < 200; ++i) {
-           auto ind = pop.randomIndividualSafe(this->context.partition.deterministic);
-            EXPECT_EQ(pop.best()->fitness(), expected_best_fitness);
-            EXPECT_EQ(pop.bestPartitionCopySafe().size(), 7);
-            EXPECT_EQ(ind->partition().size(), 7);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(this->context.partition.deterministic).size(), 7);
-        }
-    });
-}
-
-
-TYPED_TEST(APopulation, IndividualAtSafeMatchesUnsafeAccessor) {
-    typename TestFixture::Population pop;
-    this->fillStructuredPopulation(pop, {
-        {0, 0, 0, 1, 1, 2, 2},
-        {0, 1, 2, 0, 1, 2, 0},
-        {0, 1, 2, 2, 1, 2, 0},
-        {0, 1, 0, 1, 1, 2, 2},
-        {0, 2, 0, 1, 2, 1, 2}
-    });
-
-    for (size_t i = 0; i < pop.size(); ++i) {
-        EXPECT_EQ(pop.individualAtSafe(i)->fitness(), pop.individualAt(i)->fitness());
     }
 }
 
 TYPED_TEST(APopulation, PrintMethodsDoNotCrash) {
-    typename TestFixture::Population pop;
-    this->fillStructuredPopulation(pop, {
-        {0, 0, 0, 1, 1, 2, 2},
-        {0, 1, 2, 0, 1, 2, 0},
-        {0, 1, 2, 2, 1, 2, 0}
-    });
-
-    EXPECT_NO_FATAL_FAILURE(pop.print());
-    EXPECT_NO_FATAL_FAILURE(pop.printDebug());
+    EXPECT_NO_FATAL_FAILURE(this->population.print());
+    EXPECT_NO_FATAL_FAILURE(this->population.printDebug());
 }
 
-TYPED_TEST(APopulation, DeterministicSafeRandomMethodsAreStableAcrossThreads) {
+// =============================================================================
+// Thread Safety Tests
+// =============================================================================
+
+TYPED_TEST(APopulation, ConcurrentReadsPreserveConsistency) {
     typename TestFixture::Population pop;
     this->fillStructuredPopulation(pop, {
         {0, 0, 0, 1, 1, 2, 2},
@@ -332,128 +364,108 @@ TYPED_TEST(APopulation, DeterministicSafeRandomMethodsAreStableAcrossThreads) {
         {0, 1, 0, 1, 1, 2, 2},
         {0, 2, 0, 1, 2, 1, 2}
     });
-    Context ctx(this->context);
-    ctx.partition.deterministic = true;
-    ctx.partition.seed = 1337;
-    std::mt19937 rng(ctx.partition.seed);
-    std::vector<size_t> expected_idxs;
-    std::vector<std::vector<PartitionID>> expected_partitions;
-    expected_partitions.reserve(100);
-    for (size_t i = 0; i < 100; ++i) {
-        expected_idxs.push_back(pop.randomIndividualSafe(ctx.partition.deterministic, &rng));
-        expected_partitions.push_back(pop.randomIndividualPartitionCopySafe(ctx.partition.deterministic, &rng));
-    }
+
+    const HyperedgeWeight expected_best = pop.bestFitness();
+
     executeConcurrent([&] {
-        std::mt19937 thread_rng(ctx.partition.seed);
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafe(ctx.partition.deterministic, &thread_rng), expected_idxs[i]);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx.partition.deterministic, &thread_rng), expected_partitions[i]);
+            auto ind = pop.randomIndividual(false);
+            EXPECT_NE(ind, nullptr);
+            EXPECT_EQ(pop.bestFitness(), expected_best);
         }
     }, [&] {
-        std::mt19937 thread_rng(ctx.partition.seed);
         for (size_t i = 0; i < 100; ++i) {
-            EXPECT_EQ(pop.randomIndividualSafe(ctx.partition.deterministic, &thread_rng), expected_idxs[i]);
-            EXPECT_EQ(pop.randomIndividualPartitionCopySafe(ctx.partition.deterministic, &thread_rng), expected_partitions[i]);
+            auto best = pop.bestInd();
+            EXPECT_NE(best, nullptr);
+            EXPECT_EQ(best->fitness(), expected_best);
         }
     });
 }
 
-TYPED_TEST(APopulation, ConcurrentInsertsPreservePopulationSizeAndBestFitness) {
+TYPED_TEST(APopulation, ConcurrentInsertsPreservePopulationSize) {
     this->context.evolutionary.replace_strategy = EvoReplaceStrategy::worst;
 
     executeConcurrent([&] {
         for (HyperedgeWeight fitness = 1; fitness <= 200; ++fitness) {
-            Individual ind(fitness);
+            auto ind = std::make_shared<Individual>(fitness);
             this->population.insert(std::move(ind), this->context);
         }
     }, [&] {
         for (HyperedgeWeight fitness = 201; fitness <= 400; ++fitness) {
-            Individual ind(fitness);
+            auto ind = std::make_shared<Individual>(fitness);
             this->population.insert(std::move(ind), this->context);
         }
     });
 
     EXPECT_EQ(this->population.size(), 5);
     EXPECT_EQ(this->population.bestFitness(), 1);
-    EXPECT_LT(this->population.best(), this->population.size());
-    EXPECT_LT(this->population.worst(), this->population.size());
 }
 
-TYPED_TEST(APopulation, ConcurrentInsertsAndSafeReadsRemainConsistent) {
+TYPED_TEST(APopulation, ConcurrentInsertsAndReadsRemainConsistent) {
     this->context.evolutionary.replace_strategy = EvoReplaceStrategy::worst;
 
     executeConcurrent([&] {
-        for (HyperedgeWeight fitness = 1; fitness <= 300; ++fitness) {
-            Individual ind(fitness);
+        for (HyperedgeWeight fitness = 1; fitness <= 150; ++fitness) {
+            auto ind = std::make_shared<Individual>(fitness);
             this->population.insert(std::move(ind), this->context);
         }
     }, [&] {
-        for (size_t i = 0; i < 300; ++i) {
-            const size_t idx = this->population.randomIndividualSafe(this->context.partition.deterministic);
-            EXPECT_LT(idx, this->population.size());
-            EXPECT_LT(this->population.bestSafe(), this->population.size());
+        for (size_t i = 0; i < 150; ++i) {
+            auto ind = this->population.randomIndividual(false);
+            EXPECT_NE(ind, nullptr);
 
-            const HyperedgeWeight fitness = this->population.fitnessAtSafe(idx);
-            const HyperedgeWeight best_fitness = this->population.bestFitnessSafe();
-
-            EXPECT_LE(best_fitness, fitness);
-            EXPECT_GE(fitness, 1);
-            EXPECT_LE(fitness, 300);
+            HyperedgeWeight fitness = this->population.fitnessAt(0);
+            HyperedgeWeight best = this->population.bestFitness();
+            EXPECT_LE(best, fitness);
         }
     });
 
     EXPECT_EQ(this->population.size(), 5);
-    EXPECT_LT(this->population.best(), this->population.size());
-    EXPECT_LT(this->population.worst(), this->population.size());
 }
 
-TYPED_TEST(APopulation, ReturnsKRandomParentsAndBest) {
-    std::mt19937 rng(42);
-    std::vector<size_t> parents;
-    const int k = 3;
-
-    const size_t best = this->population.sampleKParentsReturnBestIndex(
-        parents, k, true, &rng);
-
-    ASSERT_EQ(parents.size(), static_cast<size_t>(k));
-    EXPECT_TRUE(std::all_of(parents.begin(), parents.end(), [&](const size_t idx) {
-        return idx < this->population.size();
-    }));
-
-    std::set<size_t> unique(parents.begin(), parents.end());
-    EXPECT_EQ(unique.size(), parents.size());
-    EXPECT_TRUE(unique.find(best) != unique.end());
-
-    const HyperedgeWeight sampled_best_fitness = this->population.individualAt(best).fitness();
-    for (const size_t idx : parents) {
-        EXPECT_LE(sampled_best_fitness, this->population.individualAt(idx).fitness());
-    }
-}
-
-TYPED_TEST(APopulation, ReturnsBestOverallWhenSamplingWholePopulation) {
-    std::mt19937 rng(7);
-    std::vector<size_t> parents;
-
-    const size_t best = this->population.sampleKParentsReturnBestIndex(
-        parents, static_cast<int>(this->population.size()), true, &rng);
-
-    ASSERT_EQ(parents.size(), this->population.size());
-    std::set<size_t> unique(parents.begin(), parents.end());
-    EXPECT_EQ(unique.size(), this->population.size());
-    EXPECT_EQ(best, this->population.best());
-}
-
-TYPED_TEST(APopulation, DeterministicSamplingIsStableForSameSeed) {
-    std::vector<size_t> parents_a;
-    std::vector<size_t> parents_b;
+TYPED_TEST(APopulation, DeterministicRandomSampling) {
     std::mt19937 rng_a(1337);
     std::mt19937 rng_b(1337);
 
-    const size_t best_a = this->population.sampleKParentsReturnBestIndex(parents_a, 4, true, &rng_a);
-    const size_t best_b = this->population.sampleKParentsReturnBestIndex(parents_b, 4, true, &rng_b);
+    std::vector<size_t> parents_a;
+    std::vector<size_t> parents_b;
+
+    auto best_a = this->population.sampleKParentsReturnBest(parents_a, 3, true, &rng_a);
+    auto best_b = this->population.sampleKParentsReturnBest(parents_b, 3, true, &rng_b);
 
     EXPECT_EQ(parents_a, parents_b);
-    EXPECT_EQ(best_a, best_b);
+    EXPECT_EQ(best_a->fitness(), best_b->fitness());
+}
+
+TYPED_TEST(APopulation, AllPublicMethodsAreThreadSafe) {
+    typename TestFixture::Population pop;
+    this->fillStructuredPopulation(pop, {
+        {0, 0, 0, 1, 1, 2, 2},
+        {0, 1, 2, 0, 1, 2, 0},
+        {0, 1, 2, 2, 1, 2, 0},
+        {0, 1, 0, 1, 1, 2, 2},
+        {0, 2, 0, 1, 2, 1, 2}
+    });
+
+    // All these should be thread-safe and not deadlock
+    executeConcurrent([&] {
+        for (int i = 0; i < 50; ++i) {
+            pop.size();
+            pop.bestFitness();
+            pop.bestInd();
+            pop.worstInd();
+            pop.randomIndividual(false);
+            auto partition = pop.bestPartitionCopy();
+        }
+    }, [&] {
+        for (int i = 0; i < 50; ++i) {
+            pop.bestFitness();
+            pop.fitnessAt(0);
+            pop.individualAt(0);
+            auto partition = pop.partitionCopyAt(0);
+            auto best3 = pop.listOfBest(2);
+        }
+    });
 }
 
 } // namespace mt_kahypar

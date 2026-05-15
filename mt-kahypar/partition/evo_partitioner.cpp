@@ -92,7 +92,17 @@ namespace mt_kahypar {
         if (context.evolutionary.diff_matrix_file != "" && context.partition.enable_benchmark_mode) {
             std::ofstream out_stream(context.evolutionary.diff_matrix_file.c_str(),
                                    std::ios::out | std::ios::trunc);
-            out_stream << diff_matrix_history;
+            for (auto diff_matrix: diff_matrix_history) {
+                std::string matrix_string;
+                // return matrix as String
+                for (size_t i = 0; i < diff_matrix.size(); i++) {
+                    std::string row = Population::toString(diff_matrix[i]);
+                    matrix_string += row + "\n";
+                }
+                // add separator between each matrix
+                matrix_string += "---\n";
+                out_stream << matrix_string;
+            }
             out_stream.close();
         }
         if (context.evolutionary.enable_iteration_logging & context.partition.enable_benchmark_mode) {
@@ -125,7 +135,7 @@ namespace mt_kahypar {
         // After evolution, we take the best individual and create the final partition.
         PartitionedHypergraph final_partition(context.partition.k, const_cast<Hypergraph&>(hypergraph));
         
-        std::vector<PartitionID> best_partition_vec = population.bestPartitionCopySafe();
+        std::vector<PartitionID> best_partition_vec = population.bestPartitionCopy();
         final_partition.doParallelForAllNodes([&](const HypernodeID& hn) {
             final_partition.setOnlyNodePart(hn, best_partition_vec[hn]);
         });
@@ -233,10 +243,11 @@ namespace mt_kahypar {
                 DBG << "DEBUG: Finished generating sub population";
 
                 // Extract Best Individuals
+                //TODO: Change this part to actually use listOfBest instead of doing it manually here
                 std::vector<std::pair<HyperedgeWeight, size_t>> fitness_indices;
                 for (size_t i = 0; i < sub_population.size(); i++) {
                     DBG << "DEBUG: iterating";
-                    fitness_indices.push_back({sub_population.fitnessAtSafe(i), i});
+                    fitness_indices.push_back({sub_population.fitnessAt(i), i});
                 }
                 std::sort(fitness_indices.begin(), fitness_indices.end()); // Ascending (lower is better)
 
@@ -248,7 +259,7 @@ namespace mt_kahypar {
                     DBG << "DEBUG: Before copying";
                     size_t idx = pair.second;
                     // Copy shared individual pointer from sub_population to main population
-                    auto individual = sub_population.individualAtSafe(idx);
+                    auto individual = sub_population.individualAt(idx);
                     DBG << "DEBUG: Before inserting";
                     // Add starting individuals to "real" population
                     population.addStartingIndividual(individual, context);
@@ -412,8 +423,8 @@ namespace mt_kahypar {
         population.insert(std::move(individual), context);
         if (context.partition.enable_benchmark_mode && improved) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-            std::string diff_matrix = population.updateDiffMatrix();
-            diff_matrix_history += diff_matrix;
+            DiffMatrix diff_matrix = population.updateDiffMatrix();
+            diff_matrix_history.push_back(diff_matrix);
         }
         return improved;
     }
@@ -463,7 +474,7 @@ namespace mt_kahypar {
         std::mt19937 *rng) {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
-    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopySafe(context.partition.deterministic, rng));
+    const std::vector rnd_ind_partition(population.randomIndividualPartitionCopy(context.partition.deterministic, rng));
     switch (pick::decideNextMutation(context, rng)) {
         case EvoMutateStrategy::new_initial_partitioning_vcycle:
             return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
@@ -678,7 +689,7 @@ namespace mt_kahypar {
                         // Log current best KM1 after each iteration if enabled (iteration, timestamp, km1)
                         if ( iteration_logging_enabled ) {
                             // get current best KM1 from population
-                            auto current_km1 = population.best()->fitness();
+                            auto current_km1 = population.bestInd()->fitness();
                             auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                             std::chrono::high_resolution_clock::now().time_since_epoch()
                                             ).count();
@@ -795,7 +806,7 @@ namespace mt_kahypar {
 
                                 if (iteration_logging_enabled) {
                                 // One "iteration" per inserted individual
-                                auto current_km1 = population.best()->fitness();
+                                auto current_km1 = population.bestInd()->fitness();
                                 auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                                 std::chrono::high_resolution_clock::now().time_since_epoch()
                                             ).count();
@@ -849,8 +860,8 @@ namespace mt_kahypar {
         // Update final diff matrix
         if (context.partition.enable_benchmark_mode) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
-            std::string diff_matrix = population.updateDiffMatrix();
-            diff_matrix_history += diff_matrix;
+            DiffMatrix diff_matrix = population.updateDiffMatrix();
+            diff_matrix_history.push_back(diff_matrix);
         }
 
         context.evolutionary.iteration += total_iterations.load();
@@ -901,7 +912,7 @@ namespace mt_kahypar {
     }
 
 template<typename TypeTraits>
-std::string EvoPartitioner<TypeTraits>::diff_matrix_history = "";
+std::vector<DiffMatrix> EvoPartitioner<TypeTraits>::diff_matrix_history;
 
 template<typename TypeTraits>
 std::mutex EvoPartitioner<TypeTraits>::diff_matrix_history_mutex;

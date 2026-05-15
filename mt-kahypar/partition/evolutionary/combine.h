@@ -156,7 +156,7 @@ static constexpr bool debug = true;
   std::shared_ptr<Individual> usingKWaySelection(const typename TypeTraits::Hypergraph& input_hg, Population& population, const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     std::vector<size_t> parents;
     //Maybe change to actually use Tournament Selection
-    auto best_individual(population.sampleKParentsReturnBestIndex(parents, context.evolutionary.kway_combine,
+    auto best_individual(population.sampleKParentsReturnBest(parents, context.evolutionary.kway_combine,
                                                                context.partition.deterministic, rng));
 
     //!PartitionCopy
@@ -165,7 +165,7 @@ static constexpr bool debug = true;
     // aquire lock --- possibly unnecessary
     std::vector<std::vector<PartitionID>> parent_partitions;
     for (auto parent_id : parents) {
-      parent_partitions.push_back(population.partitionCopySafe(parent_id)); // FIXED
+      parent_partitions.push_back(population.partitionCopyAt(parent_id)); // FIXED
     }
 
     return combineParentsWithVCycle<TypeTraits>(parent_partitions, best_partition, context, target_graph, input_hg);
@@ -174,7 +174,7 @@ static constexpr bool debug = true;
   template <typename TypeTraits>
   std::shared_ptr<Individual> usingSyntheticSecondParent(const typename TypeTraits::Hypergraph& input_hg, Population& population, TargetGraph* target_graph, ContextModifierParameters params,const Context& context, std::mt19937* rng) {
       std::vector<std::vector<PartitionID>> parent_partitions;
-      auto best_individual = population.randomIndividualSafe(context.partition.deterministic, rng);
+      auto best_individual = population.randomIndividual(context.partition.deterministic, rng);
 
       // generate new parent individual with modified context
       Context modified_context = modifyContext(context, params);
@@ -217,11 +217,11 @@ static constexpr bool debug = true;
     sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
 
     std::vector<size_t> parents;
-    population.sampleKParentsReturnBestIndex(parents, parent_amount, context.partition.deterministic, rng);
+    population.sampleKParentsReturnBest(parents, parent_amount, context.partition.deterministic, rng);
     //compute edge frequencies
     vec<EdgeMetadata> edge_md(hypergraph.initialNumEdges(), 0);
     for (auto parent_id : parents) {
-      std::vector<HyperedgeID> cut_edges = population.cutEdgesCopySave(parent_id);
+      std::vector<HyperedgeID> cut_edges = population.cutEdgesCopyAt(parent_id);
       for (auto edge : cut_edges) {
         edge_md[edge] += 1.0 / parent_amount;
       }

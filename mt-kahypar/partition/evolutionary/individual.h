@@ -137,6 +137,6 @@ class Individual {
   HyperedgeWeight _fitness;
 };
 std::ostream& operator<< (std::ostream& os, const Individual& individual);
-using Individuals = std::vector<std::reference_wrapper<const std::shared_ptr<Individual>>>;
+using Individuals = std::vector<std::shared_ptr<Individual>>;
 using Parents = std::pair<const Individual&, const Individual&>;
 }  // namespace mt_kahypar

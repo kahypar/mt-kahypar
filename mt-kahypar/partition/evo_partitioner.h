@@ -59,7 +59,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::mutex best_tracking_mutex_;
     static HyperedgeWeight global_best_fitness_;
     static std::chrono::milliseconds global_best_time_;
-    static std::string diff_matrix_history;
+    static std::vector<DiffMatrix> diff_matrix_history;
     static std::mutex diff_matrix_history_mutex;
     static std::vector<evolutionary::IterationLogEntry> iteration_log_entries;
     static std::mutex iteration_log_mutex;
@@ -75,5 +75,4 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
     static bool insert_individual_into_population(std::shared_ptr<Individual> individual, const Context &context, Population &population, int iteration);
 };
-
 }  // namespace mt_kahypar

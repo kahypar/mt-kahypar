@@ -32,65 +32,60 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-class Population {
- private:
-  static constexpr bool debug = false;
+    class Population {
+    private:
+        static constexpr bool debug = false;
 
- public:
-  explicit Population() :
-    _population_mutex(),
-    _individuals() { }
+    public:
+        explicit Population() : _population_mutex(),
+                                _individuals() {
+        }
 
-  // NM: remove distinction between thread-safe / non thread-safe methods, all public methods should be thread-safe
+        // NM: remove distinction between thread-safe / non thread-safe methods, all public methods should be thread-safe
 
-  size_t insert(std::shared_ptr<Individual> individual, const Context& context);
-  void addStartingIndividual(std::shared_ptr<Individual> individual, const Context& context) ;
-  size_t size() const;
-  size_t randomIndividual() const ;
-  size_t randomIndividualExcept(size_t exception) const ;
-  std::shared_ptr<Individual> best() const;
-  std::shared_ptr<Individual> worstInd() const;
-  HyperedgeWeight bestFitness() const ;
-  const std::shared_ptr<Individual> individualAt(size_t pos) const ;
+        //Stats accessors
+        size_t size() const;
+        HyperedgeWeight bestFitness() const;
+        //only used to first sort the individuals by fittness and then retrieve the first n individuals (meta evo)
+        HyperedgeWeight fitnessAt(size_t pos) const;
 
-  // Thread-safe accessors
+        //modifiers
+        size_t insert(std::shared_ptr<Individual> individual, const Context &context);
+        void addStartingIndividual(std::shared_ptr<Individual> individual, const Context &context);
 
- //TODO::Rename to BestIndividual instead of BestIndex
-  std::shared_ptr<Individual> sampleKParentsReturnBestIndex(std::vector<size_t>& parents, size_t k, bool deterministic, std::mt19937* rng = nullptr) const;
-  std::shared_ptr<Individual> randomIndividualSafe(bool deterministic, std::mt19937* rng = nullptr) const;
+        //_individuals accessors
+        Individuals listOfBest(const size_t &amount) const;
+        std::shared_ptr<Individual> bestInd() const;
+        std::shared_ptr<Individual> worstInd() const;
+        std::shared_ptr<Individual> individualAt(size_t pos) const;
+        std::shared_ptr<Individual> sampleKParentsReturnBest(std::vector<size_t> &parents, size_t k, bool deterministic,
+                                                             std::mt19937 *rng = nullptr) const;
+        std::shared_ptr<Individual> randomIndividual(bool deterministic, std::mt19937 *rng = nullptr) const;
 
-  // NM: not actually thread-safe, the individual could be destroyed at some later point and invalidate the reference
-  const std::shared_ptr<Individual> individualAtSafe(size_t pos);
+        //parition accessors
+        std::vector<PartitionID> bestPartitionCopy() const;
+        std::vector<PartitionID> randomIndividualPartitionCopy(bool deterministic, std::mt19937 *rng = nullptr);
+        std::vector<PartitionID> partitionCopyAt(size_t pos) const;
+        std::vector<HyperedgeID> cutEdgesCopyAt(size_t pos) const;
 
-  std::vector<PartitionID> bestPartitionCopySafe() const ;
-  std::vector<PartitionID> randomIndividualPartitionCopySafe(bool deterministic, std::mt19937* rng = nullptr) ;
-  std::vector<PartitionID> partitionCopySafe(size_t pos) const;
-  std::vector<HyperedgeID> cutEdgesCopySave(size_t pos) const;
-  HyperedgeWeight fitnessAtSafe( size_t pos) const;
 
-  // NM: same as `individualAtSafe`
-  Individuals listOfBest(const size_t& amount) const ;
+        //debug
+        void print() const;
+        void printDebug() const;
+        static std::string toString(const std::vector<size_t> &values);
+        std::vector<std::vector<size_t>> updateDiffMatrix() const;
 
-  void print() const ;
-  void printDebug() const ;
-  size_t difference(std::shared_ptr<Individual> individual,  size_t position, bool strong_set) const ;
-  std::string toString(const std::vector<size_t>& values) const ;
+    private:
+        size_t forceInsert(std::shared_ptr<Individual> individual, size_t position);
+        size_t difference(std::shared_ptr<Individual> individual, size_t position, bool strong_set) const;
+        size_t replaceDiverse(std::shared_ptr<Individual> individual, bool strong_set);
+        size_t worst() const;
 
-  // NM: return new std::vector<std::vector<size_t>> instead of updating member
-  std::string updateDiffMatrix();
+        mutable std::mutex _population_mutex;
+        std::vector<std::shared_ptr<Individual> > _individuals;
 
- private:
-   size_t forceInsert(std::shared_ptr<Individual> individual, size_t position);
-   size_t replaceDiverse(std::shared_ptr<Individual> individual,  bool strong_set) ;
-   size_t worst() const;
+    };
 
-  mutable std::mutex _population_mutex;
-  // NM: store shared_ptr instead of storing Individual directly (=> see meeting)
-  std::vector<std::shared_ptr<Individual>> _individuals;
-
-  // NM: remove diff_matrix + mutex
-  std::vector<std::vector<size_t>> _diff_matrix;
-  std::mutex _diff_mutex;
-};
-std::ostream& operator<< (std::ostream& os, const Population& population);
-}  // namespace mt_kahypar
+    std::ostream &operator<<(std::ostream &os, const Population &population);
+    using DiffMatrix = std::vector<std::vector<size_t>>;
+} // namespace mt_kahypar

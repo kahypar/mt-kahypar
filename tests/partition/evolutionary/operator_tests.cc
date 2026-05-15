@@ -90,7 +90,7 @@ class EvoOperatorTest : public Test {
 
 		Hypergraph hg_copy = hg.copy(parallel_tag_t{});
 		PartitionedHypergraph phg(run_context.partition.k, hg_copy, parallel_tag_t{});
-		const std::vector<PartitionID> best_partition = population.bestPartitionCopySafe();
+		const std::vector<PartitionID> best_partition = population.bestPartitionCopy();
 		ASSERT_EQ(best_partition.size(), hg_copy.initialNumNodes());
 
 		for (const HypernodeID& hn : hg_copy.nodes()) {
