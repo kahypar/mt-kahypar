@@ -34,21 +34,34 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     // 2. determine replacement on copied vector
     // 3. take lock and check whether individual at determined index is still the same
     // 4. if yes, replace individual, if no, go back to 1.
-
-    std::lock_guard<std::mutex> guard(_population_mutex);
-    Individuals individuals_copy = _individuals;
-
-    DBG << context.evolutionary.replace_strategy;
-    switch (context.evolutionary.replace_strategy) {
-      case EvoReplaceStrategy::worst:
-        return forceInsert(std::move(individual), worst());
-      case EvoReplaceStrategy::diverse:
-        return replaceDiverse(std::move(individual), false);
-
-      case EvoReplaceStrategy::strong_diverse:
-        return replaceDiverse(std::move(individual), true);
-      default:
-        return std::numeric_limits<int>::max();
+    while (true) {
+      Individuals individuals_copy;
+      {
+        std::lock_guard<std::mutex> guard(_population_mutex);
+        individuals_copy = _individuals;
+      }
+      DBG << context.evolutionary.replace_strategy;
+      size_t insert_position;
+      switch (context.evolutionary.replace_strategy) {
+        case EvoReplaceStrategy::worst:
+          insert_position = worst(individuals_copy);
+          break;
+        case EvoReplaceStrategy::diverse:
+          insert_position =  diversePosition(individuals_copy,std::move(individual), false);
+          break;
+        case EvoReplaceStrategy::strong_diverse:
+          insert_position = diversePosition(individuals_copy,std::move(individual), true);
+          break;
+        default:
+          return std::numeric_limits<int>::max();
+      }
+      if (insert_position == std::numeric_limits<unsigned>::max()) {return insert_position;}
+      {
+        std::lock_guard<std::mutex> guard(_population_mutex);
+        if (individuals_copy[insert_position] == _individuals[insert_position]) {
+          return forceInsert(individual, insert_position);
+        }
+      }
     }
   }
 
@@ -63,9 +76,9 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   size_t Population::forceInsert(std::shared_ptr<Individual> individual, const size_t position) {
     DBG << V(position) << V(individual->fitness());
     _individuals[position] = std::move(individual);
-
     return position;
   }
+
   size_t Population::size() const {
   std::lock_guard<std::mutex> guard(_population_mutex);
   return _individuals.size();
@@ -121,11 +134,11 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   }
 
 
-  size_t Population::worst() const {
+  size_t Population::worst(const Individuals &individuals) const {
     size_t worst_position = std::numeric_limits<size_t>::max();
     HyperedgeWeight worst_fitness = std::numeric_limits<int>::min();
-    for (size_t i = 0; i < _individuals.size(); ++i) {
-      HyperedgeWeight result = _individuals[i]->fitness();
+    for (size_t i = 0; i < individuals.size(); ++i) {
+      HyperedgeWeight result = individuals[i]->fitness();
       if (result > worst_fitness) {
         worst_position = i;
         worst_fitness = result;
@@ -316,15 +329,15 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     return _diff_matrix;
   }
 
-  size_t Population::replaceDiverse(std::shared_ptr<Individual> individual, const bool strong_set) {
+  size_t Population::diversePosition(const Individuals &individuals, std::shared_ptr<Individual> individual, const bool strong_set) {
   size_t max_similarity = std::numeric_limits<size_t>::max();
   size_t max_similarity_id = 0;
-  if (individual->fitness() > _individuals[worst()]->fitness()) {
+  if (individual->fitness() > individuals[worst(individuals)]->fitness()) {
     DBG << "COLLAPSE";
     return std::numeric_limits<unsigned>::max();
   }
-  for (size_t i = 0; i < _individuals.size(); ++i) {
-    if (_individuals[i]->fitness() >= individual->fitness()) {
+  for (size_t i = 0; i < individuals.size(); ++i) {
+    if (individuals[i]->fitness() >= individual->fitness()) {
       const size_t similarity = difference(individual, i, strong_set);
       DBG << "SYMMETRIC DIFFERENCE:" << similarity << " from" << i;
       if (similarity < max_similarity) {
@@ -334,7 +347,6 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     }
   }
   DBG << V(max_similarity_id) << V(max_similarity);
-  forceInsert(std::move(individual), max_similarity_id);
   return max_similarity_id;
   }
 }

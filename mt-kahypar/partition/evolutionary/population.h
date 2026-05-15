@@ -78,8 +78,8 @@ namespace mt_kahypar {
     private:
         size_t forceInsert(std::shared_ptr<Individual> individual, size_t position);
         size_t difference(std::shared_ptr<Individual> individual, size_t position, bool strong_set) const;
-        size_t replaceDiverse(std::shared_ptr<Individual> individual, bool strong_set);
-        size_t worst() const;
+        size_t diversePosition(const Individuals &individuals, std::shared_ptr<Individual> individual, bool strong_set);
+        size_t worst(const Individuals &individuals) const;
 
         mutable std::mutex _population_mutex;
         std::vector<std::shared_ptr<Individual> > _individuals;
