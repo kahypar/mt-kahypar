@@ -243,27 +243,10 @@ namespace mt_kahypar {
                 DBG << "DEBUG: Finished generating sub population";
 
                 // Extract Best Individuals
-                //TODO: Change this part to actually use listOfBest instead of doing it manually here
-                std::vector<std::pair<HyperedgeWeight, size_t>> fitness_indices;
-                for (size_t i = 0; i < sub_population.size(); i++) {
-                    DBG << "DEBUG: iterating";
-                    fitness_indices.push_back({sub_population.fitnessAt(i), i});
-                }
-                std::sort(fitness_indices.begin(), fitness_indices.end()); // Ascending (lower is better)
-
-                int extracted = 0;
-                for (const auto& pair : fitness_indices) {
-                    if (extracted >= solutions_per_run) break;
+                Individuals best_individuals = sub_population.listOfBest(solutions_per_run);
+                for (auto individual : best_individuals) {
                     if (population.size() >= static_cast<size_t>(target_pop_size)) break;
-
-                    DBG << "DEBUG: Before copying";
-                    size_t idx = pair.second;
-                    // Copy shared individual pointer from sub_population to main population
-                    auto individual = sub_population.individualAt(idx);
-                    DBG << "DEBUG: Before inserting";
-                    // Add starting individuals to "real" population
                     population.addStartingIndividual(individual, context);
-                    extracted++;
                 }
             }
             auto end_time_meta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());

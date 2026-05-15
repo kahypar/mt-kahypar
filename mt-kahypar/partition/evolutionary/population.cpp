@@ -235,6 +235,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
 
   Individuals Population::listOfBest(const size_t& amount) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
+    ASSERT(amount <= _individuals.size());
     std::vector<std::pair<HyperedgeWeight, size_t> > sorting;
     for (size_t i = 0; i < _individuals.size(); ++i) {
       sorting.emplace_back(_individuals[i]->fitness(), i);
@@ -336,6 +337,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     DBG << "COLLAPSE";
     return std::numeric_limits<unsigned>::max();
   }
+  //Could be Parallelized
   for (size_t i = 0; i < individuals.size(); ++i) {
     if (individuals[i]->fitness() >= individual->fitness()) {
       const size_t similarity = difference(individual, i, strong_set);
