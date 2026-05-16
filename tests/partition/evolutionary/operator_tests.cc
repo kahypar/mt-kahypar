@@ -49,7 +49,7 @@ class EvoOperatorTest : public Test {
 
 	context.shared_memory.num_threads = 4;
 
-	context.evolutionary.population_size = 4;
+	context.evolutionary.population_size = 20;
 	context.evolutionary.replace_strategy = EvoReplaceStrategy::worst;
 	context.evolutionary.batch_size = 1;
 	context.evolutionary.max_iterations = 1;

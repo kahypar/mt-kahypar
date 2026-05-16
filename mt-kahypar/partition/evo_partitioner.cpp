@@ -24,7 +24,7 @@
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
-    static constexpr bool debug = false;
+    static constexpr bool debug = true;
 
     template<typename TypeTraits>
     typename EvoPartitioner<TypeTraits>::PartitionedHypergraph EvoPartitioner<TypeTraits>::partition(

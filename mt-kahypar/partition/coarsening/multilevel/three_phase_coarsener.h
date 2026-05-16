@@ -77,7 +77,7 @@ class ThreePhaseCoarsener : public ICoarsener,
   using Base::_timer;
   using Base::_uncoarseningData;
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
  public:
@@ -167,6 +167,33 @@ class ThreePhaseCoarsener : public ICoarsener,
       cc.initializeCoarseningPass(current_hg, _context);
     }
 
+    #ifdef MT_KAHYPAR_DEBUG
+        constexpr size_t num_buckets = 10;
+        std::array<size_t, num_buckets> counts{};
+        counts.fill(0);
+        auto cnt = 0;
+        auto max_value = 0;
+        for (EdgeMetadata value : _uncoarseningData.coarsestEdgeMetadata()) {
+          if (value < 0.0f) value = 0.0f;
+          if (value > 1.0f) {
+            if (value > max_value) max_value = value;
+            value = 1.0f;
+            cnt++;
+          }
+          size_t bucket = static_cast<size_t>(value * num_buckets);
+          if (bucket == num_buckets) {
+            bucket = num_buckets - 1;
+          }
+          ++counts[bucket];
+        }
+        DBG << cnt << "Where above 1 with" << max_value << "as largest Value.";
+        DBG << "Level: " << _pass_nr;
+        for (size_t i = 0; i < num_buckets; ++i) {
+          const float lo = static_cast<float>(i) / num_buckets;
+          const float hi = static_cast<float>(i + 1) / num_buckets;
+          DBG << "  [" << lo << ", " << hi << "): " << counts[i];
+        }
+    #endif
 
     _timer.start_timer("init_similarity", "Initialize Similarity Data");
     _similarity_policy.initialize(current_hg, _context, _timer);
