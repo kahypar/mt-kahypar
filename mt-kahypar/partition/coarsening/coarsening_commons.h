@@ -185,7 +185,7 @@ public:
     ASSERT(current_hg.initialNumNodes() == communities.size());
     Hypergraph contracted_hg;
     vec<EdgeMetadata> contracted_md;
-    if constexpr (Hypergraph::is_graph && Hypergraph::is_static_hypergraph) {
+    if constexpr (Hypergraph::is_static_hypergraph) {
       contracted_hg = current_hg.contract(communities, deterministic, accumulate_metadata ? coarsestEdgeMetadata() : vec<EdgeMetadata>{}, &contracted_md);
     } else {
       ALWAYS_ASSERT(!accumulate_metadata);

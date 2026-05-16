@@ -53,6 +53,7 @@ template <typename Hypergraph,
 class PartitionedHypergraph;
 
 class StaticHypergraph {
+  using EdgeMetadata = float;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -361,6 +362,8 @@ class StaticHypergraph {
       }, [&] {
         hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
       }, [&] {
+        tmp_metadata.resize("Coarsening", "tmp_net_metadata", num_hyperedges);
+      }, [&] {
         tmp_hyperedges.resize("Coarsening", "tmp_hyperedges", num_hyperedges);
       }, [&] {
         tmp_incidence_array.resize("Coarsening", "tmp_incidence_array", num_pins);
@@ -376,6 +379,7 @@ class StaticHypergraph {
     IncidentNets tmp_incident_nets;
     Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
     Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+    Array<EdgeMetadata> tmp_metadata;
     Array<Hyperedge> tmp_hyperedges;
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;
@@ -728,7 +732,8 @@ class StaticHypergraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
+  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false,
+    const vec<EdgeMetadata>& metadata = {}, vec<EdgeMetadata>* new_md = nullptr);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw UnsupportedOperationException(

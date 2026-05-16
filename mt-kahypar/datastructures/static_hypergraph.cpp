@@ -59,7 +59,8 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic,
+                                              const vec<EdgeMetadata>& metadata, vec<EdgeMetadata>* new_md) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -75,6 +76,7 @@ namespace mt_kahypar::ds {
             _tmp_contraction_buffer->tmp_num_incident_nets;
     Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
             _tmp_contraction_buffer->hn_weights;
+    Array<EdgeMetadata>& tmp_metadata = _tmp_contraction_buffer->tmp_metadata;
     Array<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
     Array<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
@@ -85,6 +87,7 @@ namespace mt_kahypar::ds {
     ASSERT(static_cast<size_t>(_total_degree) <= tmp_incident_nets.size());
     ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_num_incident_nets.size());
     ASSERT(static_cast<size_t>(_num_hypernodes) <= hn_weights.size());
+    ASSERT(static_cast<size_t>(_num_hyperedges) <= tmp_metadata.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= tmp_hyperedges.size());
     ASSERT(static_cast<size_t>(_num_pins) <= tmp_incidence_array.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= he_sizes.size());
@@ -146,6 +149,7 @@ namespace mt_kahypar::ds {
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
     auto cs2 = [](const HypernodeID x) { return x * x; };
+    const bool has_metadata = !metadata.empty();
     ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     tbb::parallel_invoke([&] {
@@ -158,6 +162,7 @@ namespace mt_kahypar::ds {
           ASSERT(e.firstInvalidEntry() <= tmp_incidence_array.size());
           tmp_hyperedges[he] = e;
           valid_hyperedges[he] = 1;
+          tmp_metadata[he] = has_metadata ? metadata[he] : 0.0f;
 
           // Map pins to vertex ids in coarse graph
           const size_t incidence_array_start = tmp_hyperedges[he].firstEntry();
@@ -349,6 +354,7 @@ namespace mt_kahypar::ds {
                  check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
               // Hyperedges are parallel
               lhs_weight += tmp_hyperedges[rhs_he].weight();
+              tmp_metadata[lhs_he] += tmp_metadata[rhs_he];
               contracted_he_rhs.valid = false;
               valid_hyperedges[rhs_he] = false;
             } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash  ) {
@@ -396,6 +402,7 @@ namespace mt_kahypar::ds {
 
     auto setup_hyperedges = [&] {
       // Compute start position of each hyperedge in incidence array
+      if (new_md) {new_md->resize(num_hyperedges, 0.0f);}
       parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
         tbb::parallel_for(HyperedgeID(0), _num_hyperedges, [&](HyperedgeID id) {
@@ -423,6 +430,7 @@ namespace mt_kahypar::ds {
           const size_t incidence_array_start = num_pins_prefix_sum[id];
           Hyperedge& he = hypergraph._hyperedges[he_pos];
           he = tmp_hyperedges[id];
+          if (new_md) {(*new_md)[he_pos] = tmp_metadata[id];}
           const size_t tmp_incidence_array_start = he.firstEntry();
           const size_t edge_size = he.size();
           local_max_edge_size.local() = std::max(local_max_edge_size.local(), edge_size);
