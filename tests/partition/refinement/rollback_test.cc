@@ -103,7 +103,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(gain_cache.gain(5, 0, 1), 0);
   performMove({0, 1, 5, 0});
 
-  HypernodeWeightArray dummy_part_weights(k, 1, 0, false);
+  HypernodeWeightArray dummy_part_weights(k, 1, 2, false);
   HypernodeWeightArray max_part_weights(k, 1, 6, false);
   grb.revertToBestPrefix(phg, sharedData, dummy_part_weights, max_part_weights);
   // revert last two moves
