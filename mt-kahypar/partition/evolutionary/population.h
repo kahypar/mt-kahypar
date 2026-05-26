@@ -55,12 +55,12 @@ namespace mt_kahypar {
 
         //_individuals accessors
         Individuals listOfBest(const size_t &amount) const;
-        std::shared_ptr<Individual> bestInd() const;
-        std::shared_ptr<Individual> worstInd() const;
-        std::shared_ptr<Individual> individualAt(size_t pos) const;
-        std::shared_ptr<Individual> sampleKParentsReturnBest(std::vector<size_t> &parents, size_t k, bool deterministic,
+        std::shared_ptr<const Individual> bestInd() const;
+        std::shared_ptr<const Individual> worstInd() const;
+        std::shared_ptr<const Individual> individualAt(size_t pos) const;
+        std::shared_ptr<const Individual> sampleKParentsReturnBest(std::vector<size_t> &parents, size_t k, bool deterministic,
                                                              std::mt19937 *rng = nullptr) const;
-        std::shared_ptr<Individual> randomIndividual(bool deterministic, std::mt19937 *rng = nullptr) const;
+        std::shared_ptr<const Individual> randomIndividual(bool deterministic, std::mt19937 *rng = nullptr) const;
 
         //parition accessors
         std::vector<PartitionID> bestPartitionCopy() const;

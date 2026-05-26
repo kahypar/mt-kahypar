@@ -47,10 +47,10 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
           insert_position = worst(individuals_copy);
           break;
         case EvoReplaceStrategy::diverse:
-          insert_position =  diversePosition(individuals_copy,std::move(individual), false);
+          insert_position =  diversePosition(individuals_copy, individual, false);
           break;
         case EvoReplaceStrategy::strong_diverse:
-          insert_position = diversePosition(individuals_copy,std::move(individual), true);
+          insert_position = diversePosition(individuals_copy, individual, true);
           break;
         default:
           return std::numeric_limits<int>::max();
@@ -84,7 +84,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   return _individuals.size();
   }
 
-  std::shared_ptr<Individual> Population::bestInd() const {
+  std::shared_ptr<const Individual> Population::bestInd() const {
     std::shared_ptr<Individual> best_individual;
     HyperedgeWeight best_fitness = std::numeric_limits<int>::max();
     std::lock_guard<std::mutex> guard(_population_mutex);
@@ -98,7 +98,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     DBG << V(best_individual) << V(best_fitness);
     return best_individual;
   }
-  std::shared_ptr<Individual> Population::worstInd() const {
+  std::shared_ptr<const Individual> Population::worstInd() const {
   std::lock_guard<std::mutex> guard(_population_mutex);
   size_t worst_position = std::numeric_limits<size_t>::max();
   HyperedgeWeight worst_fitness = std::numeric_limits<int>::min();
@@ -148,13 +148,13 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
     return worst_position;
   }
 
-  std::shared_ptr<Individual> Population::individualAt(const size_t pos) const {
+  std::shared_ptr<const Individual> Population::individualAt(const size_t pos) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
     return _individuals[pos];
   }
 
 
-  std::shared_ptr<Individual> Population::sampleKParentsReturnBest(std::vector<size_t>& parents, const size_t k, const bool deterministic, std::mt19937* rng) const {
+  std::shared_ptr<const Individual> Population::sampleKParentsReturnBest(std::vector<size_t>& parents, const size_t k, const bool deterministic, std::mt19937* rng) const {
     ASSERT(k > 0);
     ASSERT(k <= _individuals.size());
     std::lock_guard<std::mutex> guard(_population_mutex);
@@ -185,7 +185,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   }
 
 
-  std::shared_ptr<Individual> Population::randomIndividual(const bool deterministic, std::mt19937* rng) const {
+  std::shared_ptr<const Individual> Population::randomIndividual(const bool deterministic, std::mt19937* rng) const {
     std::lock_guard<std::mutex> guard(_population_mutex);
     size_t pos;
     if (deterministic) {
