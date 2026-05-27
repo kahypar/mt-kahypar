@@ -177,13 +177,14 @@ class InitialPartitioningDataContainer {
     }
 
     bool should_initial_partitioner_run_ignoring_deterministic(const InitialPartitioningAlgorithm algorithm) const {
+      std::lock_guard<std::mutex> lock(_stat_mutex);
       const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
       return !_context.initial_partitioning.use_adaptive_ip_runs ||
              _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
              _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
     }
 
-    std::mutex _stat_mutex;
+    mutable std::mutex _stat_mutex;
     const Context& _context;
     parallel::scalable_vector<InitialPartitioningRunStats> _stats;
     HyperedgeWeight _best_quality;
