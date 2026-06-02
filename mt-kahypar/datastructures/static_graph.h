@@ -454,6 +454,7 @@ class StaticGraph {
     _max_removed_degree_zero_hn_weight(0),
     _num_edges(0),
     _total_weight(),
+    _max_weight(),
     _nodes(),
     _node_weights(),
     _edges(),
@@ -471,6 +472,7 @@ class StaticGraph {
     _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
     _num_edges(other._num_edges),
     _total_weight(std::move(other._total_weight)),
+    _max_weight(std::move(other._max_weight)),
     _nodes(std::move(other._nodes)),
     _node_weights(std::move(other._node_weights)),
     _edges(std::move(other._edges)),
@@ -487,6 +489,7 @@ class StaticGraph {
     _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
     _num_edges = other._num_edges;
     _total_weight = std::move(other._total_weight);
+    _max_weight = std::move(other._max_weight);
     _nodes = std::move(other._nodes);
     _node_weights = std::move(other._node_weights);
     _edges = std::move(other._edges);
@@ -557,6 +560,11 @@ class StaticGraph {
   // ! Total weight of hypergraph
   HNWeightConstRef totalWeight() const {
     return _total_weight;
+  }
+
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _max_weight;
   }
 
   // ! Computes the total node weight of the hypergraph
@@ -960,6 +968,8 @@ class StaticGraph {
   HyperedgeID _num_edges;
   // ! Total weight of the graph
   AllocatedHNWeight _total_weight;
+  // ! Max node weight of the graph
+  AllocatedHNWeight _max_weight;
 
   // ! Nodes
   Array<Node> _nodes;
