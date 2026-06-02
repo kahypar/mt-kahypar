@@ -395,6 +395,7 @@ namespace mt_kahypar::ds {
     );
 
     hypergraph._total_weight = _total_weight;
+    hypergraph._max_weight = _max_weight;
     hypergraph._max_removed_degree_zero_hn_weight.setDimension(hypergraph.dimension());
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
@@ -457,6 +458,7 @@ namespace mt_kahypar::ds {
     hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._max_weight = _max_weight;
 
     tbb::parallel_invoke([&] {
       hypergraph._nodes.resize(_nodes.size());
@@ -489,6 +491,7 @@ namespace mt_kahypar::ds {
     hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._max_weight = _max_weight;
 
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
@@ -522,7 +525,7 @@ namespace mt_kahypar::ds {
 
   // ! Computes the total node weight of the hypergraph
   void StaticGraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-    _total_weight = computeTotalNodeWeightParallel(*this, _num_nodes);
+    computeTotalNodeWeightParallel(*this, _total_weight, _max_weight);
   }
 
 } // namespace
