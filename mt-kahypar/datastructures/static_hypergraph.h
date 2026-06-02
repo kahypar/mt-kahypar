@@ -408,6 +408,7 @@ class StaticHypergraph {
     _num_pins(0),
     _total_degree(0),
     _total_weight(),
+    _max_weight(),
     _hypernodes(),
     _hypernode_weights(),
     _incident_nets(),
@@ -430,6 +431,7 @@ class StaticHypergraph {
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(std::move(other._total_weight)),
+    _max_weight(std::move(other._max_weight)),
     _hypernodes(std::move(other._hypernodes)),
     _hypernode_weights(std::move(other._hypernode_weights)),
     _incident_nets(std::move(other._incident_nets)),
@@ -452,6 +454,7 @@ class StaticHypergraph {
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = std::move(other._total_weight);
+    _max_weight = std::move(other._max_weight);
     _hypernodes = std::move(other._hypernodes);
     _hypernode_weights = std::move(other._hypernode_weights);
     _incident_nets = std::move(other._incident_nets);
@@ -523,6 +526,11 @@ class StaticHypergraph {
   // ! Total weight of hypergraph
   HNWeightConstRef totalWeight() const {
     return _total_weight;
+  }
+
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _max_weight;
   }
 
   // ! Computes the total node weight of the hypergraph
@@ -1011,6 +1019,8 @@ class StaticHypergraph {
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
   AllocatedHNWeight _total_weight;
+  // ! Max node weight of hypergraph
+  AllocatedHNWeight _max_weight;
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;
