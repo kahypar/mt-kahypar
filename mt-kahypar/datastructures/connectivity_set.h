@@ -149,11 +149,11 @@ public:
           true
       );
 
-      // Fast bulk copy
+      // Fast bulk copy: copy the whole old buffer (number of elements * sizeof)
       std::memcpy(
           bits_new.data(),
           _bits.data(),
-          he * sizeof(UnsafeBlock)
+          old_size * sizeof(UnsafeBlock)
       );
 
       // Initialize new part to zero
