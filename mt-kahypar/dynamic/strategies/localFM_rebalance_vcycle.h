@@ -170,9 +170,8 @@ namespace mt_kahypar::dyn {
           }
 
           _rebalancer.updateGainForMoves(context.dynamic.local_fm_round->moves);
-
           auto rebalancer_duration = std::chrono::high_resolution_clock::now() - start;
-          context.dynamic.rebalance_duration_sum_push += rebalancer_duration;
+          context.dynamic.update_after_localFM_duration_sum += rebalancer_duration;
           context.dynamic.move_count += context.dynamic.local_fm_round->moves.size();
 
           ASSERT(_rebalancer.checkBlockQueues());

@@ -224,6 +224,7 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
            << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.rebalance_duration_sum_pull).count() << ", "
            << context.dynamic.km1_gain_localFM << ", "
            << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.localFM_duration_sum).count() << ", "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.update_after_localFM_duration_sum).count() << ", "
            << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.processing_duration_sum).count() << ", "
            << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.sorting_duration_sum).count() << ", "
            << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.gain_cache_update_duration_sum).count() << ", "
@@ -245,7 +246,7 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
       if (!file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
       }
-      file << "change, km1, imbalance, time, km1_gain_vcycle, vcycle_duration_sum, km1_gain_rebalance_push, rebalance_push_duration_sum, km1_gain_rebalance_pull, rebalance_pull_duration_sum, km1_gain_localFM, localFM_duration_sum, processing_duration_sum, sorting_duration_sum, gain_cache_update_duration_sum, move_count" << std::endl;
+      file << "change, km1, imbalance, time, km1_gain_vcycle, vcycle_duration_sum, km1_gain_rebalance_push, rebalance_push_duration_sum, km1_gain_rebalance_pull, rebalance_pull_duration_sum, km1_gain_localFM, localFM_duration_sum, update_after_localFM_duration_sum, processing_duration_sum, sorting_duration_sum, gain_cache_update_duration_sum, move_count" << std::endl;
       file.close();
     }
 

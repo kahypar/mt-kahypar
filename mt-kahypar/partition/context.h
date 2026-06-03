@@ -340,6 +340,7 @@ struct DynamicParameters {
   std::chrono::high_resolution_clock::duration rebalance_duration_sum_push = std::chrono::high_resolution_clock::duration::zero();
   std::int64_t km1_gain_localFM = 0;
   std::chrono::high_resolution_clock::duration localFM_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration update_after_localFM_duration_sum = std::chrono::high_resolution_clock::duration::zero();
   std::chrono::high_resolution_clock::duration processing_duration_sum = std::chrono::high_resolution_clock::duration::zero();
   std::chrono::high_resolution_clock::duration sorting_duration_sum = std::chrono::high_resolution_clock::duration::zero();
   std::chrono::high_resolution_clock::duration gain_cache_update_duration_sum = std::chrono::high_resolution_clock::duration::zero();
