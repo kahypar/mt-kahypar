@@ -38,7 +38,7 @@ class IteratorRange {
  public:
   IteratorRange(const IteratorT& first, const IteratorT& firstInvalid) : __begin(first), __end(firstInvalid) { }
 
-  using reference = typename IteratorT::reference;
+  using reference = typename std::iterator_traits<IteratorT>::reference;
   using Iterator = IteratorT; // make publicly visible
 
   IteratorT begin() const {
@@ -75,6 +75,8 @@ private:
 public:
   class Iterator {
   public:
+    using value_type = typename std::iterator_traits<typename RangeT::Iterator>::value_type;
+
     Iterator(std::vector<RangeT>& ranges, begin_tag) : ranges(ranges), currentRange(0), currentRangeIterator(ranges.front().begin()) {
       moveToNextRange();
     }
@@ -99,7 +101,7 @@ public:
       return *this;
     }
 
-    typename RangeT::Iterator::value_type operator*() const {
+    value_type operator*() const {
       return *currentRangeIterator;
     }
 
