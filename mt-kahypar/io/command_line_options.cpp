@@ -884,6 +884,10 @@ namespace mt_kahypar {
           po::value<int>(&context.dynamic.fm_buffer)->value_name("<size_t>"),
           "Buffer size for FM moves in dynamic partitioning");
       dynamic_options.add_options()
+        ("d-batch-size",
+          po::value<size_t>(&context.dynamic.batch_size)->value_name("<size_t>"),
+          "Number of changes to be processed in each batch");
+      dynamic_options.add_options()
       ("d-stream-changes",
         po::value<bool>(&context.dynamic.stream_changes)->value_name("<bool>"),
         "If true, then the partitioner is started in streaming mode, which means that it processes changes one by one and does not store them in memory.");

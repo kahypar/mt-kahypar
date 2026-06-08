@@ -7,6 +7,7 @@ namespace mt_kahypar::dyn {
     class Hermes : public DynamicStrategy {
 
     private:
+        size_t change_count = 0;
 
         PartitionID assign_node_first_free_partition(const HypernodeID& hn) {
           for (PartitionID p = 0; p < context.partition.k; ++p) {
@@ -91,6 +92,11 @@ namespace mt_kahypar::dyn {
           hypergraph_m.addPin(edge, node);
           partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
         }
+
+        // only trigger the "lightweight" refiner every batch_size changes since e.g. orkut would take > 24h otherwise
+        change_count++;
+        if (change_count < context.dynamic.batch_size) return;
+        change_count = 0;
 
         // for (const HypernodeID& hn : change.added_nodes)
         for (const HypernodeID& hn : hypergraph_m.nodes())

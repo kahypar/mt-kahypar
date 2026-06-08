@@ -310,6 +310,7 @@ struct DynamicParameters {
   std::string output_file_suffix = "";
   size_t version = 0;
   size_t run = 0;
+  size_t batch_size = 1;
 
   // not included in the output file ending
   std::string result_folder = "";
@@ -354,6 +355,7 @@ struct DynamicParameters {
     // round to 2 decimal places
     file_name += std::to_string(static_cast<int>(vcycle_step_size_pct * 100)) + "_";
     file_name += std::to_string(static_cast<int>(fm_buffer)) + "_";
+    file_name += std::to_string(batch_size) + "_";
     file_name += output_file_suffix;
     return file_name;
   }
