@@ -47,7 +47,8 @@ class ConnectivityInfo {
   ConnectivityInfo(const HyperedgeID num_hyperedges,
                    const PartitionID k,
                    const HypernodeID max_value) :
-    _pin_counts(num_hyperedges, k, max_value, false),
+    // TODO dynamically adding pins can overflow the pin_count capacity. 
+    _pin_counts(num_hyperedges, k, std::max(max_value, static_cast<HypernodeID>(32)), false),
     _con_set(num_hyperedges, k, false) { }
 
   ConnectivityInfo(const HyperedgeID num_hyperedges,
@@ -57,7 +58,7 @@ class ConnectivityInfo {
     _pin_counts(),
     _con_set() {
     tbb::parallel_invoke([&] {
-      _pin_counts.initialize(num_hyperedges, k, max_value, true);
+      _pin_counts.initialize(num_hyperedges, k, std::max(max_value, static_cast<HypernodeID>(32)), true);
     }, [&] {
       _con_set = ConnectivitySets(num_hyperedges, k, true);
     });
