@@ -8,6 +8,8 @@ namespace mt_kahypar::dyn {
 
     private:
         size_t change_count = 0;
+        HyperedgeWeight prior_total_weight = 0;
+        double changed_weight = 0;
 
         PartitionID assign_node_first_free_partition(const HypernodeID& hn) {
           for (PartitionID p = 0; p < context.partition.k; ++p) {
@@ -58,6 +60,8 @@ namespace mt_kahypar::dyn {
       MutablePartitionedHypergraph& init() override {
           partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
         ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
+        prior_total_weight = hypergraph_m.totalWeight();
+        changed_weight = 0;
         return partitioned_hypergraph_m;
       }
 
@@ -94,19 +98,22 @@ namespace mt_kahypar::dyn {
         }
 
         // only trigger the "lightweight" refiner every batch_size changes since e.g. orkut would take > 24h otherwise
-        change_count++;
-        if (change_count < context.dynamic.batch_size) return;
-        change_count = 0;
-
-        // for (const HypernodeID& hn : change.added_nodes)
-        for (const HypernodeID& hn : hypergraph_m.nodes())
+        changed_weight += change.added_nodes.size() + change.removed_nodes.size();
+        if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size)
         {
-          for (size_t stage = 1; stage <= 2; ++stage)
+          prior_total_weight += changed_weight;
+          changed_weight = 0;
+
+          // for (const HypernodeID& hn : change.added_nodes)
+          for (const HypernodeID& hn : hypergraph_m.nodes())
           {
-            const PartitionID target_part = getTargetPart(hn, stage);
-            if (target_part != partitioned_hypergraph_m.partID(hn)) {
-              context.dynamic.move_count++;
-              partitioned_hypergraph_m.changeNodePart(hn, partitioned_hypergraph_m.partID(hn), target_part);
+            for (size_t stage = 1; stage <= 2; ++stage)
+            {
+              const PartitionID target_part = getTargetPart(hn, stage);
+              if (target_part != partitioned_hypergraph_m.partID(hn)) {
+                context.dynamic.move_count++;
+                partitioned_hypergraph_m.changeNodePart(hn, partitioned_hypergraph_m.partID(hn), target_part);
+              }
             }
           }
         }
