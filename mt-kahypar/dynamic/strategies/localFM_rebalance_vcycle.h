@@ -523,7 +523,10 @@ namespace mt_kahypar::dyn {
             }
 
             context.partition.num_vcycles = 0;
-            // prior_total_weight += changed_weight;
+            if (context.dynamic.changing_total_weight)
+            {
+              prior_total_weight += changed_weight;
+            }
             changed_weight = 0;
 
             // std::cout << "Verifying v-cycle partition for " << hypergraph_m.initialNumNodes() << " nodes." << std::endl;

@@ -320,6 +320,7 @@ struct DynamicParameters {
   bool stream_changes = false; // if true, changes are read and processed one by one, otherwise all changes are read in memory and then processed
   bool lazy_pull_updates = true; // ignore updates for the rebalancer that decrement gain
   bool simulate_opt_vcycle = false;
+  bool changing_total_weight = false;
 
   // not a parameter
   std::string output_path = "";
