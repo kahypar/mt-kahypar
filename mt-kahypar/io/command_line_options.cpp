@@ -899,6 +899,10 @@ namespace mt_kahypar {
       ("run",
         po::value<size_t>(&context.dynamic.run)->default_value(0),
         "Run number for dynamic partitioning, used for logging and result storage");
+      dynamic_options.add_options()
+      ("d-changing-total-weight",
+        po::value<bool>(&context.dynamic.changing_total_weight)->value_name("<bool>"),
+        "Whether the total weight of the graph is expected to change, used for vcycle spacing");
     return dynamic_options;
   }
 
