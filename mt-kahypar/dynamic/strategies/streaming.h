@@ -101,7 +101,8 @@ namespace mt_kahypar::dyn {
 
           for (const HypernodeID& hn : change.added_nodes)
           {
-            PartitionID target = move_node_to_best_partition(hn);
+            const PartitionID target = move_node_to_best_partition(hn);
+            (void) target;
           }
       }
         void printAdditionalFinalStats() override {

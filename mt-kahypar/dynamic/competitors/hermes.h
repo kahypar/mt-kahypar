@@ -99,7 +99,7 @@ namespace mt_kahypar::dyn {
 
         // only trigger the "lightweight" refiner every batch_size changes since e.g. orkut would take > 24h otherwise
         changed_weight += change.added_nodes.size() + change.removed_nodes.size();
-        if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size)
+        if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || (context.dynamic.simulate_opt_vcycle && change_count == changes_size))
         {
           prior_total_weight += changed_weight;
           changed_weight = 0;

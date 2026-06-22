@@ -5,7 +5,6 @@
 #include <mt-kahypar/partition/refinement/gains/gain_cache_ptr.h>
 #include <mt-kahypar/partition/factories.h>
 #include <mt-kahypar/partition/refinement/rebalancing/incremental_rebalancer.h>
-#include <fstream>
 
 namespace mt_kahypar::dyn {
 
@@ -48,7 +47,7 @@ namespace mt_kahypar::dyn {
         }
 
         //use local_fm to refine partitioned_hypergraph_m
-        void refinement(parallel::scalable_vector<HypernodeID> local_fm_nodes, std::vector<HypernodeID> gain_cache_nodes, Change change, const vec<PartitionID>& empty_blocks) {
+        void refinement(parallel::scalable_vector<HypernodeID> local_fm_nodes, const std::vector<HypernodeID>& gain_cache_nodes, const Change& change, const vec<PartitionID>& empty_blocks) {
           (void) change;
           (void) empty_blocks;
 
@@ -76,6 +75,7 @@ namespace mt_kahypar::dyn {
             auto [gain, moved_nodes] = _rebalancer.pullAndUpdateGainCache(p);
             context.dynamic.incremental_km1 -= gain;
             context.dynamic.km1_gain_rebalance_pull += gain;
+            //TODO check whether these have a positive impact on localFM at all
             local_fm_nodes.insert(local_fm_nodes.end(), moved_nodes.begin(), moved_nodes.end());
             // Add nodes moved nodes neighbours to fm nodes?
             context.dynamic.move_count += moved_nodes.size();
@@ -109,11 +109,15 @@ namespace mt_kahypar::dyn {
 
           _local_fm_nodes_buffer.insert(_local_fm_nodes_buffer.end(), local_fm_nodes.begin(), local_fm_nodes.end());
 
-          if (local_fm_nodes.size() == 0 || context.dynamic.fm_buffer > _local_fm_nodes_buffer.capacity()) {
+          if (local_fm_nodes.size() == 0 || static_cast<size_t>(context.dynamic.fm_buffer) > _local_fm_nodes_buffer.size()) {
             return;
           }
 
           local_fm_nodes = std::move(_local_fm_nodes_buffer);
+
+          std::sort(local_fm_nodes.begin(), local_fm_nodes.end());
+          local_fm_nodes.erase(std::unique(local_fm_nodes.begin(), local_fm_nodes.end()), local_fm_nodes.end());
+
           _local_fm_nodes_buffer.clear();
 
           auto rebalance_push_duration = std::chrono::high_resolution_clock::now() - start;
@@ -169,7 +173,7 @@ namespace mt_kahypar::dyn {
                     partitioned_hypergraph_m, move.node, _benefit_aggregator);
           }
 
-          _rebalancer.updateGainForMoves(context.dynamic.local_fm_round->moves);
+          _rebalancer.updateGainForMovesFast(context.dynamic.local_fm_round->moves);
           auto rebalancer_duration = std::chrono::high_resolution_clock::now() - start;
           context.dynamic.update_after_localFM_duration_sum += rebalancer_duration;
           context.dynamic.move_count += context.dynamic.local_fm_round->moves.size();
@@ -218,7 +222,9 @@ namespace mt_kahypar::dyn {
     public:
 
       LocalFMRebalanceVCycleV4(ds::MutableHypergraph& hypergraph_m, Context& context)
-          : DynamicStrategy(hypergraph_m, context), _benefit_aggregator(*new vec<Gain>()) {}
+          : DynamicStrategy(hypergraph_m, context), _gain_cache(), _benefit_aggregator(*new vec<Gain>()), _rebalancer()
+        {
+        }
 
         MutablePartitionedHypergraph& init() override {
             partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
@@ -475,7 +481,7 @@ namespace mt_kahypar::dyn {
         changed_weight += change.added_nodes.size() + change.removed_nodes.size();
         // TODO fix weight change calculation
         // std::cout << "changed weight: " << changed_weight << " prior total weight: " << prior_total_weight << " change count: " << change_count << " changes size: " << changes_size << std::endl;
-          if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
+          if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || (context.dynamic.simulate_opt_vcycle && change_count == changes_size)) {
           // if ((change_count % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0  && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
           // if ((changed_weight  % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0  && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || context.dynamic.simulate_opt_vcycle && change_count == changes_size) {
           // if (change_count % static_cast<size_t>(changes_size * context.dynamic.vcycle_step_size_pct) == 0 && false) {

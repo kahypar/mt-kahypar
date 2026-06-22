@@ -67,6 +67,7 @@ public:
     std::tuple<HyperedgeWeight, std::vector<HypernodeID>> rebalanceAndUpdateGainCache() {
       HyperedgeWeight total_gain = 0;
       std::vector<HypernodeID> moved_nodes;
+      // We assume node weight is 1 for all nodes so that each node is actually movable
       while (!mt_kahypar::metrics::isBalanced(*partitioned_hypergraph_m, *_context)) {
         PartitionID imbalanced_block = kInvalidPartition;
         for (PartitionID i = 0; i < _context->partition.k; ++i) {
@@ -133,6 +134,10 @@ public:
         }
         PartitionID block_pull_source = partitioned_hypergraph_m->partID(u);
 
+        if (block_pull_source == block_pull_target)
+        {
+          continue;
+        }
         ASSERT(block_pull_source != block_pull_target);
 
         HyperedgeWeight gain = GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(u, block_pull_source, block_pull_target);
@@ -449,6 +454,45 @@ public:
           if (nodes_in_removed_partition_post_removal <=1 || nodes_in_added_partition <= 2) {
             for (const HypernodeID& hn2 : hypergraph.pins(he)) {
               insertOrUpdateNode(hn2);
+            }
+          }
+        }
+      }
+    }
+
+    void updateGainForMovesFast(const std::vector<Move>& moves)
+    {
+
+      std::vector<HypernodeID> partition_deltas(_context->partition.k);
+
+      for (size_t i = 0; i < moves.size(); ++i)
+      {
+        // partition_deltas[moves[i].from] += 1;
+        partition_deltas[moves[i].to] += 1;
+      }
+
+      for (size_t i = 0; i < moves.size(); ++i)
+      {
+        Move move = moves[i];
+        HypernodeID hn = move.node;
+        insertOrUpdateNode(hn);
+
+        for (const HyperedgeID& he : partitioned_hypergraph_m->hypergraph().incidentEdges(hn)) {
+          int nodes_in_added_partition = partitioned_hypergraph_m->pinCountInPart(he, move.to) - partition_deltas[move.to];
+          if (partitioned_hypergraph_m->pinCountInPart(he, move.from) == 1) {
+            // std::cout << "Case 1" << std::endl;
+            for (const HypernodeID& hn2 : partitioned_hypergraph_m->hypergraph().pins(he)) {
+              if (partitioned_hypergraph_m->partID(hn2) == move.from)
+              {
+                insertOrUpdateNode(hn2);
+              }
+            }
+          }
+          if (nodes_in_added_partition <= 1)
+          {
+            // std::cout << "Case 2" << std::endl;
+            for (const HypernodeID& hn2 : partitioned_hypergraph_m->hypergraph().pins(he)) {
+              _blocks[move.to].pull.insertOrAdjustKey(hn2, GainCachePtr::cast<Km1GainCache>(*_gain_cache).gain(hn2, partitioned_hypergraph_m->partID(hn2), move.to));
             }
           }
         }
