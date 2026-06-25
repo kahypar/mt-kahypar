@@ -262,4 +262,26 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
 
       file.close();
     }
+
+  inline void generateOtherTimingsFile(Context& context)
+  {
+    context.dynamic.result_folder += "_other_timings/";
+    generateFileName(context);
+    std::string filename = context.dynamic.output_path;
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+      throw std::runtime_error("Could not open file: " + filename);
+    }
+    std::cout << "Saving other timings to file: " << filename << std::endl;
+    file << "total_time, strategy_time, setup_time, initial_partitioning_time, io_time_change_parsing, io_time_graph_parsing" << std::endl;
+    file << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.total_time).count() << ", "
+         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.strategy_time).count() << ", "
+         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.setup_time).count() << ", "
+         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.initial_partitioning_time).count() << ", "
+         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_change_parsing).count() << ", "
+         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_graph_parsing).count()
+         << std::endl;
+    file.close();
+
+  }
 }

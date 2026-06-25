@@ -108,6 +108,8 @@ namespace mt_kahypar::dyn {
         static ds::PartitionedHypergraph<ds::MutableHypergraph>
         partition_hypergraph_km1(ds::MutableHypergraph &hypergraph, Context &context) {
 
+          auto init_hgr_partitioning_start = std::chrono::high_resolution_clock::now();
+
           // copy the hypergraph to make sure we don't modify the original
           // ds::MutableHypergraph hypergraph_copy = hypergraph.copy();
 
@@ -130,6 +132,8 @@ namespace mt_kahypar::dyn {
           auto partitioned_hypergraph_s = std::move(utils::cast<ds::PartitionedHypergraph<typename ds::MutableHypergraph>>(partitioned_hypergraph));
 
           partitioned_hypergraph_s.setHypergraph(hypergraph);
+
+          context.dynamic.other_timings.initial_partitioning_time = std::chrono::high_resolution_clock::now() - init_hgr_partitioning_start;
 
           return partitioned_hypergraph_s;
         }

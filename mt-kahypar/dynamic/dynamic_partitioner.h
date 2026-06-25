@@ -13,17 +13,25 @@
 namespace mt_kahypar::dyn {
   inline int partition(Context& context) {
 
+      context.dynamic.other_timings = OtherTimings();
+      auto total_time_start = std::chrono::high_resolution_clock::now();
+
 
       context.partition.instance_type = InstanceType::hypergraph;
       context.partition.objective = Objective::km1;
       context.partition.gain_policy = GainPolicy::km1;
 
       // Read Hypergraph
+      auto graph_time_parsing_start = std::chrono::high_resolution_clock::now();
       mt_kahypar_hypergraph_t hypergraph_t = io::readInputFile(
               context.partition.graph_filename, context.partition.preset_type,
               context.partition.instance_type, context.partition.file_format,
               context.preprocessing.stable_construction_of_incident_edges);
       auto& hypergraph_m = utils::cast<ds::MutableHypergraph>(hypergraph_t);
+      context.dynamic.other_timings.io_time_graph_parsing = std::chrono::high_resolution_clock::now() -
+        graph_time_parsing_start;
+
+      auto setup_time_start = std::chrono::high_resolution_clock::now();
 
       // Initialize Memory Pool and Algorithm/Policy Registries
       register_memory_pool(hypergraph_t, context);
@@ -75,6 +83,8 @@ namespace mt_kahypar::dyn {
       LocalFMRound localFM_round = LocalFMRound();
       context.dynamic.local_fm_round = &localFM_round;
 
+      context.dynamic.other_timings.setup_time = std::chrono::high_resolution_clock::now() - setup_time_start;
+
       try {
 
         std::cout << "Processing " << num_changes << " changes" << std::endl;
@@ -86,14 +96,17 @@ namespace mt_kahypar::dyn {
         size_t log_step_size = num_changes * context.dynamic.logging_step_size_pct;
 
         auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
+        auto change_io_duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
         for (size_t i = 0; i < num_changes; ++i) {
+          HighResClockTimepoint start_io = std::chrono::high_resolution_clock::now();
           Change change;
           if (!context.dynamic.stream_changes) {
             change = changes[i];
           } else {
             change = parseChange(changes_file);
           }
+          change_io_duration_sum += std::chrono::high_resolution_clock::now() - start_io;
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             strategy->partition(change, num_changes);
           auto duration = std::chrono::high_resolution_clock::now() - start;
@@ -103,6 +116,9 @@ namespace mt_kahypar::dyn {
           }
           log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
         }
+
+        context.dynamic.other_timings.strategy_time = duration_sum;
+        context.dynamic.other_timings.io_time_change_parsing = change_io_duration_sum;
 
         strategy->printAdditionalFinalStats();
 
@@ -119,6 +135,10 @@ namespace mt_kahypar::dyn {
           exit(1);
         }
 
+      context.dynamic.other_timings.total_time = std::chrono::high_resolution_clock::now() - total_time_start;
+      if (context.dynamic.save_other_timings) {
+        generateOtherTimingsFile(context);
+      }
       return 0;
     }
 }

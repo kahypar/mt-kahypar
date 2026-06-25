@@ -903,6 +903,10 @@ namespace mt_kahypar {
       ("d-changing-total-weight",
         po::value<bool>(&context.dynamic.changing_total_weight)->value_name("<bool>"),
         "Whether the total weight of the graph is expected to change, used for vcycle spacing");
+      dynamic_options.add_options()
+      ("d-save-other-timings",
+          po::value<bool>(&context.dynamic.save_other_timings)->default_value(false),
+          "If true, then the partitioner saves the timings of other parts of the algorithm, such as io and initial partitioning");
     return dynamic_options;
   }
 

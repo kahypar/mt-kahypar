@@ -299,6 +299,16 @@ struct LocalFMRound {
     std::vector<Move> moves;
 };
 
+struct OtherTimings
+{
+  std::chrono::high_resolution_clock::duration total_time;
+  std::chrono::high_resolution_clock::duration strategy_time;
+  std::chrono::high_resolution_clock::duration setup_time;
+  std::chrono::high_resolution_clock::duration initial_partitioning_time;
+  std::chrono::high_resolution_clock::duration io_time_change_parsing;
+  std::chrono::high_resolution_clock::duration io_time_graph_parsing;
+};
+
 struct DynamicParameters {
   std::string vcycle_algorithm = "kway_fm";
   size_t vcycle_num = 1;
@@ -332,6 +342,10 @@ struct DynamicParameters {
   //local FM Round
   HyperedgeWeight incremental_km1 = 0;
   LocalFMRound* local_fm_round = nullptr;
+
+  // other timings independent of strategy used
+  OtherTimings other_timings;
+  bool save_other_timings = false;
 
   // statistics
   std::int64_t km1_gain_vcycle = 0;
