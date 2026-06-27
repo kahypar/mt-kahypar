@@ -265,6 +265,9 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
 
   inline void generateOtherTimingsFile(Context& context)
   {
+    if (context.dynamic.result_folder.back() == '/') {
+      context.dynamic.result_folder.pop_back();
+    }
     context.dynamic.result_folder += "_other_timings/";
     generateFileName(context);
     std::string filename = context.dynamic.output_path;
