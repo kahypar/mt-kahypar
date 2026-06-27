@@ -276,13 +276,16 @@ inline std::vector<HypernodeID> parseIDs(const std::string& line) {
       throw std::runtime_error("Could not open file: " + filename);
     }
     std::cout << "Saving other timings to file: " << filename << std::endl;
-    file << "total_time, strategy_time, setup_time, initial_partitioning_time, io_time_change_parsing, io_time_graph_parsing" << std::endl;
+    file << "total_time,  io_time_graph_parsing, setup_time, initialization_time, initial_partitioning_time, io_time_change_parsing, strategy_time, logging_time, finalization_time" << std::endl;
     file << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.total_time).count() << ", "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.strategy_time).count() << ", "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.setup_time).count() << ", "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.initial_partitioning_time).count() << ", "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_change_parsing).count() << ", "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_graph_parsing).count()
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_graph_parsing).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.setup_time).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.initialization_time).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.initial_partitioning_time).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.io_time_change_parsing).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.strategy_time).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.logging_time).count() << ", "
+    << std::chrono::duration_cast<std::chrono::milliseconds>(context.dynamic.other_timings.finalization_time).count()
          << std::endl;
     file.close();
 

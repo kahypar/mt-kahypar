@@ -84,8 +84,11 @@ namespace mt_kahypar::dyn {
       context.dynamic.local_fm_round = &localFM_round;
 
       context.dynamic.other_timings.setup_time = std::chrono::high_resolution_clock::now() - setup_time_start;
+      auto finalization_time_start = std::chrono::high_resolution_clock::now();
 
       try {
+
+        auto init_time_start = std::chrono::high_resolution_clock::now();
 
         std::cout << "Processing " << num_changes << " changes" << std::endl;
 
@@ -97,6 +100,9 @@ namespace mt_kahypar::dyn {
 
         auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
         auto change_io_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+        auto log_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+
+        context.dynamic.other_timings.initialization_time = std::chrono::high_resolution_clock::now() - init_time_start - context.dynamic.other_timings.initial_partitioning_time;
 
         for (size_t i = 0; i < num_changes; ++i) {
           HighResClockTimepoint start_io = std::chrono::high_resolution_clock::now();
@@ -114,11 +120,16 @@ namespace mt_kahypar::dyn {
           if (log_step_size != 0 && i % log_step_size != 0 && i != num_changes - 1) {
             continue;
           }
+          HighResClockTimepoint start_log = std::chrono::high_resolution_clock::now();
           log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
+          log_duration_sum += std::chrono::high_resolution_clock::now() - start_log;
         }
 
         context.dynamic.other_timings.strategy_time = duration_sum;
         context.dynamic.other_timings.io_time_change_parsing = change_io_duration_sum;
+        context.dynamic.other_timings.logging_time = log_duration_sum;
+
+        finalization_time_start = std::chrono::high_resolution_clock::now();
 
         strategy->printAdditionalFinalStats();
 
@@ -135,10 +146,12 @@ namespace mt_kahypar::dyn {
           exit(1);
         }
 
-      context.dynamic.other_timings.total_time = std::chrono::high_resolution_clock::now() - total_time_start;
-      if (context.dynamic.save_other_timings) {
+    context.dynamic.other_timings.finalization_time = std::chrono::high_resolution_clock::now() - finalization_time_start;
+    context.dynamic.other_timings.total_time = std::chrono::high_resolution_clock::now() - total_time_start;
+    if (context.dynamic.save_other_timings) {
         generateOtherTimingsFile(context);
       }
+
       return 0;
     }
 }

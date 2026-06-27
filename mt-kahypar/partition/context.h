@@ -302,11 +302,14 @@ struct LocalFMRound {
 struct OtherTimings
 {
   std::chrono::high_resolution_clock::duration total_time;
-  std::chrono::high_resolution_clock::duration strategy_time;
+  std::chrono::high_resolution_clock::duration io_time_graph_parsing;
   std::chrono::high_resolution_clock::duration setup_time;
+  std::chrono::high_resolution_clock::duration initialization_time;
   std::chrono::high_resolution_clock::duration initial_partitioning_time;
   std::chrono::high_resolution_clock::duration io_time_change_parsing;
-  std::chrono::high_resolution_clock::duration io_time_graph_parsing;
+  std::chrono::high_resolution_clock::duration strategy_time;
+  std::chrono::high_resolution_clock::duration logging_time;
+  std::chrono::high_resolution_clock::duration finalization_time;
 };
 
 struct DynamicParameters {
