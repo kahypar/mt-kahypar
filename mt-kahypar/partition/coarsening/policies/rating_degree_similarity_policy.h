@@ -57,23 +57,23 @@ class AlwaysAcceptPolicy final : public kahypar::meta::PolicyBase {
     return true;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const RatingType) const { }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
                                                                 const double,
-                                                                const HyperedgeWeight,
+                                                                const RatingType,
                                                                 const EdgeMetadata) const {
     return true;
   }
 
   template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
-                                                                  const Context&,
-                                                                  const double,
-                                                                  const HyperedgeWeight rating,
-                                                                  const EdgeMetadata) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE RatingType scaledRating(const Hypergraph&,
+                                                             const Context&,
+                                                             const double,
+                                                             const RatingType rating,
+                                                             const EdgeMetadata) const {
     return rating;
   }
 
@@ -298,23 +298,23 @@ class PreserveRebalancingNodesPolicy final : public kahypar::meta::PolicyBase {
     }
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const HyperedgeWeight) const { }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context&, EdgeMetadata&, const EdgeMetadata, const RatingType) const { }
 
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context&,
                                                                 const double,
-                                                                const HyperedgeWeight,
+                                                                const RatingType,
                                                                 const EdgeMetadata) const {
     return true;
   }
 
   template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
-                                                                  const Context&,
-                                                                  const double,
-                                                                  const HyperedgeWeight rating,
-                                                                  const EdgeMetadata) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE RatingType scaledRating(const Hypergraph&,
+                                                             const Context&,
+                                                             const double,
+                                                             const RatingType rating,
+                                                             const EdgeMetadata) const {
     return rating;
   }
 
@@ -358,7 +358,7 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
     return true;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context& context, EdgeMetadata& sum, const EdgeMetadata value, const HyperedgeWeight edge_weight) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void accumulate(const Context& context, EdgeMetadata& sum, const EdgeMetadata value, const RatingType edge_weight) const {
     switch (context.coarsening.rating.ge_accumulation) {
       case GuidedEdgeAccumulation::linear:
         sum += value;
@@ -379,27 +379,27 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool acceptEdgeContraction(const Hypergraph&,
                                                                 const Context& context,
                                                                 const double guiding_threshold,
-                                                                const HyperedgeWeight summed_rating,
+                                                                const RatingType summed_rating,
                                                                 const EdgeMetadata summed_md) const {
     return computeRelativeValue(context, summed_rating, summed_md) <= guiding_threshold;
   }
 
   template<typename Hypergraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight scaledRating(const Hypergraph&,
-                                                                  const Context& context,
-                                                                  const double guiding_threshold,
-                                                                  const HyperedgeWeight summed_rating,
-                                                                  const EdgeMetadata summed_md) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE RatingType scaledRating(const Hypergraph&,
+                                                             const Context& context,
+                                                             const double guiding_threshold,
+                                                             const RatingType summed_rating,
+                                                             const EdgeMetadata summed_md) const {
     double scale = std::max(guiding_threshold - computeRelativeValue(context, summed_rating, summed_md), 0.0) / guiding_threshold;
     switch (context.coarsening.rating.ge_scaling) {
       case GuidedEdgeScaling::none:
         return summed_rating;
       case GuidedEdgeScaling::linear:
-        return std::round(10 * scale * summed_rating);
+        return 10 * scale * summed_rating;
       case GuidedEdgeScaling::quadratic:
-        return std::round(10 * scale * scale * summed_rating);
+        return 10 * scale * scale * summed_rating;
       case GuidedEdgeScaling::cubic:
-        return std::round(10 * scale * scale * scale * summed_rating);
+        return 10 * scale * scale * scale * summed_rating;
       case GuidedEdgeScaling::UNDEFINED:
         // ...
         break;
@@ -408,13 +408,13 @@ class GuidedCoarseningPolicy final : public kahypar::meta::PolicyBase {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE double computeRelativeValue(const Context& context,
-                                                                 const HyperedgeWeight summed_rating,
+                                                                 const RatingType summed_rating,
                                                                  const EdgeMetadata summed_md) const {
     switch (context.coarsening.rating.ge_accumulation) {
       case GuidedEdgeAccumulation::linear:
-        return summed_md / static_cast<double>(summed_rating);
+        return summed_md / summed_rating;
       case GuidedEdgeAccumulation::quadratic:
-        return std::sqrt(summed_md / static_cast<double>(summed_rating));
+        return std::sqrt(summed_md / summed_rating);
       case GuidedEdgeAccumulation::max:
         return summed_md;
       case GuidedEdgeAccumulation::UNDEFINED:
