@@ -206,9 +206,13 @@ BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
                               Func&& part_weight_fn,
                               const HypernodeWeightArray& max_part_weights) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
+  const bool consider_empty_part_weight = !context.partition.allow_empty_blocks && hypergraph.numRemovedHypernodes() > 0;
 
   size_t num_empty_parts = 0;
-  HNWeightScalar min_empty_part_weight = std::numeric_limits<HypernodeWeight>::max();
+  AllocatedHNWeight min_empty_part_weight;
+  if (consider_empty_part_weight) {
+    min_empty_part_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), hypergraph.dimension());
+  }
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -222,14 +226,17 @@ BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
     }
     if (weight::isZero(part_weight)) {
       num_empty_parts++;
-      min_empty_part_weight = std::min(min_empty_part_weight, max_part_weights[i]);
+      if (consider_empty_part_weight) {
+        min_empty_part_weight = weight::min(min_empty_part_weight, max_part_weights[i]);
+      }
     }
   }
 
   bool too_many_empty_parts = num_empty_parts > hypergraph.numRemovedHypernodes();
   // use conservative estimate
-  bool too_small_empty_parts = num_empty_parts > 0
-    && min_empty_part_weight < hypergraph.maxWeightOfRemovedDegreeZeroNode();
+  bool too_small_empty_parts = consider_empty_part_weight
+    && num_empty_parts > 0
+    && !(hypergraph.maxWeightOfRemovedDegreeZeroNode() <= min_empty_part_weight);
   return BalanceMetrics{max_balance - 1.0, violates_balance,
     !context.partition.allow_empty_blocks && (too_many_empty_parts || too_small_empty_parts)};
 }
