@@ -451,6 +451,7 @@ namespace mt_kahypar::ds {
 
     hypergraph._num_nodes = _num_nodes;
     hypergraph._num_removed_nodes = _num_removed_nodes;
+    hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
 
@@ -480,6 +481,7 @@ namespace mt_kahypar::ds {
 
     hypergraph._num_nodes = _num_nodes;
     hypergraph._num_removed_nodes = _num_removed_nodes;
+    hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
 

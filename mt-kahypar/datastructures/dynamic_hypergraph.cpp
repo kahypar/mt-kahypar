@@ -364,6 +364,7 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
 
   hypergraph._num_hypernodes = _num_hypernodes;
   hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+  hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
   hypergraph._num_hyperedges = _num_hyperedges;
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
@@ -422,6 +423,7 @@ DynamicHypergraph DynamicHypergraph::copy() const {
 
   hypergraph._num_hypernodes = _num_hypernodes;
   hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+  hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
   hypergraph._num_hyperedges = _num_hyperedges;
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
