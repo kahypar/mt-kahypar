@@ -7,6 +7,7 @@ License|Linux, MacOS & Windows Build|Code Coverage|Zenodo
 Table of Contents
 -----------
 
+   * [ESA 2026 Reproduction](#esa-2026-reproduction)
    * [About Mt-KaHyPar](#about-mt-kahypar)
    * [Features](#features)
    * [Installing Mt-KaHyPar](#installing-mt-kahypar)
@@ -17,6 +18,50 @@ Table of Contents
    * [Supported Objective Functions](#supported-objective-functions)
    * [Improving Compile Times](#improving-compile-times)
    * [Licensing](#licensing)
+
+ESA 2026 Reproduction
+-----------
+This is a short guide how to reproduce the results from our ESA 2026 paper "High-Quality Multi-Constraint Hypergraph Partitioning via Greedy Rebalancing".
+First, ensure you use the correct commit.
+```
+git switch esa2026 --detach
+```
+
+Follow the [build instructions](#building-mt-kahypar-from-source) and use the `default` cmake preset to build Mt-KaHyPar.
+The code is configured such that running Mt-KaHyPar with `--preset-type=default` will execute the final configuration from the paper.
+Further required flags are `-h` (input file), `-o` (objective, e.g. `km1`), `-k` (number of blocks)  and `-e` (imbalance, e.g. `0.03`). For METIS (graph) files, `--input-file-format=metis` is additionally required.
+Add `-t <num_threads>` for multi-threaded execution; see also the [run instructions](#running-mt-kahypar).
+Note, this version of Mt-KaHyPar can read and partition input files with multi-dimensional weight constraints without requiring any additional parameters.
+
+The following parameters correspond to the configurations in the ablation study.
+
+Baseline:
+```
+--r-rebalancing-use-deadlock-fallback=false --r-reduced-target-weight-block=0.0 --r-rebalancing-multiple-moves=false --r-rebalancing-any-progress=false --r-rebalancing-use-rollback=false
+```
+
+L1^u imbalance:
+```
+--r-rebalancing-use-deadlock-fallback=false --r-reduced-target-weight-block=0.0 --r-rebalancing-use-rollback=false
+```
+
+Rollback:
+```
+--r-rebalancing-use-deadlock-fallback=false --r-reduced-target-weight-block=0.0
+```
+
+Weight reduction:
+```
+--r-rebalancing-use-deadlock-fallback=false
+```
+
+Fallback is identical to the final configuration (no additional parameters).
+
+The following parameters control the different refinement variants from Figure 3 (uLP/uFM):
+
+`--r-lp-unconstrained=false/true` for -/+ uLP.
+
+`--r-fm-type=kway_fm` vs. `--r-fm-type=unconstrained_fm` for -/+ uFM.
 
 About Mt-KaHyPar
 -----------
@@ -117,7 +162,7 @@ To build Mt-KaHyPar, use the following commands:
 2. Create a build directory: `mkdir build && cd build`
 3. *Only on Windows machines: `export CMAKE_GENERATOR="MSYS Makefiles"`*
 3. Run cmake: `cmake .. --preset=<default/python/dev>`
-4. Run make: `make MtKaHyPar -j`
+4. Run make: `make MtKaHyPar -j4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
