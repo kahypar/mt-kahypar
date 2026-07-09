@@ -114,7 +114,7 @@ To build Mt-KaHyPar, use the following commands:
 2. Create a build directory: `mkdir build && cd build`
 3. *Only on Windows machines: `export CMAKE_GENERATOR="MSYS Makefiles"`*
 3. Run cmake: `cmake .. --preset=<default/python/dev>`
-4. Run make: `make MtKaHyPar -j`
+4. Run make: `make MtKaHyPar -j4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
