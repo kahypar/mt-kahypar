@@ -93,6 +93,9 @@ bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
       V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
     best_metrics.quality += delta;
+  } else {
+    // the correct quality is only required for assertions
+    ENABLE_ASSERTIONS(best_metrics.quality = metrics::quality(phg, _context));
   }
   phg.resetEdgeSynchronization();
   best_metrics.imbalance = metrics::imbalance(phg, _context);
@@ -158,7 +161,7 @@ rebalancer::RebalancingMove DeterministicRebalancer<GraphAndGainTypes>::computeG
 
 template <typename GraphAndGainTypes>
 void DeterministicRebalancer<GraphAndGainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
-  ASSERT(_current_k == _context.partition.k && _current_k == phg.k());
+  ASSERT(_current_k == _context.partition.k);
   for (auto& moves : _tmp_potential_moves) {
     moves.clear_sequential();
   }

@@ -150,7 +150,13 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
             DBG << "[JET] starting rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
             timer.start_timer("rebalance", "Rebalance");
             mt_kahypar_partitioned_hypergraph_t part_hg = utils::partitioned_hg_cast(phg);
-            _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+            if constexpr (PartitionedHypergraph::is_graph) {
+                // if it is a graph, the gain update happens later via calculateGainDelta => use copy of metrics
+                Metrics tmp_metrics{current_metrics};
+                _rebalancer.refine(part_hg, {}, tmp_metrics, time_limit);
+            } else {
+                _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+            }
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             timer.stop_timer("rebalance");
             DBG << "[JET] finished rebalancing with quality " << current_metrics.quality << " and imbalance " << current_metrics.imbalance;
