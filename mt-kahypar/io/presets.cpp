@@ -634,7 +634,7 @@ std::vector<std::string> load_large_k_preset() {
     // main -> initial_partitioning -> refinement -> flows
     create_option("i-r-flow-algo", "do_nothing"),
     // main -> refinement
-    create_option("r-rebalancer-type", "advanced_rebalancer"),
+    create_option("r-rebalancer-type", "do_nothing"),
     create_option("r-refine-until-no-improvement", "false"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
