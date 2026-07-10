@@ -634,7 +634,10 @@ std::vector<std::string> load_large_k_preset() {
     // main -> initial_partitioning -> refinement -> flows
     create_option("i-r-flow-algo", "do_nothing"),
     // main -> refinement
-    create_option("r-rebalancer-type", "do_nothing"),
+    create_option("r-rebalancer-type", "deterministic"),
+    create_option("r-max-det-rebalancing-rounds", "5"),
+    create_option("r-det-rebalancing-deadzone", "0.5"),
+    create_option("r-det-rebalancing-heavy-vertex-exclusion", "1.5"),
     create_option("r-refine-until-no-improvement", "false"),
     // main -> refinement -> label_propagation
     create_option("r-lp-type", "label_propagation"),
