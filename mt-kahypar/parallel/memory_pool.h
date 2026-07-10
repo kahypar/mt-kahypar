@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <mutex>
 #include <shared_mutex>
 #include <memory>
@@ -44,6 +45,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/allocator.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
 namespace mt_kahypar {
@@ -158,6 +160,12 @@ class MemoryPoolT {
     bool allocate() {
       if ( !_data && !_defer_allocation ) {
         _data = (char*) mtk_scalable_calloc(_num_elements, _size);
+        if ( !_data ) {
+          unsigned long mb_value = std::round(size_in_megabyte(_num_elements * _size));
+          throw SystemException("Failed to allocate " + std::to_string(mb_value) + " MB of memory: " +
+                                "it seems you have not enough RAM to partition this input\n" +
+                                "(for large k: maybe try --mode=rb or --preset-type=large_k?)");
+        }
         return true;
       } else {
         return false;
