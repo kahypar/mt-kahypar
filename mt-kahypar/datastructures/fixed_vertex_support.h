@@ -71,11 +71,11 @@ class FixedVertexSupport {
     _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
     _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
 
-  FixedVertexSupport(const FixedVertexSupport&) = delete;
-  FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;
+  FixedVertexSupport(const FixedVertexSupport<Hypergraph>&) = delete;
+  FixedVertexSupport & operator= (const FixedVertexSupport<Hypergraph>&) = delete;
 
-  FixedVertexSupport(FixedVertexSupport&&) = default;
-  FixedVertexSupport & operator= (FixedVertexSupport &&) = default;
+  FixedVertexSupport(FixedVertexSupport<Hypergraph>&&) = default;
+  FixedVertexSupport & operator= (FixedVertexSupport<Hypergraph> &&) = default;
 
   void setHypergraph(const Hypergraph* hg) {
     _hg = hg;
