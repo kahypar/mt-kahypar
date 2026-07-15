@@ -43,7 +43,7 @@ class Bitset {
 
   using Block = uint64_t;
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
-  static_assert(__builtin_popcountll(BITS_PER_BLOCK) == 1);
+  static_assert(utils::popcount_64(BITS_PER_BLOCK) == 1);
   static constexpr Block MOD_MASK = BITS_PER_BLOCK - 1;
   static constexpr Block DIV_SHIFT = utils::log2(BITS_PER_BLOCK);
 
