@@ -139,11 +139,21 @@ typedef enum {
 } mt_kahypar_file_format_type_t;
 
 #ifndef MT_KAHYPAR_API
-#   if __GNUC__ >= 4
-#       define MT_KAHYPAR_API __attribute__ ((visibility("default")))
-#   else
-#       define MT_KAHYPAR_API
-#   endif
+#  ifdef _WIN32
+#     if defined(MT_KAHYPAR_BUILD_SHARED)  /* build dll */
+#         define MT_KAHYPAR_API __declspec(dllexport)
+#     elif !defined(MT_KAHYPAR_BUILD_STATIC)  /* use dll */
+#         define MT_KAHYPAR_API __declspec(dllimport)
+#     else  /* static library */
+#         define MT_KAHYPAR_API
+#     endif
+#  else
+#     if __GNUC__ >= 4
+#         define MT_KAHYPAR_API __attribute__ ((visibility("default")))
+#     else
+#         define MT_KAHYPAR_API
+#     endif
+#  endif
 #endif
 
 #endif // MTKAHYPAR_TYPEDEFS_H
