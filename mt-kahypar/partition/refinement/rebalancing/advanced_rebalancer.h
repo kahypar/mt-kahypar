@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -60,12 +62,13 @@ namespace rebalancer {
     // Returns true if the node is marked as movable, is not locked and taking the lock now succeeds
     bool tryLock() {
       uint8_t expected = 1;
-      return state == 1 && __atomic_compare_exchange_n(&state, &expected, 2, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
+      return state == 1 && std::atomic_ref(state)
+          .compare_exchange_strong(expected, 2, std::memory_order::acquire, std::memory_order::relaxed);
     }
 
-    void unlock() { __atomic_store_n(&state, 1, __ATOMIC_RELEASE); }
+    void unlock() { std::atomic_ref(state).store(1, std::memory_order::release); }
 
-    void markAsMovedAndUnlock() { __atomic_store_n(&state, 3, __ATOMIC_RELEASE); }
+    void markAsMovedAndUnlock() { std::atomic_ref(state).store(3, std::memory_order::release); }
 
     void markAsMovable() { state = 1; }
 

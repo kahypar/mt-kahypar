@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "WHFC/datastructure/flow_hypergraph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/macros.h"
@@ -237,8 +239,7 @@ namespace mt_kahypar {
       ASSERT(bucket < _tmp_csr_buckets.size());
       ASSERT(static_cast<size_t>(u) < numNodes());
       _tmp_csr_buckets[bucket].addPin(u, pin_idx);
-      __atomic_fetch_add(reinterpret_cast<whfc::InHeIndex::ValueType*>(
-        &nodes[u + 1].first_out), 1, __ATOMIC_RELAXED);
+      std::atomic_ref(nodes[u + 1].first_out.value()).fetch_add(1, std::memory_order::relaxed);
     }
 
     void finishHyperedge(const whfc::Hyperedge he, const whfc::Flow capacity,

@@ -110,7 +110,7 @@ class ProgressBar {
   }
 
   void addToObjective(const int64_t delta) {
-    __atomic_fetch_add(&_objective, delta, __ATOMIC_RELAXED);
+    std::atomic_ref(_objective).fetch_add(delta, std::memory_order::relaxed);
   }
 
  private:
