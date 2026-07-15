@@ -27,17 +27,18 @@
 
 #pragma once
 
+#include <bit>
 #include <cstdint>
 
 namespace mt_kahypar::utils {
 
-inline int popcount_64(const uint64_t x) {
+constexpr inline int popcount_64(const uint64_t x) noexcept {
   // this should be GCC specific
-  return __builtin_popcountll(x);
+  return std::popcount(x);
 }
 
-inline int lowest_set_bit_64(const uint64_t x) {
-  return __builtin_ctzll(x);
+constexpr inline int lowest_set_bit_64(const uint64_t x) noexcept {
+  return std::countr_zero(x);
 }
 
 constexpr int log2(const int x) {
