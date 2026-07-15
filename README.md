@@ -69,7 +69,7 @@ Building Mt-KaHyPar from Source
 Mt-KaHyPar requires:
 
  - A 64-bit Linux, MacOS, or Windows operating system.
- - A modern, C++17-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows.
+ - A modern, C++20-ready compiler such as `g++` version 10 or higher, `clang` version 11.0.3 (`libc++` version 19) or higher, or `MSVC` version 19.28 compiler on Windows.
  - The [cmake][cmake] build system (>= 3.26).
  - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.5.0).
    If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
@@ -341,7 +341,7 @@ We recommend [integrating the library via cmake](#integration-via-cmake) into yo
 However, it is also possible to directly compile the program using `g++`:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypar
+g++ -std=c++20 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypar
 ```
 
 To execute the produced binary, you need to ensure that the installation directory
