@@ -36,9 +36,9 @@
 #include <windows.h>
 #else
 #include <sys/ioctl.h>
+#include <unistd.h>
 #endif
 #include <stdio.h>
-#include <unistd.h>
 
 #include "mt-kahypar/macros.h"
 
