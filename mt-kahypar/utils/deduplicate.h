@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <atomic>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -48,8 +49,8 @@ inline void deduplicateHyperedgePins(vec<HypernodeID>& hyperedge,
 
   if ( j < hyperedge.size() ) {
     // Remove duplicated pins
-    __atomic_fetch_add(&num_hes_with_duplicated_pins, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&num_duplicated_pins, hyperedge.size() - j, __ATOMIC_RELAXED);
+    std::atomic_ref(num_hes_with_duplicated_pins).fetch_add(1, std::memory_order::relaxed);
+    std::atomic_ref(num_duplicated_pins).fetch_add(hyperedge.size() - j, std::memory_order::relaxed);
     hyperedge.resize(j);
   }
 }

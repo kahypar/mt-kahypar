@@ -28,6 +28,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -104,9 +105,8 @@ class ConcurrentFlatMap {
     int32_t desired = _threshold - 1;
     while ( ! ( expected == _threshold && elem->key == key ) ) {
       if ( expected < desired &&
-           __atomic_compare_exchange_n(
-            &elem->timestamp, &expected, desired, false,
-            __ATOMIC_ACQ_REL, __ATOMIC_RELAXED ) ) {
+           std::atomic_ref(elem->timestamp)
+               .compare_exchange_strong(expected, desired, std::memory_order::acq_rel, std::memory_order::relaxed) ) {
         elem->key = key;
         elem->value = Value();
         elem->timestamp = _threshold;

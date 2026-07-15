@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
+#include <atomic>
 #include <tbb/parallel_scan.h>
 
 #include "mt-kahypar/definitions.h"
@@ -221,12 +222,12 @@ namespace mt_kahypar {
 
         if ( benefit > 0 ) {
           // increase gain of v by benefit
-          __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
+          std::atomic_ref(m.gain).fetch_add(benefit, std::memory_order::relaxed);
         }
 
         if ( penalty > 0 ) {
           // decrease gain of v by penalty
-          __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
+          std::atomic_ref(m.gain).fetch_sub(penalty, std::memory_order::relaxed);
         }
       }
     }
@@ -283,7 +284,7 @@ namespace mt_kahypar {
       const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
       // For recomputed gains, a postive gain means improvement. However, the opposite
       // is the case for attributed gains.
-      __atomic_fetch_add(&m.gain, attributed_gain, __ATOMIC_RELAXED);
+      std::atomic_ref(m.gain).fetch_add(attributed_gain, std::memory_order::relaxed);
     }
   }
 
@@ -330,7 +331,7 @@ namespace mt_kahypar {
         first_m.to == second_m.from ? 2 : 1;
       sync_update.block_of_other_node = second_m.from;
       const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
-      __atomic_fetch_add(&first_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+      std::atomic_ref(first_m.gain).fetch_add(-attributed_gain, std::memory_order::relaxed);
 
       if ( tracker.wasNodeMovedInThisRound(second_move) )  {
         // Compute gain of second move
@@ -342,7 +343,7 @@ namespace mt_kahypar {
           first_m.to == second_m.to ? 2 : 1;
         sync_update.block_of_other_node = first_m.to;
         const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
-        __atomic_fetch_add(&second_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+        std::atomic_ref(second_m.gain).fetch_add(-attributed_gain, std::memory_order::relaxed);
       }
     }
   }
