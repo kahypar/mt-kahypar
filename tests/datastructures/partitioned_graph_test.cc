@@ -25,6 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <array>
 #include <atomic>
 
 #include "gmock/gmock.h"
