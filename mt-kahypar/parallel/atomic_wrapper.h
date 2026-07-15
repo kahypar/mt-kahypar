@@ -27,8 +27,10 @@
 
 #pragma once
 
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
+#endif
 
 #include <atomic>
 #include <type_traits>
@@ -251,7 +253,8 @@ class IntegralAtomicWrapper {
 
 
 
-
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 }  // namespace parallel
 }  // namespace mt_kahypar
