@@ -24,9 +24,6 @@ endif()
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "Build directory must be different from source directory.")
 endif()
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  message(FATAL_ERROR "MSVC not supported at the moment")
-endif()
 
 if (POLICY CMP0135)  # download timestamps
   cmake_policy(SET CMP0135 NEW)
@@ -262,8 +259,23 @@ endif()
 
 # Add compile flags that enable warnings
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-  -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
-  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
+   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
+        -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
+        -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -Wno-unused-function
+    >
+
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /W3
+        /wd4267 /wd4244 # percision loss
+        /wd4334 # result of 32-bit shift implicitly converted to 64 bits
+        /wd4146 # unary minus operator applied to unsigned type
+        /permissive-
+    >
+)
+target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+    PARANOID
+    _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
+)
 
 if(KAHYPAR_USE_GCOV)
   # add coverage anaylsis compile and link flags
@@ -278,10 +290,22 @@ if (LLD_BIN AND KAHYPAR_X86)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
 endif()
 
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
-                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
-                                                      $<$<CONFIG:DEBUG>:-g3 -fno-omit-frame-pointer>)
-target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /bigobj
+    >
+    $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-O3>
+
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Zi>
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-g3>
+
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG> # keep assertions activated
+    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-UNDEBUG>
+
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Oy->
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-omit-frame-pointer>
+)
 
 if(UNIX AND NOT WIN32)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
@@ -321,8 +345,13 @@ else()
 endif()
 
 if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>
-                                                        $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
+
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
+  )
 endif()
 
 if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
