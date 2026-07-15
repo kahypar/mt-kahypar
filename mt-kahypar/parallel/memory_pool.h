@@ -36,7 +36,7 @@
 #include <vector>
 #include <algorithm>
 #if _WIN32
-#include <sysinfoapi.h>
+#include <windows.h>
 #else
 #include <unistd.h>
 #endif
