@@ -30,6 +30,8 @@ namespace mt_kahypar::dyn {
                   context.refinement.rebalancing.algorithm, hypergraph_m.initialNumNodes(), context, _gain_cache);
           context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
           context.refinement.fm.multitry_rounds = 1;
+          // todo stopping criterium hard coded
+          // todo context.refinement.fm.num_seed_nodes = 1, max;
           _benefit_aggregator = vec<Gain>(context.partition.k, 0);
           _fm = FMFactory::getInstance().createObject(
                   context.refinement.fm.algorithm,
@@ -270,28 +272,17 @@ namespace mt_kahypar::dyn {
             partitioned_hypergraph_m.decrementPinCountOfBlockWrapper(he, partitioned_hypergraph_m.partID(hn));
             gain_cache_nodes.push_back(hn);
 
-             if (pin_count_in_part_prior_removal == 2) {
+            if (pin_count_in_part_prior_removal == 2) {
               // decrease penalty for remaining node in partition because moving it to another partition will decrease the cut
-              for (const HypernodeID& hn2 : hypergraph_m.pins(he))
-              {
-                if (hn2 != hn)
-                {
-                  if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(hn))
-                  {
+              for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
+                if (hn2 != hn) {
+                  if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(hn)) {
                     GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(hn2, -hypergraph_m.edgeWeight(he));
                     _rebalancer.insertOrUpdateNode(hn2);
                   }
-                  // if hn2 is in small block, add to local_fm_nodes
-                  if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
-                      partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn2)) <=
-                      context.dynamic.small_blocks_threshold)
-                  {
-                    local_fm_nodes.push_back(hn2);
-                  }
                 }
               }
-          } else if (pin_count_in_part_prior_removal == 1)
-            {
+            } else if (pin_count_in_part_prior_removal == 1) {
               // reduce benefit for remaining nodes in other partitions because moving them to this partition will increase the cut
               for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
                 if (hn2 != hn) {
@@ -305,6 +296,14 @@ namespace mt_kahypar::dyn {
               }
             }
 
+            if (partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn)) <= context.dynamic.small_blocks_threshold) {
+              for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
+                if (hn2 != hn) {
+                  local_fm_nodes.push_back(hn2);
+                }
+              }
+            }
+
             hypergraph_m.deletePin(he, hn);
           }
 
@@ -313,11 +312,6 @@ namespace mt_kahypar::dyn {
             for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn)) {
               size_t nodes_in_removed_partition_prior_removal = 0;
               for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
-                if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
-                    partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn2)) <=
-                    context.dynamic.small_blocks_threshold) {
-                  local_fm_nodes.push_back(hn2);
-                }
                 if (partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(hn)) {
                   nodes_in_removed_partition_prior_removal++;
                 }
@@ -435,13 +429,14 @@ namespace mt_kahypar::dyn {
                     GainCachePtr::cast<Km1GainCache>(_gain_cache).changePenalty(hn2, edge_weight);
                     _rebalancer.addPenalty(hn2, edge_weight);
                   }
-                  // if hn2 is in small block, add to local_fm_nodes
-                  if (partitioned_hypergraph_m.partID(hn2) != kInvalidPartition &&
-                      partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(hn2)) <=
-                      context.dynamic.small_blocks_threshold)
-                  {
-                    local_fm_nodes.push_back(hn2);
-                  }
+                }
+              }
+            }
+
+            if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) <= context.dynamic.small_blocks_threshold) {
+              for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
+                if (hn2 != node) {
+                  local_fm_nodes.push_back(hn2);
                 }
               }
             }
