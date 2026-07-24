@@ -110,7 +110,7 @@ struct CoarseningParameters {
   HypernodeID deep_ml_contraction_limit_multiplier = 160;
   bool use_adaptive_edge_size = true;
   double max_allowed_weight_multiplier = 1;
-  double minimum_shrink_factor = 1.01;
+  double minimum_shrink_factor = 1.1;
   double maximum_shrink_factor = 2.5;
   size_t vertex_degree_sampling_threshold = 200000;
 
@@ -119,7 +119,7 @@ struct CoarseningParameters {
   bool det_resolve_swaps = true;
 
   // parameters for two-hop clustering
-  bool use_two_hop = false;
+  bool use_two_hop = true;
   bool two_hop_full_shrinkage = true;
   double two_hop_shrink_threshold = 1.75;
   HypernodeID two_hop_cluster_size = 4;
