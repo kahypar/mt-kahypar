@@ -67,7 +67,7 @@ std::vector<std::string> load_default_preset() {
     // main -> coarsening
     create_option("c-type", "multilevel_coarsener"),
     create_option("c-use-adaptive-edge-size", "true"),
-    create_option("c-min-shrink-factor", "1.01"),
+    create_option("c-min-shrink-factor", "1.1"),
     create_option("c-max-shrink-factor", "2.5"),
     create_option("c-s", "1"),
     create_option("c-t", "160"),
@@ -76,6 +76,12 @@ std::vector<std::string> load_default_preset() {
     create_option("c-rating-score", "heavy_edge"),
     create_option("c-rating-heavy-node-penalty", "no_penalty"),
     create_option("c-rating-acceptance-criterion", "best_prefer_unmatched"),
+    // main -> coarsening -> two-hop
+    create_option("c-use-two-hop", "true"),
+    create_option("c-two-hop-full-shrinkage", "true"),
+    create_option("c-two-hop-threshold", "1.75"),
+    create_option("c-two-hop-cluster-size", "4"),
+    create_option("c-two-hop-degree-threshold", "100"),
     // main -> initial_partitioning
     create_option("i-mode", "rb"),
     create_option("i-runs", "20"),
@@ -166,7 +172,7 @@ std::vector<std::string> load_quality_preset() {
     // main -> coarsening
     create_option("c-type", "multilevel_coarsener"),
     create_option("c-use-adaptive-edge-size", "true"),
-    create_option("c-min-shrink-factor", "1.01"),
+    create_option("c-min-shrink-factor", "1.1"),
     create_option("c-max-shrink-factor", "2.5"),
     create_option("c-s", "1"),
     create_option("c-t", "160"),
@@ -175,6 +181,12 @@ std::vector<std::string> load_quality_preset() {
     create_option("c-rating-score", "heavy_edge"),
     create_option("c-rating-heavy-node-penalty", "no_penalty"),
     create_option("c-rating-acceptance-criterion", "best_prefer_unmatched"),
+    // main -> coarsening -> two-hop
+    create_option("c-use-two-hop", "true"),
+    create_option("c-two-hop-full-shrinkage", "true"),
+    create_option("c-two-hop-threshold", "1.75"),
+    create_option("c-two-hop-cluster-size", "4"),
+    create_option("c-two-hop-degree-threshold", "100"),
     // main -> initial_partitioning
     create_option("i-mode", "rb"),
     create_option("i-runs", "20"),
@@ -595,7 +607,7 @@ std::vector<std::string> load_large_k_preset() {
     // main -> coarsening
     create_option("c-type", "multilevel_coarsener"),
     create_option("c-use-adaptive-edge-size", "true"),
-    create_option("c-min-shrink-factor", "1.01"),
+    create_option("c-min-shrink-factor", "1.1"),
     create_option("c-max-shrink-factor", "2.5"),
     create_option("c-s", "1"),
     create_option("c-t", "500"),
@@ -605,6 +617,12 @@ std::vector<std::string> load_large_k_preset() {
     create_option("c-rating-score", "heavy_edge"),
     create_option("c-rating-heavy-node-penalty", "no_penalty"),
     create_option("c-rating-acceptance-criterion", "best_prefer_unmatched"),
+    // main -> coarsening -> two-hop
+    create_option("c-use-two-hop", "true"),
+    create_option("c-two-hop-full-shrinkage", "true"),
+    create_option("c-two-hop-threshold", "1.75"),
+    create_option("c-two-hop-cluster-size", "4"),
+    create_option("c-two-hop-degree-threshold", "100"),
     // main -> initial_partitioning
     create_option("i-mode", "direct"),
     create_option("i-runs", "5"),
