@@ -48,8 +48,7 @@
 using namespace mt_kahypar;
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-int main(int argc, char* argv[]) {
-  try {
+int run(int argc, char* argv[]) {
     Context context(false);
     processCommandLineInput(context, argc, argv);
 
@@ -163,12 +162,26 @@ int main(int argc, char* argv[]) {
     utils::delete_partitioned_hypergraph(partitioned_hypergraph);
 
     return 0;
+}
 
-  } catch (const mt_kahypar::InvalidInputException& e) {
-    std::cerr << "\n[ERROR] " << e.what() << std::endl;
+int main(int argc, char* argv[]) {
+#ifdef NDEBUG
+  try {
+    return run(argc, argv);
+  } catch (const InvalidInputException& e) {
+    std::cerr << "\n " << e.what() << std::endl;
+    return 1;
+  } catch (const InvalidParameterException& e) {
+    std::cerr << "\n" << e.what() << std::endl;
+    return 1;
+  } catch (const UnsupportedOperationException& e) {
+    std::cerr << "\n" << e.what() << std::endl;
     return 1;
   } catch (const std::exception& e) {
     std::cerr << "\n[FATAL ERROR] " << e.what() << std::endl;
     return 1;
   }
+#else
+  return run(argc, argv);
+#endif
 }
