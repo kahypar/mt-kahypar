@@ -298,7 +298,7 @@ namespace mt_kahypar::dyn {
 
             if (partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn)) <= context.dynamic.small_blocks_threshold) {
               for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
-                if (hn2 != hn) {
+                if (hn2 != hn && partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(hn)) {
                   local_fm_nodes.push_back(hn2);
                 }
               }
@@ -435,7 +435,7 @@ namespace mt_kahypar::dyn {
 
             if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) <= context.dynamic.small_blocks_threshold) {
               for (const HypernodeID& hn2 : hypergraph_m.pins(edge)) {
-                if (hn2 != node) {
+                if (hn2 != node && partitioned_hypergraph_m.partID(hn2) == partitioned_hypergraph_m.partID(node)) {
                   local_fm_nodes.push_back(hn2);
                 }
               }
