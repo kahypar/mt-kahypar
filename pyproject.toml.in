@@ -58,3 +58,14 @@ repair-wheel-command = """
   export DYLD_LIBRARY_PATH="@KAHYPAR_TBB_DIR@:$DYLD_LIBRARY_PATH"
   delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}
 """
+
+[tool.cibuildwheel.windows]
+repair-wheel-command = [
+  "set PATH=@KAHYPAR_TBB_DIR@;%PATH%",
+  "delvewheel repair -w {dest_dir} -v {wheel}",
+]
+
+[tool.cibuildwheel.windows.environment]
+CMAKE_GENERATOR = "Ninja"
+CMAKE_C_COMPILER = "cl"
+CMAKE_CXX_COMPILER = "cl"
