@@ -15,3 +15,5 @@ set_target_properties(mtkahypar_python PROPERTIES
 
 # rename mtkahypar_python target output to mtkahypar
 set_target_properties(mtkahypar_python PROPERTIES OUTPUT_NAME mtkahypar)
+
+add_subdirectory(tests)

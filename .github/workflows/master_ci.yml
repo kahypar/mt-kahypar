@@ -206,9 +206,7 @@ jobs:
 
       - name: Run Mt-KaHyPar Python Interface Tests
         run: |
-          cd python/tests
-          cp ../../build/python/mtkahypar*.so mtkahypar.so
-          python3 test_mtkahypar.py -v
+          ctest --test-dir build -R mtkahypar_python_test --output-on-failure
 
   mt_kahypar_windows_build:
     name: Windows Build
