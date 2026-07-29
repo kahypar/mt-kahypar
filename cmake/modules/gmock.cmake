@@ -10,14 +10,14 @@ function(add_gmock_test target)
 
     add_custom_command(TARGET ${target}
                        POST_BUILD
-                       COMMAND cp ${target} ${target}_failed
-                       COMMAND ${target}
+                       COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${target}> $<TARGET_FILE_DIR:${target}>/${target}_failed$<TARGET_FILE_SUFFIX:${target}>
+                       COMMAND $<TARGET_FILE:${target}>
                        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                        COMMENT "Running ${target}" VERBATIM)
 
     add_custom_command(TARGET ${target}
                        POST_BUILD
-                       COMMAND rm -f ${target}_failed
+                       COMMAND ${CMAKE_COMMAND} -E remove $<TARGET_FILE_DIR:${target}>/${target}_failed$<TARGET_FILE_SUFFIX:${target}>
                        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                        COMMENT "Running ${target}" VERBATIM)
 endfunction()
