@@ -141,7 +141,7 @@ class FixedVertexSupport {
   // ! Returns the fixed vertex block of the node
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID fixedVertexBlock(const HypernodeID hn) const {
     ASSERT(hn < _num_nodes);
-    auto atomic_block = std::atomic_ref(_fixed_vertex_data[hn].block);
+    auto atomic_block = std::atomic_ref(const_cast<PartitionID&>(_fixed_vertex_data[hn].block));
     return atomic_block.load(std::memory_order::relaxed);
   }
 
