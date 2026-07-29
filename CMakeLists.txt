@@ -32,7 +32,7 @@ if (POLICY CMP0144)  # uppercase find_package variables
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-if (NOT DEFINED BUILD_SHARED_LIBS AND NOT WIN32)
+if (NOT DEFINED BUILD_SHARED_LIBS)
   # since TBB does not support static linking, we build with dynamic linking by default (except on Windows)
   set(BUILD_SHARED_LIBS ON)
 endif()
