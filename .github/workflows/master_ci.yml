@@ -208,8 +208,8 @@ jobs:
         run: |
           ctest --test-dir build -R mtkahypar_python_test --output-on-failure
 
-  mt_kahypar_windows_build:
-    name: Windows Build
+  mt_kahypar_windows_mingw_build:
+    name: Windows MinGW Build
     runs-on: windows-latest
     env:
       CI_ACTIVE : 1
