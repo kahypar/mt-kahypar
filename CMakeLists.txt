@@ -440,10 +440,12 @@ if (KAHYPAR_ENABLE_TESTING)
   )
   FetchContent_MakeAvailable(googletest)
   include(gmock)
-  enable_testing()
 
   add_library(MtKaHyPar-Test INTERFACE)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
+endif()
+if (KAHYPAR_ENABLE_TESTING OR KAHYPAR_PYTHON)
+  enable_testing()
 endif()
 
 
