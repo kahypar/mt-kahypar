@@ -562,6 +562,10 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     include(SetupCPack)
   endif()
 
+  if(DEFINED KAHYPAR_TBB_DIR)
+    # remove "\" on windows builds
+    cmake_path(CONVERT "${KAHYPAR_TBB_DIR}" TO_CMAKE_PATH_LIST KAHYPAR_TBB_DIR)
+  endif()
   if(KAHYPAR_SETUP_PYTHON AND DEFINED KAHYPAR_TBB_DIR)
     # preparation for python wheel
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml @ONLY)
