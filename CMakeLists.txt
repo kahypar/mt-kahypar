@@ -278,11 +278,11 @@ target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
     _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
 )
 
-if(KAHYPAR_USE_GCOV)
+if(KAHYPAR_USE_GCOV AND NOT MSVC)
   # add coverage anaylsis compile and link flags
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
-endif(KAHYPAR_USE_GCOV)
+endif()
 
 # lld is way faster than ld. If you have it, use it!
 find_program(LLD_BIN lld)
