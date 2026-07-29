@@ -1,6 +1,8 @@
 # taken from http://johnlamp.net/cmake-tutorial-5-functionally-improved-testing.html
 function(add_gmock_test target)
     add_executable(${target} ${ARGN})
+    copy_dependencies(${target})
+
     target_link_libraries(${target} gtest gtest_main ${CMAKE_THREAD_LIBS_INIT})
 
     set_property(TARGET ${target} PROPERTY CXX_STANDARD 20)
