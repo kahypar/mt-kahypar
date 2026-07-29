@@ -112,7 +112,8 @@ public:
     const size_t div = p / BITS_PER_BLOCK;
     const size_t rem = p % BITS_PER_BLOCK;
     const size_t pos = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
-    return std::atomic_ref(_bits[pos]).load(std::memory_order::relaxed) & (UnsafeBlock(1) << rem);
+    return std::atomic_ref(const_cast<UnsafeBlock&>(_bits[pos]))
+        .load(std::memory_order::relaxed) & (UnsafeBlock(1) << rem);
   }
 
   // not threadsafe
@@ -142,7 +143,7 @@ public:
     const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
     const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
-      conn += utils::popcount_64(std::atomic_ref(_bits[i]).load(std::memory_order::relaxed));
+      conn += utils::popcount_64(std::atomic_ref(const_cast<UnsafeBlock&>(_bits[i])).load(std::memory_order::relaxed));
     }
     return conn;
   }
