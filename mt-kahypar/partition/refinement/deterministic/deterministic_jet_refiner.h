@@ -115,8 +115,6 @@ private:
 
   HyperedgeWeight calculateGainDelta(PartitionedHypergraph& phg) const;
 
-  void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
-
   bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
   bool noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts);
