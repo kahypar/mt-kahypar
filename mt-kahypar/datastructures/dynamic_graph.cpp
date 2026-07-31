@@ -59,7 +59,7 @@ bool DynamicGraph::registerContraction(const HypernodeID u, const HypernodeID v)
  * or also return an empty contraction vector.
  */
 size_t DynamicGraph::contract(const HypernodeID v,
-                              const HypernodeWeight max_node_weight) {
+                              const HNWeightConstRef max_node_weight) {
   ASSERT(_contraction_tree.parent(v) != v, "No contraction registered for node " << v);
 
   HypernodeID x = _contraction_tree.parent(v);
@@ -91,7 +91,7 @@ size_t DynamicGraph::contract(const HypernodeID v,
  */
 DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
                                                        const HypernodeID v,
-                                                       const HypernodeWeight max_node_weight) {
+                                                       const HNWeightConstRef max_node_weight) {
 
   // Acquire ownership in correct order to prevent deadlocks
   if ( u < v ) {
@@ -110,14 +110,14 @@ DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
   const bool contraction_partner_valid =
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
-    hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
+    weight::isInvalid(max_node_weight) || nodeWeight(u) + nodeWeight(v) <= max_node_weight;
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
       /** only run this if all previous checks were successful */ _fixed_vertices.contract(*this, u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    std::atomic_ref(hypernode(u).weight()).store(nodeWeight(u) + nodeWeight(v), std::memory_order_relaxed);
+    setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
     hypernode(v).disable();
     releaseHypernode(u);
     releaseHypernode(v);
@@ -205,7 +205,7 @@ void DynamicGraph::uncontract(const Batch& batch,
     // Restore hypernode v which includes enabling it and subtract its weight
     // from its representative
     hypernode(memento.v).enable();
-    hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+    setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
     releaseHypernode(memento.u);
 
     // Revert contraction in fixed vertex support
@@ -252,8 +252,14 @@ VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
 parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeSinglePinAndParallelHyperedges() {
-  ++_version;
-  return _adjacency_array.removeSinglePinAndParallelEdges();
+  parallel::scalable_vector<DynamicGraph::ParallelHyperedge> result;
+  tbb::parallel_invoke([&] {
+    ++_version;
+    result = _adjacency_array.removeSinglePinAndParallelEdges();
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicGraph, true>(*this, _total_weight, _max_weight);
+  });
+  return result;
 }
 
 /**
@@ -261,8 +267,12 @@ parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeS
  * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
  */
 void DynamicGraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
-  _adjacency_array.restoreSinglePinAndParallelEdges(hes_to_restore);
-  --_version;
+  tbb::parallel_invoke([&] {
+    _adjacency_array.restoreSinglePinAndParallelEdges(hes_to_restore);
+    --_version;
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicGraph, true>(*this, _total_weight, _max_weight);
+  });
 }
 
 // ! Copy dynamic hypergraph in parallel
@@ -273,6 +283,7 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
   hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
@@ -280,6 +291,8 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
       sizeof(Node) * _nodes.size());
+  }, [&] {
+    hypergraph._node_weights = _node_weights.copy();
   }, [&] {
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
   }, [&] {
@@ -303,6 +316,7 @@ DynamicGraph DynamicGraph::copy() const {
   hypergraph._max_removed_degree_zero_hn_weight = _max_removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
@@ -310,6 +324,7 @@ DynamicGraph DynamicGraph::copy() const {
   memcpy(hypergraph._nodes.data(), _nodes.data(),
     sizeof(Node) * _nodes.size());
     hypergraph._adjacency_array = _adjacency_array.copy();
+  hypergraph._node_weights = _node_weights.copy();
   hypergraph._acquired_nodes.resize(numNodes());
   for ( HypernodeID hn = 0; hn < numNodes(); ++hn ) {
     hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
@@ -373,7 +388,7 @@ bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
 
 // ! Computes the total weight of the hypergraph (parallel)
 void DynamicGraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-  _total_weight = computeTotalNodeWeightParallel(*this, numNodes());
+  computeTotalNodeWeightParallel(*this, _total_weight, _max_weight);
 }
 
 } // namespace ds

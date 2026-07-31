@@ -64,7 +64,7 @@ bool DynamicHypergraph::registerContraction(const HypernodeID u, const Hypernode
  * or also return an empty contraction vector.
  */
 size_t DynamicHypergraph::contract(const HypernodeID v,
-                                   const HypernodeWeight max_node_weight) {
+                                   const HNWeightConstRef max_node_weight) {
   ASSERT(_contraction_tree.parent(v) != v, "No contraction registered for hypernode" << v);
 
   HypernodeID x = _contraction_tree.parent(v);
@@ -154,7 +154,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     // Restore hypernode v which includes enabling it and subtract its weight
     // from its representative
     hypernode(memento.v).enable();
-    hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+    setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
     releaseHypernode(memento.u);
 
     // Revert contraction in fixed vertex support
@@ -230,104 +230,108 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
 parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergraph::removeSinglePinAndParallelHyperedges() {
-  _removable_single_pin_and_parallel_nets.reset();
-  // Remove singple-pin hyperedges directly from the hypergraph and
-  // insert all other hyperedges into a bucket data structure such that
-  // hyperedges with the same hash/footprint are placed in the same bucket.
-  StreamingVector<ParallelHyperedge> tmp_removed_hyperedges;
-  ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
-  hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
-  doParallelForAllEdges([&](const HyperedgeID& he) {
-    const HypernodeID edge_size = edgeSize(he);
-    if ( edge_size > 1 ) {
-      const Hyperedge& e = hyperedge(he);
-      const size_t footprint = e.hash();
-      std::sort(_incidence_array.begin() + e.firstEntry(),
-                _incidence_array.begin() + e.firstInvalidEntry());
-      hyperedge_hash_map.insert(footprint,
-        ContractedHyperedgeInformation { he, footprint, edge_size, true });
-    } else {
-      hyperedge(he).disable();
-      _removable_single_pin_and_parallel_nets.set(he, true);
-      tmp_removed_hyperedges.stream(ParallelHyperedge { he, kInvalidHyperedge });
-    }
-  });
-
-  // Helper function that checks if two hyperedges are parallel
-  // Note, pins inside the hyperedges are sorted.
-  auto check_if_hyperedges_are_parallel = [&](const HyperedgeID lhs,
-                                              const HyperedgeID rhs) {
-    const Hyperedge& lhs_he = hyperedge(lhs);
-    const Hyperedge& rhs_he = hyperedge(rhs);
-    if ( lhs_he.size() == rhs_he.size() ) {
-      const size_t lhs_start = lhs_he.firstEntry();
-      const size_t rhs_start = rhs_he.firstEntry();
-      for ( size_t i = 0; i < lhs_he.size(); ++i ) {
-        const size_t lhs_pos = lhs_start + i;
-        const size_t rhs_pos = rhs_start + i;
-        if ( _incidence_array[lhs_pos] != _incidence_array[rhs_pos] ) {
-          return false;
-        }
+  parallel::scalable_vector<ParallelHyperedge> removed_hyperedges;
+  tbb::parallel_invoke([&] {
+    _removable_single_pin_and_parallel_nets.reset();
+    // Remove singple-pin hyperedges directly from the hypergraph and
+    // insert all other hyperedges into a bucket data structure such that
+    // hyperedges with the same hash/footprint are placed in the same bucket.
+    StreamingVector<ParallelHyperedge> tmp_removed_hyperedges;
+    ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
+    hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
+    doParallelForAllEdges([&](const HyperedgeID& he) {
+      const HypernodeID edge_size = edgeSize(he);
+      if ( edge_size > 1 ) {
+        const Hyperedge& e = hyperedge(he);
+        const size_t footprint = e.hash();
+        std::sort(_incidence_array.begin() + e.firstEntry(),
+                  _incidence_array.begin() + e.firstInvalidEntry());
+        hyperedge_hash_map.insert(footprint,
+          ContractedHyperedgeInformation { he, footprint, edge_size, true });
+      } else {
+        hyperedge(he).disable();
+        _removable_single_pin_and_parallel_nets.set(he, true);
+        tmp_removed_hyperedges.stream(ParallelHyperedge { he, kInvalidHyperedge });
       }
-      return true;
-    } else {
-      return false;
-    }
-  };
+    });
 
-  // In the step before we placed hyperedges within a bucket data structure.
-  // Hyperedges with the same hash/footprint are stored inside the same bucket.
-  // We iterate now in parallel over each bucket and sort each bucket
-  // after its hash. A bucket is processed by one thread and parallel
-  // hyperedges are detected by comparing the pins of hyperedges with
-  // the same hash.
-  tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
-    auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
-    std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-      [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
-        return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size)||
-          (lhs.hash == rhs.hash && lhs.size == rhs.size && lhs.he < rhs.he);
-      });
-
-    // Parallel Hyperedge Detection
-    for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-      ContractedHyperedgeInformation& contracted_he_lhs = hyperedge_bucket[i];
-      if ( contracted_he_lhs.valid ) {
-        const HyperedgeID lhs_he = contracted_he_lhs.he;
-        HyperedgeWeight lhs_weight = hyperedge(lhs_he).weight();
-        for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-          ContractedHyperedgeInformation& contracted_he_rhs = hyperedge_bucket[j];
-          const HyperedgeID rhs_he = contracted_he_rhs.he;
-          if ( contracted_he_rhs.valid &&
-                contracted_he_lhs.hash == contracted_he_rhs.hash &&
-                check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
-              // Hyperedges are parallel
-              lhs_weight += hyperedge(rhs_he).weight();
-              hyperedge(rhs_he).disable();
-              _removable_single_pin_and_parallel_nets.set(rhs_he, true);
-              contracted_he_rhs.valid = false;
-              tmp_removed_hyperedges.stream( ParallelHyperedge { rhs_he, lhs_he } );
-          } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash  ) {
-            // In case, hash of both are not equal we go to the next hyperedge
-            // because we compared it with all hyperedges that had an equal hash
-            break;
+    // Helper function that checks if two hyperedges are parallel
+    // Note, pins inside the hyperedges are sorted.
+    auto check_if_hyperedges_are_parallel = [&](const HyperedgeID lhs,
+                                                const HyperedgeID rhs) {
+      const Hyperedge& lhs_he = hyperedge(lhs);
+      const Hyperedge& rhs_he = hyperedge(rhs);
+      if ( lhs_he.size() == rhs_he.size() ) {
+        const size_t lhs_start = lhs_he.firstEntry();
+        const size_t rhs_start = rhs_he.firstEntry();
+        for ( size_t i = 0; i < lhs_he.size(); ++i ) {
+          const size_t lhs_pos = lhs_start + i;
+          const size_t rhs_pos = rhs_start + i;
+          if ( _incidence_array[lhs_pos] != _incidence_array[rhs_pos] ) {
+            return false;
           }
         }
-        hyperedge(lhs_he).setWeight(lhs_weight);
+        return true;
+      } else {
+        return false;
       }
-    }
-    hyperedge_hash_map.free(bucket);
+    };
+
+    // In the step before we placed hyperedges within a bucket data structure.
+    // Hyperedges with the same hash/footprint are stored inside the same bucket.
+    // We iterate now in parallel over each bucket and sort each bucket
+    // after its hash. A bucket is processed by one thread and parallel
+    // hyperedges are detected by comparing the pins of hyperedges with
+    // the same hash.
+    tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
+      auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
+      std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
+        [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size)||
+            (lhs.hash == rhs.hash && lhs.size == rhs.size && lhs.he < rhs.he);
+        });
+
+      // Parallel Hyperedge Detection
+      for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
+        ContractedHyperedgeInformation& contracted_he_lhs = hyperedge_bucket[i];
+        if ( contracted_he_lhs.valid ) {
+          const HyperedgeID lhs_he = contracted_he_lhs.he;
+          HyperedgeWeight lhs_weight = hyperedge(lhs_he).weight();
+          for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
+            ContractedHyperedgeInformation& contracted_he_rhs = hyperedge_bucket[j];
+            const HyperedgeID rhs_he = contracted_he_rhs.he;
+            if ( contracted_he_rhs.valid &&
+                  contracted_he_lhs.hash == contracted_he_rhs.hash &&
+                  check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
+                // Hyperedges are parallel
+                lhs_weight += hyperedge(rhs_he).weight();
+                hyperedge(rhs_he).disable();
+                _removable_single_pin_and_parallel_nets.set(rhs_he, true);
+                contracted_he_rhs.valid = false;
+                tmp_removed_hyperedges.stream( ParallelHyperedge { rhs_he, lhs_he } );
+            } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash  ) {
+              // In case, hash of both are not equal we go to the next hyperedge
+              // because we compared it with all hyperedges that had an equal hash
+              break;
+            }
+          }
+          hyperedge(lhs_he).setWeight(lhs_weight);
+        }
+      }
+      hyperedge_hash_map.free(bucket);
+    });
+
+    // Remove single-pin and parallel nets from incident net vector of vertices
+    doParallelForAllNodes([&](const HypernodeID& u) {
+      _incident_nets.removeIncidentNets(u, _removable_single_pin_and_parallel_nets);
+    });
+    removed_hyperedges = tmp_removed_hyperedges.copy_parallel();
+    tmp_removed_hyperedges.clear_parallel();
+
+    ++_version;
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicHypergraph, true>(*this, _total_weight, _max_weight);
   });
-
-  // Remove single-pin and parallel nets from incident net vector of vertices
-  doParallelForAllNodes([&](const HypernodeID& u) {
-    _incident_nets.removeIncidentNets(u, _removable_single_pin_and_parallel_nets);
-  });
-
-  parallel::scalable_vector<ParallelHyperedge> removed_hyperedges = tmp_removed_hyperedges.copy_parallel();
-  tmp_removed_hyperedges.clear_parallel();
-
-  ++_version;
   return removed_hyperedges;
 }
 
@@ -336,27 +340,31 @@ parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergrap
  * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
  */
 void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
-  // Restores all previously removed hyperedges
-  tbb::parallel_for(UL(0), hes_to_restore.size(), [&](const size_t i) {
-    const ParallelHyperedge& parallel_he = hes_to_restore[i];
-    const HyperedgeID he = parallel_he.removed_hyperedge;
-    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "should be disabled");
-    const bool is_parallel_net = parallel_he.representative != kInvalidHyperedge;
-    hyperedge(he).enable();
-    if ( is_parallel_net ) {
-      const HyperedgeID rep = parallel_he.representative;
-      ASSERT(edgeIsEnabled(rep), "Hyperedge" << rep << "should be enabled");
-      Hyperedge& rep_he = hyperedge(rep);
-      acquireHyperedge(rep);
-      rep_he.setWeight(rep_he.weight() - hyperedge(he).weight());
-      releaseHyperedge(rep);
-    }
-  });
+  tbb::parallel_invoke([&] {
+    // Restores all previously removed hyperedges
+    tbb::parallel_for(UL(0), hes_to_restore.size(), [&](const size_t i) {
+      const ParallelHyperedge& parallel_he = hes_to_restore[i];
+      const HyperedgeID he = parallel_he.removed_hyperedge;
+      ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "should be disabled");
+      const bool is_parallel_net = parallel_he.representative != kInvalidHyperedge;
+      hyperedge(he).enable();
+      if ( is_parallel_net ) {
+        const HyperedgeID rep = parallel_he.representative;
+        ASSERT(edgeIsEnabled(rep), "Hyperedge" << rep << "should be enabled");
+        Hyperedge& rep_he = hyperedge(rep);
+        acquireHyperedge(rep);
+        rep_he.setWeight(rep_he.weight() - hyperedge(he).weight());
+        releaseHyperedge(rep);
+      }
+    });
 
-  doParallelForAllNodes([&](const HypernodeID u) {
-    _incident_nets.restoreIncidentNets(u);
+    doParallelForAllNodes([&](const HypernodeID u) {
+      _incident_nets.restoreIncidentNets(u);
+    });
+    --_version;
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicHypergraph, true>(*this, _total_weight, _max_weight);
   });
-  --_version;
 }
 
 // ! Copy dynamic hypergraph in parallel
@@ -372,6 +380,7 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
@@ -379,6 +388,8 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
     hypergraph._hypernodes.resize(_hypernodes.size());
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
       sizeof(Hypernode) * _hypernodes.size());
+  }, [&] {
+    hypergraph._hypernode_weights = _hypernode_weights.copy();
   }, [&] {
     tbb::parallel_invoke([&] {
       hypergraph._incident_nets = _incident_nets.copy(parallel_tag_t());
@@ -430,12 +441,14 @@ DynamicHypergraph DynamicHypergraph::copy() const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
   hypergraph._hypernodes.resize(_hypernodes.size());
   memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
     sizeof(Hypernode) * _hypernodes.size());
+  hypergraph._hypernode_weights = _hypernode_weights.copy();
   hypergraph._incident_nets = _incident_nets.copy();
   hypergraph._acquired_hns.resize(_num_hypernodes);
   for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
@@ -533,7 +546,7 @@ bool DynamicHypergraph::verifyIncidenceArrayAndIncidentNets() {
  */
 DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const HypernodeID u,
                                                                  const HypernodeID v,
-                                                                 const HypernodeWeight max_node_weight) {
+                                                                 const HNWeightConstRef max_node_weight) {
 
   // Acquire ownership in correct order to prevent deadlocks
   if ( u < v ) {
@@ -551,14 +564,14 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
   const bool contraction_partner_valid =
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
-    hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
+    weight::isInvalid(max_node_weight) || nodeWeight(u) + nodeWeight(v) <= max_node_weight;
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
       /** only run this if all previous checks were successful */ _fixed_vertices.contract(*this, u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    std::atomic_ref(hypernode(u).weight()).store(nodeWeight(u) + nodeWeight(v), std::memory_order_relaxed);
+    setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
     hypernode(v).disable();
     releaseHypernode(u);
     releaseHypernode(v);
@@ -741,7 +754,7 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
 // ! Computes the total weight of the hypergraph (parallel)
 void DynamicHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-  _total_weight = computeTotalNodeWeightParallel(*this, _num_hypernodes);
+  computeTotalNodeWeightParallel(*this, _total_weight, _max_weight);
 }
 
 } // namespace ds
