@@ -463,6 +463,8 @@ namespace mt_kahypar::ds {
       memcpy(hypergraph._nodes.data(), _nodes.data(),
              sizeof(Node) * _nodes.size());
     }, [&] {
+      hypergraph._node_weights = _node_weights.copy();
+    }, [&] {
       hypergraph._edges.resize(_edges.size());
       memcpy(hypergraph._edges.data(), _edges.data(),
              sizeof(Edge) * _edges.size());
@@ -492,6 +494,8 @@ namespace mt_kahypar::ds {
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
            sizeof(Node) * _nodes.size());
+
+    hypergraph._node_weights = _node_weights.copy();
 
     hypergraph._edges.resize(_edges.size());
     memcpy(hypergraph._edges.data(), _edges.data(),
