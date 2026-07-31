@@ -43,9 +43,10 @@ namespace mt_kahypar::ds {
 DynamicGraph DynamicGraphFactory::construct(
         const HypernodeID num_nodes,
         const HyperedgeID num_edges,
+        const Dimension dimension,
         const HyperedgeVector& edge_vector,
         const HyperedgeWeight* edge_weight,
-        const HypernodeWeight* node_weight,
+        HypernodeWeightArray* node_weight,
         const bool stable_construction_of_incident_edges) {
   ASSERT(edge_vector.size() == num_edges);
 
@@ -59,16 +60,17 @@ DynamicGraph DynamicGraphFactory::construct(
     }
     edges[i] = std::make_pair(e[0], e[1]);
   });
-  return construct_from_graph_edges(num_nodes, num_edges, edges,
+  return construct_from_graph_edges(num_nodes, num_edges, dimension, edges,
     edge_weight, node_weight, stable_construction_of_incident_edges);
 }
 
 DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HypernodeID num_nodes,
         const HyperedgeID num_edges,
+        const Dimension dimension,
         const EdgeVector& edge_vector,
         const HyperedgeWeight* edge_weight,
-        const HypernodeWeight* node_weight,
+        HypernodeWeightArray* node_weight,
         const bool stable_construction_of_incident_edges) {
   if (num_edges > std::numeric_limits<HyperedgeID>::max() / 2) {
     std::string msg = std::string("number of edges overflows ID range (note: graph edges are duplicated, require +1 bit)");

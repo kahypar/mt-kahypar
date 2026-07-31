@@ -52,7 +52,7 @@ class DynamicHypergraphFactory {
                                     const HyperedgeID num_hyperedges,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr,
+                                    HypernodeWeightArray* hypernode_weight = nullptr,
                                     const bool stable_construction_of_incident_edges = false);
 
   /**

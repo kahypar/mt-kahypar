@@ -64,7 +64,7 @@ bool DynamicHypergraph::registerContraction(const HypernodeID u, const Hypernode
  * or also return an empty contraction vector.
  */
 size_t DynamicHypergraph::contract(const HypernodeID v,
-                                   const HypernodeWeight max_node_weight) {
+                                   const HNWeightConstRef max_node_weight) {
   ASSERT(_contraction_tree.parent(v) != v, "No contraction registered for hypernode" << v);
 
   HypernodeID x = _contraction_tree.parent(v);
@@ -153,7 +153,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     // Restore hypernode v which includes enabling it and subtract its weight
     // from its representative
     hypernode(memento.v).enable();
-    hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+    setNodeWeight(memento.u, nodeWeight(memento.u) + nodeWeight(memento.v));
     releaseHypernode(memento.u);
 
     // Revert contraction in fixed vertex support
@@ -371,6 +371,7 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
@@ -378,6 +379,8 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
     hypergraph._hypernodes.resize(_hypernodes.size());
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
       sizeof(Hypernode) * _hypernodes.size());
+  }, [&] {
+    hypergraph._hypernode_weights = _hypernode_weights.copy();
   }, [&] {
     tbb::parallel_invoke([&] {
       hypergraph._incident_nets = _incident_nets.copy(parallel_tag_t());
@@ -430,12 +433,14 @@ DynamicHypergraph DynamicHypergraph::copy() const {
   hypergraph._num_pins = _num_pins;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
+  hypergraph._max_weight = _max_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
   hypergraph._hypernodes.resize(_hypernodes.size());
   memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
     sizeof(Hypernode) * _hypernodes.size());
+  hypergraph._hypernode_weights = _hypernode_weights.copy();
   hypergraph._incident_nets = _incident_nets.copy();
   hypergraph._acquired_hns.resize(_num_hypernodes);
   for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
@@ -534,7 +539,7 @@ bool DynamicHypergraph::verifyIncidenceArrayAndIncidentNets() {
  */
 DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const HypernodeID u,
                                                                  const HypernodeID v,
-                                                                 const HypernodeWeight max_node_weight) {
+                                                                 const HNWeightConstRef max_node_weight) {
 
   // Acquire ownership in correct order to prevent deadlocks
   if ( u < v ) {
@@ -552,14 +557,14 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
   const bool contraction_partner_valid =
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
-    hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
+    nodeWeight(u) + nodeWeight(v) <= max_node_weight;
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
       /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
+    setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
     hypernode(v).disable();
     releaseHypernode(u);
     releaseHypernode(v);
@@ -740,7 +745,7 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
 // ! Computes the total weight of the hypergraph (parallel)
 void DynamicHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
-  _total_weight = computeTotalNodeWeightParallel(*this, _num_hypernodes);
+  computeTotalNodeWeightParallel(*this, _total_weight, _max_weight);
 }
 
 } // namespace ds

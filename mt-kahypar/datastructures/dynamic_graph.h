@@ -47,6 +47,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -92,13 +93,11 @@ class DynamicGraph {
     using IDType = HypernodeID;
 
     Node() :
-      _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(false) { }
 
     Node(const bool valid) :
-      _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(valid) { }
@@ -115,15 +114,6 @@ class DynamicGraph {
     void disable() {
       ASSERT(!isDisabled());
       _valid = false;
-    }
-
-    HypernodeWeight weight() const {
-      return _weight;
-    }
-
-    void setWeight(HypernodeWeight weight) {
-      ASSERT(!isDisabled());
-      _weight = weight;
     }
 
     PartitionID communityID() const {
@@ -145,7 +135,7 @@ class DynamicGraph {
 
    private:
     // ! Hypernode weight
-    HypernodeWeight _weight;
+    // HypernodeWeight _weight;
     // ! Community id
     PartitionID _community_id;
     // ! Index of the uncontraction batch in which this hypernode is contained in
@@ -340,12 +330,14 @@ class DynamicGraph {
 
   explicit DynamicGraph() :
     _num_removed_nodes(0),
-    _max_removed_degree_zero_hn_weight(0),
+    _max_removed_degree_zero_hn_weight(),
     _num_edges(0),
-    _total_weight(0),
+    _total_weight(),
+    _max_weight(),
     _version(0),
     _contraction_index(0),
     _nodes(),
+    _node_weights(),
     _contraction_tree(),
     _adjacency_array(),
     _acquired_nodes(),
@@ -356,12 +348,14 @@ class DynamicGraph {
 
   DynamicGraph(DynamicGraph&& other) :
     _num_removed_nodes(other._num_removed_nodes),
-    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
+    _max_removed_degree_zero_hn_weight(std::move(other._max_removed_degree_zero_hn_weight)),
     _num_edges(other._num_edges),
-    _total_weight(other._total_weight),
+    _total_weight(std::move(other._total_weight)),
+    _max_weight(std::move(other._max_weight)),
     _version(other._version),
     _contraction_index(0),
     _nodes(std::move(other._nodes)),
+    _node_weights(std::move(other._node_weights)),
     _contraction_tree(std::move(other._contraction_tree)),
     _adjacency_array(std::move(other._adjacency_array)),
     _acquired_nodes(std::move(other._acquired_nodes)),
@@ -371,12 +365,14 @@ class DynamicGraph {
 
   DynamicGraph & operator= (DynamicGraph&& other) {
     _num_removed_nodes = other._num_removed_nodes;
-    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
+    _max_removed_degree_zero_hn_weight = std::move(other._max_removed_degree_zero_hn_weight);
     _num_edges = other._num_edges;
-    _total_weight = other._total_weight;
+    _total_weight = std::move(other._total_weight);
+    _max_weight = std::move(other._max_weight);
     _version = other._version;
     _contraction_index.store(other._contraction_index.load());
     _nodes = std::move(other._nodes);
+    _node_weights = std::move(other._node_weights);
     _contraction_tree = std::move(other._contraction_tree);
     _adjacency_array = std::move(other._adjacency_array);
     _acquired_nodes = std::move(other._acquired_nodes);
@@ -402,7 +398,7 @@ class DynamicGraph {
   }
 
   // ! Max weight of removed degree zero vertex
-  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+  HNWeightConstRef maxWeightOfRemovedDegreeZeroNode() const {
     return _max_removed_degree_zero_hn_weight;
   }
 
@@ -427,14 +423,24 @@ class DynamicGraph {
     return _num_edges;
   }
 
+  // ! Vertex weight dimension
+  HypernodeID dimension() const {
+    return _node_weights.dimension();
+  }
+
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _num_edges;
   }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
+  HNWeightConstRef totalWeight() const {
     return _total_weight;
+  }
+
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _max_weight;
   }
 
   // ! Computes the total node weight of the hypergraph
@@ -491,15 +497,16 @@ class DynamicGraph {
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
+  HNWeightConstRef nodeWeight(const HypernodeID u) const {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
-    return hypernode(u).weight();
+    return _node_weights[u];
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+  template<typename R, REQUIRE_VALID_WEIGHT(R)>
+  void setNodeWeight(const HypernodeID u, const R& weight) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).setWeight(weight);
+    _node_weights[u] = weight;
   }
 
   // ! Degree of a hypernode
@@ -533,15 +540,18 @@ class DynamicGraph {
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
     removeHypernode(u);
-    _max_removed_degree_zero_hn_weight =
-      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    if (weight::isInvalid(_max_removed_degree_zero_hn_weight)) {
+      _max_removed_degree_zero_hn_weight = nodeWeight(u);
+    } else {
+      _max_removed_degree_zero_hn_weight = weight::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    }
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    _max_removed_degree_zero_hn_weight = 0;
+    _max_removed_degree_zero_hn_weight = weight::broadcast(0, dimension());
   }
 
   // ####################### Hyperedge Information #######################
@@ -648,11 +658,11 @@ class DynamicGraph {
     return _fixed_vertices.hasFixedVertices();
   }
 
-  HypernodeWeight totalFixedVertexWeight() const {
+  HNWeightAtomicCRef totalFixedVertexWeight() const {
     return _fixed_vertices.totalFixedVertexWeight();
   }
 
-  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  HNWeightAtomicCRef fixedVertexBlockWeight(const PartitionID block) const {
     return _fixed_vertices.fixedVertexBlockWeight(block);
   }
 
@@ -664,7 +674,7 @@ class DynamicGraph {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
-  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  void setMaxFixedVertexBlockWeight(const HypernodeWeightArray& max_block_weights) {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
@@ -703,7 +713,7 @@ class DynamicGraph {
    * or also return an empty contraction vector.
    */
   size_t contract(const HypernodeID v,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max());
+                  const HNWeightConstRef max_node_weight = weight::newInvalid());
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
@@ -906,16 +916,18 @@ class DynamicGraph {
    */
   ContractionResult contract(const HypernodeID u,
                              const HypernodeID v,
-                             const HypernodeWeight max_node_weight);
+                             const HNWeightConstRef max_node_weight);
 
   // ! Number of removed hypernodes
   HypernodeID _num_removed_nodes;
   // ! Maximum weight of all removed degree zero nodes
-  HypernodeWeight _max_removed_degree_zero_hn_weight;
+  AllocatedHNWeight _max_removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_edges;
   // ! Total weight of hypergraph
-  HypernodeWeight _total_weight;
+  AllocatedHNWeight _total_weight;
+  // ! Max node weight of the graph
+  AllocatedHNWeight _max_weight;
   // ! Version of the hypergraph, each time we remove a single-pin and parallel nets,
   // ! we create a new version
   size_t _version;
@@ -924,6 +936,8 @@ class DynamicGraph {
 
   // ! Hypernodes
   Array<Node> _nodes;
+  // ! Node weights
+  HypernodeWeightArray _node_weights;
   // ! Contraction Tree
   ContractionTree _contraction_tree;
   // ! Pins of hyperedges
