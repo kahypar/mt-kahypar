@@ -316,7 +316,7 @@ DynamicGraph DynamicGraph::copy() const {
   hypergraph._nodes.resize(_nodes.size());
   memcpy(hypergraph._nodes.data(), _nodes.data(),
     sizeof(Node) * _nodes.size());
-    hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
+    hypergraph._adjacency_array = _adjacency_array.copy();
   hypergraph._acquired_nodes.resize(numNodes());
   for ( HypernodeID hn = 0; hn < numNodes(); ++hn ) {
     hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
