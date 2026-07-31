@@ -47,6 +47,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -94,13 +95,11 @@ class DynamicHypergraph {
     using IDType = HypernodeID;
 
     Hypernode() :
-      _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(false) { }
 
     Hypernode(const bool valid) :
-      _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(valid) { }
@@ -117,19 +116,6 @@ class DynamicHypergraph {
     void disable() {
       ASSERT(!isDisabled());
       std::atomic_ref(_valid).store(false, std::memory_order_relaxed);
-    }
-
-    HypernodeWeight& weight() {
-      return _weight;
-    }
-
-    const HypernodeWeight& weight() const {
-      return _weight;
-    }
-
-    void setWeight(HypernodeWeight weight) {
-      ASSERT(!isDisabled());
-      _weight = weight;
     }
 
     PartitionID communityID() const {
@@ -151,7 +137,7 @@ class DynamicHypergraph {
 
    private:
     // ! Hypernode weight
-    HypernodeWeight _weight;
+    // HypernodeWeight _weight;
     // ! Community id
     PartitionID _community_id;
     // ! Index of the uncontraction batch in which this hypernode is contained in
@@ -417,16 +403,17 @@ class DynamicHypergraph {
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
-    _max_removed_degree_zero_hn_weight(0),
+    _max_removed_degree_zero_hn_weight(),
     _num_hyperedges(0),
     _num_removed_hyperedges(0),
     _max_edge_size(0),
     _num_pins(0),
     _total_degree(0),
-    _total_weight(0),
+    _total_weight(),
     _version(0),
     _contraction_index(0),
     _hypernodes(),
+    _hypernode_weights(),
     _contraction_tree(),
     _incident_nets(),
     _acquired_hns(),
@@ -445,16 +432,18 @@ class DynamicHypergraph {
   DynamicHypergraph(DynamicHypergraph&& other) :
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
-    _max_removed_degree_zero_hn_weight(other._max_removed_degree_zero_hn_weight),
+    _max_removed_degree_zero_hn_weight(std::move(other._max_removed_degree_zero_hn_weight)),
     _num_hyperedges(other._num_hyperedges),
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
-    _total_weight(other._total_weight),
+    _total_weight(std::move(other._total_weight)),
+    _max_weight(std::move(other._max_weight)),
     _version(other._version),
     _contraction_index(0),
     _hypernodes(std::move(other._hypernodes)),
+    _hypernode_weights(std::move(other._hypernode_weights)),
     _contraction_tree(std::move(other._contraction_tree)),
     _incident_nets(std::move(other._incident_nets)),
     _acquired_hns(std::move(other._acquired_hns)),
@@ -471,16 +460,18 @@ class DynamicHypergraph {
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
     _num_removed_hypernodes = other._num_removed_hypernodes;
-    _max_removed_degree_zero_hn_weight = other._max_removed_degree_zero_hn_weight;
+    _max_removed_degree_zero_hn_weight = std::move(other._max_removed_degree_zero_hn_weight);
     _num_hyperedges = other._num_hyperedges;
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
-    _total_weight = other._total_weight;
+    _total_weight = std::move(other._total_weight);
+    _max_weight = std::move(other._max_weight);
     _version = other._version;
     _contraction_index.store(other._contraction_index.load());
     _hypernodes = std::move(other._hypernodes);
+    _hypernode_weights = std::move(other._hypernode_weights);
     _contraction_tree = std::move(other._contraction_tree);
     _incident_nets = std::move(other._incident_nets);
     _acquired_hns = std::move(other._acquired_hns);
@@ -512,7 +503,7 @@ class DynamicHypergraph {
   }
 
   // ! Max weight of removed degree zero vertex
-  HypernodeWeight maxWeightOfRemovedDegreeZeroNode() const {
+  HNWeightConstRef maxWeightOfRemovedDegreeZeroNode() const {
     return _max_removed_degree_zero_hn_weight;
   }
 
@@ -536,14 +527,24 @@ class DynamicHypergraph {
     return _num_pins;
   }
 
+  // ! Vertex weight dimension
+  HypernodeID dimension() const {
+    return _hypernode_weights.dimension();
+  }
+
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _total_degree;
   }
 
   // ! Total weight of hypergraph
-  HypernodeWeight totalWeight() const {
+  HNWeightConstRef totalWeight() const {
     return _total_weight;
+  }
+
+  // ! Max node weight of hypergraph
+  HNWeightConstRef maxNodeWeight() const {
+    return _max_weight;
   }
 
   // ! Computes the total node weight of the hypergraph
@@ -620,15 +621,16 @@ class DynamicHypergraph {
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
+  HNWeightAtomicCRef nodeWeight(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
-    return parallel::atomic_load(hypernode(u).weight(), std::memory_order_relaxed);
+    return _hypernode_weights[u].load(std::memory_order_relaxed);
   }
 
   // ! Sets the weight of a vertex
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+  template<typename R, REQUIRE_VALID_WEIGHT(R)>
+  void setNodeWeight(const HypernodeID u, const R& weight) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).setWeight(weight);
+    _hypernode_weights[u].store(weight, std::memory_order_relaxed);
   }
 
   // ! Degree of a hypernode
@@ -662,15 +664,18 @@ class DynamicHypergraph {
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
     removeHypernode(u);
-    _max_removed_degree_zero_hn_weight =
-      std::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    if (weight::isInvalid(_max_removed_degree_zero_hn_weight)) {
+      _max_removed_degree_zero_hn_weight = nodeWeight(u);
+    } else {
+      _max_removed_degree_zero_hn_weight = weight::max(_max_removed_degree_zero_hn_weight, nodeWeight(u));
+    }
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    _max_removed_degree_zero_hn_weight = 0;
+    _max_removed_degree_zero_hn_weight = weight::broadcast(0, dimension());
   }
 
   // ####################### Hyperedge Information #######################
@@ -745,11 +750,11 @@ class DynamicHypergraph {
     return _fixed_vertices.hasFixedVertices();
   }
 
-  HypernodeWeight totalFixedVertexWeight() const {
+  HNWeightAtomicCRef totalFixedVertexWeight() const {
     return _fixed_vertices.totalFixedVertexWeight();
   }
 
-  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+  HNWeightAtomicCRef fixedVertexBlockWeight(const PartitionID block) const {
     return _fixed_vertices.fixedVertexBlockWeight(block);
   }
 
@@ -761,7 +766,7 @@ class DynamicHypergraph {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
-  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  void setMaxFixedVertexBlockWeight(const HypernodeWeightArray& max_block_weights) {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
@@ -800,7 +805,7 @@ class DynamicHypergraph {
    * or also return an empty contraction vector.
    */
   size_t contract(const HypernodeID v,
-                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max());
+                  const HNWeightConstRef max_node_weight = weight::newInvalid());
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
@@ -1071,7 +1076,7 @@ class DynamicHypergraph {
    */
   ContractionResult contract(const HypernodeID u,
                              const HypernodeID v,
-                             const HypernodeWeight max_node_weight);
+                             const HNWeightConstRef max_node_weight);
 
   // ! Performs the contraction of (u,v) inside hyperedge he
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
@@ -1127,7 +1132,7 @@ class DynamicHypergraph {
   // ! Number of removed hypernodes
   HypernodeID _num_removed_hypernodes;
   // ! Maximum weight of all removed degree zero nodes
-  HypernodeWeight _max_removed_degree_zero_hn_weight;
+  AllocatedHNWeight _max_removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
@@ -1139,7 +1144,9 @@ class DynamicHypergraph {
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
-  HypernodeWeight _total_weight;
+  AllocatedHNWeight _total_weight;
+  // ! Max node weight of the hypergraph
+  AllocatedHNWeight _max_weight;
   // ! Version of the hypergraph, each time we remove a single-pin and parallel nets,
   // ! we create a new version
   size_t _version;
@@ -1148,6 +1155,8 @@ class DynamicHypergraph {
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;
+  // ! Node weights
+  HypernodeWeightArray _hypernode_weights;
   // ! Contraction Tree
   ContractionTree _contraction_tree;
   // ! Incident nets of hypernodes
