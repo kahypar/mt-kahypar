@@ -53,15 +53,11 @@ namespace mt_kahypar {
     if ( hypergraph.type == STATIC_GRAPH ) {
       register_memory_pool(utils::cast_const<ds::StaticGraph>(hypergraph), context);
     } else if ( hypergraph.type == DYNAMIC_GRAPH ) {
-      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::DynamicGraph>(hypergraph), context);
-      #endif
     } else if ( hypergraph.type == STATIC_HYPERGRAPH ) {
       register_memory_pool(utils::cast_const<ds::StaticHypergraph>(hypergraph), context);
     } else if ( hypergraph.type == DYNAMIC_HYPERGRAPH ) {
-      #ifndef KAHYPAR_MINIMAL_COMPILATION
       register_memory_pool(utils::cast_const<ds::DynamicHypergraph>(hypergraph), context);
-      #endif
     }
   }
 

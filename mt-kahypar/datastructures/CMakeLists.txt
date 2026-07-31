@@ -49,7 +49,7 @@ set(ToolsDatastructureSources
       fixed_vertex_support.cpp)
 
 target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsDatastructureSources})
-if(NOT KAHYPAR_MINIMAL_COMPILATION)
+if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
       target_sources(MtKaHyPar-ToolsSources INTERFACE 
             contraction_tree.cpp
             dynamic_hypergraph.cpp
