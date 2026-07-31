@@ -41,11 +41,9 @@ namespace mt_kahypar {
   namespace {
     template<typename Hypergraph>
     size_t size_of_edge_sync() {
-      #ifndef KAHYPAR_MINIMAL_COMPILATION
       if constexpr (Hypergraph::is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
       }
-      #endif
       return 0;
     }
   }
