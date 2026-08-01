@@ -213,7 +213,8 @@ static constexpr bool debug = true;
       sub_context.partition.max_part_weights.clear();
     }
 
-    sub_context.coarsening.algorithm = CoarseningAlgorithm::three_phase_coarsener;
+    sub_context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
+    sub_context.coarsening.rating.rating_function = RatingFunction::edge_frequency;
     sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
 
     std::vector<size_t> parents;
@@ -223,7 +224,8 @@ static constexpr bool debug = true;
     for (auto parent_id : parents) {
       std::vector<HyperedgeID> cut_edges = population.cutEdgesCopyAt(parent_id);
       for (auto edge : cut_edges) {
-        edge_md[edge] += 1.0 / parent_amount;
+        //edge_md[edge] += 1.0 / parent_amount;
+        edge_md[edge] += 1.0;
       }
     }
     //run three phase coarsener with computed edge frequencies of parents

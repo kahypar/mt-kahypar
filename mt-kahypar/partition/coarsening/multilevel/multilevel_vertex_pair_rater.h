@@ -257,7 +257,9 @@ class MultilevelVertexPairRater {
                      const AcceptEdgeFn& accept_edge) {
     if constexpr (Hypergraph::is_graph) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
-        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
+        const RatingType score = !edge_md.empty() ?
+          ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he), edge_md.at(he)) :
+          ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he), 0);
         const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
         ASSERT(representative < hypergraph.initialNumNodes());
         tmp_ratings[representative].first += score;
@@ -277,8 +279,9 @@ class MultilevelVertexPairRater {
         if ( edge_size < _context.partition.ignore_hyperedge_size_threshold ) {
           edge_size = _context.coarsening.use_adaptive_edge_size ?
             std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) : edge_size;
-          const RatingType score = ScorePolicy::score(
-            hypergraph.edgeWeight(he), edge_size);
+          const RatingType score = !edge_md.empty() ?
+            ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, edge_md.at(he)) :
+            ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, 0);
           if (!edge_md.empty() && !accept_edge(score, edge_md.at(he))) {
             continue;
           }
@@ -316,7 +319,9 @@ class MultilevelVertexPairRater {
         if ( num_tmp_rating_map_accesses >= _vertex_degree_sampling_threshold  ) {
           break;
         }
-        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
+        const RatingType score = !edge_md.empty() ?
+          ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he), edge_md.at(he)) :
+          ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he), 0);
         const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
         ASSERT(representative < hypergraph.initialNumNodes());
         if (!edge_md.empty()) {
@@ -341,8 +346,9 @@ class MultilevelVertexPairRater {
           if ( num_tmp_rating_map_accesses + edge_size > _vertex_degree_sampling_threshold  ) {
             break;
           }
-          const RatingType score = ScorePolicy::score(
-            hypergraph.edgeWeight(he), edge_size);
+          const RatingType score = !edge_md.empty() ?
+            ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, edge_md.at(he)) :
+            ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, 0);
           if (!edge_md.empty() && !accept_edge(score, edge_md.at(he))) {
             continue;
           }

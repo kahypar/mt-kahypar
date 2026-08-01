@@ -36,23 +36,35 @@ namespace mt_kahypar {
 class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static RatingType score(const HyperedgeWeight edge_weight,
-                                                             const HypernodeID edge_size) {
+                                                             const HypernodeID edge_size,
+                                                             const EdgeMetadata
+                                                             ) {
     return static_cast<RatingType>(edge_weight) / (edge_size - 1);
   }
 };
+
+  class EdgeFrequencyScore final : public kahypar::meta::PolicyBase {
+  public:
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static RatingType score(const HyperedgeWeight,
+                                                                const HypernodeID edge_size,
+                                                                const EdgeMetadata edge_frequency) {
+      return static_cast<RatingType>(exp(- 0.5 * edge_frequency) / edge_size);
+    }
+  };
 
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 class SamenessScore final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static RatingType score(const HyperedgeWeight edge_weight,
-                                                             const HypernodeID) {
+                                                             const HypernodeID,
+                                                             const EdgeMetadata) {
     return static_cast<RatingType>(edge_weight);
   }
 };
 
 using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore, SamenessScore>;
 #else
-using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore>;
+using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore, EdgeFrequencyScore>;
 #endif
 
 }  // namespace mt_kahypar

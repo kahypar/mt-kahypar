@@ -72,6 +72,10 @@ void register_policies() {
   // //////////////////////////////////////////////////////////////////////////////
   REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                   HeavyEdgeScore);
+
+  REGISTER_POLICY(RatingFunction, RatingFunction::edge_frequency,
+                  EdgeFrequencyScore);
+
   #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
                   SamenessScore);

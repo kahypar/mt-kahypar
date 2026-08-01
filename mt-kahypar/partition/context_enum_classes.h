@@ -114,6 +114,7 @@ enum class CoarseningAlgorithm : uint8_t {
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
+  edge_frequency,
   ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
   UNDEFINED
 };
