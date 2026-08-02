@@ -109,7 +109,7 @@ namespace mt_kahypar {
         if ( _num_hes > 0 ) {
           const size_t num_hes = static_cast<size_t>(_num_hes);
           for ( size_t i = 0; i < num_hes; ++i ) {
-            _hes[i].first_out += _global_start_pin_idx;
+            _hes[i].first_out += static_cast<whfc::PinIndex::ValueType>(_global_start_pin_idx);
           }
           const size_t he_start = static_cast<size_t>(_global_start_he);
           std::memcpy(hyperedges.data() + he_start,
