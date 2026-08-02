@@ -337,6 +337,12 @@ namespace mt_kahypar {
             context.partition.seed = original_seed;
         }
 
+        if (context.partition.enable_benchmark_mode) {
+            std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
+            DiffMatrix diff_matrix = population.updateDiffMatrix();
+            diff_matrix_history.push_back(diff_matrix);
+        }
+
         context.evolutionary.time_elapsed = time_elapsed;
         context.partition.enable_logging = true;
         return history;
