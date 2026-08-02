@@ -404,7 +404,7 @@ namespace mt_kahypar {
             improved = checkAndLogNewBest(individual->fitness(), "Insert", time, iteration);
         }
         population.insert(std::move(individual), context);
-        if (context.partition.enable_benchmark_mode && improved) {
+        if (constexpr int log_frequency = 5; context.partition.enable_benchmark_mode && (iteration % log_frequency == 0)) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
             DiffMatrix diff_matrix = population.updateDiffMatrix();
             diff_matrix_history.push_back(diff_matrix);
