@@ -861,6 +861,12 @@ namespace mt_kahypar {
         if (context.evolutionary.synthetic_parent_combine_weight > 0) {
             LOG << "    " << total_synthetic_parent_combinations.load() << " Synthetic Parent";
         }
+        LOG << "===================================================";
+        LOG << "Insertion Statistics";
+        LOG << "  " << population.total_insert_attempts.load() << " total insertion attempts";
+        LOG << "  " << population.accepted_replacement.load() << " accepted insertions";
+        LOG << "  " << population.rejected_worse_than_worst.load() << " rejected because worse than worst";
+        LOG << "  " << (population.rejected_worse_than_worst.load() / population.total_insert_attempts.load())  * 100.0 << "% rejection percentage";
         return history;
     }
 

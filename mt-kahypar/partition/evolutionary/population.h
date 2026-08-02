@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 #include <mutex>
+#include <atomic>
 
 #include "mt-kahypar/partition/evolutionary/individual.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -34,12 +35,19 @@
 namespace mt_kahypar {
     class Population {
     private:
-        static constexpr bool debug = false;
+        static constexpr bool debug = true;
 
     public:
         explicit Population() : _population_mutex(),
-                                _individuals() {
+                                _individuals(),
+                                total_insert_attempts(0),
+                                rejected_worse_than_worst(0),
+                                accepted_replacement(0) {
         }
+        
+        std::atomic<size_t> total_insert_attempts;
+        std::atomic<size_t> rejected_worse_than_worst;
+        std::atomic<size_t> accepted_replacement;
 
         // NM: remove distinction between thread-safe / non thread-safe methods, all public methods should be thread-safe
 

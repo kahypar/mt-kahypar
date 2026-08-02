@@ -29,6 +29,7 @@ std::ostream& operator<< (std::ostream& os, const Population& population) {
 }
 
 size_t Population::insert(std::shared_ptr<Individual> individual, const Context& context) {
+    total_insert_attempts.fetch_add(1, std::memory_order_relaxed);
     // NM: rewrite this method as follows (requires that Individuals already use shared_ptr):
     // 1. copy the vector of individuals, release lock after copy
     // 2. determine replacement on copied vector
@@ -59,6 +60,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
       {
         std::lock_guard<std::mutex> guard(_population_mutex);
         if (individuals_copy[insert_position] == _individuals[insert_position]) {
+          accepted_replacement.fetch_add(1, std::memory_order_relaxed);
           return forceInsert(individual, insert_position);
         }
       }
@@ -335,6 +337,9 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   size_t max_similarity_id = 0;
   if (individual->fitness() > individuals[worst(individuals)]->fitness()) {
     DBG << "COLLAPSE";
+    rejected_worse_than_worst.fetch_add(1, std::memory_order_relaxed);
+    auto percentage = (rejected_worse_than_worst.load() / total_insert_attempts.load())  * 100.0;
+    DBG << "  " << percentage << "% rejection percentage";
     return std::numeric_limits<unsigned>::max();
   }
   //Could be Parallelized
