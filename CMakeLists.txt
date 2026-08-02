@@ -386,7 +386,7 @@ set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.6.1)
 set(KAHYPAR_TBB_VERSION          v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
-set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
+set(KAHYPAR_PYBIND11_VERSION     v3.0.4)
 
 message(STATUS "Fetching dependencies...")
 
