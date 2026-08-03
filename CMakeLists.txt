@@ -288,7 +288,11 @@ endif()
 find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  if(MSVC)
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE /LINKER:LLD)
+  else()
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  endif()
 endif()
 
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
