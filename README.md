@@ -55,7 +55,7 @@ Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides ma
 Installing Mt-KaHyPar
 -----------
 
-For Linux and MacOS, the [Mt-KaHyPar Python package](https://pypi.org/project/mtkahypar/) can be installed via pip:
+For Linux, MacOS, and Windows, the [Mt-KaHyPar Python package](https://pypi.org/project/mtkahypar/) can be installed via pip:
 
     pip install mtkahypar
 
@@ -93,6 +93,8 @@ The following command will install most of the required dependencies on a MacOS 
 
 The following instructions set up the environment used to build Mt-KaHyPar on Windows machines:
 
+#### MinGW
+
   1. Download and install [MSYS2][MSYS2] from the official website (https://www.msys2.org/).
   2. Launch the `MSYS2 MinGW x64` terminal.
   3. Update the package manager database by running the following command:
@@ -103,6 +105,10 @@ The following instructions set up the environment used to build Mt-KaHyPar on Wi
 
     pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-tbb
 
+#### MSVC
+
+No further setup is required.
+
 ### Build Commands
 
 To build Mt-KaHyPar, use the following commands:
@@ -111,17 +117,17 @@ To build Mt-KaHyPar, use the following commands:
 
    ```git clone https://github.com/kahypar/mt-kahypar.git```
 
-2. Create a build directory: `mkdir build && cd build`
-3. *Only on Windows machines: `export CMAKE_GENERATOR="MSYS Makefiles"`*
-3. Run cmake: `cmake .. --preset=<default/python/dev>`
-4. Run make: `make MtKaHyPar -j4`
+1. *Only for Windows + MinGW: `export CMAKE_GENERATOR="MSYS Makefiles"`*
+2. *Only for Windows + MSVC: Append `-DKAHYPAR_DISABLE_HWLOC=On -DKAHYPAR_DOWNLOAD_TBB=On` the following `cmake` command*
+3. Run cmake: `cmake -B build --preset=<default/python/dev>`
+4. Build: `cmake --build build --target MtKaHyPar -j 4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
 As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
 If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
 
-Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
+Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
 
 Running Mt-KaHyPar
 -----------
@@ -368,11 +374,12 @@ We provide a Python library for Mt-KaHyPar, which is available on pypi (see [ins
 Alternatively, the Python library can be installed via
 
 ```sh
-make mtkahypar_python
+cmake --build build --target mtkahypar_python
 ```
 
 This will create a shared library in the `build/python` folder (`mtkahypar.so` on Linux and `mtkahypar.pyd` on Windows).
 Copy the libary to your Python project directory to import Mt-KaHyPar as a Python module.
+On Windows, the `.dll` files also need to be copied.
 
 A documentation of the Python module can be found by importing the module (`import mtkahypar`) and calling `help(mtkahypar)` in Python.
 We also provide [several examples](python/examples) that show how to use the Python interface.
