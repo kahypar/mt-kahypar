@@ -63,7 +63,7 @@ namespace impl {
   };
 }
 
-template<typename Hypergraph>
+template<typename Hypergraph, bool compute_only_max = false>
 void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, AllocatedHNWeight& total_weight, AllocatedHNWeight& max_weight) {
   // For some reason, TBB has difficulty handling the exception if it is thrown from within the parallel loop
   // (crashes in debug mode, usually works in release mode but hangs in rare cases). Therefore, we instead set
@@ -74,13 +74,17 @@ void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, AllocatedHNWei
   tbb::enumerable_thread_specific<AllocatedHNWeight> local_max(hypergraph.dimension(), 0);
   hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
     auto hn_weight = hypergraph.nodeWeight(hn);
-    local_sum.local() = adder(local_sum.local(), hn_weight);
+    if constexpr (!compute_only_max) {
+      local_sum.local() = adder(local_sum.local(), hn_weight);
+    }
     local_max.local() = weight::max(local_max.local(), hn_weight);
   });
 
-  total_weight = weight::broadcast(0, hypergraph.dimension());
-  for (const auto& weight: local_sum) {
-    total_weight = adder(total_weight, weight);
+  if constexpr (!compute_only_max) {
+    total_weight = weight::broadcast(0, hypergraph.dimension());
+    for (const auto& weight: local_sum) {
+      total_weight = adder(total_weight, weight);
+    }
   }
   max_weight = weight::broadcast(0, hypergraph.dimension());
   for (const auto& weight: local_max) {
@@ -88,8 +92,10 @@ void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, AllocatedHNWei
   }
 
   // TODO: multi-constraint overflow and epsilon
-  if (adder.error_flag) {
-    throw InvalidInputException("total node weight overflows weight data type");
+  if constexpr (!compute_only_max) {
+    if (adder.error_flag) {
+      throw InvalidInputException("total node weight overflows weight data type");
+    }
   }
 }
 

@@ -50,6 +50,7 @@ class DynamicHypergraphFactory {
  public:
   static DynamicHypergraph construct(const HypernodeID num_hypernodes,
                                     const HyperedgeID num_hyperedges,
+                                    const Dimension dimension,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
                                     HypernodeWeightArray* hypernode_weight = nullptr,

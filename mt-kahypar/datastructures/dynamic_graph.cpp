@@ -258,8 +258,14 @@ VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
 parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeSinglePinAndParallelHyperedges() {
-  ++_version;
-  return _adjacency_array.removeSinglePinAndParallelEdges();
+  parallel::scalable_vector<DynamicGraph::ParallelHyperedge> result;
+  tbb::parallel_invoke([&] {
+    ++_version;
+    result = _adjacency_array.removeSinglePinAndParallelEdges();
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicGraph, true>(*this, _total_weight, _max_weight);
+  });
+  return result;
 }
 
 /**
@@ -267,8 +273,12 @@ parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeS
  * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
  */
 void DynamicGraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
-  _adjacency_array.restoreSinglePinAndParallelEdges(hes_to_restore);
-  --_version;
+  tbb::parallel_invoke([&] {
+    _adjacency_array.restoreSinglePinAndParallelEdges(hes_to_restore);
+    --_version;
+  }, [&] {
+    computeTotalNodeWeightParallel<DynamicGraph, true>(*this, _total_weight, _max_weight);
+  });
 }
 
 // ! Copy dynamic hypergraph in parallel
