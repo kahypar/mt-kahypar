@@ -53,6 +53,13 @@ namespace impl {
     HNWeightScalar operator()(const HNWeightScalar& lhs, const HNWeightScalar& rhs) {
       return add(lhs, rhs, error_flag);
     }
+
+    auto operator()(HNWeightConstRef left, HNWeightConstRef right) {
+      return weight::mapBinary(left, right,
+        [&](HNWeightScalar lhs, HNWeightScalar rhs) {
+          return add(lhs, rhs, error_flag);
+        });
+    }
   };
 }
 
@@ -67,16 +74,13 @@ void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, AllocatedHNWei
   tbb::enumerable_thread_specific<AllocatedHNWeight> local_max(hypergraph.dimension(), 0);
   hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
     auto hn_weight = hypergraph.nodeWeight(hn);
-    local_sum.local() = weight::mapBinary(local_sum.local(), hn_weight,
-      [&](HNWeightScalar lhs, HNWeightScalar rhs) {
-        return adder(lhs, rhs);
-      });
+    local_sum.local() = adder(local_sum.local(), hn_weight);
     local_max.local() = weight::max(local_max.local(), hn_weight);
   });
 
   total_weight = weight::broadcast(0, hypergraph.dimension());
   for (const auto& weight: local_sum) {
-    total_weight += weight;
+    total_weight = adder(total_weight, weight);
   }
   max_weight = weight::broadcast(0, hypergraph.dimension());
   for (const auto& weight: local_max) {
