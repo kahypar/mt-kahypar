@@ -50,6 +50,13 @@ class AllocatedHNWeight {
       setDimension(dimension, init_value);
     }
 
+  template <typename Expr>
+  explicit AllocatedHNWeight(const Expr& expression) :
+    _data(nullptr),
+    _dimension(0) {
+      assign(expression);
+    }
+
   AllocatedHNWeight(const AllocatedHNWeight& other) = delete;
 
   // assignment operator does complete reassignment
