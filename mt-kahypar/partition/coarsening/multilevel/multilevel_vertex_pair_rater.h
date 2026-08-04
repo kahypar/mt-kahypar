@@ -176,11 +176,9 @@ class MultilevelVertexPairRater {
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
-    HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
-      const HypernodeID tmp_target_id = it->key;
-      const HypernodeID tmp_target = tmp_target_id;
-      const HNWeightConstRef target_weight = cluster_weight[tmp_target_id];
+      const HypernodeID tmp_target = it->key;
+      const HNWeightConstRef target_weight = cluster_weight[tmp_target];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         const double penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
@@ -197,9 +195,8 @@ class MultilevelVertexPairRater {
         if ( accept_fixed_vertex_contraction &&
              community_u_id == hypergraph.communityID(tmp_target) &&
              AcceptancePolicy::acceptRating( tmp_rating, max_rating,
-               target_id, tmp_target_id, cpu_id, _already_matched) ) {
+               target, tmp_target, cpu_id, _already_matched) ) {
           max_rating = tmp_rating;
-          target_id = tmp_target_id;
           target = tmp_target;
         }
       }
