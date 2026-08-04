@@ -30,6 +30,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -182,8 +183,8 @@ TEST_F(AStaticHypergraph, VerifiesEdgeSizes) {
 }
 
 TEST_F(AStaticHypergraph, PreventsWeightOverflow) {
-  hypergraph.setNodeWeight(0, std::numeric_limits<HypernodeWeight>::max() / 2);
-  hypergraph.setNodeWeight(1, std::numeric_limits<HypernodeWeight>::max() / 2);
+  hypergraph.setNodeWeight(0, weight::broadcast(std::numeric_limits<HNWeightScalar>::max() / 2, 1));
+  hypergraph.setNodeWeight(1, weight::broadcast(std::numeric_limits<HNWeightScalar>::max() / 2, 1));
   ASSERT_THROW(hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t()), InvalidInputException);
 }
 
