@@ -39,6 +39,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 template <typename ScorePolicy = Mandatory,
@@ -107,7 +108,7 @@ class NLevelVertexPairRater {
   template<bool has_fixed_vertices, typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
-                        const HypernodeWeight max_allowed_node_weight) {
+                        const HNWeightConstRef max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
@@ -142,7 +143,7 @@ class NLevelVertexPairRater {
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
-                        const HypernodeWeight max_allowed_node_weight,
+                        const HNWeightConstRef max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
 
     if ( use_vertex_degree_sampling ) {
@@ -152,18 +153,17 @@ class NLevelVertexPairRater {
     }
 
     int cpu_id = THREAD_ID;
-    const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
+    const HNWeightConstRef weight_u = hypergraph.nodeWeight(u);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = kInvalidHypernode;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target = it->key;
-      const HypernodeWeight target_weight = hypergraph.nodeWeight(tmp_target);
+      const HNWeightConstRef target_weight = hypergraph.nodeWeight(tmp_target);
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         double penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
-        penalty = penalty == 0 ? static_cast<double>(std::max(std::max(weight_u, target_weight), 1)) : penalty;
-        const RatingType tmp_rating = it->value / penalty;
+        const RatingType tmp_rating = it->value / std::max(penalty, 1.0);
 
         bool accept_fixed_vertex_contraction = true;
         if constexpr ( has_fixed_vertices ) {

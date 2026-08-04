@@ -42,9 +42,10 @@ namespace ds {
 DynamicHypergraph DynamicHypergraphFactory::construct(
         const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
+        const Dimension dimension,
         const HyperedgeVector& edge_vector,
         const HyperedgeWeight* hyperedge_weight,
-        const HypernodeWeight* hypernode_weight,
+        HypernodeWeightArray* hypernode_weight,
         const bool) {
   if (edge_vector.size() != num_hyperedges) {
     throw InvalidInputException("Number of hyperedges does not match length of input data!");
@@ -125,22 +126,24 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
     hypergraph._hyperedges[num_hyperedges].enable();
     hypergraph._hyperedges[num_hyperedges].setFirstEntry(hypergraph._num_pins);
   }, [&] {
-    tbb::parallel_invoke([&] {
-      hypergraph._acquired_hns.assign(
-        num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
-    }, [&] {
-      hypergraph._contraction_tree.initialize(num_hypernodes);
-    });
-    tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
       // Setup hypernodes
-      DynamicHypergraph::Hypernode& hypernode = hypergraph._hypernodes[hn];
-      hypernode.enable();
-      if ( hypernode_weight ) {
-        hypernode.setWeight(hypernode_weight[hn]);
-      }
+    tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
+      hypergraph._hypernodes[hn].enable();
     });
+    if ( hypernode_weight ) {
+      ASSERT(hypernode_weight->dimension() > 0);
+      hypergraph._hypernode_weights = std::move(*hypernode_weight);
+    } else {
+      ASSERT(dimension == 1);
+      hypergraph._hypernode_weights.resize(num_hypernodes, dimension, 1, true);
+    }
     // Compute total weight of hypergraph
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
+  }, [&] {
+    hypergraph._acquired_hns.assign(
+      num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
+  }, [&] {
+    hypergraph._contraction_tree.initialize(num_hypernodes);
   }, [&] {
     // Construct incident net array
     hypergraph._incident_nets = IncidentNetArray(num_hypernodes, edge_vector);
@@ -156,6 +159,7 @@ std::pair<DynamicHypergraph, parallel::scalable_vector<HypernodeID> >
 DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   HypernodeID num_hypernodes = 0;
   HyperedgeID num_hyperedges = 0;
+  Dimension dimension = hypergraph.dimension();
   parallel::scalable_vector<HypernodeID> hn_mapping;
   parallel::scalable_vector<HyperedgeID> he_mapping;
   // Computes a mapping for vertices and hyperedges to a consecutive range of IDs
@@ -188,9 +192,9 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   HyperedgeVector edge_vector;
   parallel::scalable_vector<HyperedgeWeight> hyperedge_weights;
-  parallel::scalable_vector<HypernodeWeight> hypernode_weights;
+  HypernodeWeightArray hypernode_weights;
   tbb::parallel_invoke([&] {
-    hypernode_weights.resize(num_hypernodes);
+    hypernode_weights.resize(num_hypernodes, dimension, 0, true);
     hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       const HypernodeID mapped_hn = hn_mapping[hn];
       ASSERT(mapped_hn < num_hypernodes);
@@ -211,7 +215,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
   // Construct compactified hypergraph
   DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
-    num_hypernodes, num_hyperedges, edge_vector, hyperedge_weights.data(), hypernode_weights.data());
+    num_hypernodes, num_hyperedges, dimension, edge_vector, hyperedge_weights.data(), &hypernode_weights);
   compactified_hypergraph._total_weight = hypergraph._total_weight;
 
   tbb::parallel_invoke([&] {
@@ -224,7 +228,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
     if ( hypergraph.hasFixedVertices() ) {
       // Set fixed vertices
       ds::FixedVertexSupport<DynamicHypergraph> fixed_vertices(
-        compactified_hypergraph.initialNumNodes(), hypergraph._fixed_vertices.numBlocks());
+        compactified_hypergraph.initialNumNodes(), dimension, hypergraph._fixed_vertices.numBlocks());
       fixed_vertices.setHypergraph(&compactified_hypergraph);
       hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( hypergraph.isFixed(hn) ) {
@@ -237,10 +241,11 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   });
 
   tbb::parallel_invoke([&] {
-    parallel::parallel_free(he_mapping,
-      hyperedge_weights, hypernode_weights);
+    parallel::parallel_free(he_mapping, hyperedge_weights);
   }, [&] {
     parallel::parallel_free(edge_vector);
+  }, [&] {
+    hypernode_weights = {};
   });
 
   return std::make_pair(std::move(compactified_hypergraph), std::move(hn_mapping));

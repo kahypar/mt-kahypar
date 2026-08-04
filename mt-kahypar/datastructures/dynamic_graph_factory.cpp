@@ -87,15 +87,19 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
   graph._num_edges = 2 * num_edges;
 
   tbb::parallel_invoke([&] {
+    // Setup nodes
     graph._nodes.resize(num_nodes + 1);
     tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID n) {
-      // setup nodes
-      DynamicGraph::Node& node = graph._nodes[n];
-      node.enable();
-      if ( node_weight ) {
-        node.setWeight(node_weight[n]);
-      }
+      graph._nodes[n].enable();
     });
+  }, [&] {
+    if ( node_weight ) {
+      ASSERT(node_weight->dimension() > 0);
+      graph._node_weights = std::move(*node_weight);
+    } else {
+      ASSERT(dimension == 1);
+      graph._node_weights.resize(num_nodes, dimension, 1, true);
+    }
   }, [&] {
     graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
     if (stable_construction_of_incident_edges) {
@@ -117,6 +121,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
 std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFactory::compactify(const DynamicGraph& graph) {
   HypernodeID num_nodes = 0;
   HyperedgeID num_edges = 0;
+  Dimension dimension = graph.dimension();
   parallel::scalable_vector<HypernodeID> hn_mapping;
   parallel::scalable_vector<HyperedgeID> he_mapping;
   // Computes a mapping for vertices and edges to a consecutive range of IDs
@@ -148,9 +153,9 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   // Remap pins of each hyperedge
   parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>> edge_vector;
   parallel::scalable_vector<HyperedgeWeight> edge_weights;
-  parallel::scalable_vector<HypernodeWeight> node_weights;
+  HypernodeWeightArray node_weights;
   tbb::parallel_invoke([&] {
-    node_weights.resize(num_nodes);
+    node_weights.resize(num_nodes, dimension, 0, true);
     graph.doParallelForAllNodes([&](const HypernodeID hn) {
       const HypernodeID mapped_hn = hn_mapping[hn];
       ASSERT(mapped_hn < num_nodes);
@@ -171,7 +176,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
 
   // Construct compactified graph
   DynamicGraph compactified_graph = DynamicGraphFactory::construct_from_graph_edges(
-    num_nodes, num_edges, edge_vector, edge_weights.data(), node_weights.data());
+    num_nodes, num_edges, dimension, edge_vector, edge_weights.data(), &node_weights);
   compactified_graph._total_weight = graph._total_weight;
 
   tbb::parallel_invoke([&] {
@@ -184,7 +189,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
     if ( graph.hasFixedVertices() ) {
       // Set fixed vertices
       ds::FixedVertexSupport<DynamicGraph> fixed_vertices(
-        compactified_graph.initialNumNodes(), graph._fixed_vertices.numBlocks());
+        compactified_graph.initialNumNodes(), dimension, graph._fixed_vertices.numBlocks());
       fixed_vertices.setHypergraph(&compactified_graph);
       graph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( graph.isFixed(hn) ) {
@@ -196,7 +201,11 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
     }
   });
 
-  parallel::parallel_free(he_mapping, edge_weights, node_weights, edge_vector);
+  tbb::parallel_invoke([&] {
+    parallel::parallel_free(he_mapping, edge_weights, edge_vector);
+  }, [&] {
+    node_weights = {};
+  });
 
   return std::make_pair(std::move(compactified_graph), std::move(hn_mapping));
 }
