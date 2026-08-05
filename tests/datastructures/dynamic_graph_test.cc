@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -59,7 +60,7 @@ TEST_F(ADynamicGraph, HasCorrectStats) {
   ASSERT_EQ(12,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.totalWeight());
+  ASSERT_EQ(weight::broadcast(7, 1),  hypergraph.totalWeight());
   ASSERT_EQ(2,  hypergraph.maxEdgeSize());
 }
 
@@ -109,7 +110,7 @@ TEST_F(ADynamicGraph, VerifiesPinsOfEdges) {
 
 TEST_F(ADynamicGraph, VerifiesVertexWeights) {
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(1, hypergraph.nodeWeight(hn));
+    ASSERT_EQ(weight::broadcast(1, 1), hypergraph.nodeWeight(hn));
   }
 }
 
@@ -136,12 +137,12 @@ TEST_F(ADynamicGraph, IteratesParallelOverAllEdges) {
 }
 
 TEST_F(ADynamicGraph, ModifiesNodeWeight) {
-  hypergraph.setNodeWeight(0, 2);
-  hypergraph.setNodeWeight(6, 2);
-  ASSERT_EQ(2, hypergraph.nodeWeight(0));
-  ASSERT_EQ(2, hypergraph.nodeWeight(6));
+  hypergraph.setNodeWeight(0, weight::broadcast(2, 1));
+  hypergraph.setNodeWeight(6, weight::broadcast(2, 1));
+  ASSERT_EQ(weight::broadcast(2, 1), hypergraph.nodeWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), hypergraph.nodeWeight(6));
   hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
-  ASSERT_EQ(9, hypergraph.totalWeight());
+  ASSERT_EQ(weight::broadcast(9, 1), hypergraph.totalWeight());
 }
 
 
@@ -181,8 +182,8 @@ TEST_F(ADynamicGraph, VerifiesEdgeSizes) {
 }
 
 TEST_F(ADynamicGraph, PreventsWeightOverflow) {
-  hypergraph.setNodeWeight(0, std::numeric_limits<HypernodeWeight>::max() / 2);
-  hypergraph.setNodeWeight(1, std::numeric_limits<HypernodeWeight>::max() / 2);
+  hypergraph.setNodeWeight(0, weight::broadcast(std::numeric_limits<HNWeightScalar>::max() / 2, 1));
+  hypergraph.setNodeWeight(1, weight::broadcast(std::numeric_limits<HNWeightScalar>::max() / 2, 1));
   ASSERT_THROW(hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t()), InvalidInputException);
 }
 
@@ -408,7 +409,7 @@ TEST_F(ADynamicGraph, PerformsContractions1) {
   hypergraph.contract(0);
 
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
-  ASSERT_EQ(2, hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), hypergraph.nodeWeight(1));
   ASSERT_EQ(0, hypergraph.pendingContractions(1));
 
   verifyNeighbors(1, hypergraph, { 2, 4 });
@@ -421,15 +422,15 @@ TEST_F(ADynamicGraph, PerformsContractions2) {
 
   hypergraph.contract(0);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
-  ASSERT_EQ(2, hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), hypergraph.nodeWeight(1));
   ASSERT_EQ(1, hypergraph.pendingContractions(1));
   hypergraph.contract(5);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(5));
-  ASSERT_EQ(2, hypergraph.nodeWeight(4));
+  ASSERT_EQ(weight::broadcast(2, 1), hypergraph.nodeWeight(4));
   ASSERT_EQ(0, hypergraph.pendingContractions(4));
   hypergraph.contract(2);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
-  ASSERT_EQ(3, hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(3, 1), hypergraph.nodeWeight(1));
   ASSERT_EQ(0, hypergraph.pendingContractions(1));
 
   verifyNeighbors(1, hypergraph, { 1, 3, 4 });
@@ -440,7 +441,8 @@ TEST_F(ADynamicGraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_EQ(1, hypergraph.contractionTree(0));
   ASSERT_EQ(1, hypergraph.pendingContractions(1));
-  hypergraph.contract(0, 1);
+  AllocatedHNWeight max_weight{weight::broadcast(1, 1)};
+  hypergraph.contract(0, max_weight);
   ASSERT_TRUE(hypergraph.nodeIsEnabled(0));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(0, hypergraph.contractionTree(0));
@@ -554,9 +556,9 @@ TEST_F(ADynamicGraph, GeneratesACompactifiedHypergraph) {
   ASSERT_EQ(4, compactified_hg.edgeWeight(1));
   ASSERT_EQ(1, compactified_hg.edgeWeight(2));
   ASSERT_EQ(4, compactified_hg.edgeWeight(3));
-  ASSERT_EQ(2, compactified_hg.nodeWeight(0));
-  ASSERT_EQ(2, compactified_hg.nodeWeight(1));
-  ASSERT_EQ(3, compactified_hg.nodeWeight(2));
+  ASSERT_EQ(weight::broadcast(2, 1), compactified_hg.nodeWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), compactified_hg.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(3, 1), compactified_hg.nodeWeight(2));
   verifyPins(compactified_hg, {0}, { {0, 2} });
   verifyPins(compactified_hg, {1}, { {1, 2} });
 }

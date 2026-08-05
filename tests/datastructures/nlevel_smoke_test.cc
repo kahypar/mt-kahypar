@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -197,14 +198,14 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     }
     hyperedges.emplace_back(std::move(net));
   }
-  return Factory::construct(num_hypernodes, num_hyperedges, hyperedges);
+  return Factory::construct(num_hypernodes, num_hyperedges, 1, hyperedges);
 }
 
 template<typename Hypergraph>
 void addRandomFixedVertices(Hypergraph& hypergraph,
                             const PartitionID k,
                             const double percentage_fixed_vertices) {
-  ds::FixedVertexSupport<Hypergraph> fixed_vertices(hypergraph.initialNumNodes(), k);
+  ds::FixedVertexSupport<Hypergraph> fixed_vertices(hypergraph.initialNumNodes(), 1, k);
   fixed_vertices.setHypergraph(&hypergraph);
   utils::Randomize& rand = utils::Randomize::instance();
   const int threshold = percentage_fixed_vertices * 1000;
@@ -515,9 +516,9 @@ TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
           const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             const HyperedgeID node_degree = hypergraph.nodeDegree(pin);
-            const HypernodeWeight node_weight = hypergraph.nodeWeight(pin);
+            const auto node_weight = hypergraph.nodeWeight(pin);
             if ( hypergraph.communityID(hn) == hypergraph.communityID(pin) ) {
-              rating += static_cast<RatingType>(edge_weight * node_degree) / node_weight;
+              rating += static_cast<RatingType>(edge_weight * node_degree) / weight::sum(node_weight);
             }
           }
         }
@@ -689,9 +690,9 @@ TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
           const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             const HyperedgeID node_degree = hypergraph.nodeDegree(pin);
-            const HypernodeWeight node_weight = hypergraph.nodeWeight(pin);
+            const auto node_weight = hypergraph.nodeWeight(pin);
             if ( hypergraph.communityID(hn) == hypergraph.communityID(pin) ) {
-              rating += static_cast<RatingType>(edge_weight * node_degree) / node_weight;
+              rating += static_cast<RatingType>(edge_weight * node_degree) / weight::sum(node_weight);
             }
           }
         }

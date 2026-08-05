@@ -191,13 +191,13 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeightsAndSinglePin) {
   this->verifyPins({ { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } });
 
   // Verify Node Weights
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
   ASSERT_EQ(2, this->hypergraph.edgeWeight(0));
@@ -449,13 +449,13 @@ TYPED_TEST(AGraphReader, MetisGraphWithMissingNewline) {
       { 3, 5 } } );
 
   // Verify Node Weights
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} ) {
@@ -507,13 +507,13 @@ TYPED_TEST(AGraphReader, MetisGraphWithMissingNewlineWindow) {
       { 3, 5 } } );
 
   // Verify Node Weights
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(weight::broadcast(1, 1), this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} ) {
