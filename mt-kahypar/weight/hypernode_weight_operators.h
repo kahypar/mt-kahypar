@@ -216,6 +216,9 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HNWeightRef& operator/=(HNWeightRef&& weight,
 
 // ###################  COMPARISON  ###################
 
+// Note: operator> and operator< are intentionally not provided,
+// since their semantics would be misleading.
+
 template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator==(const L& left, const R& right) {
   ASSERT(left.dimension() == right.dimension());
@@ -232,16 +235,6 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator!=(const L& left, const R& right
 }
 
 template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator>(const L& left, const R& right) {
-  ASSERT(left.dimension() == right.dimension());
-  bool is_greater = true;
-  for (Dimension i = 0; i < right.dimension(); i++) {
-    is_greater &= left.at(i) > right.at(i);
-  }
-  return is_greater;
-}
-
-template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator<=(const L& left, const R& right) {
   ASSERT(left.dimension() == right.dimension());
   bool is_le = true;
@@ -249,16 +242,6 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator<=(const L& left, const R& right
     is_le &= left.at(i) <= right.at(i);
   }
   return is_le;
-}
-
-template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator<(const L& left, const R& right) {
-  ASSERT(left.dimension() == right.dimension());
-  bool is_smaller = true;
-  for (Dimension i = 0; i < right.dimension(); i++) {
-    is_smaller &= left.at(i) < right.at(i);
-  }
-  return is_smaller;
 }
 
 template <typename L, typename R, REQUIRE_VALID_WEIGHT_2(L, R)>

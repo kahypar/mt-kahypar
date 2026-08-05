@@ -141,7 +141,7 @@ class LocalUnconstrainedStrategy {
         const HNWeightScalar max_part_weight = context.partition.max_part_weights[to].at(0);
         if (upperBound >= 1 && to_weight + wu > upperBound * max_part_weight) {
           apply_move = false;
-        } else if (to_weight + wu > max_part_weight) {
+        } else if (!(to_weight + wu <= max_part_weight)) {
           const Gain imbalance_penalty = estimatePenalty(to, to_weight, wu);
           if (imbalance_penalty != std::numeric_limits<Gain>::max()) {
             Gain new_gain = gain_cache.gain(u, from, to) - std::ceil(penaltyFactor * imbalance_penalty);

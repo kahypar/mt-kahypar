@@ -255,7 +255,7 @@ bool DeterministicRebalancer<GraphAndGainTypes>::mayMoveNode(const PartitionedHy
 template <typename GraphAndGainTypes>
 bool DeterministicRebalancer<GraphAndGainTypes>::isValidTarget(const PartitionedHypergraph& hypergraph, PartitionID part, HNWeightConstRef hn_weight) const {
   const HNWeightConstRef part_weight =  weight::toNonAtomic(hypergraph.partWeight(part));
-  return (part_weight < deadzoneForPart(part)) &&
+  return (part_weight <= deadzoneForPart(part) - weight::broadcast(1, hypergraph.dimension())) &&
     part_weight + hn_weight <= _context.partition.max_part_weights[part];
 }
 

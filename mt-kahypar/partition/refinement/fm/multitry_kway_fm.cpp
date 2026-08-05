@@ -394,7 +394,7 @@ namespace mt_kahypar {
                                                                         vec<MoveID>& current_rebalancing_move_index) {
     ALWAYS_ASSERT(phg.dimension() == 1);
 
-    while (current_part_weights[block] > max_part_weights[block]
+    while (!(current_part_weights[block] <= max_part_weights[block])
             && current_rebalancing_move_index[block] < rebalancing_moves_by_part[block].size()) {
       const MoveID move_index_for_block = current_rebalancing_move_index[block];
       const Move& m = rebalancing_moves_by_part[block][move_index_for_block];
