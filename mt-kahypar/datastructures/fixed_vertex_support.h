@@ -60,7 +60,8 @@ class FixedVertexSupport {
     _total_fixed_vertex_weight(),
     _fixed_vertex_block_weights(),
     _max_block_weights(),
-    _fixed_vertex_data() { }
+    _fixed_vertex_data(),
+    _fixed_vertex_hn_weights() { }
 
   FixedVertexSupport(const HypernodeID num_nodes,
                      const Dimension dimension,
@@ -175,6 +176,7 @@ class FixedVertexSupport {
     cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights.copy();
     cpy._max_block_weights = _max_block_weights.copy();
     cpy._fixed_vertex_data = _fixed_vertex_data;
+    cpy._fixed_vertex_hn_weights = _fixed_vertex_hn_weights.copy();
     return cpy;
   }
 
