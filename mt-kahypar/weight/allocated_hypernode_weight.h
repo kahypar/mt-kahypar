@@ -61,7 +61,9 @@ class AllocatedHNWeight {
 
   // assignment operator does complete reassignment
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE AllocatedHNWeight& operator=(const AllocatedHNWeight& other) {
-    assign(other);
+    if (other.dimension() > 0) {
+      assign(other);
+    }
     return *this;
   }
 
