@@ -34,6 +34,7 @@ namespace mt_kahypar::tests {
 
 using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
+using HypergraphFactory = Hypergraph::Factory;
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph

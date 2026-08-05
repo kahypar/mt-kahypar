@@ -150,7 +150,7 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
 
 TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
   this->constructFromValues(4, 2, { {0, 1}, {1, 2} }, {1, 1, 1, 1});
-  this->context.partition.max_part_weights.resize(this->context.partition.k, 5);
+  this->context.partition.max_part_weights.replaceWith(this->context.partition.k, 1, 5, false);
   this->context.partition.use_individual_part_weights = true;
   this->setup();
 
@@ -168,7 +168,7 @@ TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
   for (PartitionID block = 0; block < this->context.partition.k; ++block) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+    ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(block))) << V(block);
   }
 }
 
