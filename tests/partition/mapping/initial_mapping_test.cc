@@ -206,9 +206,43 @@ TYPED_TEST(InitialMappingTest, FindsImprovementsWithIndividualBlockWeights) {
   this->computeMapping();
 
   for (PartitionID block = 0; block < 8; ++block) {
-    ASSERT_LE(this->partitioned_hypergraph.partWeight(block), this->context.partition.max_part_weights[block]);
+      ASSERT_LE(this->partitioned_hypergraph.partWeight(block), this->context.partition.max_part_weights[block]);
+    }
+    ASSERT_LT(metrics::quality(this->partitioned_hypergraph, this->context), initial_quality);
   }
-  ASSERT_LT(metrics::quality(this->partitioned_hypergraph, this->context), initial_quality);
+
+TYPED_TEST(InitialMappingTest, HandlesUnassignedNodesInSteinerTreeMetric) {
+  using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
+
+  this->constructFromValues(3, 1, {{0, 1, 2}});
+  this->context.partition.k = 4;
+  this->context.mapping.max_steiner_tree_size = 4;
+
+  vec<HyperedgeWeight> edge_weights = { 1, 1, 1 };
+  this->target_graph = std::make_unique<TargetGraph>(
+    ds::StaticGraphFactory::construct(4, 3,
+      { { 0, 1 }, { 1, 2 }, { 2, 3 } },
+      edge_weights.data()));
+
+  this->partitioned_hypergraph = PartitionedHypergraph(
+    this->context.partition.k, this->hypergraph, parallel_tag_t());
+  this->partitioned_hypergraph.setTargetGraph(this->target_graph.get());
+  
+  // Setup weights to prevent division-by-zero checks
+  this->context.setupPartWeights(this->hypergraph.totalWeight());
+
+  // CRITICAL: Precompute distances! Without this, the metric dereferences a null pointer.
+  this->target_graph->precomputeDistances(this->context.mapping.max_steiner_tree_size);
+
+  // Assign nodes 0 and 1. Node 2 remains kInvalidPartition by default.
+  this->partitioned_hypergraph.setOnlyNodePart(0, 0);
+  this->partitioned_hypergraph.setOnlyNodePart(1, 2);
+  this->partitioned_hypergraph.initializePartition();
+
+  // Evaluate the Steiner tree metric using the context object
+  const HyperedgeWeight actual_quality = metrics::quality(this->partitioned_hypergraph, this->context);
+
+  ASSERT_EQ(actual_quality, 2);
 }
 
-}
+} 
