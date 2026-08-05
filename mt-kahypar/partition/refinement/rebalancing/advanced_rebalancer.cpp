@@ -31,8 +31,6 @@
 #include <random>
 #include <set>
 
-#include <boost/range/irange.hpp>
-
 #include "mt-kahypar/parallel/scalable_sort.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
@@ -138,7 +136,7 @@ namespace impl {
           const PartitionedHypergraph& phg, const Context& context, const GainCache& gain_cache,
           HypernodeID u, PartitionID from, const HypernodeWeightArray& reduced_part_weights,
           AllocatedHNWeight& best_to_weight, AllocatedHNWeight& tmp_hn_weight, const vec<double>& weight_normalizer) {
-    return computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, boost::irange<PartitionID>(0, context.partition.k),
+    return computeBestTargetBlockGeneric(phg, context, gain_cache, u, from, integer_range(context.partition.k),
                                          reduced_part_weights, true, best_to_weight, tmp_hn_weight, weight_normalizer);
   }
 
