@@ -213,7 +213,7 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
 
 TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
   std::string header = csv::header();
-  tests::Hypergraph dummy_hypergraph;
+  tests::Hypergraph dummy_hypergraph = tests::HypergraphFactory::construct(1, 1, 1, { {0} }, nullptr, nullptr, true);
   tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.k = 2;
