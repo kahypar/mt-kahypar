@@ -153,7 +153,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     // Restore hypernode v which includes enabling it and subtract its weight
     // from its representative
     hypernode(memento.v).enable();
-    setNodeWeight(memento.u, nodeWeight(memento.u) + nodeWeight(memento.v));
+    setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
     releaseHypernode(memento.u);
 
     // Revert contraction in fixed vertex support
@@ -565,7 +565,7 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
   const bool contraction_partner_valid =
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
-    nodeWeight(u) + nodeWeight(v) <= max_node_weight;
+    weight::isInvalid(max_node_weight) || nodeWeight(u) + nodeWeight(v) <= max_node_weight;
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||

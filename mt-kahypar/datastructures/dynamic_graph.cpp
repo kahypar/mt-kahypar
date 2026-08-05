@@ -116,7 +116,7 @@ DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
   const bool contraction_partner_valid =
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
-    nodeWeight(u) + nodeWeight(v) <= max_node_weight;
+    weight::isInvalid(max_node_weight) || nodeWeight(u) + nodeWeight(v) <= max_node_weight;
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
