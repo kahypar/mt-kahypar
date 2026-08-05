@@ -1186,10 +1186,12 @@ class PartitionedHypergraph {
       vec<HypernodeWeight> pws(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if ( nodeIsEnabled(u) ) {
-          const PartitionID pu = partID( u );
-          const HypernodeWeight wu = nodeWeight( u );
-          pws[pu] += wu;
-        }
+            const PartitionID pu = partID( u );
+            if (pu != kInvalidPartition) {
+              const HypernodeWeight wu = nodeWeight( u );
+              pws[pu] += wu;
+            }
+          }
       }
       applyPartWeightUpdates(pws);
     };
@@ -1208,7 +1210,10 @@ class PartitionedHypergraph {
       for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
         if ( edgeIsEnabled(he) ) {
           for (const HypernodeID& pin : pins(he)) {
-            ++pin_counts[partID(pin)];
+            const PartitionID p_id = partID(pin);
+            if (p_id != kInvalidPartition) {
+              ++pin_counts[p_id];
+            }
           }
 
           for (PartitionID p = 0; p < _k; ++p) {

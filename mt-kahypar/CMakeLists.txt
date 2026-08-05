@@ -1,3 +1,7 @@
+if(WIN32)
+  add_compile_definitions(WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
+
 add_subdirectory(partition)
 add_subdirectory(parallel)
 add_subdirectory(datastructures)
