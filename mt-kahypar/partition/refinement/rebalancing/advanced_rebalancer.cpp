@@ -53,7 +53,7 @@ namespace impl {
           const vec<double>& weight_normalizer) {
     const HNWeightConstRef wu = phg.nodeWeight(u);
     const HNWeightAtomicCRef from_weight = phg.partWeight(from);
-    const bool any_progress = context.refinement.rebalancing.allow_any_progress;
+    const bool any_progress = phg.dimension() > 1 && context.refinement.rebalancing.allow_any_progress;
 
     if (!any_progress) {
       // the normal case
@@ -431,7 +431,7 @@ namespace impl {
                                                            size_t& global_move_id,
                                                            bool parallel) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    const bool any_progress = _context.refinement.rebalancing.allow_any_progress;
+    const bool any_progress = phg.dimension() > 1 && _context.refinement.rebalancing.allow_any_progress;
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = _overloaded_blocks.size();
 
@@ -748,7 +748,8 @@ namespace impl {
           stats.update_stat("rebalancing_greedy_rounds_base_toplevel", 1);
         }
       }
-    } while (_context.refinement.rebalancing.allow_multiple_moves
+    } while (phg.dimension() > 1
+             && _context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
              && new_overweight < old_overweight
              && global_move_id < phg.initialNumNodes()
@@ -776,7 +777,7 @@ namespace impl {
 
     auto [attributed_gain, num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(hypergraph, reduced_part_weights, global_move_id, is_locked, false);
 
-    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
+    if (phg.dimension() > 1 && _context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0
         && (!_context.refinement.rebalancing.deadlock_fallback_only_toplevel || is_top_level)) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
       auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
