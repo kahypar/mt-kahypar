@@ -52,7 +52,7 @@ namespace impl {
           const vec<float>& weight_normalizer) {
     const HNWeightConstRef wu = phg.nodeWeight(u);
     const HNWeightAtomicCRef from_weight = phg.partWeight(from);
-    const bool any_progress = context.refinement.rebalancing.allow_any_progress;
+    const bool any_progress = phg.dimension() > 1 && context.refinement.rebalancing.allow_any_progress;
 
     if (!any_progress) {
       // the normal case
@@ -377,7 +377,7 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   int64_t AdvancedRebalancer<GraphAndGainTypes>::findMoves(PartitionedHypergraph& phg, size_t& global_move_id) {
-    const bool any_progress = _context.refinement.rebalancing.allow_any_progress;
+    const bool any_progress = phg.dimension() > 1 && _context.refinement.rebalancing.allow_any_progress;
     int64_t attributed_gain = 0;
     size_t num_overloaded_blocks = _overloaded_blocks.size();
 
@@ -583,7 +583,7 @@ namespace impl {
     int64_t attributed_gain = findMoves(phg, global_move_id);
 
     const size_t largest_moved_id = global_move_id;
-    if (_context.refinement.rebalancing.use_rollback) {
+    if (phg.dimension() > 1 && _context.refinement.rebalancing.use_rollback) {
       attributed_gain += applyRollback(phg, old_id, global_move_id);
     }
 
@@ -636,7 +636,8 @@ namespace impl {
         num_moves_first_round = global_move_id;
       }
       ++round;
-    } while (num_overloaded_blocks > 0
+    } while (phg.dimension() > 1
+             && num_overloaded_blocks > 0
              && new_overweight < old_overweight
              && global_move_id < phg.initialNumNodes()
              && (max_rounds == 0 || round < max_rounds));
@@ -656,7 +657,7 @@ namespace impl {
                                                                                                   size_t& global_move_id) {
     auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id);
 
-    if (_context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
+    if (phg.dimension() > 1 && _context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
       const size_t old_id = global_move_id;
       for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
@@ -668,7 +669,7 @@ namespace impl {
         num_overloaded_blocks = n_overloaded;
       }
 
-      if (_context.refinement.rebalancing.use_rollback) {
+      if (phg.dimension() > 1 && _context.refinement.rebalancing.use_rollback) {
         const size_t last_id = global_move_id;
         attributed_gain += applyRollback(phg, old_id, global_move_id);
 
