@@ -103,7 +103,8 @@ namespace mt_kahypar {
     _gain.reset();
     _next_active.reset();
     const Gain old_quality = best_metrics.quality;
-    const bool was_imbalanced = !best_metrics.imbalance.isValidPartition();
+    ENABLE_ASSERTIONS(
+      const bool was_imbalanced = !best_metrics.imbalance.isValidPartition();)
 
     // Initialize set of active vertices
     initializeActiveNodes(hypergraph, refinement_nodes);
