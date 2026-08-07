@@ -95,6 +95,23 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const std::vector<HypernodeWeight>& max_part_weights);
 
 template<typename PartitionedHypergraph>
+BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+  // cheaper variant that does not consider any constraints other than balance
+  double max_balance = 0.0;
+  bool violates_balance = false;
+  for (PartitionID i = 0; i < context.partition.k; ++i) {
+    const HypernodeWeight part_weight = hypergraph.partWeight(i);
+    const double balance_i = (part_weight
+            / static_cast<double>(context.partition.perfect_balance_part_weights[i]));
+    max_balance = std::max(max_balance, balance_i);
+    if (part_weight > context.partition.max_part_weights[i]) {
+      violates_balance = true;
+    }
+  }
+  return BalanceMetrics{max_balance - 1.0, violates_balance, false};
+}
+
+template<typename PartitionedHypergraph>
 double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);
 
 }  // namespace metrics

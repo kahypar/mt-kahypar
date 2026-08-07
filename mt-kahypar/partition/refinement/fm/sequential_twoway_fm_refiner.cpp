@@ -118,7 +118,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
       current_cut -= gain;
       stopping_rule.update(gain);
 
-      Metrics current_metrics{current_cut, metrics::imbalance(_phg, _context)};
+      Metrics current_metrics{current_cut, metrics::onlyImbalance(_phg, _context)};
       if ( current_metrics.isBetter(best_metrics) ) {
         DBG << GREEN << "2Way FM improved cut from" << best_metrics.quality << "to" << current_cut
             << "(Imbalance:" << current_metrics.imbalance << ")" << END;
