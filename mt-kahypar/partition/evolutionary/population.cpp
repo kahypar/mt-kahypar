@@ -54,9 +54,9 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
           insert_position = diversePosition(individuals_copy, individual, true);
           break;
         default:
-          return std::numeric_limits<int>::max();
+          return std::numeric_limits<size_t>::max();
       }
-      if (insert_position == std::numeric_limits<unsigned>::max()) {return insert_position;}
+      if (insert_position == std::numeric_limits<size_t>::max()) {return insert_position;}
       {
         std::lock_guard<std::mutex> guard(_population_mutex);
         if (individuals_copy[insert_position] == _individuals[insert_position]) {
