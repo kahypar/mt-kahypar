@@ -337,10 +337,11 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   size_t max_similarity_id = 0;
   if (individual->fitness() > individuals[worst(individuals)]->fitness()) {
     DBG << "COLLAPSE";
-    rejected_worse_than_worst.fetch_add(1, std::memory_order_relaxed);
-    auto percentage = (rejected_worse_than_worst.load() / total_insert_attempts.load())  * 100.0;
+    const size_t rejected = rejected_worse_than_worst.fetch_add(1, std::memory_order_relaxed) + 1;
+    const size_t total = total_insert_attempts.load(std::memory_order_relaxed);
+    const double percentage = total > 0 ? (static_cast<double>(rejected) / total) * 100.0 : 0.0;
     DBG << "  " << percentage << "% rejection percentage";
-    return std::numeric_limits<unsigned>::max();
+    return std::numeric_limits<size_t>::max();
   }
   //Could be Parallelized
   for (size_t i = 0; i < individuals.size(); ++i) {

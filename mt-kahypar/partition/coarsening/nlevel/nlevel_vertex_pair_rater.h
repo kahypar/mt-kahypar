@@ -202,7 +202,7 @@ class NLevelVertexPairRater {
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       HypernodeID edge_size = hypergraph.edgeSize(he);
       if ( edge_size > 1 && edge_size < _context.partition.ignore_hyperedge_size_threshold ) {
-        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), edge_size);
+        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, 0);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           tmp_ratings[v] += score;
         }
@@ -223,7 +223,7 @@ class NLevelVertexPairRater {
         if ( num_tmp_rating_map_accesses + edge_size > _vertex_degree_sampling_threshold  ) {
           break;
         }
-        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), edge_size);
+        const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), edge_size, 0);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           tmp_ratings[v] += score;
           ++num_tmp_rating_map_accesses;

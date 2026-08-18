@@ -858,21 +858,35 @@ namespace mt_kahypar {
         LOG << "Performed " << total_iterations.load() << " Evolutionary Iterations";
         LOG << "  " << total_mutations.load() << " Mutations";
         LOG << "  " << total_combinations.load() << " Combinations";
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_iterations", static_cast<int64_t>(total_iterations.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_mutations", static_cast<int64_t>(total_mutations.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_combinations", static_cast<int64_t>(total_combinations.load()));
         if (context.evolutionary.basic_combine_weight > 0) {
             LOG << "    " << total_basic_combinations.load() << " Basic";
+            utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_basic_combinations", static_cast<int64_t>(total_basic_combinations.load()));
         }
         if (context.evolutionary.edge_frequency_combine_weight > 0) {
             LOG << "    " << total_edge_frequency_combinations.load() << " Edge Frequency";
+            utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_edge_frequency_combinations", static_cast<int64_t>(total_edge_frequency_combinations.load()));
         }
         if (context.evolutionary.synthetic_parent_combine_weight > 0) {
             LOG << "    " << total_synthetic_parent_combinations.load() << " Synthetic Parent";
+            utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_synthetic_parent_combinations", static_cast<int64_t>(total_synthetic_parent_combinations.load()));
         }
         LOG << "===================================================";
         LOG << "Insertion Statistics";
         LOG << "  " << population.total_insert_attempts.load() << " total insertion attempts";
         LOG << "  " << population.accepted_replacement.load() << " accepted insertions";
         LOG << "  " << population.rejected_worse_than_worst.load() << " rejected because worse than worst";
-        LOG << "  " << (population.rejected_worse_than_worst.load() / population.total_insert_attempts.load())  * 100.0 << "% rejection percentage";
+        const size_t total = population.total_insert_attempts.load();
+        const size_t rejected = population.rejected_worse_than_worst.load();
+        const double percentage = total > 0 ? (static_cast<double>(rejected) / total) * 100.0 : 0.0;
+        LOG << "  " << percentage << "% rejection percentage";
+
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_insertion_attempts", static_cast<int64_t> (population.total_insert_attempts.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_accepted_replacements", static_cast<int64_t>(population.accepted_replacement.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_rejected_worse_than_worst", static_cast<int64_t>(population.rejected_worse_than_worst.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_rejection_percentage", percentage);
         return history;
     }
 
