@@ -1,108 +1,145 @@
 #pragma once
 
 #include <mt-kahypar/dynamic/dynamic_strategy.h>
-
-#include "mt-kahypar/io/command_line_options.h"
+#include <mt-kahypar/partition/refinement/i_refiner.h>
+#include <mt-kahypar/partition/refinement/gains/gain_cache_ptr.h>
+#include <mt-kahypar/partition/factories.h>
+#include <mt-kahypar/partition/refinement/rebalancing/incremental_rebalancer.h>
 
 namespace mt_kahypar::dyn {
 
     class Greedy : public DynamicStrategy {
 
     private:
-      std::vector<PartitionID> partition_assignment;
-      std::vector<size_t> partition_connectivities;
-      std::vector<HypernodeWeight> partition_weights;
-      HypernodeWeight global_partition_weight;
-      bool first_change = true;
+
+        PartitionID add_node_to_partitioned_hypergraph(const HypernodeID& hn) {
+
+          // partitioned_hypergraph_m.addNode(hn, kInvalidPartition);
+
+          //compute for each block the number of nodes the new node connected to
+          std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
+          for ( PartitionID p = 0; p < context.partition.k; ++p ) {
+            block_connectivities[p] = std::make_tuple(0, p);
+          }
+          for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
+            for ( const PartitionID& p : partitioned_hypergraph_m.connectivitySet(he) ) {
+              ASSERT(partitioned_hypergraph_m.checkConnectivitySet(he, context.partition.k));
+              block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
+            }
+          }
+
+          // sort block_connectivities in descending order
+          std::sort(block_connectivities.begin(), block_connectivities.end(), std::greater<std::tuple<int,int>>());
+
+          //Add node to block with the highest connectivity if it doesn't violate max_part_weights (imbalance)
+          for (const auto& block_connectivity : block_connectivities) {
+            if (partitioned_hypergraph_m.partWeight(std::get<1>(block_connectivity)) + hypergraph_m.nodeWeight(hn) <
+                context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
+              // partitioned_hypergraph_m.setNodePart(hn, std::get<1>(block_connectivity));
+              partitioned_hypergraph_m.addNode(hn, std::get<1>(block_connectivity));
+              return std::get<1>(block_connectivity);
+            }
+          }
+          // if no partition could accomodate the node put in the best
+          partitioned_hypergraph_m.addNode(hn, std::get<1>(block_connectivities[0]));
+          return std::get<1>(block_connectivities[0]);
+        }
+
     public:
 
       Greedy(ds::MutableHypergraph& hypergraph_m, Context& context)
-          : DynamicStrategy(hypergraph_m, context) {}
-      
+          : DynamicStrategy(hypergraph_m, context)
+        {
+        }
+
         MutablePartitionedHypergraph& init() override {
             partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
-          ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
-          partition_connectivities = std::vector<size_t>(context.partition.k, 0);
-          partition_weights = std::vector<HypernodeWeight>(context.partition.k, 0);
-          global_partition_weight = 0;
-          for (HypernodeID hn = 0; hn < 100; ++hn)
-          {
-            partition_assignment.push_back(partitioned_hypergraph_m.partID(hn));
-            partition_weights[partitioned_hypergraph_m.partID(hn)]++;
-            global_partition_weight++;
-          }
+            context.dynamic.incremental_km1 = metrics::quality(partitioned_hypergraph_m, Objective::km1);
           return partitioned_hypergraph_m;
         }
 
         void partition(Change& change, size_t changes_size) override {
-          (void) changes_size;
-          if (first_change) {
-            first_change = false;
-            partition_assignment.reserve(changes_size);
+
+          HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+
+          ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1));
+          ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
+
+          for (const auto& [hn, he] : change.removed_pins)
+          {
+            size_t pin_count_in_part_prior_removal = partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn));
+
+            // changed_weight += hypergraph_m.edgeWeight(he)/hypergraph_m.edgeSize(he);
+
+            //decrement km1 if pin is single pin in partition for this edge prior to removal
+            if (pin_count_in_part_prior_removal == 1 &&
+                partitioned_hypergraph_m.connectivity(he) > 1)
+            {
+              context.dynamic.incremental_km1 -= partitioned_hypergraph_m.edgeWeight(he);
+            }
+            partitioned_hypergraph_m.decrementPinCountOfBlockWrapper(he, partitioned_hypergraph_m.partID(hn));
+            hypergraph_m.deletePin(he, hn);
           }
-          // ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
-          // ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
 
-          partition_connectivities = std::vector<size_t>(context.partition.k, 0);
-          // Removals are not supported in streaming mode
+          for (const HypernodeID& hn : change.removed_nodes) {
+            partitioned_hypergraph_m.removeNodePart(hn);
+            hypergraph_m.deleteHypernode(hn);
+            updateMaxPartWeight(context, hypergraph_m);
+          }
 
-          ASSERT(change.removed_nodes.empty());
-          ASSERT(change.removed_edges.empty());
-          ASSERT(change.removed_pins.empty());
+          for (const HyperedgeID& he : change.removed_edges) {
 
-          HypernodeID added_node = change.added_nodes.front();
+            context.dynamic.incremental_km1 -= std::max(partitioned_hypergraph_m.connectivity(he) - 1, 0) * partitioned_hypergraph_m.edgeWeight(he);
+            for (PartitionID p = 0; p < context.partition.k; ++p) {
+              while(partitioned_hypergraph_m.pinCountInPart(he, p) > 0) {
+                // ASSERT(false);
+                partitioned_hypergraph_m.decrementPinCountOfBlockWrapper(he, p);
+              }
+            }
+            hypergraph_m.deleteHyperedge(he);
+          }
 
+          for (const HypernodeID& hn : change.added_nodes) {
+            const HypernodeID new_hn = hypergraph_m.addHypernode({}, 1);
+            (void) new_hn;
+            ASSERT(hn == new_hn);
+            updateMaxPartWeight(context, hypergraph_m);
+            const PartitionID assigned_part = add_node_to_partitioned_hypergraph(hn);
+            (void) assigned_part;
+            ASSERT(assigned_part != kInvalidPartition);
+          }
+
+          for (const HyperedgeID& he : change.added_edges) {
+            const HyperedgeID new_he = hypergraph_m.addHyperedge({}, 1);
+            (void) new_he;
+            ASSERT(he == new_he);
+            partitioned_hypergraph_m.addEdge(he);
+          }
 
           for (const auto& [node, edge] : change.added_pins)
           {
-            if (node != added_node) {
-              partition_connectivities[partition_assignment[node]]++;
+            hypergraph_m.addPin(edge, node);
+            partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
+
+            //increment km1 if pin is single pin in partition for this edge after addition
+            if (partitioned_hypergraph_m.pinCountInPart(edge, partitioned_hypergraph_m.partID(node)) == 1 &&
+                partitioned_hypergraph_m.connectivity(edge) > 1)
+            {
+              context.dynamic.incremental_km1 += partitioned_hypergraph_m.edgeWeight(edge);
             }
           }
 
-          PartitionID added_partition = 0;
-          for (PartitionID p = 0; p < context.partition.k; ++p)
-          {
-            if ((partition_connectivities[p] > partition_connectivities[added_partition] && 1 + partition_weights[p] <= ((double)global_partition_weight / context.partition.k) * (1.0 + context.partition.epsilon)) || 1 + partition_weights[added_partition] > ((double)global_partition_weight / context.partition.k) * (1.0 + context.partition.epsilon)) {
-              added_partition = p;
-            }
-          }
-          partition_assignment.push_back(added_partition);
-          partition_weights[added_partition]++;
-          global_partition_weight++;
+          auto processing_duration_sum = std::chrono::high_resolution_clock::now() - start;
+          context.dynamic.processing_duration_sum += processing_duration_sum;
 
-          // compute and print the current imbalance if the nodeid is a multiple of 1000
-          // if (added_node % 1000 == 0)
-          // {
-          //   HypernodeWeight max_partition_weight = 0;
-          //   for (PartitionID p = 0; p < context.partition.k; ++p) {
-          //     max_partition_weight = std::max(max_partition_weight, partition_weights[p]);
-          //   }
-          //   double imbalance = (double)max_partition_weight / (double)global_partition_weight;
-          //   std::cout << "Current imbalance after adding node " << added_node << ": " << imbalance << std::endl;
-          //   std::cout << "Global partition weight: " << global_partition_weight << std::endl;
-          //   std::cout << "Partition weights: ";
-          //   for (PartitionID p = 0; p < context.partition.k; ++p)
-          //   {
-          //     std::cout << partition_weights[p] << " ";
-          //   }
-          //
-          // }
-      }
-      void printAdditionalFinalStats() override {
-        // write partitioning to context.partition.graph_partition_filename
+          ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
+          ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
 
-        auto filename = context.partition.graph_partition_filename;
-        if (filename.empty()) {
-          throw InvalidInputException("No filename for output partition file specified");
         }
-        std::ofstream out_stream(filename.c_str());
-        for (const PartitionID p : partition_assignment)
-        {
-          out_stream << p << std::endl;
-        }
-        out_stream.close();
-      }
 
+        void printAdditionalFinalStats() override {
+          assert(context.dynamic.incremental_km1 == mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1) && ("Error: incremental_km1 does not match the quality metric. " + std::to_string(context.dynamic.incremental_km1) + " " + std::to_string(mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1))).c_str());
+          std::cout << std::endl << "Final km1: " << context.dynamic.incremental_km1 << " Real km1: " << mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1) << std::endl;
+        }
     };
 }
