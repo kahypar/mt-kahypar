@@ -343,7 +343,10 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
   if(BUILTIN_POPCNT)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>
+        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX /arch:SSE4.2>
+    )
   endif()
 endif()
 
