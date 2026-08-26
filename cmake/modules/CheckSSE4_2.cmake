@@ -10,9 +10,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		set(BUILTIN_POPCNT 1)
 	endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-#  handle windows
-#	get_filename_component(_vendor_id "[HKEY_LOCAL_MACHINE\\Hardware\\Description\\System\\CentralProcessor\\0;VendorIdentifier]" NAME CACHE)
-#	get_filename_component(_cpu_id "[HKEY_LOCAL_MACHINE\\Hardware\\Description\\System\\CentralProcessor\\0;Identifier]" NAME CACHE)	
+    execute_process(
+        COMMAND powershell.exe
+            -NoProfile
+            -NonInteractive
+            -ExecutionPolicy Bypass
+            -File "${CMAKE_CURRENT_LIST_DIR}/../check-ise.ps1"
+        OUTPUT_VARIABLE CPU_FEATURES
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # The MSVC STL assumes that popcount is available if AVX is supported.
+    # Since we use BUILTIN_POPCOUNT for general SSE4.2 availability detection,
+    # only set it if both features are supported.
+    if(("sse4_2" IN_LIST CPU_FEATURES) AND ("avx" IN_LIST CPU_FEATURES))
+        set(BUILTIN_POPCNT 1)
+    endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 #  handle MacOs
 execute_process(COMMAND sysctl -n machdep.cpu.features
@@ -20,5 +32,4 @@ execute_process(COMMAND sysctl -n machdep.cpu.features
 	if(_cpuinfo MATCHES "SSE4.2")
 		set(BUILTIN_POPCNT 1)
 	endif()
-endif()	
-	
+endif()
