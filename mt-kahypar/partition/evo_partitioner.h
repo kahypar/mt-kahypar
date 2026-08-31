@@ -26,6 +26,11 @@ struct CombineResult {
   EvoCombineStrategy strategy;
 };
 
+struct MutationResult {
+  std::shared_ptr<Individual> individual;
+  EvoMutateStrategy strategy;
+};
+
 template<typename TypeTraits>
 class EvoPartitioner : public Partitioner<TypeTraits> {
 
@@ -64,15 +69,17 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static std::vector<evolutionary::IterationLogEntry> iteration_log_entries;
     static std::mutex iteration_log_mutex;
     static std::vector<evolutionary::ImprovementLogEntry> improvement_log_entries;
+    static std::vector<evolutionary::PopulationSummaryLogEntry> population_summary_entries;
+    static std::mutex population_summary_mutex;
 
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
 
     static std::shared_ptr<Individual> createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
     static CombineResult performCombine(const Hypergraph& hg, const Context& context, TargetGraph* target_graph, Population& population, ContextModifierParameters modified_combine_params,std::mt19937* rng = nullptr);
-    static std::shared_ptr<Individual> performMutation(const Hypergraph &hg, const Context &context,
-                                                       TargetGraph *target_graph, Population &population,
-                                                       std::mt19937 *rng = nullptr);
+    static MutationResult performMutation(const Hypergraph &hg, const Context &context,
+                                          TargetGraph *target_graph, Population &population,
+                                          std::mt19937 *rng = nullptr);
     static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
-    static bool insert_individual_into_population(std::shared_ptr<Individual> individual, const Context &context, Population &population, int iteration);
+    static bool insert_individual_into_population(std::shared_ptr<Individual> individual, const Context &context, Population &population, int iteration, const std::string& op_name = "Unknown");
 };
 }  // namespace mt_kahypar

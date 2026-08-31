@@ -33,6 +33,17 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
+    struct PopulationSummary {
+        HyperedgeWeight best_fitness = 0;
+        HyperedgeWeight median_fitness = 0;
+        double mean_fitness = 0.0;
+        HyperedgeWeight worst_fitness = 0;
+        size_t min_distance = 0;
+        double median_distance = 0.0;
+        double mean_distance = 0.0;
+        size_t max_distance = 0;
+    };
+
     class Population {
     private:
         static constexpr bool debug = true;
@@ -40,6 +51,7 @@ namespace mt_kahypar {
     public:
         explicit Population() : _population_mutex(),
                                 _individuals(),
+                                _slot_replacements(),
                                 total_insert_attempts(0),
                                 rejected_worse_than_worst(0),
                                 accepted_replacement(0) {
@@ -76,6 +88,9 @@ namespace mt_kahypar {
         std::vector<PartitionID> partitionCopyAt(size_t pos) const;
         std::vector<HyperedgeID> cutEdgesCopyAt(size_t pos) const;
 
+        //summary & diversity
+        PopulationSummary computeSummary() const;
+        std::vector<size_t> slotReplacements() const;
 
         //debug
         void print() const;
@@ -91,6 +106,7 @@ namespace mt_kahypar {
 
         mutable std::mutex _population_mutex;
         std::vector<std::shared_ptr<Individual> > _individuals;
+        std::vector<size_t> _slot_replacements;
 
     };
 

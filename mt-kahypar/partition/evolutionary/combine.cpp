@@ -25,6 +25,11 @@ namespace mt_kahypar::combine {
       combined[vertex] = tuple_to_block[partition_tuple];
     }
 
+    DBG << "[Combine] Parents=" << parent_partitions.size()
+        << " Vertices=" << combined.size()
+        << " Communities=" << current_community
+        << " (" << (combined.empty() ? 0.0 : (100.0 * current_community / combined.size())) << "% of |V|)";
+
     return combined;
   }
 

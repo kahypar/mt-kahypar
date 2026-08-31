@@ -70,6 +70,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   void Population::addStartingIndividual(std::shared_ptr<Individual> individual, const Context& context) {
   std::lock_guard<std::mutex> guard(_population_mutex);
   _individuals.emplace_back(std::move(individual));
+  _slot_replacements.push_back(0);
     ASSERT(_individuals.size() <= context.evolutionary.population_size);
     DBG << "Individual" << _individuals.size() - 1
         << V(_individuals.back()->fitness());
@@ -77,6 +78,9 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
 
   size_t Population::forceInsert(std::shared_ptr<Individual> individual, const size_t position) {
     DBG << V(position) << V(individual->fitness());
+    if (position < _slot_replacements.size()) {
+      _slot_replacements[position]++;
+    }
     _individuals[position] = std::move(individual);
     return position;
   }
@@ -290,7 +294,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
                                     individual->cutEdges().end(),
                                     std::back_inserter(output_diff));
     }
-    DBG << V(output_diff.size());
+    //DBG << V(output_diff.size());
     return output_diff.size();
   }
 
@@ -330,6 +334,51 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
       }
     }
     return _diff_matrix;
+  }
+
+  PopulationSummary Population::computeSummary() const {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    PopulationSummary summary;
+    if (_individuals.empty()) {
+      return summary;
+    }
+    std::vector<HyperedgeWeight> fitnesses;
+    fitnesses.reserve(_individuals.size());
+    double total_fit = 0.0;
+    for (size_t i = 0; i < _individuals.size(); ++i) {
+      const HyperedgeWeight f = _individuals[i]->fitness();
+      fitnesses.push_back(f);
+      total_fit += static_cast<double>(f);
+    }
+    std::sort(fitnesses.begin(), fitnesses.end());
+    summary.best_fitness = fitnesses.front();
+    summary.worst_fitness = fitnesses.back();
+    summary.mean_fitness = total_fit / static_cast<double>(fitnesses.size());
+    summary.median_fitness = fitnesses[fitnesses.size() / 2];
+
+    std::vector<size_t> diffs;
+    for (size_t i = 0; i < _individuals.size(); ++i) {
+      for (size_t j = i + 1; j < _individuals.size(); ++j) {
+        diffs.push_back(difference(_individuals[i], j, false));
+      }
+    }
+    if (!diffs.empty()) {
+      std::sort(diffs.begin(), diffs.end());
+      summary.min_distance = diffs.front();
+      summary.max_distance = diffs.back();
+      summary.median_distance = diffs[diffs.size() / 2];
+      double total_dist = 0.0;
+      for (size_t d : diffs) {
+        total_dist += static_cast<double>(d);
+      }
+      summary.mean_distance = total_dist / static_cast<double>(diffs.size());
+    }
+    return summary;
+  }
+
+  std::vector<size_t> Population::slotReplacements() const {
+    std::lock_guard<std::mutex> guard(_population_mutex);
+    return _slot_replacements;
   }
 
   size_t Population::diversePosition(const Individuals &individuals, std::shared_ptr<Individual> individual, const bool strong_set) {

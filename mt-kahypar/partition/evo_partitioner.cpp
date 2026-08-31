@@ -58,6 +58,10 @@ namespace mt_kahypar {
             std::lock_guard<std::mutex> lock(iteration_log_mutex);
             iteration_log_entries.clear();
         }
+        {
+            std::lock_guard<std::mutex> lock(population_summary_mutex);
+            population_summary_entries.clear();
+        }
 
         // DISABLED -- Individuals have incorrect indexing after preprocessing
         // ################## PREPROCESSING ##################
@@ -126,6 +130,19 @@ namespace mt_kahypar {
                 for (const auto& entry : iteration_log_entries) {
                     out_stream << entry.iteration << ", " << entry.timestamp << ", " << entry.km1 << "\n";
                 }
+            }
+            out_stream.close();
+        }
+        if (context.evolutionary.population_summary_file != "" && context.partition.enable_benchmark_mode) {
+            std::ofstream out_stream(context.evolutionary.population_summary_file.c_str(),
+                                   std::ios::out | std::ios::trunc);
+            out_stream << "iteration,timestamp_ms,best_km1,median_km1,mean_km1,worst_km1,min_dist,median_dist,mean_dist,max_dist\n";
+            for (const auto& entry : population_summary_entries) {
+                out_stream << entry.iteration << "," << entry.timestamp << ","
+                           << entry.best_km1 << "," << entry.median_km1 << ","
+                           << entry.mean_km1 << "," << entry.worst_km1 << ","
+                           << entry.min_distance << "," << entry.median_distance << ","
+                           << entry.mean_distance << "," << entry.max_distance << "\n";
             }
             out_stream.close();
         }
@@ -236,6 +253,10 @@ namespace mt_kahypar {
                 {
                     std::lock_guard<std::mutex> lock(iteration_log_mutex);
                     iteration_log_entries.clear();
+                }
+                {
+                    std::lock_guard<std::mutex> lock(population_summary_mutex);
+                    population_summary_entries.clear();
                 }
                 generateInitialPopulation(hg, sub_context, target_graph, sub_population);
                 performEvolution(hg, sub_context, target_graph, sub_population);
@@ -403,19 +424,40 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    bool EvoPartitioner<TypeTraits>::insert_individual_into_population(std::shared_ptr<Individual> individual, const Context& context, Population& population, int iteration) {
+    bool EvoPartitioner<TypeTraits>::insert_individual_into_population(std::shared_ptr<Individual> individual, const Context& context, Population& population, int iteration, const std::string& op_name) {
+        individual->setBirthIteration(iteration);
+        individual->setOriginOperator(op_name);
         bool improved = false;
         if (context.partition.enable_benchmark_mode) {
             auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-            improved = checkAndLogNewBest(individual->fitness(), "Insert", time, iteration);
+            improved = checkAndLogNewBest(individual->fitness(), op_name, time, iteration);
         }
-        population.insert(std::move(individual), context);
+        size_t inserted_pos = population.insert(std::move(individual), context);
+        bool was_accepted = (inserted_pos != std::numeric_limits<size_t>::max());
         if (constexpr int log_frequency = 1; context.partition.enable_benchmark_mode && (iteration % log_frequency == 0)) {
             std::lock_guard<std::mutex> lock(diff_matrix_history_mutex);
             DiffMatrix diff_matrix = population.updateDiffMatrix();
             diff_matrix_history.push_back(diff_matrix);
+
+            if (context.evolutionary.population_summary_file != "") {
+                std::lock_guard<std::mutex> sum_lock(population_summary_mutex);
+                PopulationSummary summary = population.computeSummary();
+                auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+                population_summary_entries.push_back({
+                    iteration, ts_ms,
+                    static_cast<double>(summary.best_fitness),
+                    static_cast<double>(summary.median_fitness),
+                    summary.mean_fitness,
+                    static_cast<double>(summary.worst_fitness),
+                    summary.min_distance,
+                    summary.median_distance,
+                    summary.mean_distance,
+                    summary.max_distance
+                });
+            }
         }
-        return improved;
+        return was_accepted;
     }
 
     template<typename TypeTraits>
@@ -455,7 +497,7 @@ namespace mt_kahypar {
     }
 
     template<typename TypeTraits>
-    std::shared_ptr<Individual> EvoPartitioner<TypeTraits>::performMutation(
+    MutationResult EvoPartitioner<TypeTraits>::performMutation(
         const Hypergraph &input_hg,
         const Context &context,
         TargetGraph *target_graph,
@@ -464,12 +506,19 @@ namespace mt_kahypar {
     Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
 
     const std::vector rnd_ind_partition(population.randomIndividualPartitionCopy(context.partition.deterministic, rng));
-    switch (pick::decideNextMutation(context, rng)) {
+    EvoMutateStrategy mutate_strategy = pick::decideNextMutation(context, rng);
+    switch (mutate_strategy) {
         case EvoMutateStrategy::new_initial_partitioning_vcycle:
-            return mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
-                                                                        context);
+            return {
+                mutate::vCycleWithNewInitialPartitioning<TypeTraits>(hypergraph, rnd_ind_partition, target_graph,
+                                                                            context),
+                mutate_strategy
+            };
         case EvoMutateStrategy::vcycle:
-            return mutate::vCycle<TypeTraits>(hypergraph, rnd_ind_partition, target_graph, context);
+            return {
+                mutate::vCycle<TypeTraits>(hypergraph, rnd_ind_partition, target_graph, context),
+                mutate_strategy
+            };
         case EvoMutateStrategy::UNDEFINED:
             throw UnsupportedOperationException("Next Mutation Strategy is UNDEFINED");
     }
@@ -523,6 +572,19 @@ namespace mt_kahypar {
         std::atomic<int> total_edge_frequency_combinations(0);
         std::atomic<int> total_synthetic_parent_combinations(0);
         std::atomic<int> total_iterations(0);
+
+        // Per-operator yield tracking
+        std::atomic<int> attempts_vcycle_mutation(0);
+        std::atomic<int> accepted_vcycle_mutation(0);
+        std::atomic<int> attempts_new_init_mutation(0);
+        std::atomic<int> accepted_new_init_mutation(0);
+
+        std::atomic<int> attempts_basic_combine(0);
+        std::atomic<int> accepted_basic_combine(0);
+        std::atomic<int> attempts_edge_freq_combine(0);
+        std::atomic<int> accepted_edge_freq_combine(0);
+        std::atomic<int> attempts_synthetic_combine(0);
+        std::atomic<int> accepted_synthetic_combine(0);
 
         // State for stopping criterion
         double early_window_improvement_rate = -1.0;
@@ -643,8 +705,21 @@ namespace mt_kahypar {
                         switch (decision) {
                             case EvoDecision::mutation:
                                 {
-                                    auto individual = performMutation(hg_copy, evo_context, target_graph, population);
-                                    insert_individual_into_population(individual, evo_context, population, total_iterations.load() + 1);
+                                    auto mut_result = performMutation(hg_copy, evo_context, target_graph, population);
+                                    std::string op_name = (mut_result.strategy == EvoMutateStrategy::vcycle) ? "vCycle_Mutate" : "NewInit_Mutate";
+                                    if (mut_result.strategy == EvoMutateStrategy::vcycle) {
+                                        attempts_vcycle_mutation.fetch_add(1, std::memory_order_relaxed);
+                                    } else {
+                                        attempts_new_init_mutation.fetch_add(1, std::memory_order_relaxed);
+                                    }
+                                    bool was_accepted = insert_individual_into_population(mut_result.individual, evo_context, population, total_iterations.load() + 1, op_name);
+                                    if (was_accepted) {
+                                        if (mut_result.strategy == EvoMutateStrategy::vcycle) {
+                                            accepted_vcycle_mutation.fetch_add(1, std::memory_order_relaxed);
+                                        } else {
+                                            accepted_new_init_mutation.fetch_add(1, std::memory_order_relaxed);
+                                        }
+                                    }
                                     total_mutations++;
                                     total_iterations++;
                                     break;
@@ -652,7 +727,27 @@ namespace mt_kahypar {
                             case EvoDecision::combine:
                                 {
                                     const CombineResult result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
-                                    insert_individual_into_population(result.individual, evo_context, population, total_iterations.load() + 1);
+                                    std::string op_name = "Basic_Combine";
+                                    if (result.strategy == EvoCombineStrategy::basic) {
+                                        attempts_basic_combine.fetch_add(1, std::memory_order_relaxed);
+                                        op_name = "Basic_Combine";
+                                    } else if (result.strategy == EvoCombineStrategy::edge_frequency) {
+                                        attempts_edge_freq_combine.fetch_add(1, std::memory_order_relaxed);
+                                        op_name = "EdgeFreq_Combine";
+                                    } else if (result.strategy == EvoCombineStrategy::synthetic_parent) {
+                                        attempts_synthetic_combine.fetch_add(1, std::memory_order_relaxed);
+                                        op_name = "Synthetic_Combine";
+                                    }
+                                    bool was_accepted = insert_individual_into_population(result.individual, evo_context, population, total_iterations.load() + 1, op_name);
+                                    if (was_accepted) {
+                                        if (result.strategy == EvoCombineStrategy::basic) {
+                                            accepted_basic_combine.fetch_add(1, std::memory_order_relaxed);
+                                        } else if (result.strategy == EvoCombineStrategy::edge_frequency) {
+                                            accepted_edge_freq_combine.fetch_add(1, std::memory_order_relaxed);
+                                        } else if (result.strategy == EvoCombineStrategy::synthetic_parent) {
+                                            accepted_synthetic_combine.fetch_add(1, std::memory_order_relaxed);
+                                        }
+                                    }
                                     total_combinations++;
                                     total_iterations++;
                                 switch (result.strategy) {
@@ -752,14 +847,32 @@ namespace mt_kahypar {
                         Hypergraph hg_copy = hg.copy(parallel_tag_t{});
                         std::shared_ptr<Individual> child;
 
+                        std::string op_name = "Unknown";
                         switch (decision) {
                             case EvoDecision::mutation: {
-                                child = performMutation(hg_copy, evo_context, target_graph, population, &rng);
+                                auto mut_result = performMutation(hg_copy, evo_context, target_graph, population, &rng);
+                                op_name = (mut_result.strategy == EvoMutateStrategy::vcycle) ? "vCycle_Mutate" : "NewInit_Mutate";
+                                if (mut_result.strategy == EvoMutateStrategy::vcycle) {
+                                    attempts_vcycle_mutation.fetch_add(1, std::memory_order_relaxed);
+                                } else {
+                                    attempts_new_init_mutation.fetch_add(1, std::memory_order_relaxed);
+                                }
+                                child = std::move(mut_result.individual);
                                 total_mutations.fetch_add(1, std::memory_order_relaxed);
                                 break;
                             }
                             case EvoDecision::combine: {
                                 auto result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params, &rng);
+                                if (result.strategy == EvoCombineStrategy::basic) {
+                                    attempts_basic_combine.fetch_add(1, std::memory_order_relaxed);
+                                    op_name = "Basic_Combine";
+                                } else if (result.strategy == EvoCombineStrategy::edge_frequency) {
+                                    attempts_edge_freq_combine.fetch_add(1, std::memory_order_relaxed);
+                                    op_name = "EdgeFreq_Combine";
+                                } else if (result.strategy == EvoCombineStrategy::synthetic_parent) {
+                                    attempts_synthetic_combine.fetch_add(1, std::memory_order_relaxed);
+                                    op_name = "Synthetic_Combine";
+                                }
                                 child = std::move(result.individual);
                                 total_combinations.fetch_add(1, std::memory_order_relaxed);
                                 switch (result.strategy) {
@@ -783,6 +896,7 @@ namespace mt_kahypar {
                         }
 
                         // Store individual in batch
+                        child->setOriginOperator(op_name);
                         batch_individuals[static_cast<size_t>(batch_pos)] = std::move(child);
                         
                         int finished_count = items_finished_in_current_batch.fetch_add(1, std::memory_order_acq_rel) + 1;
@@ -791,7 +905,15 @@ namespace mt_kahypar {
                             // Insert entire batch into population
                             for (size_t i = 0; i < batch_size; ++i) {
                                 const int current_batch_start_id = batch_id * batch_size;
-                                insert_individual_into_population(std::make_unique<Individual>(std::move(*batch_individuals[i])), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1);
+                                std::string cur_op = batch_individuals[i]->originOperator();
+                                bool was_accepted = insert_individual_into_population(std::make_unique<Individual>(std::move(*batch_individuals[i])), evo_context, population, current_batch_start_id + static_cast<int>(i) + 1, cur_op);
+                                if (was_accepted) {
+                                    if (cur_op == "vCycle_Mutate") accepted_vcycle_mutation.fetch_add(1, std::memory_order_relaxed);
+                                    else if (cur_op == "NewInit_Mutate") accepted_new_init_mutation.fetch_add(1, std::memory_order_relaxed);
+                                    else if (cur_op == "Basic_Combine") accepted_basic_combine.fetch_add(1, std::memory_order_relaxed);
+                                    else if (cur_op == "EdgeFreq_Combine") accepted_edge_freq_combine.fetch_add(1, std::memory_order_relaxed);
+                                    else if (cur_op == "Synthetic_Combine") accepted_synthetic_combine.fetch_add(1, std::memory_order_relaxed);
+                                }
 
                                 if (iteration_logging_enabled) {
                                 // One "iteration" per inserted individual
@@ -874,6 +996,29 @@ namespace mt_kahypar {
             utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_synthetic_parent_combinations", static_cast<int64_t>(total_synthetic_parent_combinations.load()));
         }
         LOG << "===================================================";
+        LOG << "Operator Yield Statistics";
+        const auto print_op_stat = [&](const std::string& name, int attempts, int accepted) {
+            double rate = attempts > 0 ? (static_cast<double>(accepted) / attempts) * 100.0 : 0.0;
+            LOG << "  " << name << ": " << attempts << " attempts | " << accepted << " accepted (" << rate << "%)";
+        };
+        print_op_stat("Basic Combine", attempts_basic_combine.load(), accepted_basic_combine.load());
+        print_op_stat("Edge Frequency Combine", attempts_edge_freq_combine.load(), accepted_edge_freq_combine.load());
+        print_op_stat("Synthetic Parent Combine", attempts_synthetic_combine.load(), accepted_synthetic_combine.load());
+        print_op_stat("vCycle Mutation", attempts_vcycle_mutation.load(), accepted_vcycle_mutation.load());
+        print_op_stat("New Initial Part Mutation", attempts_new_init_mutation.load(), accepted_new_init_mutation.load());
+
+        LOG << "===================================================";
+        LOG << "Population Slot Replacement Heatmap";
+        std::vector<size_t> slot_reps = population.slotReplacements();
+        size_t untouched_slots = 0;
+        size_t max_reps = 0;
+        for (size_t i = 0; i < slot_reps.size(); ++i) {
+            if (slot_reps[i] == 0) untouched_slots++;
+            if (slot_reps[i] > max_reps) max_reps = slot_reps[i];
+        }
+        LOG << "  Total slots: " << slot_reps.size() << " | Untouched (alive since init): " << untouched_slots << " | Max overwrites on single slot: " << max_reps;
+
+        LOG << "===================================================";
         LOG << "Insertion Statistics";
         LOG << "  " << population.total_insert_attempts.load() << " total insertion attempts";
         LOG << "  " << population.accepted_replacement.load() << " accepted insertions";
@@ -882,6 +1027,17 @@ namespace mt_kahypar {
         const size_t rejected = population.rejected_worse_than_worst.load();
         const double percentage = total > 0 ? (static_cast<double>(rejected) / total) * 100.0 : 0.0;
         LOG << "  " << percentage << "% rejection percentage";
+
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_basic_combine_attempts", static_cast<int64_t>(attempts_basic_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_basic_combine_accepted", static_cast<int64_t>(accepted_basic_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_edge_freq_combine_attempts", static_cast<int64_t>(attempts_edge_freq_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_edge_freq_combine_accepted", static_cast<int64_t>(accepted_edge_freq_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_synthetic_combine_attempts", static_cast<int64_t>(attempts_synthetic_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_synthetic_combine_accepted", static_cast<int64_t>(accepted_synthetic_combine.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_vcycle_mutation_attempts", static_cast<int64_t>(attempts_vcycle_mutation.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_vcycle_mutation_accepted", static_cast<int64_t>(accepted_vcycle_mutation.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_new_init_mutation_attempts", static_cast<int64_t>(attempts_new_init_mutation.load()));
+        utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_new_init_mutation_accepted", static_cast<int64_t>(accepted_new_init_mutation.load()));
 
         utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_insertion_attempts", static_cast<int64_t> (population.total_insert_attempts.load()));
         utils::Utilities::instance().getStats(context.utility_id).add_stat("evo_accepted_replacements", static_cast<int64_t>(population.accepted_replacement.load()));
@@ -936,6 +1092,14 @@ std::mutex EvoPartitioner<TypeTraits>::iteration_log_mutex;
 template<typename TypeTraits>
 std::vector<evolutionary::ImprovementLogEntry>
 EvoPartitioner<TypeTraits>::improvement_log_entries;
+
+template<typename TypeTraits>
+std::vector<evolutionary::PopulationSummaryLogEntry>
+EvoPartitioner<TypeTraits>::population_summary_entries;
+
+template<typename TypeTraits>
+std::mutex EvoPartitioner<TypeTraits>::population_summary_mutex;
+
 template<typename TypeTraits>
 thread_local std::vector<std::unique_ptr<Individual>> EvoPartitioner<TypeTraits>::thread_local_temporaries_;
 

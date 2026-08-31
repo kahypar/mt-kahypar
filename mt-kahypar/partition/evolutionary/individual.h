@@ -104,8 +104,20 @@ class Individual {
     ASSERT(!_strong_cut_edges.empty());
     return _strong_cut_edges;
   }
+  inline int birthIteration() const {
+    return _birth_iteration;
+  }
+  inline void setBirthIteration(int iter) {
+    _birth_iteration = iter;
+  }
+  inline const std::string& originOperator() const {
+    return _origin_operator;
+  }
+  inline void setOriginOperator(const std::string& op) {
+    _origin_operator = op;
+  }
   inline void print() const {
-    LOG << "Fitness:" << _fitness;
+    LOG << "Fitness:" << _fitness << " Origin:" << _origin_operator << " Born:" << _birth_iteration;
   }
   inline void printDebug() const {
     LOG << "Fitness:" << _fitness;
@@ -135,6 +147,8 @@ class Individual {
   std::vector<HyperedgeID> _cut_edges;
   std::vector<HyperedgeID> _strong_cut_edges;
   HyperedgeWeight _fitness;
+  int _birth_iteration = 0;
+  std::string _origin_operator = "Initial";
 };
 std::ostream& operator<< (std::ostream& os, const Individual& individual);
 using Individuals = std::vector<std::shared_ptr<Individual>>;
