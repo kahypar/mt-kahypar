@@ -44,6 +44,13 @@ namespace mt_kahypar {
         size_t max_distance = 0;
     };
 
+    struct InsertionDetails {
+        size_t position = std::numeric_limits<size_t>::max();
+        bool was_accepted = false;
+        int64_t dist_to_replaced = -1;
+        size_t min_dist_pop = 0;
+    };
+
     class Population {
     private:
         static constexpr bool debug = true;
@@ -71,6 +78,7 @@ namespace mt_kahypar {
 
         //modifiers
         size_t insert(std::shared_ptr<Individual> individual, const Context &context);
+        InsertionDetails insertWithDetails(std::shared_ptr<Individual> individual, const Context &context);
         void addStartingIndividual(std::shared_ptr<Individual> individual, const Context &context);
 
         //_individuals accessors
@@ -91,6 +99,7 @@ namespace mt_kahypar {
         //summary & diversity
         PopulationSummary computeSummary() const;
         std::vector<size_t> slotReplacements() const;
+        static size_t distanceBetween(const Individual& a, const Individual& b, bool strong_set = false);
 
         //debug
         void print() const;

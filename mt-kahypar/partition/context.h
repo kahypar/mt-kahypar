@@ -317,6 +317,7 @@ struct EvolutionaryParameters {
   std::string diff_matrix_file;
   std::string iteration_log_file;
   std::string population_summary_file;
+  std::string offspring_log_file;
   size_t iteration_log_limit = 1000;
   bool enable_iteration_logging = false;
   int kway_combine = 2;

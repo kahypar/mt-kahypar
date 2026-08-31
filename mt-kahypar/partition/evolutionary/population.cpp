@@ -28,19 +28,22 @@ std::ostream& operator<< (std::ostream& os, const Population& population) {
   return os;
 }
 
-size_t Population::insert(std::shared_ptr<Individual> individual, const Context& context) {
+InsertionDetails Population::insertWithDetails(std::shared_ptr<Individual> individual, const Context& context) {
     total_insert_attempts.fetch_add(1, std::memory_order_relaxed);
-    // NM: rewrite this method as follows (requires that Individuals already use shared_ptr):
-    // 1. copy the vector of individuals, release lock after copy
-    // 2. determine replacement on copied vector
-    // 3. take lock and check whether individual at determined index is still the same
-    // 4. if yes, replace individual, if no, go back to 1.
+    InsertionDetails details;
     while (true) {
       Individuals individuals_copy;
       {
         std::lock_guard<std::mutex> guard(_population_mutex);
         individuals_copy = _individuals;
       }
+      size_t min_pop_dist = std::numeric_limits<size_t>::max();
+      for (size_t i = 0; i < individuals_copy.size(); ++i) {
+        size_t d = distanceBetween(*individual, *individuals_copy[i], false);
+        if (d < min_pop_dist) min_pop_dist = d;
+      }
+      details.min_dist_pop = (min_pop_dist == std::numeric_limits<size_t>::max()) ? 0 : min_pop_dist;
+
       DBG << context.evolutionary.replace_strategy;
       size_t insert_position;
       switch (context.evolutionary.replace_strategy) {
@@ -54,18 +57,33 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
           insert_position = diversePosition(individuals_copy, individual, true);
           break;
         default:
-          return std::numeric_limits<size_t>::max();
+          details.was_accepted = false;
+          details.position = std::numeric_limits<size_t>::max();
+          details.dist_to_replaced = -1;
+          return details;
       }
-      if (insert_position == std::numeric_limits<size_t>::max()) {return insert_position;}
+      if (insert_position == std::numeric_limits<size_t>::max()) {
+        details.was_accepted = false;
+        details.position = insert_position;
+        details.dist_to_replaced = -1;
+        return details;
+      }
       {
         std::lock_guard<std::mutex> guard(_population_mutex);
         if (individuals_copy[insert_position] == _individuals[insert_position]) {
+          details.dist_to_replaced = static_cast<int64_t>(distanceBetween(*individual, *_individuals[insert_position], false));
           accepted_replacement.fetch_add(1, std::memory_order_relaxed);
-          return forceInsert(individual, insert_position);
+          details.position = forceInsert(individual, insert_position);
+          details.was_accepted = true;
+          return details;
         }
       }
     }
   }
+
+size_t Population::insert(std::shared_ptr<Individual> individual, const Context& context) {
+    return insertWithDetails(std::move(individual), context).position;
+}
 
   void Population::addStartingIndividual(std::shared_ptr<Individual> individual, const Context& context) {
   std::lock_guard<std::mutex> guard(_population_mutex);
@@ -270,32 +288,27 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
       _individuals[i]->printDebug();
     }
   }
-  size_t Population::difference(std::shared_ptr<Individual> individual, const size_t position,
-                           const bool strong_set) const {
+  size_t Population::distanceBetween(const Individual& a, const Individual& b, const bool strong_set) {
     std::vector<HyperedgeID> output_diff;
     if (strong_set) {
-      ASSERT(std::is_sorted(_individuals[position]->strongCutEdges().begin(),
-                            _individuals[position]->strongCutEdges().end()));
-      ASSERT(std::is_sorted(individual->strongCutEdges().begin(),
-                            individual->strongCutEdges().end()));
-      std::set_symmetric_difference(_individuals[position]->strongCutEdges().begin(),
-                                    _individuals[position]->strongCutEdges().end(),
-                                    individual->strongCutEdges().begin(),
-                                    individual->strongCutEdges().end(),
+      ASSERT(std::is_sorted(a.strongCutEdges().begin(), a.strongCutEdges().end()));
+      ASSERT(std::is_sorted(b.strongCutEdges().begin(), b.strongCutEdges().end()));
+      std::set_symmetric_difference(a.strongCutEdges().begin(), a.strongCutEdges().end(),
+                                    b.strongCutEdges().begin(), b.strongCutEdges().end(),
                                     std::back_inserter(output_diff));
     } else {
-      ASSERT(std::is_sorted(_individuals[position]->cutEdges().begin(),
-                            _individuals[position]->cutEdges().end()));
-      ASSERT(std::is_sorted(individual->cutEdges().begin(),
-                            individual->cutEdges().end()));
-      std::set_symmetric_difference(_individuals[position]->cutEdges().begin(),
-                                    _individuals[position]->cutEdges().end(),
-                                    individual->cutEdges().begin(),
-                                    individual->cutEdges().end(),
+      ASSERT(std::is_sorted(a.cutEdges().begin(), a.cutEdges().end()));
+      ASSERT(std::is_sorted(b.cutEdges().begin(), b.cutEdges().end()));
+      std::set_symmetric_difference(a.cutEdges().begin(), a.cutEdges().end(),
+                                    b.cutEdges().begin(), b.cutEdges().end(),
                                     std::back_inserter(output_diff));
     }
-    //DBG << V(output_diff.size());
     return output_diff.size();
+  }
+
+  size_t Population::difference(std::shared_ptr<Individual> individual, const size_t position,
+                           const bool strong_set) const {
+    return distanceBetween(*individual, *_individuals[position], strong_set);
   }
 
   std::string Population::toString(const std::vector<size_t>& values) {

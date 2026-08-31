@@ -1329,6 +1329,11 @@ namespace mt_kahypar {
       "Output file for evolution population summary log (fitness and diversity over time)"
     );
     app.add_option(
+      "--evo-offspring-log-file",
+      context.evolutionary.offspring_log_file,
+      "Output file for evolution offspring telemetry log (operator, parent fitness, child fitness, distance, acceptance)"
+    );
+    app.add_option(
       "--evo-enable-iteration-logging",
       context.evolutionary.enable_iteration_logging,
       "Enable iteration logging for evolutionary partitioning"

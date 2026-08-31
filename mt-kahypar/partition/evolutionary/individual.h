@@ -116,6 +116,18 @@ class Individual {
   inline void setOriginOperator(const std::string& op) {
     _origin_operator = op;
   }
+  inline HyperedgeWeight parentBestFitness() const {
+    return _parent_best_fitness;
+  }
+  inline void setParentBestFitness(HyperedgeWeight fit) {
+    _parent_best_fitness = fit;
+  }
+  inline size_t distToParent() const {
+    return _dist_to_parent;
+  }
+  inline void setDistToParent(size_t dist) {
+    _dist_to_parent = dist;
+  }
   inline void print() const {
     LOG << "Fitness:" << _fitness << " Origin:" << _origin_operator << " Born:" << _birth_iteration;
   }
@@ -149,6 +161,8 @@ class Individual {
   HyperedgeWeight _fitness;
   int _birth_iteration = 0;
   std::string _origin_operator = "Initial";
+  HyperedgeWeight _parent_best_fitness = 0;
+  size_t _dist_to_parent = 0;
 };
 std::ostream& operator<< (std::ostream& os, const Individual& individual);
 using Individuals = std::vector<std::shared_ptr<Individual>>;
