@@ -204,7 +204,6 @@ static constexpr bool debug = true;
   template <typename TypeTraits>
   std::shared_ptr<Individual> usingMultiEdgeFrequency(const typename TypeTraits::Hypergraph& input_hg, Population& population,const Context& context, TargetGraph* target_graph, std::mt19937* rng) {
     Context sub_context = Context(context);
-    sub_context.partition.num_vcycles = 2;
     typename TypeTraits::Hypergraph hypergraph = input_hg.copy(parallel_tag_t{});
     //parent amount maybe sqrt(population.size) rounded up
     const size_t parent_amount = std::max(2.0, std::ceil(std::sqrt(context.evolutionary.population_size)));
