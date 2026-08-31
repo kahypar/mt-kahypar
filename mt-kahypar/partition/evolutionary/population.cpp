@@ -397,7 +397,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   size_t Population::diversePosition(const Individuals &individuals, std::shared_ptr<Individual> individual, const bool strong_set) {
   size_t max_similarity = std::numeric_limits<size_t>::max();
   size_t max_similarity_id = 0;
-  if (individual->fitness() > individuals[worst(individuals)]->fitness()) {
+  if (individual->fitness()* 0.8 > individuals[worst(individuals)]->fitness()) {
     DBG << "COLLAPSE";
     const size_t rejected = rejected_worse_than_worst.fetch_add(1, std::memory_order_relaxed) + 1;
     const size_t total = total_insert_attempts.load(std::memory_order_relaxed);
@@ -407,7 +407,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   }
   //Could be Parallelized
   for (size_t i = 0; i < individuals.size(); ++i) {
-    if (individuals[i]->fitness() >= individual->fitness()) {
+    if (individuals[i]->fitness() >= individual->fitness()*0.9) {
       const size_t similarity = difference(individual, i, strong_set);
       DBG << "SYMMETRIC DIFFERENCE:" << similarity << " from" << i;
       if (similarity < max_similarity) {
