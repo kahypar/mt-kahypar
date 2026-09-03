@@ -1,7 +1,10 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
+#include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -16,7 +19,9 @@ namespace debug = utils_tm::debug_tm;
 
 #ifndef ICPC
 #include <xmmintrin.h>
-using int128_t = __m128i;
+struct alignas(16) int128_t {
+    std::array<uint8_t, 16> data;
+};
 #else
 using int128_t = __int128_t;
 #endif
@@ -317,7 +322,8 @@ simple_slot<K, D, m, dd>::atomic_slot_type::load() const
     // _mm_load_ps because the memory should be aligned
 
     // as128i() = (int128_t) _mm_loadu_ps((float *) &e);
-    auto temp = _mm_loadu_si128(&_raw_data);
+    auto temp = std::bit_cast<int128_t>(
+        _mm_loadu_si128(reinterpret_cast<const __m128i*>(&_raw_data)));
     return slot_type(temp);
 }
 

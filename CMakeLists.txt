@@ -422,8 +422,11 @@ target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools)
 
 if(KAHYPAR_USE_GROWT)
-  target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/growt)
+  target_include_directories(MtKaHyPar-Include INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/growt
+  )
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
+  target_link_libraries(MtKaHyPar-BuildFlags INTERFACE atomic)
 endif()
 
 if(NOT KAHYPAR_DISABLE_PARLAY)
