@@ -260,7 +260,7 @@ endif()
 
 # Add compile flags that enable warnings
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
         -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
         -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -Wno-unused-function
     >
@@ -311,15 +311,15 @@ target_compile_options(MtKaHyPar-BuildFlags INTERFACE
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Oy->
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-omit-frame-pointer>
 )
-target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
-    $<$<CXX_COMPILER_ID:MSVC>:
-        NOMINMAX # disable min/max macros as they clash with the standard library
-        NOGDI # avoid pulling in the ERROR macro
-        WIN32_LEAN_AND_MEAN # we only need process, thread, file and console support
-    >
-)
+if(WIN32)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+      NOMINMAX # disable min/max macros as they clash with the standard library
+      NOGDI # avoid pulling in the ERROR macro
+      WIN32_LEAN_AND_MEAN # we only need process, thread, file and console support
+  )
+endif()
 
-if(UNIX AND NOT WIN32)
+if(UNIX)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
 endif()
