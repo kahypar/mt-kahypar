@@ -60,14 +60,21 @@ class GenericAlignedAllocator
     {
 
         if (n > max_size()) throw std::bad_alloc();
-
+#ifdef _WIN32
+        return static_cast<pointer>(_aligned_malloc(n * sizeof(T), A));
+#else
         return static_cast<pointer>(memalign(A, n * sizeof(T)));
+#endif
     }
 
     //! Frees an allocated piece of memory
     void deallocate(pointer p, size_type /* size_hint */ = 0) noexcept
     {
+#ifdef _WIN32
+        _aligned_free(p);
+#else
         free(p);
+#endif
     }
 
     //! Returns the adress of x.
