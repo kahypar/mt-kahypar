@@ -17,22 +17,9 @@
 
 #include <atomic>
 #include <iostream>
-#include <memory>
-#include <stdlib.h>
-#include <sys/time.h>
-
-#include <linux/futex.h>
-#include <sys/syscall.h>
-#include <unistd.h>
 
 namespace growt
 {
-
-static long sys_futex(void* addr1, int op, int val1, struct timespec* timeout,
-                      void* addr2, int val3)
-{
-    return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);
-}
 
 class alignas(64) counting_wait
 {
@@ -52,17 +39,16 @@ class alignas(64) counting_wait
                                                std::memory_order_acquire);
     }
 
-    inline bool wait_if(int exp)
+    inline void wait_if(int exp)
     {
         // while (counter.load(std::memory_order_acquire) < l_epoch) ;
         // //temporary should soon be removed
-        auto ecode = sys_futex(&counter, FUTEX_WAIT, exp, NULL, NULL, 0);
-        return !ecode;
+        counter.wait(exp);
     }
 
-    inline uint wake(uint n_threads = 9999)
+    inline void wake()
     {
-        return sys_futex(&counter, FUTEX_WAKE, n_threads, NULL, NULL, 0);
+        counter.notify_all();
     }
 
   private:
