@@ -26,10 +26,14 @@
 
 #pragma once
 
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include "kahypar-resources/datastructure/kway_priority_queue.h"
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"

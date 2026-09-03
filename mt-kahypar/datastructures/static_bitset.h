@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <limits>
 
@@ -42,7 +43,7 @@ class StaticBitset {
  public:
   using Block = uint64_t;
   static constexpr Block BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
-  static_assert(__builtin_popcountll(BITS_PER_BLOCK) == 1);
+  static_assert(utils::popcount_64(BITS_PER_BLOCK) == 1);
   static constexpr Block MOD_MASK = BITS_PER_BLOCK - 1;
   static constexpr Block DIV_SHIFT = utils::log2(BITS_PER_BLOCK);
 
@@ -113,7 +114,8 @@ class StaticBitset {
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Block loadCurrentBlock() {
       ASSERT(static_cast<size_t>(_current_block_id >> DIV_SHIFT) <= _num_blocks);
-      return __atomic_load_n(_bitset + ( _current_block_id >> DIV_SHIFT ), __ATOMIC_RELAXED);
+      return std::atomic_ref(const_cast<Block&>(_bitset[_current_block_id >> DIV_SHIFT]))
+          .load(std::memory_order::relaxed);
     }
 
     ENABLE_ASSERTIONS(const size_t _num_blocks;)
@@ -171,8 +173,7 @@ class StaticBitset {
   int popcount() const {
     int cnt = 0;
     for ( size_t i = 0; i < _num_blocks; ++i ) {
-      cnt += utils::popcount_64(
-        __atomic_load_n(_bitset + i, __ATOMIC_RELAXED));
+      cnt += utils::popcount_64(std::atomic_ref(const_cast<Block&>(_bitset[i])).load(std::memory_order::relaxed));
     }
     return cnt;
   }

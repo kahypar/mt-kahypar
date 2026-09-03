@@ -112,7 +112,8 @@ public:
     const size_t div = p / BITS_PER_BLOCK;
     const size_t rem = p % BITS_PER_BLOCK;
     const size_t pos = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
-    return __atomic_load_n(&_bits[pos], __ATOMIC_RELAXED) & (UnsafeBlock(1) << rem);
+    return std::atomic_ref(const_cast<UnsafeBlock&>(_bits[pos]))
+        .load(std::memory_order::relaxed) & (UnsafeBlock(1) << rem);
   }
 
   // not threadsafe
@@ -120,18 +121,19 @@ public:
     const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
     const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
-      __atomic_store_n(&_bits[i], 0, __ATOMIC_RELAXED);
+      std::atomic_ref(_bits[i]).store(0, std::memory_order::relaxed);
     }
   }
 
   void reset(const bool reset_parallel = false) {
     if ( reset_parallel ) {
       tbb::parallel_for(UL(0), _bits.size(), [&](const size_t i) {
-        __atomic_store_n(&_bits[i], 0, __ATOMIC_RELAXED);
+        std::atomic_ref(_bits[i]).store(0, std::memory_order::relaxed);
       });
-    } else {
+    }
+    else {
       for (size_t i = 0; i < _bits.size(); ++i) {
-        __atomic_store_n(&_bits[i], 0, __ATOMIC_RELAXED);
+        std::atomic_ref(_bits[i]).store(0, std::memory_order::relaxed);
       }
     }
   }
@@ -141,7 +143,7 @@ public:
     const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
     const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
-      conn += utils::popcount_64(__atomic_load_n(&_bits[i], __ATOMIC_RELAXED));
+      conn += utils::popcount_64(std::atomic_ref(const_cast<UnsafeBlock&>(_bits[i])).load(std::memory_order::relaxed));
     }
     return conn;
   }
@@ -183,7 +185,7 @@ private:
     const size_t div = p / BITS_PER_BLOCK, rem = p % BITS_PER_BLOCK;
     const size_t idx = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
     ASSERT(idx < _bits.size());
-    __atomic_xor_fetch(&_bits[idx], UnsafeBlock(1) << rem, __ATOMIC_RELAXED);
+    std::atomic_ref(_bits[idx]).fetch_xor(UnsafeBlock(1) << rem, std::memory_order::relaxed);
 	}
 
 	ENABLE_ASSERTIONS(PartitionID _k;)

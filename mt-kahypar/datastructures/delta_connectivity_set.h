@@ -130,7 +130,8 @@ class DeltaConnectivitySet {
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UnsafeBlock loadCurrentBlock() {
       ASSERT(static_cast<size_t>(_current_block_id / BITS_PER_BLOCK) < _num_blocks);
       const size_t block_idx = _current_block_id / BITS_PER_BLOCK;
-      return __atomic_load_n(_shared_bitset + block_idx, __ATOMIC_RELAXED) ^ *( _thread_local_bitset + block_idx );
+      return std::atomic_ref(const_cast<UnsafeBlock&>(_shared_bitset[block_idx]))
+          .load(std::memory_order::relaxed) ^ *(_thread_local_bitset + block_idx);
     }
 
     const size_t _num_blocks;

@@ -27,6 +27,8 @@
 
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
 
+#include <atomic>
+
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
@@ -171,7 +173,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
       const whfc::Node& u = p.pin;
       //destroy first_out temporarily and reset later
       whfc::InHeIndex::ValueType ind_he = nodes[u].first_out +
-        __atomic_fetch_add(&_inc_he_pos[u], 1, __ATOMIC_RELAXED);
+          std::atomic_ref(_inc_he_pos[u]).fetch_add(1, std::memory_order::relaxed);
       incident_hyperedges[ind_he] = { e, pin_it };
       //set iterator for incident hyperedge -> its position in incident_hyperedges of the node
       p.he_inc_iter = whfc::InHeIndex(ind_he);

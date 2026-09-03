@@ -328,7 +328,9 @@ namespace mt_kahypar {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
     if (parallel::provides_hardware_information && verbose) {
+#ifndef KAHYPAR_DISABLE_HWLOC
       str << "  Number of used NUMA nodes:          " << parallel::num_used_numa_nodes() << std::endl;
+#endif
     }
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     if (params.use_localized_random_shuffle) {
