@@ -361,9 +361,9 @@ bool complex_slot<K, D, m, A>::slot_type::compare_key(const key_type& k,
 
 // *** operators ***************************************************************
 template <class K, class D, bool m, class A>
-complex_slot<K, D, m, A>::slot_type::operator value_type() const
+complex_slot<K, D, m, A>::slot_type::operator complex_slot<K, D, m, A>::value_type() const
 {
-    auto ptr = reinterpret_cast<value_type*>(_mfptr.split.pointer);
+    auto ptr = reinterpret_cast<complex_slot<K, D, m, A>::value_type*>(_mfptr.split.pointer);
     if (ptr == nullptr || _mfptr.full == 1ull << 48)
     {
         debug::if_debug("getting value_type from empty slot");

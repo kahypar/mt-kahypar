@@ -327,7 +327,7 @@ class migration_table_handle
   protected:
     template <typename Functor, typename... Types>
     inline
-        typename std::result_of<Functor(hash_ptr_reference, Types&&...)>::type
+        typename std::invoke_result<Functor, hash_ptr_reference, Types&&...>::type
         execute(Functor f, Types&&... param)
     {
         hash_ptr_reference temp = _local_exclusion.get_table();
@@ -339,7 +339,7 @@ class migration_table_handle
 
     template <typename Functor, typename... Types>
     inline
-        typename std::result_of<Functor(hash_ptr_reference, Types&&...)>::type
+        typename std::invoke_result<Functor, hash_ptr_reference, Types&&...>::type
         cexecute(Functor f, Types&&... param) const
     {
         hash_ptr_reference temp = _local_exclusion.get_table();
