@@ -49,7 +49,7 @@ enum class ReturnCode
     TSX_ABORT = 1024 // TSX+ERROR
 };
 
-inline bool successful(ReturnCode ec) { return (static_cast<uint>(ec) & 1u); }
+inline bool successful(ReturnCode ec) { return (static_cast<unsigned int>(ec) & 1u); }
 
 
 // class ReturnElement

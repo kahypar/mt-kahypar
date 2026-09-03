@@ -49,7 +49,7 @@ class counting_manager
 
       private:
         std::atomic_uint      _counter;
-        static constexpr uint del_flag = 1 << 31;
+        static constexpr unsigned int del_flag = 1 << 31;
     };
 
     using this_type       = counting_manager<T, Destructor, Queue>;

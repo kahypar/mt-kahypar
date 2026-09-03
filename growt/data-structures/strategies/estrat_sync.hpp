@@ -440,8 +440,8 @@ estrat_sync<P>::local_data_type::blockwise_migrate(base_table_type& source,
     while (temp < source._mapper.addressable_slots())
     {
         n += source.migrate(target, temp,
-                            std::min(uint(temp + migration_block_size),
-                                     uint(source._mapper.addressable_slots())));
+                            std::min(static_cast<unsigned int>(temp + migration_block_size),
+                                     static_cast<unsigned int>(source._mapper.addressable_slots())));
         temp = source._current_copy_block.fetch_add(migration_block_size);
     }
     return n;
