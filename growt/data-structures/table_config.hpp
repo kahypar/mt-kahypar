@@ -9,7 +9,6 @@
 
 #include "strategies/estrat_async.hpp"
 #include "strategies/estrat_sync.hpp"
-#include "strategies/wstrat_pool.hpp"
 #include "strategies/wstrat_user.hpp"
 
 #include "base_linear.hpp"
@@ -92,10 +91,7 @@ class table_config
     using base_table_type = base_linear<base_table_config>;
 
     template <class P>
-    using workerstrat =
-        typename std::conditional<!mods::template is<hmod::pool>(),
-                                  wstrat_user<P>,
-                                  wstrat_pool<P> >::type;
+    using workerstrat = wstrat_user<P>;
     template <class P>
     using exclstrat =
         typename std::conditional<!mods::template is<hmod::sync>(),
