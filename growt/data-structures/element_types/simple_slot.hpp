@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -333,8 +334,8 @@ template <class K, class D, bool m, K dd>
 bool simple_slot<K, D, m, dd>::atomic_slot_type::cas(
     slot_type& expected, slot_type goal, [[maybe_unused]] bool release)
 {
-    return __sync_bool_compare_and_swap_16(
-        &_raw_data, reinterpret_cast<int128_t&>(expected), goal);
+    return std::atomic_ref<int128_t>(_raw_data).compare_exchange_strong(
+        reinterpret_cast<int128_t &>(expected), goal);
     // return __atomic_compare_exchange_16(
     //     &_raw_data,
     //     reinterpret_cast<int128_t*>(expected),

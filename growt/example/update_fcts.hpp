@@ -1,6 +1,7 @@
 #ifndef UPDATE_FCTS_H
 #define UPDATE_FCTS_H
 
+#include <atomic>
 #include <cstdint>
 #include <type_traits>
 
@@ -22,7 +23,7 @@ struct Increment
     // this will be detected automatically
     mapped_type atomic(mapped_type& lhs, const mapped_type& rhs) const
     {
-        return __sync_fetch_and_add(&lhs, rhs);
+        return std::atomic_ref<mapped_type>(lhs).fetch_add(rhs);
     }
 
     // Only necessary for JunctionWrapper (not needed)
