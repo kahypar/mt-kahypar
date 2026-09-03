@@ -249,7 +249,7 @@ bool simple_slot<K, D, m, dd>::slot_type::compare_key(
 
 // *** operators ***************************************************************
 template <class K, class D, bool m, K dd>
-simple_slot<K, D, m, dd>::slot_type::operator value_type() const
+simple_slot<K, D, m, dd>::slot_type::operator simple_slot<K, D, m, dd>::value_type() const
 {
     return std::make_pair(get_key(), get_mapped());
 }
