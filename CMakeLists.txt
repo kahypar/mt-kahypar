@@ -426,7 +426,9 @@ if(KAHYPAR_USE_GROWT)
     ${CMAKE_CURRENT_SOURCE_DIR}/growt
   )
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
-  target_link_libraries(MtKaHyPar-BuildFlags INTERFACE atomic)
+  target_link_libraries(MtKaHyPar-BuildFlags INTERFACE
+      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:atomic>
+  )
 endif()
 
 if(NOT KAHYPAR_DISABLE_PARLAY)
