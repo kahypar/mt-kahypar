@@ -9,9 +9,8 @@ enum class hmod : size_t
     deletion      = 2,
     ref_integrity = 4,
     sync          = 8,
-    pool          = 16,
-    circular_map  = 32,
-    circular_prob = 64
+    circular_map  = 16,
+    circular_prob = 32
 };
 
 template <hmod... Mods> class mod_aggregator

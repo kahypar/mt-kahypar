@@ -120,8 +120,6 @@ class base_linear
     friend class estrat_sync;
     template <class>
     friend class wstrat_user;
-    template <class>
-    friend class wstrat_pool;
 
     // _parallel_init = false does not work with the asynchroneous variant
     static constexpr bool _parallel_init = true;
