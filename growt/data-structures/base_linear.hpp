@@ -400,7 +400,7 @@ base_linear<C>::base_linear(size_type capacity_)
     auto nslots = _mapper.total_slots();
     _table      = _allocator.allocate(nslots);
 
-    if (!_table) std::bad_alloc();
+    if (!_table) throw std::bad_alloc();
 
     // otm::buffered_out() << "(allocated ver 0 ptr " << _table << ")" <<
     // std::endl;
@@ -417,7 +417,7 @@ base_linear<C>::base_linear(mapper_type mapper_, size_type version_)
     // static_cast<atomic_slot_type*>(malloc(sizeof(atomic_slot_type)*_mapper.capacity+1000));
     _table = _allocator.allocate(_mapper.total_slots());
 
-    if (!_table) std::bad_alloc();
+    if (!_table) throw std::bad_alloc();
 
     // otm::buffered_out() << "(allocated ver " << version_ << " ptr " << _table
     // << ")" << std::endl;

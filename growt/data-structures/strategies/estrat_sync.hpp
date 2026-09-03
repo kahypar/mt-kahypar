@@ -219,8 +219,8 @@ template <class P> size_t estrat_sync<P>::global_data_type::register_handle()
                 --i;
         }
     }
-    std::length_error("Exceeded predefined maximum of simultaneously "
-                      "registered threads (256)!");
+    throw std::length_error("Exceeded predefined maximum of simultaneously "
+                            "registered threads (256)!");
     // unreachable
     return -1;
 }
