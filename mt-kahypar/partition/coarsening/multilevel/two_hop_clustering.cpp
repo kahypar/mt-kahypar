@@ -40,8 +40,8 @@ TwoHopClustering::TwoHopClustering(const HypernodeID num_nodes, const Context& c
   _cluster_count(num_nodes, AtomicID(0)),
   _local_cluster_count(std::thread::hardware_concurrency()),
   _favorite_clusters(),
-  _local_incidence_map([=] {
-    return CacheEfficienIncidenceMap(3UL * std::min(UL(num_nodes), _context.coarsening.two_hop_degree_threshold), 0.0);
+  _local_incidence_map([this, num_nodes] {
+    return CacheEfficienIncidenceMap(3UL * std::min(UL(num_nodes), this->_context.coarsening.two_hop_degree_threshold), 0.0);
   }),
   _local_collected_nodes(std::thread::hardware_concurrency()) {
     if (_context.coarsening.two_hop_cluster_size < 2) {
