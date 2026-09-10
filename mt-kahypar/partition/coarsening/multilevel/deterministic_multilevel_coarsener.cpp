@@ -257,7 +257,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
     double target_score = entry.value;
     bool accept_fixed_vertex_contraction = true;
     if constexpr ( has_fixed_vertices ) {
-      accept_fixed_vertex_contraction = FixedVertexAcceptancePolicy::acceptContraction(hg, fixed_vertices, _context, target_cluster, u);
+      accept_fixed_vertex_contraction = FixedVertexAcceptancePolicy::acceptContraction(hg, fixed_vertices, _context, u, target_cluster);
     }
 
     if (target_score >= best_score && target_cluster != u && hg.communityID(target_cluster) == comm_u

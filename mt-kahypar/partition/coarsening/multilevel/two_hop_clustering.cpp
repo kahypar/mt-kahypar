@@ -178,14 +178,19 @@ void TwoHopClustering::matchVerticesInBucket(const Hypergraph& hg,
 
   // match nodes that have the same favorite cluster
   const HypernodeID max_size = _context.coarsening.two_hop_cluster_size;
+  const bool has_fixed_vertices = hg.hasFixedVertices();
   for (size_t i = 0; i + 1 < bucket.size() && cc.shouldContinue(); ++i) {
     HypernodeID offset = 0;
     for (size_t j = i + 1; j < i + max_size && j < bucket.size() && cc.shouldContinue()
           && bucket[i].target == bucket[j].target && hg.communityID(bucket[i].hn) == hg.communityID(bucket[j].hn); ++j) {
       ASSERT((j > i + 1 || cc.vertexIsUnmatched(bucket[i].hn)) && cc.vertexIsUnmatched(bucket[j].hn));
-      // Note: cluster weight and fixed vertices are checked by `matchVertices` (might not succeed)
-      // j must be left, since only the right node is allowed to already be matched
-      bool success = cc.matchVertices(hg, bucket[j].hn, bucket[i].hn);
+
+      // Note: cluster weight is checked by `matchVertices` (might not succeed)
+      // contraction direction is j -> i, since only the right side is allowed to already be matched
+      bool success = false;
+      if (!has_fixed_vertices || cc.acceptFixedVertexContraction(hg, _context, bucket[j].hn, bucket[i].hn)) {
+        success = cc.matchVertices(hg, bucket[j].hn, bucket[i].hn);
+      }
       if (!success) {
         break;
       }

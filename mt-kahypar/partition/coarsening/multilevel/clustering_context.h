@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/num_nodes_tracker.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 
 
 namespace mt_kahypar {
@@ -133,6 +134,11 @@ struct ClusteringContext {
       num_nodes_tracker.subtractNode(original_num_threads, hierarchy_contraction_limit);
     }
     return success;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool acceptFixedVertexContraction(const Hypergraph& current_hg, const Context& context, const HypernodeID u, const HypernodeID v) {
+    return FixedVertexAcceptancePolicy::acceptContraction(current_hg, fixed_vertices, context, u, v);
   }
 
   bool finalize(const Hypergraph& current_hg, const Context& context) {

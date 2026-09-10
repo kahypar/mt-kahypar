@@ -169,7 +169,7 @@ class NLevelVertexPairRater {
         if constexpr ( has_fixed_vertices ) {
           accept_fixed_vertex_contraction =
             FixedVertexAcceptancePolicy::acceptContraction(
-              hypergraph, hypergraph.fixedVertexSupport(), _context, tmp_target, u);
+              hypergraph, hypergraph.fixedVertexSupport(), _context, u, tmp_target);
         }
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;

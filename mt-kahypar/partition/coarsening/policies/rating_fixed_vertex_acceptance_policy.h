@@ -47,16 +47,16 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
                                                                    const HypernodeID u,
                                                                    const HypernodeID v) {
     // We allow the following contractions:
-    // 1.) u = Fixed Vertex <- Free Vertex = v
-    // 2.) u = Free Vertex <- Free Vertex = v
-    // 3.) u = Fixed Vertex <- Fixed Vertex = v, but u and v must be assigned to the same fixed vertex block
+    // 1.) u = Free Vertex  -> Fixed Vertex = v
+    // 1.) u = Free Vertex  -> Free Vertex  = v
+    // 3.) u = Fixed Vertex -> Fixed Vertex = v, but u and v must be assigned to the same fixed vertex block
     // Note that we do not allow contractions that contract fixed vertex onto a free vertex.
     // This policy is the same as used in KaHyPar.
-    const bool accept_contraction = fixed_vertices.isFixed(u) || !fixed_vertices.isFixed(v);
+    const bool accept_contraction = !fixed_vertices.isFixed(u) || fixed_vertices.isFixed(v);
     // If both are fixed, both vertices must be in the same block
     const bool accept_fixed_vertex_contraction =
       !( fixed_vertices.isFixed(u) && fixed_vertices.isFixed(v) ) ||
-      ( fixed_vertices.fixedVertexBlock(u) == fixed_vertices.fixedVertexBlock(v) );
+      ( fixed_vertices.fixedVertexBlock(v) == fixed_vertices.fixedVertexBlock(u) );
     return accept_contraction && accept_fixed_vertex_contraction &&
       acceptImbalance(hypergraph, fixed_vertices, context, u, v);
   }
@@ -87,8 +87,8 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
     const PartitionID fixed_block = block_of_u == kInvalidPartition ? block_of_v : block_of_u;
     ASSERT(fixed_block != kInvalidPartition);
     const HypernodeWeight fixed_vertex_block_weight_after =
-      ( block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : fixed_vertices.fixedVertexBlockWeight(fixed_block) ) +
-      ( block_of_u == kInvalidPartition ? fixed_vertices.fixedVertexBlockWeight(fixed_block) : hypergraph.nodeWeight(v) );
+      fixed_vertices.fixedVertexBlockWeight(fixed_block) +
+        (block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : hypergraph.nodeWeight(v));
     return fixed_vertex_block_weight_after <=
       std::min(max_allowed_fixed_vertex_block_weight,
         context.partition.max_part_weights[fixed_block]);
