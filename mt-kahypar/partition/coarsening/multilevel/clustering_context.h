@@ -110,8 +110,8 @@ struct ClusteringContext {
 
   template<typename ScorePolicy, typename HeavyNodePenaltyPolicy, typename AcceptancePolicy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  Rating rate(const Hypergraph& current_hg, const HypernodeID u, bool has_fixed_vertices) {
-    if (has_fixed_vertices) {
+  Rating rate(const Hypergraph& current_hg, const HypernodeID u) {
+    if (fixed_vertices.hasFixedVertices()) {
       return rater.rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy, true>(
                   current_hg, u, cluster_ids, clustering_data.clusterWeight(), fixed_vertices, max_allowed_node_weight);
     } else {
@@ -121,9 +121,9 @@ struct ClusteringContext {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool matchVertices(const Hypergraph& current_hg, const HypernodeID u, const HypernodeID v, bool has_fixed_vertices) {
+  bool matchVertices(const Hypergraph& current_hg, const HypernodeID u, const HypernodeID v) {
     bool success;
-    if (has_fixed_vertices) {
+    if (fixed_vertices.hasFixedVertices()) {
       success = clustering_data.template matchVertices<true>(current_hg, u, v, cluster_ids, rater, fixed_vertices);
     } else {
       success = clustering_data.template matchVertices<false>(current_hg, u, v, cluster_ids, rater, fixed_vertices);
@@ -136,7 +136,7 @@ struct ClusteringContext {
   }
 
   bool finalize(const Hypergraph& current_hg, const Context& context) {
-    if ( current_hg.hasFixedVertices() ) {
+    if (fixed_vertices.hasFixedVertices()) {
       ASSERT(fixed_vertices.verifyClustering(cluster_ids), "Fixed vertex support is corrupted");
     }
     HEAVY_COARSENING_ASSERT(clustering_data.verifyClustering(current_hg, cluster_ids),

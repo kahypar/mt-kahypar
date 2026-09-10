@@ -161,7 +161,7 @@ class MultilevelCoarsener : public ICoarsener,
       if ( _enable_randomization ) {
         utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
       }
-      _two_hop_clustering.performClustering(current_hg, _current_vertices, cc, current_hg.hasFixedVertices());
+      _two_hop_clustering.performClustering(current_hg, _current_vertices, cc);
       _timer.stop_timer("two_hop_clustering");
 
       current_num_nodes =  cc.finalNumNodes();
@@ -191,7 +191,6 @@ class MultilevelCoarsener : public ICoarsener,
       _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
     }
 
-    const bool has_fixed_vertices = current_hg.hasFixedVertices();
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
     tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
@@ -201,10 +200,9 @@ class MultilevelCoarsener : public ICoarsener,
       //  1.) The contraction limit of the current level is not reached
       //  2.) Vertex hn is not matched before
       if (current_hg.nodeIsEnabled(hn) && cc.shouldContinue() && cc.vertexIsUnmatched(hn)) {
-        const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>(
-                                current_hg, hn, has_fixed_vertices);
+        const Rating rating = cc.template rate<ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>(current_hg, hn);
         if (rating.target != kInvalidHypernode) {
-          cc.matchVertices(current_hg, hn, rating.target, has_fixed_vertices);
+          cc.matchVertices(current_hg, hn, rating.target);
         }
       }
     });

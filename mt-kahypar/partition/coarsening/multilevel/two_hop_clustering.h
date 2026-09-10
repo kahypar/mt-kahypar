@@ -63,15 +63,13 @@ class TwoHopClustering {
   template<typename Hypergraph>
   void performClustering(const Hypergraph& hg,
                          const vec<HypernodeID>& node_mapping,
-                         ClusteringContext<Hypergraph>& cc,
-                         bool has_fixed_vertices);
+                         ClusteringContext<Hypergraph>& cc);
 
  private:
   template<typename Hypergraph>
   void matchVerticesInBucket(const Hypergraph& hg,
                              ClusteringContext<Hypergraph>& cc,
-                             vec<MatchingEntry>& bucket,
-                             bool has_fixed_vertices);
+                             vec<MatchingEntry>& bucket);
 
   const Context& _context;
   vec<AtomicID> _cluster_count;

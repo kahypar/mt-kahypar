@@ -52,8 +52,7 @@ TwoHopClustering::TwoHopClustering(const HypernodeID num_nodes, const Context& c
 template<typename Hypergraph>
 void TwoHopClustering::performClustering(const Hypergraph& hg,
                                          const vec<HypernodeID>& node_mapping,
-                                         ClusteringContext<Hypergraph>& cc,
-                                         bool has_fixed_vertices) {
+                                         ClusteringContext<Hypergraph>& cc) {
   // reset
   tbb::parallel_invoke([&] {
     tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](HypernodeID hn) {
@@ -155,20 +154,19 @@ void TwoHopClustering::performClustering(const Hypergraph& hg,
       local_nodes.end());
 
     // cluster nodes incident to "high-degree" clusters locally, to avoid scalability bottlenecks
-    matchVerticesInBucket(hg, cc, local_nodes, has_fixed_vertices);
+    matchVerticesInBucket(hg, cc, local_nodes);
   });
 
   tbb::parallel_for(UL(0), _favorite_clusters.numBuckets(), [&](const size_t bucket_id) {
     auto& bucket = _favorite_clusters.getBucket(bucket_id);
-    matchVerticesInBucket(hg, cc, bucket, has_fixed_vertices);
+    matchVerticesInBucket(hg, cc, bucket);
   });
 }
 
 template<typename Hypergraph>
 void TwoHopClustering::matchVerticesInBucket(const Hypergraph& hg,
                                              ClusteringContext<Hypergraph>& cc,
-                                             vec<MatchingEntry>& bucket,
-                                             bool has_fixed_vertices) {
+                                             vec<MatchingEntry>& bucket) {
   auto bucket_comparator = [&](const MatchingEntry& lhs, const MatchingEntry& rhs) {
     if (lhs.target == rhs.target) {
       return hg.communityID(lhs.hn) < hg.communityID(rhs.hn);
@@ -187,7 +185,7 @@ void TwoHopClustering::matchVerticesInBucket(const Hypergraph& hg,
       ASSERT((j > i + 1 || cc.vertexIsUnmatched(bucket[i].hn)) && cc.vertexIsUnmatched(bucket[j].hn));
       // Note: cluster weight and fixed vertices are checked by `matchVertices` (might not succeed)
       // j must be left, since only the right node is allowed to already be matched
-      bool success = cc.matchVertices(hg, bucket[j].hn, bucket[i].hn, has_fixed_vertices);
+      bool success = cc.matchVertices(hg, bucket[j].hn, bucket[i].hn);
       if (!success) {
         break;
       }
@@ -200,8 +198,7 @@ void TwoHopClustering::matchVerticesInBucket(const Hypergraph& hg,
 namespace {
   #define PERFORM_CLUSTERING(X) void TwoHopClustering::performClustering(const X& hg,                          \
                                                                          const vec<HypernodeID>& node_mapping, \
-                                                                         ClusteringContext<X>& cc,             \
-                                                                         bool has_fixed_vertices)
+                                                                         ClusteringContext<X>& cc)
 }
 
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PERFORM_CLUSTERING)
