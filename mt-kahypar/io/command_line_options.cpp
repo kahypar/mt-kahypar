@@ -1197,8 +1197,15 @@ namespace mt_kahypar {
   }
 
   void processCommandLineInput(Context& context, int argc, char *argv[]) {
-    if (argc <= 1) {
+    ALWAYS_ASSERT(!MT_KAHYPAR_IS_LIBRARY_MODE);
+
+    std::string last_arg(argc > 0 ? argv[argc - 1] : "");
+    if (argc <= 1 || last_arg == "-h") {
       printHelp(context, false);
+      std::exit(0);
+    }
+    if (argc >= 2 && last_arg == "-v" && std::string(argv[argc - 2]) == "-h") {
+      printHelp(context, true);
       std::exit(0);
     }
 
