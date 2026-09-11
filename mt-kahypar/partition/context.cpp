@@ -327,8 +327,10 @@ namespace mt_kahypar {
   void printParams(std::ostream& str, const SharedMemoryParameters& params, const PartitioningParameters&, bool verbose) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
-    if (parallel::provides_hardware_information && verbose) {
-      str << "  Number of used NUMA nodes:          " << parallel::num_used_numa_nodes() << std::endl;
+    if constexpr (parallel::provides_hardware_information) {
+      if (verbose) {
+        str << "  Number of used NUMA nodes:          " << parallel::num_used_numa_nodes() << std::endl;
+      }
     }
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     if (params.use_localized_random_shuffle) {
