@@ -159,6 +159,9 @@
   throw InvalidInputException(ss.str())
 #else
 #define MT_KAHYPAR_IS_LIBRARY_MODE false
+#ifdef KAHYPAR_ENABLE_THREAD_PINNING
+#define MT_KAHYPAR_USE_THREAD_PINNING
+#endif
 
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable,                  \
                     alternative_value)                                         \
