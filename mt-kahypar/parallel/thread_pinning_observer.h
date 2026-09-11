@@ -34,8 +34,10 @@
 
 #ifdef _WIN32
 #include <winbase.h>
-#elif KAHYPAR_ENABLE_THREAD_PINNING
+#else
+#ifdef MT_KAHYPAR_USE_THREAD_PINNING
 #include <sched.h>
+#endif
 #endif
 
 #undef __TBB_ARENA_OBSERVER
@@ -73,6 +75,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(cpus.size() > 0 && cpus.size() == static_cast<size_t>(arena.max_concurrency()),
       V(cpus.size()) << V(arena.max_concurrency()));
 
+    #ifdef MT_KAHYPAR_USE_THREAD_PINNING
     // In case we have a task arena of size one, it can sometimes happen that master threads
     // joins the arena regardless if there are an other worker thread already inside.
     // In order to have enough CPU available for this special case, we request a backup
@@ -81,10 +84,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(_numa_node, _cpus[0]));
     }
 
-    #if defined(KAHYPAR_ENABLE_THREAD_PINNING)
-    #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
-    #endif
     #endif
   }
 
@@ -98,14 +98,12 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     _cpus(cpus),
     _mutex(),
     _cpu_before() {
+    #ifdef MT_KAHYPAR_USE_THREAD_PINNING
     if ( _cpus.size() == 1 ) {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(0, _cpus[0]));
     }
 
-    #ifdef KAHYPAR_ENABLE_THREAD_PINNING
-    #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
-    #endif
     #endif
   }
 
@@ -124,6 +122,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   ThreadPinningObserver & operator= (ThreadPinningObserver &&) = delete;
 
   void on_scheduler_entry(bool) override {
+    #ifdef MT_KAHYPAR_USE_THREAD_PINNING
     const int slot = tbb::this_task_arena::current_thread_index();
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
 
@@ -145,9 +144,13 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       _cpu_before[thread_id] = current_cpu;
     }
     pin_thread_to_cpu(_cpus[slot]);
+    #else
+    throw SystemException("Thread pinning observer called; but thread pinning is disabled!");
+    #endif
   }
 
   void on_scheduler_exit(bool) override {
+    #ifdef MT_KAHYPAR_USE_THREAD_PINNING
     if (!_is_global_thread_pool) {
       std::thread::id thread_id = std::this_thread::get_id();
       int cpu_before = -1;
@@ -167,13 +170,16 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
           DBG << "Thread with PID" << std::this_thread::get_id()
             << "leaves GLOBAL task arena";
     }
+    #else
+    throw SystemException("Thread pinning observer called; but thread pinning is disabled!");
+    #endif
   }
 
  private:
 
   void pin_thread_to_cpu(const int cpu_id) {
-    #if KAHYPAR_ENABLE_THREAD_PINNING
-    #if _WIN32
+    #ifdef MT_KAHYPAR_USE_THREAD_PINNING
+    #ifdef _WIN32
     auto mask = (static_cast<DWORD_PTR>(1) << cpu_id);
     const int err = SetThreadAffinityMask(GetCurrentThread(), mask) == 0;
     #else

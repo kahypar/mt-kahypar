@@ -229,7 +229,8 @@ class HardwareTopology {
     int cpu_id = _numa_nodes[node].get_backup_cpu(except_cpu);
     if ( cpu_id == -1 ) {
       #ifndef KAHYPAR_TRAVIS_BUILD
-      throw SystemException("Your system has not enough cpus to execute MT-KaHyPar (> 1)");
+      throw SystemException("Your system has not enough cpus to execute MT-KaHyPar with thread pinning (> 1). "
+        "Consider adding -DKAHYPAR_ENABLE_THREAD_PINNING=OFF to the cmake command and rebuilding Mt-KaHyPar.");
       #else
       // Handling special case:
       // Travis CI has only two cpus, when mocking a numa architecture
