@@ -1168,7 +1168,9 @@ private:
         parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
         for (HypernodeID node = r.begin(); node < r.end(); ++node) {
           if (nodeIsEnabled(node)) {
-            part_weight_deltas[partID(node)] += nodeWeight(node);
+            const PartitionID part = partID(node);
+            ASSERT(part >= 0 && part < _k);
+            part_weight_deltas[part] += nodeWeight(node);
           }
         }
         for (PartitionID p = 0; p < _k; ++p) {

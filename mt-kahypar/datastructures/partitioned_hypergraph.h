@@ -1187,6 +1187,7 @@ class PartitionedHypergraph {
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if ( nodeIsEnabled(u) ) {
           const PartitionID pu = partID( u );
+          ASSERT(pu >= 0 && pu < _k);
           const HypernodeWeight wu = nodeWeight( u );
           pws[pu] += wu;
         }
@@ -1208,7 +1209,9 @@ class PartitionedHypergraph {
       for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
         if ( edgeIsEnabled(he) ) {
           for (const HypernodeID& pin : pins(he)) {
-            ++pin_counts[partID(pin)];
+            const PartitionID part = partID(pin);
+            ASSERT(part >= 0 && part < _k);
+            ++pin_counts[part];
           }
 
           for (PartitionID p = 0; p < _k; ++p) {
