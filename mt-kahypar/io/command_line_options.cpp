@@ -34,7 +34,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <process.h>
 #else
 #include <sys/ioctl.h>
 #endif

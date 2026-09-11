@@ -27,8 +27,10 @@
 
 #pragma once
 
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
+#endif
 
 #include <atomic>
 #include <type_traits>
@@ -36,9 +38,10 @@
 #include "mt-kahypar/macros.h"
 
 template<typename T>
-class CAtomic : public std::__atomic_base<T> {
+class CAtomic : public std::atomic<T> {
 public:
-  using Base = std::__atomic_base<T>;
+  // boilerplate to make it 'movable'.
+  using Base = std::atomic<T>;
 
   explicit CAtomic(const T value = T()) : Base(value) { }
 
@@ -49,9 +52,9 @@ public:
     return *this;
   }
 
-  CAtomic(CAtomic&& other) : Base(other.load(std::memory_order_relaxed)) { }
+  CAtomic(CAtomic&& other) noexcept : Base(other.load(std::memory_order_relaxed)) { }
 
-  CAtomic& operator=(CAtomic&& other) {
+  CAtomic& operator=(CAtomic&& other) noexcept {
     Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
   }
@@ -250,7 +253,8 @@ class IntegralAtomicWrapper {
 
 
 
-
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 }  // namespace parallel
 }  // namespace mt_kahypar

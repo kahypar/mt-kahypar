@@ -27,6 +27,7 @@
 
 #include "hypergraph_io.h"
 
+#include <atomic>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -133,8 +134,9 @@ namespace mt_kahypar::io {
       }
     });
 
+    auto atomic_res_num_removed_single_pin_hyperedges = std::atomic_ref(res.num_removed_single_pin_hyperedges);
     // Process all ranges in parallel and build hyperedge vector
-    tbb::parallel_for(UL(0), line_ranges.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), line_ranges.size(), [&, atomic_res_num_removed_single_pin_hyperedges](const size_t i) {
       HyperedgeVector& my_edges = local_edges[i];
       vec<HyperedgeWeight>& my_edges_weight = local_edges_weight[i];
 
@@ -183,7 +185,7 @@ namespace mt_kahypar::io {
             my_edges_weight.push_back(he_weight);
           }
         } else {
-          __atomic_fetch_add(&res.num_removed_single_pin_hyperedges, 1, __ATOMIC_RELAXED);
+          atomic_res_num_removed_single_pin_hyperedges.fetch_add(1, std::memory_order::relaxed);
         };
       }
     });

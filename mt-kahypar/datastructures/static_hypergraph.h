@@ -28,6 +28,8 @@
 #pragma once
 
 
+#include <functional>
+
 #include <tbb/parallel_for.h>
 
 #include "include/mtkahypartypes.h"

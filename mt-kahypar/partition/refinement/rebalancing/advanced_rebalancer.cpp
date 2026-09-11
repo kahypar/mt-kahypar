@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 
+#include <atomic>
 #include <array>
 #include <optional>
 #include <random>
@@ -255,8 +256,9 @@ namespace impl {
   void deactivateOverloadedBlock(uint8_t* is_overloaded, size_t* num_overloaded_blocks) {
     if (*is_overloaded) {
       uint8_t expected = 1;
-      if (__atomic_compare_exchange_n(is_overloaded, &expected, 0, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-        __atomic_fetch_sub(num_overloaded_blocks, 1, __ATOMIC_RELAXED);
+      if (std::atomic_ref(*is_overloaded)
+          .compare_exchange_strong(expected, 0, std::memory_order::acquire, std::memory_order::relaxed)) {
+        std::atomic_ref(*num_overloaded_blocks).fetch_sub(1, std::memory_order::relaxed);
       }
     }
   }
@@ -325,7 +327,9 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     size_t num_overloaded_blocks = _overloaded_blocks.size();
 
-    auto task = [&](size_t task_id) {
+    auto atomic_global_move_id = std::atomic_ref(global_move_id);
+    auto atomic_attributed_gain = std::atomic_ref(attributed_gain);
+    auto task = [&, atomic_global_move_id](size_t task_id) {
       vec<HyperedgeID> edges_with_gain_changes;
       Gain local_attributed_gain = 0;
       vec<vec<HypernodeID>> nodes_to_update(_pqs.size());
@@ -352,7 +356,9 @@ namespace impl {
         bool moved = phg.changeNodePart(
                       _gain_cache, m.node, m.from, m.to,
                       _context.partition.max_part_weights[m.to],
-                      [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
+                      [&, atomic_global_move_id] {
+                          move_id = atomic_global_move_id.fetch_add(1, std::memory_order::relaxed);
+                      },
                       [&](const SynchronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
                         if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
@@ -427,7 +433,7 @@ namespace impl {
 
         _moves[move_id] = m;
       }
-      __atomic_fetch_add(&attributed_gain, local_attributed_gain, __ATOMIC_RELAXED);
+      atomic_attributed_gain.fetch_add(local_attributed_gain, std::memory_order::relaxed);
     };
 
     tbb::task_group tg;

@@ -10,11 +10,14 @@ target_sources(mtkahypar_tests PRIVATE
          deterministic_rebalancer_test.cc
          repair_empty_blocks_test.cc
          twoway_fm_refiner_test.cc
-         gain_cache_test.cc
          multitry_fm_test.cc
          fm_strategy_test.cc
          flow_construction_test.cc
          )
+
+if (KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+    target_sources(mtkahypar_tests PRIVATE gain_cache_test.cc)
+endif()
 
 if(NOT KAHYPAR_DISABLE_HWLOC)
     target_sources(mtkahypar_tests PRIVATE label_propagation_refiner_test.cc)

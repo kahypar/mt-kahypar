@@ -24,9 +24,6 @@ endif()
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "Build directory must be different from source directory.")
 endif()
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  message(FATAL_ERROR "MSVC not supported at the moment")
-endif()
 
 if (POLICY CMP0135)  # download timestamps
   cmake_policy(SET CMP0135 NEW)
@@ -35,7 +32,7 @@ if (POLICY CMP0144)  # uppercase find_package variables
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-if (NOT DEFINED BUILD_SHARED_LIBS AND NOT WIN32)
+if (NOT DEFINED BUILD_SHARED_LIBS)
   # since TBB does not support static linking, we build with dynamic linking by default (except on Windows)
   set(BUILD_SHARED_LIBS ON)
 endif()
@@ -46,7 +43,7 @@ endif()
 
 # meta targets for flags
 add_library(MtKaHyPar-BuildFlags INTERFACE)
-target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_17)
+target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_20)
 
 # meta targets for includes and source files
 add_library(MtKaHyPar-Include INTERFACE)
@@ -162,6 +159,7 @@ if(KAHYPAR_ENABLE_THREAD_PINNING AND KAHYPAR_DISABLE_HWLOC)
   set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
 endif()
 
+include(CopyDeps)
 if(UNIX)
   include(CheckIncludeFiles)
   set(CMAKE_REQUIRED_QUIET TRUE)
@@ -262,28 +260,66 @@ endif()
 
 # Add compile flags that enable warnings
 target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-  -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
-  -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -DPARANOID -Wno-unused-function)
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
+        -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
+        -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -Wno-unused-function
+    >
 
-if(KAHYPAR_USE_GCOV)
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /W3
+        /wd4267 /wd4244 # percision loss
+        /wd4334 # result of 32-bit shift implicitly converted to 64 bits
+        /wd4146 # unary minus operator applied to unsigned type
+        /permissive-
+    >
+)
+target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+    PARANOID
+    _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
+)
+
+if(KAHYPAR_USE_GCOV AND NOT MSVC)
   # add coverage anaylsis compile and link flags
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE -lgcov --coverage)
-endif(KAHYPAR_USE_GCOV)
+endif()
 
 # lld is way faster than ld. If you have it, use it!
 find_program(LLD_BIN lld)
 if (LLD_BIN AND KAHYPAR_X86)
   message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  if(MSVC)
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE /LINKER:LLD)
+  else()
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE -fuse-ld=lld)
+  endif()
 endif()
 
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-O3>
-                                                      $<$<CONFIG:RELWITHDEBINFO>:-g3 -UNDEBUG>  # keep assertions activated
-                                                      $<$<CONFIG:DEBUG>:-g3 -fno-omit-frame-pointer>)
-target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>)
+target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /bigobj
+    >
+    $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-O3>
 
-if(UNIX AND NOT WIN32)
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Zi>
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-g3>
+
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG> # keep assertions activated
+    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-UNDEBUG>
+
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Oy->
+    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-omit-frame-pointer>
+)
+if(WIN32)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+      NOMINMAX # disable min/max macros as they clash with the standard library
+      NOGDI # avoid pulling in the ERROR macro
+      WIN32_LEAN_AND_MEAN # we only need process, thread, file and console support
+  )
+endif()
+
+if(UNIX)
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
   target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=undefined>)
 endif()
@@ -307,7 +343,10 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
   if(BUILTIN_POPCNT)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>
+        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX /arch:SSE4.2>
+    )
   endif()
 endif()
 
@@ -321,13 +360,24 @@ else()
 endif()
 
 if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:RELEASE>:-mtune=native -march=native>
-                                                        $<$<CONFIG:RELWITHDEBINFO>:-mtune=native -march=native>)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
+    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
+
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
+  )
 endif()
 
 if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE $<$<CONFIG:DEBUG>:-fsanitize=address>)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/fsanitize=address>
+    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fsanitize=address>
+  )
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE
+    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/fsanitize=address>
+    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fsanitize=address>
+  )
 endif()
 
 
@@ -337,13 +387,12 @@ endif()
 
 include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
-set(KAHYPAR_WHFC_TAG             51b27ff2c27a4794bfbaa4e8189d38159d249312)
-set(KAHYPAR_GROWT_TAG            04b2a1afe4c5844c960a5a8289bb608fe2c6c68c)
+set(KAHYPAR_WHFC_TAG             dd3b7901f73ba9a1de44788172ded5ce33b83338)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.6.1)
 set(KAHYPAR_TBB_VERSION          v2022.0.0)
 set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
-set(KAHYPAR_PYBIND11_VERSION     v2.13.6)
+set(KAHYPAR_PYBIND11_VERSION     v3.0.4)
 
 message(STATUS "Fetching dependencies...")
 
@@ -373,14 +422,13 @@ target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools)
 
 if(KAHYPAR_USE_GROWT)
-  # Note: we use our own fork of growt since growt is no longer maintained and we need to fix some errors
-  FetchContent_Populate(
-    growt QUIET EXLUDE_FROM_ALL
-    GIT_REPOSITORY https://github.com/N-Maas/growt.git
-    GIT_TAG        ${KAHYPAR_GROWT_TAG}
-    SOURCE_DIR     external_tools/growt
+  target_include_directories(MtKaHyPar-Include INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/growt
   )
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
+  target_link_libraries(MtKaHyPar-BuildFlags INTERFACE
+      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:atomic>
+  )
 endif()
 
 if(NOT KAHYPAR_DISABLE_PARLAY)
@@ -403,10 +451,12 @@ if (KAHYPAR_ENABLE_TESTING)
   )
   FetchContent_MakeAvailable(googletest)
   include(gmock)
-  enable_testing()
 
   add_library(MtKaHyPar-Test INTERFACE)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
+endif()
+if (KAHYPAR_ENABLE_TESTING OR KAHYPAR_PYTHON)
+  enable_testing()
 endif()
 
 
@@ -424,6 +474,7 @@ if(KAHYPAR_DOWNLOAD_TBB)
     else()
       set(BUILD_SHARED_LIBS ON)
     endif()
+    set(TBB_TEST OFF CACHE BOOL "")
     FetchContent_MakeAvailable(TBB)
   endblock()
 else()
@@ -516,6 +567,10 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     include(SetupCPack)
   endif()
 
+  if(DEFINED KAHYPAR_TBB_DIR)
+    # remove "\" on windows builds
+    cmake_path(CONVERT "${KAHYPAR_TBB_DIR}" TO_CMAKE_PATH_LIST KAHYPAR_TBB_DIR)
+  endif()
   if(KAHYPAR_SETUP_PYTHON AND DEFINED KAHYPAR_TBB_DIR)
     # preparation for python wheel
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in ${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml @ONLY)

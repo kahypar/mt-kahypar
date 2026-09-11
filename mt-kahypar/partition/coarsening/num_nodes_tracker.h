@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/definitions.h"
@@ -47,7 +48,7 @@ class NumNodesTracker {
     _num_nodes_update_threshold(0) { }
 
   HypernodeID currentNumNodes() const {
-    return __atomic_load_n(&_current_num_nodes, __ATOMIC_RELAXED);
+    return std::atomic_ref(const_cast<HypernodeID&>(_current_num_nodes)).load(std::memory_order::relaxed);
   }
 
   void updateCurrentNumNodes() {
@@ -69,7 +70,8 @@ class NumNodesTracker {
   }
 
   void subtractMultiple(HypernodeID num_contractions, size_t num_threads, HypernodeID hierarchy_contraction_limit) {
-    HypernodeID local_contracted_nodes = __atomic_add_fetch(&_contracted_nodes.local(), num_contractions, __ATOMIC_RELAXED);
+    HypernodeID local_contracted_nodes = std::atomic_ref(_contracted_nodes.local())
+        .fetch_add(num_contractions, std::memory_order::relaxed);
 
     // To maintain the current number of nodes of the hypergraph each PE sums up
     // its number of contracted nodes locally. To compute the current number of
@@ -86,10 +88,10 @@ class NumNodesTracker {
     // divided by the number of PEs.
     if (local_contracted_nodes >= _num_nodes_update_threshold.local()) {
       HypernodeID updated_num_nodes = _initial_num_nodes;
-      _contracted_nodes.combine_each([&](const HypernodeID& val) {
-        updated_num_nodes -= __atomic_load_n(&val, __ATOMIC_RELAXED);
+      _contracted_nodes.combine_each([&](HypernodeID& val) {
+        updated_num_nodes -= std::atomic_ref(val).load(std::memory_order::relaxed);
       });
-      __atomic_store_n(&_current_num_nodes, updated_num_nodes, __ATOMIC_RELAXED);
+      std::atomic_ref(_current_num_nodes).store(updated_num_nodes, std::memory_order::relaxed);
 
       const HypernodeID dist_to_contraction_limit =
         updated_num_nodes > hierarchy_contraction_limit ?

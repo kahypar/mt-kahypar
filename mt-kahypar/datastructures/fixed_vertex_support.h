@@ -71,11 +71,11 @@ class FixedVertexSupport {
     _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
     _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
 
-  FixedVertexSupport(const FixedVertexSupport&) = delete;
-  FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;
+  FixedVertexSupport(const FixedVertexSupport<Hypergraph>&) = delete;
+  FixedVertexSupport & operator= (const FixedVertexSupport<Hypergraph>&) = delete;
 
-  FixedVertexSupport(FixedVertexSupport&&) = default;
-  FixedVertexSupport & operator= (FixedVertexSupport &&) = default;
+  FixedVertexSupport(FixedVertexSupport<Hypergraph>&&) = default;
+  FixedVertexSupport & operator= (FixedVertexSupport<Hypergraph> &&) = default;
 
   void setHypergraph(const Hypergraph* hg) {
     _hg = hg;
@@ -117,8 +117,8 @@ class FixedVertexSupport {
     ASSERT(block != kInvalidPartition && block < _k);
     PartitionID expected = kInvalidPartition;
     PartitionID desired = block;
-    if ( __atomic_compare_exchange_n(&_fixed_vertex_data[hn].block,
-           &expected, desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
+    if (std::atomic_ref(_fixed_vertex_data[hn].block)
+        .compare_exchange_strong(expected, desired, std::memory_order::acq_rel, std::memory_order::relaxed)) {
       const HypernodeWeight weight_of_hn = _hg->nodeWeight(hn);
       _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
       _fixed_vertex_data[hn].fixed_vertex_weight = weight_of_hn;
@@ -141,7 +141,8 @@ class FixedVertexSupport {
   // ! Returns the fixed vertex block of the node
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID fixedVertexBlock(const HypernodeID hn) const {
     ASSERT(hn < _num_nodes);
-    return __atomic_load_n(&_fixed_vertex_data[hn].block, __ATOMIC_RELAXED);
+    auto atomic_block = std::atomic_ref(const_cast<PartitionID&>(_fixed_vertex_data[hn].block));
+    return atomic_block.load(std::memory_order::relaxed);
   }
 
   // ####################### (Un)contractions #######################

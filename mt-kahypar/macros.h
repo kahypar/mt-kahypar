@@ -40,7 +40,7 @@
 #define THREAD_ID std::max(0, tbb::this_task_arena::current_thread_index())
 #else
 #ifdef _WIN32
-#include <processthreadsapi.h>
+#include <windows.h>
 #define THREAD_ID GetCurrentProcessorNumber()
 #else
 #include <sched.h>
