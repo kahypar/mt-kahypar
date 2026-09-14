@@ -147,6 +147,7 @@ struct ClusteringContext {
     }
     HEAVY_COARSENING_ASSERT(clustering_data.verifyClustering(current_hg, cluster_ids),
                             "Parallel clustering computed invalid cluster ids and weights");
+    unused(current_hg);
 
     const double reduction_vertices_percentage =
       static_cast<double>(num_hns_before_pass) / static_cast<double>(num_nodes_tracker.finalNumNodes());
