@@ -29,7 +29,6 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/utilities.h"
 
