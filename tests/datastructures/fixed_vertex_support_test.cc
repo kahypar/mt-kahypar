@@ -49,11 +49,10 @@ class AFixedVertexSupport : public Test {
     hypergraph(Factory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     fixed_vertices(7, 3) {
-    fixed_vertices.setHypergraph(&hypergraph);
-    fixed_vertices.fixToBlock(0, 0);
-    fixed_vertices.fixToBlock(2, 0);
-    fixed_vertices.fixToBlock(4, 1);
-    fixed_vertices.fixToBlock(6, 2);
+    fixed_vertices.fixToBlock(hypergraph, 0, 0);
+    fixed_vertices.fixToBlock(hypergraph, 2, 0);
+    fixed_vertices.fixToBlock(hypergraph, 4, 1);
+    fixed_vertices.fixToBlock(hypergraph, 6, 2);
   }
 
   void verifyFixedVertices(const std::string& desc, const vec<PartitionID>& expected) {
@@ -79,7 +78,7 @@ class AFixedVertexSupport : public Test {
   }
 
   Hypergraph hypergraph;
-  FixedVertexSupport<Hypergraph> fixed_vertices;
+  FixedVertexSupport fixed_vertices;
 };
 
 template <class F, class K>
@@ -131,13 +130,13 @@ TEST_F(AFixedVertexSupport, CheckFixedVertexBlockWeights) {
 }
 
 TEST_F(AFixedVertexSupport, ContractFreeOntoFreeVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 5));
   ASSERT_FALSE(fixed_vertices.isFixed(3));
   ASSERT_FALSE(fixed_vertices.isFixed(5));
 }
 
 TEST_F(AFixedVertexSupport, ContractFreeOntoFixedVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 3));
   ASSERT_TRUE(fixed_vertices.isFixed(3));
   ASSERT_EQ(0, fixed_vertices.fixedVertexBlock(3));
   ASSERT_TRUE(fixed_vertices.isFixed(0));
@@ -147,7 +146,7 @@ TEST_F(AFixedVertexSupport, ContractFreeOntoFixedVertex) {
 }
 
 TEST_F(AFixedVertexSupport, ContractFixedOntoFixedVertex1) {
-  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 2));
   ASSERT_TRUE(fixed_vertices.isFixed(0));
   ASSERT_EQ(0, fixed_vertices.fixedVertexBlock(0));
   ASSERT_TRUE(fixed_vertices.isFixed(2));
@@ -155,7 +154,7 @@ TEST_F(AFixedVertexSupport, ContractFixedOntoFixedVertex1) {
 }
 
 TEST_F(AFixedVertexSupport, ContractFixedOntoFixedVertex2) {
-  ASSERT_FALSE(fixed_vertices.contract(0, 6));
+  ASSERT_FALSE(fixed_vertices.contract(hypergraph, 0, 6));
   ASSERT_TRUE(fixed_vertices.isFixed(0));
   ASSERT_EQ(0, fixed_vertices.fixedVertexBlock(0));
   ASSERT_TRUE(fixed_vertices.isFixed(6));
@@ -163,7 +162,7 @@ TEST_F(AFixedVertexSupport, ContractFixedOntoFixedVertex2) {
 }
 
 TEST_F(AFixedVertexSupport, ContractFixedOntoFreeVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 4));
   ASSERT_TRUE(fixed_vertices.isFixed(1));
   ASSERT_EQ(1, fixed_vertices.fixedVertexBlock(1));
   ASSERT_EQ(2, fixed_vertices.fixedVertexBlockWeight(1));
@@ -171,14 +170,14 @@ TEST_F(AFixedVertexSupport, ContractFixedOntoFreeVertex) {
 }
 
 TEST_F(AFixedVertexSupport, UnontractFreeOntoFreeVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 5));
   fixed_vertices.uncontract(3, 5);
   ASSERT_FALSE(fixed_vertices.isFixed(3));
   ASSERT_FALSE(fixed_vertices.isFixed(5));
 }
 
 TEST_F(AFixedVertexSupport, UnontractFreeOntoFixedVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 3));
   fixed_vertices.uncontract(0, 3);
   ASSERT_FALSE(fixed_vertices.isFixed(3));
   ASSERT_EQ(kInvalidPartition, fixed_vertices.fixedVertexBlock(3));
@@ -189,7 +188,7 @@ TEST_F(AFixedVertexSupport, UnontractFreeOntoFixedVertex) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractFixedOntoFixedVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 2));
   fixed_vertices.uncontract(0, 2);
   ASSERT_TRUE(fixed_vertices.isFixed(0));
   ASSERT_EQ(0, fixed_vertices.fixedVertexBlock(0));
@@ -200,7 +199,7 @@ TEST_F(AFixedVertexSupport, UncontractFixedOntoFixedVertex) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractFixedOntoFreeVertex) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 4));
   fixed_vertices.uncontract(1, 4);
   ASSERT_FALSE(fixed_vertices.isFixed(1));
   ASSERT_EQ(kInvalidPartition, fixed_vertices.fixedVertexBlock(1));
@@ -211,65 +210,65 @@ TEST_F(AFixedVertexSupport, UncontractFixedOntoFreeVertex) {
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices1) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 4));
-  ASSERT_TRUE(fixed_vertices.contract(2, 3));
-  ASSERT_TRUE(fixed_vertices.contract(5, 6));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 5, 6));
   verifyFixedVertices({ 0, 1, 0, 0, 1, 2, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices2) {
-  ASSERT_TRUE(fixed_vertices.contract(3, 5));
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
   verifyFixedVertices({ 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices3) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices4) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 3));
-  ASSERT_TRUE(fixed_vertices.contract(2, 1));
-  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 2));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices5) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(2, 1));
-  ASSERT_TRUE(fixed_vertices.contract(3, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 2));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices6) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(1, 0));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices7) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
-  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 3));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices8) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(0, 1));
-  ASSERT_TRUE(fixed_vertices.contract(3, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 0));
   verifyFixedVertices({ 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices1) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 4));
-  ASSERT_TRUE(fixed_vertices.contract(2, 3));
-  ASSERT_TRUE(fixed_vertices.contract(5, 6));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 5, 6));
   verifyFixedVertices("After contractions", { 0, 1, 0, 0, 1, 2, 2 });
 
   fixed_vertices.uncontract(5, 6);
@@ -286,9 +285,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices1) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices2) {
-  ASSERT_TRUE(fixed_vertices.contract(3, 5));
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
   verifyFixedVertices("After contractions",
     { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 
@@ -306,9 +305,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices2) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices3) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(3, 1);
@@ -325,9 +324,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices3) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices4) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 3));
-  ASSERT_TRUE(fixed_vertices.contract(2, 1));
-  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 2));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(0, 2);
@@ -344,9 +343,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices4) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices5) {
-  ASSERT_TRUE(fixed_vertices.contract(2, 0));
-  ASSERT_TRUE(fixed_vertices.contract(2, 1));
-  ASSERT_TRUE(fixed_vertices.contract(3, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 2));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(3, 2);
@@ -363,9 +362,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices5) {
 }
 
 TEST_F(AFixedVertexSupport, UnontractSeveralFixedVertices6) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(1, 0));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(3, 1);
@@ -382,9 +381,9 @@ TEST_F(AFixedVertexSupport, UnontractSeveralFixedVertices6) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices7) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(3, 1));
-  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 3));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(0, 3);
@@ -401,9 +400,9 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices7) {
 }
 
 TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices8) {
-  ASSERT_TRUE(fixed_vertices.contract(1, 2));
-  ASSERT_TRUE(fixed_vertices.contract(0, 1));
-  ASSERT_TRUE(fixed_vertices.contract(3, 0));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 1));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 3, 0));
   verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
 
   fixed_vertices.uncontract(3, 0);
@@ -420,8 +419,8 @@ TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices8) {
 }
 
 TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions1) {
-  runParallel([&] { fixed_vertices.contract(0, 2); },
-              [&] { fixed_vertices.contract(0, 1); });
+  runParallel([&] { fixed_vertices.contract(hypergraph, 0, 2); },
+              [&] { fixed_vertices.contract(hypergraph, 0, 1); });
   verifyFixedVertices("After contractions",
     { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 
@@ -432,8 +431,8 @@ TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions1) {
 }
 
 TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions2) {
-  runParallel([&] { fixed_vertices.contract(1, 2); },
-              [&] { fixed_vertices.contract(1, 0); });
+  runParallel([&] { fixed_vertices.contract(hypergraph, 1, 2); },
+              [&] { fixed_vertices.contract(hypergraph, 1, 0); });
   verifyFixedVertices("After contractions",
     { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 
@@ -445,35 +444,35 @@ TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions2) {
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight1) {
   fixed_vertices.setMaxBlockWeight({ 2, 1, 1 });
-  ASSERT_FALSE(fixed_vertices.contract(0, 1));
+  ASSERT_FALSE(fixed_vertices.contract(hypergraph, 0, 1));
   verifyFixedVertices({ 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight2) {
   fixed_vertices.setMaxBlockWeight({ 2, 1, 1 });
-  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 2));
   verifyFixedVertices({ 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, PerformContractionWithMaximumAllowedBlockWeight3) {
   fixed_vertices.setMaxBlockWeight({ 3, 1, 1 });
-  ASSERT_TRUE(fixed_vertices.contract(0, 1));
-  ASSERT_FALSE(fixed_vertices.contract(0, 3));
+  ASSERT_TRUE(fixed_vertices.contract(hypergraph, 0, 1));
+  ASSERT_FALSE(fixed_vertices.contract(hypergraph, 0, 3));
   verifyFixedVertices({ 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight1) {
   fixed_vertices.setMaxBlockWeight({ 3, 1, 1 });
-  runParallel([&] { ASSERT_TRUE(fixed_vertices.contract(1, 2)); },
-              [&] { ASSERT_TRUE(fixed_vertices.contract(1, 0)); });
+  runParallel([&] { ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 2)); },
+              [&] { ASSERT_TRUE(fixed_vertices.contract(hypergraph, 1, 0)); });
   verifyFixedVertices({ 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
 }
 
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight2) {
   fixed_vertices.setMaxBlockWeight({ 3, 1, 1 });
   std::atomic<size_t> successful_contractions(0);
-  runParallel([&] { successful_contractions += fixed_vertices.contract(0, 3); },
-              [&] { successful_contractions += fixed_vertices.contract(0, 1); });
+  runParallel([&] { successful_contractions += fixed_vertices.contract(hypergraph, 0, 3); },
+              [&] { successful_contractions += fixed_vertices.contract(hypergraph, 0, 1); });
   ASSERT_EQ(1, successful_contractions.load(std::memory_order_relaxed));
   if ( fixed_vertices.isFixed(1) ) {
     verifyFixedVertices({ 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
@@ -485,8 +484,8 @@ TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWei
 TEST_F(AFixedVertexSupport, PerformParallelContractionWithMaximumAllowedBlockWeight3) {
   fixed_vertices.setMaxBlockWeight({ 3, 1, 1 });
   std::atomic<size_t> successful_contractions(0);
-  runParallel([&] { successful_contractions += fixed_vertices.contract(0, 3); },
-              [&] { successful_contractions += fixed_vertices.contract(2, 1); });
+  runParallel([&] { successful_contractions += fixed_vertices.contract(hypergraph, 0, 3); },
+              [&] { successful_contractions += fixed_vertices.contract(hypergraph, 2, 1); });
   ASSERT_EQ(1, successful_contractions.load(std::memory_order_relaxed));
   if ( fixed_vertices.isFixed(1) ) {
     verifyFixedVertices({ 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });

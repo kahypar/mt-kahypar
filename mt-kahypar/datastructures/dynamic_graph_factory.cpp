@@ -181,13 +181,12 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   }, [&] {
     if ( graph.hasFixedVertices() ) {
       // Set fixed vertices
-      ds::FixedVertexSupport<DynamicGraph> fixed_vertices(
+      ds::FixedVertexSupport fixed_vertices(
         compactified_graph.initialNumNodes(), graph._fixed_vertices.numBlocks());
-      fixed_vertices.setHypergraph(&compactified_graph);
       graph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( graph.isFixed(hn) ) {
           const HypernodeID mapped_hn = hn_mapping[hn];
-          fixed_vertices.fixToBlock(mapped_hn, graph.fixedVertexBlock(hn));
+          fixed_vertices.fixToBlock(compactified_graph, mapped_hn, graph.fixedVertexBlock(hn));
         }
       });
       compactified_graph.addFixedVertexSupport(std::move(fixed_vertices));

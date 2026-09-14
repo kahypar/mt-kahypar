@@ -223,13 +223,12 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   }, [&] {
     if ( hypergraph.hasFixedVertices() ) {
       // Set fixed vertices
-      ds::FixedVertexSupport<DynamicHypergraph> fixed_vertices(
+      ds::FixedVertexSupport fixed_vertices(
         compactified_hypergraph.initialNumNodes(), hypergraph._fixed_vertices.numBlocks());
-      fixed_vertices.setHypergraph(&compactified_hypergraph);
       hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( hypergraph.isFixed(hn) ) {
           const HypernodeID mapped_hn = hn_mapping[hn];
-          fixed_vertices.fixToBlock(mapped_hn, hypergraph.fixedVertexBlock(hn));
+          fixed_vertices.fixToBlock(compactified_hypergraph, mapped_hn, hypergraph.fixedVertexBlock(hn));
         }
       });
       compactified_hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
