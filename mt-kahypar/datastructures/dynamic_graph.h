@@ -366,7 +366,6 @@ class DynamicGraph {
     _adjacency_array(std::move(other._adjacency_array)),
     _acquired_nodes(std::move(other._acquired_nodes)),
     _fixed_vertices(std::move(other._fixed_vertices)) {
-    _fixed_vertices.setHypergraph(this);
   }
 
   DynamicGraph & operator= (DynamicGraph&& other) {
@@ -381,7 +380,6 @@ class DynamicGraph {
     _adjacency_array = std::move(other._adjacency_array);
     _acquired_nodes = std::move(other._acquired_nodes);
     _fixed_vertices = std::move(other._fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
     return *this;
   }
 
@@ -639,9 +637,8 @@ class DynamicGraph {
 
   // ####################### Fixed Vertex Support #######################
 
-  void addFixedVertexSupport(FixedVertexSupport<DynamicGraph>&& fixed_vertices) {
+  void addFixedVertexSupport(FixedVertexSupport&& fixed_vertices) {
     _fixed_vertices = std::move(fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
   }
 
   bool hasFixedVertices() const {
@@ -668,11 +665,11 @@ class DynamicGraph {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
-  const FixedVertexSupport<DynamicGraph>& fixedVertexSupport() const {
+  const FixedVertexSupport& fixedVertexSupport() const {
     return _fixed_vertices;
   }
 
-  FixedVertexSupport<DynamicGraph> copyOfFixedVertexSupport() const {
+  FixedVertexSupport copyOfFixedVertexSupport() const {
     return _fixed_vertices.copy();
   }
 
@@ -932,7 +929,7 @@ class DynamicGraph {
   OwnershipVector _acquired_nodes;
 
   // ! Fixed Vertex Support
-  FixedVertexSupport<DynamicGraph> _fixed_vertices;
+  FixedVertexSupport _fixed_vertices;
 };
 
 } // namespace ds

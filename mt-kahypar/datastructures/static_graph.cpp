@@ -351,12 +351,11 @@ namespace mt_kahypar::ds {
 
     if ( hasFixedVertices() ) {
       // Map fixed vertices to coarse graph
-      FixedVertexSupport<StaticGraph> coarse_fixed_vertices(
+      FixedVertexSupport coarse_fixed_vertices(
         hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
-      coarse_fixed_vertices.setHypergraph(&hypergraph);
       doParallelForAllNodes([&](const HypernodeID hn) {
         if ( isFixed(hn) ) {
-          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+          coarse_fixed_vertices.fixToBlock(hypergraph, communities[hn], fixedVertexBlock(hn));
         }
       });
       hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));

@@ -412,7 +412,6 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
   }, [&] {
     hypergraph._fixed_vertices = _fixed_vertices.copy();
-    hypergraph._fixed_vertices.setHypergraph(&hypergraph);
   });
   return hypergraph;
 }
@@ -459,7 +458,6 @@ DynamicHypergraph DynamicHypergraph::copy() const {
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
 
   hypergraph._fixed_vertices = _fixed_vertices.copy();
-  hypergraph._fixed_vertices.setHypergraph(&hypergraph);
 
   return hypergraph;
 }
@@ -556,7 +554,7 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
-      /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
+      /** only run this if all previous checks were successful */ _fixed_vertices.contract(*this, u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
     hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
