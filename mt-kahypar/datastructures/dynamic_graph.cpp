@@ -120,7 +120,7 @@ DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
   const bool valid_contraction =
     contraction_partner_valid && less_or_equal_than_max_node_weight &&
     ( !hasFixedVertices() ||
-      /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
+      /** only run this if all previous checks were successful */ _fixed_vertices.contract(*this, u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
     hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
@@ -297,7 +297,6 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
     hypergraph._contraction_tree = _contraction_tree.copy(parallel_tag_t());
   }, [&] {
     hypergraph._fixed_vertices = _fixed_vertices.copy();
-    hypergraph._fixed_vertices.setHypergraph(&hypergraph);
   });
   return hypergraph;
 }
@@ -323,7 +322,6 @@ DynamicGraph DynamicGraph::copy() const {
   }
   hypergraph._contraction_tree = _contraction_tree.copy();
   hypergraph._fixed_vertices = _fixed_vertices.copy();
-  hypergraph._fixed_vertices.setHypergraph(&hypergraph);
 
   return hypergraph;
 }

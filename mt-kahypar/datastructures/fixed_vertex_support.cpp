@@ -26,31 +26,76 @@
 
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace ds {
 
-template<typename Hypergraph>
-bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const HypernodeID v) {
-  return contractImpl(u, v, false);
+FixedVertexSupport::FixedVertexSupport() :
+  _num_nodes(0),
+  _k(kInvalidPartition),
+  _total_fixed_vertex_weight(0),
+  _fixed_vertex_block_weights(),
+  _max_block_weights(),
+  _fixed_vertex_data() { }
+
+FixedVertexSupport::FixedVertexSupport(const HypernodeID num_nodes, const PartitionID k) :
+  _num_nodes(num_nodes),
+  _k(k),
+  _total_fixed_vertex_weight(0),
+  _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
+  _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
+  _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
+
+void FixedVertexSupport::setMaxBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+  if ( hasFixedVertices() ) {
+    ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
+    _max_block_weights = max_block_weights;
+  }
+}
+
+template<class Hypergraph>
+void FixedVertexSupport::fixToBlock(const Hypergraph& hg, const HypernodeID hn, const PartitionID block) {
+  ASSERT(hn < _num_nodes);
+  ASSERT(block != kInvalidPartition && block < _k);
+  PartitionID expected = kInvalidPartition;
+  PartitionID desired = block;
+  if ( __atomic_compare_exchange_n(&_fixed_vertex_data[hn].block,
+          &expected, desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
+    const HypernodeWeight weight_of_hn = hg.nodeWeight(hn);
+    _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
+    _fixed_vertex_data[hn].fixed_vertex_weight = weight_of_hn;
+    _fixed_vertex_block_weights[block].fetch_add(
+      weight_of_hn, std::memory_order_relaxed);
+    _total_fixed_vertex_weight.fetch_add(
+      weight_of_hn, std::memory_order_relaxed);
+  } else {
+    ASSERT(_fixed_vertex_data[hn].block == block,
+      "Try to fix hypernode" << hn << "to block" << block
+      << ", but it is already fixed to block" << _fixed_vertex_data[hn].block);
+  }
 }
 
 template<typename Hypergraph>
-bool FixedVertexSupport<Hypergraph>::contractWithoutChains(const HypernodeID u, const HypernodeID v) {
-  return contractImpl(u, v, true);
+bool FixedVertexSupport::contract(const Hypergraph& hg, const HypernodeID u, const HypernodeID v) {
+  return contractImpl(hg, u, v, false);
 }
 
 template<typename Hypergraph>
-bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const HypernodeID v, bool ignore_v) {
-  ASSERT(_hg);
+bool FixedVertexSupport::contractWithoutChains(const Hypergraph& hg, const HypernodeID u, const HypernodeID v) {
+  return contractImpl(hg, u, v, true);
+}
+
+template<typename Hypergraph>
+bool FixedVertexSupport::contractImpl(const Hypergraph& hg, const HypernodeID u, const HypernodeID v, bool ignore_v) {
   ASSERT(u < _num_nodes && v < _num_nodes);
   bool success = true;
   bool u_becomes_fixed = false;
   bool v_becomes_fixed = false;
   const bool is_fixed_v = isFixed(v);
-  const HypernodeWeight weight_of_u = _hg->nodeWeight(u);
-  const HypernodeWeight weight_of_v = _hg->nodeWeight(v);
+  const HypernodeWeight weight_of_u = hg.nodeWeight(u);
+  const HypernodeWeight weight_of_v = hg.nodeWeight(v);
   PartitionID fixed_vertex_block = kInvalidPartition;
   _fixed_vertex_data[u].sync.lock();
   // If we contract a node v onto another node u, all contractions onto v are completed
@@ -119,9 +164,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
   return success;
 }
 
-template<typename Hypergraph>
-void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const HypernodeID v) {
-  ASSERT(_hg);
+void FixedVertexSupport::uncontract(const HypernodeID u, const HypernodeID v) {
   ASSERT(u < _num_nodes && v < _num_nodes);
   if ( isFixed(v) ) {
     if ( _fixed_vertex_data[v].fixed_vertex_contraction_cnt > 0 ) {
@@ -156,29 +199,40 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
   }
 }
 
+FixedVertexSupport FixedVertexSupport::copy() const {
+  FixedVertexSupport cpy;
+  cpy._num_nodes = _num_nodes;
+  cpy._k = _k;
+  cpy._total_fixed_vertex_weight = _total_fixed_vertex_weight;
+  cpy._fixed_vertex_block_weights = _fixed_vertex_block_weights;
+  cpy._max_block_weights = _max_block_weights;
+  cpy._fixed_vertex_data = _fixed_vertex_data;
+  return cpy;
+}
+
 template<typename Hypergraph>
-bool FixedVertexSupport<Hypergraph>::verifyClustering(const vec<HypernodeID>& cluster_ids) const {
-  vec<PartitionID> fixed_vertex_blocks(_hg->initialNumNodes(), kInvalidPartition);
-  for ( const HypernodeID& hn : _hg->nodes() ) {
-    if ( _hg->isFixed(hn) ) {
+bool FixedVertexSupport::verifyClustering(const Hypergraph& hg, const vec<HypernodeID>& cluster_ids) const {
+  vec<PartitionID> fixed_vertex_blocks(hg.initialNumNodes(), kInvalidPartition);
+  for ( const HypernodeID& hn : hg.nodes() ) {
+    if ( hg.isFixed(hn) ) {
       if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition &&
-            fixed_vertex_blocks[cluster_ids[hn]] != _hg->fixedVertexBlock(hn)) {
+            fixed_vertex_blocks[cluster_ids[hn]] != hg.fixedVertexBlock(hn)) {
         LOG << "There are two nodes assigned to same cluster that belong to different fixed vertex blocks";
         return false;
       }
-      fixed_vertex_blocks[cluster_ids[hn]] = _hg->fixedVertexBlock(hn);
+      fixed_vertex_blocks[cluster_ids[hn]] = hg.fixedVertexBlock(hn);
     }
   }
 
   vec<HypernodeWeight> expected_block_weights(_k, 0);
-  for ( const HypernodeID& hn : _hg->nodes() ) {
+  for ( const HypernodeID& hn : hg.nodes() ) {
     if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
       if ( !isFixed(cluster_ids[hn]) ) {
         LOG << "Cluster" << cluster_ids[hn] << "should be fixed to block"
             << fixed_vertex_blocks[cluster_ids[hn]];
         return false;
       }
-      expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += _hg->nodeWeight(hn);
+      expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += hg.nodeWeight(hn);
     }
   }
 
@@ -192,15 +246,20 @@ bool FixedVertexSupport<Hypergraph>::verifyClustering(const vec<HypernodeID>& cl
   return true;
 }
 
+
+namespace {
+  #define FIX_TO_BLOCK(X) void FixedVertexSupport::fixToBlock(const X& hg, const HypernodeID hn, const PartitionID block);
+  #define CONTRACT(X) bool FixedVertexSupport::contract(const X& hg, const HypernodeID u, const HypernodeID v)
+  #define CONTRACT_WITHOUT_CHAINS(X) bool FixedVertexSupport::contractWithoutChains(const X& hg, const HypernodeID u, const HypernodeID v)
+  #define CONTRACT_IMPL(X) bool FixedVertexSupport::contractImpl(const X& hg, const HypernodeID u, const HypernodeID v, bool ignore_v)
+  #define VERIFY_CLUSTERING(X) bool FixedVertexSupport::verifyClustering(const X& hg, const vec<HypernodeID>& cluster_ids) const
+}
+
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FIX_TO_BLOCK)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(CONTRACT)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(CONTRACT_WITHOUT_CHAINS)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(CONTRACT_IMPL)
+INSTANTIATE_FUNC_WITH_HYPERGRAPHS(VERIFY_CLUSTERING)
+
 } // namespace ds
 } // namespace mt_kahypar
-
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/dynamic_graph.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-
-template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticHypergraph>;
-template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticGraph>;
-template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicHypergraph>;
-template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicGraph>;

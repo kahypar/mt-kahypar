@@ -444,7 +444,6 @@ class StaticHypergraph {
     _community_ids(std::move(other._community_ids)),
     _fixed_vertices(std::move(other._fixed_vertices)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
-    _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
   }
 
@@ -464,7 +463,6 @@ class StaticHypergraph {
     _incidence_array = std::move(other._incidence_array);
     _community_ids = std::move(other._community_ids);
     _fixed_vertices = std::move(other._fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -691,9 +689,8 @@ class StaticHypergraph {
 
   // ####################### Fixed Vertex Support #######################
 
-  void addFixedVertexSupport(FixedVertexSupport<StaticHypergraph>&& fixed_vertices) {
+  void addFixedVertexSupport(FixedVertexSupport&& fixed_vertices) {
     _fixed_vertices = std::move(fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
   }
 
   bool hasFixedVertices() const {
@@ -720,11 +717,11 @@ class StaticHypergraph {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
-  const FixedVertexSupport<StaticHypergraph>& fixedVertexSupport() const {
+  const FixedVertexSupport& fixedVertexSupport() const {
     return _fixed_vertices;
   }
 
-  FixedVertexSupport<StaticHypergraph> copyOfFixedVertexSupport() const {
+  FixedVertexSupport copyOfFixedVertexSupport() const {
     return _fixed_vertices.copy();
   }
 
@@ -1018,7 +1015,7 @@ class StaticHypergraph {
   ds::Clustering _community_ids;
 
   // ! Fixed Vertex Support
-  FixedVertexSupport<StaticHypergraph> _fixed_vertices;
+  FixedVertexSupport _fixed_vertices;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

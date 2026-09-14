@@ -461,7 +461,6 @@ class DynamicHypergraph {
     _he_bitset(std::move(other._he_bitset)),
     _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
     _fixed_vertices(std::move(other._fixed_vertices)) {
-    _fixed_vertices.setHypergraph(this);
   }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
@@ -488,7 +487,6 @@ class DynamicHypergraph {
     _he_bitset = std::move(other._he_bitset);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
     _fixed_vertices = std::move(other._fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
     return *this;
   }
 
@@ -733,9 +731,8 @@ class DynamicHypergraph {
 
   // ####################### Fixed Vertex Support #######################
 
-  void addFixedVertexSupport(FixedVertexSupport<DynamicHypergraph>&& fixed_vertices) {
+  void addFixedVertexSupport(FixedVertexSupport&& fixed_vertices) {
     _fixed_vertices = std::move(fixed_vertices);
-    _fixed_vertices.setHypergraph(this);
   }
 
   bool hasFixedVertices() const {
@@ -762,11 +759,11 @@ class DynamicHypergraph {
     _fixed_vertices.setMaxBlockWeight(max_block_weights);
   }
 
-  const FixedVertexSupport<DynamicHypergraph>& fixedVertexSupport() const {
+  const FixedVertexSupport& fixedVertexSupport() const {
     return _fixed_vertices;
   }
 
-  FixedVertexSupport<DynamicHypergraph> copyOfFixedVertexSupport() const {
+  FixedVertexSupport copyOfFixedVertexSupport() const {
     return _fixed_vertices.copy();
   }
 
@@ -1170,7 +1167,7 @@ class DynamicHypergraph {
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
 
   // ! Fixed Vertex Support
-  FixedVertexSupport<DynamicHypergraph> _fixed_vertices;
+  FixedVertexSupport _fixed_vertices;
 };
 
 } // namespace ds

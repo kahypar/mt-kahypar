@@ -94,7 +94,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
                                              const HypernodeID v,
                                              parallel::scalable_vector<HypernodeID>& cluster_ids,
                                              MultilevelVertexPairRater& rater,
-                                             ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
+                                             ds::FixedVertexSupport& fixed_vertices) {
   // MEMORY ORDERING AND SYNCHRONIZATION
   // During the clustering, there are concurrent memory accesses to the following 4 locations:
   // _matching_state, cluster_ids, _matching_partner and _cluster_weight.
@@ -222,7 +222,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
                                            const HypernodeID u,
                                            const HypernodeID rep,
                                            vec<HypernodeID>& cluster_ids,
-                                           ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
+                                           ds::FixedVertexSupport& fixed_vertices) {
   ASSERT(rep == cluster_ids[rep]);
   bool success = false;
   const HypernodeWeight weight_of_u = hypergraph.nodeWeight(u);
@@ -231,7 +231,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
     weight_of_u + weight_of_rep <= _context.coarsening.max_allowed_node_weight;
   if constexpr ( has_fixed_vertices ) {
     if ( cluster_join_operation_allowed ) {
-      cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
+      cluster_join_operation_allowed = fixed_vertices.contract(hypergraph, rep, u);
     }
   }
   if ( cluster_join_operation_allowed ) {
@@ -248,11 +248,11 @@ namespace {
 
   #define MATCH_VERTICES(X) bool ConcurrentClusteringData::matchVertices<false>(const X& hypergraph, const HypernodeID u, \
                                    const HypernodeID v, parallel::scalable_vector<HypernodeID>& cluster_ids,              \
-                                   MultilevelVertexPairRater& rater, ds::FixedVertexSupport<X>& fixed_vertices)
+                                   MultilevelVertexPairRater& rater, ds::FixedVertexSupport& fixed_vertices)
   #define MATCH_VERTICES_FIXED(X) bool ConcurrentClusteringData::matchVertices<true>(const X& hypergraph,              \
                                          const HypernodeID u, const HypernodeID v,                                     \
                                          parallel::scalable_vector<HypernodeID>& cluster_ids,                          \
-                                         MultilevelVertexPairRater& rater, ds::FixedVertexSupport<X>& fixed_vertices)
+                                         MultilevelVertexPairRater& rater, ds::FixedVertexSupport& fixed_vertices)
 
   #define VERIFY_CLUSTERING(X) bool ConcurrentClusteringData::verifyClustering(const X& current_hg,           \
                                         const parallel::scalable_vector<HypernodeID>& cluster_ids) const

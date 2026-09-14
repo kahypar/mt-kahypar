@@ -110,11 +110,10 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
 
   // Map fixed vertices to new hypergraph
   if ( phg.hasFixedVertices() ) {
-    ds::FixedVertexSupport<ds::StaticHypergraph> fixed_vertices_copy(phg.initialNumNodes(), phg.k());
-    fixed_vertices_copy.setHypergraph(&converted_hg);
+    ds::FixedVertexSupport fixed_vertices_copy(phg.initialNumNodes(), phg.k());
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( phg.isFixed(hn) ) {
-        fixed_vertices_copy.fixToBlock(hn, phg.fixedVertexBlock(hn));
+        fixed_vertices_copy.fixToBlock(converted_hg, hn, phg.fixedVertexBlock(hn));
       }
     });
     converted_hg.addFixedVertexSupport(std::move(fixed_vertices_copy));

@@ -162,7 +162,7 @@ struct ClusteringContext {
   HypernodeID num_hns_before_pass;
   HypernodeID previous_num_nodes;
   NumNodesTracker num_nodes_tracker;
-  ds::FixedVertexSupport<Hypergraph> fixed_vertices;
+  ds::FixedVertexSupport fixed_vertices;
 
   vec<HypernodeID>& cluster_ids;
   MultilevelVertexPairRater& rater;
