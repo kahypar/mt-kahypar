@@ -114,6 +114,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraphExpl
                                                                                      vec<HypernodeID>& whfc_to_node,
                                                                                      const bool default_construction,
                                                                                      const bool deterministic) {
+  ALWAYS_ASSERT(!deterministic || MT_KAHYPAR_HAS_DETERMINISTIC_FEATURES);
   FlowProblem flow_problem;
 
   if constexpr (PartitionedHypergraph::is_graph) {
@@ -124,7 +125,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraphExpl
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem.
     if (deterministic) {
-      flow_problem = constructDefaultDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
+      ENABLE_DETERMINISTIC(flow_problem = constructDefaultDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);)
     } else {
       flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
     }
@@ -137,7 +138,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraphExpl
     // and sort the pins. Therefore it can have overheads for hypergraphs with
     // small hyperedges.
     if (deterministic) {
-      flow_problem = constructOptimizedForLargeHEsDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node);
+      ENABLE_DETERMINISTIC(flow_problem = constructOptimizedForLargeHEsDeterministic(phg, sub_hg, block_0, block_1, whfc_to_node));
     } else {
       flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
     }
@@ -302,6 +303,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
   return flow_problem;
 }
 
+#ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
 template<typename GraphAndGainTypes>
 FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterministic(const PartitionedHypergraph& phg,
                                                                                    const Subhypergraph& sub_hg,
@@ -455,6 +457,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
 
   return flow_problem;
 }
+#endif
 
 template<typename GraphAndGainTypes>
 FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
@@ -616,6 +619,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
 }
 
 
+#ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
 template<typename GraphAndGainTypes>
 FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeHEsDeterministic(const PartitionedHypergraph& phg,
                                                                                                 const Subhypergraph& sub_hg,
@@ -788,6 +792,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
 
   return flow_problem;
 }
+#endif
 
 namespace {
 template<typename T>

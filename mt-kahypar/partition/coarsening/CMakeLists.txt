@@ -1,14 +1,21 @@
 set(MultilevelCoarseningSources
-        multilevel/deterministic_multilevel_coarsener.cpp
         multilevel/multilevel_uncoarsener.cpp
         multilevel/concurrent_clustering_data.cpp
         multilevel/two_hop_clustering.cpp)
+
+set(DeterministicCoarseningSources
+        multilevel/deterministic_multilevel_coarsener.cpp)
 
 set(NLevelCoarseningSources
         nlevel/nlevel_uncoarsener.cpp)
 
 target_sources(MtKaHyPar-Sources INTERFACE ${MultilevelCoarseningSources})
 
+if (KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+  target_sources(MtKaHyPar-Sources INTERFACE ${DeterministicCoarseningSources})
+else()
+  target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${DeterministicCoarseningSources})
+endif()
 if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
   target_sources(MtKaHyPar-Sources INTERFACE ${NLevelCoarseningSources})
 else()

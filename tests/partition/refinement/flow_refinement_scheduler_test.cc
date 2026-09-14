@@ -322,8 +322,8 @@ class AFlowRefinementEndToEnd : public Test {
 };
 
 
-typedef ::testing::Types<TestConfig<FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>,
-                         TestConfig<DeterministicFlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>> TestConfigs;
+typedef ::testing::Types<TestConfig<FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>>
+                         ENABLE_DETERMINISTIC(COMMA TestConfig<DeterministicFlowRefinementScheduler<GraphAndGainTypes<TypeTraits COMMA Km1GainTypes>>>)> TestConfigs;
 
 TYPED_TEST_SUITE(AFlowRefinementEndToEnd, TestConfigs);
 
