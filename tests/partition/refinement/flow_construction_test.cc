@@ -119,12 +119,12 @@ class AFlowHypergraphConstructor : public Test {
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, true, false>,
-                         Config<SequentialConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, false, false>,
-                         Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, true, false>,
-                         Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, true, true>,
-                         Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, false, false>,
-                         Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, false, true> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, true, false>
+                         , Config<SequentialConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, false, false>
+                         , Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, true, false>
+                         ENABLE_DETERMINISTIC(COMMA Config<ParallelConstruction<GraphAndGainTypes<TypeTraits COMMA Km1GainTypes>> COMMA whfc::ParallelPushRelabel COMMA true COMMA true>)
+                         , Config<ParallelConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, false, false>
+                         ENABLE_DETERMINISTIC(COMMA Config<ParallelConstruction<GraphAndGainTypes<TypeTraits COMMA Km1GainTypes>> COMMA whfc::ParallelPushRelabel COMMA false COMMA true>) > TestConfigs;
 
 TYPED_TEST_SUITE(AFlowHypergraphConstructor, TestConfigs);
 
