@@ -46,14 +46,19 @@ set(ToolsDatastructureSources
       static_hypergraph.cpp
       static_graph_factory.cpp
       static_graph.cpp
-      contraction_tree.cpp
-      dynamic_hypergraph.cpp
-      dynamic_hypergraph_factory.cpp
-      incident_net_array.cpp
-      contraction_tree.cpp
-      dynamic_graph.cpp
-      dynamic_graph_factory.cpp
-      dynamic_adjacency_array.cpp
       fixed_vertex_support.cpp)
 
 target_sources(MtKaHyPar-ToolsSources INTERFACE ${ToolsDatastructureSources})
+if(KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
+      target_sources(MtKaHyPar-ToolsSources INTERFACE
+            contraction_tree.cpp
+            dynamic_hypergraph.cpp
+            dynamic_hypergraph_factory.cpp
+            incident_net_array.cpp)
+endif()
+if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES AND KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES)
+      target_sources(MtKaHyPar-ToolsSources INTERFACE
+            dynamic_graph.cpp
+            dynamic_graph_factory.cpp
+            dynamic_adjacency_array.cpp)
+endif()
