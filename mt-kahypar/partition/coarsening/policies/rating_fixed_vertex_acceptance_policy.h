@@ -42,7 +42,7 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
   // This function decides if contracting v onto u is allowed if the hypergraph contains fixed vertices.
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptContraction(const Hypergraph& hypergraph,
-                                                                   const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                                                                   const ds::FixedVertexSupport& fixed_vertices,
                                                                    const Context& context,
                                                                    const HypernodeID u,
                                                                    const HypernodeID v) {
@@ -67,7 +67,7 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
   // improve the solution.
   template<typename Hypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptImbalance(const Hypergraph& hypergraph,
-                                                                 const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                                                                 const ds::FixedVertexSupport& fixed_vertices,
                                                                  const Context& context,
                                                                  const HypernodeID u,
                                                                  const HypernodeID v) {

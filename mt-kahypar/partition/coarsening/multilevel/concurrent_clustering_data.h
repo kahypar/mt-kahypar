@@ -90,7 +90,7 @@ class ConcurrentClusteringData {
                      const HypernodeID v,
                      parallel::scalable_vector<HypernodeID>& cluster_ids,
                      MultilevelVertexPairRater& rater,
-                     ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
+                     ds::FixedVertexSupport& fixed_vertices);
 
   // ! Only for testing
   template<typename Hypergraph>
@@ -102,7 +102,7 @@ class ConcurrentClusteringData {
                    const HypernodeID u,
                    const HypernodeID rep,
                    vec<HypernodeID>& cluster_ids,
-                   ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
+                   ds::FixedVertexSupport& fixed_vertices);
 
   const Context& _context;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;

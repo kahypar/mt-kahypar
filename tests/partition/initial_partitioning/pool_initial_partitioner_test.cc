@@ -91,9 +91,8 @@ class APoolInitialPartitionerTest : public Test {
 
   void addFixedVertices(const double percentage,
                         const PartitionID default_block = kInvalidPartition) {
-    ds::FixedVertexSupport<Hypergraph> fixed_vertices(
+    ds::FixedVertexSupport fixed_vertices(
       hypergraph.initialNumNodes(), context.partition.k);
-    fixed_vertices.setHypergraph(&hypergraph);
 
     const int threshold = percentage * 1000;
     utils::Randomize& rand = utils::Randomize::instance();
@@ -102,7 +101,7 @@ class APoolInitialPartitionerTest : public Test {
       if ( rnd <= threshold ) {
         const PartitionID block = default_block == kInvalidPartition ?
           rand.getRandomInt(0, context.partition.k - 1, THREAD_ID) : default_block;
-        fixed_vertices.fixToBlock(hn, block);
+        fixed_vertices.fixToBlock(hypergraph, hn, block);
       }
     }
     hypergraph.addFixedVertexSupport(std::move(fixed_vertices));

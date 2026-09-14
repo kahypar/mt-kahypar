@@ -230,9 +230,8 @@ template<typename Hypergraph>
 void addFixedVertices(Hypergraph& hypergraph,
                       const mt_kahypar_partition_id_t* fixed_vertices,
                       const PartitionID k) {
-  ds::FixedVertexSupport<Hypergraph> fixed_vertex_support(
+  ds::FixedVertexSupport fixed_vertex_support(
     hypergraph.initialNumNodes(), k);
-  fixed_vertex_support.setHypergraph(&hypergraph);
   hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
     if ( fixed_vertices[hn] != -1 ) {
       if ( fixed_vertices[hn] < 0 || fixed_vertices[hn] >= k ) {
@@ -240,7 +239,7 @@ void addFixedVertices(Hypergraph& hypergraph,
           "Try to partition hypergraph into " + STR(k) + " blocks, but node " +
            STR(hn) + " is fixed to block " + STR(fixed_vertices[hn]));
       }
-      fixed_vertex_support.fixToBlock(hn, fixed_vertices[hn]);
+      fixed_vertex_support.fixToBlock(hypergraph, hn, fixed_vertices[hn]);
     }
   });
   hypergraph.addFixedVertexSupport(std::move(fixed_vertex_support));
@@ -248,7 +247,7 @@ void addFixedVertices(Hypergraph& hypergraph,
 
 template<typename Hypergraph>
 void removeFixedVertices(Hypergraph& hypergraph) {
-  ds::FixedVertexSupport<Hypergraph> fixed_vertex_support;
+  ds::FixedVertexSupport fixed_vertex_support;
   hypergraph.addFixedVertexSupport(std::move(fixed_vertex_support));
 }
 

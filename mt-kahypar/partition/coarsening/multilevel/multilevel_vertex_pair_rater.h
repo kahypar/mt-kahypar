@@ -118,7 +118,7 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
-                        const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
@@ -160,7 +160,7 @@ class MultilevelVertexPairRater {
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
-                        const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
+                        const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
 
