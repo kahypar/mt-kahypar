@@ -144,8 +144,8 @@ void verifyNumIncidentCutHyperedges(const PartitionedHypergraph& partitioned_hyp
 
 template<typename Hypergraph>
 void verifyFixedVertices(const Hypergraph& hypergraph,
-                         const ds::FixedVertexSupport<Hypergraph>& expected_fixed_vertices,
-                         const ds::FixedVertexSupport<Hypergraph>& actual_fixed_vertices) {
+                         const ds::FixedVertexSupport& expected_fixed_vertices,
+                         const ds::FixedVertexSupport& actual_fixed_vertices) {
   hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
     ASSERT_EQ(expected_fixed_vertices.fixedVertexBlock(hn),
               actual_fixed_vertices.fixedVertexBlock(hn));
@@ -204,14 +204,13 @@ template<typename Hypergraph>
 void addRandomFixedVertices(Hypergraph& hypergraph,
                             const PartitionID k,
                             const double percentage_fixed_vertices) {
-  ds::FixedVertexSupport<Hypergraph> fixed_vertices(hypergraph.initialNumNodes(), k);
-  fixed_vertices.setHypergraph(&hypergraph);
+  ds::FixedVertexSupport fixed_vertices(hypergraph.initialNumNodes(), k);
   utils::Randomize& rand = utils::Randomize::instance();
   const int threshold = percentage_fixed_vertices * 1000;
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     const bool is_fixed = rand.getRandomInt(0, 1000, THREAD_ID) <= threshold;
     if ( is_fixed ) {
-      fixed_vertices.fixToBlock(hn, rand.getRandomInt(0, k - 1, THREAD_ID));
+      fixed_vertices.fixToBlock(hypergraph, hn, rand.getRandomInt(0, k - 1, THREAD_ID));
     }
   }
   hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
@@ -448,7 +447,7 @@ TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractionsWithFixedVert
   if ( debug ) LOG << "Generate Random Hypergraph with Fixed Vertices";
   Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
   addRandomFixedVertices(original_hypergraph, 4, fixed_vertex_percentage);
-  ds::FixedVertexSupport<Hypergraph> original_fixed_vertices =
+  ds::FixedVertexSupport original_fixed_vertices =
     original_hypergraph.copyOfFixedVertexSupport();
   Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
   PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
@@ -471,12 +470,12 @@ TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractionsWithFixedVert
   timer.stop_timer("parallel_n_level");
 
   if ( debug ) LOG << "Verify equality of original and sequential fixed vertex support";
-  ds::FixedVertexSupport<Hypergraph> sequential_fixed_vertices =
+  ds::FixedVertexSupport sequential_fixed_vertices =
     sequential_hg.copyOfFixedVertexSupport();
   verifyFixedVertices(original_hypergraph, original_fixed_vertices, sequential_fixed_vertices);
 
   if ( debug ) LOG << "Verify equality of original and parallel fixed vertex support";
-  ds::FixedVertexSupport<Hypergraph> parallel_fixed_vertices =
+  ds::FixedVertexSupport parallel_fixed_vertices =
     parallel_hg.copyOfFixedVertexSupport();
   verifyFixedVertices(original_hypergraph, original_fixed_vertices, parallel_fixed_vertices);
 
@@ -622,7 +621,7 @@ TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractionsWithFixedVertices)
   if ( debug ) LOG << "Generate Random Hypergraph with Fixed Vertices";
   Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
   addRandomFixedVertices(original_hypergraph, 4, fixed_vertex_percentage);
-  ds::FixedVertexSupport<Hypergraph> original_fixed_vertices =
+  ds::FixedVertexSupport original_fixed_vertices =
     original_hypergraph.copyOfFixedVertexSupport();
   Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
   PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
@@ -645,12 +644,12 @@ TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractionsWithFixedVertices)
   timer.stop_timer("parallel_n_level");
 
   if ( debug ) LOG << "Verify equality of original and sequential fixed vertex support";
-  ds::FixedVertexSupport<Hypergraph> sequential_fixed_vertices =
+  ds::FixedVertexSupport sequential_fixed_vertices =
     sequential_hg.copyOfFixedVertexSupport();
   verifyFixedVertices(original_hypergraph, original_fixed_vertices, sequential_fixed_vertices);
 
   if ( debug ) LOG << "Verify equality of original and parallel fixed vertex support";
-  ds::FixedVertexSupport<Hypergraph> parallel_fixed_vertices =
+  ds::FixedVertexSupport parallel_fixed_vertices =
     parallel_hg.copyOfFixedVertexSupport();
   verifyFixedVertices(original_hypergraph, original_fixed_vertices, parallel_fixed_vertices);
 
