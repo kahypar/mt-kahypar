@@ -1,11 +1,9 @@
 target_sources(mtkahypar_tests PRIVATE
          bipartitioning_gain_policy_test.cc
-         deterministic_jet_refiner_test.cc
          gain_policy_test.cc
          bipartitioning_gain_policy_test.cc
          rollback_test.cc
          advanced_rebalancer_test.cc
-         deterministic_rebalancer_test.cc
          repair_empty_blocks_test.cc
          twoway_fm_refiner_test.cc
          gain_cache_test.cc
@@ -20,6 +18,11 @@ if(KAHYPAR_ENABLE_QUALITY_FEATURES)
          flow_construction_test.cc
          )
 endif()
+
+if(KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+    target_sources(mtkahypar_tests PRIVATE deterministic_jet_refiner_test.cc deterministic_rebalancer_test.cc)
+endif()
+
 if(NOT KAHYPAR_DISABLE_HWLOC)
     target_sources(mtkahypar_tests PRIVATE label_propagation_refiner_test.cc)
 endif()
