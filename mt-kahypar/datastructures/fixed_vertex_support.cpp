@@ -48,7 +48,7 @@ FixedVertexSupport::FixedVertexSupport(const HypernodeID num_nodes, const Partit
   _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
   _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
 
-void FixedVertexSupport::setMaxBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+void FixedVertexSupport::setMaxBlockWeight(const std::vector<HypernodeWeight>& max_block_weights) {
   if ( hasFixedVertices() ) {
     ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
     _max_block_weights = max_block_weights;

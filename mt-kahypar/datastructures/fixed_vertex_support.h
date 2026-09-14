@@ -62,7 +62,7 @@ class FixedVertexSupport {
   FixedVertexSupport(FixedVertexSupport&&) = default;
   FixedVertexSupport & operator= (FixedVertexSupport &&) = default;
 
-  void setMaxBlockWeight(const std::vector<HypernodeWeight> max_block_weights);
+  void setMaxBlockWeight(const std::vector<HypernodeWeight>& max_block_weights);
 
   PartitionID numBlocks() const {
     return _k;
