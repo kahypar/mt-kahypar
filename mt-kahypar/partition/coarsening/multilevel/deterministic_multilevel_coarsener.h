@@ -111,16 +111,16 @@ private:
                            HypernodeID& num_nodes,
                            size_t first,
                            size_t last,
-                           ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
+                           ds::FixedVertexSupport& fixed_vertices);
 
   template<bool has_fixed_vertices, typename RatingMap>
   void calculatePreferredTargetCluster(HypernodeID u,
                                        const vec<HypernodeID>& clusters,
                                        RatingMap& tmp_ratings,
-                                       const ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
+                                       const ds::FixedVertexSupport& fixed_vertices);
 
   template<bool has_fixed_vertices>
-  size_t approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport<Hypergraph>& fixed_vertices);
+  size_t approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport& fixed_vertices);
 
   HypernodeID currentNumberOfNodesImpl() const override {
     return Base::currentNumNodes();
