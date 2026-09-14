@@ -144,10 +144,9 @@ TYPED_TEST(InitialMappingTest, FindsImprovementsWithFixedVertices) {
   this->constructFromValues(8, 2, { {0, 4, 5}, {2, 3, 7} });
   this->setup();
 
-  ds::FixedVertexSupport<typename TestFixture::Hypergraph> fixed_vertices(8, 8);
-  fixed_vertices.setHypergraph(&this->hypergraph);
-  fixed_vertices.fixToBlock(0, 0);
-  fixed_vertices.fixToBlock(3, 3);
+  ds::FixedVertexSupport fixed_vertices(8, 8);
+  fixed_vertices.fixToBlock(this->hypergraph, 0, 0);
+  fixed_vertices.fixToBlock(this->hypergraph, 3, 3);
   this->hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
 
   for (HypernodeID hn = 0; hn < 8; ++hn) {
@@ -167,10 +166,9 @@ TYPED_TEST(InitialMappingTest, WorksWithAllVerticesFixed) {
   this->constructFromValues(8, 2, { {0, 4, 5}, {2, 3, 7} });
   this->setup();
 
-  ds::FixedVertexSupport<typename TestFixture::Hypergraph> fixed_vertices(8, 8);
-  fixed_vertices.setHypergraph(&this->hypergraph);
+  ds::FixedVertexSupport fixed_vertices(8, 8);
   for (HypernodeID hn = 0; hn < 8; ++hn) {
-    fixed_vertices.fixToBlock(hn, hn);
+    fixed_vertices.fixToBlock(this->hypergraph, hn, hn);
   }
   this->hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
 
