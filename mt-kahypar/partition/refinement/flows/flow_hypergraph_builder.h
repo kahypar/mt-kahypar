@@ -60,23 +60,23 @@ namespace mt_kahypar {
       }
 
       MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::PinIndex pinCount(const whfc::Hyperedge e) {
-        ASSERT(e < _num_hes);
+        ASSERT(e < std::atomic_ref(_num_hes.value()).load(std::memory_order_relaxed));
         return _hes[e + 1].first_out - _hes[e].first_out;
       }
 
       MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Flow& capacity(const whfc::Hyperedge e) {
-        ASSERT(e < _num_hes);
+        ASSERT(e < std::atomic_ref(_num_hes.value()).load(std::memory_order_relaxed));
         return _hes[e].capacity;
       }
 
       TmpPinRange pinsOf(const whfc::Hyperedge e) {
-        ASSERT(e < _num_hes);
+        ASSERT(e < std::atomic_ref(_num_hes.value()).load(std::memory_order_relaxed));
         return TmpPinRange(_pins.begin() + _hes[e].first_out,
           _pins.begin() + _hes[e + 1].first_out);
       }
 
       MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Hyperedge originalHyperedgeID(const whfc::Hyperedge& e) {
-        ASSERT(e < _num_hes);
+        ASSERT(e < std::atomic_ref(_num_hes.value()).load(std::memory_order_relaxed));
         return _global_start_he + e;
       }
 
@@ -96,7 +96,14 @@ namespace mt_kahypar {
         _hes[he].capacity = capacity;
         _hes[he].first_out = whfc::PinIndex(pin_start_idx);
         _hes[he + 1].first_out = whfc::PinIndex(pin_end_idx);
+
+        #ifdef KAHYPAR_USE_ASSERTIONS
+        // with assertions, the addition needs to be atomic since the value
+        // is used in assertions by other threads
+        std::atomic_ref(_num_hes.value()).fetch_add(1, std::memory_order_relaxed);
+        #else
         ++_num_hes;
+        #endif
       }
 
       void finalize() {
