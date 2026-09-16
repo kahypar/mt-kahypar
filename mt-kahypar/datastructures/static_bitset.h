@@ -31,6 +31,7 @@
 #include <limits>
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/bitset.h"
@@ -114,8 +115,8 @@ class StaticBitset {
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Block loadCurrentBlock() {
       ASSERT(static_cast<size_t>(_current_block_id >> DIV_SHIFT) <= _num_blocks);
-      return std::atomic_ref(const_cast<Block&>(_bitset[_current_block_id >> DIV_SHIFT]))
-          .load(std::memory_order::relaxed);
+      return parallel::atomic_load(_bitset[_current_block_id >> DIV_SHIFT],
+                                   std::memory_order::relaxed);
     }
 
     ENABLE_ASSERTIONS(const size_t _num_blocks;)
@@ -173,7 +174,8 @@ class StaticBitset {
   int popcount() const {
     int cnt = 0;
     for ( size_t i = 0; i < _num_blocks; ++i ) {
-      cnt += utils::popcount_64(std::atomic_ref(const_cast<Block&>(_bitset[i])).load(std::memory_order::relaxed));
+      cnt += utils::popcount_64(
+          parallel::atomic_load(_bitset[i], std::memory_order::relaxed));
     }
     return cnt;
   }

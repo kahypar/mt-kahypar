@@ -34,6 +34,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
@@ -130,8 +131,9 @@ class DeltaConnectivitySet {
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UnsafeBlock loadCurrentBlock() {
       ASSERT(static_cast<size_t>(_current_block_id / BITS_PER_BLOCK) < _num_blocks);
       const size_t block_idx = _current_block_id / BITS_PER_BLOCK;
-      return std::atomic_ref(const_cast<UnsafeBlock&>(_shared_bitset[block_idx]))
-          .load(std::memory_order::relaxed) ^ *(_thread_local_bitset + block_idx);
+      return parallel::atomic_load(_shared_bitset[block_idx],
+                                   std::memory_order::relaxed) ^
+             *(_thread_local_bitset + block_idx);
     }
 
     const size_t _num_blocks;

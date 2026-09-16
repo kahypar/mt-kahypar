@@ -251,7 +251,11 @@ class IntegralAtomicWrapper {
   std::atomic<T> _value;
 };
 
-
+template <typename T>
+T atomic_load(const T &value,
+                    std::memory_order order = std::memory_order_seq_cst) {
+  return std::atomic_ref<T>(const_cast<T &>(value)).load(order);
+}
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

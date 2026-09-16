@@ -48,7 +48,8 @@ class NumNodesTracker {
     _num_nodes_update_threshold(0) { }
 
   HypernodeID currentNumNodes() const {
-    return std::atomic_ref(const_cast<HypernodeID&>(_current_num_nodes)).load(std::memory_order::relaxed);
+    return parallel::atomic_load(_current_num_nodes,
+                                 std::memory_order::relaxed);
   }
 
   void updateCurrentNumNodes() {
