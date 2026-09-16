@@ -185,24 +185,24 @@ namespace mt_kahypar::dyn {
           ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
         }
 
-        PartitionID add_node_to_partitioned_hypergraph(const HypernodeID& hn) {
+        PartitionID add_node_to_partitioned_hypergraph(const HypernodeID& hn, std::vector<std::tuple<int,int>>& block_connectivities) {
 
           // partitioned_hypergraph_m.addNode(hn, kInvalidPartition);
 
           //compute for each block the number of nodes the new node connected to
-          std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
-          for ( PartitionID p = 0; p < context.partition.k; ++p ) {
-            block_connectivities[p] = std::make_tuple(0, p);
-          }
-          for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
-            for ( const PartitionID& p : partitioned_hypergraph_m.connectivitySet(he) ) {
-              ASSERT(partitioned_hypergraph_m.checkConnectivitySet(he, context.partition.k));
-              block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
-            }
-          }
-
-          // sort block_connectivities in descending order
-          std::sort(block_connectivities.begin(), block_connectivities.end(), std::greater<std::tuple<int,int>>());
+          // std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
+          // for ( PartitionID p = 0; p < context.partition.k; ++p ) {
+          //   block_connectivities[p] = std::make_tuple(0, p);
+          // }
+          // for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
+          //   for ( const PartitionID& p : partitioned_hypergraph_m.connectivitySet(he) ) {
+          //     ASSERT(partitioned_hypergraph_m.checkConnectivitySet(he, context.partition.k));
+          //     block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
+          //   }
+          // }
+          //
+          // // sort block_connectivities in descending order
+          // std::sort(block_connectivities.begin(), block_connectivities.end(), std::greater<std::tuple<int,int>>());
 
           //Add node to block with the highest connectivity if it doesn't violate max_part_weights (imbalance)
           for (const auto& block_connectivity : block_connectivities) {
@@ -364,7 +364,19 @@ namespace mt_kahypar::dyn {
             ASSERT(hn == new_hn);
             GainCachePtr::cast<Km1GainCache>(_gain_cache).addNode(hn);
             updateMaxPartWeight(context, hypergraph_m);
-            const PartitionID assigned_part = add_node_to_partitioned_hypergraph(hn);
+
+
+            std::vector<std::tuple<int,int>> block_connectivities(context.partition.k, std::make_tuple(0,0));
+            for (const auto& [node, edge] : change.added_pins)
+            {
+              if (node == hn && edge < hypergraph_m.initialNumEdges()) {
+                for (const PartitionID& p : partitioned_hypergraph_m.connectivitySet(edge)) {
+                  block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
+                }
+              }
+            }
+            std::sort(block_connectivities.begin(), block_connectivities.end(), std::greater<std::tuple<int,int>>());
+            const PartitionID assigned_part = add_node_to_partitioned_hypergraph(hn, block_connectivities);
             (void) assigned_part;
             ASSERT(assigned_part != kInvalidPartition);
             _rebalancer.insertOrUpdateNode(hn);
