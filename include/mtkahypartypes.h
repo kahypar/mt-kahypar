@@ -140,9 +140,17 @@ typedef enum {
 
 #ifndef MT_KAHYPAR_API
 #  ifdef _WIN32
-#     if defined(MT_KAHYPAR_BUILD_SHARED)  /* build dll */
+#     if defined(MT_KAHYPAR_BUILD_SHARED)
+          /*
+           * Build the library and export the symbols.
+           * Note that MT_KAHYPAR_BUILD_SHARED is only defined while building
+           * the library target.
+           */
 #         define MT_KAHYPAR_API __declspec(dllexport)
-#     elif !defined(MT_KAHYPAR_BUILD_STATIC)  /* use dll */
+#     elif !defined(MT_KAHYPAR_BUILD_STATIC)
+          /*
+           * Link against the prebuilt library and import the symbols.
+           */
 #         define MT_KAHYPAR_API __declspec(dllimport)
 #     else  /* static library */
 #         define MT_KAHYPAR_API
