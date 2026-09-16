@@ -421,16 +421,6 @@ target_include_directories(MtKaHyPar-Include INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools/kahypar-shared-resources
                            ${CMAKE_CURRENT_BINARY_DIR}/external_tools)
 
-if(KAHYPAR_USE_GROWT)
-  target_include_directories(MtKaHyPar-Include INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/growt
-  )
-  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_USE_GROWT)
-  target_link_libraries(MtKaHyPar-BuildFlags INTERFACE
-      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:atomic>
-  )
-endif()
-
 if(NOT KAHYPAR_DISABLE_PARLAY)
   FetchContent_Populate(
     parlay QUIET EXLUDE_FROM_ALL
@@ -524,6 +514,7 @@ endif()
 add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
+add_subdirectory(dependencies)
 add_subdirectory(mt-kahypar)
 
 # export target for C interface
