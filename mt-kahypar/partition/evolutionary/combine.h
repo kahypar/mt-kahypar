@@ -215,15 +215,13 @@ static constexpr bool debug = true;
 
     sub_context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     sub_context.coarsening.rating.rating_function = RatingFunction::edge_frequency;
-    sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::guided;
+    sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::always_accept;
 
-    std::vector<size_t> parents;
-    population.sampleKParentsReturnBest(parents, parent_amount, context.partition.deterministic, rng);
+    Individuals best_parents = population.listOfBest(parent_amount);
     //compute edge frequencies
     vec<EdgeMetadata> edge_md(hypergraph.initialNumEdges(), 0);
-    for (auto parent_id : parents) {
-      std::vector<HyperedgeID> cut_edges = population.cutEdgesCopyAt(parent_id);
-      for (auto edge : cut_edges) {
+    for (const auto& parent : best_parents) {
+      for (const auto edge : parent->cutEdges()) {
         //edge_md[edge] += 1.0 / parent_amount;
         edge_md[edge] += 1.0;
       }
