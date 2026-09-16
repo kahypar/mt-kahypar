@@ -2,6 +2,7 @@
 #define MTKAHYPAR_TYPEDEFS_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
   STATIC_GRAPH,
@@ -79,11 +80,11 @@ typedef struct {
   mt_kahypar_partition_type_t type;
 } mt_kahypar_partitioned_hypergraph_const_t;
 
-typedef unsigned long long mt_kahypar_hypernode_id_t;
-typedef unsigned long long mt_kahypar_hyperedge_id_t;
-typedef int mt_kahypar_hypernode_weight_t;
-typedef int mt_kahypar_hyperedge_weight_t;
-typedef int mt_kahypar_partition_id_t;
+typedef uint64_t mt_kahypar_hypernode_id_t;
+typedef uint64_t mt_kahypar_hyperedge_id_t;
+typedef int32_t mt_kahypar_hypernode_weight_t;
+typedef int32_t mt_kahypar_hyperedge_weight_t;
+typedef int32_t mt_kahypar_partition_id_t;
 
 /**
  * Configurable parameters of the partitioning context.
