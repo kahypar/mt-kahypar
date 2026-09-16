@@ -52,6 +52,7 @@ namespace mt_kahypar::mutate {
     }
     hypergraph.setCommunityIDs(std::move(comms));
     Context mut_context(context);
+    mut_context.preprocessing.use_community_detection = false;
     if (!mut_context.partition.use_individual_part_weights) {
       mut_context.partition.max_part_weights.clear();
     }
