@@ -78,11 +78,12 @@ public:
   // ! Changes value of entry i from false to true and returns true, if the value
   // ! hold on position i was false and was successfully set to true
   bool compare_and_set_to_true(const size_t i) {
-    auto atomic_vi = std::atomic_ref(_v[i]);
-    Type expected = atomic_vi.load(std::memory_order::relaxed);
+    Type expected = std::atomic_ref(_v[i]).load(std::memory_order::relaxed);
     Type desired = _threshold;
-	if (expected != _threshold && atomic_vi.compare_exchange_strong(expected, desired,
-		std::memory_order::acq_rel, std::memory_order::relaxed)) {
+    if (expected != _threshold &&
+        std::atomic_ref(_v[i]).compare_exchange_strong(
+            expected, desired, std::memory_order::acq_rel,
+            std::memory_order::relaxed)) {
       // Value was successfully set from false to true
       return true;
     } else {

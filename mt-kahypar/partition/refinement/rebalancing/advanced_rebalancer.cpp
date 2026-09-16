@@ -327,9 +327,7 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     size_t num_overloaded_blocks = _overloaded_blocks.size();
 
-    auto atomic_global_move_id = std::atomic_ref(global_move_id);
-    auto atomic_attributed_gain = std::atomic_ref(attributed_gain);
-    auto task = [&, atomic_global_move_id](size_t task_id) {
+    auto task = [&](size_t task_id) {
       vec<HyperedgeID> edges_with_gain_changes;
       Gain local_attributed_gain = 0;
       vec<vec<HypernodeID>> nodes_to_update(_pqs.size());
@@ -356,8 +354,8 @@ namespace impl {
         bool moved = phg.changeNodePart(
                       _gain_cache, m.node, m.from, m.to,
                       _context.partition.max_part_weights[m.to],
-                      [&, atomic_global_move_id] {
-                          move_id = atomic_global_move_id.fetch_add(1, std::memory_order::relaxed);
+                      [&] {
+                          move_id = std::atomic_ref(global_move_id).fetch_add(1, std::memory_order::relaxed);
                       },
                       [&](const SynchronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
@@ -433,7 +431,8 @@ namespace impl {
 
         _moves[move_id] = m;
       }
-      atomic_attributed_gain.fetch_add(local_attributed_gain, std::memory_order::relaxed);
+      std::atomic_ref(attributed_gain)
+          .fetch_add(local_attributed_gain, std::memory_order::relaxed);
     };
 
     tbb::task_group tg;

@@ -82,13 +82,19 @@ ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const
 template<typename GraphAndGainTypes>
 void ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
   const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
-  auto atomic_threshold = std::atomic_ref(_hash_buckets[bucket_idx].threshold);
-  uint32_t expected = atomic_threshold.load(std::memory_order::relaxed);
+  uint32_t expected = std::atomic_ref(_hash_buckets[bucket_idx].threshold)
+                          .load(std::memory_order::relaxed);
   uint32_t desired = _threshold - 1;
-  while ( atomic_threshold.load(std::memory_order::relaxed) < _threshold ) {
-    if ( expected < desired && atomic_threshold.compare_exchange_strong(expected, desired, std::memory_order::acq_rel, std::memory_order::relaxed) ) {
+  while ( std::atomic_ref(_hash_buckets[bucket_idx].threshold )
+               .load(std::memory_order::relaxed) < _threshold ) {
+    if ( expected < desired &&
+        std::atomic_ref(_hash_buckets[bucket_idx].threshold)
+             .compare_exchange_strong(expected, desired,
+                                      std::memory_order::acq_rel,
+                                      std::memory_order::relaxed) ) {
       _hash_buckets[bucket_idx].identical_nets.clear();
-      atomic_threshold.store(_threshold, std::memory_order::relaxed);
+      std::atomic_ref(_hash_buckets[bucket_idx].threshold)
+          .store(_threshold, std::memory_order::relaxed);
     }
   }
   _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
@@ -214,10 +220,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
 
   _flow_hg.setNumCSRBuckets(NUM_CSR_BUCKETS);
   const size_t step = (max_hyperedges + NUM_CSR_BUCKETS - 1) / NUM_CSR_BUCKETS;
-  auto atomic_fp_total_cut = std::atomic_ref(flow_problem.total_cut);
-  auto atomic_fp_non_removable_cut = std::atomic_ref(flow_problem.non_removable_cut);
-  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS,
-      [&, atomic_fp_total_cut, atomic_fp_non_removable_cut](const size_t bucket_idx) {
+  tbb::parallel_for(UL(0), NUM_CSR_BUCKETS, [&](const size_t bucket_idx) {
     const size_t start = std::min(step * bucket_idx, static_cast<size_t>(max_hyperedges));
     const size_t end = std::min(step * (bucket_idx + 1), static_cast<size_t>(max_hyperedges));
     const size_t num_hes = end - start;
@@ -243,7 +246,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
       tmp_pins.clear();
       size_t he_hash = 0;
       if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
-          atomic_fp_total_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+        std::atomic_ref(flow_problem.total_cut)
+            .fetch_add(parameters.capacity, std::memory_order::relaxed);
       }
       for ( const HypernodeID& pin : phg.pins(he) ) {
         whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
@@ -260,7 +264,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
       if ( connected_to_source_and_sink ) {
         // Hyperedge is connected to source and sink which means we can not remove it
         // from the cut with the current flow problem => remove he from flow problem
-          atomic_fp_non_removable_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+        std::atomic_ref(flow_problem.non_removable_cut)
+            .fetch_add(parameters.capacity, std::memory_order::relaxed);
       } else if ( !tmp_pins.empty() ) {
         if ( parameters.connect_to_source ) {
           push_into_tmp_pins(tmp_pins, flow_problem.source, he_hash, true);
@@ -354,10 +359,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
 
   ds::ConcurrentBucketMap<HashedHyperedge> hyperedge_hash_map;
   hyperedge_hash_map.reserve_for_estimated_number_of_insertions(max_hyperedges);
-  auto atomic_fp_total_cut = std::atomic_ref(flow_problem.total_cut);
-  auto atomic_fp_non_removable_cut = std::atomic_ref(flow_problem.non_removable_cut);
   // Contract Hyperedges
-  tbb::parallel_for(ID(0), max_hyperedges, [&, atomic_fp_total_cut, atomic_fp_non_removable_cut](const size_t i) {
+  tbb::parallel_for(ID(0), max_hyperedges, [&](const size_t i) {
     const HyperedgeID he = sub_hg.hes[i];
     FlowNetworkEdgeParameters parameters =
       FlowNetworkConstruction::getParameters(phg, _context, he, block_0, block_1);
@@ -376,7 +379,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
     tmp_pins.clear();
     tmp_pins.reserve(phg.edgeSize(he));
     if ( parameters.is_cut || (phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0) ) {
-      atomic_fp_total_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+      std::atomic_ref(flow_problem.total_cut)
+          .fetch_add(parameters.capacity, std::memory_order::relaxed);
     }
     for (const HypernodeID& pin : phg.pins(he)) {
       whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
@@ -393,7 +397,8 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
     if (connected_to_source_and_sink) {
       // Hyperedge is connected to source and sink which means we can not remove it
       // from the cut with the current flow problem => remove he from flow problem
-        atomic_fp_non_removable_cut.fetch_add(tmp_hyperedges[i].weight, std::memory_order::relaxed);
+      std::atomic_ref(flow_problem.non_removable_cut)
+          .fetch_add(tmp_hyperedges[i].weight, std::memory_order::relaxed);
     } else if (!tmp_pins.empty()) {
       if (parameters.connect_to_source) {
         push_into_tmp_pins(tmp_pins, flow_problem.source, he_hash, true);
@@ -504,9 +509,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
   _flow_hg.allocateHyperedgesAndPins(max_hyperedges, max_pins);
   _flow_hg.setNumCSRBuckets(num_buckets);
 
-  auto atomic_fp_total_cut = std::atomic_ref(flow_problem.total_cut);
-  auto atomic_fp_non_removable_cut = std::atomic_ref(flow_problem.non_removable_cut);
-  _pins.doParallelForAllBuckets([&, atomic_fp_total_cut, atomic_fp_non_removable_cut](const size_t bucket_idx) {
+  _pins.doParallelForAllBuckets([&](const size_t bucket_idx) {
     vec<TmpPin>& pins_of_bucket = _pins.getBucket(bucket_idx);
     if ( pins_of_bucket.size() > 0 ) {
       std::sort(pins_of_bucket.begin(), pins_of_bucket.end(),
@@ -551,13 +554,15 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
         parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
         parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
         if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
-          atomic_fp_total_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+          std::atomic_ref(flow_problem.total_cut)
+              .fetch_add(parameters.capacity, std::memory_order::relaxed);
         }
 
         if ( parameters.connect_to_source && parameters.connect_to_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          atomic_fp_non_removable_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+          std::atomic_ref(flow_problem.non_removable_cut)
+              .fetch_add(parameters.capacity, std::memory_order::relaxed);
         } else {
           // Add hyperedge to flow network and configure source and sink
           size_t hash = 0;
@@ -669,9 +674,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
 
   ds::ConcurrentBucketMap<HashedHyperedge> hyperedge_hash_map;
   hyperedge_hash_map.reserve_for_estimated_number_of_insertions(max_hyperedges);
-  auto atomic_fp_total_cut = std::atomic_ref(flow_problem.total_cut);
-  auto atomic_fp_non_removable_cut = std::atomic_ref(flow_problem.non_removable_cut);
-  _pins.doParallelForAllBuckets([&, atomic_fp_total_cut, atomic_fp_non_removable_cut](const size_t bucket_idx) {
+  _pins.doParallelForAllBuckets([&](const size_t bucket_idx) {
     vec<TmpPin>& pins_of_bucket = _pins.getBucket(bucket_idx);
     if (pins_of_bucket.size() > 0) {
       std::sort(pins_of_bucket.begin(), pins_of_bucket.end(),
@@ -706,13 +709,15 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
         parameters.connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
         parameters.connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
         if ( parameters.is_cut || (actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0) ) {
-          atomic_fp_total_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+          std::atomic_ref(flow_problem.total_cut)
+              .fetch_add(parameters.capacity, std::memory_order::relaxed);
         }
 
         if ( parameters.connect_to_source && parameters.connect_to_sink ) {
           // Hyperedge is connected to source and sink which means we can not remove it
           // from the cut with the current flow problem => remove he from flow problem
-          atomic_fp_non_removable_cut.fetch_add(parameters.capacity, std::memory_order::relaxed);
+          std::atomic_ref(flow_problem.non_removable_cut)
+              .fetch_add(parameters.capacity, std::memory_order::relaxed);
         } else {
           // Add hyperedge to flow network and configure source and sink
           size_t hash = 0;
