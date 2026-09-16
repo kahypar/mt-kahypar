@@ -89,7 +89,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DISABLE_HWLOC=ON -DKAHYPAR_DISABLE_GROWT=ON -DKAHYPAR_DISABLE_PARLAY=ON -DKAHYPAR_PYTHON=ON
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DISABLE_HWLOC=ON -DKAHYPAR_DISABLE_PARLAY=ON -DKAHYPAR_PYTHON=ON
           make -j4 MtKaHyPar
           make -j4 mtkahypar
           make -j4 mtkahypar_python
