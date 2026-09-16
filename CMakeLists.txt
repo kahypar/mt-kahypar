@@ -86,7 +86,6 @@ option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package.
 # dependencies
 option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
 option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact running time on NUMA platforms." OFF)
-option(KAHYPAR_DISABLE_GROWT "Remove the growt dependency. Might significantly impact running time of the Steiner tree metric." OFF)
 option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact running time of deterministic mode on some instances." OFF)
 
 # specific compile features/build properties
@@ -351,8 +350,8 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
 endif()
 
 # check this after include(CheckSSE4_2) so BUILTIN_POPCNT is available
-if (NOT KAHYPAR_DISABLE_GROWT AND KAHYPAR_ENABLE_STEINER_TREE_METRIC
-    AND KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
+if (KAHYPAR_ENABLE_STEINER_TREE_METRIC AND KAHYPAR_X86
+    AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
     # growt requires SSE instructions
     set(KAHYPAR_USE_GROWT TRUE)
 else()
