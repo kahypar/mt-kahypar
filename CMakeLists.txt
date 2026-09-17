@@ -303,8 +303,8 @@ target_compile_options(MtKaHyPar-BuildFlags INTERFACE
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Zi>
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-g3>
 
-    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG> # keep assertions activated
-    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-UNDEBUG>
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG> # keep assertions activated
+    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-UNDEBUG>
 
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Oy->
     $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-omit-frame-pointer>
