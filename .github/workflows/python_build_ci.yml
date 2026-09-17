@@ -140,10 +140,20 @@ jobs:
           path: ./wheels/*.whl
 
 
-  package_windows_amd64:
-    name: Python Package Windows AMD64
-
-    runs-on: windows-latest
+  package_windows:
+    name: Python Package Windows
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+        include:
+          - os: windows-latest
+            arch: "x64"
+            CIBW-arch: "AMD64"
+          - os: windows-11-arm
+            arch: "arm64"
+            CIBW-arch: "ARM64"
+    runs-on: ${{ matrix.os }}
     env:
       CI_ACTIVE : 1
 
@@ -158,12 +168,12 @@ jobs:
       - name: Setup MSVC
         uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
-          arch: x64
+          arch: ${{ matrix.arch }}
 
       - name: Build Python Wheels
         shell: cmd
         env:
-          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ARCHS_WINDOWS: ${{ matrix.CIBW-arch }}
           CIBW_BUILD: cp3*-win*
           TBB_INSTALL_DIR: ${{ runner.temp }}/tbb_build
         run: |
