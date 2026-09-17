@@ -81,7 +81,7 @@ namespace mt_kahypar {
   void LocalizedKWayFM<GraphAndGainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
                                                                  DispatchedFMStrategy& fm_strategy) {
     auto updateOrAcquire = [&](const HypernodeID v) {
-      SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
+      SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acquire);
       if (searchOfV == thisSearch) {
         fm_strategy.updateGain(phg, gain_cache, v, move);
       } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
