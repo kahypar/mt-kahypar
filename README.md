@@ -93,18 +93,6 @@ The following command will install most of the required dependencies on a MacOS 
 
 The following instructions set up the environment used to build Mt-KaHyPar on Windows machines:
 
-#### MinGW
-
-  1. Download and install [MSYS2][MSYS2] from the official website (https://www.msys2.org/).
-  2. Launch the `MSYS2 MinGW x64` terminal.
-  3. Update the package manager database by running the following command:
-
-    pacman -Syu
-
-  4. The following command will then install all required dependencies:
-
-    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-tbb
-
 #### MSVC
 
 No further setup is required.
@@ -117,17 +105,14 @@ To build Mt-KaHyPar, use the following commands:
 
    ```git clone https://github.com/kahypar/mt-kahypar.git```
 
-1. *Only for Windows + MinGW: `export CMAKE_GENERATOR="MSYS Makefiles"`*
-2. *Only for Windows + MSVC: Append `-DKAHYPAR_DISABLE_HWLOC=On -DKAHYPAR_DOWNLOAD_TBB=On` the following `cmake` command*
-3. Run cmake: `cmake -B build --preset=<default/python/dev>`
-4. Build: `cmake --build build --target MtKaHyPar -j 4`
+1. *Only for Windows + MSVC: Append `-DKAHYPAR_DISABLE_HWLOC=On -DKAHYPAR_DOWNLOAD_TBB=On` the following `cmake` command*
+2. Run cmake: `cmake -B build --preset=<default/python/dev>`
+3. Build: `cmake --build build --target MtKaHyPar -j 4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
 As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
 If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
-
-Please note that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. We are happy to accept contributions to improve Windows support.
 
 Running Mt-KaHyPar
 -----------
