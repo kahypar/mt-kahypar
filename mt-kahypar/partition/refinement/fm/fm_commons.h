@@ -121,7 +121,7 @@ struct NodeTracker {
   }
 
   void releaseNode(HypernodeID u) {
-    searchOfNode[u].store(releasedMarker, std::memory_order_relaxed);
+    searchOfNode[u].store(releasedMarker, std::memory_order_release);
   }
 
   bool isSearchInactive(SearchID search_id) const {
