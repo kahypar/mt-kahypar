@@ -258,10 +258,14 @@ jobs:
       - name: Checkout HEAD
         uses: actions/checkout@v4
 
+      - name: Setup MSVC
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+
       - name: Install Mt-KaHyPar Multilevel Tests
         shell: cmd
         run: |
-          call .github/start-vs-dev-prompt.bat x64
           cmake --fresh -B build --preset=dev -G Ninja ^
             -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ^
             -DKAHYPAR_CI_BUILD=ON ^
