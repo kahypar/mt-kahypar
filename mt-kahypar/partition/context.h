@@ -364,6 +364,14 @@ struct DynamicParameters {
   std::chrono::high_resolution_clock::duration sorting_duration_sum = std::chrono::high_resolution_clock::duration::zero();
   std::chrono::high_resolution_clock::duration gain_cache_update_duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
+  // processing subtimings
+  std::chrono::high_resolution_clock::duration add_node_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration remove_node_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration add_edge_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration remove_edge_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration add_pin_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+  std::chrono::high_resolution_clock::duration remove_pin_duration_sum = std::chrono::high_resolution_clock::duration::zero();
+
   // generate file endings
   [[nodiscard]] std::string getOutputFileName() const {
     std::string file_name = "v" + std::to_string(version) + "_";

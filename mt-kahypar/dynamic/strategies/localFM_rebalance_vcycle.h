@@ -257,6 +257,8 @@ namespace mt_kahypar::dyn {
           ASSERT(_rebalancer.checkBlockQueues());
           ASSERT(_rebalancer.checkPullQueueGains());
 
+          HighResClockTimepoint start_remove_pin = std::chrono::high_resolution_clock::now();
+
           for (const auto& [hn, he] : change.removed_pins)
           {
             size_t pin_count_in_part_prior_removal = partitioned_hypergraph_m.pinCountInPart(he, partitioned_hypergraph_m.partID(hn));
@@ -307,6 +309,11 @@ namespace mt_kahypar::dyn {
             hypergraph_m.deletePin(he, hn);
           }
 
+          auto remove_pin_duration = std::chrono::high_resolution_clock::now() - start_remove_pin;
+          context.dynamic.remove_pin_duration_sum += remove_pin_duration;
+
+          HighResClockTimepoint start_remove_node = std::chrono::high_resolution_clock::now();
+
           for (const HypernodeID& hn : change.removed_nodes) {
             empty_blocks.push_back(partitioned_hypergraph_m.partID(hn));
             for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn)) {
@@ -341,6 +348,11 @@ namespace mt_kahypar::dyn {
             hypergraph_m.deleteHypernode(hn);
             updateMaxPartWeight(context, hypergraph_m);
           }
+
+          auto remove_node_duration = std::chrono::high_resolution_clock::now() - start_remove_node;
+          context.dynamic.remove_node_duration_sum += remove_node_duration;
+
+          HighResClockTimepoint start_remove_edge = std::chrono::high_resolution_clock::now();
 
           for (const HyperedgeID& he : change.removed_edges) {
 
@@ -383,12 +395,22 @@ namespace mt_kahypar::dyn {
             local_fm_nodes.push_back(hn);
           }
 
+          auto remove_edge_duration = std::chrono::high_resolution_clock::now() - start_remove_edge;
+          context.dynamic.remove_edge_duration_sum += remove_edge_duration;
+
+          HighResClockTimepoint start_add_edge = std::chrono::high_resolution_clock::now();
+
           for (const HyperedgeID& he : change.added_edges) {
             const HyperedgeID new_he = hypergraph_m.addHyperedge({}, 1);
             (void) new_he;
             ASSERT(he == new_he);
             partitioned_hypergraph_m.addEdge(he);
           }
+
+          auto add_edge_duration = std::chrono::high_resolution_clock::now() - start_add_edge;
+          context.dynamic.add_edge_duration_sum += add_edge_duration;
+
+          HighResClockTimepoint start_add_pin = std::chrono::high_resolution_clock::now();
 
           for (const auto& [node, edge] : change.added_pins)
           {
@@ -407,10 +429,6 @@ namespace mt_kahypar::dyn {
               if (p != partitioned_hypergraph_m.partID(node)) {
                 GainCachePtr::cast<Km1GainCache>(_gain_cache).changeBenefit(node, hypergraph_m.edgeWeight(edge), p);
                 _rebalancer.insertOrUpdateNode(node, partitioned_hypergraph_m.partID(node), p, hypergraph_m.edgeWeight(edge));
-                if (!context.dynamic.lazy_pull_updates)
-                {
-                  _rebalancer.insertOrUpdateNode(node, partitioned_hypergraph_m.partID(node), p, hypergraph_m.edgeWeight(edge));
-                }
               }
             }
             // _rebalancer.insertOrUpdateNode(node);
@@ -460,6 +478,9 @@ namespace mt_kahypar::dyn {
               context.dynamic.incremental_km1 += partitioned_hypergraph_m.edgeWeight(edge);
             }
           }
+
+          auto add_pin_duration = std::chrono::high_resolution_clock::now() - start_add_pin;
+          context.dynamic.add_pin_duration_sum += add_pin_duration;
 
           auto processing_duration_sum = std::chrono::high_resolution_clock::now() - start;
           context.dynamic.processing_duration_sum += processing_duration_sum;
@@ -561,7 +582,7 @@ namespace mt_kahypar::dyn {
             context.dynamic.vcycle_duration_sum += vcycle_duration;
           }
 
-        ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
+          ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
           ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
 
         }
