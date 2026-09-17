@@ -52,12 +52,11 @@ namespace mt_kahypar::mutate {
     }
     hypergraph.setCommunityIDs(std::move(comms));
     Context mut_context(context);
-    mut_context.preprocessing.use_community_detection = false;
     if (!mut_context.partition.use_individual_part_weights) {
       mut_context.partition.max_part_weights.clear();
     }
     vec<EdgeMetadata> edge_md;
-    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Partitioner<TypeTraits>::partition(
+    typename TypeTraits::PartitionedHypergraph partitioned_hypergraph = Multilevel<TypeTraits>::partition(
         hypergraph, std::move(edge_md), mut_context, target_graph);
 
     return std::make_shared<Individual>(partitioned_hypergraph, mut_context);
