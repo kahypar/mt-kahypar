@@ -325,7 +325,7 @@ endif()
 
 if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   include(CheckCXXCompilerFlag)
-  include(CheckSSE4_2)
+  include(CheckISAExtensions)
   block()
     set(CMAKE_REQUIRED_QUIET TRUE)
     check_cxx_compiler_flag(-mcx16 KAHYPAR_HAS_MCX16)
@@ -341,17 +341,24 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
   if(KAHYPAR_HAS_CRC32)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
-  if(BUILTIN_POPCNT)
+  if(SUPPORTS_SSE4_2)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>
-        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX /arch:SSE4.2>
+        $<$<CXX_COMPILER_ID:MSVC>:/arch:SSE4.2>
+    )
+  endif()
+  if(SUPPORTS_AVX)
+    # MSVC only marks popcnt as generally available if AVX is supported
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-mavx>
+        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX>
     )
   endif()
 endif()
 
-# check this after include(CheckSSE4_2) so BUILTIN_POPCNT is available
+# check this after include(CheckISAExtensions)
 if (KAHYPAR_ENABLE_STEINER_TREE_METRIC AND KAHYPAR_X86
-    AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND BUILTIN_POPCNT)
+    AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS AND SUPPORTS_SSE4_2)
     # growt requires SSE instructions
     set(KAHYPAR_USE_GROWT TRUE)
 else()
