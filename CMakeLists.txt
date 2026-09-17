@@ -273,7 +273,6 @@ target_compile_options(MtKaHyPar-BuildFlags INTERFACE
     >
 )
 target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
-    PARANOID
     _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
 )
 
