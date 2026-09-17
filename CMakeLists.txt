@@ -258,23 +258,21 @@ else()
 endif()
 
 # Add compile flags that enable warnings
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
-        -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual -Woverloaded-virtual
-        -Wredundant-decls -Wno-unused-function -Winit-self -pedantic -Wno-unused-function
-    >
-
-    $<$<CXX_COMPILER_ID:MSVC>:
-        /W3
-        /wd4267 /wd4244 # percision loss
-        /wd4334 # result of 32-bit shift implicitly converted to 64 bits
-        /wd4146 # unary minus operator applied to unsigned type
-        /permissive-
-    >
-)
-target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
-    _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
-)
+if(NOT MSVC)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+      -W -Wall -Wextra -Wunused -Wuninitialized -Wfatal-errors -Wcast-qual
+      -Woverloaded-virtual -Wredundant-decls -Wno-unused-function
+      -Winit-self -pedantic -Wno-unused-function
+  )
+else()
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+      /W3
+      /wd4267 /wd4244 # percision loss
+      /wd4334 # result of 32-bit shift implicitly converted to 64 bits
+      /wd4146 # unary minus operator applied to unsigned type
+      /permissive-
+  )
+endif()
 
 if(KAHYPAR_USE_GCOV AND NOT MSVC)
   # add coverage anaylsis compile and link flags
@@ -293,27 +291,33 @@ if (LLD_BIN AND KAHYPAR_X86)
   endif()
 endif()
 
-target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-    $<$<CXX_COMPILER_ID:MSVC>:
-        /bigobj
-    >
-    $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:MSVC>>:/O2>
-    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-O3>
+if(NOT MSVC)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+      $<$<CONFIG:Release>:-O3>
+      $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:
+          -g3
+          -UNDEBUG # keep assertions activated
+      >
+      $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+  )
+else()
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+      /bigobj
+      $<$<CONFIG:Release>:/O2>
+      $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:
+          /Zi
+          /UNDEBUG # keep assertions activated
+      >
+      $<$<CONFIG:Debug>:/Oy->
+  )
+endif()
 
-    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Zi>
-    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-g3>
-
-    $<$<AND:$<CONFIG:RelWithDebInfo>,$<CXX_COMPILER_ID:MSVC>>:/UNDEBUG> # keep assertions activated
-    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-UNDEBUG>
-
-    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:MSVC>>:/Oy->
-    $<$<AND:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fno-omit-frame-pointer>
-)
 if(WIN32)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
       NOMINMAX # disable min/max macros as they clash with the standard library
       NOGDI # avoid pulling in the ERROR macro
       WIN32_LEAN_AND_MEAN # we only need process, thread, file and console support
+      _CRT_SECURE_NO_WARNINGS # supress unsafe standard lib function usage warnings
   )
 endif()
 
@@ -341,17 +345,19 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mcrc32)
   endif()
   if(SUPPORTS_SSE4_2)
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>
-        $<$<CXX_COMPILER_ID:MSVC>:/arch:SSE4.2>
-    )
+    if(NOT MSVC)
+      target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
+    else()
+      target_compile_options(MtKaHyPar-BuildFlags INTERFACE /arch:SSE4.2)
+    endif()
   endif()
   if(SUPPORTS_AVX)
-    # MSVC only marks popcnt as generally available if AVX is supported
-    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-mavx>
-        $<$<CXX_COMPILER_ID:MSVC>:/arch:AVX>
-    )
+    if(NOT MSVC)
+      target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mavx)
+    else()
+      # MSVC marks popcnt as generally available only if AVX is supported
+      target_compile_options(MtKaHyPar-BuildFlags INTERFACE /arch:AVX)
+    endif()
   endif()
 endif()
 
@@ -364,25 +370,29 @@ else()
     set(KAHYPAR_USE_GROWT FALSE)
 endif()
 
-if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS AND (NOT MSVC))
   target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
-    $<$<AND:$<CONFIG:Release>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
-
-    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
-    $<$<AND:$<CONFIG:RelWithDebInfo>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-mtune=native>
+      $<$<CONFIG:Release>:-march=native -mtune=native>
+      $<$<CONFIG:RelWithDebInfo>:-march=native -mtune=native>
   )
 endif()
 
 if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/fsanitize=address>
-    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fsanitize=address>
-  )
-  target_link_options(MtKaHyPar-BuildFlags INTERFACE
-    $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:MSVC>>:/fsanitize=address>
-    $<$<AND:$<CONFIG:Debug>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-fsanitize=address>
-  )
+  if(NOT MSVC)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<CONFIG:Debug>:-fsanitize=address>
+    )
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<CONFIG:Debug>:-fsanitize=address>
+    )
+  else()
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<CONFIG:Debug>:/fsanitize=address>
+    )
+    target_link_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<CONFIG:Debug>:/fsanitize=address>
+    )
+  endif()
 endif()
 
 
