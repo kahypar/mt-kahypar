@@ -271,8 +271,6 @@ jobs:
             -DKAHYPAR_CI_BUILD=ON ^
             -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF ^
             -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF ^
-            -DKAHYPAR_DOWNLOAD_TBB=ON ^
-            -DKAHYPAR_DISABLE_HWLOC=ON ^
             -DKAHYPAR_ENABLE_THREAD_PINNING=OFF
           cmake --build build --target mtkahypar_tests -j 4
 

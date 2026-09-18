@@ -178,7 +178,7 @@ jobs:
           TBB_INSTALL_DIR: ${{ runner.temp }}/tbb_build
         run: |
           # run cmake to create pyproject.toml from pyproject.toml.in
-          cmake -B configure_python --preset=minimal -DKAHYPAR_DOWNLOAD_TBB=On -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=%TBB_INSTALL_DIR% -DKAHYPAR_DISABLE_HWLOC=On
+          cmake -B configure_python --preset=minimal -DKAHYPAR_SETUP_PYTHON=On -DKAHYPAR_TBB_DIR=%TBB_INSTALL_DIR%
           rmdir /s /q configure_python
           python -m cibuildwheel --output-dir wheels
 

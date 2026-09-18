@@ -84,8 +84,8 @@ option(KAHYPAR_INSTALL_CLI "Provide a target to install an executable binary `mt
 option(KAHYPAR_BUILD_DEBIAN_PACKAGE "Provide a target to build a debian package." OFF)
 
 # dependencies
-option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." OFF)
-option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact running time on NUMA platforms." OFF)
+option(KAHYPAR_DOWNLOAD_TBB "Download TBB automatically." ${MSVC})
+option(KAHYPAR_DISABLE_HWLOC "Exclude components requiring hwloc. Might impact running time on NUMA platforms." ${MSVC})
 option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact running time of deterministic mode on some instances." OFF)
 
 # specific compile features/build properties

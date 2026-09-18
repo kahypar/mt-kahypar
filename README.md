@@ -105,9 +105,8 @@ To build Mt-KaHyPar, use the following commands:
 
    ```git clone https://github.com/kahypar/mt-kahypar.git```
 
-1. *Only for Windows + MSVC: Append `-DKAHYPAR_DISABLE_HWLOC=On -DKAHYPAR_DOWNLOAD_TBB=On` the following `cmake` command*
-2. Run cmake: `cmake -B build --preset=<default/python/dev>`
-3. Build: `cmake --build build --target MtKaHyPar -j 4`
+1. Run cmake: `cmake -B build --preset=<default/python/dev>`
+2. Build: `cmake --build build --target MtKaHyPar -j 4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
