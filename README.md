@@ -91,11 +91,7 @@ The following command will install most of the required dependencies on a MacOS 
 
 ### Windows
 
-The following instructions set up the environment used to build Mt-KaHyPar on Windows machines:
-
-#### MSVC
-
-No further setup is required.
+Build within a Developer Command Prompt, or ensure that MSVC is discoverable by `cmake`.
 
 ### Build Commands
 
