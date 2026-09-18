@@ -36,7 +36,7 @@
 
 namespace mt_kahypar::utils {
 
-constexpr inline int popcount_64(const uint64_t x) noexcept {
+inline int popcount_64(const uint64_t x) noexcept {
 #ifndef MT_KAHYPAR_MSVC_USE_POPCNT_INTRINSICS
   return std::popcount(x);
 #else
