@@ -30,11 +30,18 @@
 #include <bit>
 #include <cstdint>
 
+#ifdef MT_KAHYPAR_MSVC_USE_POPCNT_INTRINSICS
+#include <intrin.h>
+#endif
+
 namespace mt_kahypar::utils {
 
 constexpr inline int popcount_64(const uint64_t x) noexcept {
-  // this should be GCC specific
+#ifndef MT_KAHYPAR_MSVC_USE_POPCNT_INTRINSICS
   return std::popcount(x);
+#else
+  return __popcnt64(x);
+#endif
 }
 
 constexpr inline int lowest_set_bit_64(const uint64_t x) noexcept {

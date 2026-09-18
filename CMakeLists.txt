@@ -92,7 +92,7 @@ option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact runnin
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
 option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
-option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`" OFF)
+option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native` or `/arch:AVX` for `MSVC`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
 
 # algorithm features for CLI build (note: the library always contains all non-experimental features)
@@ -349,14 +349,12 @@ if (KAHYPAR_X86 AND KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS)
       target_compile_options(MtKaHyPar-BuildFlags INTERFACE -msse4.2)
     else()
       target_compile_options(MtKaHyPar-BuildFlags INTERFACE /arch:SSE4.2)
-    endif()
-  endif()
-  if(SUPPORTS_AVX)
-    if(NOT MSVC)
-      target_compile_options(MtKaHyPar-BuildFlags INTERFACE -mavx)
-    else()
-      # MSVC marks popcnt as generally available only if AVX is supported
-      target_compile_options(MtKaHyPar-BuildFlags INTERFACE /arch:AVX)
+      if(NOT (KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS AND SUPPORTS_AVX))
+        # AVX enables unchecked use of popcnt within the STL already
+        target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE
+            MT_KAHYPAR_MSVC_USE_POPCNT_INTRINSICS
+        )
+      endif()
     endif()
   endif()
 endif()
@@ -370,11 +368,18 @@ else()
     set(KAHYPAR_USE_GROWT FALSE)
 endif()
 
-if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS AND (NOT MSVC))
-  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
-      $<$<CONFIG:Release>:-march=native -mtune=native>
-      $<$<CONFIG:RelWithDebInfo>:-march=native -mtune=native>
-  )
+if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+  if(NOT MSVC)
+    target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+        $<$<CONFIG:Release>:-march=native -mtune=native>
+        $<$<CONFIG:RelWithDebInfo>:-march=native -mtune=native>
+    )
+  else()
+    if(SUPPORTS_AVX)
+      # MSVC marks popcnt as generally available only if AVX is supported
+      target_compile_options(MtKaHyPar-BuildFlags INTERFACE /arch:AVX)
+    endif()
+  endif()
 endif()
 
 if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
