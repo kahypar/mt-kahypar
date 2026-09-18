@@ -33,7 +33,7 @@
 #include <sstream>
 
 #ifdef _WIN32
-#include <winbase.h>
+#include <windows.h>
 #else
 #ifdef MT_KAHYPAR_USE_THREAD_PINNING
 #include <sched.h>

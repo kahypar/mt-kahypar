@@ -169,7 +169,7 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
     try {
       context_parameter = std::stod(value);
       return mt_kahypar_status_t::SUCCESS;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
       report_conversion_error(expected);
       return mt_kahypar_status_t::INVALID_PARAMETER;
     }

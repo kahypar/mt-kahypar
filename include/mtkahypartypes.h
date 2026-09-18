@@ -2,6 +2,7 @@
 #define MTKAHYPAR_TYPEDEFS_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
   STATIC_GRAPH,
@@ -79,11 +80,11 @@ typedef struct {
   mt_kahypar_partition_type_t type;
 } mt_kahypar_partitioned_hypergraph_const_t;
 
-typedef unsigned long int mt_kahypar_hypernode_id_t;
-typedef unsigned long int mt_kahypar_hyperedge_id_t;
-typedef int mt_kahypar_hypernode_weight_t;
-typedef int mt_kahypar_hyperedge_weight_t;
-typedef int mt_kahypar_partition_id_t;
+typedef uint64_t mt_kahypar_hypernode_id_t;
+typedef uint64_t mt_kahypar_hyperedge_id_t;
+typedef int32_t mt_kahypar_hypernode_weight_t;
+typedef int32_t mt_kahypar_hyperedge_weight_t;
+typedef int32_t mt_kahypar_partition_id_t;
 
 /**
  * Configurable parameters of the partitioning context.
@@ -139,11 +140,29 @@ typedef enum {
 } mt_kahypar_file_format_type_t;
 
 #ifndef MT_KAHYPAR_API
-#   if __GNUC__ >= 4
-#       define MT_KAHYPAR_API __attribute__ ((visibility("default")))
-#   else
-#       define MT_KAHYPAR_API
-#   endif
+#  ifdef _WIN32
+#     if defined(MT_KAHYPAR_BUILD_SHARED)
+          /*
+           * Build the library and export the symbols.
+           * Note that MT_KAHYPAR_BUILD_SHARED is only defined while building
+           * the library target.
+           */
+#         define MT_KAHYPAR_API __declspec(dllexport)
+#     elif !defined(MT_KAHYPAR_BUILD_STATIC)
+          /*
+           * Link against the prebuilt library and import the symbols.
+           */
+#         define MT_KAHYPAR_API __declspec(dllimport)
+#     else  /* static library */
+#         define MT_KAHYPAR_API
+#     endif
+#  else
+#     if __GNUC__ >= 4
+#         define MT_KAHYPAR_API __attribute__ ((visibility("default")))
+#     else
+#         define MT_KAHYPAR_API
+#     endif
+#  endif
 #endif
 
 #endif // MTKAHYPAR_TYPEDEFS_H
