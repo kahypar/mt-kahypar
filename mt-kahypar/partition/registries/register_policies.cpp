@@ -83,6 +83,8 @@ void register_policies() {
 
   REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                   NoWeightPenalty);
+  REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::edge_frequency_penalty,
+                  EdgeFrequencyPenalty);
   #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                   MultiplicativePenalty);

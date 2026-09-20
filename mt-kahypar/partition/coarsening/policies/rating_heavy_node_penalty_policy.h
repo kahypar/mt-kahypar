@@ -41,6 +41,14 @@ class NoWeightPenalty final : public kahypar::meta::PolicyBase {
   }
 };
 
+class EdgeFrequencyPenalty final : public kahypar::meta::PolicyBase {
+public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(
+      const HypernodeWeight weight_u, const HypernodeWeight weight_v) {
+    return std::pow(weight_u * weight_v, 1.2);
+  }
+};
+
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 class MultiplicativePenalty final : public kahypar::meta::PolicyBase {
  public:

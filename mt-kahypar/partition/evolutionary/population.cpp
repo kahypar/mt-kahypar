@@ -408,7 +408,7 @@ size_t Population::insert(std::shared_ptr<Individual> individual, const Context&
   //Could be Parallelized
   for (size_t i = 0; i < individuals.size(); ++i) {
     if (individuals[i]->fitness() >= individual->fitness()) {
-      const size_t similarity = difference(individual, i, strong_set);
+      const size_t similarity = distanceBetween(*individual, *individuals[i], strong_set);
       DBG << "SYMMETRIC DIFFERENCE:" << similarity << " from" << i;
       if (similarity < max_similarity) {
         max_similarity = similarity;

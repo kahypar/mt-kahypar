@@ -216,6 +216,7 @@ static constexpr bool debug = true;
     sub_context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     sub_context.coarsening.rating.rating_function = RatingFunction::edge_frequency;
     sub_context.coarsening.rating.degree_similarity_policy = DegreeSimilarityPolicy::always_accept;
+    sub_context.coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::edge_frequency_penalty;
 
     Individuals best_parents = population.listOfBest(parent_amount);
     //compute edge frequencies
