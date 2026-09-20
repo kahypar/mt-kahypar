@@ -68,6 +68,6 @@ using HeavyNodePenaltyPolicies = kahypar::meta::Typelist<MultiplicativePenalty,
                                                          NoWeightPenalty,
                                                          AdditivePenalty>;
 #else
-using HeavyNodePenaltyPolicies = kahypar::meta::Typelist<NoWeightPenalty>;
+using HeavyNodePenaltyPolicies = kahypar::meta::Typelist<NoWeightPenalty, EdgeFrequencyPenalty>;
 #endif
 }  // namespace mt_kahypar
