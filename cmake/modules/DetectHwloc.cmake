@@ -42,7 +42,7 @@ if(NOT TARGET ${HWLOC_TARGET_NAME})
         endif()
     endif()
     if(NOT HWLOC_FOUND)
-        message(FATAL_ERROR "hwloc library not found. Install hwloc on your system.")
+        message(FATAL_ERROR "hwloc library not found. Install hwloc on your system or add -DKAHYPAR_DISABLE_HWLOC=On to the cmake build command.")
     endif()
 
     if(HWLOC_LINK_STATICALLY)

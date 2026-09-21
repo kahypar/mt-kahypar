@@ -5,6 +5,7 @@ include(CMakePushCheckState)
 
 # Check SSE4.2 support
 cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_QUIET TRUE)
     if(NOT MSVC)
         set(CMAKE_REQUIRED_FLAGS "-msse4.2")
     endif()
@@ -19,6 +20,7 @@ cmake_pop_check_state()
 
 # Check AVX support
 cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_QUIET TRUE)
     if(NOT MSVC)
         set(CMAKE_REQUIRED_FLAGS "-mavx")
     endif()

@@ -79,42 +79,40 @@ Mt-KaHyPar requires:
 
 ### Linux
 
-The following command will install most of the required dependencies on a Ubuntu machine:
+The following command will install the required dependencies on a Ubuntu machine:
 
     sudo apt-get install libtbb-dev libhwloc-dev
 
 ### MacOS
 
-The following command will install most of the required dependencies on a MacOS machine:
+The following command will install the required dependencies on a MacOS machine:
 
     brew install tbb hwloc
 
 ### Windows
 
+No manual installation of dependencies required.
 Build within a Developer Command Prompt, or ensure that MSVC is discoverable by `cmake`.
 
 ### Build Commands
 
 To build Mt-KaHyPar, use the following commands:
 
-1. Clone the repository including submodules:
-
-   ```git clone https://github.com/kahypar/mt-kahypar.git```
-
-1. Run cmake: `cmake -B build --preset=<default/python/dev>`
-2. Build: `cmake --build build --target MtKaHyPar -j 4`
+1. Clone the repository: `git clone https://github.com/kahypar/mt-kahypar.git`
+2. Inside the repository, run cmake: `cmake -B build --preset=<default/python/dev>`
+3. Build: `cmake --build build --target MtKaHyPar -j 4`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
 As a user of Mt-KaHyPar, the `default` cmake preset is appropriate (or `python` for installing the Python interface).
-If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` preset.
+If you work on Mt-KaHyPar or want to run benchmarks, use the `dev` or `minimal-dev` preset.
 
 Running Mt-KaHyPar
 -----------
 
 To partition a **hypergraph** with our default configuration, use the following command:
 
-    ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> --preset-type=default -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=default -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
 
 Available options are described in more detail below. You can also use `--help` to print a summary of the most important options.
 
