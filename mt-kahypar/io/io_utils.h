@@ -36,8 +36,6 @@
 
 #if _WIN32
 #include <windows.h>
-#include <process.h>
-#include <memoryapi.h>
 #else
 #include <sys/mman.h>
 #include <unistd.h>

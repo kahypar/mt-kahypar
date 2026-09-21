@@ -27,6 +27,7 @@
 
 #include "hypergraph_io.h"
 
+#include <atomic>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -183,7 +184,8 @@ namespace mt_kahypar::io {
             my_edges_weight.push_back(he_weight);
           }
         } else {
-          __atomic_fetch_add(&res.num_removed_single_pin_hyperedges, 1, __ATOMIC_RELAXED);
+          std::atomic_ref(res.num_removed_single_pin_hyperedges)
+              .fetch_add(1, std::memory_order::relaxed);
         };
       }
     });

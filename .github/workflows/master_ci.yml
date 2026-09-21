@@ -89,7 +89,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DISABLE_HWLOC=ON -DKAHYPAR_DISABLE_GROWT=ON -DKAHYPAR_DISABLE_PARLAY=ON -DKAHYPAR_PYTHON=ON
+          cmake .. --preset=default -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_DISABLE_HWLOC=ON -DKAHYPAR_DISABLE_PARLAY=ON -DKAHYPAR_PYTHON=ON
           make -j4 MtKaHyPar
           make -j4 mtkahypar
           make -j4 mtkahypar_python
@@ -206,12 +206,10 @@ jobs:
 
       - name: Run Mt-KaHyPar Python Interface Tests
         run: |
-          cd python/tests
-          cp ../../build/python/mtkahypar*.so mtkahypar.so
-          python3 test_mtkahypar.py -v
+          ctest --test-dir build -R mtkahypar_python_test --output-on-failure
 
-  mt_kahypar_windows_build:
-    name: Windows Build
+  mt_kahypar_windows_mingw_build:
+    name: Windows MinGW Build
     runs-on: windows-latest
     env:
       CI_ACTIVE : 1
@@ -249,6 +247,38 @@ jobs:
         run: |
           cd build
           ./tests/mtkahypar_tests
+
+  mt_kahypar_windows_msvc_build:
+    name: Windows MSVC Build
+    runs-on: windows-latest
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+
+      - name: Install Mt-KaHyPar Multilevel Tests
+        shell: cmd
+        run: |
+          cmake --fresh -B build --preset=dev -G Ninja ^
+            -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ^
+            -DKAHYPAR_CI_BUILD=ON ^
+            -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF ^
+            -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF ^
+            -DKAHYPAR_ENABLE_THREAD_PINNING=OFF
+          cmake --build build --target mtkahypar_tests -j 4
+
+      - name: Run Mt-KaHyPar Tests
+        shell: cmd
+        run: |
+          cd build
+          .\tests\mtkahypar_tests.exe
 
   mt_kahypar_macos_build:
     name: MacOS Build
