@@ -177,8 +177,7 @@ namespace mt_kahypar {
       "Number of threads (default: sequential execution)"
     )->default_str("1");
     app.add_option(
-      // note: add -s shorthand in later version
-      "--seed",
+      "-s,--seed",
       context.partition.seed,
       "Seed for randomization"
     )->capture_default_str();
@@ -220,18 +219,6 @@ namespace mt_kahypar {
       "<path-to-ini-file> (see config directory)"
     )->callback_priority(CLI::CallbackPriority::First)->check(CLI::ExistingFile);
     if (preset_option != nullptr) config_option->excludes(preset_option);
-    if (detailed) {
-      // provide deprecated name for backwards compatibility (-> remove in future version)
-      auto option = app.add_option_function<std::string>(
-        "-p,--preset", [&](const std::string& file) {
-          WARNING("--preset is deprecated, please use '-c/--config' instead");
-          parseIniToContext(context, file, false);
-        },
-        "DEPRECATED"
-      )->callback_priority(CLI::CallbackPriority::First)->check(CLI::ExistingFile);
-      option->excludes(config_option);
-      if (preset_option != nullptr) option->excludes(preset_option);
-    }
     app.add_option(
       // keep --target-graph-file for backwards compatibility
       detailed ? "-g,--target-graph,--target-graph-file" : "-g,--target-graph",
