@@ -447,7 +447,7 @@ Thus, the objective function prefers removing nets from the cut, while as a seco
 
 ### Steiner Tree Metric
 
-$$\mathfrak{f}_{ST} := \sum_{e \in E} \text{DIST}_G(\Lambda(e)) \cdot \omega(e)$$
+$$\mathfrak{f}_{ST} := \sum_{e \in E} \text{dist}_G(\Lambda(e)) \cdot \omega(e)$$
 
 The Steiner tree metric is the most versatile metric that we provide at the moment. A Steiner tree is a tree with minimal weight that connects a subset of the nodes on a graph (a more detailed definition can be found [here][SteinerTrees]).
 For a subset with exactly two nodes, finding a Steiner tree reverts to computing the shortest path between the two nodes.
