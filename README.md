@@ -423,39 +423,37 @@ Supported Objective Functions
 -----------
 
 Mt-KaHyPar can optimize several objective functions which we explain in the following in more detail.
-
 ### Cut-Net Metric
 
-![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/bc7fc7c7-8ac4-4711-8aec-d0526ef2452c)
+$$\mathfrak{f}_c(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} \omega(e)$$
 
-The cut-net metric is defined as total weight of all nets spanning more than one block of the partition Π (also called *cut nets*).
-
+The cut-net metric is defined as total weight of all nets spanning more than one block of the partition $\Pi$ (also called *cut nets*).
 
 ### Connectivity Metric
 
-![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/1c586ff4-63c3-4260-9ef5-98a76578be46)
+$$\mathfrak{f}_{\lambda-1}(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} (\lambda(e)-1) \cdot \omega(e)$$
 
-The connectivity metric additionally multiplies the weight of each cut net with the number of blocks λ(e) spanned by that net minus one.
+The connectivity metric additionally multiplies the weight of each cut net with the number of blocks $\lambda(e)$ spanned by that net minus one.
 Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
 ### Sum-of-external-Degrees Metric
 
-![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/4006fb4c-ac85-452e-a0d9-93d4dc7842ad)
+$$\mathfrak{f}_s(\Pi) := \sum_{e \in E_{\text{Cut}}(\Pi)} \lambda(e) \cdot \omega(e)$$
 
-The sum-of-external-degrees metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net.
-A peculiarity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e).
+The sum-of-external-degrees metric is similar to the connectivity metric, but does not subtract one from the number of blocks $\lambda(e)$ spanned by a net.
+A peculiarity of this objective function is that removing a net from the cut reduces the metric by $2\omega(e)$, while reducing the connectivity by one reduces the metric only by $\omega(e)$.
 Thus, the objective function prefers removing nets from the cut, while as a secondary criterion, it tries to reduce the connectivity of the nets.
 
 ### Steiner Tree Metric
 
-![steiner_tree](https://github.com/kahypar/mt-kahypar/assets/9654047/926ef7d7-bb6b-4959-af0c-75ebd6f6299f)
+$$\mathfrak{f}_{ST} := \sum_{e \in E} \text{dist}_G(\Lambda(e)) \cdot \omega(e)$$
 
 The Steiner tree metric is the most versatile metric that we provide at the moment. A Steiner tree is a tree with minimal weight that connects a subset of the nodes on a graph (a more detailed definition can be found [here][SteinerTrees]).
 For a subset with exactly two nodes, finding a Steiner tree reverts to computing the shortest path between the two nodes.
 When optimizing the Steiner tree metric, we map the node set of a hypergraph H onto the nodes of a target graph G.
 The objective is to minimize the total weight of all Steiner trees induced by the nets of H on G.
-For a net e, dist(Λ(e)) is the weight of the minimal Steiner tree connecting the blocks Λ(e) spanned by net e on G.
+For a net $e$, $\text{dist}(\Lambda(e))$ is the weight of the minimal Steiner tree connecting the blocks $\Lambda(e)$ spanned by net $e$ on G.
 The Steiner tree metric can be used to accurately model wire-lengths in VLSI design or communication costs in distributed systems when some processors do not communicate with each other directly or with different speeds.
 
 Note that finding a Steiner tree is an NP-hard problem. We therefore enforce a strict upper bound on the number of nodes of the target graph G, which is 64 nodes at the moment.
