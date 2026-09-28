@@ -221,6 +221,10 @@ class InitialPartitioningDataContainer {
       }
     }
 
+    ~LocalInitialPartitioningHypergraph() {
+        GainCachePtr::deleteGainCache(_gain_cache);
+    }
+
     PartitioningResult refineAndUpdateStats(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
                                             const double time = 0.0) {
       ASSERT([&]() {
