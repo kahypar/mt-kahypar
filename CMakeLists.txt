@@ -92,6 +92,7 @@ option(KAHYPAR_DISABLE_PARLAY "Remove the parlay dependency. Might impact runnin
 # specific compile features/build properties
 option(KAHYPAR_USE_64_BIT_IDS "Enables 64-bit vertex and hyperedge IDs." OFF)
 option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options." OFF)
+option(KAHYPAR_USE_THREAD_SANITIZER "Adds thread sanitizer to compile options. Disables address sanitizer if enabled." OFF)
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`, or `/arch:AVX` for `MSVC`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
@@ -383,7 +384,11 @@ if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
   endif()
 endif()
 
-if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
+# Thread sanitizer and address sanitizer can not be used together
+if((KAHYPAR_USE_THREAD_SANITIZER AND (NOT MSVC)) OR KAHYPAR_CI_BUILD)
+  set(KAHYPAR_USE_ADDRESS_SANITIZER OFF)
+endif()
+if(KAHYPAR_USE_ADDRESS_SANITIZER)
   if(NOT MSVC)
     target_compile_options(MtKaHyPar-BuildFlags INTERFACE
         $<$<CONFIG:Debug>:-fsanitize=address>
@@ -399,6 +404,18 @@ if(KAHYPAR_USE_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
         $<$<CONFIG:Debug>:/fsanitize=address>
     )
   endif()
+endif()
+
+if(KAHYPAR_CI_BUILD OR MSVC)
+  set(KAHYPAR_USE_THREAD_SANITIZER OFF)
+endif()
+if(KAHYPAR_USE_THREAD_SANITIZER)
+  target_compile_options(MtKaHyPar-BuildFlags INTERFACE
+      $<$<CONFIG:Debug>:-fsanitize=thread>
+  )
+  target_link_options(MtKaHyPar-BuildFlags INTERFACE
+      $<$<CONFIG:Debug>:-fsanitize=thread>
+  )
 endif()
 
 
@@ -486,6 +503,9 @@ if(KAHYPAR_DOWNLOAD_TBB)
       set(BUILD_SHARED_LIBS ON)
     endif()
     set(TBB_TEST OFF CACHE BOOL "")
+    if(KAHYPAR_USE_THREAD_SANITIZER)
+      set(TBB_SANITIZE "thread" CACHE STRING "")
+    endif()
     FetchContent_MakeAvailable(TBB)
   endblock()
 else()
