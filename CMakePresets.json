@@ -21,6 +21,7 @@
                 "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF",
                 "KAHYPAR_ENABLE_TESTING": "OFF",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
+                "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
                 "KAHYPAR_PYTHON": "OFF"
             }
@@ -40,6 +41,7 @@
                 "KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES": "OFF",
                 "KAHYPAR_ENABLE_TESTING": "OFF",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
+                "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
                 "KAHYPAR_PYTHON": "OFF"
             }
@@ -51,6 +53,7 @@
             "cacheVariables": {
                 "KAHYPAR_ENABLE_TESTING": "ON",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
             }
         },
@@ -77,6 +80,7 @@
             "cacheVariables": {
                 "KAHYPAR_ENABLE_TESTING": "ON",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
             }
         },
@@ -86,6 +90,7 @@
             "cacheVariables": {
                 "KAHYPAR_ENABLE_TESTING": "ON",
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "ON",
+                "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "ON"
             }
         }
