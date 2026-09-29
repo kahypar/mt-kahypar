@@ -28,6 +28,8 @@
 
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 
+#include <atomic>
+
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
@@ -235,7 +237,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
     }
   }
   if ( cluster_join_operation_allowed ) {
-    cluster_ids[u] = rep;
+    std::atomic_ref(cluster_ids[u]).store(rep, std::memory_order_relaxed);
     _cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed);
     success = true;
   }
