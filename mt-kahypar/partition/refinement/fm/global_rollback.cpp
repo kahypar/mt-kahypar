@@ -316,8 +316,8 @@ namespace mt_kahypar {
         (tracker.moveOfNode[first_move] < tracker.moveOfNode[second_move]));
       Move& first_m = tracker.getMove(tracker.moveOfNode[first_move]);
       // sentinel in case second node was not moved
-      Move tmp_second_m = Move { phg.partID(second_move),
-        phg.partID(second_move), second_move, 0 };
+      const PartitionID tmp_part = phg.partID(second_move);
+      Move tmp_second_m{tmp_part, tmp_part, second_move, 0};
       Move& second_m = tracker.wasNodeMovedInThisRound(second_move) ?
         tracker.getMove(tracker.moveOfNode[second_move]) : tmp_second_m;
 

@@ -167,11 +167,13 @@ namespace impl {
 
     bool checkCandidate(HypernodeID u, float& gain_in_pq) {
       if (!_node_state[u].tryLock()) return false;
-      auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, _phg.partID(u));
+
+      const PartitionID from = _phg.partID(u);
+      auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, from);
       if (to != kInvalidPartition && true_gain >= gain_in_pq) {
         next_move.node = u;
         next_move.to = to;
-        next_move.from = _phg.partID(u);
+        next_move.from = from;
         next_move.gain = true_gain;
         return true;
       } else {
@@ -287,10 +289,10 @@ namespace impl {
 
     // insert nodes into PQs
     phg.doParallelForAllNodes([&](HypernodeID u) {
-      const PartitionID b = phg.partID(u);
-      if (!_is_overloaded[b] || phg.isFixed(u)) return;
+      const PartitionID from = phg.partID(u);
+      if (!_is_overloaded[from] || phg.isFixed(u)) return;
 
-      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
+      auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, from);
       ASSERT(target == kInvalidPartition ||
              gain == impl::transformGain(_gain_cache.recomputeBenefitTerm(phg, u, target) - _gain_cache.recomputePenaltyTerm(phg, u), phg.nodeWeight(u)),
              "Gain cache is in invalid state!");
