@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "mtkahypar"
-version = "@PROJECT_VERSION@"
+version = "@PROJECT_VERSION@@MT_KAHYPAR_VERSION_SUFFIX@"
 description="Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning"
 readme = "README.md"
 license.text = "MIT License"
