@@ -195,10 +195,11 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
 
     // compute gain for every node 
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        _part_before_round[hn] = phg.partID(hn);
+        const PartitionID from = phg.partID(hn);
+        _part_before_round[hn] = from;
         const bool is_locked = _locks[hn];
         if (!phg.isBorderNode(hn) || is_locked || phg.isFixed(hn)) {
-            _gains_and_target[hn] = { 0, phg.partID(hn) };
+            _gains_and_target[hn] = { 0, from };
         } else {
             RatingMap& tmp_scores = _gain_computation.localScores();
             Gain isolated_block_gain = 0;
@@ -210,12 +211,12 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
                 /*allow_imbalance=*/true);
             tmp_scores.clear();
             bool accept_node = (best_move.gain <= 0 || best_move.gain < std::floor(_negative_gain_factor * isolated_block_gain))
-                && best_move.to != phg.partID(hn);
+                && best_move.to != from;
             if (accept_node) {
                 _gains_and_target[hn] = { best_move.gain, best_move.to };
                 _tmp_active_nodes.stream(hn);
             } else {
-                _gains_and_target[hn] = { 0, phg.partID(hn) };
+                _gains_and_target[hn] = { 0, from };
             }
         }
     });
