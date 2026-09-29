@@ -28,6 +28,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <stack>
 #include <vector>
@@ -220,7 +221,7 @@ class MultilevelVertexPairRater {
     if constexpr (Hypergraph::is_graph) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
         const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
-        const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
+        const HypernodeID representative = std::atomic_ref(cluster_ids[hypergraph.edgeTarget(he)]).load(std::memory_order_relaxed);
         ASSERT(representative < hypergraph.initialNumNodes());
         tmp_ratings[representative] += score;
       }
@@ -235,7 +236,7 @@ class MultilevelVertexPairRater {
           const RatingType score = ScorePolicy::score(
             hypergraph.edgeWeight(he), edge_size);
           for ( const HypernodeID& v : hypergraph.pins(he) ) {
-            const HypernodeID representative = cluster_ids[v];
+            const HypernodeID representative = std::atomic_ref(cluster_ids[v]).load(std::memory_order_relaxed);
             ASSERT(representative < hypergraph.initialNumNodes());
             const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
             if ( !bloom_filter[bloom_filter_rep] ) {
@@ -263,7 +264,7 @@ class MultilevelVertexPairRater {
           break;
         }
         const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
-        const HypernodeID representative = cluster_ids[hypergraph.edgeTarget(he)];
+        const HypernodeID representative = std::atomic_ref(cluster_ids[hypergraph.edgeTarget(he)]).load(std::memory_order_relaxed);
         ASSERT(representative < hypergraph.initialNumNodes());
         tmp_ratings[representative] += score;
         ++num_tmp_rating_map_accesses;
@@ -283,7 +284,7 @@ class MultilevelVertexPairRater {
           const RatingType score = ScorePolicy::score(
             hypergraph.edgeWeight(he), edge_size);
           for ( const HypernodeID& v : hypergraph.pins(he) ) {
-            const HypernodeID representative = cluster_ids[v];
+            const HypernodeID representative = std::atomic_ref(cluster_ids[v]).load(std::memory_order_relaxed);
             ASSERT(representative < hypergraph.initialNumNodes());
             const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
             if ( !bloom_filter[bloom_filter_rep] ) {
@@ -305,7 +306,7 @@ class MultilevelVertexPairRater {
                                       const parallel::scalable_vector<HypernodeID>& cluster_ids) {
     HypernodeID edge_size = 0;
     for ( const HypernodeID& v : hypergraph.pins(he) ) {
-      const HypernodeID representative = cluster_ids[v];
+      const HypernodeID representative = std::atomic_ref(cluster_ids[v]).load(std::memory_order_relaxed);
       ASSERT(representative < hypergraph.initialNumNodes());
       const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
       if ( !bloom_filter[bloom_filter_rep] ) {
