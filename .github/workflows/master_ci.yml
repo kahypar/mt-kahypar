@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.install_cmd }}
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev ${{ matrix.compiler.install_cmd }}
 
       - name: Install Mt-KaHyPar
         env:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev libudev-dev
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev libudev-dev
 
       - name: Install Mt-KaHyPar
         run: |
@@ -82,7 +82,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev
 
       - name: Install Mt-KaHyPar
         run: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev lcov gcovr
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
@@ -143,7 +143,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev
 
       - name: Install Mt-KaHyPar Integration Tests
         run: |
@@ -172,7 +172,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
@@ -194,7 +194,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr
+          sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
@@ -292,7 +292,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install tbb hwloc lcov gcovr
+          brew install tbb hwloc
 
       - name: Install Mt-KaHyPar Multilevel Tests
         run: |
