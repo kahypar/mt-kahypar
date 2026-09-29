@@ -52,13 +52,15 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
     // 3.) u = Fixed Vertex -> Fixed Vertex = v, but u and v must be assigned to the same fixed vertex block
     // Note that we do not allow contractions that contract fixed vertex onto a free vertex.
     // This policy is the same as used in KaHyPar.
-    const bool accept_contraction = !fixed_vertices.isFixed(u) || fixed_vertices.isFixed(v);
+    const bool is_fixed_u = fixed_vertices.isFixed(u);
+    const bool is_fixed_v = fixed_vertices.isFixed(v);
+    const bool accept_contraction = !is_fixed_u || is_fixed_v;
     // If both are fixed, both vertices must be in the same block
     const bool accept_fixed_vertex_contraction =
-      !( fixed_vertices.isFixed(u) && fixed_vertices.isFixed(v) ) ||
+      !( is_fixed_u && is_fixed_v ) ||
       ( fixed_vertices.fixedVertexBlock(v) == fixed_vertices.fixedVertexBlock(u) );
     return accept_contraction && accept_fixed_vertex_contraction &&
-      acceptImbalance(hypergraph, fixed_vertices, context, u, v);
+      acceptImbalance(hypergraph, fixed_vertices, context, u, v, is_fixed_u, is_fixed_v);
   }
 
  private:
@@ -70,9 +72,9 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
                                                                  const ds::FixedVertexSupport<Hypergraph>& fixed_vertices,
                                                                  const Context& context,
                                                                  const HypernodeID u,
-                                                                 const HypernodeID v) {
-    const bool is_fixed_u = fixed_vertices.isFixed(u);
-    const bool is_fixed_v = fixed_vertices.isFixed(v);
+                                                                 const HypernodeID v,
+                                                                 const bool is_fixed_u,
+                                                                 const bool is_fixed_v) {
     if ( ( is_fixed_u && is_fixed_v ) || (!is_fixed_u && !is_fixed_v) ) {
       // Contracting a fixed onto a fixed vertex, or an free onto a free vertex does
       // not increase the fixed vertex block weight.

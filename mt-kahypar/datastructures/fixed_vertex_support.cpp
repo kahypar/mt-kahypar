@@ -48,25 +48,27 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
   bool success = true;
   bool u_becomes_fixed = false;
   bool v_becomes_fixed = false;
-  const bool is_fixed_v = isFixed(v);
   const HypernodeWeight weight_of_u = _hg->nodeWeight(u);
   const HypernodeWeight weight_of_v = _hg->nodeWeight(v);
   PartitionID fixed_vertex_block = kInvalidPartition;
   _fixed_vertex_data[u].sync.lock();
   // If we contract a node v onto another node u, all contractions onto v are completed
   // => we therefore do not have to lock v
-  const bool is_fixed_u = isFixed(u);
+  const PartitionID block_u = _fixed_vertex_data[u].block;
+  const PartitionID block_v = _fixed_vertex_data[v].block;
+  const bool is_fixed_u = block_u != kInvalidPartition;
+  const bool is_fixed_v = block_v != kInvalidPartition;
   const bool both_fixed = is_fixed_u && is_fixed_v;
   if ( !is_fixed_u && is_fixed_v ) {
     // u becomes a fixed vertex since v is a fixed vertex
-    fixed_vertex_block = fixedVertexBlock(v);
+    fixed_vertex_block = block_v;
     u_becomes_fixed = true;
   } else if ( is_fixed_u && !is_fixed_v ) {
     // v becomes a fixed vertex since it is contracted onto a fixed vertex
-    fixed_vertex_block = fixedVertexBlock(u);
+    fixed_vertex_block = block_u;
     v_becomes_fixed = true;
   } else if ( both_fixed ) {
-    if ( fixedVertexBlock(u) == fixedVertexBlock(v) ) {
+    if ( block_u == block_v ) {
       ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt > 0);
       ASSERT(_fixed_vertex_data[v].fixed_vertex_contraction_cnt > 0);
       ++_fixed_vertex_data[u].fixed_vertex_contraction_cnt;
@@ -94,7 +96,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
         ASSERT(isFixed(v));
         ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt == 0);
         // Block weight update was successful => set fixed vertex block of u
-        _fixed_vertex_data[u].block = fixedVertexBlock(v);
+        std::atomic_ref(_fixed_vertex_data[u].block).store(block_v, std::memory_order_relaxed);
         _fixed_vertex_data[u].fixed_vertex_contraction_cnt = 1;
         _fixed_vertex_data[u].fixed_vertex_weight = weight_of_u;
       }
@@ -113,7 +115,7 @@ bool FixedVertexSupport<Hypergraph>::contractImpl(const HypernodeID u, const Hyp
     // Our contraction algorithm ensures that there are no concurrent contractions onto v
     // if v is contracted onto another node. We therefore can set the fixed vertex block of
     // v outside the lock
-    _fixed_vertex_data[v].block = fixed_vertex_block;
+    std::atomic_ref(_fixed_vertex_data[v].block).store(fixed_vertex_block, std::memory_order_release);
     _fixed_vertex_data[v].fixed_vertex_weight = weight_of_v;
   }
   return success;
