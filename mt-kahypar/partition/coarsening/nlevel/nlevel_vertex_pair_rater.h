@@ -33,10 +33,10 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 #include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 
@@ -121,9 +121,6 @@ class NLevelVertexPairRater {
     }
   }
 
-  // ! Several threads will mark matches in parallel. However, since
-  // ! we only set the corresponding value to true this function is
-  // ! thread-safe.
   void markAsMatched(const HypernodeID original_id) {
     _already_matched.set(original_id, true);
   }
@@ -294,6 +291,6 @@ class NLevelVertexPairRater {
   ThreadLocalLargeTmpRatingMap _local_large_rating_map;
 
   // ! Marks all matched vertices
-  kahypar::ds::FastResetFlagArray<> _already_matched;
+  ds::ThreadSafeFastResetFlagArray<> _already_matched;
 };
 }  // namespace mt_kahypar
