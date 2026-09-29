@@ -29,10 +29,14 @@
 #pragma once
 
 #include <atomic>
+#include <numeric>
+#include <thread>
+
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/thread_management.h"
 
 
 namespace mt_kahypar {
@@ -44,7 +48,7 @@ class NumNodesTracker {
   explicit NumNodesTracker(HypernodeID initial_num_nodes):
     _initial_num_nodes(initial_num_nodes),
     _current_num_nodes(initial_num_nodes),
-    _contracted_nodes(0),
+    _contracted_nodes(parallel::max_num_thread_ids()),
     _num_nodes_update_threshold(0) { }
 
   HypernodeID currentNumNodes() const {
@@ -53,7 +57,7 @@ class NumNodesTracker {
   }
 
   void updateCurrentNumNodes() {
-    _current_num_nodes = _initial_num_nodes - _contracted_nodes.combine(std::plus<HypernodeID>());
+    _current_num_nodes = _initial_num_nodes - std::accumulate(_contracted_nodes.begin(), _contracted_nodes.end(), 0);
     _num_nodes_update_threshold = tbb::enumerable_thread_specific<HypernodeID>(0);
   }
 
@@ -66,12 +70,14 @@ class NumNodesTracker {
   void initialize(HypernodeID initial_num_nodes) {
     _initial_num_nodes = initial_num_nodes;
     _current_num_nodes = initial_num_nodes;
-    _contracted_nodes = 0;
+    _contracted_nodes.assign(_contracted_nodes.size(), 0);
     _num_nodes_update_threshold = 0;
   }
 
   void subtractMultiple(HypernodeID num_contractions, size_t num_threads, HypernodeID hierarchy_contraction_limit) {
-    HypernodeID local_contracted_nodes = std::atomic_ref(_contracted_nodes.local())
+    const int cpu_id = THREAD_ID;
+    ASSERT(static_cast<size_t>(cpu_id) < _contracted_nodes.size());
+    HypernodeID local_contracted_nodes = std::atomic_ref(_contracted_nodes[cpu_id])
         .fetch_add(num_contractions, std::memory_order::relaxed);
 
     // To maintain the current number of nodes of the hypergraph each PE sums up
@@ -89,9 +95,9 @@ class NumNodesTracker {
     // divided by the number of PEs.
     if (local_contracted_nodes >= _num_nodes_update_threshold.local()) {
       HypernodeID updated_num_nodes = _initial_num_nodes;
-      _contracted_nodes.combine_each([&](HypernodeID& val) {
+      for (HypernodeID& val: _contracted_nodes) {
         updated_num_nodes -= std::atomic_ref(val).load(std::memory_order::relaxed);
-      });
+      }
       std::atomic_ref(_current_num_nodes).store(updated_num_nodes, std::memory_order::relaxed);
 
       const HypernodeID dist_to_contraction_limit =
@@ -108,7 +114,10 @@ class NumNodesTracker {
  private:
   HypernodeID _initial_num_nodes;
   HypernodeID _current_num_nodes;
-  tbb::enumerable_thread_specific<HypernodeID> _contracted_nodes;
+
+  // We can not simply use enumerable_thread_specific here, because `combine` is not thread-safe to
+  // use in combination with concurrent accesses to `local` that still need to initialize their slot
+  parallel::scalable_vector<HypernodeID> _contracted_nodes;
   tbb::enumerable_thread_specific<HypernodeID> _num_nodes_update_threshold;
 };
 
