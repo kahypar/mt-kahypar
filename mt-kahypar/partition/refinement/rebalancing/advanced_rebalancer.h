@@ -29,6 +29,7 @@
 #include <atomic>
 
 #include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -39,14 +40,22 @@
 namespace mt_kahypar {
 
 namespace rebalancer {
+  using AtomicFloat = parallel::AtomicWrapper<float>;
+
   struct GuardedPQ {
     GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
+
     SpinLock lock;
     ds::MaxHeap<float, HypernodeID> pq;
-    float top_key = std::numeric_limits<float>::lowest();
+    AtomicFloat top_key = AtomicFloat(std::numeric_limits<float>::lowest());
+
     void reset() {
       pq.clear();
-      top_key = std::numeric_limits<float>::lowest();
+      top_key.store(std::numeric_limits<float>::lowest(), std::memory_order_relaxed);
+    }
+
+    void updateKey() {
+      top_key.store(pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey(), std::memory_order_relaxed);
     }
   };
 
@@ -62,7 +71,7 @@ namespace rebalancer {
     // Returns true if the node is marked as movable, is not locked and taking the lock now succeeds
     bool tryLock() {
       uint8_t expected = 1;
-      return state == 1 && std::atomic_ref(state)
+      return std::atomic_ref(state).load(std::memory_order_relaxed) == 1 && std::atomic_ref(state)
           .compare_exchange_strong(expected, 2, std::memory_order::acquire, std::memory_order::relaxed);
     }
 
@@ -138,7 +147,7 @@ private:
   vec<rebalancer::GuardedPQ> _pqs;
   vec<PartitionID> _overloaded_blocks;
   vec<uint8_t> _is_overloaded;
-  ds::Array<PartitionID> _target_part;
+  ds::Array<CAtomic<PartitionID>> _target_part;
   ds::Array<PosT> _pq_handles;
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
