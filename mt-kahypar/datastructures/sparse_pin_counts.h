@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include <tbb/concurrent_vector.h>
 #include <tbb/parallel_for.h>
 #include <tbb/enumerable_thread_specific.h>
@@ -77,6 +79,22 @@ class SparsePinCounts {
   struct PinCountEntry {
     PartitionID block;
     HypernodeID pin_count;
+
+    void setAtomic(PartitionID new_block, HypernodeID new_pin_count) {
+      std::atomic_ref(block).store(new_block, std::memory_order_relaxed);
+      std::atomic_ref(pin_count).store(new_pin_count, std::memory_order_relaxed);
+    }
+
+    std::pair<PartitionID, HypernodeID> getAtomic() const {
+      return {
+        parallel::atomic_load(block, std::memory_order_relaxed),
+        parallel::atomic_load(pin_count, std::memory_order_relaxed)
+      };
+    }
+
+    static PinCountEntry from(std::pair<PartitionID, HypernodeID> pair) {
+      return PinCountEntry { pair.first, pair.second };
+    }
   };
 
  public:
@@ -153,7 +171,8 @@ class SparsePinCounts {
     inline void get_current_entry() {
       if ( _cur < _end ) {
         if ( _pin_count_list ) {
-          _cur_entry = *(_pin_count_list + _cur);
+          const PinCountEntry& entry = *(_pin_count_list + _cur);
+          _cur_entry = PinCountEntry::from(entry.getAtomic());
         } else {
           _cur_entry = (*_ext_pin_count_list)[_cur];
         }
@@ -252,13 +271,13 @@ class SparsePinCounts {
   inline PartitionID connectivity(const HyperedgeID he) const {
     ASSERT(he < _num_hyperedges);
     const PinCountHeader* head = header(he);
-    return head->connectivity;
+    return parallel::atomic_load(head->connectivity, std::memory_order_relaxed);
   }
 
   IteratorRange<Iterator> connectivitySet(const HyperedgeID he) const {
     ASSERT(he < _num_hyperedges);
     const PinCountHeader* head = header(he);
-    const size_t con = head->connectivity;
+    const size_t con = parallel::atomic_load(head->connectivity, std::memory_order_relaxed);
     if ( likely(!head->is_external) ) {
       return IteratorRange<Iterator>(
         Iterator(UL(0), con, _k, entry(he, 0)),
@@ -296,7 +315,7 @@ class SparsePinCounts {
     ASSERT(he < _num_hyperedges);
     ASSERT(p < _k);
     const PinCountEntry* val = find_entry(he, p);
-    return val ? val->pin_count : 0;
+    return val ? std::atomic_ref(val->pin_count).load(std::memory_order_relaxed) : 0;
   }
 
   // ! Sets the pin count of the hyperedge in the corresponding block to value
@@ -316,7 +335,7 @@ class SparsePinCounts {
     PinCountEntry* val = find_entry(he, p);
     HypernodeID inc_pin_count = 0;
     if ( val ) {
-      inc_pin_count = ++val->pin_count;
+      inc_pin_count = std::atomic_ref(val->pin_count).fetch_add(1, std::memory_order_relaxed) + 1;
     } else {
       inc_pin_count = 1;
       add_pin_count_entry(he, p, inc_pin_count);
@@ -331,18 +350,17 @@ class SparsePinCounts {
     ASSERT(p < _k);
     PinCountEntry* val = find_entry(he, p);
     ASSERT(val);
-    const HypernodeID dec_pin_count = --val->pin_count;
+    const HypernodeID dec_pin_count = std::atomic_ref(val->pin_count).fetch_sub(1, std::memory_order_relaxed) - 1;
     if ( dec_pin_count == 0 ) {
       // Remove pin count entry
       // Note that only one thread can modify the pin count list of
       // a hyperedge at the same time. Therefore, this operation is thread-safe.
       PinCountHeader* head = header(he);
-      --head->connectivity;
+      std::atomic_ref(head->connectivity).fetch_sub(1, std::memory_order_relaxed);
       if ( likely(!head->is_external) ) {
         PinCountEntry* back = entry(he, head->connectivity);
-        *val = *back;
-        back->block = kInvalidPartition;
-        back->pin_count = 0;
+        val->setAtomic(back->block, back->pin_count);
+        back->setAtomic(kInvalidPartition, 0);
       } else {
         // Note that in case the connectivity becomes smaller than c,
         // we do not fallback to the smaller pin count list bounded by c.
@@ -352,9 +370,9 @@ class SparsePinCounts {
             break;
           }
         }
-        std::swap(_ext_pin_count_list[he][pos], _ext_pin_count_list[he][head->connectivity]);
-        _ext_pin_count_list[he][head->connectivity].block = kInvalidPartition;
-        _ext_pin_count_list[he][head->connectivity].pin_count = 0;
+        PinCountEntry& old_slot = _ext_pin_count_list[he][head->connectivity];
+        _ext_pin_count_list[he][pos].setAtomic(old_slot.block, old_slot.pin_count);
+        old_slot.setAtomic(kInvalidPartition, 0);
       }
     }
     return dec_pin_count;
@@ -459,8 +477,7 @@ class SparsePinCounts {
       if ( connectivity < _entries_per_hyperedge ) {
         // Still enough entries to add the pin count entry
         PinCountEntry* pin_count = entry(he, connectivity);
-        pin_count->block = p;
-        pin_count->pin_count = value;
+        pin_count->setAtomic(p, value);
       } else {
         // Connecitivity is now larger than c
         // => copy entries to external pin count list
@@ -470,7 +487,7 @@ class SparsePinCounts {
     } else {
       add_pin_count_entry_to_external(he, p, value);
     }
-    ++head->connectivity;
+    std::atomic_ref(head->connectivity).fetch_add(1, std::memory_order_relaxed);
   }
 
   inline void handle_overflow(const HyperedgeID& he) {
@@ -499,21 +516,19 @@ class SparsePinCounts {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const PinCountEntry* find_entry(const HyperedgeID he, const PartitionID p) const {
     const PinCountHeader* head = header(he);
+    const size_t num_entries = parallel::atomic_load(head->connectivity, std::memory_order_relaxed);
     if ( likely(!head->is_external) ) {
       // Due to concurrent writes, the connectivity can become larger than MAX_ENTRIES_PER_HYPEREDGE.
-      const size_t connectivity =
-        std::min(static_cast<size_t>(head->connectivity), MAX_ENTRIES_PER_HYPEREDGE);
-      for ( size_t i = 0; i < connectivity; ++i ) {
+      for ( size_t i = 0; i < std::min(num_entries, MAX_ENTRIES_PER_HYPEREDGE); ++i ) {
         const PinCountEntry* value = entry(he, i);
-        if ( value->block == p ) {
+        if ( parallel::atomic_load(value->block, std::memory_order_relaxed) == p ) {
           return value;
         }
       }
     } else {
-      const size_t num_entries = head->connectivity;
       for ( size_t i = 0; i < num_entries; ++i ) {
         const PinCountEntry& value = _ext_pin_count_list[he][i];
-        if ( value.block == p ) {
+        if ( parallel::atomic_load(value.block, std::memory_order_relaxed) == p ) {
           return &value;
         }
       }
