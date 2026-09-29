@@ -28,6 +28,8 @@
 
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 
+#include <atomic>
+
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/parallel_reduce.h>
@@ -121,12 +123,15 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
   if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
     uint8_t expect_unmatched_u = STATE(MatchingState::UNMATCHED);
     if ( _matching_state[u].compare_exchange_strong(expect_unmatched_u, match_in_progress, std::memory_order_relaxed) ) {
-      _matching_partner[u].store(v, std::memory_order_relaxed);
       // Current thread gets "ownership" for vertex u. Only threads with "ownership"
       // can change the cluster id of a vertex.
 
       uint8_t expect_unmatched_v = STATE(MatchingState::UNMATCHED);
       uint8_t matching_state_v = _matching_state[v].load(std::memory_order_acquire);
+
+      // note: the store must happen after the load of v's matching state, ensuring that this thread notices if,
+      // in a cyclic dependency scenario, another thread modifies v's matching state to break the cycle
+      _matching_partner[u].store(v, std::memory_order_relaxed);
       if ( matching_state_v == matched ) {
         // Vertex v is already matched and will not change it cluster id any more.
         // In that case, it is safe to set the cluster id of u to the cluster id of v.
@@ -165,6 +170,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
           if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
             success = joinCluster<has_fixed_vertices>(hypergraph, u, v, cluster_ids, fixed_vertices);
             _matching_state[v].store(matched, std::memory_order_release);
+            break;
           }
         } while ( _matching_state[v].load(std::memory_order_acquire) == match_in_progress );
         // note: the loop provides acquire semantics for the block below
@@ -235,7 +241,7 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
     }
   }
   if ( cluster_join_operation_allowed ) {
-    cluster_ids[u] = rep;
+    std::atomic_ref(cluster_ids[u]).store(rep, std::memory_order_relaxed);
     _cluster_weight[rep].fetch_add(weight_of_u, std::memory_order_relaxed);
     success = true;
   }
