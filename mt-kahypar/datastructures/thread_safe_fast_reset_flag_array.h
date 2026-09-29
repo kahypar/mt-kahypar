@@ -94,11 +94,11 @@ public:
   }
 
   void set(const size_t i, const bool value) {
-	std::atomic_ref(_v[i]).store(value ? _threshold : 0, std::memory_order::relaxed);
+	  std::atomic_ref(_v[i]).store(value ? _threshold : 0, std::memory_order::relaxed);
   }
 
   void setUnsafe(const size_t i, const bool value) {
-   _v[i] = value ? _threshold : 0;
+    _v[i] = value ? _threshold : 0;
   }
 
   void reset() {

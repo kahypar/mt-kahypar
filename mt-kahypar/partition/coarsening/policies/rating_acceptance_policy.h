@@ -27,12 +27,12 @@
 
 #pragma once
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 #include "kahypar-resources/meta/policy_registry.h"
 #include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -44,14 +44,17 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID old_target,
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
-                                                              const kahypar::ds::FastResetFlagArray<>& already_matched) {
-    return max_rating < tmp ||
-           ((max_rating == tmp) &&
-            ((already_matched[old_target] && !already_matched[new_target]) ||
-             (already_matched[old_target] && already_matched[new_target] &&
-              RandomRatingWins::acceptEqual(cpu_id)) ||
-             (!already_matched[old_target] && !already_matched[new_target] &&
-              RandomRatingWins::acceptEqual(cpu_id))));
+                                                              const ds::ThreadSafeFastResetFlagArray<>& already_matched) {
+    if (max_rating < tmp) {
+      return true;
+    } else if (max_rating == tmp) {
+      const bool old_already_matched = already_matched[old_target];
+      const bool new_already_matched = already_matched[new_target];
+      return (old_already_matched && !new_already_matched) ||
+             (old_already_matched == new_already_matched && RandomRatingWins::acceptEqual(cpu_id));
+    } else {
+      return false;
+    }
   }
 };
 
@@ -63,7 +66,7 @@ class BestRatingWithoutTieBreaking final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID u,
                                                               const HypernodeID v,
                                                               const int,
-                                                              const kahypar::ds::FastResetFlagArray<> &) {
+                                                              const ds::ThreadSafeFastResetFlagArray<> &) {
     return max_rating < tmp || ( max_rating == tmp && u < v );
   }
 };
@@ -75,7 +78,7 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID,
                                                               const HypernodeID,
                                                               const int cpu_id,
-                                                              const kahypar::ds::FastResetFlagArray<> &) {
+                                                              const ds::ThreadSafeFastResetFlagArray<> &) {
     return max_rating < tmp || (max_rating == tmp && RandomRatingWins::acceptEqual(cpu_id));
   }
 };
