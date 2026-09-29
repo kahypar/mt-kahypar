@@ -65,12 +65,6 @@ public:
 
   ~ThreadSafeFastResetFlagArray() = default;
 
-  void swap(ThreadSafeFastResetFlagArray& other) {
-    using std::swap;
-    swap(_v, other._v);
-    swap(_threshold, other._threshold);
-  }
-
   bool operator[] (const size_t i) const {
     return isSet(i);
   }
@@ -94,7 +88,8 @@ public:
   }
 
   void set(const size_t i, const bool value) {
-	  std::atomic_ref(_v[i]).store(value ? _threshold : 0, std::memory_order::relaxed);
+    ASSERT(i < _size);
+    std::atomic_ref(_v[i]).store(value ? _threshold : 0, std::memory_order::relaxed);
   }
 
   void setUnsafe(const size_t i, const bool value) {
@@ -134,7 +129,8 @@ public:
 
  private:
   bool isSet(size_t i) const {
-	return std::atomic_ref(_v[i]).load(std::memory_order::relaxed) == _threshold;
+    ASSERT(i < _size);
+    return std::atomic_ref(_v[i]).load(std::memory_order::relaxed) == _threshold;
   }
 
   void initialize(const bool init = false) {
@@ -149,10 +145,5 @@ public:
   size_t _size;
 };
 
-template <typename Type>
-void swap(ThreadSafeFastResetFlagArray<Type>& a,
-          ThreadSafeFastResetFlagArray<Type>& b) {
-  a.swap(b);
-}
 }  // namespace ds
 }  // namespace mt_kahypar
