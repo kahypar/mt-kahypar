@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <atomic>
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
@@ -115,7 +116,7 @@ public:
     auto& used = incident_cluster_weights.used;
 
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
-      const auto cv = communities[arc.head];
+      const auto cv = std::atomic_ref(communities[arc.head]).load(std::memory_order_relaxed);
       if (weights[cv] == 0.0) used.push_back(cv);
       weights[cv] += arc.weight;
     }
