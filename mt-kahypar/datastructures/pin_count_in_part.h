@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cmath>
 
 #include <tbb/enumerable_thread_specific.h>
@@ -152,7 +153,8 @@ class PinCountInPart {
     const size_t value_pos = he * _values_per_hyperedge + id / _entries_per_value;
     const size_t bit_pos = (id % _entries_per_value) * _bits_per_element;
     const Value mask = _extraction_mask << bit_pos;
-    return (_pin_count_in_part[value_pos] & mask) >> bit_pos;
+    const Value value = std::atomic_ref(_pin_count_in_part[value_pos]).load(std::memory_order_relaxed);
+    return (value & mask) >> bit_pos;
   }
 
   // ! Sets the pin count of the hyperedge in the corresponding block to value
@@ -163,7 +165,7 @@ class PinCountInPart {
     ASSERT(id != kInvalidPartition && id < _k);
     const size_t value_pos = he * _values_per_hyperedge + id / _entries_per_value;
     const size_t bit_pos = (id % _entries_per_value) * _bits_per_element;
-    updateEntry(_pin_count_in_part[value_pos], bit_pos, value);
+    _pin_count_in_part[value_pos] = updateEntry(_pin_count_in_part[value_pos], bit_pos, value);
   }
 
   // ! Increments the pin count of the hyperedge in the corresponding block
@@ -174,10 +176,11 @@ class PinCountInPart {
     const size_t value_pos = he * _values_per_hyperedge + id / _entries_per_value;
     const size_t bit_pos = (id % _entries_per_value) * _bits_per_element;
     const Value mask = _extraction_mask << bit_pos;
-    Value& current_value = _pin_count_in_part[value_pos];
-    Value pin_count_in_part = (current_value & mask) >> bit_pos;
+    auto value_ref = std::atomic_ref(_pin_count_in_part[value_pos]);
+    const Value current_value = value_ref.load(std::memory_order_relaxed);
+    const Value pin_count_in_part = (current_value & mask) >> bit_pos;
     ASSERT(pin_count_in_part + 1 <= _max_value);
-    updateEntry(current_value, bit_pos, pin_count_in_part + 1);
+    value_ref.store(updateEntry(current_value, bit_pos, pin_count_in_part + 1), std::memory_order_relaxed);
     return pin_count_in_part + 1;
   }
 
@@ -189,10 +192,11 @@ class PinCountInPart {
     const size_t value_pos = he * _values_per_hyperedge + id / _entries_per_value;
     const size_t bit_pos = (id % _entries_per_value) * _bits_per_element;
     const Value mask = _extraction_mask << bit_pos;
-    Value& current_value = _pin_count_in_part[value_pos];
-    Value pin_count_in_part = (current_value & mask) >> bit_pos;
+    auto value_ref = std::atomic_ref(_pin_count_in_part[value_pos]);
+    const Value current_value = value_ref.load(std::memory_order_relaxed);
+    const Value pin_count_in_part = (current_value & mask) >> bit_pos;
     ASSERT(pin_count_in_part > UL(0));
-    updateEntry(current_value, bit_pos, pin_count_in_part - 1);
+    value_ref.store(updateEntry(current_value, bit_pos, pin_count_in_part - 1), std::memory_order_relaxed);
     return pin_count_in_part - 1;
   }
 
@@ -217,13 +221,13 @@ class PinCountInPart {
   }
 
  private:
-  inline void updateEntry(Value& value,
-                          const size_t bit_pos,
-                          const Value new_value) {
+  inline Value updateEntry(Value value,
+                           const size_t bit_pos,
+                           const Value new_value) {
     ASSERT(new_value <= _max_value);
     const Value zero_mask = ~(_extraction_mask << bit_pos);
     const Value value_mask = new_value << bit_pos;
-    value = (value & zero_mask) | value_mask;
+    return (value & zero_mask) | value_mask;
   }
 
   PinCountSnapshot initPinCountSnapshot() const {
