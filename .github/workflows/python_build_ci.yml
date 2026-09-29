@@ -15,8 +15,8 @@ jobs:
       TBB_INSTALL_DIR: /tmp/tbb_build
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
 
       - name: Install Dependencies
         run: |
@@ -33,7 +33,7 @@ jobs:
           rm -rf configure_python
           python3 -m cibuildwheel --output-dir wheels
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-ubuntu-24.04
           path: ./wheels/*.whl
@@ -48,8 +48,8 @@ jobs:
       TBB_INSTALL_DIR: /tmp/tbb_build
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
 
       - name: Install Dependencies
         run: |
@@ -66,7 +66,7 @@ jobs:
           rm -rf configure_python
           python3 -m cibuildwheel --output-dir wheels
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-ubuntu-24.04-arm
           path: ./wheels/*.whl
@@ -81,8 +81,8 @@ jobs:
       TBB_INSTALL_DIR: /tmp/tbb_build
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
 
       - name: Install Dependencies
         run: |
@@ -100,7 +100,7 @@ jobs:
           rm -rf configure_python
           pipx run cibuildwheel --output-dir wheels
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-macos-arm
           path: ./wheels/*.whl
@@ -115,8 +115,8 @@ jobs:
       TBB_INSTALL_DIR: /tmp/tbb_build
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
 
       - name: Install Dependencies
         run: |
@@ -134,7 +134,7 @@ jobs:
           rm -rf configure_python
           pipx run cibuildwheel --output-dir wheels
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-macos-x86
           path: ./wheels/*.whl
@@ -158,8 +158,8 @@ jobs:
       CI_ACTIVE : 1
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
 
       - name: Install Dependencies
         run: |
@@ -182,9 +182,9 @@ jobs:
           rmdir /s /q configure_python
           python -m cibuildwheel --output-dir wheels
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: cibw-wheels-win
+          name: cibw-wheels-${{ matrix.os }}
           path: .\wheels\*.whl
 
 
@@ -192,7 +192,7 @@ jobs:
     name: Build Source Distribution
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Dependencies
         run: |
@@ -205,7 +205,7 @@ jobs:
           rm -rf configure_python
           pipx run build --sdist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cibw-sdist
           path: dist/*.tar.gz
@@ -218,7 +218,7 @@ jobs:
       id-token: write
     steps:
       - name: Collect Python Packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           # unpacks all CIBW artifacts into dist/
           pattern: cibw-*
