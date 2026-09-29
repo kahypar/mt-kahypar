@@ -57,8 +57,10 @@ void GraphSteinerTreeGainCache::initializeGainCache(const PartitionedHypergraph&
   }, [&] {
     // Resets edge states
     partitioned_hg.doParallelForAllEdges([&](const HyperedgeID& he) {
-      _edge_state[partitioned_hg.uniqueEdgeID(he)].updateBlocks(
-        kInvalidPartition, kInvalidPartition, 0);
+      if (partitioned_hg.edgeSource(he) < partitioned_hg.edgeTarget(he)) {
+        _edge_state[partitioned_hg.uniqueEdgeID(he)].updateBlocks(
+          kInvalidPartition, kInvalidPartition, 0);
+      }
     });
   });
 
