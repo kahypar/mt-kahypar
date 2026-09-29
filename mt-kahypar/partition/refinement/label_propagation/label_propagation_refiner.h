@@ -167,11 +167,10 @@ class LabelPropagationRefiner final : public IRefiner {
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
         if ( hypergraph.edgeSize(he) <=
               ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
-          if ( !_visited_he[he] ) {
+          if ( _visited_he.compare_and_set_to_true(he) ) {
             for (const HypernodeID& pin : hypergraph.pins(he)) {
               activate(pin);
             }
-            _visited_he.set(he, true);
           }
         }
       }
@@ -207,7 +206,7 @@ class LabelPropagationRefiner final : public IRefiner {
   parallel::scalable_vector<PartitionID> _old_part;
   kahypar::ds::FastResetFlagArray<> _old_part_is_initialized;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
-  kahypar::ds::FastResetFlagArray<> _visited_he;
+  ds::ThreadSafeFastResetFlagArray<> _visited_he;
   IRebalancer& _rebalancer;
 };
 
