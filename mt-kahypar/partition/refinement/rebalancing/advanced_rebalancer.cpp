@@ -141,13 +141,13 @@ namespace impl {
     const Context& _context;
 
     vec<rebalancer::GuardedPQ>& _pqs;
-    ds::Array<PartitionID>& _target_part;
+    ds::Array<CAtomic<PartitionID>>& _target_part;
     ds::Array<rebalancer::NodeState>& _node_state;
     AccessToken _token;
 
     NextMoveFinder(int seed, const Context& context, PartitionedHypergraph& phg, GainCache& gain_cache,
                    vec<rebalancer::GuardedPQ>& pqs,
-                   ds::Array<PartitionID>& target_part, ds::Array<rebalancer::NodeState>& node_state) :
+                   ds::Array<CAtomic<PartitionID>>& target_part, ds::Array<rebalancer::NodeState>& node_state) :
                    _phg(phg), _gain_cache(gain_cache), _context(context),
                    _pqs(pqs), _target_part(target_part), _node_state(node_state), _token(seed, pqs.size()) { }
 
@@ -155,14 +155,14 @@ namespace impl {
     void recomputeTopGainMove(HypernodeID v, const Move& move /* of the neighbor */) {
       float gain = 0;
       PartitionID newTarget = kInvalidPartition;
-      const PartitionID designatedTargetV = _target_part[v];
+      const PartitionID designatedTargetV = _target_part[v].load(std::memory_order_relaxed);
       if (_context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
         std::tie(newTarget, gain) = computeBestTargetBlock(_phg, _context, _gain_cache, v, _phg.partID(v));
       } else {
         std::tie(newTarget, gain) = bestOfThree(_phg, _context, _gain_cache,
                                                 v, _phg.partID(v), {designatedTargetV, move.from, move.to});
       }
-      _target_part[v] = newTarget;
+      _target_part[v].store(newTarget, std::memory_order_relaxed);
     }
 
     bool checkCandidate(HypernodeID u, float& gain_in_pq) {
@@ -177,7 +177,7 @@ namespace impl {
         next_move.gain = true_gain;
         return true;
       } else {
-        _target_part[u] = to;
+        _target_part[u].store(to, std::memory_order_relaxed);
         gain_in_pq = true_gain;
         _node_state[u].unlock();
         return false;
@@ -194,15 +194,15 @@ namespace impl {
 
       if (success) {
         pq.deleteTop();
-        gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
+        gpq.updateKey();
       } else {
         // gain was updated by success_func in this case
-        if (_target_part[node] != kInvalidPartition) {
+        if (_target_part[node].load(std::memory_order_relaxed) != kInvalidPartition) {
           pq.adjustKey(node, gain_in_pq);
-          gpq.top_key = pq.topKey();
+          gpq.top_key.store(pq.topKey(), std::memory_order_relaxed);
         } else {
           pq.deleteTop();
-          gpq.top_key = pq.empty() ? std::numeric_limits<float>::lowest() : pq.topKey();
+          gpq.updateKey();
         }
       }
       gpq.lock.unlock();
@@ -215,13 +215,13 @@ namespace impl {
         auto two = _token.getTwoRandomPQs();
         auto& first = _pqs[two[0]];
         auto& second = _pqs[two[1]];
-        if (first.pq.empty() && second.pq.empty()) continue;
         size_t best_id = two[0];
-        if (first.pq.empty() || first.top_key < second.top_key) best_id = two[1];
+        if (first.top_key.load(std::memory_order_relaxed) < second.top_key.load(std::memory_order_relaxed)) best_id = two[1];
         if (!_pqs[best_id].lock.tryLock()) continue;
         // could also check for top key. would want to distinguish tries that failed due to high contention
         // vs approaching the end
         if (_pqs[best_id].pq.empty()) {
+          _pqs[best_id].top_key.store(std::numeric_limits<float>::lowest(), std::memory_order_relaxed);
           _pqs[best_id].lock.unlock();
           continue;
         }
@@ -235,15 +235,22 @@ namespace impl {
         float best_key = std::numeric_limits<float>::lowest();
         int best_id = -1;
         for (size_t i = 0; i < _pqs.size(); ++i) {
-          if (!_pqs[i].pq.empty() && _pqs[i].top_key > best_key) {
-            best_key = _pqs[i].top_key;
+          float current_key = _pqs[i].top_key.load(std::memory_order_relaxed);
+          if (current_key > best_key) {
+            best_key = current_key;
             best_id = i;
           }
         }
         if (best_id == -1) return false;
-        if (!_pqs[best_id].lock.tryLock()) continue;
-        if (_pqs[best_id].pq.empty()) {
-          _pqs[best_id].lock.unlock();
+
+        auto& best_pq = _pqs[best_id];
+        if (!best_pq.lock.tryLock()) continue;
+        if (best_pq.pq.empty()) {
+          if (best_key != std::numeric_limits<float>::lowest()) {
+            // this is a safeguard to avoid an endless loop in case the key of an empty PQ has not been updated correctly
+            best_pq.top_key.store(std::numeric_limits<float>::lowest(), std::memory_order_relaxed);
+          }
+          best_pq.lock.unlock();
           continue;
         }
         if (lockedModifyPQ(best_id)) return true;
@@ -256,7 +263,7 @@ namespace impl {
   };
 
   void deactivateOverloadedBlock(uint8_t* is_overloaded, size_t* num_overloaded_blocks) {
-    if (*is_overloaded) {
+    if (std::atomic_ref(*is_overloaded).load(std::memory_order_relaxed)) {
       uint8_t expected = 1;
       if (std::atomic_ref(*is_overloaded)
           .compare_exchange_strong(expected, 0, std::memory_order::acquire, std::memory_order::relaxed)) {
@@ -299,7 +306,7 @@ namespace impl {
       if (target == kInvalidPartition) return;
 
       _node_state[u].markAsMovable();
-      _target_part[u] = target;
+      _target_part[u].store(target, std::memory_order_relaxed);
 
       auto& token = ets_tokens.local();
       int my_pq_id = -1;
@@ -317,7 +324,7 @@ namespace impl {
 
     for (rebalancer::GuardedPQ& gpq : _pqs) {
       if (!gpq.pq.empty()) {
-        gpq.top_key = gpq.pq.topKey();
+        gpq.top_key.store(gpq.pq.topKey(), std::memory_order_relaxed);
       }
     }
   }
@@ -340,7 +347,7 @@ namespace impl {
       impl::NextMoveFinder<PartitionedHypergraph, GainCache> next_move_finder(
         seed, _context, phg, _gain_cache, _pqs, _target_part, _node_state);
 
-      while (num_overloaded_blocks > 0 && next_move_finder.findNextMove()) {
+      while (std::atomic_ref(num_overloaded_blocks).load(std::memory_order_relaxed) > 0 && next_move_finder.findNextMove()) {
         const Move& m = next_move_finder.next_move;
         ASSERT(m.to != kInvalidPartition);
         const PartitionID from = phg.partID(m.node);
@@ -407,12 +414,13 @@ namespace impl {
             if (gpq.lock.tryLock()) {
               for (HypernodeID v : nodes_to_update[my_pq_id]) {
                 if (pq.contains(v)) {
-                  if (_target_part[v] != kInvalidPartition) {
+                  const PartitionID to = _target_part[v].load(std::memory_order_relaxed);
+                  if (to != kInvalidPartition) {
                     Gain new_gain_int;
-                    if (_gain_cache.blockIsAdjacent(v, _target_part[v])) {
-                      new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
+                    if (_gain_cache.blockIsAdjacent(v, to)) {
+                      new_gain_int = _gain_cache.gain(v, phg.partID(v), to);
                     } else {
-                      new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, _target_part[v]) - _gain_cache.penaltyTerm(v, phg.partID(v));
+                      new_gain_int = _gain_cache.recomputeBenefitTerm(phg, v, to) - _gain_cache.penaltyTerm(v, phg.partID(v));
                     }
                     float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
                     pq.adjustKey(v, new_gain);
@@ -533,7 +541,7 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _current_k(_context.partition.k),
         _gain(context),
         _moves(num_nodes),
-        _target_part(num_nodes, kInvalidPartition),
+        _target_part(num_nodes, CAtomic<PartitionID>(kInvalidPartition)),
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),
         _node_state(num_nodes),
