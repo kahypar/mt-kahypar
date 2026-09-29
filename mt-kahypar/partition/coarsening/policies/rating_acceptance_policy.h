@@ -45,12 +45,16 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID new_target,
                                                               const int cpu_id,
                                                               const ds::ThreadSafeFastResetFlagArray<>& already_matched) {
-    const bool old_already_matched = already_matched[old_target];
-    const bool new_already_matched = already_matched[new_target];
-    return max_rating < tmp ||
-           ((max_rating == tmp) &&
-            ((old_already_matched && !new_already_matched) ||
-             (old_already_matched == new_already_matched && RandomRatingWins::acceptEqual(cpu_id))));
+    if (max_rating < tmp) {
+      return true;
+    } else if (max_rating == tmp) {
+      const bool old_already_matched = already_matched[old_target];
+      const bool new_already_matched = already_matched[new_target];
+      return (old_already_matched && !new_already_matched) ||
+             (old_already_matched == new_already_matched && RandomRatingWins::acceptEqual(cpu_id));
+    } else {
+      return false;
+    }
   }
 };
 
@@ -62,7 +66,7 @@ class BestRatingWithoutTieBreaking final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID u,
                                                               const HypernodeID v,
                                                               const int,
-                                                              const kahypar::ds::FastResetFlagArray<> &) {
+                                                              const ds::ThreadSafeFastResetFlagArray<> &) {
     return max_rating < tmp || ( max_rating == tmp && u < v );
   }
 };
@@ -74,7 +78,7 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID,
                                                               const HypernodeID,
                                                               const int cpu_id,
-                                                              const kahypar::ds::FastResetFlagArray<> &) {
+                                                              const ds::ThreadSafeFastResetFlagArray<> &) {
     return max_rating < tmp || (max_rating == tmp && RandomRatingWins::acceptEqual(cpu_id));
   }
 };
