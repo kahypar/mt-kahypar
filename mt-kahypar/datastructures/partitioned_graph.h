@@ -771,7 +771,7 @@ private:
   // ! Reset synchronization. Necessary after changeNodePartNoSync (not thread-safe)
   void resetEdgeSynchronization() {
     ++_edge_sync_version;
-    _edge_sync_is_dirty = false;
+    ENABLE_ASSERTIONS(_edge_sync_is_dirty.store(false, std::memory_order_relaxed);)
   }
 
   // ! Only for testing
@@ -1150,8 +1150,7 @@ private:
           }
         }
       } else {
-        // small hack to only set this when assertions are enabled
-        ASSERT(_edge_sync_is_dirty = true);
+        ENABLE_ASSERTIONS(_edge_sync_is_dirty.store(true, std::memory_order_relaxed);)
       }
       std::atomic_ref(_part_ids[u]).store(to, std::memory_order::relaxed);
       DBG << "Done changing node part: " << V(u) << " >>>";
@@ -1257,7 +1256,7 @@ private:
 
   // ! Used to syncronize moves on edges
   Array< EdgeMove > _edge_sync;
-  bool _edge_sync_is_dirty;
+  CAtomic<bool> _edge_sync_is_dirty;
 
   // ! Lock to syncronize moves on edges
   Array< SpinLock > _edge_locks;
