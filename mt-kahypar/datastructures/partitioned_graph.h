@@ -537,9 +537,10 @@ private:
   // ####################### Partition Information #######################
 
   // ! Block that vertex u belongs to
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionID partID(const HypernodeID u) const {
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
-    return _part_ids[u];
+    return parallel::atomic_load(_part_ids[u], std::memory_order_relaxed);
   }
 
   void extractPartIDs(Array<PartitionID>& part_ids) {
