@@ -553,9 +553,13 @@ class PartitionedHypergraph {
   // ####################### Partition Information #######################
 
   // ! Block that vertex u belongs to
-  PartitionID partID(const HypernodeID u) const {
+  PartitionID partID(const HypernodeID u, bool concurrent_access = true) const {
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
-    return _part_ids[u];
+    if (concurrent_access) {
+      return std::atomic_ref(_part_ids[u]).load(std::memory_order_relaxed);
+    } else {
+      return _part_ids[u];
+    }
   }
 
   void extractPartIDs(Array<PartitionID>& part_ids) {
@@ -607,7 +611,7 @@ class PartitionedHypergraph {
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
-      _part_ids[u] = to;
+      std::atomic_ref(_part_ids[u]).store(to, std::memory_order::relaxed);
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       report_success();
       SynchronizedEdgeUpdate sync_update;
