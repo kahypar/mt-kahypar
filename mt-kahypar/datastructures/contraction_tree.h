@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -186,11 +188,11 @@ class ContractionTree {
         _interval() { }
 
       inline HypernodeID parent() const {
-        return _parent;
+        return std::atomic_ref(_parent).load(std::memory_order_relaxed);
       }
 
       inline void setParent(const HypernodeID parent) {
-        _parent = parent;
+        std::atomic_ref(_parent).store(parent, std::memory_order_relaxed);
       }
 
       inline HypernodeID pendingContractions() const {
