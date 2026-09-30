@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <queue>
 
@@ -44,6 +45,7 @@
 #include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/exception.h"
@@ -104,7 +106,7 @@ class DynamicGraph {
       _valid(valid) { }
 
     bool isDisabled() const {
-      return _valid == false;
+      return !std::atomic_ref(_valid).load(std::memory_order_relaxed);
     }
 
     void enable() {
@@ -114,10 +116,14 @@ class DynamicGraph {
 
     void disable() {
       ASSERT(!isDisabled());
-      _valid = false;
+      std::atomic_ref(_valid).store(false, std::memory_order_relaxed);
     }
 
-    HypernodeWeight weight() const {
+    HypernodeWeight& weight() {
+      return _weight;
+    }
+
+    const HypernodeWeight& weight() const {
       return _weight;
     }
 
@@ -480,9 +486,8 @@ class DynamicGraph {
 
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
-    const Edge& e = edge(id);
-    const HypernodeID source = e.source;
-    const HypernodeID target = e.target;
+    const HypernodeID source = edgeSource(id);
+    const HypernodeID target = edgeTarget(id);
     return IteratorRange<IncidenceIterator>(
       IncidenceIterator(source, target, 0),
       IncidenceIterator(source, target, 2));
@@ -493,7 +498,7 @@ class DynamicGraph {
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
-    return hypernode(u).weight();
+    return parallel::atomic_load(hypernode(u).weight(), std::memory_order_relaxed);
   }
 
   // ! Sets the weight of a vertex
@@ -602,11 +607,11 @@ class DynamicGraph {
   }
 
   HyperedgeID edgeSource(const HyperedgeID e) const {
-    return edge(e).source;
+    return parallel::atomic_load(edge(e).source, std::memory_order_relaxed);
   }
 
   HyperedgeID edgeTarget(const HyperedgeID e) const {
-    return edge(e).target;
+    return parallel::atomic_load(edge(e).target, std::memory_order_relaxed);
   }
 
   bool isSinglePin(const HyperedgeID e) const {

@@ -157,13 +157,17 @@ class DynamicAdjacencyArray {
       return target != kInvalidHypernode;
     }
 
+    bool isValidAtomic() const {
+      return std::atomic_ref(target).load(std::memory_order_relaxed) != kInvalidHypernode;
+    }
+
     void enable() {
-      target = source;
+      std::atomic_ref(target).store(source, std::memory_order_relaxed);
     }
 
     void disable() {
       ASSERT(isSinglePin());
-      target = kInvalidHypernode;
+      std::atomic_ref(target).store(kInvalidHypernode, std::memory_order_relaxed);
     }
 
     // ! Index of target node
@@ -218,9 +222,9 @@ class DynamicAdjacencyArray {
     // ! Next incident edge list
     HypernodeID next;
     // ! Previous non-empty incident edge list
-    HypernodeID it_prev;
+    CAtomic<HypernodeID> it_prev;
     // ! Next non-empty incident edge list
-    HypernodeID it_next;
+    CAtomic<HypernodeID> it_next;
     // ! If we append a vertex v to the incident edge list of a vertex u, we store
     // ! the previous tail of vertex v, such that we can restore the list of v
     // ! during uncontraction
@@ -299,7 +303,7 @@ class DynamicAdjacencyArray {
   // ! Degree of the vertex
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-    return header(u).degree;
+    return std::atomic_ref(header(u).degree).load(std::memory_order_relaxed);
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.

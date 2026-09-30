@@ -123,7 +123,7 @@ DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
       /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
+    std::atomic_ref(hypernode(u).weight()).store(nodeWeight(u) + nodeWeight(v), std::memory_order_relaxed);
     hypernode(v).disable();
     releaseHypernode(u);
     releaseHypernode(v);
