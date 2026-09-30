@@ -126,21 +126,21 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     _incident_nets.uncontract(memento.u, memento.v,
       [&](const HyperedgeID e) {
         // In that case, u and v were both previously part of hyperedge e.
-        if ( !_hes_to_resize_flag_array[e] &&
-             _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
+        if ( _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
           // This part is only triggered once for each hyperedge per batch uncontraction.
           // It restores all pins that are part of the current batch as contraction partners
           // in hyperedge e
           restoreHyperedgeSizeForBatch(e, batch_index, case_one_func);
         }
       }, [&](const HyperedgeID e) {
+        acquireHyperedge(e);
         // In that case only v was part of hyperedge e before and
         // u must be replaced by v in hyperedge e
         const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
 
-        acquireHyperedge(e);
         ASSERT(_incidence_array[slot_of_u] == memento.u);
-        _incidence_array[slot_of_u] = memento.v;
+        // needs to be atomic so we can do findPosition outside of the lock
+        std::atomic_ref(_incidence_array[slot_of_u]).store(memento.v, std::memory_order_relaxed);
         case_two_func(memento.u, memento.v, e);
         releaseHyperedge(e);
       }, [&](const HypernodeID u) {
@@ -559,7 +559,7 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
       /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
   if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
+    std::atomic_ref(hypernode(u).weight()).store(nodeWeight(u) + nodeWeight(v), std::memory_order_relaxed);
     hypernode(v).disable();
     releaseHypernode(u);
     releaseHypernode(v);
@@ -633,7 +633,9 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
   for (HypernodeID idx = pins_begin; idx != last_pin_slot; ++idx) {
     const HypernodeID pin = _incidence_array[idx];
     if (pin == v) {
-      std::swap(_incidence_array[idx], _incidence_array[last_pin_slot]);
+      const HypernodeID tmp_pin = std::atomic_ref(_incidence_array[last_pin_slot])
+        .exchange(pin, std::memory_order_relaxed);
+      std::atomic_ref(_incidence_array[idx]).store(tmp_pin, std::memory_order_relaxed);
       --idx;
     } else if (pin == u) {
       slot_of_u = idx;
@@ -653,11 +655,11 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
   } else {
     DBG << V(he) << ": Case 2";
     // Case 2:
-    // Hyperedge e does not contain u. Therefore we  have to connect e to the representative u.
+    // Hyperedge e does not contain u. Therefore we have to connect e to the representative u.
     // This reuses the pin slot of v in e's incidence array (i.e. last_pin_slot!)
     e.hash() -= kahypar::math::hash(v);
     e.hash() += kahypar::math::hash(u);
-    _incidence_array[last_pin_slot] = u;
+    std::atomic_ref(_incidence_array[last_pin_slot]).store(u, std::memory_order_relaxed);
   }
 }
 
@@ -691,7 +693,7 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
   const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
   size_t slot_of_u = first_invalid_entry;
   for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
-    if ( u == _incidence_array[pos] ) {
+    if ( _incidence_array[pos] == u ) {
       slot_of_u = pos;
       break;
     }

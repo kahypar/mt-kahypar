@@ -95,8 +95,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
   hypergraph._incidence_array.resize(hypergraph._num_pins);
 
   tbb::parallel_invoke([&] {
-    hypergraph._acquired_hes.assign(
-      num_hyperedges, parallel::IntegralAtomicWrapper<bool>(false));
+    hypergraph._acquired_hes.assign(num_hyperedges, SpinLock());
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       // Setup hyperedges
       DynamicHypergraph::Hyperedge& hyperedge = hypergraph._hyperedges[pos];
@@ -126,8 +125,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
     hypergraph._hyperedges[num_hyperedges].setFirstEntry(hypergraph._num_pins);
   }, [&] {
     tbb::parallel_invoke([&] {
-      hypergraph._acquired_hns.assign(
-        num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
+      hypergraph._acquired_hns.assign(num_hypernodes, SpinLock());
     }, [&] {
       hypergraph._contraction_tree.initialize(num_hypernodes);
     });
