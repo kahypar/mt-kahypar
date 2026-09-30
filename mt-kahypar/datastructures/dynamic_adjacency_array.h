@@ -153,17 +153,27 @@ class DynamicAdjacencyArray {
       return source == target;
     }
 
+    bool isSinglePinAtomic() const {
+      const HypernodeID source_val = parallel::atomic_load(source, std::memory_order_relaxed);
+      const HypernodeID target_val = parallel::atomic_load(target, std::memory_order_relaxed);
+      return source_val == target_val;
+    }
+
     bool isValid() const {
       return target != kInvalidHypernode;
     }
 
+    bool isValidAtomic() const {
+      return parallel::atomic_load(target, std::memory_order_relaxed) != kInvalidHypernode;
+    }
+
     void enable() {
-      target = source;
+      std::atomic_ref(target).store(source, std::memory_order_relaxed);
     }
 
     void disable() {
-      ASSERT(isSinglePin());
-      target = kInvalidHypernode;
+      ASSERT(isSinglePinAtomic());
+      std::atomic_ref(target).store(kInvalidHypernode, std::memory_order_relaxed);
     }
 
     // ! Index of target node
@@ -211,6 +221,23 @@ class DynamicAdjacencyArray {
 
     HyperedgeID size() const {
       return first_inactive - first_active;
+    }
+
+    // note: we can not simply use CAtomic since we want to be trivially copyable
+    void set_it_prev(HypernodeID val) {
+      std::atomic_ref(it_prev).store(val, std::memory_order_relaxed);
+    }
+
+    void set_it_next(HypernodeID val) {
+      std::atomic_ref(it_next).store(val, std::memory_order_relaxed);
+    }
+
+    HypernodeID get_it_prev() const {
+      return parallel::atomic_load(it_prev, std::memory_order_relaxed);
+    }
+
+    HypernodeID get_it_next() const {
+      return parallel::atomic_load(it_next, std::memory_order_relaxed);
     }
 
     // ! Previous incident edge list
@@ -299,7 +326,7 @@ class DynamicAdjacencyArray {
   // ! Degree of the vertex
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-    return header(u).degree;
+    return parallel::atomic_load(header(u).degree, std::memory_order_relaxed);
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.
