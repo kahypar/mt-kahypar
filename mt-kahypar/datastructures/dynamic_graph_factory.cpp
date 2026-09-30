@@ -100,8 +100,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
       graph._adjacency_array.sortIncidentEdges();
     }
   }, [&] {
-    graph._acquired_nodes.assign(
-      num_nodes, parallel::IntegralAtomicWrapper<bool>(false));
+    graph._acquired_nodes.assign(num_nodes, SpinLock());
   }, [&] {
     graph._contraction_tree.initialize(num_nodes);
   });
