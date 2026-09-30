@@ -254,6 +254,7 @@ class IntegralAtomicWrapper {
 template <typename T>
 T atomic_load(const T &value,
                     std::memory_order order = std::memory_order_seq_cst) {
+  // this is required since some compilers don't support std::atomic_ref with a const type
   return std::atomic_ref<T>(const_cast<T &>(value)).load(order);
 }
 
