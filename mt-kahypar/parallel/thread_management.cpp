@@ -34,6 +34,8 @@
 
 #ifndef KAHYPAR_DISABLE_HWLOC
   #include <hwloc.h>
+#else
+  #include <thread>
 #endif
 
 #include "mt-kahypar/parallel/tbb_initializer.h"
@@ -79,11 +81,15 @@ int total_number_of_threads() {
   return mt_kahypar::TBBInitializer::instance().total_number_of_threads();
 }
 
-#ifndef KAHYPAR_DISABLE_HWLOC
 size_t num_hardware_cpus() {
+  #ifndef KAHYPAR_DISABLE_HWLOC
   return HardwareTopology<>::instance().num_cpus();
+  #else
+  return std::thread::hardware_concurrency();
+  #endif
 }
 
+#ifndef KAHYPAR_DISABLE_HWLOC
 int num_used_numa_nodes() {
   return mt_kahypar::TBBInitializer::instance().num_used_numa_nodes();
 }

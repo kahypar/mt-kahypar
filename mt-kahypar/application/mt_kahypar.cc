@@ -75,14 +75,12 @@ int run(int argc, char* argv[]) {
       context.shared_memory.shuffle_block_size);
   }
 
-  if constexpr (parallel::provides_hardware_information) {
-    size_t num_available_cpus = parallel::num_hardware_cpus();
-    if ( num_available_cpus < context.shared_memory.num_threads ) {
-      WARNING("There are currently only " << num_available_cpus << " cpus available. "
-        << "Setting number of threads from " << context.shared_memory.num_threads
-        << " to " << num_available_cpus);
-      context.shared_memory.num_threads = num_available_cpus;
-    }
+  size_t num_available_cpus = parallel::num_hardware_cpus();
+  if ( num_available_cpus < context.shared_memory.num_threads ) {
+    WARNING("There are currently only " << num_available_cpus << " cpus available. "
+      << "Setting number of threads from " << context.shared_memory.num_threads
+      << " to " << num_available_cpus);
+    context.shared_memory.num_threads = num_available_cpus;
   }
 
   // Initialize TBB task arenas on numa nodes
