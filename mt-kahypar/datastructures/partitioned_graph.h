@@ -505,7 +505,7 @@ private:
   /*!
    * Restores a single pin hyperedge previously removed from the hypergraph.
    */
-  void restoreSinglePinEdge(const HyperedgeID& he) {
+  void restoreSinglePinEdge(const HyperedgeID&) {
     throw UnsupportedOperationException(
       "restoreSinglePinEdge is not supported in partitioned graph");
   }
