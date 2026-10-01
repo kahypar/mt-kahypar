@@ -27,9 +27,11 @@
 
 #pragma once
 
+#include <atomic>
 #include <thread>
 #include <memory>
 #include <iterator>
+#include <type_traits>
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
@@ -45,6 +47,7 @@ namespace ds {
 template <typename T>
 class Array {
 
+  template <bool is_atomic>
   class ArrayIterator {
 
     public:
@@ -54,11 +57,17 @@ class Array {
       using pointer = T*;
       using difference_type = std::ptrdiff_t;
 
+      using return_type = std::conditional_t<is_atomic, value_type, reference>;
+
       ArrayIterator() : _ptr(nullptr) { }
       explicit ArrayIterator(T* ptr) : _ptr(ptr) { }
 
-      reference operator*() const {
-        return *_ptr;
+      return_type operator*() const {
+        if constexpr (is_atomic) {
+          return std::atomic_ref(*_ptr).load(std::memory_order_relaxed);
+        } else {
+          return *_ptr;
+        }
       }
 
       pointer operator->() const {
@@ -105,8 +114,12 @@ class Array {
         return *this;
       }
 
-      reference operator[](const difference_type& n) const {
-        return _ptr[n];
+      return_type operator[](const difference_type& n) const {
+        if constexpr (is_atomic) {
+          return std::atomic_ref(_ptr[n]).load(std::memory_order_relaxed);
+        } else {
+          return _ptr[n];
+        }
       }
 
       bool operator==(const ArrayIterator& other) const {
@@ -140,9 +153,9 @@ class Array {
       friend ArrayIterator operator+(const difference_type& n, const ArrayIterator& it) {
         return it + n;
       }
+
     private:
       T* _ptr;
-
   };
 
  public:
@@ -152,8 +165,9 @@ class Array {
   using size_type       = size_t;
   using reference       = T&;
   using const_reference = const T&;
-  using iterator        = ArrayIterator;
-  using const_iterator  = const ArrayIterator;
+  using iterator        = ArrayIterator<false>;
+  using const_iterator  = const ArrayIterator<false>;
+  using atomic_iterator = ArrayIterator<true>;
 
   Array() :
     _group(""),
@@ -269,6 +283,11 @@ class Array {
     return const_iterator(_underlying_data);
   }
 
+  atomic_iterator atomic_begin() const {
+    ASSERT(_underlying_data);
+    return atomic_iterator(_underlying_data);
+  }
+
   iterator end() {
     ASSERT(_underlying_data);
     return iterator(_underlying_data + _size);
@@ -281,6 +300,11 @@ class Array {
   const_iterator cend() const {
     ASSERT(_underlying_data);
     return const_iterator(_underlying_data + _size);
+  }
+
+  atomic_iterator atomic_end() const {
+    ASSERT(_underlying_data);
+    return atomic_iterator(_underlying_data + _size);
   }
 
   // ####################### Capacity #######################

@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <queue>
 
@@ -105,7 +106,7 @@ class DynamicHypergraph {
       _valid(valid) { }
 
     bool isDisabled() const {
-      return _valid == false;
+      return !std::atomic_ref(_valid).load(std::memory_order_relaxed);
     }
 
     void enable() {
@@ -115,10 +116,14 @@ class DynamicHypergraph {
 
     void disable() {
       ASSERT(!isDisabled());
-      _valid = false;
+      std::atomic_ref(_valid).store(false, std::memory_order_relaxed);
     }
 
-    HypernodeWeight weight() const {
+    HypernodeWeight& weight() {
+      return _weight;
+    }
+
+    const HypernodeWeight& weight() const {
       return _weight;
     }
 
@@ -210,7 +215,7 @@ class DynamicHypergraph {
       return _begin + _size;
     }
 
-    size_t size() const {
+    const size_t& size() const {
       ASSERT(!isDisabled());
       return _size;
     }
@@ -227,7 +232,7 @@ class DynamicHypergraph {
 
     void decrementSize() {
       ASSERT(!isDisabled());
-      --_size;
+      std::atomic_ref(_size).fetch_sub(1, std::memory_order_relaxed);
     }
 
     HyperedgeWeight weight() const {
@@ -400,7 +405,7 @@ class DynamicHypergraph {
   // ! Iterator to iterate over the hyperedges
   using HyperedgeIterator = HypergraphElementIterator<const Hyperedge>;
   // ! Iterator to iterate over the pins of a hyperedge
-  using IncidenceIterator = typename IncidenceArray::const_iterator;
+  using IncidenceIterator = typename IncidenceArray::atomic_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNetArray::const_iterator;
 
@@ -608,9 +613,10 @@ class DynamicHypergraph {
   IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     const Hyperedge& he = hyperedge(e);
+    const size_t he_size = parallel::atomic_load(hyperedge(e).size(), std::memory_order_relaxed);
     return IteratorRange<IncidenceIterator>(
-      _incidence_array.cbegin() + he.firstEntry(),
-      _incidence_array.cbegin() + he.firstInvalidEntry());
+      _incidence_array.atomic_begin() + he.firstEntry(),
+      _incidence_array.atomic_begin() + he.firstEntry() + he_size);
   }
 
   // ####################### Hypernode Information #######################
@@ -618,7 +624,7 @@ class DynamicHypergraph {
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
-    return hypernode(u).weight();
+    return parallel::atomic_load(hypernode(u).weight(), std::memory_order_relaxed);
   }
 
   // ! Sets the weight of a vertex
@@ -686,7 +692,7 @@ class DynamicHypergraph {
   // ! Number of pins of a hyperedge
   HypernodeID edgeSize(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    return hyperedge(e).size();
+    return parallel::atomic_load(hyperedge(e).size(), std::memory_order_relaxed);
   }
 
   // ! Maximum size of a hyperedge
@@ -1147,7 +1153,7 @@ class DynamicHypergraph {
   Array<Hypernode> _hypernodes;
   // ! Contraction Tree
   ContractionTree _contraction_tree;
-  // ! Pins of hyperedges
+  // ! Incident nets of hypernodes
   IncidentNetArray _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
@@ -1155,7 +1161,7 @@ class DynamicHypergraph {
 
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;
-  // ! Incident nets of hypernodes
+  // ! Pins of hyperedges
   IncidenceArray _incidence_array;
   // ! Atomic bool vector used to acquire unique ownership of hyperedges
   OwnershipVector _acquired_hes;

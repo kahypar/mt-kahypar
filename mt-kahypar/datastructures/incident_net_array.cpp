@@ -38,7 +38,7 @@ IncidentNetIterator::IncidentNetIterator(const HypernodeID u,
                                          const bool end) :
   _u(u),
   _current_u(u),
-  _current_size(incident_net_array->header(u)->size),
+  _current_size(parallel::atomic_load(incident_net_array->header(u)->size, std::memory_order_relaxed)),
   _current_pos(0),
   _incident_net_array(incident_net_array),
   _end(end) {
@@ -69,7 +69,7 @@ IncidentNetIterator::IncidentNetIterator(const HypernodeID u,
 
 HyperedgeID IncidentNetIterator::operator* () const {
   ASSERT(!_end);
-  return _incident_net_array->firstEntry(_current_u)[_current_pos].e;
+  return parallel::atomic_load(_incident_net_array->firstEntry(_current_u)[_current_pos].e, std::memory_order_relaxed);
 }
 
 IncidentNetIterator & IncidentNetIterator::operator++ () {
@@ -92,15 +92,15 @@ bool IncidentNetIterator::operator== (const IncidentNetIterator& rhs) {
 void IncidentNetIterator::next_iterator() {
   while ( _current_pos == _current_size ) {
     const HypernodeID last_u = _current_u;
-    _current_u = _incident_net_array->header(_current_u)->it_next;
+    _current_u = _incident_net_array->header(_current_u)->it_next.load(std::memory_order_relaxed);
     _current_pos = 0;
-    _current_size = _incident_net_array->header(_current_u)->size;
+    _current_size = parallel::atomic_load(_incident_net_array->header(_current_u)->size, std::memory_order_relaxed);
     // It can happen that due to a contraction the current vertex
     // we iterate over becomes empty or the head of the current vertex
     // changes. Therefore, we set the end flag if we reach the current
     // head of the list or it_next is equal with the current vertex (means
     // that list becomes empty due to a contraction)
-    if ( _incident_net_array->header(_current_u)->is_head ||
+    if ( parallel::atomic_load(_incident_net_array->header(_current_u)->is_head, std::memory_order_relaxed) ||
          last_u == _current_u ) {
       _end = true;
       break;
@@ -123,7 +123,7 @@ void IncidentNetArray::contract(const HypernodeID u,
   acquire_lock(u);
   // Concatenate double-linked list of u and v
   append(u, v);
-  header(u)->degree += header(v)->degree;
+  std::atomic_ref(header(u)->degree).fetch_add(header(v)->degree, std::memory_order_relaxed);
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 }
@@ -179,8 +179,8 @@ void IncidentNetArray::removeIncidentNets(const HypernodeID u,
         // Hyperedge should be removed => decrement size of incident net list
         swap(current_entry--, --last_entry);
         ASSERT(head->size > 0);
-        --head->size;
-        --head_u->degree;
+        std::atomic_ref(head->size).fetch_sub(1, std::memory_order_relaxed);
+        std::atomic_ref(head_u->degree).fetch_sub(1, std::memory_order_relaxed);
       } else {
         // Vertex is non-shared between u and v => adapt version number of current incident net
         current_entry->version = new_version;
@@ -250,8 +250,8 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
     if ( head->size > 0 || current_u == u ) {
       if ( last_non_empty_entry != kInvalidHypernode &&
            head->it_prev != last_non_empty_entry ) {
-        header(last_non_empty_entry)->it_next = current_u;
-        head->it_prev = last_non_empty_entry;
+        header(last_non_empty_entry)->it_next.store(current_u, std::memory_order_relaxed);
+        head->it_prev.store(last_non_empty_entry, std::memory_order_relaxed);
       }
       last_non_empty_entry = current_u;
     }
@@ -259,8 +259,8 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
   } while ( current_u != u );
 
   ASSERT(last_non_empty_entry != kInvalidHypernode);
-  head_u->it_prev = last_non_empty_entry;
-  header(last_non_empty_entry)->it_next = u;
+  head_u->it_prev.store(last_non_empty_entry, std::memory_order_relaxed);
+  header(last_non_empty_entry)->it_next.store(u, std::memory_order_relaxed);
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 }
 
@@ -313,11 +313,11 @@ void IncidentNetArray::append(const HypernodeID u, const HypernodeID v) {
 
   const HypernodeID it_tail_u = header(u)->it_prev;
   const HypernodeID it_tail_v = header(v)->it_prev;
-  header(it_tail_u)->it_next = v;
-  header(u)->it_prev = it_tail_v;
-  header(v)->it_prev = it_tail_u;
-  header(it_tail_v)->it_next = u;
-  header(v)->is_head = false;
+  header(it_tail_u)->it_next.store(v, std::memory_order_relaxed);
+  header(u)->it_prev.store(it_tail_v, std::memory_order_relaxed);
+  header(v)->it_prev.store(it_tail_u, std::memory_order_relaxed);
+  header(it_tail_v)->it_next.store(u, std::memory_order_relaxed);
+  std::atomic_ref(header(v)->is_head).store(false, std::memory_order_relaxed);
 
   if ( header(v)->size == 0 ) {
     removeEmptyIncidentNetList(v);
@@ -340,8 +340,8 @@ void IncidentNetArray::splice(const HypernodeID u, const HypernodeID v) {
           non_empty_entry_next_tail != u ) {
     non_empty_entry_next_tail = header(non_empty_entry_next_tail)->next;
   }
-  header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_tail;
-  header(non_empty_entry_next_tail)->it_prev = non_empty_entry_prev_v;
+  header(non_empty_entry_prev_v)->it_next.store(non_empty_entry_next_tail, std::memory_order_relaxed);
+  header(non_empty_entry_next_tail)->it_prev.store(non_empty_entry_prev_v, std::memory_order_relaxed);
 
   // Cut out incident list of v
   const HypernodeID prev_v = header(v)->prev;
@@ -359,8 +359,8 @@ void IncidentNetArray::removeEmptyIncidentNetList(const HypernodeID u) {
   Header* head = header(u);
   header(head->it_prev)->it_next = head->it_next;
   header(head->it_next)->it_prev = head->it_prev;
-  head->it_next = u;
-  head->it_prev = u;
+  head->it_next.store(u, std::memory_order_relaxed);
+  head->it_prev.store(u, std::memory_order_relaxed);
 }
 
 void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
@@ -415,8 +415,8 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
     Header* head = header(u);
     head->prev = u;
     head->next = u;
-    head->it_prev = u;
-    head->it_next = u;
+    head->it_prev.store(u, std::memory_order_relaxed);
+    head->it_next.store(u, std::memory_order_relaxed);
     head->size = current_incident_net_pos[u].load(std::memory_order_relaxed);
     head->degree = head->size;
     head->current_version = 0;
