@@ -468,7 +468,7 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
-    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, size_t(4), size_t(256));
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.objective == Objective::steiner_tree ) {
       if ( partition.preset_type == PresetType::large_k ) {
@@ -503,9 +503,7 @@ namespace mt_kahypar {
       }
     }
 
-
-    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
-
+    // in deterministic mode, switch to deterministic algorithms
     if ( partition.deterministic ) {
       auto print_warning = [&](const char* msg) {
         if (partition.enable_logging || !MT_KAHYPAR_IS_LIBRARY_MODE) WARNING(msg);
@@ -576,6 +574,30 @@ namespace mt_kahypar {
       if (switched) {
         print_warning("Switching to deterministic algorithm variants since deterministic mode is active");
       }
+    }
+
+    // check for deterministic features
+    auto uses_deterministic_refinement = [](const RefinementParameters& params) {
+      return params.label_propagation.algorithm == LabelPropagationAlgorithm::deterministic ||
+        params.jet.algorithm == JetAlgorithm::deterministic ||
+        params.flows.algorithm == FlowAlgorithm::deterministic ||
+        params.rebalancing.algorithm == RebalancingAlgorithm::deterministic;
+    };
+    bool uses_deterministic_algo = coarsening.algorithm == CoarseningAlgorithm::deterministic_multilevel_coarsener ||
+      uses_deterministic_refinement(refinement) || uses_deterministic_refinement(initial_partitioning.refinement);
+
+    if ( !MT_KAHYPAR_HAS_DETERMINISTIC_FEATURES && uses_deterministic_algo) {
+      throw InvalidParameterException(
+        "Deterministic partitioning is deactivated. Add -DKAHYPAR_ENABLE_DETERMINISTIC_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+
+    // check for quality features
+    if (!MT_KAHYPAR_HAS_QUALITY_FEATURES &&
+        (refinement.flows.algorithm != FlowAlgorithm::do_nothing || initial_partitioning.refinement.flows.algorithm != FlowAlgorithm::do_nothing)) {
+      throw InvalidParameterException(
+        "Quality partitioning (flow-based refinement) is deactivated. Add -DKAHYPAR_ENABLE_QUALITY_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
     }
 
     if ( partition.instance_type == InstanceType::UNDEFINED ) {

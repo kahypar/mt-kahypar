@@ -36,18 +36,21 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
+
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+
+#ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
-#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
-
+#endif
 
 namespace mt_kahypar {
 using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
@@ -55,6 +58,7 @@ using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    IRefiner,
                                    kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
+#ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicLabelPropagationRefiner,
                                                 IRefiner,
@@ -64,6 +68,7 @@ using DeterministicJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                 DeterministicJetRefiner,
                                                 IRefiner,
                                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+#endif
 
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFM,
@@ -82,20 +87,28 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
                                           IFMStrategy,
                                           kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
+
+#ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 FlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
 
+#ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
 using DeterministicFlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                 DeterministicFlowRefinementScheduler,
                                 IRefiner,
                                 kahypar::meta::Typelist<GraphAndGainTypesList>>;
+#endif
+#endif
 
+
+#ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
 using DeterministicRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    DeterministicRebalancer,
                                    IRebalancer,
                                    kahypar::meta::Typelist<GraphAndGainTypesList>>;
+#endif
 
 using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      AdvancedRebalancer,
@@ -224,14 +237,18 @@ void register_refinement_algorithms() {
   REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                 LabelPropagationDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
   REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                 DeterministicLabelPropagationDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #endif
   REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
+  #ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
   REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::deterministic,
                                   DeterministicJetDispatcher,
                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #endif
   REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
 
   REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
@@ -249,17 +266,23 @@ void register_refinement_algorithms() {
                                   UnconstrainedFMStrategyDispatcher,
                                   getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
 
+  #ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
   REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                     FlowSchedulerDispatcher,
                                     getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
   REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::deterministic,
                                     DeterministicFlowSchedulerDispatcher,
                                     getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #endif
+  #endif
   REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
+  #ifdef KAHYPAR_ENABLE_DETERMINISTIC_FEATURES
   REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::deterministic,
                                 DeterministicRebalancerDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
+  #endif
   REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
                                 AdvancedRebalancerDispatcher,
                                 getGraphAndGainTypesPolicy(context.partition.partition_type, context.partition.gain_policy));
