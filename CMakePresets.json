@@ -23,6 +23,7 @@
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
                 "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
+                "KAHYPAR_DISABLE_PARLAY": "ON",
                 "KAHYPAR_PYTHON": "OFF"
             }
         },
@@ -43,6 +44,7 @@
                 "KAHYPAR_USE_ADDRESS_SANITIZER": "OFF",
                 "KAHYPAR_USE_THREAD_SANITIZER": "OFF",
                 "KAHYPAR_ENABLE_THREAD_PINNING": "OFF",
+                "KAHYPAR_DISABLE_PARLAY": "OFF",
                 "KAHYPAR_PYTHON": "OFF"
             }
         },
