@@ -469,14 +469,16 @@ Improving Compile Times
 
 Mt-KaHyPar implements several graph and hypergraph data structures, and supports different objective functions.
 In the hot parts of the algorithm, each combination of (hyper)graph data structure and objective function is compiled separately, which notably increases the compile time.
-We therefore provide the cmake preset `minimal` to disable some of the features of Mt-KaHyPar for faster compilation.
+We therefore provide the cmake preset `minimal` to disable some features for faster compilation.
 
-With this, only the `deterministic`, `deterministic_quality`, `default`, and `quality` configurations are available in combination with the cut-net or connectivity metric.
-Using a disabled feature will throw an error. Note that you can only disable the features in our binary, not in the C and Python interface.
+With this, only the `default` configuration is available, in combination with the cut-net or connectivity metric.
+Using a disabled feature will throw an error. Note that you can't disable features in the C and Python interface.
 
 For more fine-grained control, you can directly use the corresponding cmake flags:
 ```cmake
 -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=On/Off # enables/disables graph partitioning features
+-DKAHYPAR_ENABLE_DETERMINISTIC_FEATURES=On/Off # enables/disables our deterministic configurations
+-DKAHYPAR_ENABLE_QUALITY_FEATURES=On/Off # enables/disables our quality configurations
 -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=On/Off # enables/disables our highest-quality configuration
 -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=On/Off # enables/distables large k partitioning features
 -DKAHYPAR_ENABLE_SOED_METRIC=On/Off # enables/disables sum-of-external-degrees metric

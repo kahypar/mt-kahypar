@@ -6,10 +6,16 @@ set(RefinementSources
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/advanced_rebalancer.cpp
-        rebalancing/deterministic_rebalancer.cpp
         rebalancing/repair_empty_blocks.cpp
+)
+
+set(DeterministicRefinementSources
         deterministic/deterministic_label_propagation.cpp
         deterministic/deterministic_jet_refiner.cpp
+        rebalancing/deterministic_rebalancer.cpp
+)
+
+set(QualityRefinementSources
         flows/problem_construction.cpp
         flows/flow_refinement_scheduler.cpp
         flows/active_block_scheduler.cpp
@@ -18,9 +24,12 @@ set(RefinementSources
         flows/sequential_construction.cpp
         flows/parallel_construction.cpp
         flows/flow_hypergraph_builder.cpp
+)
+
+set(DeterministicQualityRefinementSources
         flows/deterministic/deterministic_flow_refinement_scheduler.cpp
         flows/deterministic/participation_scheduler.cpp
-        )
+)
 
 set(Km1Sources
         gains/km1/km1_gain_cache.cpp)
@@ -45,6 +54,23 @@ set(SteinerTreeGraphSources
 target_sources(MtKaHyPar-Sources INTERFACE ${RefinementSources})
 target_sources(MtKaHyPar-Sources INTERFACE ${Km1Sources})
 target_sources(MtKaHyPar-Sources INTERFACE ${CutSources})
+
+if (KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+  target_sources(MtKaHyPar-Sources INTERFACE ${DeterministicRefinementSources})
+else ()
+  target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${DeterministicRefinementSources})
+endif()
+if (KAHYPAR_ENABLE_QUALITY_FEATURES)
+  target_sources(MtKaHyPar-Sources INTERFACE ${QualityRefinementSources})
+  if (KAHYPAR_ENABLE_DETERMINISTIC_FEATURES)
+    target_sources(MtKaHyPar-Sources INTERFACE ${DeterministicQualityRefinementSources})
+  else ()
+    target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${DeterministicQualityRefinementSources})
+  endif()
+else ()
+  target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${QualityRefinementSources})
+  target_sources(MtKaHyPar-LibraryBuildSources PRIVATE ${DeterministicQualityRefinementSources})
+endif()
 
 if ( KAHYPAR_ENABLE_SOED_METRIC )
   target_sources(MtKaHyPar-Sources INTERFACE ${SoedSources})
