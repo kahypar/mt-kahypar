@@ -132,9 +132,9 @@ class IncidentNetArray {
     // ! Next incident net list
     HypernodeID next;
     // ! Previous non-empty incident net list
-    HypernodeID it_prev;
+    CAtomic<HypernodeID> it_prev;
     // ! Next non-empty incident net list
-    HypernodeID it_next;
+    CAtomic<HypernodeID> it_next;
     // ! If we append a vertex v to the incident net list of a vertex u, we store
     // ! the previous tail of vertex v, such that we can restore the list of v
     // ! during uncontraction
@@ -170,7 +170,7 @@ class IncidentNetArray {
   // ! Degree of the vertex
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
-    return header(u)->degree;
+    return std::atomic_ref(header(u)->degree).load(std::memory_order_relaxed);
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -275,9 +275,10 @@ class IncidentNetArray {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Entry* lhs, Entry* rhs) {
-    Entry tmp_lhs = *lhs;
-    *lhs = *rhs;
-    *rhs = tmp_lhs;
+    HyperedgeID tmp_rhs = std::atomic_ref(rhs->e).load(std::memory_order_relaxed);
+    HyperedgeID tmp_lhs = std::atomic_ref(lhs->e).exchange(tmp_rhs, std::memory_order_relaxed);
+    std::atomic_ref(rhs->e).store(tmp_lhs, std::memory_order_relaxed);
+    std::swap(lhs->version, rhs->version);
   }
 
   // ! Restores all previously removed incident nets
