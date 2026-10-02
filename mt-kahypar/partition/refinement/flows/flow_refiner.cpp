@@ -113,7 +113,7 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
     if (++iteration == 25) {
       iteration = 0;
       double elapsed = RUNNING_TIME(start);
-      if (elapsed > _time_limit) {
+      if (elapsed > _time_limit.load(std::memory_order_relaxed)) {
         time_limit_reached = true;
         return false;
       }

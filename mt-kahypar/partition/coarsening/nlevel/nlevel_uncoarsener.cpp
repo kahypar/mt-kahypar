@@ -164,12 +164,10 @@ namespace mt_kahypar {
         _timer.start_timer("collect_border_vertices", "Collect Border Vertices", false, _force_measure_timings);
         tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
           const Memento& memento = batch[i];
-          if ( !_border_vertices_of_batch[memento.u] && _uncoarseningData.partitioned_hg->isBorderNode(memento.u) ) {
-            _border_vertices_of_batch.set(memento.u, true);
+          if ( _border_vertices_of_batch.compare_and_set_to_true(memento.u) && _uncoarseningData.partitioned_hg->isBorderNode(memento.u) ) {
             _tmp_refinement_nodes.stream(memento.u);
           }
-          if ( !_border_vertices_of_batch[memento.v] && _uncoarseningData.partitioned_hg->isBorderNode(memento.v) ) {
-            _border_vertices_of_batch.set(memento.v, true);
+          if ( _border_vertices_of_batch.compare_and_set_to_true(memento.v) && _uncoarseningData.partitioned_hg->isBorderNode(memento.v) ) {
             _tmp_refinement_nodes.stream(memento.v);
           }
         });
