@@ -53,11 +53,12 @@ void ParallelConstruction<GraphAndGainTypes>::TmpHyperedgeBuffer::resize(const H
 template<typename GraphAndGainTypes>
 typename ParallelConstruction<GraphAndGainTypes>::TmpHyperedge
 ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const size_t he_hash,
-                                                                        const vec<whfc::Node>& pins) {
-  const size_t bucket_idx = he_hash % _hash_buckets.size();
-  if ( std::atomic_ref(_hash_buckets[bucket_idx].threshold).load(std::memory_order::relaxed) == _threshold ) {
+                                                                           const vec<whfc::Node>& pins) {
+  auto& bucket = _hash_buckets[he_hash % _hash_buckets.size()];
+  if ( bucket.threshold.load(std::memory_order::relaxed) == _threshold ) {
+    bucket.lock.lock();
     // There exists already some hyperedges with the same hash
-    for ( const ThresholdHyperedge& tmp : _hash_buckets[bucket_idx].identical_nets ) {
+    for ( const ThresholdHyperedge& tmp : bucket.identical_nets ) {
       // Check if there is some hyperedge equal to he
       const TmpHyperedge& tmp_e = tmp.e;
       if ( tmp.threshold == _threshold && tmp_e.hash == he_hash &&
@@ -71,33 +72,28 @@ ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::get(const
           }
         }
         if ( is_identical ) {
-          return tmp_e;
+          // copy the TmpHyperedge out of the vector before unlocking
+          TmpHyperedge result(tmp_e);
+          bucket.lock.unlock();
+          return result;
         }
       }
     }
+    bucket.lock.unlock();
   }
   return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
 template<typename GraphAndGainTypes>
 void ParallelConstruction<GraphAndGainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
-  const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
-  uint32_t expected = std::atomic_ref(_hash_buckets[bucket_idx].threshold)
-                          .load(std::memory_order::relaxed);
-  uint32_t desired = _threshold - 1;
-  while ( std::atomic_ref(_hash_buckets[bucket_idx].threshold )
-               .load(std::memory_order::relaxed) < _threshold ) {
-    if ( expected < desired &&
-        std::atomic_ref(_hash_buckets[bucket_idx].threshold)
-             .compare_exchange_strong(expected, desired,
-                                      std::memory_order::acq_rel,
-                                      std::memory_order::relaxed) ) {
-      _hash_buckets[bucket_idx].identical_nets.clear();
-      std::atomic_ref(_hash_buckets[bucket_idx].threshold)
-          .store(_threshold, std::memory_order::relaxed);
-    }
+  auto& bucket = _hash_buckets[tmp_he.hash % _hash_buckets.size()];
+  bucket.lock.lock();
+  if (bucket.threshold.load(std::memory_order::relaxed) < _threshold) {
+    bucket.identical_nets.clear();
+    bucket.threshold.store(_threshold, std::memory_order::relaxed);
   }
-  _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
+  bucket.identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
+  bucket.lock.unlock();
 }
 
 template<typename GraphAndGainTypes>

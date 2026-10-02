@@ -37,9 +37,10 @@
 #include "mt-kahypar/datastructures/concurrent_flat_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
-#include "mt-kahypar/parallel/stl/zero_allocator.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
@@ -75,16 +76,17 @@ class ParallelConstruction {
       const uint32_t threshold;
     };
 
-    using IdenticalNetVector = tbb::concurrent_vector<
-      ThresholdHyperedge, parallel::zero_allocator<ThresholdHyperedge>>;
+    using IdenticalNetVector = parallel::scalable_vector<ThresholdHyperedge>;
 
     struct HashBucket {
       HashBucket() :
         identical_nets(),
-        threshold(0) { }
+        threshold(0),
+        lock() { }
 
       IdenticalNetVector identical_nets;
-      uint32_t threshold;
+      CAtomic<uint32_t> threshold;
+      SpinLock lock;
     };
 
    public:
