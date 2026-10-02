@@ -533,6 +533,7 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) const {
 
   tbb::parallel_invoke([&] {
     adjacency_array._header_array.resize(_header_array.size());
+    // TODO: this generates a warning...
     memcpy(adjacency_array._header_array.data(), _header_array.data(),
       sizeof(Header) * _header_array.size());
   }, [&] {
