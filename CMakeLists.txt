@@ -424,7 +424,7 @@ endif()
 
 include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
-set(KAHYPAR_WHFC_TAG             dd3b7901f73ba9a1de44788172ded5ce33b83338)
+set(KAHYPAR_WHFC_TAG             58964f7198c42aeeb5106d2802a26789dab107e8)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.7.2)
 set(KAHYPAR_TBB_VERSION          v2023.1.0)
@@ -450,7 +450,7 @@ FetchContent_Populate(
 )
 FetchContent_Populate(
   WHFC QUIET EXLUDE_FROM_ALL
-  GIT_REPOSITORY https://github.com/larsgottesbueren/WHFC.git
+  GIT_REPOSITORY https://github.com/N-Maas/WHFC.git
   GIT_TAG        ${KAHYPAR_WHFC_TAG}
   SOURCE_DIR     external_tools/WHFC
 )
