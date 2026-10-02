@@ -89,12 +89,13 @@ namespace mt_kahypar {
 
       void finishHyperedge(const whfc::Hyperedge he, const whfc::Flow capacity,
                             const size_t pin_start_idx, const size_t pin_end_idx) {
+        unused(pin_start_idx);
         ASSERT(he == _num_hes);
         ASSERT(static_cast<size_t>(he + 1) < _hes.size());
         ASSERT(pin_end_idx <= _pins.size());
         ASSERT(pin_end_idx == _num_pins);
         _hes[he].capacity = capacity;
-        _hes[he].first_out = whfc::PinIndex(pin_start_idx);
+        ASSERT(_hes[he].first_out == whfc::PinIndex(pin_start_idx));
         _hes[he + 1].first_out = whfc::PinIndex(pin_end_idx);
 
         #ifdef KAHYPAR_USE_ASSERTIONS

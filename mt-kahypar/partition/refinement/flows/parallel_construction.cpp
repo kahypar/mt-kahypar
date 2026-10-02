@@ -976,8 +976,8 @@ void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const Par
   whfc::HopDistance max_dist_source(0);
   whfc::HopDistance max_dist_sink(0);
   while ( !q[q_idx].empty() ) {
-    bool reached_source_side = false;
-    bool reached_sink_side = false;
+    std::atomic<bool> reached_source_side = false;
+    std::atomic<bool> reached_sink_side = false;
     tbb::parallel_for(UL(0), num_threads, [&](const size_t idx) {
       while ( !q[q_idx].empty(idx) ) {
         whfc::Node u = q[q_idx].front(idx);
@@ -985,10 +985,10 @@ void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const Par
         const PartitionID block_of_u = phg.partID(whfc_to_node[u]);
         if ( block_of_u == block_0 ) {
           distances[u] = -dist;
-          reached_source_side = true;
+          reached_source_side.store(true, std::memory_order_relaxed);
         } else if ( block_of_u == block_1 ) {
           distances[u] = dist;
-          reached_sink_side = true;
+          reached_sink_side.store(true, std::memory_order_relaxed);
         }
 
         for ( const whfc::FlowHypergraph::InHe& in_he : _flow_hg.hyperedgesOf(u) ) {
