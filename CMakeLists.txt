@@ -424,7 +424,7 @@ endif()
 
 include(FetchContent)
 set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
-set(KAHYPAR_WHFC_TAG             dd3b7901f73ba9a1de44788172ded5ce33b83338)
+set(KAHYPAR_WHFC_TAG             d53f175660c54deebc65cdc10ec63a298841fd4c)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.7.2)
 set(KAHYPAR_TBB_VERSION          v2023.1.0)
