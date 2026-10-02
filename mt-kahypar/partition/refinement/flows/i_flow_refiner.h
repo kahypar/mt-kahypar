@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <atomic>
 
 #include "include/mtkahypartypes.h"
 
@@ -59,14 +60,14 @@ class IFlowRefiner {
 
   // ! Updates the time limit (in seconds)
   void updateTimeLimit(const double time_limit) {
-    _time_limit = time_limit;
+    _time_limit.store(time_limit, std::memory_order_relaxed);
   }
 
 
  protected:
   IFlowRefiner() = default;
 
-  double _time_limit = 0;
+  std::atomic<double> _time_limit = {0};
 
  private:
   virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t& phg) = 0;
