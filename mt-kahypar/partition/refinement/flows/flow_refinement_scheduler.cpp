@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/flows/flow_refinement_scheduler.h"
 
+#include <atomic>
 #include <chrono>
 
 #include "mt-kahypar/definitions.h"
@@ -46,22 +47,26 @@ class TimeLimitTracker {
     average_running_time(0.0) { }
 
   double timeLimit(const Context& context) const {
-    return shouldSetTimeLimit(context) ?
-      std::max(context.refinement.flows.time_limit_factor *
-        average_running_time, 0.1) : std::numeric_limits<double>::max();
+    if (shouldSetTimeLimit(context)) {
+      const double avg_time = parallel::atomic_load(average_running_time, std::memory_order_relaxed);
+      return std::max(context.refinement.flows.time_limit_factor * avg_time, 0.1);
+    } else {
+      return std::numeric_limits<double>::max();
+    }
   }
 
   bool shouldSetTimeLimit(const Context& context) const {
-    return num_refinements > static_cast<size_t>(context.partition.k) &&
+    const size_t num_runs = parallel::atomic_load(num_refinements, std::memory_order_relaxed);
+    return num_runs > static_cast<size_t>(context.partition.k) &&
       context.refinement.flows.time_limit_factor > 1.0;
   }
 
   void reportRunningTime(double running_time, bool reaches_time_limit) {
     if ( !reaches_time_limit ) {
       lock.lock();
-      average_running_time = (running_time + num_refinements *
-        average_running_time) / static_cast<double>(num_refinements + 1);
-      ++num_refinements;
+      std::atomic_ref(average_running_time).store((running_time + num_refinements * average_running_time)
+        / static_cast<double>(num_refinements + 1), std::memory_order_relaxed);
+      std::atomic_ref(num_refinements).fetch_add(1, std::memory_order_relaxed);
       lock.unlock();
     }
   }

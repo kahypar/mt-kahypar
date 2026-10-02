@@ -207,19 +207,20 @@ void ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
   // Note: decrementing the block count must happen after pushing new blocks,
   // otherwise the active block count is temporarily too small
   _rounds[round].decrementRemainingBlocks();
-  if ( round == _first_active_round && _rounds[round].numRemainingBlocks() == 0 ) {
+  if ( round == _first_active_round.load(std::memory_order_relaxed) && _rounds[round].numRemainingBlocks() == 0 ) {
     _round_lock.lock();
     // We consider a round as finished, if the previous round is also finished and there
     // are no remaining blocks in the queue of that round.
-    while ( _first_active_round < _rounds.size() &&
-            _rounds[_first_active_round].numRemainingBlocks() == 0 ) {
-      DBG << GREEN << "Round" << (_first_active_round + 1) << "terminates with improvement"
-          << _rounds[_first_active_round].roundImprovement() << "("
+    size_t current_round = _first_active_round.load(std::memory_order_relaxed);
+    while ( current_round < _rounds.size() &&
+            _rounds[current_round].numRemainingBlocks() == 0 ) {
+      DBG << GREEN << "Round" << (current_round + 1) << "terminates with improvement"
+          << _rounds[current_round].roundImprovement() << "("
           << "Minimum Required Improvement =" << _min_improvement_per_round << ")" << END;
       // We require that minimum improvement per round must be greater than a threshold,
       // otherwise we terminate early
-      _terminate = _rounds[_first_active_round].roundImprovement() < _min_improvement_per_round;
-      ++_first_active_round;
+      _terminate = _rounds[current_round].roundImprovement() < _min_improvement_per_round;
+      current_round = _first_active_round.add_fetch(1, std::memory_order_relaxed);
     }
     _round_lock.unlock();
   }
@@ -241,7 +242,7 @@ void ActiveBlockScheduler::setObjective(const HyperedgeWeight objective) {
 void ActiveBlockScheduler::reset() {
   _num_rounds.store(0);
   _rounds.clear();
-  _first_active_round = 0;
+  _first_active_round.store(0);
   _terminate = false;
 }
 
