@@ -70,8 +70,8 @@ class ParticipationScheduler final {
 
   void reportResults(const BlockPair& blocks, HyperedgeWeight improvement) {
     if (improvement > 0) {
-      _active_blocks_next_round[blocks.i] = true;
-      _active_blocks_next_round[blocks.j] = true;
+      _active_blocks_next_round[blocks.i] = static_cast<uint8_t>(true);
+      _active_blocks_next_round[blocks.j] = static_cast<uint8_t>(true);
     }
   }
 
@@ -84,8 +84,8 @@ class ParticipationScheduler final {
   // ! Quotient graph
   QuotientGraph& _quotient_graph;
   // ! Tracked data for the different blocks
-  vec<bool> _active_blocks;
-  vec<bool> _active_blocks_next_round;
+  vec<uint8_t> _active_blocks;
+  vec<uint8_t> _active_blocks_next_round;
   vec<vec<bool>> _already_processed;
   vec<size_t> _participations;
   vec<vec<PartitionID>> _active_block_pairs;

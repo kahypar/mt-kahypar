@@ -32,8 +32,8 @@ namespace mt_kahypar {
 ParticipationScheduler::ParticipationScheduler(const Context& context, QuotientGraph& quotient_graph) :
   _context(context),
   _quotient_graph(quotient_graph),
-  _active_blocks(context.partition.k, true),
-  _active_blocks_next_round(context.partition.k, false),
+  _active_blocks(context.partition.k, static_cast<uint8_t>(true)),
+  _active_blocks_next_round(context.partition.k, static_cast<uint8_t>(false)),
   _already_processed(context.partition.k, vec<bool>{}),
   _participations(context.partition.k, 0),
   _active_block_pairs(context.partition.k),
@@ -42,7 +42,7 @@ ParticipationScheduler::ParticipationScheduler(const Context& context, QuotientG
 
 void ParticipationScheduler::initialize(bool is_input_hypergraph) {
   _is_input_hypergraph = is_input_hypergraph;
-  _active_blocks_next_round.assign(_active_blocks_next_round.size(), true);
+  _active_blocks_next_round.assign(_active_blocks_next_round.size(), static_cast<uint8_t>(true));
   _round = 0;
   resetForNewRoundImpl();
 }
@@ -56,7 +56,7 @@ void ParticipationScheduler::resetForNewRoundImpl() {
   std::swap(_active_blocks, _active_blocks_next_round);
 
   // reset data
-  _active_blocks_next_round.assign(_active_blocks_next_round.size(), false);
+  _active_blocks_next_round.assign(_active_blocks_next_round.size(), static_cast<uint8_t>(false));
   _participations.assign(_participations.size(), 0);
   for (auto& v : _already_processed) {
     v.assign(_context.partition.k, false);
