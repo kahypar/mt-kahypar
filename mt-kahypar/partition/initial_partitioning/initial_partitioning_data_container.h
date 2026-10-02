@@ -499,9 +499,9 @@ class InitialPartitioningDataContainer {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
       my_result._deterministic_tag = deterministic_tag;
+      _pop_lock.lock();
       PartitioningResult worst_in_population = _best_partitions[0].first;
       if (worst_in_population.is_other_better(my_result)) {
-        _pop_lock.lock();
         worst_in_population = _best_partitions[0].first;
         if (worst_in_population.is_other_better(my_result)) {
           // remove current worst and replace with my result
@@ -512,8 +512,8 @@ class InitialPartitioningDataContainer {
           std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
           std::push_heap(_best_partitions.begin(), _best_partitions.end(), comp);
         }
-        _pop_lock.unlock();
       }
+      _pop_lock.unlock();
     } else {
       if (my_ip_data._result.is_other_better(my_result)) {
         my_ip_data._result = my_result;
