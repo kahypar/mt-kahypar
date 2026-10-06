@@ -27,17 +27,17 @@ namespace mt_kahypar::dyn {
         PartitionID getTargetPart(const HypernodeID& hn, const size_t stage) {
           const PartitionID current_part = partitioned_hypergraph_m.partID(hn);
           ASSERT(current_part != kInvalidPartition);
-          size_t max_gain = 0;
+          int max_gain = 0;
           PartitionID target_part = current_part;
           for ( PartitionID p = 0; p < context.partition.k; ++p ) {
             if (p != current_part) {
-              if ((stage == 1 && p > current_part) || (stage == 2 && p < current_part)) {
-                size_t gain = 0;
+              if ((stage == 1 && p > current_part) || (stage == 2 && p < current_part) || (stage == 0)) {
+                int gain = 0;
                 for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
-                  if (partitioned_hypergraph_m.pinCountInPart(he, p) == 0) {
+                  if (partitioned_hypergraph_m.pinCountInPart(he, p) == 0 && partitioned_hypergraph_m.pinCountInPart(he, current_part) > 1) {
                     gain -= hypergraph_m.edgeWeight(he);
                   }
-                  if (partitioned_hypergraph_m.pinCountInPart(he, current_part) == 1) {
+                  if (partitioned_hypergraph_m.pinCountInPart(he, p) > 0 && partitioned_hypergraph_m.pinCountInPart(he, current_part) == 1) {
                     gain += hypergraph_m.edgeWeight(he);
                   }
                 }
@@ -67,6 +67,7 @@ namespace mt_kahypar::dyn {
 
       void partition(Change& change, size_t changes_size) override {
         (void) changes_size;
+        change_count++;
         ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
         // ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
 
@@ -95,11 +96,19 @@ namespace mt_kahypar::dyn {
         {
           hypergraph_m.addPin(edge, node);
           partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
+          // PartitionID target_part = getTargetPart(node, 0);
+          // if (target_part != partitioned_hypergraph_m.partID(node))
+          // {
+          //   context.dynamic.move_count++;
+          //   partitioned_hypergraph_m.changeNodePart(node, partitioned_hypergraph_m.partID(node), target_part);
+          // }
+
         }
 
         // only trigger the "lightweight" refiner every batch_size changes since e.g. orkut would take > 24h otherwise
         changed_weight += change.added_nodes.size() + change.removed_nodes.size();
-        if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || (context.dynamic.simulate_opt_vcycle && change_count == changes_size))
+        context.dynamic.simulate_opt_vcycle = true;
+        if (changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight || (context.dynamic.simulate_opt_vcycle && change_count == changes_size))
         {
           prior_total_weight += changed_weight;
           changed_weight = 0;
