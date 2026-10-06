@@ -36,14 +36,22 @@ namespace mt_kahypar::dyn {
           // compute neighbor count in each block
           for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
             for ( const HypernodeID& hn2 : hypergraph_m.pins(he) ) {
-              block_connectivities[partitioned_hypergraph_m.partID(hn2)] = std::make_tuple(std::get<0>(block_connectivities[partitioned_hypergraph_m.partID(hn2)]) + 1, partitioned_hypergraph_m.partID(hn2));
+              if (hn2 != hn) {
+                block_connectivities[partitioned_hypergraph_m.partID(hn2)] = std::make_tuple(std::get<0>(block_connectivities[partitioned_hypergraph_m.partID(hn2)]) + 1, partitioned_hypergraph_m.partID(hn2));
+              }
             }
           }
           std::vector<std::tuple<double, PartitionID>> block_scores(context.partition.k, std::make_tuple(0,0));
           for ( PartitionID p = 0; p < context.partition.k; ++p )
           {
-            constexpr double fennel_gamma = 1.5;
-            double score = std::get<0>(block_connectivities[p]) - fennel_alpha * (fennel_gamma / 2) * pow(partitioned_hypergraph_m.partWeight(p), fennel_gamma - 1);
+            size_t partweight = partitioned_hypergraph_m.partWeight(p);
+            if (p == current_part) {
+              partweight -= 1;
+            }
+            // constexpr double fennel_gamma = 1.5;
+            // double score = std::get<0>(block_connectivities[p]) - fennel_alpha * (fennel_gamma / 2) * pow(partweight, fennel_gamma - 1);
+            // This fennel_gamma is just a square root
+            double score = std::get<0>(block_connectivities[p]) - fennel_alpha * (1.5 / 2) * sqrt(partweight);
             block_scores[p] = std::make_tuple(score, p);
           }
 
@@ -55,13 +63,17 @@ namespace mt_kahypar::dyn {
           // return the block with the highest score that doesn't violate max_part_weights (imbalance)
           for (const auto& block_score : block_scores)
           {
-            if (std::get<1>(block_score) != current_part)
+            if (std::get<1>(block_score) == current_part)
             {
-              if (partitioned_hypergraph_m.partWeight(std::get<1>(block_score)) + hypergraph_m.nodeWeight(hn) <=
-                  context.partition.max_part_weights[std::get<1>(block_score)])
-              {
-                return std::get<1>(block_score);
-              }
+              ASSERT(partitioned_hypergraph_m.partWeight(std::get<1>(block_score)) >
+                  context.partition.max_part_weights[std::get<1>(block_score)]);
+              // If the best block is the current block, we don't need to move the node
+              return current_part;
+            }
+            if (partitioned_hypergraph_m.partWeight(std::get<1>(block_score)) + hypergraph_m.nodeWeight(hn) <=
+                context.partition.max_part_weights[std::get<1>(block_score)])
+            {
+              return std::get<1>(block_score);
             }
           }
           return current_part;
@@ -69,12 +81,15 @@ namespace mt_kahypar::dyn {
 
         bool toExamineOrNot(const HypernodeID& hn, size_t threshold) {
           size_t neighbors = 0;
+          // for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn)) {
+          //   for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
+          //     if (hn2 != hn) {
+          //       neighbors++;
+          //     }
+          //   }
+          // }
           for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn)) {
-            for (const HypernodeID& hn2 : hypergraph_m.pins(he)) {
-              if (hn2 != hn) {
-                neighbors++;
-              }
-            }
+            neighbors += hypergraph_m.edgeSize(he) - 1; // subtract 1 to exclude the node itself
           }
           if (neighbors == 0) {
             return false;
@@ -144,26 +159,20 @@ namespace mt_kahypar::dyn {
           }
         }
 
-        size_t examined_nodes  = 1;
-
-        while (!nodes_to_examine.empty() && examined_nodes < 10)
+        while (!nodes_to_examine.empty())
         {
           const HypernodeID hn = nodes_to_examine.back();
           nodes_to_examine.pop_back();
-          examined_nodes++;
-          for (size_t stage = 1; stage <= 2; ++stage)
-          {
-            const PartitionID target_part = getTargetPartFennel(hn);
-            if (target_part != partitioned_hypergraph_m.partID(hn)) {
-              context.dynamic.move_count++;
-              partitioned_hypergraph_m.changeNodePart(hn, partitioned_hypergraph_m.partID(hn), target_part);
-              for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn))
+          const PartitionID target_part = getTargetPartFennel(hn);
+          if (target_part != partitioned_hypergraph_m.partID(hn)) {
+            context.dynamic.move_count++;
+            partitioned_hypergraph_m.changeNodePart(hn, partitioned_hypergraph_m.partID(hn), target_part);
+            for (const HyperedgeID& he : hypergraph_m.incidentEdges(hn))
+            {
+              for (const HypernodeID& hn2 : hypergraph_m.pins(he))
               {
-                for (const HypernodeID& hn2 : hypergraph_m.pins(he))
-                {
-                  if (hn2 != hn && toExamineOrNot(hn2, skipping_threshold)) {
-                    nodes_to_examine.push_back(hn2);
-                  }
+                if (hn2 != hn && toExamineOrNot(hn2, skipping_threshold)) {
+                  nodes_to_examine.push_back(hn2);
                 }
               }
             }
