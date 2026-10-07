@@ -44,6 +44,9 @@ class HwlocTopology {
  public:
   static void initialize(hwloc_topology_t& topology) {
     hwloc_topology_init(&topology);
+    hwloc_topology_set_flags(topology,
+                             HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM |
+                                 HWLOC_TOPOLOGY_FLAG_RESTRICT_TO_CPUBINDING);
     hwloc_topology_load(topology);
   }
 
