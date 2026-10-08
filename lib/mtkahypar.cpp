@@ -545,8 +545,8 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hyper
   return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                             mt_kahypar_preset_type_t preset) {
+bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                              mt_kahypar_preset_type_t preset) {
   return lib::is_compatible(partitioned_hg, preset);
 }
 
