@@ -191,14 +191,15 @@ namespace {
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    ALWAYS_ASSERT(uncoarseningData.nlevel == !Hypergraph::is_static_hypergraph);
     if constexpr ( Hypergraph::is_static_hypergraph ) {
-      ALWAYS_ASSERT(!uncoarseningData.nlevel);
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
         hypergraph, context, uncoarseningData, target_graph);
     } else {
-      ALWAYS_ASSERT(uncoarseningData.nlevel);
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, target_graph);
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+        uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+          hypergraph, context, uncoarseningData, target_graph);
+      #endif
     }
     partitioned_hg = uncoarsener->uncoarsen();
 
