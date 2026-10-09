@@ -368,8 +368,10 @@ namespace mt_kahypar {
       size_t p1_begin = positions[index(p1, p2)], p1_end = positions[index(p1, p2) + 1],
              p2_begin = positions[index(p2, p1)], p2_end = positions[index(p2, p1) + 1];
 
-      auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
-                                                   p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
+      // the recursive algorithm doesn't work in the multi-constraint case
+      auto best_prefix = phg.dimension() == 1 ?
+        findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end, p1_begin - 1, p2_begin - 1, lb_p1, ub_p2) :
+        findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
 
       assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end,
                                                          p1_begin - 1, p2_begin - 1, lb_p1, ub_p2));
@@ -416,6 +418,9 @@ namespace mt_kahypar {
           size_t p1_invalid, size_t p2_invalid,
           HNWeightConstRef lb_p1, HNWeightConstRef ub_p2)
   {
+    ASSERT(cumulative_node_weights.dimension() == 1);
+    const ds::Array<HNWeightScalar>& scalar_cumulative_weights = cumulative_node_weights.underlying_array();
+
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
       ASSERT(p1_ind == p1_invalid || p1_ind < p1_end);
       ASSERT(p1_ind >= p1_invalid || p1_invalid == (size_t(0) - 1));
@@ -423,19 +428,14 @@ namespace mt_kahypar {
       ASSERT(p2_ind >= p2_invalid || p2_invalid == (size_t(0) - 1));
       ASSERT(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
       ASSERT(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
-      const Dimension dimension = cumulative_node_weights.dimension();
-      const auto a = weight::ternary(p1_ind == p1_invalid,
-        weight::broadcast(0, dimension),
-        weight::lazy([&]{ return cumulative_node_weights[p1_ind]; }, dimension));
-      const auto b = weight::ternary(p2_ind == p2_invalid,
-        weight::broadcast(0, dimension),
-        weight::lazy([&]{ return cumulative_node_weights[p2_ind]; }, dimension));
+      const auto a = (p1_ind == p1_invalid) ? 0 : scalar_cumulative_weights[p1_ind];
+      const auto b = (p2_ind == p2_invalid) ? 0 : scalar_cumulative_weights[p2_ind];
       return a - b;
     };
 
     auto is_feasible = [&](size_t p1_ind, size_t p2_ind) {
       const auto bal = balance(p1_ind, p2_ind);
-      return lb_p1 <= bal && bal <= ub_p2;
+      return lb_p1.at(0) <= bal && bal <= ub_p2.at(0);
     };
 
     const size_t n_p1 = p1_end - p1_begin, n_p2 = p2_end - p2_begin;
@@ -445,17 +445,17 @@ namespace mt_kahypar {
       return findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
     }
 
-    const auto c = cumulative_node_weights.begin();
+    const auto c = scalar_cumulative_weights.begin();
     if (n_p1 > n_p2) {
       size_t p1_mid = p1_begin + n_p1 / 2;
-      auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, cumulative_node_weights[p1_mid]);
-      size_t p2_match = std::distance(cumulative_node_weights.begin(), p2_match_it);
+      auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, scalar_cumulative_weights[p1_mid]);
+      size_t p2_match = std::distance(scalar_cumulative_weights.begin(), p2_match_it);
 
       if (p2_match != p2_end && p1_mid != p1_end && is_feasible(p1_mid, p2_match)) {
         // no need to search left range
         return findBestPrefixesRecursive(p1_mid + 1, p1_end, p2_match + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2) {  // TODO: this doesn't quite work for multiconstraint
+      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2.at(0)) {
         // p1_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
@@ -469,14 +469,14 @@ namespace mt_kahypar {
       return right.first != invalid_pos ? right : left;
     } else {
       size_t p2_mid = p2_begin + n_p2 / 2;
-      auto p1_match_it = std::lower_bound(c + p1_begin, c + p1_end, cumulative_node_weights[p2_mid]);
-      size_t p1_match = std::distance(cumulative_node_weights.begin(), p1_match_it);
+      auto p1_match_it = std::lower_bound(c + p1_begin, c + p1_end, scalar_cumulative_weights[p2_mid]);
+      size_t p1_match = std::distance(scalar_cumulative_weights.begin(), p1_match_it);
 
       if (p1_match != p1_end && p2_mid != p2_end && is_feasible(p1_match, p2_mid)) {
         // no need to search left range
         return findBestPrefixesRecursive(p1_match + 1, p1_end, p2_mid + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1) {  // TODO: this doesn't quite work for multiconstraint
+      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1.at(0)) {
         // p2_mid cannot be compensated --> no need to search right range
         return findBestPrefixesRecursive(p1_begin, p1_match, p2_begin, p2_mid, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
@@ -496,6 +496,9 @@ namespace mt_kahypar {
           size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
           HNWeightConstRef lb_p1, HNWeightConstRef ub_p2)
   {
+    const Dimension dimension = cumulative_node_weights.dimension();
+    ASSERT(dimension > 0);
+
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
       ASSERT(p1_ind == p1_inv || p1_ind < p1_end);
       ASSERT(p1_ind >= p1_inv || p1_inv == (size_t(0) - 1));
@@ -503,13 +506,12 @@ namespace mt_kahypar {
       ASSERT(p2_ind >= p2_inv || p2_inv == (size_t(0) - 1));
       ASSERT(p1_ind == p1_inv || p1_ind < cumulative_node_weights.size());
       ASSERT(p2_ind == p2_inv || p2_ind < cumulative_node_weights.size());
-      const Dimension dimension = cumulative_node_weights.dimension();
       const auto a = weight::ternary(p1_ind == p1_inv,
         weight::broadcast(0, dimension),
-        weight::lazy([&]{ return cumulative_node_weights[p1_ind]; }, dimension));
+        weight::lazy([this, p1_ind]{ return cumulative_node_weights[p1_ind]; }, dimension));
       const auto b = weight::ternary(p2_ind == p2_inv,
         weight::broadcast(0, dimension),
-        weight::lazy([&]{ return cumulative_node_weights[p2_ind]; }, dimension));
+        weight::lazy([this, p2_ind]{ return cumulative_node_weights[p2_ind]; }, dimension));
       return a - b;
     };
 
@@ -520,12 +522,18 @@ namespace mt_kahypar {
 
     while (true) {
       if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
-      if (weight::sum(balance(p1_end - 1, p2_end - 1)) < 0) {
+
+      const auto& curr_balance = balance(p1_end - 1, p2_end - 1);
+      if (curr_balance <= weight::broadcast(0, dimension)) {
         if (p2_end == p2_begin) { break; }
         p2_end--;
-      } else {
+      } else if (dimension == 1 || curr_balance >= weight::broadcast(0, dimension)) {
         if (p1_end == p1_begin) { break; }
         p1_end--;
+      } else {
+        if (p1_end == p1_begin || p2_end == p2_begin) { break; }
+        p1_end--;
+        p2_end--;
       }
     }
     return std::make_pair(invalid_pos, invalid_pos);
