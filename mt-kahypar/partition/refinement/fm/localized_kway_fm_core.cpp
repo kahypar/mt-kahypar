@@ -189,10 +189,10 @@ namespace mt_kahypar {
         localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
         bool improved_km1 = estimatedImprovement > bestImprovement;
-        bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
-                                                     && fromWeight == heaviestPartWeight
-                                                     // TODO: any better tie breaking?
-                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
+        bool improved_balance_less_equal_km1 = !improved_km1  // guard eval if improvement is already guaranteed
+                                               && estimatedImprovement >= bestImprovement
+                                               && fromWeight == heaviestPartWeight
+                                               && weight::sum(toWeight + phg.nodeWeight(move.node)) < weight::sum(heaviestPartWeight);
         if (improved_km1 || improved_balance_less_equal_km1) {
           // Apply move sequence to global partition
           for (size_t i = 0; i < localMoves.size(); ++i) {
