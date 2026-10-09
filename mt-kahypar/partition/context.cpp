@@ -535,6 +535,13 @@ namespace mt_kahypar {
       }
     }
 
+    if (dimension > 1 &&
+        (refinement.flows.algorithm != FlowAlgorithm::do_nothing || initial_partitioning.refinement.flows.algorithm != FlowAlgorithm::do_nothing)) {
+      throw InvalidParameterException(
+        "Our quality presets (flow-based refinement) do not support graphs with multiple weight constraints. "
+        "Please use the default or deterministic preset.");
+    }
+
     // in deterministic mode, switch to deterministic algorithms
     if ( partition.deterministic ) {
       auto print_warning = [&](const char* msg) {
