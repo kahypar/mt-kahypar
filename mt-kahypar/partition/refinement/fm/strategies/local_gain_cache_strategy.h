@@ -225,7 +225,7 @@ private:
         } else if (is_better || penalty == to_benefit) {
           tmpHNWeight = phg.partWeight(i);
           // TODO: any better tie breaking option?
-          if (is_better || tmpHNWeight < bestTargetBlockWeight) {
+          if (is_better || weight::sum(tmpHNWeight) < weight::sum(bestTargetBlockWeight)) {
             if (ignore_balance || tmpHNWeight + wu <= context.partition.max_part_weights[i]) {
               to_benefit = penalty;
               to = i;
@@ -267,7 +267,7 @@ private:
         } else if (penalty == to_benefit) {
           tmpHNWeight = phg.partWeight(i);
           // TODO: any better tie breaking option?
-          if (tmpHNWeight < bestTargetBlockWeight) {
+          if (weight::sum(tmpHNWeight) < weight::sum(bestTargetBlockWeight)) {
             to_benefit = penalty;
             to = i;
             bestTargetBlockWeight = tmpHNWeight;
