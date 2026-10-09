@@ -272,7 +272,7 @@ private:
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
         // TODO: any better tie breaking option?
-        if ( benefit > to_benefit || ( benefit == to_benefit && tmpHNWeight < bestTargetBlockWeight ) ) {
+        if ( benefit > to_benefit || ( benefit == to_benefit && weight::sum(tmpHNWeight) < weight::sum(bestTargetBlockWeight) ) ) {
           to_benefit = benefit;
           to = i;
           bestTargetBlockWeight = tmpHNWeight;
@@ -321,7 +321,7 @@ private:
           benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
         // TODO: any better tie breaking option?
-        if ( benefit > to_benefit || ( benefit == to_benefit && tmpHNWeight < bestTargetBlockWeight ) ) {
+        if ( benefit > to_benefit || ( benefit == to_benefit && weight::sum(tmpHNWeight) < weight::sum(bestTargetBlockWeight) ) ) {
           to_benefit = benefit;
           to = i;
           bestTargetBlockWeight = tmpHNWeight;
