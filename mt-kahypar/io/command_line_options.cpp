@@ -1206,6 +1206,9 @@ namespace mt_kahypar {
     } catch (const CLI::ParseError &e) {
       ERR(e.what());
     }
+    if (context.partition.k <= 0) {
+      throw InvalidInputException("Invalid number of blocks (-k): " + std::to_string(context.partition.k));
+    }
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
     epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
