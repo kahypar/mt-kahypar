@@ -74,7 +74,7 @@ namespace impl {
             benefit = gain_cache.recomputeBenefitTerm(phg, u, i);
           }
           // TODO: any better tie breaking option?
-          if ((benefit > to_benefit || (benefit == to_benefit && tmp_hn_weight < best_to_weight)) &&
+          if ((benefit > to_benefit || (benefit == to_benefit && weight::sum(tmp_hn_weight) < weight::sum(best_to_weight))) &&
               tmp_hn_weight + wu <= reduced_part_weights[i]) {
             to_benefit = benefit;
             to = i;
