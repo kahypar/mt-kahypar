@@ -37,7 +37,9 @@
 #include "mt-kahypar/partition/coarsening/multilevel/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_jet_refiner.h"
+#ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
+#endif
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
@@ -153,6 +155,7 @@ public:
     });
   }
 
+  #ifdef KAHYPAR_ENABLE_QUALITY_FEATURES
   void performRepeatedFlowRefinement() {
     using RefinerT = DeterministicFlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
     performRepeatedRefinement([&](auto&) {
@@ -160,6 +163,7 @@ public:
         hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache);
     });
   }
+  #endif
 
   void performRepeatedRefinement(std::function<std::unique_ptr<IRefiner>(IRebalancer&)> refiner_fn) {
     using RebalancerT = DeterministicRebalancer<GraphAndGainTypes<TypeTraits, Km1GainTypes>>;
