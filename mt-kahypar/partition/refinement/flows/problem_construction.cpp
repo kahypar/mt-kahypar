@@ -69,8 +69,8 @@ void ProblemConstruction<TypeTraits>::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
   const size_t max_bfs_distance,
-  const HypernodeWeight max_weight_block_0,
-  const HypernodeWeight max_weight_block_1) {
+  const HNWeightScalar max_weight_block_0,
+  const HNWeightScalar max_weight_block_1) {
   if ( current_distance <= max_bfs_distance && !lock_queue ) {
     if ( !visited_he[he] ) {
       for ( const HypernodeID& pin : phg.pins(he) ) {
@@ -80,8 +80,8 @@ void ProblemConstruction<TypeTraits>::BFSData::add_pins_of_hyperedge_to_queue(
           const bool is_block_1 = blocks.j == block;
           if ( (is_block_0 || is_block_1) && !locked_blocks[block] ) {
             next_queue.push(pin);
-            queue_weight_block_0 += is_block_0 ? phg.nodeWeight(pin) : 0;
-            queue_weight_block_1 += is_block_1 ? phg.nodeWeight(pin) : 0;
+            queue_weight_block_0 += is_block_0 ? phg.nodeWeight(pin).at(0) : 0;
+            queue_weight_block_1 += is_block_1 ? phg.nodeWeight(pin).at(0) : 0;
           }
           visited_hn[pin] = true;
         }
@@ -124,10 +124,10 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
   sub_hg.weight_of_block_0 = 0;
   sub_hg.weight_of_block_1 = 0;
   sub_hg.num_pins = 0;
-  const HypernodeWeight max_weight_block_0 =
-    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1);
-  const HypernodeWeight max_weight_block_1 =
-    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
+  const HNWeightScalar max_weight_block_0 =
+    _scaling * (_context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1)).at(0);
+  const HNWeightScalar max_weight_block_1 =
+    _scaling * (_context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0)).at(0);
   const size_t max_bfs_distance = _context.refinement.flows.max_bfs_distance;
 
   // We initialize the BFS with all cut hyperedges running
@@ -157,11 +157,11 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
       if ( !is_fixed ) {
         if ( sub_hg.block_0  == block ) {
           sub_hg.nodes_of_block_0.push_back(hn);
-          sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+          sub_hg.weight_of_block_0 += phg.nodeWeight(hn).at(0);
         } else {
           ASSERT(sub_hg.block_1 == block);
           sub_hg.nodes_of_block_1.push_back(hn);
-          sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+          sub_hg.weight_of_block_1 += phg.nodeWeight(hn).at(0);
         }
         sub_hg.num_pins += phg.nodeDegree(hn);
       }
@@ -244,8 +244,8 @@ void ProblemConstruction<TypeTraits>::changeNumberOfBlocks(const PartitionID new
 template<typename TypeTraits>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction<TypeTraits>::isMaximumProblemSizeReached(
   const Subhypergraph& sub_hg,
-  const HypernodeWeight max_weight_block_0,
-  const HypernodeWeight max_weight_block_1,
+  const HNWeightScalar max_weight_block_0,
+  const HNWeightScalar max_weight_block_1,
   vec<bool>& locked_blocks) const {
   if ( sub_hg.weight_of_block_0 >= max_weight_block_0 ) {
     locked_blocks[sub_hg.block_0] = true;

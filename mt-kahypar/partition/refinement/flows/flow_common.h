@@ -29,6 +29,7 @@
 #include "WHFC/datastructure/flow_hypergraph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -55,8 +56,8 @@ struct FlowProblem {
   whfc::Node sink;
   HyperedgeWeight total_cut;
   HyperedgeWeight non_removable_cut;
-  HypernodeWeight weight_of_block_0;
-  HypernodeWeight weight_of_block_1;
+  HNWeightScalar weight_of_block_0;
+  HNWeightScalar weight_of_block_1;
 };
 
 struct Subhypergraph {
@@ -64,8 +65,8 @@ struct Subhypergraph {
   PartitionID block_1;
   vec<HypernodeID> nodes_of_block_0;
   vec<HypernodeID> nodes_of_block_1;
-  HypernodeWeight weight_of_block_0;
-  HypernodeWeight weight_of_block_1;
+  HNWeightScalar weight_of_block_0;
+  HNWeightScalar weight_of_block_1;
   vec<HyperedgeID> hes;
   size_t num_pins;
 

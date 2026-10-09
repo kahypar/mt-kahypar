@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
@@ -51,13 +52,13 @@ namespace {
 class AFlowRefinementScheduler : public Test {
  public:
   AFlowRefinementScheduler() :
-    hg(HypergraphFactory::construct(7 , 4,
+    hg(HypergraphFactory::construct(7, 4, 1,
       { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
     phg(2, hg, parallel_tag_t()),
     context() {
     context.partition.k = 2;
-    context.partition.perfect_balance_part_weights.assign(2, 3);
-    context.partition.max_part_weights.assign(2, 4);
+    context.partition.perfect_balance_part_weights.replaceWith(/*size=*/2, 1, /*value=*/3, false);
+    context.partition.max_part_weights.replaceWith(/*size=*/2, 1, /*value=*/4, false);
     context.partition.objective = Objective::km1;
 
     context.shared_memory.num_threads = 2;
@@ -95,8 +96,8 @@ void executeConcurrent(F f1, K f2) {
   });
 }
 
-void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
-                       const vec<HypernodeWeight> expected_weights) {
+void verifyPartWeights(const vec<HNWeightScalar> actual_weights,
+                       const vec<HNWeightScalar> expected_weights) {
   ASSERT_EQ(actual_weights.size(), expected_weights.size());
   for ( size_t i = 0; i < actual_weights.size(); ++i ) {
     ASSERT_EQ(actual_weights[i], expected_weights[i]);
@@ -166,7 +167,7 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
 }
 
 TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
-  context.partition.max_part_weights.assign(2, 5);
+  context.partition.max_part_weights.replaceWith(/*size=*/2, 1, /*value=*/5, false);
   Km1GainCache gain_cache;
   FlowRefinementScheduler<GraphAndGainTypes<TypeTraits, Km1GainTypes>> refiner(
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
@@ -175,7 +176,7 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
   MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0 };
-  HypernodeWeight improvement_1 = 0, improvement_2 = 0;
+  HyperedgeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(0, sequence_1);
     ASSERT_EQ(sequence_1.state, MoveSequenceState::SUCCESS);
@@ -200,7 +201,7 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBala
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
   MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0 };
-  HypernodeWeight improvement_1 = 0, improvement_2 = 0;
+  HyperedgeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(0, sequence_1);
   }, [&] {
@@ -317,7 +318,7 @@ class AFlowRefinementEndToEnd : public Test {
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
-  vec<HypernodeWeight> max_part_weights;
+  vec<HNWeightScalar> max_part_weights;
   std::unique_ptr<GainCalculator> mover;
 };
 

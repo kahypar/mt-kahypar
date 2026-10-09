@@ -67,7 +67,7 @@ class AFlowHypergraphConstructor : public Test {
 
  public:
   AFlowHypergraphConstructor() :
-    hg(HypergraphFactory::construct(10 , 8,
+    hg(HypergraphFactory::construct(10, 8, 1,
       { {0, 1, 3}, {1, 2, 3}, {4, 5, 6}, {4, 6, 7},
         {1, 3, 4, 6}, {0, 1, 4, 5}, {3, 8}, {6, 9} }, nullptr, nullptr, true)),
     phg(3, hg, parallel_tag_t()),
@@ -77,8 +77,8 @@ class AFlowHypergraphConstructor : public Test {
     constructor(nullptr),
     whfc_to_node() {
     context.partition.k = 3;
-    context.partition.perfect_balance_part_weights.assign(3, 5);
-    context.partition.max_part_weights.assign(2, 4);
+    context.partition.perfect_balance_part_weights.replaceWith(/*size=*/3, 1, /*value=*/5, false);
+    context.partition.max_part_weights.replaceWith(/*size=*/2, 1, /*value=*/4, false);
     context.partition.objective = Objective::km1;
 
     context.shared_memory.num_threads = 2;
@@ -133,7 +133,7 @@ void constructSubhypergraph(const PartitionedHypergraph& phg,
   vec<bool> visited(phg.initialNumEdges(), false);
   for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
     sub_hg.num_pins += phg.nodeDegree(hn);
-    sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+    sub_hg.weight_of_block_0 += phg.nodeWeight(hn).at(0);
     for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
       if ( !visited[he] ) {
         sub_hg.hes.push_back(he);
@@ -143,7 +143,7 @@ void constructSubhypergraph(const PartitionedHypergraph& phg,
   }
   for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
     sub_hg.num_pins += phg.nodeDegree(hn);
-    sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+    sub_hg.weight_of_block_1 += phg.nodeWeight(hn).at(0);
     for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
       if ( !visited[he] ) {
         sub_hg.hes.push_back(he);

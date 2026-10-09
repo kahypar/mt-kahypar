@@ -35,6 +35,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -73,8 +74,8 @@ class ProblemConstruction {
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
                                         const size_t max_bfs_distance,
-                                        const HypernodeWeight max_weight_block_0,
-                                        const HypernodeWeight max_weight_block_1);
+                                        const HNWeightScalar max_weight_block_0,
+                                        const HNWeightScalar max_weight_block_1);
 
     bool is_empty() const {
       return queue.empty();
@@ -99,8 +100,8 @@ class ProblemConstruction {
     vec<bool> visited_he;
     vec<bool> contained_hes;
     vec<bool> locked_blocks;
-    HypernodeWeight queue_weight_block_0;
-    HypernodeWeight queue_weight_block_1;
+    HNWeightScalar queue_weight_block_0;
+    HNWeightScalar queue_weight_block_1;
     bool lock_queue;
   };
 
@@ -141,8 +142,8 @@ class ProblemConstruction {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isMaximumProblemSizeReached(
     const Subhypergraph& sub_hg,
-    const HypernodeWeight max_weight_block_0,
-    const HypernodeWeight max_weight_block_1,
+    const HNWeightScalar max_weight_block_0,
+    const HNWeightScalar max_weight_block_1,
     vec<bool>& locked_blocks) const;
 
   const Context& _context;

@@ -862,13 +862,13 @@ void ParallelConstruction<GraphAndGainTypes>::initializeWHFCNodes(const Partitio
     flow_problem.source = whfc::Node(0);
     whfc_to_node[flow_problem.source] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(
-      std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0));
+      std::max(0, phg.partWeight(block_0).at(0) - sub_hg.weight_of_block_0));
     tbb::parallel_for(UL(0), sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_0[i];
       const whfc::Node u(1 + i);
       whfc_to_node[u] = hn;
       _node_to_whfc[hn] = u;
-      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
+      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn).at(0));
 
       if (collect_pins) {
         for (const HyperedgeID& he : phg.incidentEdges(hn)) {
@@ -883,13 +883,13 @@ void ParallelConstruction<GraphAndGainTypes>::initializeWHFCNodes(const Partitio
     flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
     whfc_to_node[flow_problem.sink] = kInvalidHypernode;
     _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(
-      std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1));
+      std::max(0, phg.partWeight(block_1).at(0) - sub_hg.weight_of_block_1));
     tbb::parallel_for(UL(0), sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
       const HypernodeID hn = sub_hg.nodes_of_block_1[i];
       const whfc::Node u(flow_problem.sink + 1 + i);
       whfc_to_node[u] = hn;
       _node_to_whfc[hn] = u;
-      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
+      _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn).at(0));
 
       if (collect_pins) {
         for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
