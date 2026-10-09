@@ -149,7 +149,7 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const Pa
   auto add_nodes = [&](const vec<HypernodeID>& nodes, const whfc::Node::ValueType start_u) {
     whfc::Node flow_hn(start_u);
     for ( const HypernodeID& hn : nodes) {
-      const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+      const HNWeightScalar hn_weight = phg.nodeWeight(hn).at(0);
       whfc_to_node[flow_hn] = hn;
       _node_to_whfc[hn] = flow_hn++;
       _flow_hg.addNode(whfc::NodeWeight(hn_weight));
@@ -159,13 +159,13 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructDefault(const Pa
   flow_problem.source = whfc::Node(0);
   whfc_to_node[flow_problem.source] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
+    std::max(0, phg.partWeight(block_0).at(0) - sub_hg.weight_of_block_0)));
   add_nodes(sub_hg.nodes_of_block_0, flow_problem.source + 1);
   // Add sink nodes
   flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
   whfc_to_node[flow_problem.sink] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
+    std::max(0, phg.partWeight(block_1).at(0) - sub_hg.weight_of_block_1)));
   add_nodes(sub_hg.nodes_of_block_1, flow_problem.sink + 1);
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
@@ -277,7 +277,7 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
   auto add_nodes = [&](const vec<HypernodeID>& nodes, const PartitionID block, const whfc::Node::ValueType start_u) {
     whfc::Node flow_hn(start_u);
     for ( const HypernodeID& hn : nodes) {
-      const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+      const HNWeightScalar hn_weight = phg.nodeWeight(hn).at(0);
       whfc_to_node[flow_hn] = hn;
       _flow_hg.addNode(whfc::NodeWeight(hn_weight));
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
@@ -291,13 +291,13 @@ FlowProblem SequentialConstruction<GraphAndGainTypes>::constructOptimizedForLarg
   flow_problem.source = whfc::Node(0);
   whfc_to_node[flow_problem.source] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
+    std::max(0, phg.partWeight(block_0).at(0) - sub_hg.weight_of_block_0)));
   add_nodes(sub_hg.nodes_of_block_0, block_0, flow_problem.source + 1);
   // Add sink nodes
   flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
   whfc_to_node[flow_problem.sink] = kInvalidHypernode;
   _flow_hg.addNode(whfc::NodeWeight(
-    std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
+    std::max(0, phg.partWeight(block_1).at(0) - sub_hg.weight_of_block_1)));
   add_nodes(sub_hg.nodes_of_block_1, block_1, flow_problem.sink + 1);
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;

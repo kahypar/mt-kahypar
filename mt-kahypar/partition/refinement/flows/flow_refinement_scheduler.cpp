@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -200,6 +201,9 @@ FlowRefinementScheduler<GraphAndGainTypes>::FlowRefinementScheduler(const Hypern
     for ( size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i ) {
       _refiner.emplace_back(nullptr);
     }
+    if (context.dimension() > 1) {
+      throw UnsupportedOperationException("Flow refinement does not support multiple weight constraints.");
+    }
   }
 
 template<typename GraphAndGainTypes>
@@ -329,7 +333,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
 
   ASSERT([&]() {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-      if ( _part_weights[i] != phg.partWeight(i) ) {
+      if ( _part_weights[i] != phg.partWeight(i).at(0) ) {
         LOG << V(_part_weights[i]) << V(phg.partWeight(i));
         return false;
       }
@@ -367,9 +371,9 @@ void FlowRefinementScheduler<GraphAndGainTypes>::initializeImpl(mt_kahypar_parti
 
   // Initialize Part Weights
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    _part_weights[i] = phg.partWeight(i);
-    _max_part_weights[i] = std::max(
-      phg.partWeight(i), _context.partition.max_part_weights[i]);
+    _part_weights[i] = phg.partWeight(i).at(0);
+    _max_part_weights[i] = weight::max(
+      phg.partWeight(i), _context.partition.max_part_weights[i]).at(0);
   }
 
   // Initialize Quotient Graph and Scheduler
@@ -418,12 +422,11 @@ bool changeNodePart(PartitionedHypergraph& phg,
                     const F& objective_delta,
                     const bool gain_cache_update) {
   bool success = false;
+  auto max_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
   if ( gain_cache_update && gain_cache.isInitialized()) {
-    success = phg.changeNodePart(gain_cache, hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
+    success = phg.changeNodePart(gain_cache, hn, from, to, max_weight, []{}, objective_delta);
   } else {
-    success = phg.changeNodePart(hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
+    success = phg.changeNodePart(hn, from, to, max_weight, []{}, objective_delta);
   }
   ASSERT(success);
   return success;
@@ -482,11 +485,11 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
   _apply_moves_lock.lock();
 
   // Compute Part Weight Deltas
-  vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
+  vec<HNWeightScalar> part_weight_deltas(_context.partition.k, 0);
   for ( Move& move : sequence.moves ) {
     move.from = _phg->partID(move.node);
     if ( move.from != move.to ) {
-      const HypernodeWeight node_weight = _phg->nodeWeight(move.node);
+      const HNWeightScalar node_weight = _phg->nodeWeight(move.node).at(0);
       part_weight_deltas[move.from] -= node_weight;
       part_weight_deltas[move.to] += node_weight;
     }
@@ -565,13 +568,13 @@ HyperedgeWeight FlowRefinementScheduler<GraphAndGainTypes>::applyMoves(const uin
 }
 
 template<typename GraphAndGainTypes>
-const vec<HypernodeWeight>& FlowRefinementScheduler<GraphAndGainTypes>::partWeights() const {
+const vec<HNWeightScalar>& FlowRefinementScheduler<GraphAndGainTypes>::partWeights() const {
   return _part_weights;
 }
 
 template<typename GraphAndGainTypes>
-PartWeightUpdateResult FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
-  const HypernodeWeight multiplier = rollback ? -1 : 1;
+PartWeightUpdateResult FlowRefinementScheduler<GraphAndGainTypes>::partWeightUpdate(const vec<HNWeightScalar>& part_weight_deltas, const bool rollback) {
+  const HNWeightScalar multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;
   _part_weights_lock.lock();
   PartitionID i = 0;

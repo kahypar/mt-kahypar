@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/active_block_scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
@@ -51,7 +52,7 @@ class AProblemConstruction : public Test {
     hg(),
     phg(),
     context(),
-    max_part_weights(8, std::numeric_limits<HypernodeWeight>::max()) {
+    max_part_weights(8, std::numeric_limits<HNWeightScalar>::max()) {
 
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = 8;
@@ -82,12 +83,12 @@ class AProblemConstruction : public Test {
   }
 
   void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg, const BlockPair& blocks) {
-    vec<HypernodeWeight> part_weights(context.partition.k, 0);
+    vec<HNWeightScalar> part_weights(context.partition.k, 0);
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
-      part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
+      part_weights[phg.partID(hn)] += phg.nodeWeight(hn).at(0);
     }
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
-      part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
+      part_weights[phg.partID(hn)] += phg.nodeWeight(hn).at(0);
     }
 
     vec<bool> used_blocks(context.partition.k, false);
@@ -105,7 +106,7 @@ class AProblemConstruction : public Test {
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
-  vec<HypernodeWeight> max_part_weights;
+  vec<HNWeightScalar> max_part_weights;
 };
 
 template <class F, class K>
