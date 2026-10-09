@@ -248,6 +248,6 @@ namespace mt_kahypar {
     }
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(MultilevelUncoarsener)
+  INSTANTIATE_CLASS_WITH_MULTILEVEL_TYPE_TRAITS(MultilevelUncoarsener)
 
 }

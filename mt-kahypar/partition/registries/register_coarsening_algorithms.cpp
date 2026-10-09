@@ -48,19 +48,19 @@
 namespace mt_kahypar {
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,
-                                                                                kahypar::meta::Typelist<TypeTraitsList,
+                                                                                kahypar::meta::Typelist<MultilevelTypeTraitsList,
                                                                                                         RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
 
 using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
                                                                                    ICoarsener,
-                                                                                   kahypar::meta::Typelist<TypeTraitsList>>;
+                                                                                   kahypar::meta::Typelist<MultilevelTypeTraitsList>>;
 
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
-                                                                            kahypar::meta::Typelist<TypeTraitsList,
+                                                                            kahypar::meta::Typelist<NLevelTypeTraitsList,
                                                                                                     RatingScorePolicies,
                                                                                                     HeavyNodePenaltyPolicies,
                                                                                                     AcceptancePolicies> >;

@@ -445,6 +445,6 @@ namespace mt_kahypar {
     applyGlobalFMParameters(_context.refinement.label_propagation, _context.refinement.fm, tmp_global);
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(NLevelUncoarsener)
+  INSTANTIATE_CLASS_WITH_NLEVEL_TYPE_TRAITS(NLevelUncoarsener)
 
 }

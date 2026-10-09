@@ -206,6 +206,6 @@ namespace {
                                                                          ClusteringContext<X>& cc)
 }
 
-INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PERFORM_CLUSTERING)
+INSTANTIATE_FUNC_WITH_MULTILEVEL_HYPERGRAPHS(PERFORM_CLUSTERING)
 
 }  // namespace mt_kahypar

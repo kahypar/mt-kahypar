@@ -829,15 +829,13 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
-  if (uncoarseningData.nlevel) {
-    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
-        hypergraph, context, uncoarseningData, nullptr);
-    #else
-      throw InvalidParameterException("NLevel features are deactivated.");
-    #endif
-  } else {
+  if constexpr ( Hypergraph::is_static_hypergraph ) {
+    ALWAYS_ASSERT(!uncoarseningData.nlevel);
     uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+      hypergraph, context, uncoarseningData, nullptr);
+  } else {
+    ALWAYS_ASSERT(uncoarseningData.nlevel);
+    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
       hypergraph, context, uncoarseningData, nullptr);
   }
   uncoarsener->initialize();

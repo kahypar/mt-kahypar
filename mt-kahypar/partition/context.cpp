@@ -434,7 +434,9 @@ namespace mt_kahypar {
       throw InvalidInputException("Value for imbalance (--epsilon) not specified or invalid. Must be non-negative number.");
     }
 
-    if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+    if ( isNLevelPartitioning() &&
+          (coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ||
+           coarsening.algorithm == CoarseningAlgorithm::deterministic_multilevel_coarsener) ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
                     "Partitioning with" << coarsening.algorithm

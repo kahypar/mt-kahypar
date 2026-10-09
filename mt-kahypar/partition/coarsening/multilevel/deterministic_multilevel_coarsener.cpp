@@ -397,6 +397,6 @@ void DeterministicMultilevelCoarsener<TypeTraits>::initializeEdgeDeduplication()
   }
 }
 
-INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)
+INSTANTIATE_CLASS_WITH_MULTILEVEL_TYPE_TRAITS(DeterministicMultilevelCoarsener)
 
 }
