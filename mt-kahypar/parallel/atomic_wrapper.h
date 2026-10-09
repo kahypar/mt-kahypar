@@ -77,17 +77,18 @@ public:
   SpinLock& operator=(const SpinLock&) { spinner.clear(std::memory_order_relaxed); return *this; }
 
   bool tryLock() {
-    return !spinner.test_and_set(std::memory_order_acquire);
+    return !spinner.test(std::memory_order_relaxed) && !spinner.test_and_set(std::memory_order_acquire);
   }
 
   void lock() {
-    while (spinner.test_and_set(std::memory_order_acquire)) {
+    while (spinner.test(std::memory_order_relaxed) || spinner.test_and_set(std::memory_order_acquire)) {
       // spin
       // stack overflow says adding 'cpu_relax' instruction may improve performance
     }
   }
 
   void unlock() {
+    ASSERT(spinner.test(std::memory_order_relaxed), "Tried to unlock SpinLock that was not locked!");
     spinner.clear(std::memory_order_release);
   }
 
