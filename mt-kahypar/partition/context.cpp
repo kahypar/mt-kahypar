@@ -537,6 +537,12 @@ namespace mt_kahypar {
         "Quality partitioning (flow-based refinement) is deactivated. Add -DKAHYPAR_ENABLE_QUALITY_FEATURES=ON "
         "to the cmake command and rebuild Mt-KaHyPar.");
     }
+    if (dimension > 1 &&
+        (refinement.flows.algorithm != FlowAlgorithm::do_nothing || initial_partitioning.refinement.flows.algorithm != FlowAlgorithm::do_nothing)) {
+      throw InvalidParameterException(
+        "Our quality presets (flow-based refinement) do not support graphs with multiple weight constraints. "
+        "Please use the default or deterministic preset.");
+    }
 
     // check for deterministic features
     auto uses_deterministic_refinement = [](const RefinementParameters& params) {
