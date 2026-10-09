@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -65,7 +66,7 @@ std::ostream & operator<< (std::ostream& str, const RefinementStats& stats);
 struct PartWeightUpdateResult {
   bool is_balanced = true;
   PartitionID overloaded_block = kInvalidPartition;
-  HypernodeWeight overload_weight = 0;
+  HNWeightScalar overload_weight = 0;
 };
 
 
@@ -106,7 +107,7 @@ public:
   HyperedgeWeight applyMoves(const uint32_t search_id, MoveSequence& sequence);
 
   // ! Only for testing
-  const vec<HypernodeWeight>& partWeights() const;
+  const vec<HNWeightScalar>& partWeights() const;
 
 private:
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
@@ -129,7 +130,7 @@ private:
                                 double time_limit,
                                 F report_running_time);
 
-  PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
+  PartWeightUpdateResult partWeightUpdate(const vec<HNWeightScalar>& part_weight_deltas,
                                           const bool rollback);
 
   PartitionedHypergraph* _phg;
@@ -157,8 +158,8 @@ private:
 
   // ! Maintains the part weights of each block
   SpinLock _part_weights_lock;
-  vec<HypernodeWeight> _part_weights;
-  vec<HypernodeWeight> _max_part_weights;
+  vec<HNWeightScalar> _part_weights;
+  vec<HNWeightScalar> _max_part_weights;
 
   // ! Contains refinement statistics
   RefinementStats _stats;

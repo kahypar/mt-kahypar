@@ -30,6 +30,7 @@
 #include <tbb/concurrent_queue.h>
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -50,6 +51,9 @@ DeterministicFlowRefinementScheduler<GraphAndGainTypes>::DeterministicFlowRefine
   ASSERT(_context.refinement.flows.num_parallel_searches > 0);
   for (size_t i = 0; i < _context.refinement.flows.num_parallel_searches; ++i) {
     _refiner.emplace_back(nullptr);
+  }
+  if (context.dimension() > 1) {
+    throw UnsupportedOperationException("Flow refinement does not support multiple weight constraints.");
   }
 }
 
@@ -220,12 +224,11 @@ bool changeNodePart(PartitionedHypergraph& phg,
                     const F& objective_delta,
                     const bool gain_cache_update) {
   bool success = false;
+  auto max_weight = weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
   if (gain_cache_update && gain_cache.isInitialized()) {
-    success = phg.changeNodePart(gain_cache, hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), [] {}, objective_delta);
+    success = phg.changeNodePart(gain_cache, hn, from, to, max_weight, [] {}, objective_delta);
   } else {
-    success = phg.changeNodePart(hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), [] {}, objective_delta);
+    success = phg.changeNodePart(hn, from, to, max_weight, [] {}, objective_delta);
   }
   ASSERT(success);
   return success;

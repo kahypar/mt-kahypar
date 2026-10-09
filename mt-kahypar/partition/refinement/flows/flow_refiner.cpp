@@ -58,7 +58,7 @@ MoveSequence FlowRefiner<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_h
       // the bipartition induced by the two blocks
 
       HyperedgeWeight new_cut = flow_problem.non_removable_cut;
-      HypernodeWeight max_part_weight;
+      HNWeightScalar max_part_weight;
       if (useSequentialAlgorithm()) {
         new_cut += _sequential_hfc.cs.flow_algo.flow_value;
         max_part_weight = std::max(_sequential_hfc.cs.source_weight, _sequential_hfc.cs.target_weight);
@@ -124,18 +124,18 @@ bool FlowRefiner<GraphAndGainTypes>::runFlowCutter(const FlowProblem& flow_probl
   if (useSequentialAlgorithm()) {
     ASSERT(!_deterministic);
     _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
-            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
+            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0].at(0)));
     _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
-            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
+            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1].at(0)));
 
     _sequential_hfc.reset();
     _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
     result = _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
   } else {
     _parallel_hfc.cs.setMaxBlockWeight(0, std::max(
-            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
+            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0].at(0)));
     _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
-            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
+            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1].at(0)));
 
     if (_deterministic) {
       _parallel_hfc.setSeed(_context.partition.seed);
