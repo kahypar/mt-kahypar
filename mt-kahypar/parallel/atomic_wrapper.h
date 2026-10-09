@@ -81,7 +81,7 @@ public:
   }
 
   void lock() {
-    while (spinner.test_and_set(std::memory_order_acquire)) {
+    while (spinner.test(std::memory_order_relaxed) || spinner.test_and_set(std::memory_order_acquire)) {
       // spin
       // stack overflow says adding 'cpu_relax' instruction may improve performance
     }
