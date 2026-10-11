@@ -335,6 +335,7 @@ namespace mt_kahypar {
     str << "  Replace Strategy                    " << params.replace_strategy << std::endl;
     str << "  Mutation Strategy                   " << params.mutate_strategy << std::endl;
     str << "  Diversification Interval            " << params.diversify_interval << std::endl;
+    str << "  Log Level                           " << params.log_level << std::endl;
   }
 
   Context::Context(const bool register_utilities) {

@@ -313,13 +313,12 @@ struct EvolutionaryParameters {
   double dynamic_population_amount_of_time = 0.15;
   mutable int iteration;
   mutable std::chrono::milliseconds time_elapsed;
+  EvoLogLevel log_level = EvoLogLevel::none;
+  size_t log_interval = 1;
   std::string history_file;
   std::string diff_matrix_file;
-  std::string iteration_log_file;
   std::string population_summary_file;
   std::string offspring_log_file;
-  size_t iteration_log_limit = 1000;
-  bool enable_iteration_logging = false;
   int kway_combine = 2;
   int max_iterations = 0;
 

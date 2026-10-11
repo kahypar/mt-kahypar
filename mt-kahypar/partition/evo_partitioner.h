@@ -2,8 +2,9 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/evolutionary/population.h"
-#include "mt-kahypar/partition/evolutionary/evo_logs.h"
 #include "mt-kahypar/partition/evolutionary/stopping_criteria.h"
+#include "mt-kahypar/partition/evolutionary/evo_statistics.h"
+#include "mt-kahypar/partition/evolutionary/evo_run_log.h"
 #include <mutex>
 #include <memory>
 #include <vector>
@@ -48,36 +49,27 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static PartitionedHypergraph partition(Hypergraph& hypergraph,
                                            Context& context,
                                            TargetGraph* target_graph = nullptr);
-    static std::string generateInitialPopulation(const Hypergraph& hg,
+    static void generateInitialPopulation(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
-                                    Population& population);
+                                    Population& population,
+                                    evolutionary::EvoStatistics& stats,
+                                    evolutionary::EvoRunLog& log);
     static const std::shared_ptr<Individual> createInsertIndividual(const Hypergraph& hg,
                                             Context& context,
                                             TargetGraph* target_graph,
                                             Population& population);
-    static std::string performEvolution(const Hypergraph& hg,
+    static void performEvolution(const Hypergraph& hg,
                                     Context& context,
                                     TargetGraph* target_graph,
-                                    Population& population);
+                                    Population& population,
+                                    evolutionary::EvoStatistics& stats,
+                                    evolutionary::EvoRunLog& log);
 
     static std::vector<PartitionID> createPartition(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
 
     private:
     friend class EvoOperatorTest;
-    static std::mutex best_tracking_mutex_;
-    static HyperedgeWeight global_best_fitness_;
-    static std::chrono::milliseconds global_best_time_;
-    static std::vector<DiffMatrix> diff_matrix_history;
-    static std::mutex diff_matrix_history_mutex;
-    static std::vector<evolutionary::IterationLogEntry> iteration_log_entries;
-    static std::mutex iteration_log_mutex;
-    static std::vector<evolutionary::ImprovementLogEntry> improvement_log_entries;
-    static std::vector<evolutionary::PopulationSummaryLogEntry> population_summary_entries;
-    static std::mutex population_summary_mutex;
-    static std::vector<evolutionary::OffspringLogEntry> offspring_log_entries;
-    static std::mutex offspring_log_mutex;
-
     static thread_local std::vector<std::unique_ptr<Individual>> thread_local_temporaries_;
 
     static std::shared_ptr<Individual> createIndividual(const Hypergraph& input_hg, Context& context, TargetGraph* target_graph);
@@ -85,14 +77,19 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
     static MutationResult performMutation(const Hypergraph &hg, const Context &context,
                                           TargetGraph *target_graph, Population &population,
                                           std::mt19937 *rng = nullptr);
-    static bool checkAndLogNewBest(HyperedgeWeight fitness, const std::string& operation_type, std::chrono::milliseconds current_time, int iteration);
     static bool insert_individual_into_population(
         std::shared_ptr<Individual> individual,
         const Context &context,
         Population &population,
+        evolutionary::EvoStatistics& stats,
+        evolutionary::EvoRunLog& log,
         int iteration,
-        const std::string& op_name = "Unknown",
-        HyperedgeWeight parent_best_fitness = 0,
-        size_t dist_to_parent = 0);
+        evolutionary::EvoOperator op,
+        HyperedgeWeight parent_best_fitness,
+        size_t dist_to_parent);
+    static void reportStatistics(const Context& context,
+                                 const evolutionary::EvoStatistics& stats,
+                                 const Population& population,
+                                 int total_iterations);
 };
 }  // namespace mt_kahypar

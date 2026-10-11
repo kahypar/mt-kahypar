@@ -356,6 +356,16 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(decision);
   }
 
+  std::ostream& operator<< (std::ostream& os, const EvoLogLevel& level) {
+    switch (level) {
+      case EvoLogLevel::none:  return os << "none";
+      case EvoLogLevel::light:  return os << "light";
+      case EvoLogLevel::full:  return os << "full";
+      // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(level);
+  }
+
   std::ostream& operator<< (std::ostream& os, const RatingPartitionPolicy& policy) {
     switch (policy) {
       case RatingPartitionPolicy::normal: return os << "normal";
@@ -661,5 +671,17 @@ namespace mt_kahypar {
     }
     throw InvalidParameterException("Illegal option: " + type);
     return EvoReplaceStrategy::worst;
+  }
+
+  EvoLogLevel evoLogLevelFromString(const std::string& level) {
+    if (level == "none") {
+      return EvoLogLevel::none;
+    } else if (level == "light") {
+      return EvoLogLevel::light;
+    } else if (level == "full") {
+      return EvoLogLevel::full;
+    }
+    throw InvalidParameterException("Illegal option: " + level);
+    return EvoLogLevel::none;
   }
 }

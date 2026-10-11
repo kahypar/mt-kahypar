@@ -1308,6 +1308,20 @@ namespace mt_kahypar {
       context.evolutionary.edge_frequency_combine_weight,
       "The weight of using the multi edge frequency combine operator"
     )->capture_default_str();
+    app.add_option_function<std::string>(
+      "--evo-log-level", [&](const std::string& s) {
+        context.evolutionary.log_level = evoLogLevelFromString(s);
+      },
+      "Which evolutionary log files are written:\n"
+      " - none: no log files\n"
+      " - light: history and offspring log\n"
+      " - full: additionally diff matrices and population summary"
+    )->capture_default_str();
+    app.add_option(
+      "--evo-log-interval",
+      context.evolutionary.log_interval,
+      "Log level full: record diff matrix and population summary every n-th insertion"
+    )->capture_default_str();
     app.add_option(
       "--evo-history-file",
       context.evolutionary.history_file,
@@ -1319,11 +1333,6 @@ namespace mt_kahypar {
       "Output file for evolution difference matrix"
     );
     app.add_option(
-      "--evo-iteration-log-file",
-      context.evolutionary.iteration_log_file,
-      "Output file for evolution iteration log"
-    );
-    app.add_option(
       "--evo-population-summary-file",
       context.evolutionary.population_summary_file,
       "Output file for evolution population summary log (fitness and diversity over time)"
@@ -1333,16 +1342,6 @@ namespace mt_kahypar {
       context.evolutionary.offspring_log_file,
       "Output file for evolution offspring telemetry log (operator, parent fitness, child fitness, distance, acceptance)"
     );
-    app.add_option(
-      "--evo-enable-iteration-logging",
-      context.evolutionary.enable_iteration_logging,
-      "Enable iteration logging for evolutionary partitioning"
-    )->capture_default_str();
-    app.add_option(
-      "--evo-iteration-log-limit",
-      context.evolutionary.iteration_log_limit,
-      "Limit for iteration logging for evolutionary partitioning"
-    )->capture_default_str();
     app.add_option(
       "--evo-threads-per-worker",
       context.evolutionary.num_threads_per_worker,

@@ -232,6 +232,13 @@ enum class EvoMutateStrategy : uint8_t {
   UNDEFINED
 };
 
+// none: no log files, light: history + offspring log, full: additionally diff matrices + population summary
+enum class EvoLogLevel : uint8_t {
+  none,
+  light,
+  full
+};
+
 enum class EvoDecision : uint8_t {
   normal,
   mutation,
@@ -296,6 +303,8 @@ std::ostream & operator<< (std::ostream& os, const EvoMutateStrategy& mutation);
 
 std::ostream & operator<< (std::ostream& os, const EvoDecision& decision);
 
+std::ostream & operator<< (std::ostream& os, const EvoLogLevel& level);
+
 std::ostream & operator<< (std::ostream& os, const RatingPartitionPolicy& policy);
 
 Mode modeFromString(const std::string& mode);
@@ -343,5 +352,7 @@ OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& typ
 SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
 
 EvoReplaceStrategy EvoReplaceStrategyFromString(const std::string& type);
+
+EvoLogLevel evoLogLevelFromString(const std::string& level);
 
 }  // namesapce mt_kahypar

@@ -9,18 +9,18 @@ namespace mt_kahypar::evolutionary::stopping {
 bool sliding_window_improvement_rate_stop(
   const int last_improvement_iteration,
   const std::vector<ImprovementLogEntry>& improvement_log_entries,
-  const std::vector<IterationLogEntry>& iteration_log_entries,
+  const int last_iteration,
   const int early_window_improvs,
   const int recent_window_improvs,
   const double alpha,
   const int max_iters_without_improv,
   double& early_window_improvement_rate)
 {
-    if (iteration_log_entries.empty()) {
+    if (last_iteration < 0) {
         return false;
     }
 
-    const int last_iter = iteration_log_entries.back().iteration;
+    const int last_iter = last_iteration;
     
     // Plateau fallback: too many iterations since last improvement
     if (last_improvement_iteration >= 0 &&

@@ -13,7 +13,9 @@ set(EvolutionarySources
         strategy_picker.h
         strategy_picker.cpp
         stopping_criteria.h
-        stopping_criteria.cpp)
+        stopping_criteria.cpp
+        evo_statistics.cpp
+        evo_run_log.cpp)
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${EvolutionarySources})
