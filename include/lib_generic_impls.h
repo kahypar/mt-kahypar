@@ -137,6 +137,16 @@ void check_hyperedge_is_valid(const HypergraphT& hg, HyperedgeID he) {
   }
 }
 
+template<typename HypergraphT>
+void check_single_dimensional(const HypergraphT& phg) {
+  if (phg.dimension() != 1) {
+    std::stringstream ss;
+    ss << "This method can only be called with single-dimensional node weights; "
+       << "but hypergraph has " << phg.dimension() << "-dimensional weights.";
+    throw InvalidInputException(ss.str());
+  }
+}
+
 template<typename PartitionedHypergraphT>
 void check_block_is_valid(const PartitionedHypergraphT& phg, PartitionID block) {
   if (block >= phg.k()) {
@@ -149,6 +159,20 @@ void check_block_is_valid(const PartitionedHypergraphT& phg, PartitionID block) 
 
 
 // ####################### Hypergraph Generic Implementations #######################
+
+void ensure_single_dimensional(mt_kahypar_hypergraph_t hypergraph) {
+  switch_hg<int, true>(hypergraph, [](const auto& hg) {
+    check_single_dimensional(hg);
+    return 0;
+  });
+}
+
+void ensure_single_dimensional(mt_kahypar_partitioned_hypergraph_t p) {
+  switch_phg<int, true>(p, [](const auto& phg) {
+    check_single_dimensional(phg);
+    return 0;
+  });
+}
 
 template<bool Throwing>
 HypernodeID num_nodes(mt_kahypar_hypergraph_t hypergraph) {
@@ -172,8 +196,8 @@ HypernodeID num_pins(mt_kahypar_hypergraph_t hypergraph) {
 }
 
 template<bool Throwing>
-HypernodeWeight total_weight(mt_kahypar_hypergraph_t hypergraph) {
-  return switch_hg<HypernodeWeight, Throwing>(hypergraph, [](const auto& hg) {
+HNWeightConstRef total_weight(mt_kahypar_hypergraph_t hypergraph) {
+  return switch_hg<HNWeightConstRef, Throwing>(hypergraph, [](const auto& hg) {
     return hg.totalWeight();
   });
 }
@@ -189,12 +213,12 @@ HyperedgeID node_degree(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
 }
 
 template<bool Throwing>
-HypernodeWeight node_weight(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
-  return switch_hg<HypernodeWeight, Throwing>(hypergraph, [=](const auto& hg) {
+HNWeightConstRef node_weight(mt_kahypar_hypergraph_t hypergraph, HypernodeID hn) {
+  return switch_hg<HNWeightConstRef, Throwing>(hypergraph, [=](const auto& hg) {
     if constexpr (Throwing) {
       check_hypernode_is_valid(hg, hn);
     }
-    return hg.nodeWeight(hn);
+    return weight::toNonAtomic(hg.nodeWeight(hn));
   });
 }
 
@@ -264,8 +288,12 @@ template<bool Throwing>
 void get_block_weights(mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_hypernode_weight_t* block_weights) {
   ASSERT(block_weights != nullptr);
   switch_phg<int, Throwing>(p, [&](const auto& phg) {
+    const Dimension dimension = phg.dimension();
     for ( PartitionID i = 0; i < phg.k(); ++i ) {
-      block_weights[i] = phg.partWeight(i);
+      const auto weight = weight::toNonAtomic(phg.partWeight(i));
+      for ( Dimension d = 0; d < dimension; ++d) {
+        block_weights[dimension * i + d] = weight.at(d);
+      }
     }
     return 0;
   });
@@ -279,12 +307,12 @@ PartitionID num_blocks(mt_kahypar_partitioned_hypergraph_t p) {
 }
 
 template<bool Throwing>
-HypernodeWeight block_weight(mt_kahypar_partitioned_hypergraph_t p, PartitionID block) {
-  return switch_phg<HypernodeWeight, Throwing>(p, [=](const auto& phg) {
+HNWeightConstRef block_weight(mt_kahypar_partitioned_hypergraph_t p, PartitionID block) {
+  return switch_phg<HNWeightConstRef, Throwing>(p, [=](const auto& phg) {
     if constexpr (Throwing) {
       check_block_is_valid(phg, block);
     }
-    return phg.partWeight(block);
+    return weight::toNonAtomic(phg.partWeight(block));
   });
 }
 
