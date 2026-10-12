@@ -245,7 +245,7 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergra
 /**
  * Returns the sum of all node weights of the (hyper)graph.
  */
-MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_weight_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
 
 /**
  * Returns the degree of the corresponding node.
