@@ -402,7 +402,7 @@ mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t hypergraph
   return lib::num_pins<false>(hypergraph);
 }
 
-mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
+mt_kahypar_hypernode_weight_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
   return lib::total_weight<false>(hypergraph);
 }
 
