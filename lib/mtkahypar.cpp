@@ -402,7 +402,7 @@ mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t hypergraph
   return lib::num_pins<false>(hypergraph);
 }
 
-mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
+mt_kahypar_hypernode_weight_64_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
   return lib::total_weight<false>(hypergraph);
 }
 
@@ -627,8 +627,8 @@ mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_partitioned_hyp
   return lib::num_blocks<false>(partitioned_hg);
 }
 
-mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                      const mt_kahypar_partition_id_t block) {
+mt_kahypar_hypernode_weight_64_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                         const mt_kahypar_partition_id_t block) {
   return lib::block_weight<false>(partitioned_hg, block);
 }
 
@@ -665,25 +665,25 @@ double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t partitione
   return lib::imbalance<false>(partitioned_hg, *reinterpret_cast<const Context*>(context));
 }
 
-mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+mt_kahypar_hyperedge_weight_64_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   return lib::cut<false>(partitioned_hg);
 }
 
-mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+mt_kahypar_hyperedge_weight_64_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   return lib::km1<false>(partitioned_hg);
 }
 
-mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+mt_kahypar_hyperedge_weight_64_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   return lib::soed<false>(partitioned_hg);
 }
 
-mt_kahypar_hyperedge_weight_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+mt_kahypar_hyperedge_weight_64_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                       mt_kahypar_target_graph_t* target_graph) {
   TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
   if ( !target->isInitialized() ) {
     target->precomputeDistances(4);
   }
-  return lib::switch_phg<mt_kahypar_hyperedge_weight_t, false>(partitioned_hg, [&](auto& phg) {
+  return lib::switch_phg<mt_kahypar_hyperedge_weight_64_t, false>(partitioned_hg, [&](auto& phg) {
     phg.setTargetGraph(target);
     return metrics::quality(phg, Objective::steiner_tree);
   });

@@ -245,7 +245,7 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergra
 /**
  * Returns the sum of all node weights of the (hyper)graph.
  */
-MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_weight_64_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
 
 /**
  * Returns the degree of the corresponding node.
@@ -461,8 +461,8 @@ MT_KAHYPAR_API mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_
 /**
  * Weight of the corresponding block.
  */
-MT_KAHYPAR_API mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                                     const mt_kahypar_partition_id_t block);
+MT_KAHYPAR_API mt_kahypar_hypernode_weight_64_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                        const mt_kahypar_partition_id_t block);
 
 /**
  * Block to which the corresponding hypernode is assigned.
@@ -509,23 +509,23 @@ MT_KAHYPAR_API double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergra
 /**
  * Computes the cut metric.
  */
-MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_64_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
 
 /**
  * Computes the connectivity metric.
  */
-MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_64_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
 
 /**
  * Computes the sum-of-external-degree metric.
  */
-MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_64_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
 
 /**
  * Computes the steiner tree metric.
  */
-MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                                     mt_kahypar_target_graph_t* target_graph);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_64_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                        mt_kahypar_target_graph_t* target_graph);
 
 
 /**
