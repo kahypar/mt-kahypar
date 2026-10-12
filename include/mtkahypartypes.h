@@ -85,6 +85,7 @@ typedef uint64_t mt_kahypar_hyperedge_id_t;
 typedef int32_t mt_kahypar_hypernode_weight_t;
 typedef int32_t mt_kahypar_hyperedge_weight_t;
 typedef int32_t mt_kahypar_partition_id_t;
+typedef uint32_t mt_kahypar_dimension_t;
 
 /**
  * Configurable parameters of the partitioning context.

@@ -367,7 +367,7 @@ mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_conte
   TargetGraph* target_graph = nullptr;
   try {
     ds::StaticGraph graph = StaticGraphFactory::construct_from_graph_edges(
-      num_vertices, num_edges, edge_vector, edge_weights, nullptr, true);
+      num_vertices, num_edges, 1, edge_vector, edge_weights, nullptr, true);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
@@ -403,7 +403,7 @@ mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t hypergraph
 }
 
 mt_kahypar_hypernode_weight_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph) {
-  return lib::total_weight<false>(hypergraph);
+  return lib::total_weight<false>(hypergraph).at(0);
 }
 
 mt_kahypar_hyperedge_id_t mt_kahypar_hypernode_degree(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
@@ -411,7 +411,7 @@ mt_kahypar_hyperedge_id_t mt_kahypar_hypernode_degree(mt_kahypar_hypergraph_t hy
 }
 
 mt_kahypar_hypernode_weight_t mt_kahypar_hypernode_weight(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hypernode_id_t node) {
-  return lib::node_weight<false>(hypergraph, node);
+  return lib::node_weight<false>(hypergraph, node).at(0);
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_hyperedge_size(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_hyperedge_id_t edge) {
@@ -629,7 +629,7 @@ mt_kahypar_partition_id_t mt_kahypar_num_blocks(const mt_kahypar_partitioned_hyp
 
 mt_kahypar_hypernode_weight_t mt_kahypar_block_weight(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                       const mt_kahypar_partition_id_t block) {
-  return lib::block_weight<false>(partitioned_hg, block);
+  return lib::block_weight<false>(partitioned_hg, block).at(0);
 }
 
 mt_kahypar_partition_id_t mt_kahypar_block_id(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,

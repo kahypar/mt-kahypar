@@ -26,13 +26,16 @@
 
 #pragma once
 
+#include "mtkahypartypes.h"
+
 #include <chrono>
 #include <limits>
 #include <string>
 #include <sstream>
 #include <type_traits>
 
-#include "mtkahypartypes.h"
+#include <tbb/parallel_invoke.h>
+#include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
@@ -51,6 +54,7 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/presets.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 using namespace mt_kahypar;
@@ -180,9 +184,9 @@ void prepare_context(Context& context) {
   context.shared_memory.num_threads = parallel::total_number_of_threads();
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
 
-  context.partition.perfect_balance_part_weights.clear();
+  context.partition.perfect_balance_part_weights = HypernodeWeightArray();
   if ( !context.partition.use_individual_part_weights ) {
-    context.partition.max_part_weights.clear();
+    context.partition.max_part_weights = HypernodeWeightArray();
   }
 }
 
@@ -298,6 +302,20 @@ void check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
   }
 }
 
+HypernodeWeightArray create_weight_array(const mt_kahypar_hypernode_id_t num_vertices,
+                                         const mt_kahypar_dimension_t dimension,
+                                         const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  HypernodeWeightArray result;
+  if (vertex_weights != nullptr) {
+    result = HypernodeWeightArray(num_vertices, dimension, 0, true);
+    tbb::parallel_for(UL(0), UL(dimension * num_vertices), [&](const size_t i) {
+      result.data()[i] = vertex_weights[i];
+    },
+    tbb::static_partitioner());
+  }
+  return result;
+}
+
 mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
                                              const Context& context,
                                              const InstanceType instance_type,
@@ -315,6 +333,7 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
   check_overflow<HypernodeID>(num_vertices, "number of vertices");
   check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
 
+  auto weight_array = create_weight_array(num_vertices, 1, vertex_weights);
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:
@@ -323,13 +342,13 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
     case PresetType::quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
-          StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
-            edge_vector, hyperedge_weights, vertex_weights, true))), STATIC_HYPERGRAPH };
+          StaticHypergraphFactory::construct(num_vertices, num_hyperedges, 1,
+            edge_vector, hyperedge_weights, vertex_weights ? &weight_array : nullptr, true))), STATIC_HYPERGRAPH };
     case PresetType::highest_quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
-          DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
-            edge_vector, hyperedge_weights, vertex_weights, true))), DYNAMIC_HYPERGRAPH };
+          DynamicHypergraphFactory::construct(num_vertices, num_hyperedges, 1,
+            edge_vector, hyperedge_weights, vertex_weights ? &weight_array : nullptr, true))), DYNAMIC_HYPERGRAPH };
     case PresetType::UNDEFINED:
       break;
   }
@@ -388,6 +407,7 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
   check_overflow<HypernodeID>(num_vertices, "number of nodes");
   check_overflow<HyperedgeID>(num_edges, "number of edges");
 
+  auto weight_array = create_weight_array(num_vertices, 1, vertex_weights);
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
     case PresetType::deterministic_quality:
@@ -396,13 +416,13 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
     case PresetType::quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
-          StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, edge_weights, vertex_weights, true))), STATIC_GRAPH };
+          StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges, 1,
+            edge_vector, edge_weights, vertex_weights ? &weight_array : nullptr, true))), STATIC_GRAPH };
     case PresetType::highest_quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
-          DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, edge_weights, vertex_weights, true))), DYNAMIC_GRAPH };
+          DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges, 1,
+            edge_vector, edge_weights, vertex_weights ? &weight_array : nullptr, true))), DYNAMIC_GRAPH };
     case PresetType::UNDEFINED:
       break;
   }
@@ -470,9 +490,9 @@ void set_individual_block_weights(Context& context,
                                   const mt_kahypar_partition_id_t num_blocks,
                                   const mt_kahypar_hypernode_weight_t* block_weights) {
   context.partition.use_individual_part_weights = true;
-  context.partition.max_part_weights.assign(num_blocks, 0);
+  context.partition.max_part_weights.replaceWith(num_blocks, 1, 0, false);
   for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
-    context.partition.max_part_weights[i] = block_weights[i];
+    context.partition.max_part_weights[i].at(0) = block_weights[i];
   }
 }
 

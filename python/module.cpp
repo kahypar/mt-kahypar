@@ -55,6 +55,7 @@
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace py = pybind11;
@@ -84,6 +85,15 @@ namespace {
     if (data.size() != expected) {
       throw InvalidInputException(std::string("Number of ") + data_kind + " does not match length of input data!");
     }
+  }
+
+  std::vector<HNWeightScalar> to_list(const HypernodeWeightArray& weights) {
+    ASSERT(weights.dimension() == 1);
+    std::vector<HNWeightScalar> result;
+    for (auto w: weights) {
+      result.push_back(w.at(0));
+    }
+    return result;
   }
 
   const ds::StaticGraph& target_graph_cast(mt_kahypar_py_target_graph_t target_graph) {
@@ -214,7 +224,7 @@ Construct an unweighted hypergraph.
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges,
-         const vec<HypernodeWeight>& node_weights,
+         const vec<HNWeightScalar>& node_weights,
          const vec<HyperedgeWeight>& hyperedge_weights) {
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         ensure_correct_size(num_hypernodes, node_weights, "nodes");
@@ -272,7 +282,7 @@ Construct an unweighted graph.
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
-         const vec<HypernodeWeight>& node_weights,
+         const vec<HNWeightScalar>& node_weights,
          const vec<HyperedgeWeight>& edge_weights) {
         ensure_correct_size(num_edges, edges, "edges");
         ensure_correct_size(num_nodes, node_weights, "nodes");
@@ -315,7 +325,7 @@ Construct a weighted graph.
         ensure_correct_size(num_edges, edge_weights, "edges");
         return mt_kahypar_py_target_graph_t{
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
-            StaticGraphFactory::construct_from_graph_edges(num_nodes, num_edges,
+            StaticGraphFactory::construct_from_graph_edges(num_nodes, num_edges, 1,
               edges, edge_weights.data(), nullptr, true))), STATIC_GRAPH };
       }, R"pbdoc(
 Construct a target graph.
@@ -410,7 +420,7 @@ Construct a target graph.
         context.partition.verbose_logging = verbose_logging;
       }, "Use verbose partitioning output")
     .def("set_individual_target_block_weights",
-      [](Context& context, std::vector<HypernodeWeight>& block_weights) {
+      [](Context& context, std::vector<HNWeightScalar>& block_weights) {
         if (static_cast<PartitionID>(block_weights.size()) != context.partition.k) {
           throw InvalidParameterException("Number of block weights must be equal to k");
         }
@@ -418,9 +428,10 @@ Construct a target graph.
       }, "Set individual maximum allowed weight for each block of the output partition",
       py::arg("block_weights"))
     .def("compute_max_block_weights",
-      [](Context& context, HypernodeWeight total_weight) {
-        context.setupPartWeights(total_weight);
-        return context.partition.max_part_weights;
+      [](Context& context, HNWeightScalar total_weight) {
+        AllocatedHNWeight t_weight(1, total_weight);
+        context.setupPartWeights(t_weight);
+        return to_list(context.partition.max_part_weights);
       }, R"pbdoc(
 Compute maximum allowed block weights for an input with the given total weight (depends on epsilon).
 If indiviual target weights are set, these are returned instead.
@@ -429,9 +440,10 @@ If indiviual target weights are set, these are returned instead.
           )pbdoc",
       py::arg("total_weight"))
     .def("compute_perfect_balance_block_weights",
-      [](Context& context, HypernodeWeight total_weight) {
-        context.setupPartWeights(total_weight);
-        return context.partition.perfect_balance_part_weights;
+      [](Context& context, HNWeightScalar total_weight) {
+        AllocatedHNWeight t_weight(1, total_weight);
+        context.setupPartWeights(t_weight);
+        return to_list(context.partition.perfect_balance_part_weights);
       }, R"pbdoc(
 Compute block weights that represent perfect balance for an input with the given total weight.
 If indiviual target weights are set, these are used for the calculation instead.
@@ -450,9 +462,15 @@ If indiviual target weights are set, these are used for the calculation instead.
     .def("num_nodes", &lib::num_nodes<true>, "Number of nodes")
     .def("num_edges", &lib::num_edges<true>, "Number of hyperedges")
     .def("num_pins", &lib::num_pins<true>, "Number of pins")
-    .def("total_weight", &lib::total_weight<true>, "Total weight of all nodes")
+    .def("total_weight", [](mt_kahypar_hypergraph_t hypergraph) {
+        lib::ensure_single_dimensional(hypergraph);
+        return lib::total_weight<true>(hypergraph).at(0);
+      }, "Total weight of all nodes")
     .def("node_degree", &lib::node_degree<true>, "Degree of node", py::arg("node"))
-    .def("node_weight", &lib::node_weight<true>, "Weight of node", py::arg("node"))
+    .def("node_weight", [](mt_kahypar_hypergraph_t hypergraph, HypernodeID node) {
+        lib::ensure_single_dimensional(hypergraph);
+        return lib::node_weight<true>(hypergraph, node).at(0);
+      }, "Weight of node", py::arg("node"))
     .def("is_fixed", &lib::is_fixed<true>,
       "Returns whether or not the corresponding node is a fixed vertex", py::arg("node"))
     .def("fixed_vertex_block", &lib::fixed_vertex_block<true>,
@@ -610,8 +628,10 @@ Construct a partitioned hypergraph from this hypergraph.
 
   phg_class
     .def("num_blocks", &lib::num_blocks<true>, "Number of blocks of the partition")
-    .def("block_weight", &lib::block_weight<true>,
-      "Weight of the corresponding block", py::arg("block"))
+    .def("block_weight",  [](mt_kahypar_partitioned_hypergraph_t phg, PartitionID block) {
+        lib::ensure_single_dimensional(phg);
+        return lib::block_weight<true>(phg, block).at(0);
+      }, "Weight of the corresponding block", py::arg("block"))
     .def("block_id", &lib::block_id<true>,
       "Block to which the corresponding node is assigned", py::arg("node"))
     .def("blocks",
