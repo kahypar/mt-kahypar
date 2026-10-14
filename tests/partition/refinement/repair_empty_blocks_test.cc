@@ -37,10 +37,20 @@
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
+
+template<typename ResultT = HypernodeWeightArray>
+ResultT vecToWeights(const vec<HNWeightScalar>& weight_list) {
+  ResultT result(weight_list.size(), 1, 0, false);
+  for (size_t i = 0; i < weight_list.size(); ++i) {
+    result[i] = weight::broadcast(weight_list[i], 1);
+  }
+  return result;
+}
 
 template <typename TypeTraitsT, typename GainTypesT, bool is_steiner_tree_gain, bool use_gain_cache>
 struct TestConfig {
@@ -108,17 +118,18 @@ class RepairEmptyBlocksTest : public Test {
     }
   }
 
-  void constructFromValues(const vec<HypernodeWeight>& hypernode_weight) {
+  void constructFromValues(const vec<HNWeightScalar>& hypernode_weight) {
     const HypernodeID num_hypernodes = 18;
     ASSERT(num_hypernodes == hypernode_weight.size());
+    HypernodeWeightArray weights = vecToWeights(hypernode_weight);
     if constexpr ( Hypergraph::is_graph ) {
-      hypergraph = HypergraphFactory::construct(num_hypernodes, 11,
+      hypergraph = HypergraphFactory::construct(num_hypernodes, 11, 1,
         { {0, 1}, {2, 3}, {4, 5}, {1, 3}, {5, 7}, {11, 13}, {14, 15}, {12, 13}, {8, 9}, {9, 14}, {12, 16} },
-        nullptr, hypernode_weight.data(), true);
+        nullptr, &weights, true);
     } else {
-      hypergraph = HypergraphFactory::construct(num_hypernodes, 4,
+      hypergraph = HypergraphFactory::construct(num_hypernodes, 4, 1,
         { {0, 1, 2, 3, 4, 5}, {1, 3, 5, 7, 11, 13}, {15, 14, 13, 12, 11}, {8, 9, 12, 13, 16} },
-        nullptr, hypernode_weight.data(), true);
+        nullptr, &weights, true);
     }
   }
 
@@ -154,7 +165,7 @@ class RepairEmptyBlocksTest : public Test {
         }
       }
       target_graph = std::make_unique<TargetGraph>(
-        TargetGraphFactory::construct_from_graph_edges(context.partition.k, edges.size(), edges, edges_weights.data()));
+        TargetGraphFactory::construct_from_graph_edges(context.partition.k, edges.size(), 1, edges, edges_weights.data()));
       target_graph->precomputeDistances(2);
       partitioned_hypergraph.setTargetGraph(target_graph.get());
     }
@@ -189,7 +200,7 @@ TYPED_TEST(RepairEmptyBlocksTest, SuccessfullyRepairsEmptyBlocks) {
   this->repairEmptyBlocks();
 
   for (PartitionID block = 0; block < this->context.partition.k; ++block) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+    ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(block))) << V(block);
   }
 }
 
@@ -197,8 +208,9 @@ TYPED_TEST(RepairEmptyBlocksTest, SuccessfullyRepairsEmptyBlocks) {
 TYPED_TEST(RepairEmptyBlocksTest, SuccessfullyRepairsEmptyBlocksWithIndividualPartWeights) {
   this->constructFromValues({4, 3, 3, 2, 2, 1, 1, 1, 3, 4, 2, 3, 1, 2, 1, 2, 1, 1});
   this->context.partition.use_individual_part_weights = true;
-  this->context.partition.max_part_weights = {10, 10, 8, 8, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1};
-  this->context.partition.max_part_weights.resize(this->context.partition.k, 5);
+  vec<HNWeightScalar> weight_list{10, 10, 8, 8, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1};
+  weight_list.resize(this->context.partition.k, 5);
+  this->context.partition.max_part_weights = vecToWeights<weight::CopyableHypernodeWeightArray>(weight_list);
   this->setup();
 
   for (HyperedgeID hn = 0; hn < this->hypergraph.initialNumNodes(); ++hn) {
@@ -207,7 +219,7 @@ TYPED_TEST(RepairEmptyBlocksTest, SuccessfullyRepairsEmptyBlocksWithIndividualPa
   this->repairEmptyBlocks();
 
   for (PartitionID block = 0; block < this->context.partition.k; ++block) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+    ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(block))) << V(block);
   }
 }
 
@@ -219,7 +231,8 @@ TYPED_TEST(RepairEmptyBlocksTest, IsDeterministicWithIndividualPartWeights) {
 
   for (size_t i = 0; i < 5; ++i) {
     this->context.partition.use_individual_part_weights = true;
-    this->context.partition.max_part_weights = {10, 10, 8, 8, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1};
+    this->context.partition.max_part_weights = vecToWeights<weight::CopyableHypernodeWeightArray>(
+      {10, 10, 8, 8, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1});
     this->setup();
 
     for (HyperedgeID hn = 0; hn < this->hypergraph.initialNumNodes(); ++hn) {
@@ -259,7 +272,7 @@ TYPED_TEST(RepairEmptyBlocksTest, IsDeterministicOnRealInstance) {
       }
     }
     for (PartitionID block = 0; block < this->context.partition.k; ++block) {
-      ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+      ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(block))) << V(block);
     }
   }
 }
@@ -271,16 +284,16 @@ TYPED_TEST(RepairEmptyBlocksTest, IsDeterministicOnRealInstanceWithIndividualPar
   vec<PartitionID> partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
 
   for (size_t i = 0; i < 5; ++i) {
-    const HypernodeWeight avg_weight = this->hypergraph.totalWeight() / 16 + 1;
-    auto map_weight = [&](const double factor) { return static_cast<HypernodeWeight>(factor * avg_weight); };
+    const HNWeightScalar avg_weight = weight::sum(this->hypergraph.totalWeight()) / 16 + 1;
+    auto map_weight = [&](const double factor) { return static_cast<HNWeightScalar>(factor * avg_weight); };
 
     this->context.partition.use_individual_part_weights = true;
-    this->context.partition.max_part_weights = {
+    this->context.partition.max_part_weights = vecToWeights<weight::CopyableHypernodeWeightArray>({
       map_weight(2.0), map_weight(3.5), map_weight(3.0), map_weight(2.5),
       map_weight(2.0), map_weight(3.5), map_weight(3.0), map_weight(2.5),
       map_weight(0.8), map_weight(0.3), map_weight(0.1), map_weight(0.01),
       map_weight(0.8), map_weight(0.3), map_weight(0.1), map_weight(0.01)
-    };
+    });
     this->setup();
 
     for (HyperedgeID hn = 0; hn < this->hypergraph.initialNumNodes(); ++hn) {
