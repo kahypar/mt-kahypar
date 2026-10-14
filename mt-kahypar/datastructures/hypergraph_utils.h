@@ -56,29 +56,41 @@ namespace impl {
 }
 
 template<typename Hypergraph>
-HypernodeWeight computeTotalNodeWeightParallel(const Hypergraph& hypergraph, const HypernodeID num_hypernodes) {
+void computeTotalNodeWeightParallel(const Hypergraph& hypergraph, const HypernodeID num_hypernodes, AllocatedHNWeight& total_weight) {
   // For some reason, TBB has difficulty handling the exception if it is thrown from within the parallel loop
   // (crashes in debug mode, usually works in release mode but hangs in rare cases). Therefore, we instead set
   // a flag and throw the exception after the calculation is finished.
-  std::atomic_bool error_flag = false;
-  impl::safe_addition adder {error_flag};
 
-  HypernodeWeight result = tbb::parallel_reduce(
-    tbb::blocked_range<HypernodeID>(ID(0), num_hypernodes), 0,
-    [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-      HypernodeWeight weight = init;
-      for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-        if (hypergraph.nodeIsEnabled(hn)) {
-          weight = impl::add(weight, hypergraph.nodeWeight(hn), error_flag);
-        }
-      }
-      return weight;
-    }, adder);
+  // TODO: multi-constraint
+  // std::atomic_bool error_flag = false;
+  // impl::safe_addition adder {error_flag};
 
-    if (error_flag) {
-      throw InvalidInputException("total node weight overflows weight data type");
+  // HypernodeWeight result = tbb::parallel_reduce(
+  //   tbb::blocked_range<HypernodeID>(ID(0), num_hypernodes), 0,
+  //   [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+  //     HypernodeWeight weight = init;
+  //     for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+  //       if (hypergraph.nodeIsEnabled(hn)) {
+  //         weight = impl::add(weight, hypergraph.nodeWeight(hn), error_flag);
+  //       }
+  //     }
+  //     return weight;
+  //   }, adder);
+
+  //   if (error_flag) {
+  //     throw InvalidInputException("total node weight overflows weight data type");
+  //   }
+
+  //   return result;
+
+    tbb::enumerable_thread_specific<AllocatedHNWeight> local_sum(dimension(), 0);
+    doParallelForAllNodes([this, &local_sum](const HypernodeID hn) {
+      local_sum.local() += this->_hypernode_weights[hn];
+    });
+    total_weight = weight::broadcast(0, dimension());
+    for (const auto& weight: local_sum) {
+      total_weight += weight;
     }
-    return result;
   }
 
 } // namespace mt_kahypar

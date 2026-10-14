@@ -31,6 +31,7 @@
 #include <limits>
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -53,6 +54,7 @@ std::ostream& operator<< (std::ostream& os, const BalanceMetrics& imbalance);
 struct Metrics {
   HyperedgeWeight quality;
   BalanceMetrics imbalance;
+  // TODO: multi-dimensional imbalance??
 
   bool isBetter(const Metrics& other) const;
 
@@ -86,13 +88,13 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context&
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const std::vector<HypernodeWeight>& max_part_weights);
+                         const HypernodeWeightArray& max_part_weights);
 
 template<typename PartitionedHypergraph>
 BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const Context& context,
-                         const vec<HypernodeWeight>& part_weights,
-                         const std::vector<HypernodeWeight>& max_part_weights);
+                         const HypernodeWeightArray& part_weights,
+                         const HypernodeWeightArray& max_part_weights);
 
 template<typename PartitionedHypergraph>
 BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
@@ -100,12 +102,13 @@ BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Cont
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    const HypernodeWeight part_weight = hypergraph.partWeight(i);
-    const double balance_i = (part_weight
-            / static_cast<double>(context.partition.perfect_balance_part_weights[i]));
-    max_balance = std::max(max_balance, balance_i);
-    if (part_weight > context.partition.max_part_weights[i]) {
-      violates_balance = true;
+    const auto part_weight = hypergraph.partWeight(i);
+    for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+      const double curr_balance = part_weight.at(d) / static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d));
+      max_balance = std::max(max_balance, curr_balance);
+      if (part_weight.at(d) > context.partition.max_part_weights[i].at(d)) {
+        violates_balance = true;
+      }
     }
   }
   return BalanceMetrics{max_balance - 1.0, violates_balance, false};
