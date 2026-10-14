@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -96,8 +97,12 @@ class RebalancerTest : public Test {
   }
 
   void constructFromValues(const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,
-                           const vec<vec<HypernodeID>>& edge_vector, const vec<HypernodeWeight> hypernode_weight) {
-    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, edge_vector, nullptr, hypernode_weight.data());
+                           const vec<vec<HypernodeID>>& edge_vector, const vec<HNWeightScalar> hypernode_weight) {
+    HypernodeWeightArray node_weights(hypernode_weight.size(), 1, 0, false);
+    for (size_t i = 0; i < hypernode_weight.size(); ++i) {
+      node_weights[i].set(0, hypernode_weight[i]);
+    }
+    hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges, 1, edge_vector, nullptr, &node_weights);
   }
 
   void setup() {
@@ -145,7 +150,7 @@ TYPED_TEST(RebalancerTest, CanNotBeRebalanced) {
 
 TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
   this->constructFromValues(4, 2, { {0, 1}, {1, 2} }, {1, 1, 1, 1});
-  this->context.partition.max_part_weights.resize(this->context.partition.k, 5);
+  this->context.partition.max_part_weights.replaceWith(this->context.partition.k, 1, 5, false);
   this->context.partition.use_individual_part_weights = true;
   this->setup();
 
@@ -163,7 +168,7 @@ TYPED_TEST(RebalancerTest, RepairsEmptyBlocks) {
   this->rebalancer->refine(phg, {}, metrics, std::numeric_limits<double>::max());
 
   for (PartitionID block = 0; block < this->context.partition.k; ++block) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(block), 0) << V(block);
+    ASSERT_FALSE(weight::isZero(this->partitioned_hypergraph.partWeight(block))) << V(block);
   }
 }
 

@@ -32,6 +32,7 @@
 #include "gmock/gmock.h"
 
 #include "tests/definitions.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -49,7 +50,7 @@ class APartitionedHypergraph : public Test {
 
   APartitionedHypergraph() :
     hypergraph(Factory::construct(
-      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
+      7 , 4, 1, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     partitioned_hypergraph(3, hypergraph, parallel_tag_t()) {
     initializePartition();
   }
@@ -146,17 +147,17 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 TYPED_TEST_SUITE(APartitionedHypergraph, tests::HypergraphTestTypeTraits);
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightsIfOnlyOneThreadPerformsModifications) {
   ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(0, 0, 1));
 
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
@@ -170,9 +171,9 @@ TYPED_TEST(APartitionedHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(4, 1, 2));
   });
 
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 
@@ -732,9 +733,9 @@ TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly)
   this->partitioned_hypergraph.setOnlyNodePart(6, 2);
   this->partitioned_hypergraph.initializePartition();
 
-  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(weight::broadcast(3, 1), this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(weight::broadcast(2, 1), this->partitioned_hypergraph.partWeight(2));
 }
 
 TYPED_TEST(APartitionedHypergraph, SetPinCountsInPartCorrectIfNodePartsAreSetOnly) {

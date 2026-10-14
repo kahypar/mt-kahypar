@@ -41,11 +41,11 @@
 #include "mt-kahypar/partition/refinement/flows/deterministic/deterministic_flow_refinement_scheduler.h"
 #endif
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
-#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -94,7 +94,7 @@ public:
     context.coarsening.det_resolve_swaps = true;
     context.coarsening.num_sub_rounds_deterministic = 3;
     context.coarsening.contraction_limit = 320;
-    context.coarsening.max_allowed_node_weight = 30;
+    context.coarsening.max_allowed_node_weight = weight::broadcast(30, 1);
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
 
