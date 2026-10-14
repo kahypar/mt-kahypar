@@ -38,14 +38,6 @@ if (NOT DEFINED BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS ON)
 endif()
 
-#################################################################
-## CMake defaults                                             ##
-#################################################################
-
-# Only export the API and hide the remaining symbols
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 #################################################################
 ## Meta targets                                               ##
@@ -496,9 +488,6 @@ if(KAHYPAR_DOWNLOAD_TBB)
       set(BUILD_SHARED_LIBS ON)
     endif()
     set(TBB_TEST OFF CACHE BOOL "")
-    # Needed until v2022.2.0
-    set(CMAKE_CXX_VISIBILITY_PRESET default)
-    set(CMAKE_VISIBILITY_INLINES_HIDDEN NO)
     FetchContent_MakeAvailable(TBB)
   endblock()
 else()

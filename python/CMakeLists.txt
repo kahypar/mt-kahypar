@@ -5,6 +5,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11)
 pybind11_add_module(mtkahypar_python module.cpp)
+hide_symbols(mtkahypar_python)
 copy_dependencies(mtkahypar_python)
 
 target_link_libraries(mtkahypar_python PRIVATE MtKaHyPar-LibraryBuildSources)

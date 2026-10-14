@@ -1,3 +1,14 @@
+function(hide_symbols target)
+  if(NOT TARGET "${target}")
+    message(FATAL_ERROR "hide_symbols: target '${target}' does not exist")
+  endif()
+  set_target_properties(${target} PROPERTIES
+      C_VISIBILITY_PRESET hidden
+      CXX_VISIBILITY_PRESET hidden
+      VISIBILITY_INLINES_HIDDEN YES
+  )
+endfunction()
+
 function(copy_dependencies target)
   if(NOT TARGET "${target}")
     message(FATAL_ERROR "copy_dependencies: target '${target}' does not exist")
