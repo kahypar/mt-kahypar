@@ -35,6 +35,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -52,7 +53,7 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
   const HyperedgeID num_hyperedges = phg.initialNumEdges() / (PartitionedHypergraph::is_graph ? 2 : 1);
   HyperedgeVector edge_vector;
   vec<HyperedgeWeight> hyperedge_weight;
-  vec<HypernodeWeight> hypernode_weight;
+  HypernodeWeightArray hypernode_weight;
 
   // Allocate data structure
   tbb::parallel_invoke([&] {
@@ -60,7 +61,7 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
   }, [&] {
     hyperedge_weight.assign(num_hyperedges, 0);
   }, [&] {
-    hypernode_weight.assign(num_hypernodes, 0);
+    hypernode_weight.resize(num_hypernodes, phg.dimension(), 0, true);
   });
 
   // Write hypergraph into temporary data structure
@@ -93,8 +94,8 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
   });
 
   // Construct new hypergraph and apply partition
-  Hypergraph converted_hg = Factory::construct(num_hypernodes, num_hyperedges,
-    edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+  Hypergraph converted_hg = Factory::construct(num_hypernodes, num_hyperedges, phg.dimension(),
+    edge_vector, hyperedge_weight.data(), &hypernode_weight);
   converted_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     if ( !phg.nodeIsEnabled(hn) ) {
       ASSERT(converted_hg.nodeDegree(hn) == 0);
@@ -110,7 +111,7 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
 
   // Map fixed vertices to new hypergraph
   if ( phg.hasFixedVertices() ) {
-    ds::FixedVertexSupport fixed_vertices_copy(phg.initialNumNodes(), phg.k());
+    ds::FixedVertexSupport fixed_vertices_copy(phg.initialNumNodes(), phg.dimension(), phg.k());
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( phg.isFixed(hn) ) {
         fixed_vertices_copy.fixToBlock(converted_hg, hn, phg.fixedVertexBlock(hn));
@@ -145,9 +146,9 @@ Hypergraph repairEmptyBlocks(const Hypergraph& contracted_hg,
   const PartitionID k = communication_hg.k();
   vec<HypernodeID> block_mapping(contracted_hg.initialNumNodes(), kInvalidHypernode);
   HypernodeID cur_id = 0;
-  vec<HypernodeWeight> hypernode_weight(k, 0);
+  HypernodeWeightArray hypernode_weight(k, contracted_hg.dimension(), 0, true);
   for ( PartitionID block = 0; block < k; ++block ) {
-    if ( communication_hg.partWeight(block) > 0 ) {
+    if ( !weight::isZero(communication_hg.partWeight(block)) ) {
       ASSERT(UL(cur_id) < block_mapping.size());
       block_mapping[cur_id++] = block;
     }
@@ -170,8 +171,8 @@ Hypergraph repairEmptyBlocks(const Hypergraph& contracted_hg,
     mapping[hn] = block_mapping[mapping[hn]];
   });
 
-  return Factory::construct(num_hypernodes, num_hyperedges,
-    edge_vector, hyperedge_weight.data(), hypernode_weight.data(), deterministic);
+  return Factory::construct(num_hypernodes, num_hyperedges, contracted_hg.dimension(),
+    edge_vector, hyperedge_weight.data(), &hypernode_weight, deterministic);
 }
 
 template<typename PartitionedHypergraph>

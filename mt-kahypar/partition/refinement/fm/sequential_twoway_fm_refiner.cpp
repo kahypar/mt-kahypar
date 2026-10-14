@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -152,7 +153,7 @@ void SequentialTwoWayFmRefiner<TypeTraits>::activate(const HypernodeID hn) {
     ASSERT(!_pq.contains(hn, to), V(hn));
     _vertex_state[hn] = VertexState::ACTIVE;
     _pq.insert(hn, to, computeGain(hn, from, to));
-    if ( _phg.partWeight(to) < _context.partition.max_part_weights[to] ) {
+    if (weight::isStrictlySmaller(weight::toNonAtomic(_phg.partWeight(to)), _context.partition.max_part_weights[to])) {
       _pq.enablePart(to);
     }
   }
@@ -251,10 +252,10 @@ void SequentialTwoWayFmRefiner<TypeTraits>::updatePin(const HypernodeID pin, con
 template<typename TypeTraits>
 void SequentialTwoWayFmRefiner<TypeTraits>::updatePQState(const PartitionID from,
                                                           const PartitionID to) {
-  if (_phg.partWeight(to) >= _context.partition.max_part_weights[to] ) {
+  if (!weight::isStrictlySmaller(weight::toNonAtomic(_phg.partWeight(to)), _context.partition.max_part_weights[to])) {
     _pq.disablePart(to);
   }
-  if (_phg.partWeight(from) < _context.partition.max_part_weights[from] ) {
+  if (weight::isStrictlySmaller(weight::toNonAtomic(_phg.partWeight(from)), _context.partition.max_part_weights[from])) {
     _pq.enablePart(from);
   }
 }

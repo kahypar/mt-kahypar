@@ -37,6 +37,35 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+  template <typename GraphAndGainTypes>
+  LabelPropagationRefiner<GraphAndGainTypes>::LabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                                      const HyperedgeID num_hyperedges,
+                                                                      const Context& context,
+                                                                      GainCache& gain_cache,
+                                                                      IRebalancer& rb) :
+    _might_be_uninitialized(false),
+    _context(context),
+    _gain_cache(gain_cache),
+    _current_k(context.partition.k),
+    _current_num_nodes(kInvalidHypernode),
+    _current_num_edges(kInvalidHyperedge),
+    _gain(context),
+    _active_nodes(),
+    _active_node_was_moved(2 * num_hypernodes, uint8_t(false)),
+    _old_part(_context.refinement.label_propagation.unconstrained || context.refinement.global.lp_unconstrained ? num_hypernodes : 0, kInvalidPartition),
+    _old_part_is_initialized(_context.refinement.label_propagation.unconstrained || context.refinement.global.lp_unconstrained ? num_hypernodes : 0),
+    _next_active(num_hypernodes),
+    _visited_he(Hypergraph::is_graph ? 0 : num_hyperedges),
+    _rebalancer(rb) { }
+
+  template <typename GraphAndGainTypes>
+  LabelPropagationRefiner<GraphAndGainTypes>::LabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                                      const HyperedgeID num_hyperedges,
+                                                                      const Context& context,
+                                                                      gain_cache_t gain_cache,
+                                                                      IRebalancer& rb) :
+    LabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
+      GainCachePtr::cast<GainCache>(gain_cache), rb) { }
 
   template <typename GraphAndGainTypes>
   template<bool unconstrained, typename F>
@@ -55,10 +84,10 @@ namespace mt_kahypar {
       const bool positive_gain = best_move.gain < 0;
       const bool zero_gain_move = (_context.refinement.label_propagation.rebalancing &&
                                     best_move.gain == 0 &&
-                                    hypergraph.partWeight(best_move.from) - 1 >
-                                    hypergraph.partWeight(best_move.to) + 1 &&
-                                    hypergraph.partWeight(best_move.to) <
-                                    _context.partition.perfect_balance_part_weights[best_move.to]);
+                                    hypergraph.partWeight(best_move.from) >=
+                                    hypergraph.partWeight(best_move.to) + weight::broadcast(2, hypergraph.dimension()) &&
+                                    weight::isStrictlySmaller(hypergraph.partWeight(best_move.to),
+                                      _context.partition.perfect_balance_part_weights[best_move.to]));
       const bool perform_move = positive_gain || zero_gain_move;
       if (best_move.from != best_move.to && perform_move) {
         PartitionID from = best_move.from;
@@ -386,6 +415,84 @@ namespace mt_kahypar {
     }
 
     _next_active.reset();
+  }
+
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::activateNodeAndNeighbors(PartitionedHypergraph& hypergraph,
+                                                                            NextActiveNodes& next_active_nodes,
+                                                                            const HypernodeID hn,
+                                                                            bool activate_moved) {
+    auto activate = [&](const HypernodeID hn) {
+      bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[hn];
+      if (activate_moved || old_part_unintialized || hypergraph.partID(hn) == _old_part[hn]) {
+        if ( _next_active.compare_and_set_to_true(hn) ) {
+          next_active_nodes.stream(hn);
+          if ( old_part_unintialized ) {
+            _old_part[hn] = hypergraph.partID(hn);
+            _old_part_is_initialized.set(hn, true);
+          }
+        }
+      }
+    };
+
+    // Set all neighbors of the vertex to active
+    if constexpr (Hypergraph::is_graph) {
+      for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+        activate(hypergraph.edgeTarget(he));
+      }
+    } else {
+      for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+        if ( hypergraph.edgeSize(he) <=
+              ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
+          if ( _visited_he.compare_and_set_to_true(he) ) {
+            for (const HypernodeID& pin : hypergraph.pins(he)) {
+              activate(pin);
+            }
+          }
+        }
+      }
+    }
+
+    if ( activate_moved && _next_active.compare_and_set_to_true(hn) ) {
+      ASSERT(!_might_be_uninitialized);
+      next_active_nodes.stream(hn);
+    }
+  }
+
+  template <typename GraphAndGainTypes>
+  template<bool unconstrained, typename F>
+  bool LabelPropagationRefiner<GraphAndGainTypes>::changeNodePart(PartitionedHypergraph& phg,
+                                                                  const HypernodeID hn,
+                                                                  const PartitionID from,
+                                                                  const PartitionID to,
+                                                                  const F& objective_delta) {
+    auto max_weight = [&]{
+      // wrap in lambda expression because the type depends on the case
+      if constexpr (unconstrained) {
+        return weight::broadcast(std::numeric_limits<HNWeightScalar>::max(), phg.dimension());
+      } else {
+        return _context.partition.max_part_weights[to];
+      }
+    }();
+
+    if ( _gain_cache.isInitialized() ) {
+      return phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
+    } else {
+      return phg.changeNodePart(hn, from, to, max_weight, []{}, objective_delta);
+    }
+  }
+
+  template <typename GraphAndGainTypes>
+  void LabelPropagationRefiner<GraphAndGainTypes>::resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( _current_k != _context.partition.k ) {
+      _current_k = _context.partition.k;
+      _gain.changeNumberOfBlocks(_current_k);
+      if ( _gain_cache.isInitialized() ) {
+        _gain_cache.changeNumberOfBlocks(_current_k);
+      }
+    }
   }
 
   namespace {
