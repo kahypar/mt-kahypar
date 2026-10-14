@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 using ::testing::Test;
 
@@ -52,7 +53,7 @@ class ADeltaPartitionedGraph : public Test {
  public:
 
   ADeltaPartitionedGraph() :
-    hg(HypergraphFactory::construct(7 , 6,
+    hg(HypergraphFactory::construct(7 , 6, 1,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
     phg(3, hg, parallel_tag_t()),
     context(),
@@ -70,6 +71,7 @@ class ADeltaPartitionedGraph : public Test {
     gain_cache.initializeGainCache(phg);
 
     context.partition.k = 3;
+    context.setupPartWeights(AllocatedHNWeight(1, 7));
     delta_phg = std::make_unique<DeltaPartitionedGraph>(context);
     delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
     delta_phg->setPartitionedHypergraph(&phg);
@@ -105,7 +107,7 @@ class ADeltaPartitionedGraph : public Test {
     auto delta_gain_update = [&](const SynchronizedEdgeUpdate& sync_update) {
       delta_gain_cache->deltaGainUpdate(*delta_phg, sync_update);
     };
-    delta_phg->changeNodePart(hn, from, to, 1000, delta_gain_update);
+    delta_phg->changeNodePart(hn, from, to, weight::broadcast(1000, 1), delta_gain_update);
   }
 
   Hypergraph hg;

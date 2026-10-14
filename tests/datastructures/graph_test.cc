@@ -241,7 +241,7 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6d) {
 TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
   using HypergraphFactory = typename ds::StaticHypergraph::Factory;
   ds::StaticHypergraph graph_hg = HypergraphFactory::construct(
-    5, 6, { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
+    5, 6, 1, { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
   TestGraph graph(graph_hg, LouvainEdgeWeight::uniform, true);
   ASSERT_EQ(4, graph.max_degree());
   verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});
