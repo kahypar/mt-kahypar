@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -43,6 +44,7 @@ struct PartitioningParameters {
   InstanceType instance_type = InstanceType::UNDEFINED;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
+  // TODO: epsilon could be multi-dimensional ??
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -52,8 +54,8 @@ struct PartitioningParameters {
   int time_limit = 0;
   bool allow_empty_blocks = false;
   bool use_individual_part_weights = false;
-  std::vector<HypernodeWeight> perfect_balance_part_weights;
-  std::vector<HypernodeWeight> max_part_weights;
+  weight::CopyableHypernodeWeightArray perfect_balance_part_weights;
+  weight::CopyableHypernodeWeightArray max_part_weights;
   double large_hyperedge_size_threshold_factor = 0.01;
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID smallest_large_he_size_threshold = 50000;
@@ -126,7 +128,7 @@ struct CoarseningParameters {
   size_t two_hop_degree_threshold = 100;
 
   // Those will be determined dynamically
-  HypernodeWeight max_allowed_node_weight = 0;
+  weight::CopyableAllocatedHNWeight max_allowed_node_weight = {};
   HypernodeID contraction_limit = 0;
 };
 
@@ -290,21 +292,23 @@ class Context {
 
   Context(const bool register_utilities = true);
 
+  Dimension dimension() const;
+
   bool isNLevelPartitioning() const;
 
   bool forceGainCacheUpdates() const;
 
-  void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
+  void setupPartWeights(HNWeightConstRef total_hypergraph_weight);
 
-  void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);
+  void setupContractionLimit(HNWeightConstRef total_hypergraph_weight);
 
-  void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
+  void setupMaximumAllowedNodeWeight(HNWeightConstRef total_hypergraph_weight);
 
   void setupThreadsPerFlowSearch();
 
   void setupGainPolicy();
 
-  void sanityCheck(const TargetGraph* target_graph);
+  void sanityCheck(Dimension dimension, const TargetGraph* target_graph);
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);

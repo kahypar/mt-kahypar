@@ -27,11 +27,14 @@
 
 #pragma once
 
+#include <optional>
+
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/exception.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 
 namespace mt_kahypar::ds {
@@ -44,11 +47,13 @@ class StaticHypergraphFactory {
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
 
  public:
+  // Note: hypernode_weight is moved during construction
   static StaticHypergraph construct(const HypernodeID num_hypernodes,
                                     const HyperedgeID num_hyperedges,
+                                    const Dimension dimension,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr,
+                                    HypernodeWeightArray* hypernode_weight = nullptr,
                                     const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {

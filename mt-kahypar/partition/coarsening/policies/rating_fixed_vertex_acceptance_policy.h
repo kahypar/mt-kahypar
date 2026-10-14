@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -79,18 +80,21 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       return true;
     }
 
-    const HypernodeWeight max_allowed_fixed_vertex_block_weight =
-      (1.0 + context.partition.epsilon) * std::ceil(
-        static_cast<double>(fixed_vertices.totalFixedVertexWeight()) / context.partition.k );
+    const auto max_allowed_fixed_vertex_block_weight = weight::map(
+      fixed_vertices.totalFixedVertexWeight(),
+      [&](HNWeightScalar total_fixed_vertex_weight) {
+        return (1.0 + context.partition.epsilon) * std::ceil(
+          static_cast<double>(total_fixed_vertex_weight) /  context.partition.k );
+      });
     const PartitionID block_of_u = fixed_vertices.fixedVertexBlock(u);
     const PartitionID block_of_v = fixed_vertices.fixedVertexBlock(v);
     const PartitionID fixed_block = block_of_u == kInvalidPartition ? block_of_v : block_of_u;
     ASSERT(fixed_block != kInvalidPartition);
-    const HypernodeWeight fixed_vertex_block_weight_after =
-      fixed_vertices.fixedVertexBlockWeight(fixed_block) +
-        (block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : hypergraph.nodeWeight(v));
+    const auto added_weight = block_of_u == kInvalidPartition ? hypergraph.nodeWeight(u) : hypergraph.nodeWeight(v);
+    const auto fixed_vertex_block_weight_after =
+      fixed_vertices.fixedVertexBlockWeight(fixed_block) + added_weight;
     return fixed_vertex_block_weight_after <=
-      std::min(max_allowed_fixed_vertex_block_weight,
+      weight::min(max_allowed_fixed_vertex_block_weight,
         context.partition.max_part_weights[fixed_block]);
   }
 };

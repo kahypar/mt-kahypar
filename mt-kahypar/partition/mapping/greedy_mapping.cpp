@@ -37,6 +37,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -64,13 +65,13 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph,
                                                   const Context& context,
                                                   bool deterministic,
                                                   const ds::Bitset& unassigned_processors,
-                                                  HypernodeWeight required_weight) {
+                                                  HNWeightConstRef required_weight) {
   vec<HypernodeID> min_nodes;
-  HyperedgeWeight min_weighted_degree = std::numeric_limits<HypernodeWeight>::max();
+  HyperedgeWeight min_weighted_degree = std::numeric_limits<HyperedgeWeight>::max();
   for ( const HypernodeID& hn : graph.nodes() ) {
     if (!unassigned_processors.isSet(hn)) continue;
     if (context.partition.use_individual_part_weights &&
-        context.partition.max_part_weights[hn] < required_weight) continue;
+        !(context.partition.max_part_weights[hn] >= required_weight)) continue;
 
     HyperedgeWeight weighted_degree = 0;
     for ( const HyperedgeID he : graph.incidentEdges(hn) ) {
@@ -217,7 +218,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     // steiner tree metric.
     HyperedgeWeight best_rating = std::numeric_limits<HyperedgeWeight>::max();
     bool best_is_balanced = false;
-    const HypernodeWeight node_weight = communication_hg.nodeWeight(u);
+    const auto node_weight = communication_hg.nodeWeight(u);
     for ( const PartitionID process : unassigned_processors_view ) {
       const bool is_balanced = !context.partition.use_individual_part_weights
         || node_weight <= context.partition.max_part_weights[process];
