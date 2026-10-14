@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/hash.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -57,7 +58,7 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeEmptyParts(PartitionedHypergra
   _is_empty.assign(_context.partition.k, false);
   _empty_parts.clear();
   for (PartitionID block = 0; block < _context.partition.k; ++block) {
-    if (phg.partWeight(block) == 0) {
+    if (weight::isZero(phg.partWeight(block))) {
       _is_empty[block] = true;
       _empty_parts.push_back(block);
     }
@@ -73,16 +74,17 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeEmptyParts(PartitionedHypergra
     // a part of the list. However, by sorting descending by part weight, this can't happen
     // since a move at position i + 1 is guaranteed to also fit in position i, and thus
     // can not be better than the move at position i (or it would be placed there).
+    // Note, this only works for the single-dimensional case.
     std::sort(_empty_parts.begin(), _empty_parts.end(), [&](PartitionID lhs, PartitionID rhs) {
       // deterministic tie breaking
-      return max_weights[lhs] > max_weights[rhs] || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
+      return weight::sum(max_weights[lhs]) > weight::sum(max_weights[rhs]) || (max_weights[lhs] == max_weights[rhs] && lhs < rhs);
     });
   }
 
   if (!_empty_parts.empty() && phg.numRemovedHypernodes() > 0) {
     // since some of the blocks can be filled by degree zero nodes at the end, we can throw
     // out all blocks that can be filled in this way
-    HypernodeWeight max_removed_weight = phg.maxWeightOfRemovedDegreeZeroNode();
+    HNWeightConstRef max_removed_weight = phg.maxWeightOfRemovedDegreeZeroNode();
     size_t last_fitting = 0;
     while (last_fitting < _empty_parts.size()
            && max_removed_weight <= max_weights[_empty_parts[last_fitting]]) {
@@ -123,8 +125,8 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeBestMovesBlockIndependent(Part
       const PartitionID from = phg.partID(hn);
 
       // skip weight zero nodes and if it is the only node in the block
-      const HypernodeWeight hn_weight = phg.nodeWeight(hn);
-      if (hn_weight == 0 || hn_weight == phg.partWeight(from)) return;
+      const HNWeightConstRef hn_weight = phg.nodeWeight(hn);
+      if (weight::isZero(hn_weight) || hn_weight == phg.partWeight(from)) return;
 
       // In case of independent blocks, we only need to compute the isolated block gain,
       // which is equal to the gain for any empty target block.
@@ -164,10 +166,10 @@ void RepairEmptyBlocks<GraphAndGainTypes>::computeBestMovesIndividualBlockGains(
   // find best available moves in parallel, accumulate locally
   phg.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID from = phg.partID(hn);
-    const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+    const HNWeightConstRef hn_weight = phg.nodeWeight(hn);
 
     // skip weight zero nodes and if it is the only node in the block
-    if (hn_weight == 0 || hn_weight == phg.partWeight(from)) return;
+    if (weight::isZero(hn_weight) || hn_weight == phg.partWeight(from)) return;
 
     // deterministically determine a target block for each node by hashing it
     hashing::SimpleIntHash<uint32_t> sih;

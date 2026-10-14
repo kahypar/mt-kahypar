@@ -68,7 +68,13 @@ private:
 
       DBG << "Start repair move computation:" << V(_empty_parts.size());
       if constexpr (GainComputation::is_independent_of_block) {
-        computeBestMovesBlockIndependent(phg);
+        if (phg.dimension() == 1 || !_context.partition.use_individual_part_weights) {
+          computeBestMovesBlockIndependent(phg);
+        } else {
+          // computeBestMovesBlockIndependent assumes the blocks can be sorted by weight,
+          // which does not hold for the multi-dimensional case
+          computeBestMovesIndividualBlockGains(phg, gain_computation);
+        }
       } else {
         computeBestMovesIndividualBlockGains(phg, gain_computation);
       }

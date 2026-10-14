@@ -33,6 +33,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
 
@@ -76,16 +77,17 @@ class DegreeZeroHypernodeRemover {
     // Sort degree-zero vertices in decreasing order of their weight
     tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
       [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs)
-                || (hypergraph.nodeWeight(lhs) == hypergraph.nodeWeight(rhs) && lhs > rhs);
+        const HNWeightScalar lhs_weight = weight::sum(hypergraph.nodeWeight(lhs));
+        const HNWeightScalar rhs_weight = weight::sum(hypergraph.nodeWeight(rhs));
+        return lhs_weight > rhs_weight || (lhs_weight == rhs_weight && lhs > rhs);
       });
     // Sort blocks of partition in increasing order of their weight
     auto distance_to_max = [&](const PartitionID block) {
-      if (!_context.partition.allow_empty_blocks && hypergraph.partWeight(block) == 0) {
+      if (!_context.partition.allow_empty_blocks && weight::isZero(hypergraph.partWeight(block))) {
         // repairing empty blocks gets highest priority
-        return -(_context.partition.max_part_weights[block] + hypergraph.totalWeight());
+        return -weight::sum(_context.partition.max_part_weights[block] + hypergraph.totalWeight());
       } else {
-        return hypergraph.partWeight(block) - _context.partition.max_part_weights[block];
+        return weight::sum(hypergraph.partWeight(block) - _context.partition.max_part_weights[block]);
       }
     };
     parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
@@ -96,6 +98,7 @@ class DegreeZeroHypernodeRemover {
       });
 
     // Perform Bin-Packing
+    // TODO: multi-constraint
     for ( const HypernodeID& hn : _removed_hns ) {
       PartitionID to = blocks.front();
       hypergraph.restoreDegreeZeroHypernode(hn, to);
