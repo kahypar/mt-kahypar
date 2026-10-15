@@ -24,6 +24,44 @@ namespace mt_kahypar::dyn {
           return 0;
         }
 
+
+      PartitionID move_node_to_best_partition(const HypernodeID& hn) {
+          const PartitionID current_part = partitioned_hypergraph_m.partID(hn);
+          ASSERT(current_part != kInvalidPartition);
+
+          // compute for each block the number of nodes the new node connected to
+          std::vector block_connectivities(context.partition.k, std::make_tuple(0,0));
+          for ( PartitionID p = 0; p < context.partition.k; ++p ) {
+            block_connectivities[p] = std::make_tuple(0, p);
+          }
+          for ( const HyperedgeID& he : hypergraph_m.incidentEdges(hn) ) {
+            ASSERT(partitioned_hypergraph_m.checkConnectivitySet(he, context.partition.k));
+            for ( const PartitionID& p : partitioned_hypergraph_m.connectivitySet(he) ) {
+              block_connectivities[p] = std::make_tuple(std::get<0>(block_connectivities[p]) + 1, p);
+            }
+          }
+
+          // sort block_connectivities in descending order
+          std::sort(block_connectivities.begin(), block_connectivities.end(), [](const auto& a, const auto& b) {
+            return std::get<0>(a) > std::get<0>(b);
+          });
+
+          //Add node to block with the highest connectivity if it doesn't violate max_part_weights (imbalance)
+          for (const auto& block_connectivity : block_connectivities) {
+            // TODO Why not stay if current is best?
+            if (std::get<1>(block_connectivity) != current_part)
+            {
+              if (partitioned_hypergraph_m.partWeight(std::get<1>(block_connectivity)) + hypergraph_m.nodeWeight(hn) <=
+                  context.partition.max_part_weights[std::get<1>(block_connectivity)]) {
+                partitioned_hypergraph_m.changeNodePart(hn, current_part,  std::get<1>(block_connectivity));
+                return std::get<1>(block_connectivity);
+              }
+            }
+          }
+          // if no other partition could accommodate the node, stay in current partition
+          return current_part;
+        }
+
         PartitionID getTargetPart(const HypernodeID& hn, const size_t stage) {
           const PartitionID current_part = partitioned_hypergraph_m.partID(hn);
           ASSERT(current_part != kInvalidPartition);
@@ -71,7 +109,7 @@ namespace mt_kahypar::dyn {
         ASSERT(metrics::isBalanced(partitioned_hypergraph_m, context));
         // ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
 
-        // Removals are not supported in streaming mode
+        // Removals are not supported by hermes
 
         ASSERT(change.removed_nodes.empty());
         ASSERT(change.removed_edges.empty());
@@ -96,6 +134,7 @@ namespace mt_kahypar::dyn {
         {
           hypergraph_m.addPin(edge, node);
           partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
+          // Move the node to the best partition
           // PartitionID target_part = getTargetPart(node, 0);
           // if (target_part != partitioned_hypergraph_m.partID(node))
           // {
@@ -105,6 +144,11 @@ namespace mt_kahypar::dyn {
 
         }
 
+        for (const HypernodeID& hn : change.added_nodes)
+        {
+          move_node_to_best_partition(hn);
+        }
+
         // only trigger the "lightweight" refiner every batch_size changes since e.g. orkut would take > 24h otherwise
         changed_weight += change.added_nodes.size() + change.removed_nodes.size();
         context.dynamic.simulate_opt_vcycle = true;
@@ -112,8 +156,6 @@ namespace mt_kahypar::dyn {
         {
           prior_total_weight += changed_weight;
           changed_weight = 0;
-
-          // for (const HypernodeID& hn : change.added_nodes)
           for (const HypernodeID& hn : hypergraph_m.nodes())
           {
             for (size_t stage = 1; stage <= 2; ++stage)
