@@ -13,10 +13,10 @@ namespace mt_kahypar::dyn {
 
         PartitionID assign_node_first_free_partition(const HypernodeID& hn) {
           for (PartitionID p = 0; p < context.partition.k; ++p) {
-            if (partitioned_hypergraph_m.partWeight(p) + hypergraph_m.nodeWeight(hn) <=
-                context.partition.max_part_weights[p]) {
-              partitioned_hypergraph_m.addNode(hn, p);
-              return p;
+            if (PartitionID p_prime = (p + hn) % context.partition.k; partitioned_hypergraph_m.partWeight(p_prime) + hypergraph_m.nodeWeight(hn) <=
+              context.partition.max_part_weights[p_prime]) {
+                  partitioned_hypergraph_m.addNode(hn, p_prime);
+                  return p_prime;
             }
           }
           // if no partition could accommodate the node put in the first
