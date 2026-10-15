@@ -38,29 +38,32 @@ if (NOT DEFINED BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS ON)
 endif()
 
+
 #################################################################
 ## Meta targets                                               ##
 #################################################################
 
+include(MtKaHyParHelpers)
+
 # meta targets for flags
-add_library(MtKaHyPar-BuildFlags INTERFACE)
+add_mtkahypar_library(MtKaHyPar-BuildFlags INTERFACE)
 target_compile_features(MtKaHyPar-BuildFlags INTERFACE cxx_std_20)
 
 # meta targets for includes and source files
-add_library(MtKaHyPar-Include INTERFACE)
+add_mtkahypar_library(MtKaHyPar-Include INTERFACE)
 target_include_directories(MtKaHyPar-Include INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(MtKaHyPar-Sources INTERFACE)
+add_mtkahypar_library(MtKaHyPar-Sources INTERFACE)
 
-add_library(MtKaHyPar-ToolsSources INTERFACE)
+add_mtkahypar_library(MtKaHyPar-ToolsSources INTERFACE)
 
 # meta target for CLI/test build
-add_library(MtKaHyPar-BuildSources OBJECT "")
+add_mtkahypar_library(MtKaHyPar-BuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-BuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-BuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 
 # meta target for library build, which must be built with all features enabled
-add_library(MtKaHyPar-LibraryBuildSources OBJECT "")
+add_mtkahypar_library(MtKaHyPar-LibraryBuildSources OBJECT "")
 target_link_libraries(MtKaHyPar-LibraryBuildSources PRIVATE MtKaHyPar-Sources)
 target_link_libraries(MtKaHyPar-LibraryBuildSources PUBLIC MtKaHyPar-Include MtKaHyPar-BuildFlags)
 target_compile_definitions(MtKaHyPar-LibraryBuildSources PUBLIC MT_KAHYPAR_LIBRARY_MODE
@@ -159,7 +162,6 @@ if(KAHYPAR_ENABLE_THREAD_PINNING AND KAHYPAR_DISABLE_HWLOC)
   set(KAHYPAR_ENABLE_THREAD_PINNING FALSE CACHE STRING "" FORCE)
 endif()
 
-include(CopyDeps)
 if(UNIX)
   include(CheckIncludeFiles)
   set(CMAKE_REQUIRED_QUIET TRUE)
@@ -463,7 +465,7 @@ if (KAHYPAR_ENABLE_TESTING)
   FetchContent_MakeAvailable(googletest)
   include(gmock)
 
-  add_library(MtKaHyPar-Test INTERFACE)
+  add_mtkahypar_library(MtKaHyPar-Test INTERFACE)
   target_link_libraries(MtKaHyPar-Test INTERFACE gmock gtest gtest_main)
 endif()
 if (KAHYPAR_ENABLE_TESTING OR KAHYPAR_PYTHON)
@@ -539,7 +541,7 @@ add_subdirectory(dependencies)
 add_subdirectory(mt-kahypar)
 
 # export target for C interface
-add_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
+add_mtkahypar_library(MtKaHyPar::mtkahypar ALIAS mtkahypar)
 
 
 #################################################################

@@ -1,7 +1,7 @@
 if(BUILD_SHARED_LIBS)
-  add_library(mtkahypar SHARED mtkahypar.cpp)
+  add_mtkahypar_library(mtkahypar SHARED mtkahypar.cpp)
 else()
-  add_library(mtkahypar STATIC mtkahypar.cpp)
+  add_mtkahypar_library(mtkahypar STATIC mtkahypar.cpp)
 endif()
 target_link_libraries(mtkahypar PRIVATE MtKaHyPar-LibraryBuildSources)
 target_include_directories(mtkahypar INTERFACE

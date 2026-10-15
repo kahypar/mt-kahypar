@@ -21,7 +21,7 @@ if(NOT TARGET ${HWLOC_TARGET_NAME})
     if(HWLOC_LINK_STATICALLY)
         set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
     endif()
-    add_library(hwloc INTERFACE IMPORTED)
+    add_mtkahypar_library(hwloc INTERFACE IMPORTED)
 
     find_hwloc_path()
     if(NOT HWLOC_FOUND AND HWLOC_LINK_STATICALLY)
@@ -60,5 +60,5 @@ if(NOT TARGET ${HWLOC_TARGET_NAME})
     endif()
 
     # actual target for outside use
-    add_library(${HWLOC_TARGET_NAME} ALIAS hwloc)
+    add_mtkahypar_library(${HWLOC_TARGET_NAME} ALIAS hwloc)
 endif()
