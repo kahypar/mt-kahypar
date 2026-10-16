@@ -27,6 +27,8 @@
 
 #include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 
+#include <atomic>
+
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
@@ -74,7 +76,7 @@ void IncidentEdgeIterator::traverse_headers() {
   skip_invalid();
   while ( _current_pos >= _current_size ) {
     const HypernodeID last_u = _current_u;
-    _current_u = _dynamic_adjacency_array->header(last_u).it_next;
+    _current_u = _dynamic_adjacency_array->header(last_u).get_it_next();
     _current_pos -= _current_size;
     _current_size = _dynamic_adjacency_array->header(_current_u).size();
     // It can happen that due to a contraction the current vertex
@@ -82,7 +84,7 @@ void IncidentEdgeIterator::traverse_headers() {
     // changes. Therefore, we set the end flag if we reach the current
     // head of the list or it_next is equal with the current vertex (means
     // that list becomes empty due to a contraction)
-    if ( _dynamic_adjacency_array->header(_current_u).is_head ||
+    if ( parallel::atomic_load(_dynamic_adjacency_array->header(_current_u).is_head, std::memory_order_relaxed) ||
          last_u == _current_u ) {
       _end = true;
       break;
@@ -93,7 +95,7 @@ void IncidentEdgeIterator::traverse_headers() {
 
 void IncidentEdgeIterator::skip_invalid() {
   while (_current_pos < _current_size &&
-         !_dynamic_adjacency_array->edge(**this).isValid()) {
+         !_dynamic_adjacency_array->edge(**this).isValidAtomic()) {
     ++_current_pos;
   }
 }
@@ -137,7 +139,7 @@ void EdgeIterator::traverse_headers() {
 
 void EdgeIterator::skip_invalid() {
   while (_current_id < _current_last_id &&
-         !_dynamic_adjacency_array->edge(**this).isValid()) {
+         !_dynamic_adjacency_array->edge(**this).isValidAtomic()) {
     ++_current_id;
   }
 }
@@ -198,8 +200,8 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     Header& head = header(u);
     head.prev = u;
     head.next = u;
-    head.it_prev = u;
-    head.it_next = u;
+    head.set_it_prev(u);
+    head.set_it_next(u);
     head.degree = (u == _num_nodes) ? 0 : incident_net_prefix_sum[u + 1] - incident_net_prefix_sum[u];
     head.first = incident_net_prefix_sum[u];
     head.first_active = head.first;
@@ -237,14 +239,16 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
     const HyperedgeID last = firstInactiveEdge(current_v);
     for ( HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < last; ++curr_edge ) {
       Edge& e = edge(curr_edge);
-      if (e.isValid() && e.isSinglePin()) {
+      const bool is_valid = e.isValidAtomic();
+      if (is_valid && e.isSinglePin()) {
         ASSERT(e.source == v);
         e.disable();
-        --head_v.degree;
-      } else if (e.isValid()) {
-        ASSERT(e.source == v && edge(e.back_edge).target == v);
-        e.source = u;
-        edge(e.back_edge).target = u;
+        std::atomic_ref(head_v.degree).fetch_sub(1, std::memory_order_relaxed);
+      } else if (is_valid) {
+        auto back_target = std::atomic_ref(edge(e.back_edge).target);
+        ASSERT(e.source == v && back_target.load(std::memory_order_relaxed) == v);
+        std::atomic_ref(e.source).store(u, std::memory_order_relaxed);
+        back_target.store(u, std::memory_order_relaxed);
       }
     }
   }
@@ -252,7 +256,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
   acquire_lock(u);
   // Concatenate double-linked list of u and v
   append(u, v);
-  header(u).degree += head_v.degree;
+  std::atomic_ref(header(u).degree).fetch_add(head_v.degree, std::memory_order_relaxed);
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 }
@@ -272,7 +276,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
                                        const CaseTwoFunc& case_two_func,
                                        const AcquireLockFunc& acquire_lock,
                                        const ReleaseLockFunc& release_lock) {
-  ASSERT(header(v).prev != v);
+  // ASSERT(header(v).prev != v);
   Header& head_u = header(u);
   Header& head_v = header(v);
   acquire_lock(u);
@@ -293,14 +297,14 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       ASSERT(e.source == u || !e.isValid());
       if (e.source == u) {
         bool singlePin = false;
-        if (e.target == u) {
+        if (std::atomic_ref(e.target).load(std::memory_order_relaxed) == u) {
           // If we use a gain cache, it is necessary to correctly attribute
           // which uncontraction changes an edge from single pin to two pins.
           // To achieve this, we introduce a synchronization point with mark_edge.
           singlePin = !mark_edge(curr_edge);
         }
         e.source = v;
-        edge(e.back_edge).target = v;
+        std::atomic_ref(edge(e.back_edge).target).store(v, std::memory_order_relaxed);
         if (singlePin) {
           case_one_func(curr_edge);
         } else {
@@ -390,8 +394,8 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
     }
 
     if (head.size() == 0 && !head.is_head) {
-      head.it_next = u;
-      head.it_prev = u;
+      head.set_it_next(u);
+      head.set_it_prev(u);
     }
   });
 
@@ -576,15 +580,15 @@ void DynamicAdjacencyArray::append(const HypernodeID u, const HypernodeID v) {
   header(tail_v).next = u;
   header(u).prev = tail_v;
 
-  const HypernodeID it_tail_u = header(u).it_prev;
-  const HypernodeID it_tail_v = header(v).it_prev;
-  header(it_tail_u).it_next = v;
-  header(v).it_prev = it_tail_u;
-  header(it_tail_v).it_next = u;
-  header(u).it_prev = it_tail_v;
+  const HypernodeID it_tail_u = header(u).get_it_prev();
+  const HypernodeID it_tail_v = header(v).get_it_prev();
+  header(it_tail_u).set_it_next(v);
+  header(v).set_it_prev(it_tail_u);
+  header(it_tail_v).set_it_next(u);
+  header(u).set_it_prev(it_tail_v);
 
   header(v).tail = tail_v;
-  header(v).is_head = false;
+  std::atomic_ref(header(v).is_head).store(false, std::memory_order_relaxed);
 
   if ( header(v).size() == 0 ) {
     removeEmptyIncidentEdgeList(v);
@@ -607,8 +611,8 @@ void DynamicAdjacencyArray::splice(const HypernodeID u, const HypernodeID v) {
           non_empty_entry_next_tail != u ) {
     non_empty_entry_next_tail = header(non_empty_entry_next_tail).next;
   }
-  header(non_empty_entry_prev_v).it_next = non_empty_entry_next_tail;
-  header(non_empty_entry_next_tail).it_prev = non_empty_entry_prev_v;
+  header(non_empty_entry_prev_v).set_it_next(non_empty_entry_next_tail);
+  header(non_empty_entry_next_tail).set_it_prev(non_empty_entry_prev_v);
 
   // Cut out incident list of v
   const HypernodeID prev_v = header(v).prev;
@@ -624,10 +628,10 @@ void DynamicAdjacencyArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
   ASSERT(!header(u).is_head);
   ASSERT(header(u).size() == 0, V(u) << V(header(u).size()));
   Header& head = header(u);
-  header(head.it_prev).it_next = head.it_next;
-  header(head.it_next).it_prev = head.it_prev;
-  head.it_next = u;
-  head.it_prev = u;
+  header(head.get_it_prev()).set_it_next(head.get_it_next());
+  header(head.get_it_next()).set_it_prev(head.get_it_prev());
+  head.set_it_next(u);
+  head.set_it_prev(u);
 }
 
 void DynamicAdjacencyArray::restoreIteratorPointers(const HypernodeID u) {
@@ -643,10 +647,10 @@ void DynamicAdjacencyArray::restoreIteratorPointers(const HypernodeID u) {
 }
 
 void DynamicAdjacencyArray::restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current) {
-  header(prev).it_next = current;
-  header(current).it_prev = prev;
-  header(current).it_next = u;
-  header(u).it_prev = current;
+  header(prev).set_it_next(current);
+  header(current).set_it_prev(prev);
+  header(current).set_it_next(u);
+  header(u).set_it_prev(current);
 }
 
 bool DynamicAdjacencyArray::verifyIteratorPointers(const HypernodeID u) const {
@@ -655,17 +659,17 @@ bool DynamicAdjacencyArray::verifyIteratorPointers(const HypernodeID u) const {
   do {
     if ( header(current_u).size() > 0 || current_u == u ) {
       if ( last_non_empty_entry != kInvalidHypernode ) {
-        if ( header(current_u).it_prev != last_non_empty_entry ) {
+        if ( header(current_u).get_it_prev() != last_non_empty_entry ) {
           return false;
-        } else if ( header(last_non_empty_entry).it_next != current_u ) {
+        } else if ( header(last_non_empty_entry).get_it_next() != current_u ) {
           return false;
         }
       }
       last_non_empty_entry = current_u;
     } else {
-      if ( header(current_u).it_next != current_u ) {
+      if ( header(current_u).get_it_next() != current_u ) {
         return false;
-      } else if ( header(current_u).it_prev != current_u ) {
+      } else if ( header(current_u).get_it_prev() != current_u ) {
         return false;
       }
     }
@@ -673,9 +677,9 @@ bool DynamicAdjacencyArray::verifyIteratorPointers(const HypernodeID u) const {
     current_u = header(current_u).next;
   } while(current_u != u);
 
-  if ( header(u).it_prev != last_non_empty_entry ) {
+  if ( header(u).get_it_prev() != last_non_empty_entry ) {
     return false;
-  } else if ( header(last_non_empty_entry).it_next != u ) {
+  } else if ( header(last_non_empty_entry).get_it_next() != u ) {
     return false;
   }
 

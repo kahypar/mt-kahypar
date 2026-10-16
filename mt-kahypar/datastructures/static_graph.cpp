@@ -28,17 +28,18 @@
 
 #include "static_graph.h"
 
+#include <algorithm>
+#include <atomic>
+
+#include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
+
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/hypergraph_utils.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
-
-#include <algorithm>
-
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_sort.h>
 
 
 namespace mt_kahypar::ds {
@@ -84,7 +85,7 @@ namespace mt_kahypar::ds {
 
     doParallelForAllNodes([&](const HypernodeID& node) {
       ASSERT(static_cast<size_t>(communities[node]) < mapping.size());
-      mapping[communities[node]] = UL(1);
+      std::atomic_ref(mapping[communities[node]]).store(1, std::memory_order_relaxed);
     });
 
     // Prefix sum determines vertex ids in coarse graph
@@ -312,7 +313,7 @@ namespace mt_kahypar::ds {
           edge.setWeight(tmp_edge.getWeight());
           hypergraph._unique_edge_ids[edges_start + index] = tmp_edge.getID();
           ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
-          edge_id_mapping[tmp_edge.getID()] = UL(1);
+          std::atomic_ref(edge_id_mapping[tmp_edge.getID()]).store(1, std::memory_order_relaxed);
         };
 
         if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD / 8) {
@@ -335,7 +336,8 @@ namespace mt_kahypar::ds {
     }, [&] {
       hypergraph._community_ids.resize(coarsened_num_nodes);
       doParallelForAllNodes([&](HypernodeID fine_node) {
-        hypergraph.setCommunityID(map_to_coarse_graph(fine_node), communityID(fine_node));
+        std::atomic_ref(hypergraph._community_ids[map_to_coarse_graph(fine_node)])
+          .store(communityID(fine_node), std::memory_order_relaxed);
       });
     });
 

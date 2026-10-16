@@ -238,7 +238,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
     if (best_cluster != from) {
       _cluster_volumes[best_cluster] += volU;
       _cluster_volumes[from] -= volU;
-      communities[u] = best_cluster;
+      std::atomic_ref(communities[u]).store(best_cluster, std::memory_order_relaxed);
       ++local_number_of_nodes_moved.local();
     }
   };

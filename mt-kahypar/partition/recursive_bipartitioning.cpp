@@ -324,6 +324,7 @@ namespace rb {
             << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n";
         recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, already_cut, 1.0);
       }
+      phg.resetEdgeSynchronization();
     }
   }
 }
@@ -365,13 +366,11 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
         }
       }
     });
-    phg.resetEdgeSynchronization();
     DBG << "Recursive Bipartitioning Result -"
         << "k =" << (k1 - k0)
         << "Objective =" << metrics::quality(phg, context)
         << "Imbalance =" << metrics::imbalance(phg, rb_context)
         << "(Target Imbalance =" << rb_context.partition.epsilon << ")";
-
   }
 }
 
