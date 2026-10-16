@@ -114,6 +114,15 @@ using NLevelTypeTraitsList = kahypar::meta::Typelist<ENABLE_HIGHEST_QUALITY(Dyna
   ENABLE_HIGHEST_QUALITY(template FUNC(DynamicPartitionedHypergraph);)       \
   ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template FUNC(DynamicPartitionedGraph);)
 
+#define INSTANTIATE_FUNC_WITH_ONLY_PARTITIONED_HYPERGRAPH(FUNC)              \
+  template FUNC(StaticPartitionedHypergraph);                                \
+  ENABLE_LARGE_K(template FUNC(StaticSparsePartitionedHypergraph);)          \
+  ENABLE_HIGHEST_QUALITY(template FUNC(DynamicPartitionedHypergraph);)
+
+#define INSTANTIATE_FUNC_WITH_PARTITIONED_GRAPH(FUNC)                        \
+  ENABLE_GRAPHS(template FUNC(StaticPartitionedGraph);)                      \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template FUNC(DynamicPartitionedGraph);)
+
 #define INSTANTIATE_CLASS_WITH_PARTITIONED_HG(C)                                \
   template class C<StaticPartitionedHypergraph>;                                \
   ENABLE_GRAPHS(template class C<StaticPartitionedGraph>;)                      \
