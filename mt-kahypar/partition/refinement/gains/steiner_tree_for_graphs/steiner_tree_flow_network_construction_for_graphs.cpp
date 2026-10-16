@@ -95,6 +95,6 @@ namespace {
   const X&, const Context&, const HyperedgeID, const PartitionID, const PartitionID)
 }
 
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(GET_PARAMETERS)
+INSTANTIATE_FUNC_WITH_PARTITIONED_GRAPH(GET_PARAMETERS)
 
 }  // namespace mt_kahypar
