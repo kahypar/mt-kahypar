@@ -28,6 +28,7 @@
 #pragma once
 
 #include <cstdint>
+#include <stdint.h>
 #include <limits>
 
 #include "include/mtkahypartypes.h"

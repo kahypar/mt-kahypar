@@ -27,7 +27,7 @@
 #pragma once
 
 #include <vector>
-#include <cstdint>
+#include <stdint.h>
 #include <functional>
 #include <algorithm>
 #include <cassert>

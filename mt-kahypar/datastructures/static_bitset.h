@@ -28,7 +28,7 @@
 
 #include <atomic>
 #include <bit>
-#include <cstdint>
+#include <stdint.h>
 #include <limits>
 
 #include "mt-kahypar/macros.h"

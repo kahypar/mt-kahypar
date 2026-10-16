@@ -2,7 +2,7 @@
 #define UPDATE_FCTS_H
 
 #include <atomic>
-#include <cstdint>
+#include <stdint.h>
 #include <type_traits>
 
 namespace growt

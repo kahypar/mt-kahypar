@@ -28,7 +28,7 @@
 #pragma once
 
 #include <bit>
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef MT_KAHYPAR_MSVC_USE_POPCNT_INTRINSICS
 #include <intrin.h>

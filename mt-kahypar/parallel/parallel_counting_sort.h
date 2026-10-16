@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 #include <functional>
 #include <iostream>
 #include <numeric>

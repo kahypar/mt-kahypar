@@ -25,7 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <cstdint>
+#include <stdint.h>
 #include <vector>
 
 #include <tbb/parallel_reduce.h>

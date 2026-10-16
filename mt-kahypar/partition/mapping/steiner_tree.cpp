@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <cstdint>
+#include <stdint.h>
 
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/partition/mapping/steiner_tree.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
+#include <stdint.h>
 #include <string>
 #include <string_view>
 
