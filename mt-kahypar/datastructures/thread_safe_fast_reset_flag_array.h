@@ -29,7 +29,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
-#include <cstdint>
+#include <stdint.h>
 #include <cstring>
 #include <limits>
 #include <vector>

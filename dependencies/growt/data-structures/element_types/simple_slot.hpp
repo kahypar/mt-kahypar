@@ -5,7 +5,7 @@
 #include <atomic>
 #include <bit>
 #include <cstddef>
-#include <cstdint>
+#include <stdint.h>
 #include <functional>
 #include <limits>
 #include <stdlib.h>

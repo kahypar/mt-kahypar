@@ -29,7 +29,7 @@
 
 #include <iostream>
 #include <string>
-#include <cstdint>
+#include <stdint.h>
 
 #include "include/mtkahypartypes.h"
 #include "mt-kahypar/macros.h"

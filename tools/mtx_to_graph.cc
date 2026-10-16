@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include <cstdint>
+#include <stdint.h>
 #include <sstream>
 #include <vector>
 #include <algorithm>

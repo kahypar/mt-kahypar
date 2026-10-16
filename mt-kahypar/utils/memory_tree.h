@@ -29,7 +29,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <cstdint>
+#include <stdint.h>
 
 namespace mt_kahypar::utils {
 
