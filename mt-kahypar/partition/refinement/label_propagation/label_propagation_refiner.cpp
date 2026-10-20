@@ -271,6 +271,8 @@ namespace mt_kahypar {
       ASSERT(m.isValid());
       bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[m.node];
       if (old_part_unintialized || m.from == _old_part[m.node]) {
+        ASSERT(!_next_active[m.node]);
+        _next_active.set(m.node, true);
         size_t i = _active_nodes.size();
         _active_nodes.push_back(m.node);
         _active_node_was_moved[i] = uint8_t(true);
