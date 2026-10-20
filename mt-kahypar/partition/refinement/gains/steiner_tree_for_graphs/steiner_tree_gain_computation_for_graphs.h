@@ -95,10 +95,14 @@ class GraphSteinerTreeGainComputation : public GainComputationBase<GraphSteinerT
       _all_blocks : _local_adjacent_blocks.local();
     ds::StaticBitset adjacent_blocks_view(
       adjacent_blocks.numBlocks(), adjacent_blocks.data());
-    adjacent_blocks.set(from);
+    if (!consider_non_adjacent_blocks) {
+      adjacent_blocks.set(from);
+    }
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
       const PartitionID block_of_target = phg.partID(phg.edgeTarget(he));
-      adjacent_blocks.set(block_of_target);
+      if (!consider_non_adjacent_blocks) {
+        adjacent_blocks.set(block_of_target);
+      }
       incident_edge_weights[block_of_target] += phg.edgeWeight(he);
     }
 

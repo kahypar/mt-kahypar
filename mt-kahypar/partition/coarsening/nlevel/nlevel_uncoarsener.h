@@ -28,14 +28,13 @@
 
 #pragma once
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
-
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/utils/progress_bar.h"
 
 namespace mt_kahypar {
@@ -167,7 +166,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   std::unique_ptr<IRefiner> _global_fm;
 
   ds::StreamingVector<HypernodeID> _tmp_refinement_nodes;
-  kahypar::ds::FastResetFlagArray<> _border_vertices_of_batch;
+  ds::ThreadSafeFastResetFlagArray<> _border_vertices_of_batch;
 
   NLevelStats _stats;
   utils::ProgressBar _progress;

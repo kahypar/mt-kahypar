@@ -36,8 +36,8 @@
 
 #include "kahypar-resources/macros.h"
 #include "kahypar-resources/meta/mandatory.h"
-
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -49,7 +49,7 @@ class ConcurrentFlatMap {
   struct MapElement {
     Key key;
     Value value;
-    int32_t timestamp;
+    CAtomic<int32_t> timestamp;
   };
 
  public:
@@ -101,20 +101,19 @@ class ConcurrentFlatMap {
   Value& operator[] (const Key key) {
     size_t hash = key & ( _map_size - 1 );
     MapElement* elem = &_map[hash];
-    int32_t expected = elem->timestamp;
+    int32_t expected = elem->timestamp.load(std::memory_order::acquire);
     int32_t desired = _threshold - 1;
     while ( ! ( expected == _threshold && elem->key == key ) ) {
-      if ( expected < desired &&
-           std::atomic_ref(elem->timestamp)
-               .compare_exchange_strong(expected, desired, std::memory_order::acq_rel, std::memory_order::relaxed) ) {
+      if ( expected < desired && elem->timestamp
+               .compare_exchange_strong(expected, desired, std::memory_order::relaxed, std::memory_order::relaxed) ) {
         elem->key = key;
         elem->value = Value();
-        elem->timestamp = _threshold;
+        elem->timestamp.store(_threshold, std::memory_order_release);
         break;
       }
       hash = find(key, hash + 1);
       elem = &_map[hash];
-      expected = elem->timestamp;
+      expected = elem->timestamp.load(std::memory_order::acquire);
     }
 
     return elem->value;
@@ -123,14 +122,14 @@ class ConcurrentFlatMap {
   Value* get_if_contained(const Key key) {
     size_t hash = find(key, key & ( _map_size - 1 ));
     MapElement* elem = &_map[hash];
-    return elem->timestamp == _threshold && elem->key == key ? &elem->value : nullptr;
+    return elem->timestamp.load(std::memory_order::acquire) == _threshold && elem->key == key ? &elem->value : nullptr;
   }
 
   void clear() {
     if ( _threshold >= std::numeric_limits<int32_t>::max() - 2 ) {
       _threshold = 0;
       for ( size_t i = 0; i < _map_size; ++i ) {
-        _map[i].timestamp = 0;
+        _map[i].timestamp.store(0, std::memory_order_relaxed);
       }
     }
     _threshold += 2;
@@ -147,7 +146,7 @@ class ConcurrentFlatMap {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t find(const Key key,
                                                  const size_t start_hash) const {
     size_t hash = start_hash & ( _map_size - 1 );
-    while ( _map[hash].timestamp == _threshold ) {
+    while ( _map[hash].timestamp.load(std::memory_order::acquire) == _threshold ) {
       if ( _map[hash].key == key ) {
         return hash;
       }

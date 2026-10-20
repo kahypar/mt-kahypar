@@ -152,10 +152,10 @@ class ActiveBlockScheduler {
   // ! Minimum improvement per round to continue with next round
   HyperedgeWeight _min_improvement_per_round;
   // ! If true, then search is immediatly terminated
-  bool _terminate;
+  CAtomic<bool> _terminate;
   // ! First Active Round
   SpinLock _round_lock;
-  size_t _first_active_round;
+  CAtomic<size_t> _first_active_round;
   // ! Indicate if the current hypergraph represents the input hypergraph
   bool _is_input_hypergraph;
 };

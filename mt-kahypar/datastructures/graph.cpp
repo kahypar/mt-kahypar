@@ -27,6 +27,7 @@
 
 #include "graph.h"
 
+#include <atomic>
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
@@ -130,7 +131,9 @@ namespace mt_kahypar::ds {
   Graph Graph::contract_low_memory(Clustering& communities) {
     // map cluster IDs to consecutive range
     vec<NodeID> mapping(numNodes(), 0);   // TODO use memory pool?
-    tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
+    tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) {
+      std::atomic_ref(mapping[communities[u]]).store(1, std::memory_order_relaxed);
+    });
     parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
     NodeID num_coarse_nodes = mapping[numNodes() - 1];
     // apply mapping to cluster IDs. subtract one because prefix sum is inclusive
@@ -242,7 +245,7 @@ namespace mt_kahypar::ds {
     ds::Array<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
     tbb::parallel_for(ID(0), static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       ASSERT(static_cast<size_t>(communities[u]) < _num_nodes);
-      mapping[communities[u]] = UL(1);
+      std::atomic_ref(mapping[communities[u]]).store(1, std::memory_order_relaxed);
       tmp_pos[u] = 0;
       tmp_indices[u] = 0;
       coarse_node_volumes[u].store(0.0);

@@ -77,17 +77,18 @@ public:
   SpinLock& operator=(const SpinLock&) { spinner.clear(std::memory_order_relaxed); return *this; }
 
   bool tryLock() {
-    return !spinner.test_and_set(std::memory_order_acquire);
+    return !spinner.test(std::memory_order_relaxed) && !spinner.test_and_set(std::memory_order_acquire);
   }
 
   void lock() {
-    while (spinner.test_and_set(std::memory_order_acquire)) {
+    while (spinner.test(std::memory_order_relaxed) || spinner.test_and_set(std::memory_order_acquire)) {
       // spin
       // stack overflow says adding 'cpu_relax' instruction may improve performance
     }
   }
 
   void unlock() {
+    ASSERT(spinner.test(std::memory_order_relaxed), "Tried to unlock SpinLock that was not locked!");
     spinner.clear(std::memory_order_release);
   }
 
@@ -254,6 +255,7 @@ class IntegralAtomicWrapper {
 template <typename T>
 T atomic_load(const T &value,
                     std::memory_order order = std::memory_order_seq_cst) {
+  // this is required since some compilers don't support std::atomic_ref with a const type
   return std::atomic_ref<T>(const_cast<T &>(value)).load(order);
 }
 
