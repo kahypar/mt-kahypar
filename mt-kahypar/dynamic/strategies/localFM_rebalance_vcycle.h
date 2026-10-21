@@ -17,8 +17,8 @@ namespace mt_kahypar::dyn {
         vec<Gain>& _benefit_aggregator;
         IncrementalRebalancer _rebalancer;
         HyperedgeWeight prior_total_weight = 0;
-        double changed_weight = 0;
-        double weight_delta = 0;
+        HyperedgeWeight changed_weight = 0;
+        HyperedgeWeight weight_delta = 0;
         size_t change_count = 0;
         size_t _fm_num_nodes = 0;
         size_t _fm_num_edges = 0;
