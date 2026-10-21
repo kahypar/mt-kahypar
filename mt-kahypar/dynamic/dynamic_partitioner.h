@@ -9,6 +9,7 @@
 #include "mt-kahypar/dynamic/competitors/hermes.h"
 #include "mt-kahypar/dynamic/competitors/leopard.h"
 #include "mt-kahypar/dynamic/strategies/greedy.h"
+#include "mt-kahypar/dynamic/strategies/greedy_vcycle.h"
 #include "mt-kahypar/partition/registries/registry.h"
 
 namespace mt_kahypar::dyn {
@@ -77,6 +78,8 @@ namespace mt_kahypar::dyn {
       strategy = new Greedy(hypergraph_m, context);
     } else if (context.dynamic.strategy == "greedy_streaming") {
       strategy = new GreedyStreaming(hypergraph_m, context);
+    } else if (context.dynamic.strategy == "greedy_vcycle") {
+      strategy = new GreedyVCycle(hypergraph_m, context);
     } else {
       throw std::runtime_error("Unknown dynamic strategy: " + context.dynamic.strategy);
     }
