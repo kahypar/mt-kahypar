@@ -18,6 +18,7 @@ namespace mt_kahypar::dyn {
         IncrementalRebalancer _rebalancer;
         HyperedgeWeight prior_total_weight = 0;
         double changed_weight = 0;
+        double weight_delta = 0;
         size_t change_count = 0;
         size_t _fm_num_nodes = 0;
         size_t _fm_num_edges = 0;
@@ -234,6 +235,7 @@ namespace mt_kahypar::dyn {
           _rebalancer.init(partitioned_hypergraph_m, context, _gain_cache, _benefit_aggregator);
           prior_total_weight = hypergraph_m.totalWeight();
           changed_weight = 0;
+          weight_delta = 0;
           return partitioned_hypergraph_m;
         }
 
@@ -507,6 +509,7 @@ namespace mt_kahypar::dyn {
         ASSERT(context.dynamic.incremental_km1 == metrics::quality(partitioned_hypergraph_m, Objective::km1), context.dynamic.incremental_km1 << " vs. " << metrics::quality(partitioned_hypergraph_m, Objective::km1));
 
         changed_weight += change.added_nodes.size() + change.removed_nodes.size();
+        weight_delta += change.added_nodes.size() - change.removed_nodes.size();
         // TODO fix weight change calculation
         // std::cout << "changed weight: " << changed_weight << " prior total weight: " << prior_total_weight << " change count: " << change_count << " changes size: " << changes_size << std::endl;
           if ((changed_weight > context.dynamic.vcycle_step_size_pct * prior_total_weight && change_count <= changes_size * (static_cast<float>(context.dynamic.stop_vcycle_at_pct) / 100)) || (context.dynamic.simulate_opt_vcycle && change_count == changes_size)) {
@@ -557,10 +560,12 @@ namespace mt_kahypar::dyn {
             }
 
             context.partition.num_vcycles = 0;
-            if (context.dynamic.changing_total_weight)
-            {
-              prior_total_weight += changed_weight;
-            }
+            // if (context.dynamic.changing_total_weight)
+            // {
+            //   prior_total_weight += changed_weight;
+            // }
+            prior_total_weight += weight_delta;
+            weight_delta = 0;
             changed_weight = 0;
 
             // std::cout << "Verifying v-cycle partition for " << hypergraph_m.initialNumNodes() << " nodes." << std::endl;
