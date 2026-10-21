@@ -6,7 +6,7 @@
 
 namespace mt_kahypar::dyn {
 
-    class Greedy : public DynamicStrategy {
+    class GreedyStreaming : public DynamicStrategy {
 
     private:
       std::vector<PartitionID> partition_assignment;
@@ -16,11 +16,14 @@ namespace mt_kahypar::dyn {
       bool first_change = true;
     public:
 
-      Greedy(ds::MutableHypergraph& hypergraph_m, Context& context)
-          : DynamicStrategy(hypergraph_m, context) {}
-      
+      GreedyStreaming(ds::MutableHypergraph& hypergraph_m, Context& context)
+        : DynamicStrategy(hypergraph_m, context), global_partition_weight(0)
+      {
+      }
+
         MutablePartitionedHypergraph& init() override {
-            partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
+          partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
+          context.dynamic.incremental_km1 = metrics::quality(partitioned_hypergraph_m, Objective::km1);
           ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
           partition_connectivities = std::vector<size_t>(context.partition.k, 0);
           partition_weights = std::vector<HypernodeWeight>(context.partition.k, 0);
