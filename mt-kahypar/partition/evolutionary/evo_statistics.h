@@ -39,9 +39,12 @@ struct OffspringEvent {
   HyperedgeWeight parent_best_fitness;
   HyperedgeWeight fitness;
   size_t dist_to_parent;
+  size_t strong_dist_to_parent;
   bool was_accepted;
   int64_t dist_to_replaced;  // -1 if not accepted
+  int64_t strong_dist_to_replaced; //-1 if not accepted
   size_t min_dist_pop;
+  size_t strong_min_dist_pop;
   int replaced_slot;  // -1 if not accepted
 };
 

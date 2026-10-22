@@ -128,6 +128,12 @@ class Individual {
   inline void setDistToParent(size_t dist) {
     _dist_to_parent = dist;
   }
+  inline size_t strongDistToParent() const {
+    return _strong_dist_to_parent;
+  }
+  inline void setStrongDistToParent(size_t dist) {
+    _strong_dist_to_parent = dist;
+  }
   inline void print() const {
     LOG << "Fitness:" << _fitness << " Origin:" << _origin_operator << " Born:" << _birth_iteration;
   }
@@ -163,6 +169,7 @@ class Individual {
   std::string _origin_operator = "Initial";
   HyperedgeWeight _parent_best_fitness = 0;
   size_t _dist_to_parent = 0;
+  size_t _strong_dist_to_parent = 0;
 };
 std::ostream& operator<< (std::ostream& os, const Individual& individual);
 using Individuals = std::vector<std::shared_ptr<Individual>>;

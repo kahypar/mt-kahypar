@@ -69,7 +69,7 @@ void EvoRunLog::writeOffspringLog() const {
   if (!logsOffspring()) return;
   std::ofstream out(_offspring_log_file, std::ios::out | std::ios::trunc);
   out << "iteration,timestamp_ms,operator,parent_best_km1,offspring_km1,fitness_delta,dist_to_parent,"
-         "dist_to_replaced,min_dist_pop,was_accepted,was_new_best,replaced_slot\n";
+         "dist_to_replaced,min_dist_pop,was_accepted,was_new_best,replaced_slot,strong_dist_to_parent,strong_dist_to_replaced,strong_min_dist_pop\n";
   for (const OffspringLogEntry& entry : _offspring) {
     const OffspringEvent& e = entry.event;
     out << e.iteration << ","
@@ -83,7 +83,10 @@ void EvoRunLog::writeOffspringLog() const {
         << e.min_dist_pop << ","
         << (e.was_accepted ? 1 : 0) << ","
         << (entry.was_new_best ? 1 : 0) << ","
-        << e.replaced_slot << "\n";
+        << e.replaced_slot << ","
+        << e.strong_dist_to_parent << ","
+        << e.strong_dist_to_replaced << ","
+        << e.strong_min_dist_pop << "\n";
   }
 }
 

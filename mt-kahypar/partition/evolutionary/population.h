@@ -48,7 +48,9 @@ namespace mt_kahypar {
         size_t position = std::numeric_limits<size_t>::max();
         bool was_accepted = false;
         int64_t dist_to_replaced = -1;
+        int64_t strong_dist_to_replaced = -1;
         size_t min_dist_pop = 0;
+        size_t strong_min_dist_pop = 0;
     };
 
     class Population {

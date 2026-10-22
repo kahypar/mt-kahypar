@@ -328,12 +328,12 @@ namespace mt_kahypar {
         evolutionary::EvoRunLog& log,
         int iteration,
         evolutionary::EvoOperator op,
-        HyperedgeWeight parent_best_fitness,
-        size_t dist_to_parent) {
+        HyperedgeWeight parent_best_fitness) {
         individual->setBirthIteration(iteration);
         individual->setOriginOperator(evolutionary::operatorName(op));
         individual->setParentBestFitness(parent_best_fitness);
-        individual->setDistToParent(dist_to_parent);
+        size_t dist_to_parent = individual->distToParent();
+        size_t strong_dist_to_parent = individual->strongDistToParent();
         const long long ts_ms = evolutionary::currentTimestampMs();
         const HyperedgeWeight offspring_fit = individual->fitness();
         const InsertionDetails ins_details = population.insertWithDetails(std::move(individual), context);
@@ -345,9 +345,12 @@ namespace mt_kahypar {
             parent_best_fitness,
             offspring_fit,
             dist_to_parent,
+            strong_dist_to_parent,
             ins_details.was_accepted,
             ins_details.dist_to_replaced,
+            ins_details.strong_dist_to_replaced,
             ins_details.min_dist_pop,
+            ins_details.strong_min_dist_pop,
             ins_details.was_accepted ? static_cast<int>(ins_details.position) : -1
         };
         const bool was_new_best = stats.recordOffspring(event);
@@ -376,6 +379,7 @@ namespace mt_kahypar {
         std::shared_ptr<Individual> child;
         HyperedgeWeight parent_best_fit = 0;
         size_t dist = 0;
+        size_t strong_dist = 0;
 
         switch (combine_strategy) {
             case EvoCombineStrategy::basic: {
@@ -391,6 +395,7 @@ namespace mt_kahypar {
                 child = combine::combineParentsWithVCycle<TypeTraits>(parent_partitions, best_partition, context, target_graph, input_hg);
                 if (best_individual && child) {
                     dist = Population::distanceBetween(*best_individual, *child, false);
+                    strong_dist = Population::distanceBetween(*best_individual, *child, true);
                 }
                 break;
             }
@@ -400,6 +405,7 @@ namespace mt_kahypar {
                 child = combine::usingMultiEdgeFrequency<TypeTraits>(input_hg, population, context, target_graph, rng);
                 if (best_ind && child) {
                     dist = Population::distanceBetween(*best_ind, *child, false);
+                    strong_dist = Population::distanceBetween(*best_ind, *child, true);
                 }
                 break;
             }
@@ -412,6 +418,7 @@ namespace mt_kahypar {
                 child = combine::usingSyntheticSecondParent<TypeTraits>(input_hg, population, target_graph, modified_combine_params, context, rng);
                 if (best_ind && child) {
                     dist = Population::distanceBetween(*best_ind, *child, false);
+                    strong_dist = Population::distanceBetween(*best_ind, *child, true);
                 }
                 break;
             }
@@ -421,8 +428,9 @@ namespace mt_kahypar {
         if (child) {
             child->setParentBestFitness(parent_best_fit);
             child->setDistToParent(dist);
+            child->setStrongDistToParent(strong_dist);
         }
-        return { child, combine_strategy, parent_best_fit, dist };
+        return { child, combine_strategy, parent_best_fit};
     }
 
     template<typename TypeTraits>
@@ -451,14 +459,17 @@ namespace mt_kahypar {
                 throw UnsupportedOperationException("Next Mutation Strategy is UNDEFINED");
         }
         size_t dist = 0;
+        size_t strong_dist = 0;
         if (parent_ind && child) {
             dist = Population::distanceBetween(*parent_ind, *child, false);
+            strong_dist = Population::distanceBetween(*parent_ind, *child, true);
         }
         if (child) {
             child->setParentBestFitness(parent_fit);
             child->setDistToParent(dist);
+            child->setStrongDistToParent(strong_dist);
         }
-        return { child, mutate_strategy, parent_fit, dist };
+        return { child, mutate_strategy, parent_fit};
     }
 
     inline void disableTimerAndStatsEvo(const Context& context) {
@@ -617,19 +628,19 @@ namespace mt_kahypar {
                         switch (decision) {
                             case EvoDecision::mutation:
                                 {
-                                    auto mut_result = performMutation(hg_copy, evo_context, target_graph, population);
+                                    const MutationResult mut_result = performMutation(hg_copy, evo_context, target_graph, population);
                                     insert_individual_into_population(mut_result.individual, evo_context, population, stats, log,
                                         total_iterations.load() + 1, evolutionary::toEvoOperator(mut_result.strategy),
-                                        mut_result.parent_best_fitness, mut_result.dist_to_parent);
+                                        mut_result.parent_best_fitness);
                                     total_iterations++;
                                     break;
                                 }
                             case EvoDecision::combine:
                                 {
-                                    const CombineResult result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
-                                    insert_individual_into_population(result.individual, evo_context, population, stats, log,
-                                        total_iterations.load() + 1, evolutionary::toEvoOperator(result.strategy),
-                                        result.parent_best_fitness, result.dist_to_parent);
+                                    const CombineResult comb_result = performCombine(hg_copy, evo_context, target_graph, population, modified_combine_params);
+                                    insert_individual_into_population(comb_result.individual, evo_context, population, stats, log,
+                                        total_iterations.load() + 1, evolutionary::toEvoOperator(comb_result.strategy),
+                                        comb_result.parent_best_fitness);
                                     total_iterations++;
                                     break;
                                 }
@@ -735,9 +746,8 @@ namespace mt_kahypar {
                             for (size_t i = 0; i < batch_size; ++i) {
                                 const int current_batch_start_id = batch_id * batch_size;
                                 HyperedgeWeight p_fit = batch_individuals[i]->parentBestFitness();
-                                size_t p_dist = batch_individuals[i]->distToParent();
                                 insert_individual_into_population(std::make_unique<Individual>(std::move(*batch_individuals[i])), evo_context, population, stats, log,
-                                    current_batch_start_id + static_cast<int>(i) + 1, batch_operators[i], p_fit, p_dist);
+                                    current_batch_start_id + static_cast<int>(i) + 1, batch_operators[i], p_fit);
                             }
 
                             // Deterministic stopping criterion evaluation at batch boundaries

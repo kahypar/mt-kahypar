@@ -38,11 +38,15 @@ InsertionDetails Population::insertWithDetails(std::shared_ptr<Individual> indiv
         individuals_copy = _individuals;
       }
       size_t min_pop_dist = std::numeric_limits<size_t>::max();
+      size_t strong_min_pop_dist = std::numeric_limits<size_t>::max();
       for (size_t i = 0; i < individuals_copy.size(); ++i) {
         size_t d = distanceBetween(*individual, *individuals_copy[i], false);
+        size_t sd = distanceBetween(*individual, *individuals_copy[i], true);
         if (d < min_pop_dist) min_pop_dist = d;
+        if (sd < strong_min_pop_dist) strong_min_pop_dist = sd;
       }
       details.min_dist_pop = (min_pop_dist == std::numeric_limits<size_t>::max()) ? 0 : min_pop_dist;
+      details.strong_min_dist_pop = (strong_min_pop_dist == std::numeric_limits<size_t>::max()) ? 0 : strong_min_pop_dist;
 
       DBG << context.evolutionary.replace_strategy;
       size_t insert_position;
@@ -72,6 +76,7 @@ InsertionDetails Population::insertWithDetails(std::shared_ptr<Individual> indiv
         std::lock_guard<std::mutex> guard(_population_mutex);
         if (individuals_copy[insert_position] == _individuals[insert_position]) {
           details.dist_to_replaced = static_cast<int64_t>(distanceBetween(*individual, *_individuals[insert_position], false));
+          details.strong_dist_to_replaced = static_cast<int64_t>(distanceBetween(*individual, *_individuals[insert_position], true));
           accepted_replacement.fetch_add(1, std::memory_order_relaxed);
           details.position = forceInsert(individual, insert_position);
           details.was_accepted = true;

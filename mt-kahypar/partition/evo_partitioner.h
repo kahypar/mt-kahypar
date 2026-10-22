@@ -26,14 +26,12 @@ struct CombineResult {
   std::shared_ptr<Individual> individual;
   EvoCombineStrategy strategy;
   HyperedgeWeight parent_best_fitness = 0;
-  size_t dist_to_parent = 0;
 };
 
 struct MutationResult {
   std::shared_ptr<Individual> individual;
   EvoMutateStrategy strategy;
   HyperedgeWeight parent_best_fitness = 0;
-  size_t dist_to_parent = 0;
 };
 
 template<typename TypeTraits>
@@ -85,8 +83,7 @@ class EvoPartitioner : public Partitioner<TypeTraits> {
         evolutionary::EvoRunLog& log,
         int iteration,
         evolutionary::EvoOperator op,
-        HyperedgeWeight parent_best_fitness,
-        size_t dist_to_parent);
+        HyperedgeWeight parent_best_fitness);
     static void reportStatistics(const Context& context,
                                  const evolutionary::EvoStatistics& stats,
                                  const Population& population,
