@@ -7,28 +7,27 @@ namespace mt_kahypar::dyn {
     class Hashing : public DynamicStrategy {
 
     private:
-
-        PartitionID hash_assign(const HypernodeID& hn) {
-          for (PartitionID p = 0; p < context.partition.k; ++p) {
-            if (PartitionID p_prime = (p + hn) % context.partition.k; partitioned_hypergraph_m.partWeight(p_prime) + hypergraph_m.nodeWeight(hn) <=
-                context.partition.max_part_weights[p_prime]) {
-              partitioned_hypergraph_m.addNode(hn, p_prime);
-              return p_prime;
-            }
-          }
-          // if no partition could accommodate the node put in the first
-          partitioned_hypergraph_m.addNode(hn, 0);
-          return 0;
-        }
+      std::vector<PartitionID> partition_assignment;
+      HypernodeWeight global_partition_weight;
+      bool first_change = true;
 
     public:
 
       Hashing(ds::MutableHypergraph& hypergraph_m, Context& context)
-          : DynamicStrategy(hypergraph_m, context) {}
-      
-        MutablePartitionedHypergraph& init() override {
-            partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
+        : DynamicStrategy(hypergraph_m, context), global_partition_weight(0)
+      {
+      }
+
+      MutablePartitionedHypergraph& init() override {
+          partitioned_hypergraph_m = partition_hypergraph_km1(hypergraph_m, context);
+          context.dynamic.incremental_km1 = metrics::quality(partitioned_hypergraph_m, Objective::km1);
           ASSERT(partitioned_hypergraph_m.checkAllConnectivitySets());
+           global_partition_weight = 0;
+          for (HypernodeID hn = 0; hn < 100; ++hn)
+          {
+            partition_assignment.push_back(partitioned_hypergraph_m.partID(hn));
+            global_partition_weight++;
+          }
           return partitioned_hypergraph_m;
         }
 
@@ -43,31 +42,31 @@ namespace mt_kahypar::dyn {
           ASSERT(change.removed_edges.empty());
           ASSERT(change.removed_pins.empty());
 
+          // if (first_change) {
+          //   first_change = false;
+          //   partition_assignment.reserve(changes_size);
+          // }
+
           for (const HypernodeID& hn : change.added_nodes) {
-            const HypernodeID new_hn = hypergraph_m.addHypernode({}, 1);
-            (void) new_hn;
-            ASSERT(hn == new_hn);
-            updateMaxPartWeight(context, hypergraph_m);
-            const PartitionID assigned_part = hash_assign(hn);
-            (void) assigned_part;
-            ASSERT(assigned_part != kInvalidPartition);
+            PartitionID part = hn % context.partition.k;
+            partition_assignment.push_back(part);
           }
 
-          for (const HyperedgeID& he : change.added_edges) {
-            hypergraph_m.addHyperedge({}, 1);
-            partitioned_hypergraph_m.addEdge(he);
-          }
-
-          for (const auto& [node, edge] : change.added_pins)
-          {
-            hypergraph_m.addPin(edge, node);
-            partitioned_hypergraph_m.incrementPinCountOfBlockWrapper(edge, partitioned_hypergraph_m.partID(node));
-          }
       }
-        void printAdditionalFinalStats() override {
-            assert(context.dynamic.incremental_km1 == mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1) && ("Error: incremental_km1 does not match the quality metric. " + std::to_string(context.dynamic.incremental_km1) + " " + std::to_string(mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1))).c_str());
-            std::cout << std::endl << "Final km1: " << context.dynamic.incremental_km1 << " Real km1: " << mt_kahypar::metrics::quality(partitioned_hypergraph_m, Objective::km1) << std::endl;
-          }
 
+      void printAdditionalFinalStats() override {
+        // write partitioning to context.partition.graph_partition_filename
+        // auto filename = context.partition.graph_partition_filename;
+        // if (filename.empty()) {
+        //   throw InvalidInputException("No filename for output partition file specified");
+        // }
+        // std::cout << "Writing final partitioning to file: " << filename << std::endl;
+        // std::ofstream out_stream(filename.c_str());
+        // for (const PartitionID p : partition_assignment)
+        // {
+        //   out_stream << p << std::endl;
+        // }
+        // out_stream.close();
+      }
     };
 }
