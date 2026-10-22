@@ -105,6 +105,7 @@ namespace mt_kahypar::dyn {
       size_t log_step_size = num_changes * context.dynamic.logging_step_size_pct;
 
       auto duration_sum = std::chrono::high_resolution_clock::duration::zero();
+      auto max_time_per_change = std::chrono::high_resolution_clock::duration::zero();
       auto change_io_duration_sum = std::chrono::high_resolution_clock::duration::zero();
       auto log_duration_sum = std::chrono::high_resolution_clock::duration::zero();
 
@@ -119,7 +120,8 @@ namespace mt_kahypar::dyn {
             continue;
           }
           duration_sum += std::chrono::high_resolution_clock::now() - start_io;
-          log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
+          max_time_per_change = std::max(max_time_per_change, std::chrono::high_resolution_clock::now() - start_io);
+          log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum, max_time_per_change);
           start_io = std::chrono::high_resolution_clock::now();
         }
       } else {
@@ -132,11 +134,12 @@ namespace mt_kahypar::dyn {
           strategy->partition(change, num_changes);
           auto duration = std::chrono::high_resolution_clock::now() - start;
           duration_sum += duration;
+          max_time_per_change = std::max(max_time_per_change, duration);
           if (log_step_size != 0 && i % log_step_size != 0 && i != num_changes - 1) {
             continue;
           }
           HighResClockTimepoint start_log = std::chrono::high_resolution_clock::now();
-          log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum);
+          log_km1_live(i+1, num_changes, context, DynamicStrategy::getPartitionedHypergraphCopy(*strategy), duration_sum, max_time_per_change);
           log_duration_sum += std::chrono::high_resolution_clock::now() - start_log;
         }
       }
