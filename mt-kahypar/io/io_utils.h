@@ -306,9 +306,7 @@ vec<LineRange> split_lines(char* mapped_file,
       delta_pos = line_positions[line_index].first - start_pos;
     } while (line_index + 1 < line_positions.size() && delta_pos < bytes_per_range);
 
-    if (delta_pos > 0) {
-      result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index, line_in_file });
-    }
+    result.push_back(LineRange{ start_pos, start_pos + delta_pos, start_index, line_index - start_index, line_in_file });
   }
   ASSERT(result.size() <= num_ranges);
   ASSERT(result.empty() || result.back().end == line_positions.back().first);
