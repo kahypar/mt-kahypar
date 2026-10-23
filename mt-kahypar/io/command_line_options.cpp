@@ -231,6 +231,11 @@ namespace mt_kahypar {
       "Fixed vertex file: allows to pre-assign vertices to a block."
     )->check(CLI::ExistingFile);
     app.add_option(
+      "--input-partition",
+      context.partition.input_partition_filename,
+      "Input partition file: improves the given partition with V-cycles instead of partitioning from scratch."
+    )->check(CLI::ExistingFile);
+    app.add_option(
       "--part-weights",
       context.partition.max_part_weights,
       "Use the specified individual part weights instead of epsilon."

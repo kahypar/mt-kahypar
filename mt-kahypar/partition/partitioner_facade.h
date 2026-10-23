@@ -43,6 +43,11 @@ class PartitionerFacade {
                                                        Context& context,
                                                        TargetGraph* target_graph = nullptr);
 
+  // ! Reads a partition from file and applies it to the hypergraph
+  static mt_kahypar_partitioned_hypergraph_t readPartitionFile(mt_kahypar_hypergraph_t hypergraph,
+                                                               const Context& context,
+                                                               const std::string& filename);
+
   // ! Improves a given partition
   static void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                       Context& context,
