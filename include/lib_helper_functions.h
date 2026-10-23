@@ -399,12 +399,12 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
           StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, edge_weights, vertex_weights, true))), STATIC_GRAPH };
+            edge_vector, {}, edge_weights, vertex_weights, true))), STATIC_GRAPH };
     case PresetType::highest_quality:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
           DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, edge_weights, vertex_weights, true))), DYNAMIC_GRAPH };
+            edge_vector, {}, edge_weights, vertex_weights, true))), DYNAMIC_GRAPH };
     case PresetType::UNDEFINED:
       break;
   }

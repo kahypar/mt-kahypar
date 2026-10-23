@@ -31,6 +31,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <numeric>
 #include <thread>
 #include <memory>
 #include <vector>
@@ -323,7 +325,8 @@ namespace mt_kahypar::io {
                     const bool has_vertex_weights,
                     vec<EdgeT>& edges,
                     vec<HyperedgeWeight>& edges_weight,
-                    vec<HypernodeWeight>& vertices_weight) {
+                    vec<HypernodeWeight>& vertices_weight,
+                    vec<HyperedgeID>& node_degree_prefix_sum) {
     vec<LineRange> line_ranges;
     vec<vec<EdgeT>> local_edges;
     vec<vec<HyperedgeWeight>> local_edges_weight;
@@ -344,7 +347,11 @@ namespace mt_kahypar::io {
       if ( has_vertex_weights ) {
         vertices_weight.resize(num_vertices);
       }
+    }, [&] {
+        node_degree_prefix_sum.resize(num_vertices + 1);
     });
+
+    vec<HyperedgeID> range_degree_offsets(line_ranges.size());
 
     // Process all ranges in parallel, build edge vector and assign weights
     tbb::parallel_for(UL(0), line_ranges.size(), [&](const size_t i) {
@@ -357,6 +364,7 @@ namespace mt_kahypar::io {
       const size_t current_end = range.end;
       HypernodeID current_vertex_id = range.line_start_index;
       const HypernodeID last_vertex_id = current_vertex_id + range.num_lines;
+      HyperedgeID local_vertex_degree_prefix_sum = 0;
 
       while ( current_vertex_id < last_vertex_id ) {
         // Skip Comments
@@ -391,11 +399,36 @@ namespace mt_kahypar::io {
           } else if ( has_edge_weights ) {
             read_number<HyperedgeWeight>(mapped_file, current_pos, current_line, current_end, "edge weight");
           }
+
+          local_vertex_degree_prefix_sum++;
         }
         do_line_ending(mapped_file, current_pos, current_line);
         ++current_vertex_id;
+
+        // store local prefix sum of next vertex
+        node_degree_prefix_sum[current_vertex_id] = local_vertex_degree_prefix_sum;
       }
+      range_degree_offsets[i] = local_vertex_degree_prefix_sum;
+      node_degree_prefix_sum[current_vertex_id] = 0;
     });
+
+    // final prefix degree scan
+    if (!line_ranges.empty()) {
+      std::inclusive_scan(std::cbegin(range_degree_offsets),
+                          std::cend(range_degree_offsets),
+                          std::begin(range_degree_offsets));
+      tbb::parallel_for(UL(1), line_ranges.size(), [&](const size_t i) {
+        const HyperedgeID prefix_offset = range_degree_offsets[i - 1];
+        const LineRange &range = line_ranges[i];
+        for (size_t vertex_id = range.line_start_index;
+             vertex_id < range.line_start_index + range.num_lines;
+             ++vertex_id) {
+          node_degree_prefix_sum[vertex_id] += prefix_offset;
+        }
+      });
+      // set total number of degrees
+      node_degree_prefix_sum.back() = range_degree_offsets.back();
+    }
 
     // finally, we copy the local edge lists to the global list
     size_t actual_num_edges = copy_to_global_list(local_edges, edges);
@@ -425,7 +458,8 @@ namespace mt_kahypar::io {
                      HypernodeID& num_vertices,
                      vec<EdgeT>& edges,
                      vec<HyperedgeWeight>& edges_weight,
-                     vec<HypernodeWeight>& vertices_weight) {
+                     vec<HypernodeWeight>& vertices_weight,
+                     vec<HyperedgeID>& node_degree_prefix_sum) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
@@ -439,7 +473,7 @@ namespace mt_kahypar::io {
 
     // Read Vertices
     readVertices(handle.mapped_file, pos, current_line, handle.length, num_edges, num_vertices,
-      has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
+      has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight, node_degree_prefix_sum);
 
     // Check the end of the file
     while ( handle.mapped_file[pos] == '%' ) {
@@ -517,13 +551,15 @@ namespace mt_kahypar::io {
                               HypernodeID& num_hypernodes,
                               HyperedgeVector& hyperedges,
                               vec<HyperedgeWeight>& hyperedges_weight,
-                              vec<HypernodeWeight>& hypernodes_weight);
+                              vec<HypernodeWeight>& hypernodes_weight,
+                              vec<HyperedgeID>& node_degrees);
 
   template void readGraphFile(const std::string& filename,
                               HyperedgeID& num_hyperedges,
                               HypernodeID& num_hypernodes,
                               EdgeVector& hyperedges,
                               vec<HyperedgeWeight>& hyperedges_weight,
-                              vec<HypernodeWeight>& hypernodes_weight);
+                              vec<HypernodeWeight>& hypernodes_weight,
+                              vec<HyperedgeID>& node_degrees);
 
 } // namespace

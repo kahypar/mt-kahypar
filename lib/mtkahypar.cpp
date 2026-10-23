@@ -367,7 +367,8 @@ mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_conte
   TargetGraph* target_graph = nullptr;
   try {
     ds::StaticGraph graph = StaticGraphFactory::construct_from_graph_edges(
-      num_vertices, num_edges, edge_vector, edge_weights, nullptr, true);
+        num_vertices, num_edges, edge_vector, {},
+        edge_weights, nullptr, true);
     target_graph = new TargetGraph(std::move(graph));
   } catch ( std::exception& ex ) {
     *error = to_error(ex);

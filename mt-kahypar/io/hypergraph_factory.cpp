@@ -164,14 +164,17 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   HypernodeID num_vertices = 0;
   vec<HyperedgeWeight> edges_weight;
   vec<HypernodeWeight> nodes_weight;
+  vec<HyperedgeID> node_degree_prefix_sum;
   if (type == STATIC_GRAPH || type == DYNAMIC_GRAPH) {
     EdgeVector edges;
-    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
+    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight,
+                  nodes_weight, node_degree_prefix_sum);
     return constructGraph(type, num_vertices, num_edges, edges,
                           edges_weight, nodes_weight, stable_construction);
   } else {
     HyperedgeVector edges;
-    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
+    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight,
+                  nodes_weight, node_degree_prefix_sum);
     return constructHypergraph(type, num_vertices, num_edges, edges,
                                edges_weight, nodes_weight, 0, stable_construction);
   }

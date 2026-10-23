@@ -54,7 +54,8 @@ namespace io {
                      HypernodeID& num_hypernodes,
                      vec<EdgeT>& hyperedges,
                      vec<HyperedgeWeight>& hyperedges_weight,
-                     vec<HypernodeWeight>& hypernodes_weight);
+                     vec<HypernodeWeight>& hypernodes_weight,
+                     vec<HyperedgeID>& node_degrees);
 
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, std::vector<PartitionID>& partition);
   void readPartitionFile(const std::string& filename, HypernodeID num_nodes, PartitionID* partition);

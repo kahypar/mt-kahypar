@@ -63,9 +63,11 @@ int main(int argc, char* argv[]) {
   io::HyperedgeVector hyperedges;
   vec<HyperedgeWeight> hyperedges_weight;
   vec<HypernodeWeight> hypernodes_weight;
+  vec<HyperedgeID> hypernodes_degrees;
 
   io::readGraphFile(graph_filename, num_edges, num_nodes,
-                    hyperedges, hyperedges_weight, hypernodes_weight);
+                    hyperedges, hyperedges_weight, hypernodes_weight,
+                    hypernodes_degrees);
   ALWAYS_ASSERT(hyperedges.size() == num_edges);
 
   // Write header
