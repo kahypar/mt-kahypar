@@ -131,8 +131,18 @@ int run(int argc, char* argv[]) {
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
-    PartitionerFacade::partition(hypergraph, context, target_graph.get());
+  mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph { nullptr, NULLPTR_PARTITION };
+  if ( context.partition.input_partition_filename != "" ) {
+    // Improve a given partition with V-cycles
+    partitioned_hypergraph = PartitionerFacade::readPartitionFile(
+      hypergraph, context, context.partition.input_partition_filename);
+    if ( context.partition.num_vcycles == 0 ) {
+      context.partition.num_vcycles = 1;
+    }
+    PartitionerFacade::improve(partitioned_hypergraph, context, target_graph.get());
+  } else {
+    partitioned_hypergraph = PartitionerFacade::partition(hypergraph, context, target_graph.get());
+  }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats

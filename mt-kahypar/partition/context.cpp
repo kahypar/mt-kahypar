@@ -49,6 +49,9 @@ namespace mt_kahypar {
     if ( params.fixed_vertex_filename != "" ) {
       str << "  Fixed Vertex File:                  " << params.fixed_vertex_filename << std::endl;
     }
+    if ( params.input_partition_filename != "" ) {
+      str << "  Input Partition File:               " << params.input_partition_filename << std::endl;
+    }
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }

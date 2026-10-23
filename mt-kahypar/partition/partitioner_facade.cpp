@@ -27,6 +27,8 @@
 
 #include "mt-kahypar/partition/partitioner_facade.h"
 
+#include "tbb/parallel_for.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -53,6 +55,28 @@ namespace internal {
     // Partition Hypergraph
     PartitionedHypergraph partitioned_hg =
       Partitioner<TypeTraits>::partition(hg, context, target_graph);
+
+    return mt_kahypar_partitioned_hypergraph_t {
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
+  }
+
+  template<typename TypeTraits>
+  mt_kahypar_partitioned_hypergraph_t read_partition_file(mt_kahypar_hypergraph_t hypergraph,
+                                                          const Context& context,
+                                                          const std::string& filename) {
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
+
+    std::vector<PartitionID> partition;
+    io::readPartitionFile(filename, hg.initialNumNodes(), partition);
+
+    PartitionedHypergraph partitioned_hg(context.partition.k, hg, parallel_tag_t { });
+    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID& hn) {
+      partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+    });
+    partitioned_hg.initializePartition();
 
     return mt_kahypar_partitioned_hypergraph_t {
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
@@ -121,6 +145,38 @@ namespace internal {
       #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context, target_graph);
+      #endif
+      default:
+        return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+    }
+    return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+  }
+
+
+  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::readPartitionFile(mt_kahypar_hypergraph_t hypergraph,
+                                                                           const Context& context,
+                                                                           const std::string& filename) {
+    const mt_kahypar_partition_type_t type = to_partition_c_type(
+      context.partition.preset_type, context.partition.instance_type);
+    internal::check_if_feature_is_enabled(type);
+    switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case MULTILEVEL_GRAPH_PARTITIONING:
+        return internal::read_partition_file<StaticGraphTypeTraits>(hypergraph, context, filename);
+      #endif
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+        return internal::read_partition_file<StaticHypergraphTypeTraits>(hypergraph, context, filename);
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+      case LARGE_K_PARTITIONING:
+        return internal::read_partition_file<LargeKHypergraphTypeTraits>(hypergraph, context, filename);
+      #endif
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case N_LEVEL_GRAPH_PARTITIONING:
+        return internal::read_partition_file<DynamicGraphTypeTraits>(hypergraph, context, filename);
+      #endif
+      case N_LEVEL_HYPERGRAPH_PARTITIONING:
+        return internal::read_partition_file<DynamicHypergraphTypeTraits>(hypergraph, context, filename);
       #endif
       default:
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
