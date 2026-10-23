@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <span>
+
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/dynamic_graph.h"
@@ -55,9 +57,11 @@ class DynamicGraphFactory {
   // ! Provides a more performant construction method by using continuous space for the edges
   // ! (instead of a separate vec per edge).
   // ! No backwards edges allowed, i.e. each edge is unique
+  // ! @param node_degree_prefix_sum exclusive prefix sum of degrees with the last element being the total.
   static DynamicGraph construct_from_graph_edges(const HypernodeID num_nodes,
                                                 const HyperedgeID num_edges,
                                                 const EdgeVector& edge_vector,
+                                                std::span<const HyperedgeID> node_degree_prefix_sum = {},
                                                 const HyperedgeWeight* edge_weight = nullptr,
                                                 const HypernodeWeight* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);

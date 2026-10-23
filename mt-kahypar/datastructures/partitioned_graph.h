@@ -958,7 +958,7 @@ private:
 
     // Construct hypergraph
     extracted_block.hg = HypergraphFactory::construct_from_graph_edges(
-      num_nodes, num_edges, edge_vector, edge_weight.data(), node_weight.data(),
+      num_nodes, num_edges, edge_vector, {}, edge_weight.data(), node_weight.data(),
       stable_construction_of_incident_edges);
 
     // Set community ids
@@ -1083,7 +1083,7 @@ private:
       const HypernodeID num_nodes = nodes_cnt[p];
       const HyperedgeID num_edges = edges_cnt[p];
       extracted_blocks[p].hg = HypergraphFactory::construct_from_graph_edges(
-        num_nodes, num_edges, edge_vector[p], edge_weight[p].data(), node_weight[p].data(),
+        num_nodes, num_edges, edge_vector[p], {}, edge_weight[p].data(), node_weight[p].data(),
         stable_construction_of_incident_edges);
     });
 

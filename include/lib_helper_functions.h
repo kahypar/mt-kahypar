@@ -32,6 +32,8 @@
 #include <sstream>
 #include <type_traits>
 
+#include "mt-kahypar/datastructures/graph_factory_utils.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mtkahypartypes.h"
 
 #include "mt-kahypar/definitions.h"
@@ -386,9 +388,16 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const mt_kahypar_hyperedge_id_t num_edges,
                                      const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
                                      const mt_kahypar_hyperedge_weight_t* edge_weights,
-                                     const mt_kahypar_hypernode_weight_t* vertex_weights) {
+                                     const mt_kahypar_hypernode_weight_t* vertex_weights,
+                                     const HyperedgeID* vertex_degrees) {
   check_overflow<HypernodeID>(num_vertices, "number of nodes");
   check_overflow<HyperedgeID>(num_edges, "number of edges");
+
+  vec<HyperedgeID> vertex_degree_prefix_sum;
+  if (vertex_degrees) {
+      vertex_degree_prefix_sum = ds::compute_degree_prefix_sum_from_degrees(
+          vertex_degrees, num_vertices, num_edges);
+  }
 
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
@@ -396,15 +405,21 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
     case PresetType::large_k:
     case PresetType::default_preset:
     case PresetType::quality:
-      return mt_kahypar_hypergraph_t {
-        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
-          StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, {}, edge_weights, vertex_weights, true))), STATIC_GRAPH };
+      return mt_kahypar_hypergraph_t{
+          reinterpret_cast<mt_kahypar_hypergraph_s *>(new ds::StaticGraph(
+              StaticGraphFactory::construct_from_graph_edges(
+                  num_vertices, num_edges, edge_vector,
+                  vertex_degree_prefix_sum, edge_weights, vertex_weights,
+                  true))),
+          STATIC_GRAPH};
     case PresetType::highest_quality:
-      return mt_kahypar_hypergraph_t {
-        reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
-          DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
-            edge_vector, {}, edge_weights, vertex_weights, true))), DYNAMIC_GRAPH };
+      return mt_kahypar_hypergraph_t{
+          reinterpret_cast<mt_kahypar_hypergraph_s *>(new ds::DynamicGraph(
+              DynamicGraphFactory::construct_from_graph_edges(
+                  num_vertices, num_edges, edge_vector,
+                  vertex_degree_prefix_sum, edge_weights, vertex_weights,
+                  true))),
+          DYNAMIC_GRAPH};
     case PresetType::UNDEFINED:
       break;
   }

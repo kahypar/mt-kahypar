@@ -27,8 +27,10 @@
 
 #include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 
+#include <span>
+
+#include "mt-kahypar/datastructures/graph_factory_utils.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -142,29 +144,13 @@ void EdgeIterator::skip_invalid() {
   }
 }
 
-void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
+void DynamicAdjacencyArray::construct(const EdgeVector &edge_vector,
+                                      std::span<const HyperedgeID> node_degree_prefix_sum,
+                                      const HyperedgeWeight *edge_weight) {
   // Accumulate degree of each vertex thread local
   const HyperedgeID num_edges = edge_vector.size();
-  ThreadLocalCounter local_incident_nets_per_vertex(_num_nodes + 1, 0);
-  Array<HyperedgeID> node_degrees;
   AtomicCounter current_incident_net_pos;
   tbb::parallel_invoke([&] {
-    tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
-      const HypernodeID pins[2] = {edge_vector[pos].first, edge_vector[pos].second};
-      if (pins[0] == pins[1]) {
-        throw InvalidInputException("Edge " + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
-      }
-
-      parallel::scalable_vector<size_t>& num_incident_nets_per_vertex =
-        local_incident_nets_per_vertex.local();
-      for (const HypernodeID& pin: pins) {
-        if (pin >= _num_nodes) {
-          throw InvalidInputException("Edge " + STR(pos) + " points to invalid node: " + STR(pin));
-        }
-        ++num_incident_nets_per_vertex[pin];
-      }
-    });
-  }, [&] {
     _header_array.resize(_num_nodes + 1);
   }, [&] {
     _edges.resize(2 * num_edges);
@@ -173,25 +159,18 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   }, [&] {
     _edge_mapping.resize(2 * num_edges);
   }, [&] {
-    node_degrees.resize(_num_nodes);
-  }, [&] {
     current_incident_net_pos.assign(
       _num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
   });
 
-  // We sum up the number of incident nets per vertex only thread local.
-  // To obtain the global number of incident nets per vertex, we iterate
-  // over each thread local counter and sum it up.
-  for ( const parallel::scalable_vector<size_t>& c : local_incident_nets_per_vertex ) {
-    tbb::parallel_for(ID(0), _num_nodes, [&](const size_t pos) {
-      node_degrees[pos] += c[pos];
-    });
+  vec<HyperedgeID> node_degree_prefix_sum_fallback;
+  if (node_degree_prefix_sum.empty()) {
+    node_degree_prefix_sum_fallback =
+        compute_degree_prefix_sum_from_edge_vector(edge_vector, _num_nodes,
+                                                   num_edges);
+    node_degree_prefix_sum = node_degree_prefix_sum_fallback;
   }
-
-  // Compute start positon of the incident nets of each vertex via a parallel prefix sum
-  parallel::TBBPrefixSum<HyperedgeID, Array> incident_net_prefix_sum(node_degrees);
-  tbb::parallel_scan(tbb::blocked_range<size_t>(
-          ID(0), ID(_num_nodes)), incident_net_prefix_sum);
+  ASSERT(node_degree_prefix_sum.size() == _num_nodes + 1 && node_degree_prefix_sum.back() == 2 * num_edges);
 
   // Setup Header of each vertex
   tbb::parallel_for(ID(0), _num_nodes + 1, [&](const HypernodeID u) {
@@ -200,8 +179,8 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     head.next = u;
     head.it_prev = u;
     head.it_next = u;
-    head.degree = (u == _num_nodes) ? 0 : incident_net_prefix_sum[u + 1] - incident_net_prefix_sum[u];
-    head.first = incident_net_prefix_sum[u];
+    head.degree = (u == _num_nodes) ? 0 : node_degree_prefix_sum[u + 1] - node_degree_prefix_sum[u];
+    head.first = node_degree_prefix_sum[u];
     head.first_active = head.first;
     head.first_inactive = head.first + head.degree;
     head.is_head = true;

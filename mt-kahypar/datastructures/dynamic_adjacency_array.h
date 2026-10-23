@@ -28,6 +28,7 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 
 #include <tbb/enumerable_thread_specific.h>
 
@@ -268,6 +269,7 @@ class DynamicAdjacencyArray {
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
                         const EdgeVector& edge_vector,
+                        std::span<const HyperedgeID> node_degree_prefix_sum = {},
                         const HyperedgeWeight* edge_weight = nullptr) :
     _num_nodes(num_nodes),
     _header_array(),
@@ -275,7 +277,7 @@ class DynamicAdjacencyArray {
     _thread_local_vec(),
     _removable_edges(),
     _edge_mapping() {
-    construct(edge_vector, edge_weight);
+    construct(edge_vector, node_degree_prefix_sum, edge_weight);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
@@ -510,7 +512,9 @@ class DynamicAdjacencyArray {
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 
-  void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
+  void construct(const EdgeVector &edge_vector,
+                 std::span<const HyperedgeID> node_degree_prefix_sum,
+                 const HyperedgeWeight *edge_weight = nullptr);
 
   bool verifyIteratorPointers(const HypernodeID u) const;
 

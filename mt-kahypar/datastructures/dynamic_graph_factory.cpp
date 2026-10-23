@@ -29,10 +29,12 @@
 #include "dynamic_graph_factory.h"
 
 #include <limits>
+#include <span>
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 
+#include "mt-kahypar/datastructures/graph_factory_utils.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
@@ -59,14 +61,15 @@ DynamicGraph DynamicGraphFactory::construct(
     }
     edges[i] = std::make_pair(e[0], e[1]);
   });
-  return construct_from_graph_edges(num_nodes, num_edges, edges,
-    edge_weight, node_weight, stable_construction_of_incident_edges);
+  return construct_from_graph_edges(num_nodes, num_edges, edges, {}, edge_weight,
+      node_weight, stable_construction_of_incident_edges);
 }
 
 DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HypernodeID num_nodes,
         const HyperedgeID num_edges,
         const EdgeVector& edge_vector,
+        std::span<const HyperedgeID> node_degree_prefix_sum,
         const HyperedgeWeight* edge_weight,
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
@@ -95,7 +98,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
       }
     });
   }, [&] {
-    graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
+    graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, node_degree_prefix_sum, edge_weight);
     if (stable_construction_of_incident_edges) {
       graph._adjacency_array.sortIncidentEdges();
     }
@@ -169,7 +172,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
 
   // Construct compactified graph
   DynamicGraph compactified_graph = DynamicGraphFactory::construct_from_graph_edges(
-    num_nodes, num_edges, edge_vector, edge_weights.data(), node_weights.data());
+    num_nodes, num_edges, edge_vector, {}, edge_weights.data(), node_weights.data());
   compactified_graph._total_weight = graph._total_weight;
 
   tbb::parallel_invoke([&] {

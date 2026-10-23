@@ -29,10 +29,12 @@
 #include "static_graph_factory.h"
 
 #include <limits>
+#include <span>
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
 
+#include "mt-kahypar/datastructures/graph_factory_utils.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
@@ -86,7 +88,7 @@ namespace mt_kahypar::ds {
       }
       edges[i] = std::make_pair(e[0], e[1]);
     });
-    return construct_from_graph_edges(num_nodes, num_edges, edges,
+    return construct_from_graph_edges(num_nodes, num_edges, edges, {},
       edge_weight, node_weight, stable_construction_of_incident_edges);
   }
 
@@ -94,6 +96,7 @@ namespace mt_kahypar::ds {
           const HypernodeID num_nodes,
           const HyperedgeID num_edges,
           const EdgeVector& edge_vector,
+          std::span<const HyperedgeID> node_degree_prefix_sum,
           const HyperedgeWeight* edge_weight,
           const HypernodeWeight* node_weight,
           const bool stable_construction_of_incident_edges) {
@@ -108,6 +111,15 @@ namespace mt_kahypar::ds {
       throw InvalidInputException("Number of edges does not match length of input data!");
     }
 
+    vec<HyperedgeID> node_degree_prefix_sum_fallback;
+    if (node_degree_prefix_sum.empty()) {
+      node_degree_prefix_sum_fallback =
+          compute_degree_prefix_sum_from_edge_vector(edge_vector, num_nodes,
+                                                     num_edges);
+      node_degree_prefix_sum = node_degree_prefix_sum_fallback;
+    }
+    ASSERT(node_degree_prefix_sum.size() == num_nodes + 1 && node_degree_prefix_sum.back() == 2 * num_edges);
+
     StaticGraph graph;
     graph._num_nodes = num_nodes;
     graph._num_edges = 2 * num_edges;
@@ -115,51 +127,18 @@ namespace mt_kahypar::ds {
     graph._edges.resize(2 * num_edges);
     graph._unique_edge_ids.resize(2 * num_edges);
 
-    // Compute degree for each vertex
-    ThreadLocalCounter local_degree_per_vertex(num_nodes);
-    tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
-      Counter& num_degree_per_vertex = local_degree_per_vertex.local();
-      const HypernodeID pins[2] = {edge_vector[pos].first, edge_vector[pos].second};
-      if (pins[0] == pins[1]) {
-        throw InvalidInputException("Edge " + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
-      }
-
-      for (const HypernodeID& pin : pins) {
-        if (pin >= num_nodes) {
-          throw InvalidInputException("Edge " + STR(pos) + " points to invalid node: " + STR(pin));
-        }
-        ++num_degree_per_vertex[pin];
-      }
-    });
-
-    // We sum up the degree per vertex only thread local. To obtain the
-    // global degree, we iterate over each thread local counter and sum it up.
-    Counter num_degree_per_vertex(num_nodes, 0);
-    for (Counter& c : local_degree_per_vertex) {
-      tbb::parallel_for(ID(0), num_nodes, [&](const size_t pos) {
-        num_degree_per_vertex[pos] += c[pos];
-      });
-    }
-
-    // Compute prefix sum over the degrees. The prefix sum is used than
-    // as start position for each node in the edge array.
-    parallel::TBBPrefixSum<size_t> degree_prefix_sum(num_degree_per_vertex);
-    tbb::parallel_scan(tbb::blocked_range<size_t>( UL(0), UI64(num_nodes)), degree_prefix_sum);
-
-    ASSERT(degree_prefix_sum.total_sum() == 2 * num_edges);
-
     AtomicCounter incident_edges_position(num_nodes,
                                          parallel::IntegralAtomicWrapper<size_t>(0));
 
     auto setup_edges = [&] {
       tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
         const HypernodeID pin0 = edge_vector[pos].first;
-        const HyperedgeID incident_edges_pos0 = degree_prefix_sum[pin0] +
+        const HyperedgeID incident_edges_pos0 = node_degree_prefix_sum[pin0] +
                 incident_edges_position[pin0].fetch_add(1, std::memory_order_relaxed);
         ASSERT(incident_edges_pos0 < graph._edges.size());
         StaticGraph::Edge& edge0 = graph._edges[incident_edges_pos0];
         const HypernodeID pin1 = edge_vector[pos].second;
-        const HyperedgeID incident_edges_pos1 = degree_prefix_sum[pin1] +
+        const HyperedgeID incident_edges_pos1 = node_degree_prefix_sum[pin1] +
                 incident_edges_position[pin1].fetch_add(1, std::memory_order_relaxed);
         ASSERT(incident_edges_pos1 < graph._edges.size());
         StaticGraph::Edge& edge1 = graph._edges[incident_edges_pos1];
@@ -183,7 +162,7 @@ namespace mt_kahypar::ds {
       tbb::parallel_for(ID(0), num_nodes, [&](const size_t pos) {
         StaticGraph::Node& node = graph._nodes[pos];
         node.enable();
-        node.setFirstEntry(degree_prefix_sum[pos]);
+        node.setFirstEntry(node_degree_prefix_sum[pos]);
         if ( node_weight ) {
           node.setWeight(node_weight[pos]);
         }

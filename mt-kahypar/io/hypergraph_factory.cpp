@@ -26,6 +26,8 @@
 
 #include "hypergraph_factory.h"
 
+#include <span>
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -99,12 +101,13 @@ template<typename Hypergraph>
 mt_kahypar_hypergraph_t constructGraph(const HypernodeID& num_nodes,
                                        const HyperedgeID& num_edges,
                                        const EdgeVector& edges,
+                                       std::span<const HyperedgeID> node_degree_prefix_sum,
                                        const HyperedgeWeight* edge_weight,
                                        const HypernodeWeight* node_weight,
                                        const bool stable_construction) {
   Hypergraph* graph = new Hypergraph();
   *graph = Hypergraph::Factory::construct_from_graph_edges(num_nodes, num_edges, edges,
-    edge_weight, node_weight, stable_construction);
+    node_degree_prefix_sum, edge_weight, node_weight, stable_construction);
   return mt_kahypar_hypergraph_t {
     reinterpret_cast<mt_kahypar_hypergraph_s*>(graph), Hypergraph::TYPE };
 }
@@ -113,6 +116,7 @@ mt_kahypar_hypergraph_t constructGraph(const mt_kahypar_hypergraph_type_t& type,
                                             const HypernodeID& num_nodes,
                                             const HyperedgeID& num_edges,
                                             const EdgeVector& edges,
+                                            std::span<const HyperedgeID> node_degree_prefix_sum,
                                             vec<HyperedgeWeight>& edge_weight,
                                             vec<HypernodeWeight>& node_weight,
                                             const bool stable_construction) {
@@ -120,13 +124,13 @@ mt_kahypar_hypergraph_t constructGraph(const mt_kahypar_hypergraph_type_t& type,
     case STATIC_GRAPH:
       ENABLE_GRAPHS(
         return constructGraph<ds::StaticGraph>(
-          num_nodes, num_edges, edges,
+          num_nodes, num_edges, edges, node_degree_prefix_sum,
           edge_weight.data(), node_weight.data(), stable_construction);
       )
     case DYNAMIC_GRAPH:
       ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
         return constructGraph<ds::DynamicGraph>(
-          num_nodes, num_edges, edges,
+          num_nodes, num_edges, edges, node_degree_prefix_sum,
           edge_weight.data(), node_weight.data(), stable_construction);
       )
     case STATIC_HYPERGRAPH:
@@ -169,8 +173,9 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
     EdgeVector edges;
     readGraphFile(filename, num_edges, num_vertices, edges, edges_weight,
                   nodes_weight, node_degree_prefix_sum);
-    return constructGraph(type, num_vertices, num_edges, edges,
-                          edges_weight, nodes_weight, stable_construction);
+    return constructGraph(type, num_vertices, num_edges, edges, node_degree_prefix_sum,
+                          edges_weight, nodes_weight,
+                          stable_construction);
   } else {
     HyperedgeVector edges;
     readGraphFile(filename, num_edges, num_vertices, edges, edges_weight,

@@ -154,7 +154,7 @@ class RepairEmptyBlocksTest : public Test {
         }
       }
       target_graph = std::make_unique<TargetGraph>(
-        TargetGraphFactory::construct_from_graph_edges(context.partition.k, edges.size(), edges, edges_weights.data()));
+        TargetGraphFactory::construct_from_graph_edges(context.partition.k, edges.size(), edges, {}, edges_weights.data()));
       target_graph->precomputeDistances(2);
       partitioned_hypergraph.setTargetGraph(target_graph.get());
     }

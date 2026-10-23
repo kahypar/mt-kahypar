@@ -344,7 +344,7 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_context_t* cont
       lib::check_overflow<HypernodeID>(edges[2*he + 1], "endpoint of edge");
       edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
     });
-    return lib::create_graph(c, num_vertices, num_edges, edge_vector, edge_weights, vertex_weights);
+    return lib::create_graph(c, num_vertices, num_edges, edge_vector, edge_weights, vertex_weights, nullptr);
   } catch ( std::exception& ex ) {
     *error = to_error(ex);
   }

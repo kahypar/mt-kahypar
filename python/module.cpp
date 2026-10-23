@@ -44,6 +44,7 @@
 #include "include/lib_helper_functions.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/graph_factory_utils.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -124,7 +125,7 @@ PYBIND11_MODULE(mtkahypar, m) {
 
   py::class_<mt_kahypar_py_target_graph_t, mt_kahypar_py_graph_t,
     std::unique_ptr<mt_kahypar_py_target_graph_t, HypergraphDeleter>>(m, "TargetGraph");
-  
+
   auto phg_class = py::class_<mt_kahypar_partitioned_hypergraph_t,
     std::unique_ptr<mt_kahypar_partitioned_hypergraph_t, PartitionedHypergraphDeleter>>(m, "PartitionedHypergraph");
 
@@ -250,10 +251,16 @@ Construct a weighted hypergraph.
          const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
-         const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
+         const vec<std::pair<HypernodeID,HypernodeID>>& edges,
+         const vec<HyperedgeID>& node_degrees) {
         ensure_correct_size(num_edges, edges, "edges");
+        const HyperedgeID* node_degrees_data = nullptr;
+        if (!node_degrees.empty()) {
+            ensure_correct_size(num_nodes, node_degrees, "node_degrees");
+            node_degrees_data = node_degrees.data();
+        }
         return mt_kahypar_py_graph_t{lib::create_graph(
-          context, num_nodes, num_edges, edges, nullptr, nullptr)};
+          context, num_nodes, num_edges, edges, nullptr, nullptr, node_degrees_data)};
       }, R"pbdoc(
 Construct an unweighted graph.
 
@@ -261,11 +268,13 @@ Construct an unweighted graph.
 :param num_nodes: Number of nodes
 :param num_edges: Number of edges
 :param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
+:param degrees: degree of all nodes
           )pbdoc",
       py::arg("context"),
       py::arg("num_nodes"),
       py::arg("num_edges"),
-      py::arg("edges"))
+      py::arg("edges"),
+      py::arg("node_degrees") = vec<HyperedgeID>{})
     .def("create_graph",
       [](Initializer&,
          const Context& context,
@@ -273,12 +282,18 @@ Construct an unweighted graph.
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
          const vec<HypernodeWeight>& node_weights,
-         const vec<HyperedgeWeight>& edge_weights) {
+         const vec<HyperedgeWeight>& edge_weights,
+         const vec<HyperedgeID>& node_degrees) {
         ensure_correct_size(num_edges, edges, "edges");
         ensure_correct_size(num_nodes, node_weights, "nodes");
         ensure_correct_size(num_edges, edge_weights, "edges");
+        const HyperedgeID* node_degrees_data = nullptr;
+        if (!node_degrees.empty()) {
+            ensure_correct_size(num_nodes, node_degrees, "node_degrees");
+            node_degrees_data = node_degrees.data();
+        }
         return mt_kahypar_py_graph_t{lib::create_graph(
-          context, num_nodes, num_edges, edges, edge_weights.data(), node_weights.data())};
+          context, num_nodes, num_edges, edges, edge_weights.data(), node_weights.data(), node_degrees_data)};
       }, R"pbdoc(
 Construct a weighted graph.
 
@@ -288,13 +303,15 @@ Construct a weighted graph.
 :param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
 :param node_weights: Weights of all nodes
 :param edge_weights: Weights of all edges
+:param degrees: degree of all nodes
           )pbdoc",
       py::arg("context"),
       py::arg("num_nodes"),
       py::arg("num_edges"),
       py::arg("edges"),
       py::arg("node_weights"),
-      py::arg("edge_weights"))
+      py::arg("edge_weights"),
+      py::arg("node_degrees") = vec<HyperedgeID>{})
     .def("graph_from_file",
       [](Initializer&,
          const std::string& file_name,
@@ -309,14 +326,21 @@ Construct a weighted graph.
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
-         const vec<HyperedgeWeight>& edge_weights) {
+         const vec<HyperedgeWeight>& edge_weights,
+         const vec<HyperedgeID>& node_degrees) {
         unused(context);
         ensure_correct_size(num_edges, edges, "edges");
         ensure_correct_size(num_edges, edge_weights, "edges");
+        vec<HyperedgeID> node_degree_prefix_sum;
+        if (!node_degrees.empty()) {
+            ensure_correct_size(num_nodes, node_degrees, "node_degrees");
+            node_degree_prefix_sum = ds::compute_degree_prefix_sum_from_degrees(
+                node_degrees.data(), num_nodes, num_edges);
+        }
         return mt_kahypar_py_target_graph_t{
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
             StaticGraphFactory::construct_from_graph_edges(num_nodes, num_edges,
-              edges, edge_weights.data(), nullptr, true))), STATIC_GRAPH };
+              edges, node_degree_prefix_sum, edge_weights.data(), nullptr, true))), STATIC_GRAPH };
       }, R"pbdoc(
 Construct a target graph.
 
@@ -325,12 +349,14 @@ Construct a target graph.
 :param num_edges: Number of edges
 :param edges: list of tuples containing all edges (e.g., [(0,1),(0,2),(1,3),...])
 :param edge_weights: Weights of all edges
+:param degrees: degree of all nodes
           )pbdoc",
       py::arg("context"),
       py::arg("num_nodes"),
       py::arg("num_edges"),
       py::arg("edges"),
-      py::arg("edge_weights"))
+      py::arg("edge_weights"),
+      py::arg("node_degrees") = vec<HyperedgeID>{})
     .def("target_graph_from_file",
       [](Initializer&,
          const std::string& file_name,
