@@ -119,219 +119,120 @@ namespace internal {
     #endif
   }
 
-} // namespace internal
-
-  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
-                                                                   Context& context,
-                                                                   TargetGraph* target_graph) {
-    const mt_kahypar_partition_type_t type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
+  template<typename ReturnT, typename Func>
+  ReturnT with_type_traits(mt_kahypar_partition_type_t type, Func f, const ReturnT& defaultVal) {
     internal::check_if_feature_is_enabled(type);
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
-        return internal::partition<StaticGraphTypeTraits>(hypergraph, context, target_graph);
+        return f(StaticGraphTypeTraits{});
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return f(StaticHypergraphTypeTraits{});
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
-        return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return f(LargeKHypergraphTypeTraits{});
       #endif
       #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
-        return internal::partition<DynamicGraphTypeTraits>(hypergraph, context, target_graph);
+        return f(DynamicGraphTypeTraits{});
       #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context, target_graph);
+        return f(DynamicHypergraphTypeTraits{});
       #endif
       default:
-        return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+        return defaultVal;
     }
-    return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+    return defaultVal;
+  }
+
+  template<typename ReturnT, typename Func>
+  ReturnT with_type_traits(const Context& context, Func f, const ReturnT& defaultVal) {
+    const mt_kahypar_partition_type_t type = to_partition_c_type(
+      context.partition.preset_type, context.partition.instance_type);
+    return with_type_traits(type, f, defaultVal);
+  }
+
+  template<typename ReturnT, typename Func>
+  ReturnT with_type_traits(mt_kahypar_partitioned_hypergraph_t phg, Func f, const ReturnT& defaultVal) {
+    const mt_kahypar_partition_type_t type = phg.type;
+    return with_type_traits(type, f, defaultVal);
+  }
+
+  template<typename Func>
+  void with_type_traits(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
+    with_type_traits(phg, [f](auto typeTraits) {
+      f(typeTraits);
+      return 0; // dummy return that is ignored
+    }, 0);
+  }
+} // namespace internal
+
+
+  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
+                                                                   Context& context,
+                                                                   TargetGraph* target_graph) {
+    mt_kahypar_partitioned_hypergraph_t defaultVal { nullptr, NULLPTR_PARTITION };
+
+    return internal::with_type_traits(context, [&](auto typeTraits) {
+      return internal::partition<decltype(typeTraits)>(hypergraph, context, target_graph);
+    }, defaultVal);
   }
 
 
   mt_kahypar_partitioned_hypergraph_t PartitionerFacade::readPartitionFile(mt_kahypar_hypergraph_t hypergraph,
                                                                            const Context& context,
                                                                            const std::string& filename) {
-    const mt_kahypar_partition_type_t type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
-    internal::check_if_feature_is_enabled(type);
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        return internal::read_partition_file<StaticGraphTypeTraits>(hypergraph, context, filename);
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::read_partition_file<StaticHypergraphTypeTraits>(hypergraph, context, filename);
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        return internal::read_partition_file<LargeKHypergraphTypeTraits>(hypergraph, context, filename);
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        return internal::read_partition_file<DynamicGraphTypeTraits>(hypergraph, context, filename);
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::read_partition_file<DynamicHypergraphTypeTraits>(hypergraph, context, filename);
-      #endif
-      default:
-        return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
-    }
-    return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+    mt_kahypar_partitioned_hypergraph_t defaultVal { nullptr, NULLPTR_PARTITION };
+
+    return internal::with_type_traits(context, [&](auto typeTraits) {
+      return internal::read_partition_file<decltype(typeTraits)>(hypergraph, context, filename);
+    }, defaultVal);
   }
 
 
-  void PartitionerFacade::improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+  void PartitionerFacade::improve(mt_kahypar_partitioned_hypergraph_t phg,
                                   Context& context,
                                   TargetGraph* target_graph) {
-    const mt_kahypar_partition_type_t type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
-    internal::check_if_feature_is_enabled(type);
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        internal::improve<StaticGraphTypeTraits>(partitioned_hg, context, target_graph); break;
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        internal::improve<StaticHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context, target_graph); break;
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
-      #endif
-      default: break;
-    }
+    internal::with_type_traits(phg, [&](auto typeTraits) {
+      internal::improve<decltype(typeTraits)>(phg, context, target_graph);
+    });
   }
 
   void PartitionerFacade::printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,
                                                    const Context& context,
                                                    const std::chrono::duration<double>& elapsed_seconds) {
-    const mt_kahypar_partition_type_t type = phg.type;
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        io::printPartitioningResults(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
-        break;
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        io::printPartitioningResults(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
-        break;
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        io::printPartitioningResults(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
-        break;
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        io::printPartitioningResults(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
-        break;
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        io::printPartitioningResults(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
-        break;
-      #endif
-      default: break;
-    }
+    internal::with_type_traits(phg, [&](auto typeTraits) {
+      using PHG = typename decltype(typeTraits)::PartitionedHypergraph;
+      io::printPartitioningResults(utils::cast_const<PHG>(phg), context, elapsed_seconds);
+    });
   }
 
   std::string PartitionerFacade::serializeCSV(const mt_kahypar_partitioned_hypergraph_t phg,
                                               const Context& context,
                                               const std::chrono::duration<double>& elapsed_seconds) {
-    const mt_kahypar_partition_type_t type = phg.type;
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        return io::csv::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
-        break;
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return io::csv::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        return io::csv::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        return io::csv::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return io::csv::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
-      #endif
-      default: return "";
-    }
-    return "";
+    return internal::with_type_traits(phg, [&](auto typeTraits) {
+      using PHG = typename decltype(typeTraits)::PartitionedHypergraph;
+      return io::csv::serialize(utils::cast_const<PHG>(phg), context, elapsed_seconds);
+    }, std::string{});
   }
 
   std::string PartitionerFacade::serializeResultLine(const mt_kahypar_partitioned_hypergraph_t phg,
                                                      const Context& context,
                                                      const std::chrono::duration<double>& elapsed_seconds) {
-    const mt_kahypar_partition_type_t type = phg.type;
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        return io::serializer::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return io::serializer::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        return io::serializer::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        return io::serializer::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return io::serializer::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
-      #endif
-      default: return "";
-    }
-    return "";
+    return internal::with_type_traits(phg, [&](auto typeTraits) {
+      using PHG = typename decltype(typeTraits)::PartitionedHypergraph;
+      return io::serializer::serialize(utils::cast_const<PHG>(phg), context, elapsed_seconds);
+    }, std::string{});
   }
 
   void PartitionerFacade::writePartitionFile(const mt_kahypar_partitioned_hypergraph_t phg,
                                              const std::string& filename) {
-    const mt_kahypar_partition_type_t type = phg.type;
-    switch ( type ) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING:
-        io::writePartitionFile(utils::cast_const<StaticPartitionedGraph>(phg), filename);
-        break;
-      #endif
-      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        io::writePartitionFile(utils::cast_const<StaticPartitionedHypergraph>(phg), filename);
-        break;
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING:
-        io::writePartitionFile(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), filename);
-        break;
-      #endif
-      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING:
-        io::writePartitionFile(utils::cast_const<DynamicPartitionedGraph>(phg), filename);
-        break;
-      #endif
-      case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        io::writePartitionFile(utils::cast_const<DynamicPartitionedHypergraph>(phg), filename);
-        break;
-      #endif
-      default: break;
-    }
+    internal::with_type_traits(phg, [&](auto typeTraits) {
+      using PHG = typename decltype(typeTraits)::PartitionedHypergraph;
+      io::writePartitionFile(utils::cast_const<PHG>(phg), filename);
+    });
   }
 
 }  // namespace mt_kahypar
