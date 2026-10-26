@@ -409,12 +409,12 @@ endif()
 #################################################################
 
 include(FetchContent)
-set(KAHYPAR_SHARED_RESOURCES_TAG 6d5c8e2444e4310667ec1925e995f26179d7ee88)
+set(KAHYPAR_SHARED_RESOURCES_TAG e01b552d49d9235fadb2dc4ca683e714694946c5)
 set(KAHYPAR_WHFC_TAG             dd3b7901f73ba9a1de44788172ded5ce33b83338)
 set(KAHYPAR_PARLAY_TAG           e1f1dc0ccf930492a2723f7fbef8510d35bf57f5)
 set(KAHYPAR_CLI11_VERSION        v2.7.2)
-set(KAHYPAR_TBB_VERSION          v2022.0.0)
-set(KAHYPAR_GOOGLETEST_VERSION   v1.15.2)
+set(KAHYPAR_TBB_VERSION          v2023.1.0)
+set(KAHYPAR_GOOGLETEST_VERSION   v1.18.0)
 set(KAHYPAR_PYBIND11_VERSION     v3.0.4)
 
 message(STATUS "Fetching dependencies...")
@@ -477,7 +477,7 @@ if(KAHYPAR_DOWNLOAD_TBB)
   # Download TBB library
   FetchContent_Declare(
     TBB EXCLUDE_FROM_ALL SYSTEM
-    GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
+    GIT_REPOSITORY https://github.com/uxlfoundation/oneTBB.git
     GIT_TAG        ${KAHYPAR_TBB_VERSION}
     GIT_SHALLOW    FALSE  # TBB seems to assume that a git repo is present
   )
