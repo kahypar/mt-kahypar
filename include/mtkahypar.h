@@ -118,6 +118,16 @@ MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_co
                                                                    const mt_kahypar_partition_id_t num_blocks,
                                                                    const mt_kahypar_hypernode_weight_t* block_weights);
 
+/**
+ * Sets individual target block weights for each block of the partition, using a 64 bit input type.
+ * A balanced partition then satisfies that the weight of each block is smaller or equal than the
+ * defined target block weight for the corresponding block.
+ *
+ * Note that the context is invalid if the number of block weights is not equal to the NUM_BLOCKS parameter.
+ */
+MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights_64(mt_kahypar_context_t* context,
+                                                                      const mt_kahypar_partition_id_t num_blocks,
+                                                                      const mt_kahypar_hypernode_weight_64_t* block_weights);
 
 // ####################### Thread Pool Initialization #######################
 
@@ -500,6 +510,13 @@ MT_KAHYPAR_API void mt_kahypar_get_partition(const mt_kahypar_partitioned_hyperg
  */
 MT_KAHYPAR_API void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                  mt_kahypar_hypernode_weight_t* block_weights);
+
+/**
+ * Extracts the weight of each block from a partition, using a 64 bit return type.
+ * The size of the provided array must be at least the number of blocks.
+ */
+MT_KAHYPAR_API void mt_kahypar_get_block_weights_64(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                    mt_kahypar_hyperedge_weight_64_t* block_weights);
 /**
  * Computes the imbalance of the partition.
  */

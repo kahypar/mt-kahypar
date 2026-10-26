@@ -468,9 +468,10 @@ mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hyp
   throw InvalidParameterException("Invalid preset type.");
 }
 
+template<typename WeightT>
 void set_individual_block_weights(Context& context,
                                   const mt_kahypar_partition_id_t num_blocks,
-                                  const mt_kahypar_hypernode_weight_t* block_weights) {
+                                  const WeightT* block_weights) {
   context.partition.use_individual_part_weights = true;
   context.partition.max_part_weights.assign(num_blocks, 0);
   for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {

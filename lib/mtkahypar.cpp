@@ -267,6 +267,12 @@ void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* contex
   lib::set_individual_block_weights(reinterpret_cast<Context&>(*context), num_blocks, block_weights);
 }
 
+void mt_kahypar_set_individual_target_block_weights_64(mt_kahypar_context_t* context,
+                                                       const mt_kahypar_partition_id_t num_blocks,
+                                                       const mt_kahypar_hypernode_weight_64_t* block_weights) {
+  lib::set_individual_block_weights(reinterpret_cast<Context&>(*context), num_blocks, block_weights);
+}
+
 void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations) {
   lib::initialize(num_threads, interleaved_allocations, false);
 }
@@ -658,6 +664,10 @@ void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t partitio
 }
 
 void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypar_hypernode_weight_t* block_weights) {
+  lib::get_block_weights<false>(partitioned_hg, block_weights);
+}
+
+void mt_kahypar_get_block_weights_64(const mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypar_hyperedge_weight_64_t* block_weights) {
   lib::get_block_weights<false>(partitioned_hg, block_weights);
 }
 

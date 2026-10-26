@@ -260,8 +260,8 @@ void get_partition(mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_partition_i
   });
 }
 
-template<bool Throwing>
-void get_block_weights(mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_hypernode_weight_t* block_weights) {
+template<bool Throwing, typename WeightT>
+void get_block_weights(mt_kahypar_partitioned_hypergraph_t p, WeightT* block_weights) {
   ASSERT(block_weights != nullptr);
   switch_phg<int, Throwing>(p, [&](const auto& phg) {
     for ( PartitionID i = 0; i < phg.k(); ++i ) {
