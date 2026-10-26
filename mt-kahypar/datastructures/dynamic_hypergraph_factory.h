@@ -49,11 +49,20 @@ class DynamicHypergraphFactory {
 
  public:
   static DynamicHypergraph construct(const HypernodeID num_hypernodes,
-                                    const HyperedgeID num_hyperedges,
-                                    const HyperedgeVector& edge_vector,
-                                    const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr,
-                                    const bool stable_construction_of_incident_edges = false);
+                                     const HyperedgeID num_hyperedges,
+                                     const HyperedgeVector& edge_vector,
+                                     const HyperedgeWeight* hyperedge_weight = nullptr,
+                                     const HypernodeWeight* hypernode_weight = nullptr,
+                                     const bool stable_construction_of_incident_edges = false);
+
+  #if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+  static DynamicHypergraph construct(const HypernodeID num_hypernodes,
+                                     const HyperedgeID num_hyperedges,
+                                     const HyperedgeVector& edge_vector,
+                                     const mt_kahypar_hyperedge_weight_t* hyperedge_weight = nullptr,
+                                     const mt_kahypar_hypernode_weight_t* hypernode_weight = nullptr,
+                                     const bool stable_construction_of_incident_edges = false);
+  #endif
 
   /**
    * Compactifies a given hypergraph such that it only contains enabled vertices and hyperedges within
@@ -64,6 +73,14 @@ class DynamicHypergraphFactory {
 
  private:
   DynamicHypergraphFactory() { }
+
+  template<typename HEWeightT, typename HNWeightT>
+  static DynamicHypergraph constructImpl(const HypernodeID num_hypernodes,
+                                         const HyperedgeID num_hyperedges,
+                                         const HyperedgeVector& edge_vector,
+                                         const HEWeightT* hyperedge_weight = nullptr,
+                                         const HNWeightT* hypernode_weight = nullptr,
+                                         const bool stable_construction_of_incident_edges = false);
 };
 
 } // namespace ds

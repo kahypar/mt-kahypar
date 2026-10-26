@@ -308,12 +308,13 @@ mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
                            /*stable_construnction=*/true, /*remove_single_pin_hes=*/true, context.partition.enable_logging);
 }
 
+template<typename HEWeightT, typename HNWeightT>
 mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const mt_kahypar_hypernode_id_t num_vertices,
                                           const mt_kahypar_hyperedge_id_t num_hyperedges,
                                           const vec<vec<HypernodeID>>& edge_vector,
-                                          const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
-                                          const mt_kahypar_hypernode_weight_t* vertex_weights) {
+                                          const HEWeightT* hyperedge_weights,
+                                          const HNWeightT* vertex_weights) {
   check_overflow<HypernodeID>(num_vertices, "number of vertices");
   check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
 
@@ -381,12 +382,13 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
   return create_hypergraph(context, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 }
 
+template<typename HEWeightT, typename HNWeightT>
 mt_kahypar_hypergraph_t create_graph(const Context& context,
                                      const mt_kahypar_hypernode_id_t num_vertices,
                                      const mt_kahypar_hyperedge_id_t num_edges,
                                      const vec<std::pair<HypernodeID, HypernodeID>>& edge_vector,
-                                     const mt_kahypar_hyperedge_weight_t* edge_weights,
-                                     const mt_kahypar_hypernode_weight_t* vertex_weights) {
+                                     const HEWeightT* edge_weights,
+                                     const HNWeightT* vertex_weights) {
   check_overflow<HypernodeID>(num_vertices, "number of nodes");
   check_overflow<HyperedgeID>(num_edges, "number of edges");
 

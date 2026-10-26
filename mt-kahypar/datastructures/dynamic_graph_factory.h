@@ -46,26 +46,43 @@ class DynamicGraphFactory {
 
  public:
   static DynamicGraph construct(const HypernodeID num_nodes,
-                               const HyperedgeID num_edges,
-                               const HyperedgeVector& edge_vector,
-                               const HyperedgeWeight* edge_weight = nullptr,
-                               const HypernodeWeight* node_weight = nullptr,
-                               const bool stable_construction_of_incident_edges = false);
+                                const HyperedgeID num_edges,
+                                const HyperedgeVector& edge_vector,
+                                const HyperedgeWeight* edge_weight = nullptr,
+                                const HypernodeWeight* node_weight = nullptr,
+                                const bool stable_construction_of_incident_edges = false);
 
   // ! Provides a more performant construction method by using continuous space for the edges
   // ! (instead of a separate vec per edge).
   // ! No backwards edges allowed, i.e. each edge is unique
   static DynamicGraph construct_from_graph_edges(const HypernodeID num_nodes,
-                                                const HyperedgeID num_edges,
-                                                const EdgeVector& edge_vector,
-                                                const HyperedgeWeight* edge_weight = nullptr,
-                                                const HypernodeWeight* node_weight = nullptr,
-                                                const bool stable_construction_of_incident_edges = false);
+                                                 const HyperedgeID num_edges,
+                                                 const EdgeVector& edge_vector,
+                                                 const HyperedgeWeight* edge_weight = nullptr,
+                                                 const HypernodeWeight* node_weight = nullptr,
+                                                 const bool stable_construction_of_incident_edges = false);
+
+  #if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+  static DynamicGraph construct_from_graph_edges(const HypernodeID num_nodes,
+                                                 const HyperedgeID num_edges,
+                                                 const EdgeVector& edge_vector,
+                                                 const mt_kahypar_hyperedge_weight_t* edge_weight = nullptr,
+                                                 const mt_kahypar_hypernode_weight_t* node_weight = nullptr,
+                                                 const bool stable_construction_of_incident_edges = false);
+  #endif
 
   static std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > compactify(const DynamicGraph&);
 
  private:
   DynamicGraphFactory() { }
+
+  template<typename HEWeightT, typename HNWeightT>
+  static DynamicGraph construct_from_graph_edges_impl(const HypernodeID num_nodes,
+                                                      const HyperedgeID num_edges,
+                                                      const EdgeVector& edge_vector,
+                                                      const HEWeightT* edge_weight = nullptr,
+                                                      const HNWeightT* node_weight = nullptr,
+                                                      const bool stable_construction_of_incident_edges = false);
 };
 
 } // namespace ds

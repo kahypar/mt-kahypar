@@ -296,7 +296,7 @@ bool FlowRefinementScheduler<GraphAndGainTypes>::refineImpl(mt_kahypar_partition
               << ", Running Time =" << time << ")";
 
           // in case the block pair becomes active, we reinsert it into the queue
-          _active_block_scheduler.finalizeSearch(blocks, round, std::max(delta, 0));
+          _active_block_scheduler.finalizeSearch(blocks, round, std::max<HyperedgeWeight>(delta, 0));
 
           // set time limit if required
           if ( tracker.shouldSetTimeLimit(_context) ) {

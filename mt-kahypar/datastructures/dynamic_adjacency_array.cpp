@@ -142,7 +142,41 @@ void EdgeIterator::skip_invalid() {
   }
 }
 
-void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
+DynamicAdjacencyArray::DynamicAdjacencyArray() :
+  _num_nodes(0),
+  _header_array(),
+  _edges(),
+  _removable_edges(),
+  _edge_mapping() { }
+
+DynamicAdjacencyArray::DynamicAdjacencyArray(const HypernodeID num_nodes,
+                                             const EdgeVector& edge_vector,
+                                             const HyperedgeWeight* edge_weight) :
+  _num_nodes(num_nodes),
+  _header_array(),
+  _edges(),
+  _thread_local_vec(),
+  _removable_edges(),
+  _edge_mapping() {
+  construct(edge_vector, edge_weight);
+}
+
+#if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+DynamicAdjacencyArray::DynamicAdjacencyArray(const HypernodeID num_nodes,
+                                             const EdgeVector& edge_vector,
+                                             const mt_kahypar_hyperedge_weight_t* edge_weight) :
+  _num_nodes(num_nodes),
+  _header_array(),
+  _edges(),
+  _thread_local_vec(),
+  _removable_edges(),
+  _edge_mapping() {
+  construct(edge_vector, edge_weight);
+}
+#endif
+
+template<typename HEWeightT>
+void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HEWeightT* edge_weight) {
   // Accumulate degree of each vertex thread local
   const HyperedgeID num_edges = edge_vector.size();
   ThreadLocalCounter local_incident_nets_per_vertex(_num_nodes + 1, 0);

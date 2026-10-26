@@ -162,7 +162,7 @@ class NLevelVertexPairRater {
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
-        penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
+        penalty = penalty == 0 ? std::max<HypernodeWeight>(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
         bool accept_fixed_vertex_contraction = true;

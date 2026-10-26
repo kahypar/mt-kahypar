@@ -51,6 +51,15 @@ class StaticHypergraphFactory {
                                     const HypernodeWeight* hypernode_weight = nullptr,
                                     const bool stable_construction_of_incident_edges = false);
 
+  #if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+  static StaticHypergraph construct(const HypernodeID num_hypernodes,
+                                    const HyperedgeID num_hyperedges,
+                                    const HyperedgeVector& edge_vector,
+                                    const mt_kahypar_hyperedge_weight_t* hyperedge_weight = nullptr,
+                                    const mt_kahypar_hypernode_weight_t* hypernode_weight = nullptr,
+                                    const bool stable_construction_of_incident_edges = false);
+  #endif
+
   static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {
     throw UnsupportedOperationException(
       "Compactify not implemented for static hypergraph.");
@@ -58,6 +67,14 @@ class StaticHypergraphFactory {
 
  private:
   StaticHypergraphFactory() { }
+
+  template<typename HEWeightT, typename HNWeightT>
+  static StaticHypergraph constructImpl(const HypernodeID num_hypernodes,
+                                        const HyperedgeID num_hyperedges,
+                                        const HyperedgeVector& edge_vector,
+                                        const HEWeightT* hyperedge_weight = nullptr,
+                                        const HNWeightT* hypernode_weight = nullptr,
+                                        const bool stable_construction_of_incident_edges = false);
 };
 
 } // namespace mt_kahypar

@@ -192,7 +192,7 @@ PYBIND11_MODULE(mtkahypar, m) {
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges) {
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
-        return lib::create_hypergraph(
+        return lib::create_hypergraph<HyperedgeWeight, HypernodeWeight>(
           context, num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr);
       }, R"pbdoc(
 Construct an unweighted hypergraph.
@@ -252,7 +252,7 @@ Construct a weighted hypergraph.
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
         ensure_correct_size(num_edges, edges, "edges");
-        return mt_kahypar_py_graph_t{lib::create_graph(
+        return mt_kahypar_py_graph_t{lib::create_graph<HyperedgeWeight, HypernodeWeight>(
           context, num_nodes, num_edges, edges, nullptr, nullptr)};
       }, R"pbdoc(
 Construct an unweighted graph.

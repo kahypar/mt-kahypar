@@ -38,13 +38,35 @@
 
 namespace mt_kahypar {
 namespace ds {
-
 DynamicHypergraph DynamicHypergraphFactory::construct(
         const HypernodeID num_hypernodes,
         const HyperedgeID num_hyperedges,
         const HyperedgeVector& edge_vector,
         const HyperedgeWeight* hyperedge_weight,
         const HypernodeWeight* hypernode_weight,
+        const bool stable_construction_of_incident_edges) {
+  return constructImpl(num_hypernodes, num_hyperedges, edge_vector, hyperedge_weight, hypernode_weight, stable_construction_of_incident_edges);
+}
+
+#if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+DynamicHypergraph DynamicHypergraphFactory::construct(
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const mt_kahypar_hyperedge_weight_t* hyperedge_weight,
+        const mt_kahypar_hypernode_weight_t* hypernode_weight,
+        const bool stable_construction_of_incident_edges) {
+  return constructImpl(num_hypernodes, num_hyperedges, edge_vector, hyperedge_weight, hypernode_weight, stable_construction_of_incident_edges);
+}
+#endif
+
+template<typename HEWeightT, typename HNWeightT>
+DynamicHypergraph DynamicHypergraphFactory::constructImpl(
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const HEWeightT* hyperedge_weight,
+        const HNWeightT* hypernode_weight,
         const bool) {
   if (edge_vector.size() != num_hyperedges) {
     throw InvalidInputException("Number of hyperedges does not match length of input data!");

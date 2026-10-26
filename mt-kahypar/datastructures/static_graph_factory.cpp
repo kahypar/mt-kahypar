@@ -97,6 +97,31 @@ namespace mt_kahypar::ds {
           const HyperedgeWeight* edge_weight,
           const HypernodeWeight* node_weight,
           const bool stable_construction_of_incident_edges) {
+    return construct_from_graph_edges_impl(num_nodes, num_edges, edge_vector, edge_weight, node_weight,
+                                           stable_construction_of_incident_edges);
+  }
+
+  #if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+  StaticGraph StaticGraphFactory::construct_from_graph_edges(
+          const HypernodeID num_nodes,
+          const HyperedgeID num_edges,
+          const EdgeVector& edge_vector,
+          const mt_kahypar_hyperedge_weight_t* edge_weight,
+          const mt_kahypar_hypernode_weight_t* node_weight,
+          const bool stable_construction_of_incident_edges) {
+    return construct_from_graph_edges_impl(num_nodes, num_edges, edge_vector, edge_weight, node_weight,
+                                           stable_construction_of_incident_edges);
+  }
+  #endif
+
+  template<typename HEWeightT, typename HNWeightT>
+  StaticGraph StaticGraphFactory::construct_from_graph_edges_impl(
+          const HypernodeID num_nodes,
+          const HyperedgeID num_edges,
+          const EdgeVector& edge_vector,
+          const HEWeightT* edge_weight,
+          const HNWeightT* node_weight,
+          const bool stable_construction_of_incident_edges) {
     if (num_edges > std::numeric_limits<HyperedgeID>::max() / 2) {
       std::string msg = std::string("number of edges overflows ID range (note: graph edges are duplicated, require +1 bit)");
       if constexpr (sizeof(HyperedgeID) < 8) {

@@ -63,6 +63,15 @@ class StaticGraphFactory {
                                                 const HypernodeWeight* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);
 
+  #if defined(KAHYPAR_USE_64_BIT_WEIGHTS) && defined(MT_KAHYPAR_LIBRARY_MODE)
+  static StaticGraph construct_from_graph_edges(const HypernodeID num_nodes,
+                                                const HyperedgeID num_edges,
+                                                const EdgeVector& edge_vector,
+                                                const mt_kahypar_hyperedge_weight_t* edge_weight = nullptr,
+                                                const mt_kahypar_hypernode_weight_t* node_weight = nullptr,
+                                                const bool stable_construction_of_incident_edges = false);
+  #endif
+
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
     throw UnsupportedOperationException(
       "Compactify not implemented for static graph.");
@@ -70,6 +79,14 @@ class StaticGraphFactory {
 
  private:
   StaticGraphFactory() { }
+
+  template<typename HEWeightT, typename HNWeightT>
+  static StaticGraph construct_from_graph_edges_impl(const HypernodeID num_nodes,
+                                                     const HyperedgeID num_edges,
+                                                     const EdgeVector& edge_vector,
+                                                     const HEWeightT* edge_weight = nullptr,
+                                                     const HNWeightT* node_weight = nullptr,
+                                                     const bool stable_construction_of_incident_edges = false);
 
   static void sort_incident_edges(StaticGraph& graph);
 };
