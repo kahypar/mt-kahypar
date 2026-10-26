@@ -188,48 +188,6 @@ void prepare_context(Context& context) {
   }
 }
 
-InstanceType get_instance_type(mt_kahypar_hypergraph_t hypergraph) {
-  switch ( hypergraph.type ) {
-    case STATIC_GRAPH:
-    case DYNAMIC_GRAPH:
-      return InstanceType::graph;
-    case STATIC_HYPERGRAPH:
-    case DYNAMIC_HYPERGRAPH:
-      return InstanceType::hypergraph;
-    case NULLPTR_HYPERGRAPH:
-      return InstanceType::UNDEFINED;
-  }
-  return InstanceType::UNDEFINED;
-}
-
-InstanceType get_instance_type(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
-  switch ( partitioned_hg.type ) {
-    case MULTILEVEL_GRAPH_PARTITIONING:
-    case N_LEVEL_GRAPH_PARTITIONING:
-      return InstanceType::graph;
-    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-    case N_LEVEL_HYPERGRAPH_PARTITIONING:
-    case LARGE_K_PARTITIONING:
-      return InstanceType::hypergraph;
-    case NULLPTR_PARTITION:
-      return InstanceType::UNDEFINED;
-  }
-  return InstanceType::UNDEFINED;
-}
-
-mt_kahypar_preset_type_t get_preset_c_type(const PresetType preset) {
-  switch ( preset ) {
-    case PresetType::default_preset: return DEFAULT;
-    case PresetType::quality: return QUALITY;
-    case PresetType::highest_quality: return HIGHEST_QUALITY;
-    case PresetType::deterministic: return DETERMINISTIC;
-    case PresetType::deterministic_quality: return DETERMINISTIC_QUALITY;
-    case PresetType::large_k: return LARGE_K;
-    case PresetType::UNDEFINED: return DEFAULT;
-  }
-  return DEFAULT;
-}
-
 std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
   std::stringstream ss;
   switch ( hypergraph.type ) {
@@ -411,61 +369,12 @@ mt_kahypar_hypergraph_t create_graph(const Context& context,
   throw InvalidParameterException("Invalid preset type.");
 }
 
-template<typename PartitionedHypergraph, typename Hypergraph>
-mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(Hypergraph& hg,
-                                                                  const mt_kahypar_partition_id_t num_blocks,
-                                                                  const mt_kahypar_partition_id_t* partition) {
-  PartitionedHypergraph partitioned_hg(num_blocks, hg, parallel_tag_t { });
-  const mt_kahypar::HypernodeID num_nodes = hg.initialNumNodes();
-  tbb::parallel_for(ID(0), num_nodes, [&](const mt_kahypar::HypernodeID& hn) {
-    partitioned_hg.setOnlyNodePart(hn, partition[hn]);
-  });
-  partitioned_hg.initializePartition();
-  return mt_kahypar_partitioned_hypergraph_t { reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
-    new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
-}
-
 mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
                                                                   const Context& context,
                                                                   const mt_kahypar_partition_id_t num_blocks,
                                                                   const mt_kahypar_partition_id_t* partition) {
-  if ( hypergraph.type == STATIC_GRAPH || hypergraph.type == DYNAMIC_GRAPH ) {
-    switch ( context.partition.preset_type ) {
-      case PresetType::large_k:
-      case PresetType::deterministic:
-      case PresetType::deterministic_quality:
-      case PresetType::default_preset:
-      case PresetType::quality:
-        ASSERT(hypergraph.type == STATIC_GRAPH);
-        return create_partitioned_hypergraph<StaticPartitionedGraph>(
-          utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
-      case PresetType::highest_quality:
-        ASSERT(hypergraph.type == DYNAMIC_GRAPH);
-        return create_partitioned_hypergraph<DynamicPartitionedGraph>(
-          utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
-      case PresetType::UNDEFINED: break;
-    }
-  } else {
-    switch ( context.partition.preset_type ) {
-      case PresetType::large_k:
-        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return create_partitioned_hypergraph<SparsePartitionedHypergraph>(
-          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
-      case PresetType::deterministic:
-      case PresetType::deterministic_quality:
-      case PresetType::default_preset:
-      case PresetType::quality:
-        ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
-        return create_partitioned_hypergraph<StaticPartitionedHypergraph>(
-          utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
-      case PresetType::highest_quality:
-        ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
-        return create_partitioned_hypergraph<DynamicPartitionedHypergraph>(
-          utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);
-      case PresetType::UNDEFINED: break;
-    }
-  }
-  throw InvalidParameterException("Invalid preset type.");
+  check_compatibility(hypergraph, to_preset_c_type(context.partition.preset_type));
+  return PartitionerFacade::createPartitionedHypergraph(hypergraph, context, num_blocks, partition);
 }
 
 void set_individual_block_weights(Context& context,
@@ -482,7 +391,7 @@ void set_individual_block_weights(Context& context,
 // ####################### Partitioning #######################
 
 mt_kahypar_partitioned_hypergraph_t partition_impl(mt_kahypar_hypergraph_t hg, Context& context, TargetGraph* target_graph) {
-  check_compatibility(hg, get_preset_c_type(context.partition.preset_type));
+  check_compatibility(hg, to_preset_c_type(context.partition.preset_type));
   check_if_all_relevant_parameters_are_set(context);
   context.partition.instance_type = get_instance_type(hg);
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);
@@ -519,7 +428,7 @@ void improve_impl(mt_kahypar_partitioned_hypergraph_t phg,
                   Context& context,
                   const size_t num_vcycles,
                   TargetGraph* target_graph) {
-  check_compatibility(phg, get_preset_c_type(context.partition.preset_type));
+  check_compatibility(phg, to_preset_c_type(context.partition.preset_type));
   check_if_all_relevant_parameters_are_set(context);
   context.partition.instance_type = get_instance_type(phg);
   context.partition.partition_type = to_partition_c_type(context.partition.preset_type, context.partition.instance_type);

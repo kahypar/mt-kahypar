@@ -45,6 +45,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
@@ -514,7 +515,7 @@ corresponding node or -1 if the node is not fixed.
       }, "Iterator over pins of hyperedge", py::arg("hyperedge"), py::keep_alive<0, 1>())
     .def("is_compatible",
       [&](mt_kahypar_hypergraph_t hypergraph, PresetType preset) {
-        return lib::is_compatible(hypergraph, lib::get_preset_c_type(preset));
+        return lib::is_compatible(hypergraph, to_preset_c_type(preset));
       }, "Returns whether or not the given hypergraph can be partitioned with the preset", py::arg("preset"))
     .def("partition",
       [&](mt_kahypar_hypergraph_t hypergraph, const Context& context) {
@@ -662,7 +663,7 @@ Construct a partitioned hypergraph from this hypergraph.
       }, "Computes the sum-of-external-degree metric of the partition", py::arg("target_graph"))
     .def("is_compatible",
       [&](mt_kahypar_partitioned_hypergraph_t phg, PresetType preset) {
-        return lib::is_compatible(phg, lib::get_preset_c_type(preset));
+        return lib::is_compatible(phg, to_preset_c_type(preset));
       }, "Returns whether or not improving the given partitioned hypergraph is compatible with the preset", py::arg("preset"))
     .def("get_partition",
       [&](mt_kahypar_partitioned_hypergraph_t phg) {

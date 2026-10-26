@@ -62,28 +62,6 @@ namespace internal {
   }
 
   template<typename TypeTraits>
-  mt_kahypar_partitioned_hypergraph_t read_partition_file(mt_kahypar_hypergraph_t hypergraph,
-                                                          const Context& context,
-                                                          const std::string& filename) {
-    using Hypergraph = typename TypeTraits::Hypergraph;
-    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-    Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
-
-    std::vector<PartitionID> partition;
-    io::readPartitionFile(filename, hg.initialNumNodes(), partition);
-
-    PartitionedHypergraph partitioned_hg(context.partition.k, hg, parallel_tag_t { });
-    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID& hn) {
-      partitioned_hg.setOnlyNodePart(hn, partition[hn]);
-    });
-    partitioned_hg.initializePartition();
-
-    return mt_kahypar_partitioned_hypergraph_t {
-      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
-        new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
-  }
-
-  template<typename TypeTraits>
   void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                Context& context,
                TargetGraph* target_graph) {
@@ -92,6 +70,30 @@ namespace internal {
 
     // Improve partition
     Partitioner<TypeTraits>::partitionVCycle(phg, context, target_graph);
+  }
+
+  template<typename TypeTraits>
+  mt_kahypar_partitioned_hypergraph_t create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,
+                                                                    const PartitionID k,
+                                                                    const PartitionID* partition) {
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
+
+    PartitionedHypergraph partitioned_hg(k, hg, parallel_tag_t { });
+    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID& hn) {
+      if ( partition[hn] < 0 || partition[hn] >= k ) {
+        throw InvalidInputException(
+          "Try to partition hypergraph into " + STR(k) + " blocks, "
+          "but input block for node " + STR(hn) + " is: " + STR(partition[hn]));
+      }
+      partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+    });
+    partitioned_hg.initializePartition();
+
+    return mt_kahypar_partitioned_hypergraph_t {
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
   }
 
   void check_if_feature_is_enabled(const mt_kahypar_partition_type_t type) {
@@ -148,9 +150,14 @@ namespace internal {
   }
 
   template<typename ReturnT, typename Func>
-  ReturnT with_type_traits(const Context& context, Func f, const ReturnT& defaultVal) {
-    const mt_kahypar_partition_type_t type = to_partition_c_type(
-      context.partition.preset_type, context.partition.instance_type);
+  ReturnT with_type_traits(mt_kahypar_hypergraph_t hypergraph, const Context& context, Func f, const ReturnT& defaultVal) {
+    InstanceType hg_type = get_instance_type(hypergraph);
+    ASSERT(hg_type == InstanceType::UNDEFINED
+           || context.partition.instance_type == InstanceType::UNDEFINED
+           || context.partition.instance_type == get_instance_type(hypergraph));
+
+    InstanceType instance_type = hg_type == InstanceType::UNDEFINED ? context.partition.instance_type : get_instance_type(hypergraph);
+    const mt_kahypar_partition_type_t type = to_partition_c_type(context.partition.preset_type, instance_type);
     return with_type_traits(type, f, defaultVal);
   }
 
@@ -175,22 +182,10 @@ namespace internal {
                                                                    TargetGraph* target_graph) {
     mt_kahypar_partitioned_hypergraph_t defaultVal { nullptr, NULLPTR_PARTITION };
 
-    return internal::with_type_traits(context, [&](auto typeTraits) {
+    return internal::with_type_traits(hypergraph, context, [&](auto typeTraits) {
       return internal::partition<decltype(typeTraits)>(hypergraph, context, target_graph);
     }, defaultVal);
   }
-
-
-  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::readPartitionFile(mt_kahypar_hypergraph_t hypergraph,
-                                                                           const Context& context,
-                                                                           const std::string& filename) {
-    mt_kahypar_partitioned_hypergraph_t defaultVal { nullptr, NULLPTR_PARTITION };
-
-    return internal::with_type_traits(context, [&](auto typeTraits) {
-      return internal::read_partition_file<decltype(typeTraits)>(hypergraph, context, filename);
-    }, defaultVal);
-  }
-
 
   void PartitionerFacade::improve(mt_kahypar_partitioned_hypergraph_t phg,
                                   Context& context,
@@ -198,6 +193,30 @@ namespace internal {
     internal::with_type_traits(phg, [&](auto typeTraits) {
       internal::improve<decltype(typeTraits)>(phg, context, target_graph);
     });
+  }
+
+  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::createPartitionedHypergraph(mt_kahypar_hypergraph_t hypergraph,
+                                                                                     const Context& context,
+                                                                                     const PartitionID k,
+                                                                                     const PartitionID* partition) {
+    mt_kahypar_partitioned_hypergraph_t defaultVal { nullptr, NULLPTR_PARTITION };
+
+    return internal::with_type_traits(hypergraph, context, [&](auto typeTraits) {
+      return internal::create_partitioned_hypergraph<decltype(typeTraits)>(hypergraph, k, partition);
+    }, defaultVal);
+  }
+
+  mt_kahypar_partitioned_hypergraph_t PartitionerFacade::readPartitionFile(mt_kahypar_hypergraph_t hypergraph,
+                                                                           const Context& context,
+                                                                           const std::string& filename) {
+    const HypernodeID num_nodes = internal::with_type_traits(hypergraph, context, [&](auto typeTraits) {
+      using HG = typename decltype(typeTraits)::Hypergraph;
+      return utils::cast_const<HG>(hypergraph).initialNumNodes();
+    }, 0);
+
+    std::vector<PartitionID> partition;
+    io::readPartitionFile(filename, num_nodes, partition);
+    return createPartitionedHypergraph(hypergraph, context, context.partition.k, partition.data());
   }
 
   void PartitionerFacade::printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,
