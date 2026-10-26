@@ -188,6 +188,7 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   Context dummy_context;
   dummy_context.partition.graph_filename = "dummy.hgr";
   dummy_context.partition.fixed_vertex_filename = "dummy.fix";
+  dummy_context.partition.input_partition_filename = "dummy.part";
   dummy_context.partition.k = 0;
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);

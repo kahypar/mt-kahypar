@@ -51,6 +51,10 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
       oss << " fixed_vertex_filename=" << context.partition.fixed_vertex_filename.substr(
               context.partition.fixed_vertex_filename.find_last_of('/') + 1);
     }
+    if ( context.partition.input_partition_filename != "" ) {
+      oss << " input_partition_filename=" << context.partition.input_partition_filename.substr(
+              context.partition.input_partition_filename.find_last_of('/') + 1);
+    }
     oss << " numHNs=" << hypergraph.initialNumNodes()
         << " numHEs=" << (PartitionedHypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
         << " mode=" << context.partition.mode
