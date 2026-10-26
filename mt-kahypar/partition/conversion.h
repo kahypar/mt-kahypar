@@ -33,6 +33,8 @@
 
 namespace mt_kahypar {
 
+mt_kahypar_preset_type_t to_preset_c_type(const PresetType preset);
+
 mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
                                                   const InstanceType instance);
 
@@ -45,5 +47,9 @@ PresetType to_preset_type(const Mode mode,
                           const FlowAlgorithm flow_algo);
 
 InstanceType to_instance_type(const FileFormat format);
+
+InstanceType get_instance_type(mt_kahypar_hypergraph_t hypergraph);
+
+InstanceType get_instance_type(mt_kahypar_partitioned_hypergraph_t partitioned_hg);
 
 }  // namespace mt_kahypar
