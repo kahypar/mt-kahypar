@@ -49,7 +49,7 @@ static_assert(parallel::provides_hardware_information == TBBInitializer::provide
 namespace parallel {
 
 void initialize_tbb(const size_t num_threads) {
-  mt_kahypar::TBBInitializer::initialize(num_threads);
+  mt_kahypar::TBBInitializer::initialize(std::max(num_threads, UL(1)));
 }
 
 void terminate_tbb() {
