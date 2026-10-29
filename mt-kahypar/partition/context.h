@@ -249,6 +249,9 @@ struct RefinementParameters {
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = 1000;
   size_t min_border_vertices_per_thread = 0;
+  double coarsest_epsilon_relaxation = 0.0;
+  bool relax_only_by_imbalance = true;
+  bool relax_blockwise = false;
 };
 
 struct InitialPartitioningParameters {
@@ -258,6 +261,7 @@ struct InitialPartitioningParameters {
 
   Mode mode = Mode::recursive_bipartitioning;
   RefinementParameters refinement = { };
+  bool use_relaxed_block_weights = true;
   std::vector<bool> enabled_ip_algos;
   size_t runs = 20;
   bool use_adaptive_ip_runs = true;
@@ -313,7 +317,7 @@ class Context {
 
   bool forceGainCacheUpdates() const;
 
-  void setupPartWeights(HNWeightConstRef total_hypergraph_weight);
+  void setupPartWeights(HNWeightConstRef total_hypergraph_weight, double relaxation = 0.0, const HypernodeWeightArray* part_weights = nullptr);
 
   void setupContractionLimit(HNWeightConstRef total_hypergraph_weight);
 

@@ -39,11 +39,15 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::initializeImpl() {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
-    _current_metrics = Base::initializeMetrics(partitioned_hg);
     Base::initializeRefinementAlgorithms();
 
     if (_context.type == ContextType::main) {
+      _current_relaxation = _uncoarseningData.hierarchy.empty() ? 0 : _context.refinement.coarsest_epsilon_relaxation;
+      Base::setupRelaxedBlockWeights(_current_relaxation);
+      _current_metrics = Base::initializeMetrics(partitioned_hg);
       _context.initial_km1 = _current_metrics.quality;
+    } else {
+    _current_metrics = Base::initializeMetrics(partitioned_hg);
     }
 
     // Enable progress bar if logging is enabled
@@ -100,6 +104,13 @@ namespace mt_kahypar {
       });
       partitioned_hg.initializePartition();
       _timer.stop_timer("projecting_partition");
+
+      if (_context.type == ContextType::main) {
+        // TODO: try other policies ??
+        const double reduction_factor = std::min(2.0, static_cast<double>(partitioned_hg.initialNumNodes()) / num_nodes_on_previous_level);
+        _current_relaxation = _current_level == 0 ? 0 : _current_relaxation / reduction_factor;
+        Base::setupRelaxedBlockWeights(_current_relaxation);
+      }
 
       // some imbalance constraints (empty blocks) can be different on top level
       _current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
