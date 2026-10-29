@@ -29,6 +29,7 @@
 #include <mutex>
 #include <string>
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
@@ -136,13 +137,13 @@ class InitialPartitioningStats {
     LOG << "Number of Initial Partitioning Calls =" << _total_ip_calls;
     LOG << "Average Number of Thread per IP Call ="
         << average_number_of_threads_per_ip_call() << "\n";
-    std::cout << "\033[1m"
+    std::cout << BOLD
               << std::left << std::setw(30) << "Algorithm"
               << std::left << std::setw(15) << " Avg. Quality"
               << std::left << std::setw(15) << "  Total Time (s)"
               << std::left << std::setw(10) << "  Total Best"
               << std::left << std::setw(15) << " Total Best (%)"
-              << "\033[0m" << std::endl;
+              << END << std::endl;
     for ( const InitialPartitionerSummary& summary : _ip_summary ) {
       LOG << std::left << std::setw(30) << summary.algorithm
           << std::left << std::setw(15) << summary.average_quality()

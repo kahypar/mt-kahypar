@@ -49,6 +49,7 @@
 #endif
 
 #include "kahypar-resources/macros.h"
+#include "mt-kahypar/utils/color.h"
 
 #define SPECIALIZATION(EXPR, TYPE)                                             \
   template <bool T = EXPR> std::enable_if_t<T, TYPE>
@@ -132,13 +133,13 @@
 #define STREAM2STR(X) static_cast<std::stringstream>(X).str();
 
 // Info, Warning and Error Output Macros
-#define GREEN "\033[1;92m"
-#define CYAN "\033[1;96m"
-#define YELLOW "\033[1;93m"
-#define RED "\033[1;91m"
-#define WHITE "\033[1;97m"
-#define BOLD "\033[1m"
-#define END "\033[0m"
+#define GREEN ::mt_kahypar::color::code("\033[1;92m")
+#define CYAN ::mt_kahypar::color::code("\033[1;96m")
+#define YELLOW ::mt_kahypar::color::code("\033[1;93m")
+#define RED ::mt_kahypar::color::code("\033[1;91m")
+#define WHITE ::mt_kahypar::color::code("\033[1;97m")
+#define BOLD ::mt_kahypar::color::code("\033[1m")
+#define END ::mt_kahypar::color::code("\033[0m")
 #define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
 #ifdef WARNING
 #undef WARNING

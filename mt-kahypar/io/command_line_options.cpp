@@ -287,6 +287,12 @@ namespace mt_kahypar {
       "Verbose partitioning output"
       // increase priority so the flag can be used to extend the help output
     )->callback_priority(CLI::CallbackPriority::PreRequirementsCheckPreHelp);
+    app.add_flag_callback(
+      "--no-color", []{
+        color::setEnabled(false);
+      },
+      "Disable colored output (also disabled if NO_COLOR is set or stdout is not a terminal)"
+    );
     app.add_flag(
       "--enable-progress-bar",
       context.partition.enable_progress_bar,
