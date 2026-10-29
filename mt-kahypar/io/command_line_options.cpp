@@ -101,6 +101,7 @@ namespace mt_kahypar {
           if (t_name == "TEXT:FILE") t_name = "FILE";
           if (t_name.find("TEXT:PATH") == 0) t_name = "PATH";
           if (t_name.find("INT:") == 0) t_name = "INT";
+          if (t_name.find("UINT:") == 0) t_name = "UINT";
           if (t_name.find("LIST[UINT]:") == 0) t_name = "LIST[UINT]";
 
           // print type
@@ -132,7 +133,7 @@ namespace mt_kahypar {
       "-k,--blocks",
       context.partition.k,
       "Number of blocks"
-    )->required();
+    )->required()->check(CLI::Range(1, std::numeric_limits<PartitionID>::max()));
     app.add_option(
       "-e,--epsilon",
       context.partition.epsilon,
@@ -175,7 +176,7 @@ namespace mt_kahypar {
         context.shared_memory.original_num_threads = num_threads;
       },
       "Number of threads (default: sequential execution)"
-    )->default_str("1");
+    )->default_str("1")->check(CLI::Range(size_t(1), std::numeric_limits<size_t>::max()));
     app.add_option(
       "-s,--seed",
       context.partition.seed,
@@ -1041,7 +1042,7 @@ namespace mt_kahypar {
       "--i-runs",
       context.initial_partitioning.runs,
      "Number of runs for each bipartitioning algorithm."
-    )->capture_default_str();
+    )->capture_default_str()->check(CLI::Range(size_t(1), std::numeric_limits<size_t>::max()));
     app.add_option(
       "--i-use-adaptive-ip-runs",
       context.initial_partitioning.use_adaptive_ip_runs,
