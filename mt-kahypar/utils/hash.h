@@ -27,7 +27,6 @@
 #pragma once
 
 #include <array>
-#include <cassert>
 #include <random>
 #include <type_traits>
 

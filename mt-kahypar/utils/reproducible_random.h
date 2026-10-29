@@ -30,6 +30,7 @@
 #include <random>
 #include <tbb/tick_count.h>
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include "hash.h"
 
@@ -95,7 +96,7 @@ struct PrecomputeBucket {
       rng.seed(rng());
 
       auto [begin, end] = parallel::chunking::bounds(i, n, chunk_size);
-      assert(begin < end);
+      ASSERT(begin < end);
       for (size_t j = begin; j < end; ++j) {
         precomputed_buckets[j] = static_cast<uint8_t>(rng());
       }
@@ -120,7 +121,7 @@ struct PrecomputeBucketOpt {
     if (chunk_size % 4 != 0) {
       chunk_size += 4 - (chunk_size % 4); // round up to multiple of 4 --> only last range has to do the overhang bit
     }
-    assert(chunk_size % 4 == 0);
+    ASSERT(chunk_size % 4 == 0);
     size_t num_tasks_needed = parallel::chunking::idiv_ceil(n, chunk_size);
 
     tbb::parallel_for(UL(0), num_tasks_needed, [&](size_t i) {
@@ -130,7 +131,7 @@ struct PrecomputeBucketOpt {
       rng.seed(local_seed);
 
       auto [begin, end] = parallel::chunking::bounds(i, n, chunk_size);
-      assert(begin < end);
+      ASSERT(begin < end);
       size_t overhang = end % 4;
       size_t truncated_end = end - overhang;
 
@@ -142,7 +143,7 @@ struct PrecomputeBucketOpt {
       if (overhang > 0 && begin < end) {
         uint32_t x = rng();
         for (size_t j = 0; j < overhang; ++j) {
-          assert(end - j - 1 < precomputed_buckets.size());
+          ASSERT(end - j - 1 < precomputed_buckets.size());
           precomputed_buckets[end - j - 1] = static_cast<uint8_t>( mask & (x >> (8*j)) );
         }
       }
@@ -186,7 +187,7 @@ public:
   typename vec<T>::const_iterator end() const { return permutation.cend(); }
 
   const T& at(size_t pos) const {
-    assert(pos < permutation.size());
+    ASSERT(pos < permutation.size());
     return permutation[pos];
   }
 
@@ -225,7 +226,7 @@ public:
     // sort elements by random buckets
     permutation.resize(input_elements.size());
     bucket_bounds = parallel::counting_sort(input_elements, permutation, num_buckets, get_bucket, num_tasks);
-    assert(bucket_bounds.size() == num_buckets + 1);
+    ASSERT(bucket_bounds.size() == num_buckets + 1);
   }
 
 protected:
@@ -258,8 +259,8 @@ public:
     for (size_t i = 0; i < this->num_buckets; ++i) {
       this->bucket_bounds[i+1] = parallel::chunking::bounds(i, n, bucket_size).second;
     }
-    assert(this->bucket_bounds.back() == n);
-    assert(std::is_sorted(this->bucket_bounds.begin(), this->bucket_bounds.end()));
+    ASSERT(this->bucket_bounds.back() == n);
+    ASSERT(std::is_sorted(this->bucket_bounds.begin(), this->bucket_bounds.end()));
   }
 
 
@@ -288,7 +289,7 @@ public:
       next_power <<= 1;
       num_bits++;
     }
-    assert(num_bits <= max_supported_bits);
+    ASSERT(num_bits <= max_supported_bits);
 
     num_right_bits = (num_bits / 2) + (num_bits % 2);
     num_left_bits = num_bits / 2;
@@ -298,7 +299,7 @@ public:
   }
 
   uint64_t encrypt(uint64_t x) const {
-    assert(x < max_num_entries());
+    ASSERT(x < max_num_entries());
     uint32_t lmask = left_mask, rmask = right_mask;
     uint32_t l = x >> num_right_bits;
     uint32_t r = x & rmask;
