@@ -363,13 +363,19 @@ namespace mt_kahypar {
       refinement.refine_until_no_improvement;
   }
 
-  void Context::setupPartWeights(HNWeightConstRef total_hypergraph_weight) {
+  void Context::setupPartWeights(HNWeightConstRef total_hypergraph_weight, double relaxation, const HypernodeWeightArray* part_weights) {
     ASSERT(partition.k > 1);
     const Dimension dimension = total_hypergraph_weight.dimension();
     ASSERT(partition.epsilon.size() == 1 || partition.epsilon.size() == dimension);
     if (partition.epsilon.size() == 1) {
       for (Dimension d = 1; d < dimension; ++d) {
         partition.epsilon.push_back(partition.epsilon[0]);
+      }
+    }
+    AllocatedHNWeight relaxation_limit(dimension, 0);
+    if (relaxation > 0 && part_weights != nullptr) {
+      for (PartitionID part = 0; part < partition.k; ++part) {
+        relaxation_limit = weight::max(relaxation_limit, (*part_weights)[part]);
       }
     }
 
@@ -396,6 +402,7 @@ namespace mt_kahypar {
       for (size_t d = 0; d < dimension; ++d) {
         weight_fraction[d] = total_hypergraph_weight.at(d) / static_cast<double>(max_part_weights_sum.at(d));
       }
+
       AllocatedHNWeight perfect_part_weights_sum(dimension, 0);
       partition.perfect_balance_part_weights.replaceWith(partition.k, dimension, 0, false);
       for (PartitionID part = 0; part < partition.k; ++part) {
@@ -404,6 +411,15 @@ namespace mt_kahypar {
           HNWeightScalar perfect_weight = std::ceil(weight_fraction[d] * max_weight.at(d));
           partition.perfect_balance_part_weights[part].set(d, perfect_weight);
           perfect_part_weights_sum.at(d) += perfect_weight;
+
+          if (relaxation > 0) {
+            HNWeightScalar& max_weight = partition.max_part_weights[part].at(d);
+            if (refinement.relax_only_by_imbalance && part_weights != nullptr) {
+              max_weight = std::max(max_weight, std::min<HNWeightScalar>((1 + relaxation) * max_weight, relaxation_limit.at(d)));
+            } else {
+              max_weight = (1 + relaxation) * max_weight;
+            }
+          }
         }
       }
 
@@ -432,11 +448,21 @@ namespace mt_kahypar {
         partition.perfect_balance_part_weights[part] =
                 partition.perfect_balance_part_weights[0];
       }
+
       partition.max_part_weights.replaceWith(k, dimension, 0, false);
-      partition.max_part_weights[0] = (1 + partition.epsilon)
-                                      * partition.perfect_balance_part_weights[0];
-      for (PartitionID part = 1; part != k; ++part) {
-        partition.max_part_weights[part] = partition.max_part_weights[0];
+      for (Dimension d = 0; d < dimension; ++d) {
+        const HNWeightScalar perfect_weight = partition.perfect_balance_part_weights[0].at(d);
+        partition.max_part_weights[0].at(d) = (1 + partition.epsilon[d]) * perfect_weight;
+      }
+
+      // create copy to not overwrite itself
+      const AllocatedHNWeight max_weight(partition.max_part_weights[0]);
+      for (PartitionID part = 0; part != k; ++part) {
+        if (relaxation > 0 && refinement.relax_only_by_imbalance && part_weights != nullptr) {
+          partition.max_part_weights[part] = weight::max(max_weight, weight::min((1 + relaxation) * max_weight, relaxation_limit));
+        } else {
+          partition.max_part_weights[part] = (1 + relaxation) * max_weight;
+        }
       }
     }
   }

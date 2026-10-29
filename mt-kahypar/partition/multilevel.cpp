@@ -120,6 +120,14 @@ namespace {
 
       Context ip_context(context);
       ip_context.type = ContextType::initial_partitioning;
+      if (context.initial_partitioning.use_relaxed_block_weights && context.type == ContextType::main) {
+        // TODO: ensure this works with individual part weights
+        ip_context.refinement.relax_only_by_imbalance = false;
+        ip_context.setupPartWeights(phg.totalWeight(), context.refinement.coarsest_epsilon_relaxation);
+        for (size_t i = 0; i < ip_context.partition.epsilon.size(); ++i) {
+          ip_context.partition.epsilon[i] += context.refinement.coarsest_epsilon_relaxation;
+        }
+      }
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
       if ( context.initial_partitioning.mode == Mode::direct ) {

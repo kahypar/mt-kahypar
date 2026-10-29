@@ -56,9 +56,10 @@ class UncoarsenerBase {
                   const Context& context,
                   UncoarseningData<TypeTraits>& uncoarseningData) :
           _hg(hypergraph),
-          _context(context),
+          _original_context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData),
+          _context(context),
           _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
           _jet(nullptr),
@@ -78,9 +79,11 @@ class UncoarsenerBase {
 
  protected:
   Hypergraph& _hg;
-  const Context& _context;
+  const Context& _original_context;
   utils::Timer& _timer;
   UncoarseningData<TypeTraits>& _uncoarseningData;
+
+  Context _context;
   gain_cache_t _gain_cache;
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _jet;
@@ -90,7 +93,6 @@ class UncoarsenerBase {
   Metrics _current_metrics;
 
  protected:
-
   double refinementTimeLimit(const Context& context, const double time) {
     if ( context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
       const double time_limit_factor = std::max(1.0,  context.refinement.fm.time_limit_factor * context.partition.k);
@@ -190,6 +192,17 @@ class UncoarsenerBase {
   void updateContext() {
     // for deep multilevel
     _context = _original_context;
+  }
+
+  void setupRelaxedBlockWeights(double relaxation) {
+    ASSERT([&]{
+      _context.setupPartWeights(_hg.totalWeight());
+      for (size_t i = 0; i < _context.partition.max_part_weights.size(); ++i) {
+        if (_context.partition.max_part_weights[i] != _original_context.partition.max_part_weights[i]) return false;
+      }
+      return true;
+    }());
+    _context.setupPartWeights(_hg.totalWeight(), relaxation, &_uncoarseningData.partitioned_hg->partWeights());
   }
 };
 }
