@@ -42,6 +42,7 @@
 #endif
 
 #include <tbb/parallel_for.h>
+#include <tbb/task_arena.h>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/exception.h"
@@ -254,7 +255,7 @@ struct LineRange {
 };
 
 size_t num_parallel_ranges() {
-  return 2 * std::thread::hardware_concurrency();
+  return 2 * tbb::this_task_arena::max_concurrency();
 }
 
 vec<LineRange> split_lines(char* mapped_file,

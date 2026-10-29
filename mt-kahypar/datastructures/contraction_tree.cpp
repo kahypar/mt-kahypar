@@ -387,7 +387,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
 
   // Distribute roots of the contraction tree to local priority queues of
   // each thread.
-  const size_t num_hardware_threads = std::thread::hardware_concurrency();
+  const size_t num_hardware_threads = MAX_NUM_THREAD_IDS;
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = roots_of_version(version);
   tbb::parallel_for(UL(0), roots.size(), [&](const size_t i) {

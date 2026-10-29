@@ -28,16 +28,23 @@
 
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <type_traits>
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
     !defined(KAHYPAR_ENABLE_THREAD_PINNING)
+#include <tbb/global_control.h>
 #include <tbb/task_arena.h>
 // If we use the C or Python interface or thread pinning is disabled, the cpu ID
 // to which the current thread is assigned to is not unique. We therefore use
 // the slot index of the current task arena as unique thread ID. Note that the
 // ID can be negative if the task scheduler is not initialized.
 #define THREAD_ID std::max(0, tbb::this_task_arena::current_thread_index())
+// Exclusive upper bound for THREAD_ID, i.e., the size of thread-local data
+// indexed by THREAD_ID. TBB is initialized once with a fixed number of threads
+// (see parallel::initialize_tbb), so this is the single place to get it from.
+#define MAX_NUM_THREAD_IDS \
+  (tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism))
 #else
 #ifdef _WIN32
 #include <windows.h>
@@ -46,6 +53,9 @@
 #include <sched.h>
 #define THREAD_ID sched_getcpu()
 #endif
+// THREAD_ID is the id of the cpu the thread is pinned to and thus bounded by
+// the number of cpus of the machine and not by the number of threads.
+#define MAX_NUM_THREAD_IDS (std::thread::hardware_concurrency())
 #endif
 
 #include "kahypar-resources/macros.h"

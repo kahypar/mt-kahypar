@@ -60,8 +60,8 @@ class StreamingVector {
 
  public:
   StreamingVector() :
-    _cpu_buffer(std::thread::hardware_concurrency()),
-    _prefix_sum(std::thread::hardware_concurrency()) { }
+    _cpu_buffer(MAX_NUM_THREAD_IDS),
+    _prefix_sum(MAX_NUM_THREAD_IDS) { }
 
   StreamingVector(const StreamingVector&) = delete;
   StreamingVector & operator= (const StreamingVector &) = delete;

@@ -962,7 +962,7 @@ void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const Par
   // Initialize bfs queue with vertices contained in cut hyperedges
   size_t q_idx = 0;
 
-  const size_t num_threads = std::thread::hardware_concurrency();
+  const size_t num_threads = MAX_NUM_THREAD_IDS;
   vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(num_threads));
   tbb::parallel_for(UL(0), _cut_hes.size(), [&](const size_t i) {
     const int thread_idx = tbb::this_task_arena::current_thread_index();
