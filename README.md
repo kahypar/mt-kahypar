@@ -1,4 +1,4 @@
-<h1 align="center">Dyn-HyPar - Dynamic Graph and Hypergraph Partitioner</h1>
+<h1 align="center">DynPart - Dynamic Graph and Hypergraph Partitioner</h1>
 
 License|Zenodo
 :--:|:--:
@@ -7,20 +7,23 @@ License|Zenodo
 Table of Contents
 -----------
 
-   * [Dyn-HyPar](#dyn-hypar)
+   * [DynPart](#dynpart)
    * [Getting Started](#getting-started)
-   * [Build Commands](#build-commands)
-   * [Running Dyn-HyPar](#running-dyn-hypar)
-   * [Write Partition to Output File](#write-partition-to-output-file)
+   * [Running DynPart](#running-dynpart)
+   * [Input Format](#input-format)
+   * [Reproducing Results](#reproducing-results)
    * [Licensing](#licensing)
 
 
-Dyn-HyPar
+DynPart
 -----------
-Dyn-HyPar is a dynamic hypergraph partitioning algorithm that can efficiently maintain a high-quality balanced partition of a hypergraph under dynamic changes. Changes include the insertion and deletion of hyperedges, vertices and pins. Dyn-HyPar computes a initial partition of the hypergraph using the Mt-KaHyPar framework. It utilizes incremental refinement, localized FM-based refinement and V-Cycles to move vertices between blocks on the fly and maintain a high-quality partition.
+DynPart is a dynamic hypergraph partitioning algorithm that can efficiently maintain a high-quality balanced partition of a hypergraph under dynamic changes. Changes include the insertion and deletion of hyperedges, vertices and pins. DynPart computes a initial partition of the hypergraph using the Mt-KaHyPar framework. It utilizes incremental refinement, localized FM-based refinement and V-Cycles to move vertices between blocks on the fly and maintain a high-quality partition.
 
 ### Mt-KaHyPar
-This branch features the dynamic hypergraph partitioning algorithm Dyn-HyPar, which is based on the Mt-KaHyPar framework. There are currently no plans to merge this branch into the main Mt-KaHyPar branch. If you plan to partition non-dynamic hypergraphs, we recommend using the main branch instead.
+DynPart is based on the [Mt-KaHyPar][Mt-KaHyPar] framework. There are currently no plans to merge this branch into the main Mt-KaHyPar project. If you plan to partition non-dynamic hypergraphs, we recommend using Mt-KaHyPar instead of DynPart.
+
+### Reproducing Results
+The results presented in the paper "DynPart: Fully Dynamic Hypergraph Partitioning" can be reproduced using the instructions below. The datasets and the raw benchmark result can be found in the [Zenodo repository](TODO).
 
 Getting Started
 -----------
@@ -45,15 +48,14 @@ The following command will install most of the required dependencies on a Ubuntu
 
 ### Build Commands
 
-To build Dyn-HyPar, use the following commands:
+To build DynPart, use the following commands:
 
 1. Clone the repository including submodules:
 
-   ```git clone https://github.com/kahypar/mt-kahypar.git```
-2. Switch to the `dyn-hypar` branch: `git checkout dynamic-datastructure`
-3. Create a build directory: `mkdir build && cd build`
-5. Run cmake: `cmake .. --preset=default`
-6. Run make: `make MtKaHyPar -j`
+   ```git clone https://github.com/kahypar/dynpart.git```
+2. Create a build directory: `mkdir build && cd build`
+3. Run cmake: `cmake .. --preset=default`
+4. Run make: `make MtKaHyPar -j`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
@@ -74,7 +76,7 @@ The algorithm expects a changelist file in the following format:
   - **Removed Hyperedges**: Space separated list of ID's for hyperedges removed from the hypergraph
   - **Removed Pins**: Space separated list of pairs of vertex and hyperedge ID's for pins removed from the hypergraph, similar to the added pins format.
 
-Running Dyn-HyPar
+Running DynPart
 -----------
 
 To dynamically partition a **hypergraph** and its **changelist**, run the following command:
@@ -83,18 +85,111 @@ To dynamically partition a **hypergraph** and its **changelist**, run the follow
 
 Run `--help` for a detailed description of the different program options. The most relevant options for dynamic partitioning are listed under **Dynamic Options** and start with the prefix `--d-`.
 
-### Write Partition to Output File
+[//]: # (To enable writing the partition to a file after partitioning, you can add the following command line parameters to the partitioning call:)
 
-To enable writing the partition to a file after partitioning, you can add the following command line parameters to the partitioning call:
+[//]: # ()
+[//]: # (    --d-write-partition-file=true --d-partition-output-folder=<path/to/folder>)
 
-    --d-write-partition-file=true --d-partition-output-folder=<path/to/folder>
+[//]: # ()
+[//]: # (The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name and will be located in the folder specified by `--partition-output-folder`. If you do not provide a partition output folder, the partition file will be placed in the same folder as the input hypergraph file.)
 
-The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name and will be located in the folder specified by `--partition-output-folder`. If you do not provide a partition output folder, the partition file will be placed in the same folder as the input hypergraph file.
+Reproducing Results
+-----------
+
+In the paper "DynPart: Fully Dynamic Hypergraph Partitioning" we benchmark DynPart in two different types of experiments. The first category evaluates the performance of DynPart on a set of 100 hypergraph partitioning benchmark instances with
+three different fully dynamic update workloads. The second category evaluates the performance of DynPart on a set of graphs commonly used in dynamic graph partitioning, streaming the vertices.
+
+### Fully Dynamic Hypergraph Partitioning Experiments
+
+To reproduce the results of the fully dynamic hypergraph partitioning experiments, download the three changelist datasets from the [Zenodo repository](TODO). Each dataset contains the pre-processed hypergraphs and the corresponding changelists. More information on the individual changelist types can be found in the paper. The files corresponding to the datasets are:
+
+1. **Mixed**: dynamic_hypergraph_changelist_mixed.zip
+2. **Random Walk**: dynamic_hypergraph_changelist_random_walk.zip
+3. **RTA**: dynamic_hypergraph_changelist_rta.zip
+
+(Each of the experiments listed below has its dedicated result csv file in the Zenodo repository.)
+
+All experiments sweep over the following parameters:
+- -h: [path to hypergraph file]
+- --d-changes-file: [path to changelist file corresponding to the hypergraph]
+- -seed: [0, 42, 31415, 271828, 1618033]
+- -k: [4,10,32,128]
+
+Additionally the experiments, sweep over the following strategy configurations:
+
+**Main Experiment**
+- Greedy
+  - --d-strategy: "greedy"
+- Greedy + V-cycle 10% 
+  - --d-strategy: "greedy_vcycle"
+  - --d-vcycle-step-size-pct 0.1
+- Greedy + V-cycle 5%
+    - --d-strategy: "greedy_vcycle"
+    - --d-vcycle-step-size-pct 0.05
+- Static Repartitioning
+    - --d-strategy: "repartition"
+- Incremental Refiner
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-stop-vcycle: 0
+    - --d-fm-buffer: -1
+- Localized FM
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-stop-vcycle: 0
+- Localized FM + V-cycle 10%
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-vcycle-step-size-pct 0.1
+- Localized FM + V-cycle 5%
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-vcycle-step-size-pct 0.05
+
+**Parameter Sweep Experiments**
+- **Small Blocks Threshold**: Sweeps over --d-sb-threshold [0, 1, 2, 5, 10, 20, 100, 2147483647]
+- **FM Buffer Size**: Sweeps over --d-fm-buffer [0, 5, 10, 100, 1000, 10000]
+- **V-Cycle Stepsize**: Sweeps over --d-vcycle-step-size-pct [0.01, 0.05, 0.1, 0.2]
+
+**Other Experiments**
+
+The other reported experiments like the analysis of sub-runtimes are performed using the data from the main experiment.
+
+### Streaming Experiments
+
+To reproduce the results of the streaming experiments, download the streaming graph datasets (streaming.zip) from the [Zenodo repository](TODO). Each dataset contains the pre-processed graph with the first 100 vertices added and the corresponding changelist streaming the remaining vertices.
+
+The benchmarked results can be found in the Zenodo repository (streaming.csv).
+
+The competitors [Mt-KaHyPar][Mt-KaHyPar] and [FREIGHT][FREIGHT] were benchmarked in their original implementations. Please refer to their respective repositories for instructions on how to build and run them. Two other competitors, [Leopard][Leopard] and [Hermes][Hermes], are implemented in the DynPart framework and can be run using the same command line interface as DynPart.
+
+The following settings were used for the streaming experiments:
+- -h: [path to graph file]
+- --d-changes-file: [path to changelist file corresponding to the graph]
+- -seed: [0, 42, 31415, 271828, 1618033]
+- -k: [10]
+- --stream-changes: 0 // This pre-loads all changes into memory before partitioning. This may effect the runtime for the faster strategies like greedy. Setting this option to 1 will stream the changes from disk and may increase the runtime but can be necessary for instances with a large memory footprint.
+
+**Configs**
+
+- Greedy
+    - --d-strategy: "greedy"
+- Incremental Refiner
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-stop-vcycle: 0
+    - --d-fm-buffer: -1
+- Localized FM
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-stop-vcycle: 0
+- Localized FM + V-cycle 100%
+    - --d-strategy: "localFM_rebalance_vcycle"
+    - --d-vcycle-step-size-pct 1
+- Hermes 10%
+    - --d-strategy: "hermes"
+    - --d-vcycle-step-size-pct 0.1
+- Leopard
+    - --d-strategy: "leopard"
 
 Licensing
 ---------
 
-Mt-KaHyPar is a free software provided under the MIT License.
+DynPart is a free software provided under the MIT License.
 For more information see the [LICENSE file][LF].
 We distribute this framework freely to foster the use and development of hypergraph partitioning tools.
 If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
@@ -223,3 +318,5 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 [Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
+[Mt-KaHyPar]: https://github.com/kahypar/mt-kahypar
+[FREIGHT]: https://github.com/KaHIP/FREIGHT
