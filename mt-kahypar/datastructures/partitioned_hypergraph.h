@@ -458,14 +458,14 @@ class PartitionedHypergraph {
     _hg->restoreLargeEdge(he);
 
     // Recalculate pin count in parts
-    const size_t incidence_array_start = _hg->hyperedge(he).firstEntry();
-    const size_t incidence_array_end = _hg->hyperedge(he).firstInvalidEntry();
+    const size_t deg = static_cast<size_t>(_hg->edgeSize(he));
     tbb::enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
-    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
-      const HypernodeID pin = _hg->_incidence_array[pos];
+    tbb::parallel_for(static_cast<size_t>(0), deg, [&](const size_t i) {
+      const HypernodeID pin = _hg->pinAt(he, i);
       const PartitionID block = partID(pin);
       ++ets_pin_count_in_part.local()[block];
     });
+
 
     // Aggregate local pin count for each block
     for ( PartitionID block = 0; block < _k; ++block ) {
@@ -1252,6 +1252,16 @@ class PartitionedHypergraph {
     sync_update.edge_size = edgeSize(he);
     _pin_count_update_ownership[he].lock();
     notify_func(sync_update);
+    // DEBUG
+    if (_con_info.pinCountInPart(he, from) == 0) {
+      const HypernodeID recomputed_from = pinCountInPartRecomputed(he, from);
+      if (recomputed_from > 0) {
+        std::cerr << "[DBG] updatePinCountOfHyperedge: he=" << he
+                  << " from=" << from << " to=" << to
+                  << " tracked_from_count=0 recomputed_from_count=" << recomputed_from
+                  << " | edgeSize=" << edgeSize(he) << std::endl;
+      }
+    }
     sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
     sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
     sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;

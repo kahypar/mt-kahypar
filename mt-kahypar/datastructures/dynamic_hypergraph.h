@@ -1055,6 +1055,13 @@ class DynamicHypergraph {
     return const_cast<Hyperedge&>(static_cast<const DynamicHypergraph&>(*this).hyperedge(e));
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID pinAt(const HyperedgeID e, const size_t local_pos) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(local_pos < edgeSize(e));
+    const size_t pos = hyperedge(e).firstEntry() + local_pos;
+    return _incidence_array[pos];
+  }
+
   // ####################### Contract / Uncontract #######################
 
   /**!

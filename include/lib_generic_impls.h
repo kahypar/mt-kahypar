@@ -48,6 +48,7 @@ namespace lib {
   using DynamicGraph = typename DynamicGraphTypeTraits::Hypergraph;
   using StaticHypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
   using DynamicHypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  using CompressedHypergraph = typename CompressedHypergraphTypeTraits::Hypergraph;
 
   using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedGraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
@@ -67,6 +68,8 @@ ReturnT switch_hg(mt_kahypar_hypergraph_t hg, Func f) {
       return f(utils::cast<DynamicGraph>(hg));
     case STATIC_HYPERGRAPH:
       return f(utils::cast<StaticHypergraph>(hg));
+    case COMPRESSED_HYPERGRAPH:
+      return f(utils::cast<CompressedHypergraph>(hg));
     case DYNAMIC_HYPERGRAPH:
       return f(utils::cast<DynamicHypergraph>(hg));
     case NULLPTR_HYPERGRAPH: break;
@@ -86,6 +89,7 @@ ReturnT switch_graph(mt_kahypar_hypergraph_t hg, Func f) {
       return f(utils::cast<DynamicGraph>(hg));
     case STATIC_HYPERGRAPH:
     case DYNAMIC_HYPERGRAPH:
+    case COMPRESSED_HYPERGRAPH:
     case NULLPTR_HYPERGRAPH:
       break;
   }
@@ -104,6 +108,8 @@ ReturnT switch_phg(mt_kahypar_partitioned_hypergraph_t phg, Func f) {
       return f(utils::cast<DynamicPartitionedGraph>(phg));
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       return f(utils::cast<StaticPartitionedHypergraph>(phg));
+    case COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING:
+      return f(utils::cast<CompressedPartitionedHypergraph>(phg));
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
       return f(utils::cast<DynamicPartitionedHypergraph>(phg));
     case LARGE_K_PARTITIONING:

@@ -618,7 +618,7 @@ namespace mt_kahypar {
     }
     #endif
 
-    if ( partition.instance_type == InstanceType::hypergraph ) {
+    if ( partition.instance_type == InstanceType::hypergraph || partition.instance_type == InstanceType::compressed_hypergraph ) {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;

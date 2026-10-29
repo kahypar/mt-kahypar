@@ -70,6 +70,16 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::UNDEFINED: throw InvalidParameterException("Unknown preset type!");
     }
   }
+  else if ( instance == InstanceType::compressed_hypergraph ) {
+    switch ( preset ) {
+      case PresetType::deterministic:
+      case PresetType::large_k:
+      case PresetType::default_preset:
+      case PresetType::quality: return COMPRESSED_HYPERGRAPH;
+      case PresetType::highest_quality: return DYNAMIC_HYPERGRAPH;
+      case PresetType::UNDEFINED: throw InvalidParameterException("Unknown preset type!");
+    }
+  }
   else {
     throw InvalidParameterException("Unknown instance type. Should be either graph or hypergraph");
   }
@@ -79,6 +89,7 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
 mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                                                 const InstanceType instance) {
   if ( instance == InstanceType::graph ) {
+<<<<<<< HEAD
     if ( preset == PresetType::default_preset ||
          preset == PresetType::quality ||
          preset == PresetType::large_k ||
@@ -98,6 +109,39 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
     } else if ( preset == PresetType::large_k ) {
       return LARGE_K_PARTITIONING;
+=======
+    switch ( preset ) {
+      case PresetType::default_preset:
+      case PresetType::quality:
+      case PresetType::large_k:
+      case PresetType::deterministic:
+        return MULTILEVEL_GRAPH_PARTITIONING;
+      case PresetType::highest_quality:
+        return N_LEVEL_GRAPH_PARTITIONING;
+      case PresetType::UNDEFINED: break;
+    }
+  } else if ( instance == InstanceType::hypergraph ) {
+    switch ( preset ) {
+      case PresetType::default_preset:
+      case PresetType::quality:
+      case PresetType::deterministic:
+        return MULTILEVEL_HYPERGRAPH_PARTITIONING;
+      case PresetType::highest_quality:
+        return N_LEVEL_HYPERGRAPH_PARTITIONING;
+      case PresetType::large_k:
+        return LARGE_K_PARTITIONING;
+      case PresetType::UNDEFINED: break;
+    }
+  } else if ( instance == InstanceType::compressed_hypergraph ) {
+    switch ( preset ) {
+      case PresetType::default_preset:
+      case PresetType::quality:
+      case PresetType::deterministic:
+        return COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING;
+      case PresetType::highest_quality:
+      case PresetType::large_k:
+      case PresetType::UNDEFINED: break;
+>>>>>>> origin/compression
     }
   }
   return NULLPTR_PARTITION;

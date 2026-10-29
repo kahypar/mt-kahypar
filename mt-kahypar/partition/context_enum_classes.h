@@ -44,7 +44,8 @@ enum class FileFormat : int8_t {
 enum class InstanceType : int8_t {
   graph = 0,
   hypergraph = 1,
-  UNDEFINED = 2
+  UNDEFINED = 2,
+  compressed_hypergraph = 3
 };
 
 enum class PresetType : int8_t {

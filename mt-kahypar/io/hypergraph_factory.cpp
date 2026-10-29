@@ -30,6 +30,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
+#include "mt-kahypar/datastructures/compressed_hypergraph_factory.h"
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/utils/exception.h"
 
@@ -54,6 +55,7 @@ mt_kahypar_hypergraph_t constructHypergraph(const HypernodeID& num_hypernodes,
     reinterpret_cast<mt_kahypar_hypergraph_s*>(hypergraph), Hypergraph::TYPE };
 }
 
+<<<<<<< HEAD
 mt_kahypar_hypergraph_t constructHypergraph(const mt_kahypar_hypergraph_type_t& type,
                                             const HypernodeID& num_hypernodes,
                                             const HyperedgeID& num_hyperedges,
@@ -142,6 +144,22 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
                                        const bool stable_construction,
                                        const bool remove_single_pin_hes,
                                        const bool print_warnings) {
+=======
+
+mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
+                                        const mt_kahypar_hypergraph_type_t& type,
+                                        const bool stable_construction,
+                                        const bool remove_single_pin_hes) {
+  if (type == COMPRESSED_HYPERGRAPH) {
+    auto* hypergraph = new ds::CompressedHypergraph(
+      ds::CompressedHypergraphFactory::stream(filename, remove_single_pin_hes)
+    );
+    return mt_kahypar_hypergraph_t {
+      reinterpret_cast<mt_kahypar_hypergraph_s*>(hypergraph), ds::CompressedHypergraph::TYPE
+    };
+  }
+
+>>>>>>> origin/compression
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
   HyperedgeID num_removed_single_pin_hyperedges = 0;
@@ -150,16 +168,59 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
   vec<HypernodeWeight> hypernodes_weight;
   readHypergraphFile(filename, num_hyperedges, num_hypernodes,
                      num_removed_single_pin_hyperedges, hyperedges,
+<<<<<<< HEAD
                      hyperedges_weight, hypernodes_weight, remove_single_pin_hes, print_warnings);
   return constructHypergraph(type, num_hypernodes, num_hyperedges, hyperedges,
                              hyperedges_weight, hypernodes_weight,
                              num_removed_single_pin_hyperedges, stable_construction);
+=======
+                     hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
+
+  switch ( type ) {
+    case STATIC_HYPERGRAPH:
+      return constructHypergraph<ds::StaticHypergraph>(
+        num_hypernodes, num_hyperedges, hyperedges,
+        hyperedges_weight.data(), hypernodes_weight.data(),
+        num_removed_single_pin_hyperedges, stable_construction);
+    case STATIC_GRAPH:
+      ENABLE_GRAPHS(
+        return constructHypergraph<ds::StaticGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
+    case DYNAMIC_HYPERGRAPH:
+      ENABLE_HIGHEST_QUALITY(
+        return constructHypergraph<ds::DynamicHypergraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
+    case DYNAMIC_GRAPH:
+      ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(
+        return constructHypergraph<ds::DynamicGraph>(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedges_weight.data(), hypernodes_weight.data(),
+          num_removed_single_pin_hyperedges, stable_construction);
+      )
+    case COMPRESSED_HYPERGRAPH: // handled above
+    case NULLPTR_HYPERGRAPH:
+      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+  }
+
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
+>>>>>>> origin/compression
 }
 
 mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
                                       const mt_kahypar_hypergraph_type_t& type,
+<<<<<<< HEAD
                                       const bool stable_construction,
                                       const bool) {
+=======
+                                      const bool stable_construction) {
+  if (type == COMPRESSED_HYPERGRAPH) throw InvalidInputException("Compressed hypergraphs only support hMetis files.");
+>>>>>>> origin/compression
   HyperedgeID num_edges = 0;
   HypernodeID num_vertices = 0;
   vec<HyperedgeWeight> edges_weight;

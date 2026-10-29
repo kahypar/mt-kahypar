@@ -888,13 +888,30 @@ class StaticHypergraph {
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
 
+  /**
+   * Returns an estimate of the memory used (in kilobytes) by the
+   * variable-size internal arrays of this hypergraph.
+   */
+  size_t memoryConsumptionKB() const {
+    size_t total = 0;
+    total += sizeof(Hypernode) * _hypernodes.size();
+    total += sizeof(HyperedgeID) * _incident_nets.size();
+    total += sizeof(Hyperedge) * _hyperedges.size();
+    total += sizeof(HypernodeID) * _incidence_array.size();
+    total += sizeof(PartitionID) * _community_ids.capacity();
+    if (_fixed_vertices.hasFixedVertices()) {
+      total += _fixed_vertices.size_in_bytes();
+    }
+    // Temporary contraction buffer is not counted here
+    return total / 1024;
+  }
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
     throw UnsupportedOperationException(
       "verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
     return false;
   }
-
+  
  private:
   friend class StaticHypergraphFactory;
   template<typename Hypergraph>
@@ -937,7 +954,13 @@ class StaticHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
   }
-
+  
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID pinAt(const HyperedgeID e, const size_t local_pos) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(local_pos < edgeSize(e));
+    const size_t pos = hyperedge(e).firstEntry() + local_pos;
+    return _incidence_array[pos];
+  }
   // ####################### Remove / Restore Hyperedges #######################
 
   // ! Removes hyperedge e from the incident nets of vertex hn

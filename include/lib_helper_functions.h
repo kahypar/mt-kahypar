@@ -123,7 +123,8 @@ bool is_compatible(mt_kahypar_partitioned_hypergraph_t partitioned_hg, mt_kahypa
     case DETERMINISTIC:
     case DETERMINISTIC_QUALITY:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
-             partitioned_hg.type == MULTILEVEL_HYPERGRAPH_PARTITIONING;
+             partitioned_hg.type == MULTILEVEL_HYPERGRAPH_PARTITIONING ||
+             partitioned_hg.type == COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING;
     case LARGE_K:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == LARGE_K_PARTITIONING;
@@ -188,6 +189,54 @@ void prepare_context(Context& context) {
   }
 }
 
+<<<<<<< HEAD
+=======
+InstanceType get_instance_type(mt_kahypar_hypergraph_t hypergraph) {
+  switch ( hypergraph.type ) {
+    case STATIC_GRAPH:
+    case DYNAMIC_GRAPH:
+      return InstanceType::graph;
+    case STATIC_HYPERGRAPH:
+    case DYNAMIC_HYPERGRAPH:
+      return InstanceType::hypergraph;
+    case COMPRESSED_HYPERGRAPH:
+      return InstanceType::compressed_hypergraph;
+    case NULLPTR_HYPERGRAPH:
+      return InstanceType::UNDEFINED;
+  }
+  return InstanceType::UNDEFINED;
+}
+
+InstanceType get_instance_type(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+  switch ( partitioned_hg.type ) {
+    case MULTILEVEL_GRAPH_PARTITIONING:
+    case N_LEVEL_GRAPH_PARTITIONING:
+      return InstanceType::graph;
+    case COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING:
+      return InstanceType::compressed_hypergraph;
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+    case N_LEVEL_HYPERGRAPH_PARTITIONING:
+    case LARGE_K_PARTITIONING:
+      return InstanceType::hypergraph;
+    case NULLPTR_PARTITION:
+      return InstanceType::UNDEFINED;
+  }
+  return InstanceType::UNDEFINED;
+}
+
+mt_kahypar_preset_type_t get_preset_c_type(const PresetType preset) {
+  switch ( preset ) {
+    case PresetType::default_preset: return DEFAULT;
+    case PresetType::quality: return QUALITY;
+    case PresetType::highest_quality: return HIGHEST_QUALITY;
+    case PresetType::deterministic: return DETERMINISTIC;
+    case PresetType::large_k: return LARGE_K;
+    case PresetType::UNDEFINED: return DEFAULT;
+  }
+  return DEFAULT;
+}
+
+>>>>>>> origin/compression
 std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
   std::stringstream ss;
   switch ( hypergraph.type ) {
@@ -202,7 +251,15 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
     case STATIC_HYPERGRAPH:
       ss << "The hypergraph uses the static hypergraph data structure which can be only used "
          << "in combination with the following presets: "
+<<<<<<< HEAD
          << "DEFAULT, QUALITY, DETERMINISTIC, DETERMINISTIC_QUALITY and LARGE_K"; break;
+=======
+         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
+      case COMPRESSED_HYPERGRAPH:
+      ss << "The hypergraph uses a compressed representation the static hypergraph data structure which can be only used "
+         << "in combination with the following presets: "
+         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
+>>>>>>> origin/compression
     case DYNAMIC_HYPERGRAPH:
       ss << "The hypergraph uses the dynamic hypergraph data structure which can be only used "
          << "in combination with the following preset: "
@@ -232,6 +289,7 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
       ss << "The partitioned hypergraph uses the data structures for n-level graph partitioning "
          << "which can be only used in combination with the following preset: "
          << "HIGHEST_QUALITY"; break;
+    case COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING:
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel hypergraph partitioning "
          << "which can be only used in combination with the following presets: "

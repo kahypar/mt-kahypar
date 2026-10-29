@@ -46,6 +46,7 @@ namespace mt_kahypar {
     switch (type) {
       case InstanceType::graph: return os << "graph";
       case InstanceType::hypergraph: return os << "hypergraph";
+      case InstanceType::compressed_hypergraph: return os << "compressed hypergraph";
       case InstanceType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -71,6 +72,7 @@ namespace mt_kahypar {
       case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
       case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      case COMPRESSED_MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "compressed_multilevel_hypergraph_partitioning";
       case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
       case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
       case NULLPTR_PARTITION: return os << "UNDEFINED";

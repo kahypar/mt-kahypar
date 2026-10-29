@@ -63,6 +63,7 @@ namespace {
   using DynamicGraphFactory = typename ds::DynamicGraph::Factory;
 
   using StaticPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+  using CompressedPartitionedHypergraph = typename CompressedHypergraphTypeTraits::PartitionedHypergraph;
   using DynamicPartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
   using SparsePartitionedHypergraph = typename LargeKHypergraphTypeTraits::PartitionedHypergraph;
   using StaticPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
@@ -276,6 +277,33 @@ void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
   error->status = mt_kahypar_status_t::SUCCESS;
   error->msg = nullptr;
   error->msg_len = 0;
+}
+
+
+size_t mt_kahypar_memory_kb(mt_kahypar_hypergraph_t hg) {
+  if ( hg.type == STATIC_HYPERGRAPH )
+    return reinterpret_cast< ds::StaticHypergraph* >(hg.hypergraph)->memoryConsumptionKB();
+  if ( hg.type == COMPRESSED_HYPERGRAPH) 
+    return reinterpret_cast< ds::CompressedHypergraph* >(hg.hypergraph)->memoryConsumptionKB();
+  throw UnsupportedOperationException(
+            "Only static and compressed hypergraphs provide memory usage");
+}
+
+mt_kahypar_hypergraph_t mt_kahypar_stream_hypergraph_from_file(const char* file_name,
+                                                             const mt_kahypar_context_t* context,
+                                                             const mt_kahypar_file_format_type_t file_format,
+                                                             mt_kahypar_error_t* error) {
+  const Context& c = *reinterpret_cast<const Context*>(context);
+  const InstanceType instance = file_format == HMETIS
+    ? InstanceType::compressed_hypergraph 
+    : InstanceType::graph;
+  const FileFormat format = file_format == HMETIS ? FileFormat::hMetis : FileFormat::Metis;
+  try {
+    return lib::hypergraph_from_file(file_name, c, instance, format);
+  } catch ( std::exception& ex ) {
+    *error = to_error(ex);
+  }
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
 mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_name,

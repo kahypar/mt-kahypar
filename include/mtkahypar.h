@@ -150,6 +150,10 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(cons
                                                                             const mt_kahypar_file_format_type_t file_format,
                                                                             mt_kahypar_error_t* error);
 
+MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_stream_hypergraph_from_file(const char* file_name,
+                                                                            const mt_kahypar_context_t* context,
+                                                                            const mt_kahypar_file_format_type_t file_format,
+                                                                            mt_kahypar_error_t* error);
 /**
  * Reads a target graph in Metis file format. The target graph can be used in the
  * 'mt_kahypar_map' function to map a (hyper)graph onto it.
@@ -308,6 +312,11 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_edge_source(mt_kahypar_hyper
  */
 MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_edge_target(mt_kahypar_hypergraph_t graph, mt_kahypar_hyperedge_id_t edge);
 
+
+/**
+ * Returns the approximated memory consumption of a static or compressed hypergraph in KB.
+ */
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_memory_kb(mt_kahypar_hypergraph_t graph);
 // ####################### Fixed Vertices #######################
 
 /**
