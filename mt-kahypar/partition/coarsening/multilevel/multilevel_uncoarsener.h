@@ -59,6 +59,7 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
       _target_graph(target_graph),
       _current_level(0),
       _num_levels(0),
+      _current_relaxation(0),
       _block_ids(hypergraph.initialNumNodes(), kInvalidPartition),
       _progress(hypergraph.initialNumNodes(), 0, false) { }
 
@@ -109,6 +110,7 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   const TargetGraph* _target_graph;
   int _current_level;
   int _num_levels;
+  double _current_relaxation;
   ds::Array<PartitionID> _block_ids;
   utils::ProgressBar _progress;
 };

@@ -603,6 +603,18 @@ namespace mt_kahypar {
         context.initial_partitioning.refinement.min_border_vertices_per_thread),
       "Minimum number of border vertices per thread with which we perform a localized search (n-Level Partitioner)."
     )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-coarsest-epsilon-relaxation" : "--r-coarsest-epsilon-relaxation"),
+      (!initial_partitioning ? context.refinement.coarsest_epsilon_relaxation :
+        context.initial_partitioning.refinement.coarsest_epsilon_relaxation),
+      "Relaxation of balance contraint applied to the coarsest level (additive with epsilon)."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-relax-only-by-imbalance" : "--r-relax-only-by-imbalance"),
+      (!initial_partitioning ? context.refinement.relax_only_by_imbalance:
+        context.initial_partitioning.refinement.relax_only_by_imbalance),
+      "If true, don't relax epsilon beyond the current imbalance of the partition."
+    )->capture_default_str();
 
     // Label Propagation
     app.add_option_function<std::string>(
@@ -1111,6 +1123,11 @@ namespace mt_kahypar {
       "- direct\n"
       "- deep\n"
       "- rb"
+    )->capture_default_str();
+    app.add_option(
+      "--i-use-relaxed-block-weights",
+      context.initial_partitioning.use_relaxed_block_weights,
+      "Whether to use the relaxed block weights of the coarsest level also for initial partitioning."
     )->capture_default_str();
     app.add_option_function<std::vector<std::string>>(
       "--i-enabled-ip-algos", [&](const std::vector<std::string>& list) {
