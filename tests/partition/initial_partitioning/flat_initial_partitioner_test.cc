@@ -73,7 +73,7 @@ class AFlatInitialPartitionerTest : public Test {
     context(),
     ip_data(nullptr) {
     context.partition.k = Config::K;
-    context.partition.epsilon = 0.2;
+    context.partition.epsilon = {0.2};
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
     context.initial_partitioning.lp_initial_block_size = 5;

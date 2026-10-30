@@ -69,7 +69,7 @@ class DeterministicRebalancerTest : public Test {
           rebalancer(nullptr) {
     parallel::initialize_tbb(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
-    context.partition.epsilon = 0.05;
+    context.partition.epsilon = {0.05};
     context.partition.k = Config::K;
 
     context.partition.preset_type = PresetType::default_preset;

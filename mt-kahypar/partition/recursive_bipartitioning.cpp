@@ -175,12 +175,13 @@ namespace rb {
       setupFixedVerticesForBipartitioning(hg, k);
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
 
-      DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
+      // TODO
+      DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon[0];
       PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
       DBG << "Bipartitioning Result -"
           << "Objective =" << metrics::quality(bipartitioned_hg, b_context)
           << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
-          << "(Target Imbalance =" << b_context.partition.epsilon << ")";
+          << "(Target Imbalance =" << b_context.partition.epsilon[0] << ")";
       adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, true);
       hg.addFixedVertexSupport(std::move(fixed_vertices));
 
@@ -274,7 +275,8 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
         << "k =" << (k1 - k0)
         << "Objective =" << metrics::quality(phg, context)
         << "Imbalance =" << metrics::imbalance(phg, rb_context)
-        << "(Target Imbalance =" << rb_context.partition.epsilon << ")";
+        // TODO
+        << "(Target Imbalance =" << rb_context.partition.epsilon[0] << ")";
   }
 }
 
@@ -320,7 +322,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
   vec<uint8_t> already_cut(rb::usesAdaptiveWeightOfNonCutEdges(context) ?
     hypergraph.initialNumEdges() : 0, 0);
   rb::recursive_bipartitioning<TypeTraits>(hypergraph, rb_context, 0, rb_context.partition.k,
-    OriginalHypergraphInfo { weight::sum(hypergraph.totalWeight()), rb_context.partition.k,
+    OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
       rb_context.partition.epsilon }, already_cut);
 
   if (context.type == ContextType::main) {

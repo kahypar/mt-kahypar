@@ -417,7 +417,7 @@ Construct a target graph.
          const double epsilon,
          const Objective objective) {
            context.partition.k = k;
-           context.partition.epsilon = epsilon;
+           context.partition.epsilon = {epsilon};
            context.partition.objective = objective;
          }, "Sets all required parameters for partitioning",
          py::arg("k"), py::arg("epsilon"), py::arg("objective function"))
@@ -426,7 +426,7 @@ Construct a target graph.
          const PartitionID k,
          const double epsilon) {
            context.partition.k = k;
-           context.partition.epsilon = epsilon;
+           context.partition.epsilon = {epsilon};
          }, "Sets all required parameters for mapping to a target graph",
          py::arg("k"), py::arg("epsilon"))
     .def_property_readonly("preset",
@@ -444,9 +444,9 @@ Construct a target graph.
       }, "Number of blocks in which the (hyper)graph should be partitioned into")
     .def_property("epsilon",
       [](const Context& context) {
-        return context.partition.epsilon;
+        return context.partition.epsilon.empty() ? 0.0 : context.partition.epsilon[0];
       }, [](Context& context, const double epsilon) {
-        context.partition.epsilon = epsilon;
+        context.partition.epsilon = {epsilon};
       }, "Allowed imbalance")
     .def_property("objective",
       [](const Context& context) {

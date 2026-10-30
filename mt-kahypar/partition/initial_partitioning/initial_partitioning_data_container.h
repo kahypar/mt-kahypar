@@ -641,7 +641,8 @@ class InitialPartitioningDataContainer {
       ASSERT(best_objective);
       DBG << "Num Vertices =" << _partitioned_hg.initialNumNodes()
           << ", Num Edges =" << _partitioned_hg.initialNumEdges()
-          << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon;
+          // TODO
+          << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon[0];
       DBG << "Best Partition                [" << best->_result.str() << "]";
       DBG << "Worst Partition               [" << worst->_result.str() << "]";
       DBG << "Best Balanced Partition       [" << best_imbalance->_result.str() << "]";

@@ -82,10 +82,9 @@ class FixedVertexAcceptancePolicy final : public kahypar::meta::PolicyBase {
       return true;
     }
 
-    const auto max_allowed_fixed_vertex_block_weight = weight::map(
-      fixed_vertices.totalFixedVertexWeight(),
-      [&](HNWeightScalar total_fixed_vertex_weight) {
-        return (1.0 + context.partition.epsilon) * std::ceil(
+    const auto max_allowed_fixed_vertex_block_weight = weight::mapWithIndex(
+      fixed_vertices.totalFixedVertexWeight(), [&](HNWeightScalar total_fixed_vertex_weight, Dimension d) {
+        return (1.0 + context.partition.epsilon[d]) * std::ceil(
           static_cast<double>(total_fixed_vertex_weight) /  context.partition.k );
       });
     const PartitionID block_of_u = fixed_vertices.fixedVertexBlock(u);

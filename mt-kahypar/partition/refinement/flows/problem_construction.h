@@ -111,7 +111,7 @@ class ProblemConstruction {
                                const Context& context) :
     _context(context),
     _scaling(1.0 + _context.refinement.flows.alpha *
-      std::min(0.05, _context.partition.epsilon)),
+      std::min(0.05, _context.partition.epsilon[0])),
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(num_hyperedges),
     _local_bfs([&] {

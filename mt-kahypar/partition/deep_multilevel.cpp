@@ -670,10 +670,11 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     Multilevel<TypeTraits>::partition(coarsest_phg, b_context);
     current_k = 2;
 
+    // TODO
     DBG << BOLD << "Peform Initial Bipartitioning" << END
         << "- Objective =" << metrics::quality(coarsest_phg, b_context)
         << "- Imbalance =" << metrics::imbalance(coarsest_phg, b_context)
-        << "- Epsilon =" << b_context.partition.epsilon;
+        << "- Epsilon =" << b_context.partition.epsilon[0];
   } else {
     // If we do not reach the contraction limit, then the invariant that t threads
     // work on a hypergraph with at least t * C nodes is violated. To restore the
@@ -780,6 +781,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(current_k);
     context.partition.max_part_weights = rb_tree.maxPartWeightVector(current_k);
     context.setupThreadsPerFlowSearch();
+    // TODO: combine?
+    uncoarsener->updateContext();
     uncoarsener->updateMetrics();
   };
   adapt_contraction_limit_for_recursive_bipartitioning(current_k);
@@ -917,7 +920,7 @@ template<typename TypeTraits>
 void DeepMultilevel<TypeTraits>::partition(PartitionedHypergraph& hypergraph, const Context& context) {
   RBTree rb_tree(context);
   deep_multilevel_partitioning<TypeTraits>(hypergraph, context,
-    OriginalHypergraphInfo { weight::sum(hypergraph.totalWeight()),
+    OriginalHypergraphInfo { hypergraph.totalWeight(),
       context.partition.k, context.partition.epsilon }, rb_tree);
 }
 

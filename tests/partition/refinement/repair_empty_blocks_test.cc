@@ -84,7 +84,7 @@ class RepairEmptyBlocksTest : public Test {
           repair_empty_blocks(nullptr) {
     parallel::initialize_tbb(std::thread::hardware_concurrency());
     context.partition.mode = Mode::direct;
-    context.partition.epsilon = 1.5;
+    context.partition.epsilon = {1.5};
     context.partition.k = 16;
 
     context.partition.preset_type = PresetType::default_preset;

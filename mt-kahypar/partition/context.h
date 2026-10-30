@@ -44,8 +44,7 @@ struct PartitioningParameters {
   InstanceType instance_type = InstanceType::UNDEFINED;
   PresetType preset_type = PresetType::UNDEFINED;
   mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
-  // TODO: epsilon could be multi-dimensional ??
-  double epsilon = std::numeric_limits<double>::max();
+  std::vector<double> epsilon;
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;

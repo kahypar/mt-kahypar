@@ -59,7 +59,7 @@ class InitialMappingTest : public Test {
           target_graph(),
           context() {
     context.partition.mode = Mode::direct;
-    context.partition.epsilon = 0.05;
+    context.partition.epsilon = {0.05};
     context.partition.k = 8;
 
     context.mapping.max_steiner_tree_size = 3;

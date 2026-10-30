@@ -91,7 +91,7 @@ class ALabelPropagationRefiner : public Test {
     context.partition.objective = Config::OBJECTIVE;
     context.partition.gain_policy = context.partition.objective ==
       Objective::km1 ? GainPolicy::km1 : GainPolicy::cut;
-    context.partition.epsilon = 0.25;
+    context.partition.epsilon = {0.25};
     context.partition.k = Config::K;
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?

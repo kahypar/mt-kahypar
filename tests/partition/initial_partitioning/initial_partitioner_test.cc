@@ -83,7 +83,7 @@ class AInitialPartitionerTest : public Test {
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
-    context.partition.epsilon = 0.2;
+    context.partition.epsilon = {0.2};
     context.partition.k = Config::K;
 
     // Shared Memory

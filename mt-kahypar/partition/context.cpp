@@ -63,7 +63,8 @@ namespace mt_kahypar {
       str << "  Gain Policy:                        " << params.gain_policy << std::endl;
     }
     str << "  k:                                  " << params.k << std::endl;
-    str << "  epsilon:                            " << params.epsilon << std::endl;
+    // TODO
+    str << "  epsilon:                            " << params.epsilon[0] << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
@@ -365,6 +366,12 @@ namespace mt_kahypar {
   void Context::setupPartWeights(HNWeightConstRef total_hypergraph_weight) {
     ASSERT(partition.k > 1);
     const Dimension dimension = total_hypergraph_weight.dimension();
+    ASSERT(partition.epsilon.size() == 1 || partition.epsilon.size() == dimension);
+    if (partition.epsilon.size() == 1) {
+      for (Dimension d = 1; d < dimension; ++d) {
+        partition.epsilon.push_back(partition.epsilon[0]);
+      }
+    }
 
     if (partition.use_individual_part_weights) {
       bool success = true;
@@ -389,14 +396,14 @@ namespace mt_kahypar {
       for (size_t d = 0; d < dimension; ++d) {
         weight_fraction[d] = total_hypergraph_weight.at(d) / static_cast<double>(max_part_weights_sum.at(d));
       }
-      HNWeightScalar perfect_part_weights_sum = 0;
+      AllocatedHNWeight perfect_part_weights_sum(dimension, 0);
       partition.perfect_balance_part_weights.replaceWith(partition.k, dimension, 0, false);
       for (PartitionID part = 0; part < partition.k; ++part) {
         const HNWeightConstRef max_weight = partition.max_part_weights[part];
         for (size_t d = 0; d < dimension; ++d) {
           HNWeightScalar perfect_weight = std::ceil(weight_fraction[d] * max_weight.at(d));
           partition.perfect_balance_part_weights[part].set(d, perfect_weight);
-          perfect_part_weights_sum += perfect_weight;
+          perfect_part_weights_sum.at(d) += perfect_weight;
         }
       }
 
@@ -409,8 +416,11 @@ namespace mt_kahypar {
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
-        partition.epsilon = std::min(0.99, weight::sum(max_part_weights_sum)
-                            / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
+        partition.epsilon.resize(dimension);
+        for (Dimension d = 0; d < dimension; ++d) {
+          partition.epsilon[d] = std::min(0.99, max_part_weights_sum.at(d)
+                              / static_cast<double>(std::max(perfect_part_weights_sum.at(d), 1)) - 1);
+        }
       }
     } else {
       const PartitionID k = partition.k;
@@ -466,9 +476,13 @@ namespace mt_kahypar {
     if (partition.k < 1 || partition.k == std::numeric_limits<PartitionID>::max()) {
       throw InvalidInputException("Value for number of blocks (-k) not specified or invalid. Must be at least 1.");
     }
+    if (partition.epsilon.size() != 1 && partition.epsilon.size() != dimension) {
+      throw InvalidInputException("Imbalance (--epsilon) has invalid number of values. Specify a single value, or one per vertex weight dimension.");
+    }
     if (!partition.use_individual_part_weights
-        && (partition.epsilon < 0 || !std::isfinite(partition.epsilon)
-            || partition.epsilon == std::numeric_limits<double>::max())) {
+        && std::ranges::any_of(partition.epsilon, [](double eps) {
+          return eps < 0 || !std::isfinite(eps) || eps == std::numeric_limits<double>::max();
+        })) {
       throw InvalidInputException("Value for imbalance (--epsilon) not specified or invalid. Must be non-negative number.");
     }
 

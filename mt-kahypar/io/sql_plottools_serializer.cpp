@@ -30,6 +30,7 @@
 #include <sstream>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -42,6 +43,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
                       const Context& context,
                       const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {
+    ASSERT(!context.partition.epsilon.empty());
     std::stringstream oss;
     oss << "RESULT"
         << " algorithm=" << context.algorithm_name
@@ -63,7 +65,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " file_format=" << context.partition.file_format
         << " partition_type=" << context.partition.partition_type
         << " k=" << context.partition.k
-        << " epsilon=" << context.partition.epsilon
+        << " epsilon=" << context.partition.epsilon[0]
         << " seed=" << context.partition.seed
         << " num_vcycles=" << context.partition.num_vcycles
         << " deterministic=" << context.partition.deterministic

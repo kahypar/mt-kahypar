@@ -71,7 +71,7 @@ public:
     context.partition.preset_type = PresetType::deterministic;
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.partition_type = PartitionedHypergraph::TYPE;
-    context.partition.epsilon = 0.25;
+    context.partition.epsilon = {0.25};
     context.partition.enable_logging = false;
     context.partition.k = 8;
 
@@ -276,7 +276,7 @@ TEST_F(DeterminismTest, LPRefinement) {
 }
 
 TEST_F(DeterminismTest, LPRefinementOnSmallImbalance) {
-  context.partition.epsilon = 0.03;
+  context.partition.epsilon = {0.03};
   context.setupPartWeights(hypergraph.totalWeight());
   performRepeatedLPRefinement();
 }
@@ -312,7 +312,7 @@ TEST_F(DeterminismTest, JetRefinement) {
 }
 
 TEST_F(DeterminismTest, JetRefinementOnSmallImbalance) {
-  context.partition.epsilon = 0.03;
+  context.partition.epsilon = {0.03};
   context.setupPartWeights(hypergraph.totalWeight());
   performRepeatedJetRefinement();
 }
@@ -344,7 +344,7 @@ TEST_F(DeterminismTest, FlowRefinement) {
 }
 
 TEST_F(DeterminismTest, FlowRefinementOnSmallImbalance) {
-  context.partition.epsilon = 0.03;
+  context.partition.epsilon = {0.03};
   context.setupPartWeights(hypergraph.totalWeight());
   performRepeatedFlowRefinement();
 }

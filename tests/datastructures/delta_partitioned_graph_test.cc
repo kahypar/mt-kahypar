@@ -71,6 +71,7 @@ class ADeltaPartitionedGraph : public Test {
     gain_cache.initializeGainCache(phg);
 
     context.partition.k = 3;
+    context.partition.epsilon = {0.1};
     context.setupPartWeights(AllocatedHNWeight(1, 7));
     delta_phg = std::make_unique<DeltaPartitionedGraph>(context);
     delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);

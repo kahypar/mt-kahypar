@@ -54,7 +54,7 @@ class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergrap
     Base(),
     context() {
     context.partition.k = 2;
-    context.partition.epsilon = 0.2;
+    context.partition.epsilon = {0.2};
     context.partition.objective = Objective::km1;
     context.partition.gain_policy = GainPolicy::km1;
     // Max Part Weight = 4

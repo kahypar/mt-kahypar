@@ -54,7 +54,7 @@ class ATwoWayFmRefiner : public Test {
     context.partition.mode = Mode::direct;
     context.partition.objective = Objective::cut;
     context.partition.gain_policy = GainPolicy::km1; /* change this once cut policy available */
-    context.partition.epsilon = 0.25;
+    context.partition.epsilon = {0.25};
     context.partition.k = 2;
     context.partition.enable_logging = false;
 
@@ -107,7 +107,7 @@ TEST_F(ATwoWayFmRefiner, UpdatesImbalanceCorrectly) {
 
 TEST_F(ATwoWayFmRefiner, DoesNotViolateBalanceConstraint) {
   refiner->refine(metrics, *prng);
-  ASSERT_LE(metrics.imbalance.imbalance_value, context.partition.epsilon + EPS);
+  ASSERT_LE(metrics.imbalance.imbalance_value, context.partition.epsilon[0] + EPS);
 }
 
 TEST_F(ATwoWayFmRefiner, UpdatesMetricsCorrectly) {

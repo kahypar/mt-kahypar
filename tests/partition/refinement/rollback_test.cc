@@ -73,6 +73,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   Context context;
   context.partition.k = k;
+  context.partition.epsilon = {0.0};
   context.setupPartWeights(phg.totalWeight());
   context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max(), false);
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
@@ -132,6 +133,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   Context context;
   context.partition.k = k;
+  context.partition.epsilon = {0.0};
   context.setupPartWeights(phg.totalWeight());
   context.partition.max_part_weights.replaceWith(2, 1, std::numeric_limits<HNWeightScalar>::max(), false);
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
