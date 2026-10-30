@@ -28,7 +28,6 @@
 
 #include <iostream>
 #include <sstream>
-#include <thread>
 #include <type_traits>
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
