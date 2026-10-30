@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
   try {
     return run(argc, argv);
   } catch (const InvalidInputException& e) {
-    std::cerr << "\n " << e.what() << std::endl;
+    std::cerr << "\n" << e.what() << std::endl;
     return 1;
   } catch (const InvalidParameterException& e) {
     std::cerr << "\n" << e.what() << std::endl;

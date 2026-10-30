@@ -291,7 +291,7 @@ namespace mt_kahypar {
       "--no-color", []{
         color::setEnabled(false);
       },
-      "Disable colored output (also disabled if NO_COLOR is set or stdout is not a terminal)"
+      "Disable colored output (also disabled if NO_COLOR is set)"
     );
     app.add_flag(
       "--enable-progress-bar",

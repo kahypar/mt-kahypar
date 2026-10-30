@@ -50,15 +50,6 @@
 
 #include "kahypar-resources/macros.h"
 
-#define SPECIALIZATION(EXPR, TYPE)                                             \
-  template <bool T = EXPR> std::enable_if_t<T, TYPE>
-
-#define TRUE_SPECIALIZATION(EXPR, TYPE)                                        \
-  template <bool T = EXPR> std::enable_if_t<T, TYPE>
-
-#define FALSE_SPECIALIZATION(EXPR, TYPE)                                       \
-  template <bool T = EXPR> std::enable_if_t<!T, TYPE>
-
 #if (defined(__GNUC__) || defined(__clang__)) && defined(NDEBUG)
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
 #else
