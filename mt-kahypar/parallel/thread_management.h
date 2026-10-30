@@ -46,6 +46,9 @@ void terminate_tbb();
 // ! Get number of available threads
 int total_number_of_threads();
 
+// ! Exclusive upper bound for THREAD_ID
+size_t max_num_thread_ids();
+
 // ! Get number of actually available CPUs
 size_t num_hardware_cpus();
 

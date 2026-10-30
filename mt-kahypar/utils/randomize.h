@@ -35,9 +35,11 @@
 
 #include <tbb/task_group.h>
 #include <tbb/parallel_for.h>
+#include <tbb/task_arena.h>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/thread_management.h"
 
 
 namespace mt_kahypar::utils {
@@ -121,19 +123,20 @@ class Randomize {
   }
 
   void setSeed(int seed) {
-    for (uint32_t i = 0; i < std::thread::hardware_concurrency(); ++i) {
+    const uint32_t num_thread_ids = parallel::max_num_thread_ids();
+    for (uint32_t i = 0; i < num_thread_ids; ++i) {
       _rand[i].setSeed(seed + i);
     }
   }
 
   bool flipCoin(int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     return _rand[cpu_id].flipCoin();
   }
 
   template <typename T, typename = enable_overload_t<T> >
   void shuffleVector(std::vector<T>& vector, size_t num_elements, int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
 
@@ -141,7 +144,7 @@ class Randomize {
   void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
       cpu_id = THREAD_ID;
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
 
@@ -149,27 +152,27 @@ class Randomize {
   void shuffleVector(std::vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
       cpu_id = THREAD_ID;
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
 
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t num_elements, int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
 
   template <typename T, typename = enable_overload_t<T> >
   void shuffleVector(std::vector<T>& vector, size_t i, size_t j, int cpu_id) {
     ASSERT(i <= j && j <= vector.size());
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
   }
 
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t i, size_t j, int cpu_id) {
     ASSERT(i <= j && j <= vector.size());
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     if ( _perform_localized_random_shuffle ) {
       localizedShuffleVector(vector, i, j, cpu_id);
     } else {
@@ -180,7 +183,7 @@ class Randomize {
   template <typename T>
   void parallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j) {
     ASSERT(i <= j && j <= vector.size());
-    const size_t P = 2 * std::thread::hardware_concurrency();
+    const size_t P = 2 * tbb::this_task_arena::max_concurrency();
     const size_t N = j - i;
     const size_t step = N / P;
 
@@ -226,18 +229,18 @@ class Randomize {
 
   // returns uniformly random int from the interval [low, high]
   int getRandomInt(int low, int high, int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     return _rand[cpu_id].getRandomInt(low, high);
   }
 
   // returns uniformly random float from the interval [low, high)
   float getRandomFloat(float low, float high, int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     return _rand[cpu_id].getRandomFloat(low, high);
   }
 
   float getNormalDistributedFloat(float mean, float std_dev, int cpu_id) {
-    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    ASSERT(cpu_id < (int)parallel::max_num_thread_ids());
     return _rand[cpu_id].getNormalDistributedFloat(mean, std_dev);
   }
 
@@ -248,7 +251,7 @@ class Randomize {
 
  private:
   explicit Randomize() :
-    _rand(std::thread::hardware_concurrency()),
+    _rand(parallel::max_num_thread_ids()),
     _perform_localized_random_shuffle(false),
     _localized_random_shuffle_block_size(1024) { }
 

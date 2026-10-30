@@ -32,6 +32,7 @@
 #include <iterator>
 
 #include <tbb/parallel_for.h>
+#include <tbb/task_arena.h>
 #include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/macros.h"
@@ -354,7 +355,7 @@ class Array {
     if ( _underlying_data ) {
       ASSERT(count <= _size);
       if ( assign_parallel ) {
-        const size_t step = std::max(count / std::thread::hardware_concurrency(), UL(1));
+        const size_t step = std::max(count / tbb::this_task_arena::max_concurrency(), UL(1));
         tbb::parallel_for(UL(0), count, step, [&](const size_type i) {
           for ( size_t j = i; j < std::min(i + step, count); ++j ) {
             _underlying_data[j] = value;

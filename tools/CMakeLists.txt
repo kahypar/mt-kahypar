@@ -19,7 +19,7 @@ add_mtkahypar_executable(MtxToGraph mtx_to_graph.cc)
 target_link_libraries(MtxToGraph MtKaHyPar-BuildFlags)
 
 add_mtkahypar_executable(FixedVertexFileGenerator fixed_vertex_file_generator.cc)
-target_link_libraries(FixedVertexFileGenerator MtKaHyPar-ToolsMin)
+target_link_libraries(FixedVertexFileGenerator MtKaHyPar-BuildTools)
 
 
 #################################################################
