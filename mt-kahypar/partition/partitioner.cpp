@@ -170,14 +170,14 @@ namespace mt_kahypar {
           num_removed_degree_zero_hypernodes > 0 ||
           num_removed_large_hyperedges > 0 )) {
       LOG << "Performed single-node/large HE removal and degree-zero HN contractions:";
-      LOG << "\033[1m\033[31m" << " # removed"
+      LOG << RED << " # removed"
           << num_removed_single_node_hes << "single-pin hyperedges"
-          << "\033[0m";
-      LOG << "\033[1m\033[31m" << " # removed"
-          << num_removed_large_hyperedges << "large hyperedges with |e| >" << large_he_remover.largeHyperedgeThreshold() << "\033[0m";
-      LOG << "\033[1m\033[31m" << " # contracted"
+          << END;
+      LOG << RED << " # removed"
+          << num_removed_large_hyperedges << "large hyperedges with |e| >" << large_he_remover.largeHyperedgeThreshold() << END;
+      LOG << RED << " # contracted"
           << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 and w(v) = 1"
-          << "\033[0m";
+          << END;
       io::printStripe();
     }
   }
