@@ -836,14 +836,17 @@ namespace impl {
 template <typename GraphAndGainTypes>
 void AdvancedRebalancer<GraphAndGainTypes>::initializeTargetPartWeights(const PartitionedHypergraph& phg) {
   _target_part_weights = _context.partition.max_part_weights.copy();
-  if (phg.dimension() > 1 && _context.refinement.rebalancing.reduced_weight_from_block > 0) {
-    double block_factor = std::min(_context.refinement.rebalancing.reduced_weight_from_block, _context.partition.epsilon);
+  const double reduced_weight = _context.refinement.rebalancing.reduced_weight_from_block;
+
+  if (phg.dimension() > 1 && reduced_weight > 0) {
     for (size_t part = 0; part < _target_part_weights.size(); ++part) {
       auto weight_diff = weight::min(
-        weight::map(_target_part_weights[part], [=](HNWeightScalar val) {
+        weight::mapWithIndex(_target_part_weights[part], [&](HNWeightScalar val, Dimension d) {
+          const double block_factor = std::min(reduced_weight, _context.partition.epsilon[d]);
           return std::ceil(block_factor * static_cast<double>(val));
         }), phg.maxNodeWeight());
       _target_part_weights[part] -= weight_diff;
+
       if (part == 0) {
         DBG << "Reduced target weight of block 0 by" << weight_diff;
       }

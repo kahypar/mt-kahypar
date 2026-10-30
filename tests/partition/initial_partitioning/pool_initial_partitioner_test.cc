@@ -63,7 +63,7 @@ class APoolInitialPartitionerTest : public Test {
     partitioned_hypergraph(),
     context() {
     context.partition.k = Config::K;
-    context.partition.epsilon = 0.2;
+    context.partition.epsilon = {0.2};
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
       PresetType::default_preset : PresetType::highest_quality;

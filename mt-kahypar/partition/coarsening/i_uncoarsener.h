@@ -90,6 +90,10 @@ class IUncoarsener {
       updateMetricsImpl();
     }
 
+    void updateContext() {
+      updateContextImpl();
+    }
+
     PartitionedHypergraph& currentPartitionedHypergraph() {
       return currentPartitionedHypergraphImpl();
     }
@@ -116,6 +120,7 @@ class IUncoarsener {
     virtual gain_cache_t getGainCacheImpl() = 0;
     virtual HyperedgeWeight getObjectiveImpl() const = 0;
     virtual void updateMetricsImpl() = 0;
+    virtual void updateContextImpl() = 0;
     virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;
     virtual HypernodeID currentNumberOfNodesImpl() const = 0;
     virtual PartitionedHypergraph&& movePartitionedHypergraphImpl() = 0;

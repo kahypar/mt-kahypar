@@ -178,7 +178,10 @@ mt_kahypar_status_t mt_kahypar_set_context_parameter(mt_kahypar_context_t* conte
   Context& c = *reinterpret_cast<Context*>(context);
   switch(type) {
     case NUM_BLOCKS: return parse_number(c.partition.k, "positive integer");
-    case EPSILON: return parse_number(c.partition.epsilon, "floating point number");
+    case EPSILON: {
+      c.partition.epsilon.resize(1);
+      return parse_number(c.partition.epsilon[0], "floating point number");
+    }
     case NUM_VCYCLES: return parse_number(c.partition.num_vcycles, "positive integer");
     case OBJECTIVE: {
       std::string objective(value);
@@ -218,7 +221,7 @@ void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
                                             const mt_kahypar_objective_t objective) {
   Context& c = *reinterpret_cast<Context*>(context);
   c.partition.k = num_blocks;
-  c.partition.epsilon = epsilon;
+  c.partition.epsilon = {epsilon};
   switch ( objective ) {
     case CUT:
       c.partition.objective = Objective::cut; break;
@@ -238,7 +241,7 @@ mt_kahypar_partition_id_t mt_kahypar_get_num_blocks(const mt_kahypar_context_t* 
 }
 
 double mt_kahypar_get_epsilon(const mt_kahypar_context_t* context) {
-  return reinterpret_cast<const Context*>(context)->partition.epsilon;
+  return reinterpret_cast<const Context*>(context)->partition.epsilon[0];
 }
 
 mt_kahypar_objective_t mt_kahypar_get_objective(const mt_kahypar_context_t* context) {

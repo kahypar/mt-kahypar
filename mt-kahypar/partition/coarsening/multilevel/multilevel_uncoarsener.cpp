@@ -139,6 +139,11 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits>
+  void MultilevelUncoarsener<TypeTraits>::updateContextImpl() {
+    Base::updateContext();
+  }
+
+  template<typename TypeTraits>
   typename TypeTraits::PartitionedHypergraph& MultilevelUncoarsener<TypeTraits>::currentPartitionedHypergraphImpl() {
     return *_uncoarseningData.partitioned_hg;
   }

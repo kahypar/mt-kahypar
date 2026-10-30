@@ -1308,7 +1308,7 @@ namespace mt_kahypar {
       ERR(e.what());
     }
 
-    std::string epsilon_str = std::to_string(context.partition.epsilon);
+    std::string epsilon_str = std::to_string(context.partition.epsilon[0]);
     epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
 
     if (context.partition.graph_partition_output_folder != "") {

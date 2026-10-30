@@ -86,6 +86,8 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
 
   void updateMetricsImpl() override;
 
+  void updateContextImpl() override;
+
   PartitionedHypergraph& currentPartitionedHypergraphImpl() override;
 
   HypernodeID currentNumberOfNodesImpl() const override;

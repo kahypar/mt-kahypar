@@ -186,5 +186,10 @@ class UncoarsenerBase {
     ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
       V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
   }
+
+  void updateContext() {
+    // for deep multilevel
+    _context = _original_context;
+  }
 };
 }

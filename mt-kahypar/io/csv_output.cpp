@@ -66,7 +66,7 @@ namespace mt_kahypar::io::csv {
     s << context.partition.k << sep;
     s << context.partition.seed << sep;
 
-    s << context.partition.epsilon << sep;
+    s << context.partition.epsilon[0] << sep;
     s << metrics::imbalance(phg, context).imbalance_value << sep;
 
     s << context.partition.objective << sep;

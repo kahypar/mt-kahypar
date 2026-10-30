@@ -35,32 +35,44 @@ namespace mt_kahypar {
 namespace bipartitioning {
 
 struct OriginalHypergraphInfo {
+  OriginalHypergraphInfo(HNWeightConstRef original_hypergraph_weight,
+                         PartitionID original_k,
+                         const std::vector<double>& original_epsilon) :
+    original_hypergraph_weight(original_hypergraph_weight),
+    original_k(original_k),
+    original_epsilon(original_epsilon) { }
 
   // The initial allowed imbalance cannot be used for each bipartition as this could result in an
   // imbalanced k-way partition when performing recursive bipartitioning. We therefore adaptively
   // adjust the allowed imbalance for each bipartition individually based on the adaptive imbalance
   // definition described in our papers.
-  double computeAdaptiveEpsilon(const HNWeightScalar current_hypergraph_weight,
-                                const PartitionID current_k) const {
-    // TODO: epsilon could be multi-dimensional ??
-    if ( current_hypergraph_weight == 0 ) {
-      // In recursive bipartitioning, it can happen that a block becomes too light that
-      // all nodes of the block fit into one block in a subsequent bipartitioning step.
-      // This will create an empty block, which we fix later in a rebalancing step.
-      return 0.0;
-    } else {
-      double base = ceil(static_cast<double>(original_hypergraph_weight) / original_k)
-        / ceil(static_cast<double>(current_hypergraph_weight) / current_k)
-        * (1.0 + original_epsilon);
-      double adaptive_epsilon = std::min(0.99, std::max(std::pow(base, 1.0 /
-        ceil(log2(static_cast<double>(current_k)))) - 1.0, 0.0));
-      return adaptive_epsilon;
+  std::vector<double> computeAdaptiveEpsilon(HNWeightConstRef current_hypergraph_weight,
+                                             const PartitionID current_k) const {
+    std::vector<double> result;
+    for (Dimension d = 0; d < current_hypergraph_weight.dimension(); ++d) {
+      if ( current_hypergraph_weight.at(d) == 0 ) {
+        // In recursive bipartitioning, it can happen that a block becomes too light that
+        // all nodes of the block fit into one block in a subsequent bipartitioning step.
+        // This will create an empty block, which we fix later in a rebalancing step.
+        result.push_back(0.0);
+      } else {
+        double base = ceil(static_cast<double>(original_hypergraph_weight.at(d)) / original_k)
+          / ceil(static_cast<double>(current_hypergraph_weight.at(d)) / current_k)
+          * (1.0 + original_epsilon[d]);
+        double adaptive_epsilon = std::min(0.99, std::max(std::pow(base, 1.0 /
+          ceil(log2(static_cast<double>(current_k)))) - 1.0, 0.0));
+        result.push_back(adaptive_epsilon);
+      }
     }
+    return result;
   }
 
-  const HNWeightScalar original_hypergraph_weight;
+  OriginalHypergraphInfo(const OriginalHypergraphInfo&) = delete;
+  OriginalHypergraphInfo& operator=(const OriginalHypergraphInfo&) = delete;
+
+  const AllocatedHNWeight original_hypergraph_weight;
   const PartitionID original_k;
-  const double original_epsilon;
+  const std::vector<double> original_epsilon;
 };
 
 MT_KAHYPAR_ATTRIBUTE_NO_INLINE
@@ -128,7 +140,7 @@ inline void setupBipartitioningContext(Context& b_context,
       summed_epsilon += epsilon_per_dimension[d];
     }
 
-    b_context.partition.epsilon = summed_epsilon / dimension;  // TODO
+    b_context.partition.epsilon = epsilon_per_dimension;
     b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
     b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
     b_context.partition.perfect_balance_part_weights[0] = perfect_weight_p0;
@@ -140,7 +152,7 @@ inline void setupBipartitioningContext(Context& b_context,
               round((1 + epsilon_per_dimension[d]) * perfect_weight_p1.at(d)));
     }
   } else {
-    b_context.partition.epsilon = info.computeAdaptiveEpsilon(weight::sum(total_weight), k);
+    b_context.partition.epsilon = info.computeAdaptiveEpsilon(total_weight, k);
 
     b_context.partition.perfect_balance_part_weights.replaceWith(2, dimension, 0, false);
     b_context.partition.max_part_weights.replaceWith(2, dimension, 0, false);
@@ -150,9 +162,9 @@ inline void setupBipartitioningContext(Context& b_context,
       b_context.partition.perfect_balance_part_weights[1].set(d,
               std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight.at(d))));
       b_context.partition.max_part_weights[0].set(d,
-              (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[0].at(d));
+              (1 + b_context.partition.epsilon[d]) * b_context.partition.perfect_balance_part_weights[0].at(d));
       b_context.partition.max_part_weights[1].set(d,
-              (1 + b_context.partition.epsilon) * b_context.partition.perfect_balance_part_weights[1].at(d));
+              (1 + b_context.partition.epsilon[d]) * b_context.partition.perfect_balance_part_weights[1].at(d));
     }
   }
   b_context.setupContractionLimit(total_weight);
