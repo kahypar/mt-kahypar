@@ -47,7 +47,8 @@ inline bool stdoutSupportsColor() {
     return false;
   }
   const char* term = std::getenv("TERM");
-  if ( term != nullptr && std::strcmp(term, "dumb") == 0 ) {
+  if ( term != nullptr && ( std::strcmp(term, "dumb") == 0 ||
+                            std::strcmp(term, "ansi") == 0 ) ) {
     return false;
   }
 #ifdef _WIN32
@@ -62,12 +63,8 @@ inline bool stdoutSupportsColor() {
   if ( mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING ) {
     return true;
   }
-#ifndef MT_KAHYPAR_LIBRARY_MODE
-  if ( SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) ) {
-    return true;
-  }
-#endif
-  return false;
+  return !MT_KAHYPAR_IS_LIBRARY_MODE &&
+         SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 #else
   return isatty(STDOUT_FILENO);
 #endif

@@ -49,7 +49,6 @@
 #endif
 
 #include "kahypar-resources/macros.h"
-#include "mt-kahypar/utils/color.h"
 
 #define SPECIALIZATION(EXPR, TYPE)                                             \
   template <bool T = EXPR> std::enable_if_t<T, TYPE>
@@ -183,6 +182,9 @@
     ERR(error_msg);                                                            \
   }
 #endif
+
+// needs MT_KAHYPAR_IS_LIBRARY_MODE
+#include "mt-kahypar/utils/color.h"
 
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 #define ENABLE_EXPERIMENTAL_FEATURES(X) X
