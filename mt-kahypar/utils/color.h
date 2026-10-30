@@ -54,7 +54,6 @@ inline bool stdoutSupportsColor() {
   if ( !_isatty(_fileno(stdout)) ) {
     return false;
   }
-#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
   HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
   DWORD mode = 0;
   if ( handle == INVALID_HANDLE_VALUE || !GetConsoleMode(handle, &mode) ) {
@@ -63,15 +62,12 @@ inline bool stdoutSupportsColor() {
   if ( mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING ) {
     return true;
   }
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-  // a library must not modify the console state of its host application
-  return false;
-#else
-  return SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+#ifndef MT_KAHYPAR_LIBRARY_MODE
+  if ( SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) ) {
+    return true;
+  }
 #endif
-#else
   return false;
-#endif
 #else
   return isatty(STDOUT_FILENO);
 #endif
