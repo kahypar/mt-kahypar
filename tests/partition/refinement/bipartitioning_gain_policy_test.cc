@@ -64,7 +64,7 @@ class ABipartitioningPolicy : public Test {
     presetToContext(context, PresetType::default_preset, true);
     context.partition.mode = Mode::direct;
     context.partition.objective = ObjectiveFunc::objective;
-    context.partition.epsilon = 0.1;
+    context.partition.epsilon = {0.1};
     context.partition.k = 2;
     context.initial_partitioning.runs = 1;
 

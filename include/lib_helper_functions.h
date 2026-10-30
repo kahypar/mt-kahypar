@@ -160,7 +160,7 @@ void check_if_all_relevant_parameters_are_set(Context& context) {
 
   check_parameter(context.partition.preset_type == PresetType::UNDEFINED, "Preset type not specified.");
   check_parameter(context.partition.k == std::numeric_limits<PartitionID>::max(), "Number of blocks not specified.");
-  check_parameter(context.partition.epsilon == std::numeric_limits<double>::max(), "Imbalance not specified.");
+  check_parameter(context.partition.epsilon.empty(), "Imbalance not specified.");
   check_parameter(context.partition.objective == Objective::UNDEFINED, "Objective function not specified.");
   if (!success) {
     throw InvalidInputException("A required context parameter is not set. Required are: preset type, k, epsilon, objective");

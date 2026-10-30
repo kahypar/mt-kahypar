@@ -99,7 +99,7 @@ namespace mt_kahypar {
 
     Context& c = *reinterpret_cast<Context*>(context);
     ASSERT_EQ(4, c.partition.k);
-    ASSERT_EQ(0.03, c.partition.epsilon);
+    ASSERT_EQ(0.03, c.partition.epsilon[0]);
     ASSERT_EQ(Objective::km1, c.partition.objective);
     ASSERT_EQ(3, c.partition.num_vcycles);
     ASSERT_TRUE(c.partition.enable_logging);

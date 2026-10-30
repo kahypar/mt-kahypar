@@ -190,6 +190,7 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   dummy_context.partition.fixed_vertex_filename = "dummy.fix";
   dummy_context.partition.input_partition_filename = "dummy.part";
   dummy_context.partition.k = 0;
+  dummy_context.partition.epsilon = {0.0};
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.replaceWith(2, 1, 0, false);
   dummy_context.partition.max_part_weights.replaceWith(2, 1, 0, false);
@@ -218,6 +219,7 @@ TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
   tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.k = 2;
+  dummy_context.partition.epsilon = {0.1};
   dummy_context.partition.perfect_balance_part_weights.replaceWith(2, 1, 0, false);
   dummy_context.partition.max_part_weights.replaceWith(2, 1, 0, false);
   std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));

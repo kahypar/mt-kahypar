@@ -37,6 +37,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/weight/hypernode_weight_common.h"
 
 namespace mt_kahypar {
   using ds::StreamingVector;
@@ -76,7 +77,9 @@ namespace mt_kahypar {
       }
     } else {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
-        max_part_weights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
+        for (Dimension d = 0; d < context.dimension(); ++d) {
+          max_part_weights[i].at(d) *= ( 1.0 + context.partition.epsilon[d] * max_part_weight_scaling );
+        }
       }
     }
     return max_part_weights;

@@ -90,7 +90,7 @@ public:
         context.partition.mode = Mode::direct;
         context.partition.objective = Config::OBJECTIVE;
         context.partition.gain_policy = context.partition.objective == Objective::km1 ? GainPolicy::km1 : GainPolicy::cut;
-        context.partition.epsilon = 0.25;
+        context.partition.epsilon = {0.25};
         context.partition.k = Config::K;
         context.partition.preset_type = PresetType::deterministic;
         context.partition.instance_type = InstanceType::hypergraph;

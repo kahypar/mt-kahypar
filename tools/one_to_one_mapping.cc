@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
                context.mapping.target_graph_file.find_last_of('/') + 1)
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k
-            << " epsilon=" << context.partition.epsilon
+            << " epsilon=" << context.partition.epsilon[0]
             << " seed=" << context.partition.seed
             << " imbalance=" << metrics::imbalance(partitioned_hg, context).imbalance_value
             << " steiner_tree=" << metrics::quality(partitioned_hg, Objective::steiner_tree)

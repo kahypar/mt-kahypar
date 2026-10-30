@@ -67,9 +67,11 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
-      std::min(1.005, 1 + _context.partition.epsilon) *
-      _context.partition.perfect_balance_part_weights[block];
+    auto max_part_weight = weight::mapWithIndex(
+      _context.partition.perfect_balance_part_weights[block], [&](HNWeightScalar val, Dimension d) {
+        return std::min(1.005, 1 + _context.partition.epsilon[d]) * val;
+      });
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <= max_part_weight;
   }
 
   MaxGainMove computeMaxGainMove(PartitionedHypergraph& hypergraph,

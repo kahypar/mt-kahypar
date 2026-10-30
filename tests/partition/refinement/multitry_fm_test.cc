@@ -68,7 +68,7 @@ class MultiTryFMTest : public Test {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
-    context.partition.epsilon = 0.25;
+    context.partition.epsilon = {0.25};
     context.partition.k = Config::K;
     context.partition.allow_empty_blocks = true;
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
