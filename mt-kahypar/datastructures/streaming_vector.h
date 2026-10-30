@@ -38,6 +38,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/thread_management.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -60,8 +61,8 @@ class StreamingVector {
 
  public:
   StreamingVector() :
-    _cpu_buffer(MAX_NUM_THREAD_IDS),
-    _prefix_sum(MAX_NUM_THREAD_IDS) { }
+    _cpu_buffer(parallel::max_num_thread_ids()),
+    _prefix_sum(parallel::max_num_thread_ids()) { }
 
   StreamingVector(const StreamingVector&) = delete;
   StreamingVector & operator= (const StreamingVector &) = delete;

@@ -35,6 +35,7 @@
 #include "mt-kahypar/datastructures/flow_network_edge_parameters.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 
@@ -962,7 +963,7 @@ void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const Par
   // Initialize bfs queue with vertices contained in cut hyperedges
   size_t q_idx = 0;
 
-  const size_t num_threads = MAX_NUM_THREAD_IDS;
+  const size_t num_threads = parallel::max_num_thread_ids();
   vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(num_threads));
   tbb::parallel_for(UL(0), _cut_hes.size(), [&](const size_t i) {
     const int thread_idx = tbb::this_task_arena::current_thread_index();

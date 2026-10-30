@@ -31,6 +31,7 @@
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
@@ -38,12 +39,12 @@ namespace mt_kahypar {
 TwoHopClustering::TwoHopClustering(const HypernodeID num_nodes, const Context& context):
   _context(context),
   _cluster_count(num_nodes, AtomicID(0)),
-  _local_cluster_count(MAX_NUM_THREAD_IDS),
+  _local_cluster_count(parallel::max_num_thread_ids()),
   _favorite_clusters(),
   _local_incidence_map([this, num_nodes] {
     return CacheEfficienIncidenceMap(3UL * std::min(UL(num_nodes), this->_context.coarsening.two_hop_degree_threshold), 0.0);
   }),
-  _local_collected_nodes(MAX_NUM_THREAD_IDS) {
+  _local_collected_nodes(parallel::max_num_thread_ids()) {
     if (_context.coarsening.two_hop_cluster_size < 2) {
       throw InvalidParameterException("Value for c-two-hop-cluster-size too small, must be at least 2");
     }

@@ -34,6 +34,7 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -387,7 +388,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
 
   // Distribute roots of the contraction tree to local priority queues of
   // each thread.
-  const size_t num_hardware_threads = MAX_NUM_THREAD_IDS;
+  const size_t num_hardware_threads = parallel::max_num_thread_ids();
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = roots_of_version(version);
   tbb::parallel_for(UL(0), roots.size(), [&](const size_t i) {
