@@ -33,7 +33,6 @@
 
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
     !defined(KAHYPAR_ENABLE_THREAD_PINNING)
-#include <tbb/global_control.h>
 #include <tbb/task_arena.h>
 // If we use the C or Python interface or thread pinning is disabled, the cpu ID
 // to which the current thread is assigned to is not unique. We therefore use

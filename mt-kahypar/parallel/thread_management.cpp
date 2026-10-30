@@ -64,6 +64,9 @@ void terminate_tbb() {
 
 size_t max_num_thread_ids() {
 #if defined(MT_KAHYPAR_LIBRARY_MODE) || !defined(KAHYPAR_ENABLE_THREAD_PINNING)
+  // The arena a thread runs in can have more slots than the global thread limit
+  // (e.g., if it was created before the limit was set), so THREAD_ID may exceed
+  // max_allowed_parallelism. Take the larger value to stay in bounds.
   return std::max<size_t>(
     tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism),
     tbb::this_task_arena::max_concurrency());
