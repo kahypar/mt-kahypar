@@ -30,7 +30,6 @@
 #include <atomic>
 #include <type_traits>
 #include <limits>
-#include <cassert>
 
 #include <tbb/enumerable_thread_specific.h>
 

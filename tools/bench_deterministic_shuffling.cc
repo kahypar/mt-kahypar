@@ -30,17 +30,17 @@ void benchShuffle(size_t n, int num_threads) {
 
   std::cout << "preassign buckets" << std::endl;
   shuffle_preassign.create_integer_permutation(n, num_threads, rng);
-  assert(is_permutation(comp, shuffle_preassign.permutation));
+  ASSERT(is_permutation(comp, shuffle_preassign.permutation));
 
   std::cout << "preassign buckets opt" << std::endl;
   rng.seed(seed);
   shuffle_preassign_opt.create_integer_permutation(n, num_threads, rng);
-  assert(is_permutation(comp, shuffle_preassign_opt.permutation));
+  ASSERT(is_permutation(comp, shuffle_preassign_opt.permutation));
 
   std::cout << "hash" << std::endl;
   rng.seed(seed);
   shuffle_hash.create_integer_permutation(n, num_threads, rng);
-  assert(is_permutation(comp, shuffle_hash.permutation));
+  ASSERT(is_permutation(comp, shuffle_hash.permutation));
 }
 
 void testGroupingReproducibility(size_t n, int num_threads) {
@@ -57,9 +57,9 @@ void testGroupingReproducibility(size_t n, int num_threads) {
     if (i == 0) {
       first = shuffle;
     } else {
-      assert(shuffle.get_bucket.precomputed_buckets == first.get_bucket.precomputed_buckets);
-      assert(shuffle.permutation == first.permutation);
-      assert(shuffle.bucket_bounds == first.bucket_bounds);
+      ASSERT(shuffle.get_bucket.precomputed_buckets == first.get_bucket.precomputed_buckets);
+      ASSERT(shuffle.permutation == first.permutation);
+      ASSERT(shuffle.bucket_bounds == first.bucket_bounds);
     }
   }
 }
@@ -75,7 +75,7 @@ void testFeistel() {
   auto t = [&](uint64_t plain_text) {
     uint64_t encrypted = feistel.encrypt(plain_text);
     uint64_t decrypted = feistel.decrypt(encrypted);
-    assert(decrypted == plain_text);
+    ASSERT(decrypted == plain_text);
   };
 
   t(420);

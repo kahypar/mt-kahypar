@@ -32,8 +32,8 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
-#include <cassert>
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
@@ -78,7 +78,7 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
     }
 
     // prefix sum over bucket
-    assert(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
+    ASSERT(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
     parallel_prefix_sum(thread_local_bucket_ends.back().cbegin(), thread_local_bucket_ends.back().cend(),
                         global_bucket_begins.begin() + 1,
                         std::plus<>(), 0);

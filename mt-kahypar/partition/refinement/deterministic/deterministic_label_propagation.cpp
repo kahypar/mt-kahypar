@@ -285,7 +285,7 @@ namespace mt_kahypar {
           return false;
         }
       });
-      assert(gain == 0);
+      ASSERT(gain == 0);
     }
     return gain;
   }
@@ -362,7 +362,7 @@ namespace mt_kahypar {
       auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
                                                    p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
 
-      assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end,
+      ASSERT(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end,
                                                          p1_begin - 1, p2_begin - 1, lb_p1, ub_p2));
       if (best_prefix.first == invalid_pos) {
         // represents no solution found (and recursive version didn't move all the way to the start of the range)

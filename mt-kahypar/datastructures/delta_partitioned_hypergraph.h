@@ -193,8 +193,8 @@ class DeltaPartitionedHypergraph {
                       const HypernodeWeight max_weight_to,
                       DeltaFunc&& delta_func) {
     ASSERT(_phg);
-    assert(partID(u) == from);
-    assert(from != to);
+    ASSERT(partID(u) == from);
+    ASSERT(from != to);
     const HypernodeWeight wu = _phg->nodeWeight(u);
     if ( partWeight(to) + wu <= max_weight_to ) {
       _part_ids_delta[u] = to;

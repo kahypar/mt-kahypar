@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <functional>
 #include <algorithm>
-#include <cassert>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
@@ -62,7 +61,7 @@ public:
   }
 
   void deleteTop() {
-    assert(!empty());
+    ASSERT(!empty());
     positions[heap[0].id] = invalid_position;
     positions[heap.back().id] = 0;
     heap[0] = heap.back();
@@ -82,7 +81,7 @@ public:
   }
 
   void remove(const IdT e) {
-    assert(!empty() && contains(e));
+    ASSERT(!empty() && contains(e));
     PosT pos = positions[e];
     const KeyT removedKey = heap[pos].key, lastKey = heap.back().key;
     heap[pos] = heap.back();
@@ -101,24 +100,24 @@ public:
 
   // assumes semantics of comp = std::less, i.e. we have a MaxHeap and increaseKey moves the element up the tree. if comp = std::greater, increaseKey will still move the element up the tree
   void increaseKey(const IdT e, const KeyT newKey) {
-    assert(contains(e));
+    ASSERT(contains(e));
     const PosT pos = positions[e];
-    assert(comp(heap[pos].key, newKey));
+    ASSERT(comp(heap[pos].key, newKey));
     heap[pos].key = newKey;
     siftUp(pos);
   }
 
   // assumes semantics of comp = std::less, i.e. we have a MaxHeap and decreaseKey moves the element down the tree
   void decreaseKey(const IdT e, const KeyT newKey) {
-    assert(contains(e));
+    ASSERT(contains(e));
     const PosT pos = positions[e];
-    assert(comp(newKey, heap[pos].key));
+    ASSERT(comp(newKey, heap[pos].key));
     heap[pos].key = newKey;
     siftDown(pos);
   }
 
   void adjustKey(const IdT e, const KeyT newKey) {
-    assert(contains(e));
+    ASSERT(contains(e));
     const PosT pos = positions[e];
     if (comp(heap[pos].key, newKey)) {
       increaseKey(e, newKey);
@@ -128,7 +127,7 @@ public:
   }
 
   KeyT getKey(const IdT e) const {
-    assert(contains(e));
+    ASSERT(contains(e));
     return heap[positions[e]].key;
   }
 
@@ -145,7 +144,7 @@ public:
   }
 
   bool contains(const IdT e) const {
-    assert(fits(e));
+    ASSERT(fits(e));
     return positions[e] < heap.size() && heap[positions[e]].id == e;
   }
 
@@ -201,7 +200,7 @@ protected:
 
   bool positionsMatch() const {
     for (PosT i = 0; i < size(); ++i) {
-      assert(size_t(heap[i].id) < positions_size);
+      ASSERT(size_t(heap[i].id) < positions_size);
       if (positions[heap[i].id] != i) {
         LOG << "position mismatch" << V(heap.size()) << V(i) << V(heap[i].id) << V(positions[heap[i].id]) << V(positions_size);
         return false;
@@ -268,7 +267,7 @@ protected:
         }
 
       } else {
-        assert(arity == 2);
+        ASSERT(arity == 2);
 
         const PosT second = std::min(first + 1, size() - 1);    // TODO this branch is not cool. maybe make the while loop condition secondChild(pos) < size() ?
         const KeyT k1 = heap[first].key, k2 = heap[second].key;

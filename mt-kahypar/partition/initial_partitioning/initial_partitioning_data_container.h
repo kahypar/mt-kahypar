@@ -507,7 +507,7 @@ class InitialPartitioningDataContainer {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[0].second);
           auto comp = [&](const auto& l, const auto& r) { return r.first.is_other_better(l.first); };
-          assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
+          ASSERT(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
           _best_partitions[0].first = my_result;
           std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
           std::push_heap(_best_partitions.begin(), _best_partitions.end(), comp);

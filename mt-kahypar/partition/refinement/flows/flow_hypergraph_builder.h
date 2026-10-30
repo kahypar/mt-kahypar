@@ -172,7 +172,7 @@ namespace mt_kahypar {
     }
 
     void addPin(const whfc::Node u) {
-      assert(u < numNodes());
+      ASSERT(u < numNodes());
       pins.push_back({u, whfc::InHeIndex::Invalid()});
       nodes[u+1].first_out++;
     }

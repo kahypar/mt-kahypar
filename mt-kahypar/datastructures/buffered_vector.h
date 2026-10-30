@@ -28,10 +28,10 @@
 #pragma once
 
 #include <vector>
-#include <cassert>
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/allocator.h"
 
 namespace mt_kahypar::ds {
@@ -51,7 +51,7 @@ public:
 
   void clear() {
     back.store(0, std::memory_order_relaxed);
-    assert(std::all_of(buffers.begin(), buffers.end(), [&](vec_t& x) { return x.empty(); }));
+    ASSERT(std::all_of(buffers.begin(), buffers.end(), [&](vec_t& x) { return x.empty(); }));
   }
 
   size_t size() const {
@@ -70,7 +70,7 @@ public:
 
   void push_back_atomic(const T& element) {
     size_t pos = back.fetch_add(1, std::memory_order_relaxed);
-    assert(pos < data.size());
+    ASSERT(pos < data.size());
     data[pos] = element;
   }
 
@@ -109,7 +109,7 @@ private:
   void flush_buffer(vec_t& buffer) {
     if (!buffer.empty()) {
       size_t pos = back.fetch_add(buffer.size(), std::memory_order_relaxed);
-      assert(pos + buffer.size() - 1 < data.size());
+      ASSERT(pos + buffer.size() - 1 < data.size());
       std::copy_n(buffer.begin(), buffer.size(), data.begin() + pos);
       buffer.clear();
     }

@@ -31,6 +31,8 @@
 #include <vector>
 #include <numeric>
 
+#include "mt-kahypar/macros.h"
+
 namespace mt_kahypar {
 
 template<typename IteratorT>
@@ -119,12 +121,12 @@ public:
   };
 
   Iterator begin() {
-    assert(!ranges.empty());
+    ASSERT(!ranges.empty());
     return Iterator(ranges, begin_tag());
   }
 
   Iterator end() {
-    assert(!ranges.empty());
+    ASSERT(!ranges.empty());
     return Iterator(ranges, end_tag());
   }
 

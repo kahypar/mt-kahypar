@@ -137,7 +137,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });
 
     // sort nodes by cluster
-    auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
+    auto get_cluster = [&](NodeID u) { ASSERT(u < communities.size()); return communities[u]; };
     vec<NodeID> nodes_sorted_by_cluster(std::move(mapping));    // reuse memory from mapping since it's no longer needed
     auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
                                                   get_cluster, parallel::total_number_of_threads());
