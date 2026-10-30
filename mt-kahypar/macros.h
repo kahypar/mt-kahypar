@@ -133,6 +133,13 @@
 #define STREAM2STR(X) static_cast<std::stringstream>(X).str();
 
 // Info, Warning and Error Output Macros
+// kahypar-resources defines some of these macros as well
+#undef GREEN
+#undef CYAN
+#undef YELLOW
+#undef RED
+#undef BOLD
+#undef END
 #define GREEN ::mt_kahypar::color::code("\033[1;92m")
 #define CYAN ::mt_kahypar::color::code("\033[1;96m")
 #define YELLOW ::mt_kahypar::color::code("\033[1;93m")

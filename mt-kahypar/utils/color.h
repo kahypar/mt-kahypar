@@ -28,12 +28,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <cstring>
 
 #ifdef _WIN32
 #include <io.h>
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -48,15 +46,32 @@ inline bool stdoutSupportsColor() {
   if ( no_color != nullptr && no_color[0] != '\0' ) {
     return false;
   }
+  const char* term = std::getenv("TERM");
+  if ( term != nullptr && std::strcmp(term, "dumb") == 0 ) {
+    return false;
+  }
 #ifdef _WIN32
   if ( !_isatty(_fileno(stdout)) ) {
     return false;
   }
-  // ANSI escape sequences have to be enabled explicitly on Windows
+#ifdef ENABLE_VIRTUAL_TERMINAL_PROCESSING
   HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
   DWORD mode = 0;
-  return handle != INVALID_HANDLE_VALUE && GetConsoleMode(handle, &mode) &&
-         SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  if ( handle == INVALID_HANDLE_VALUE || !GetConsoleMode(handle, &mode) ) {
+    return false;
+  }
+  if ( mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING ) {
+    return true;
+  }
+#ifdef MT_KAHYPAR_LIBRARY_MODE
+  // a library must not modify the console state of its host application
+  return false;
+#else
+  return SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+#endif
+#else
+  return false;
+#endif
 #else
   return isatty(STDOUT_FILENO);
 #endif
@@ -76,7 +91,6 @@ inline void setEnabled(const bool enabled) {
   internal::enabledFlag() = enabled;
 }
 
-// Returns the escape sequence if colored output is enabled and an empty string otherwise
 inline const char* code(const char* escape_sequence) {
   return enabled() ? escape_sequence : "";
 }
