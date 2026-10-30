@@ -127,7 +127,7 @@ class FixedVertexSupport {
       _total_fixed_vertex_weight.fetch_add(
         weight_of_hn, std::memory_order_relaxed);
     } else {
-      ASSERT(_fixed_vertex_data[hn].block == block,
+      ASSERT(std::atomic_ref(_fixed_vertex_data[hn].block).load(std::memory_order::relaxed) == block,
         "Try to fix hypernode" << hn << "to block" << block
         << ", but it is already fixed to block" << _fixed_vertex_data[hn].block);
     }
