@@ -81,6 +81,11 @@ int main(int argc, char* argv[]) {
     "Number of blocks"
   )->required();
   app.add_option(
+    "-e,--epsilon",
+    context.partition.epsilon,
+    "Imbalance parameter epsilon"
+  )->default_val(0.03);
+  app.add_option(
     "-s,--seed",
     context.partition.seed,
     "Random number seed"
@@ -105,7 +110,6 @@ int main(int argc, char* argv[]) {
 
   // Setup context
   context.partition.objective = Objective::steiner_tree;
-  context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
   context.mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
   context.mapping.use_local_search = true;

@@ -156,6 +156,7 @@ int main(int argc, char* argv[]) {
   std::cout << "soed =" << metrics::quality(phg, Objective::soed) << std::endl;
   std::cout << "km1 = " << metrics::quality(phg, Objective::km1) << std::endl;
   std::cout << "imbalance = " << metrics::imbalance(phg, context).imbalance_value << std::endl;
+  std::cout << "epsilon = " << context.partition.epsilon << std::endl;
 
   utils::delete_hypergraph(hypergraph);
 

@@ -92,6 +92,11 @@ int main(int argc, char* argv[]) {
     context.partition.k,
     "Number of Blocks"
   )->required();
+  app.add_option(
+    "-e,--epsilon",
+    context.partition.epsilon,
+    "Imbalance parameter epsilon"
+  )->default_val(0.03);
   CLI11_PARSE(app, argc, argv);
 
   // Read Hypergraph
@@ -103,7 +108,6 @@ int main(int argc, char* argv[]) {
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
   // Setup Context
-  context.partition.epsilon = 0.03;
   context.setupPartWeights(hg.totalWeight());
 
   // Read Bipart Partition File
@@ -113,6 +117,7 @@ int main(int argc, char* argv[]) {
   std::cout << "RESULT"
             << " graph=" << context.partition.graph_filename
             << " k=" << context.partition.k
+            << " epsilon=" << context.partition.epsilon
             << " imbalance=" << metrics::imbalance(phg, context).imbalance_value
             << " cut=" << metrics::quality(phg, Objective::cut)
             << " km1=" << metrics::quality(phg, Objective::km1) << std::endl;
