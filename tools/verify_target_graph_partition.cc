@@ -73,6 +73,11 @@ int main(int argc, char* argv[]) {
     context.mapping.target_graph_file,
     "Target Graph Filename"
   )->required()->check(CLI::ExistingFile);
+  app.add_option(
+    "-e,--epsilon",
+    context.partition.epsilon,
+    "Imbalance parameter epsilon"
+  )->default_val(0.03);
   app.add_option_function<std::string>(
     "--file-format,--input-file-format",
     [&](const std::string& s) {
@@ -93,7 +98,6 @@ int main(int argc, char* argv[]) {
 
   // Setup context
   context.partition.objective = Objective::steiner_tree;
-  context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
   context.mapping.max_steiner_tree_size = 4;
   parallel::initialize_tbb(context.shared_memory.num_threads);
