@@ -128,7 +128,7 @@ namespace mt_kahypar {
         }
       }
 
-      vec<FlowHypergraph::HyperedgeData> _hes;
+      parallel::scalable_thp_vector<FlowHypergraph::HyperedgeData> _hes;
       vec<FlowHypergraph::Pin> _pins;
       whfc::Hyperedge _num_hes;
       whfc::Hyperedge _global_start_he;

@@ -34,6 +34,7 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
@@ -74,7 +75,7 @@ void ContractionTree::finalize(const size_t num_versions) {
 
   // Compute prefix sum over out degrees which will be the index pointer into the incidence array
   parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> incidence_array_pos;
-  parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, parallel::scalable_vector>
+  parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, parallel::scalable_thp_vector>
     out_degree_prefix_sum(_out_degrees);
   tbb::parallel_invoke([&] {
     tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _out_degrees.size()), out_degree_prefix_sum);

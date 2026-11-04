@@ -257,7 +257,7 @@ class ContractionTree {
 
  public:
   // ! Iterator to iterate over the childs of a tree node
-  using ChildIterator = typename parallel::scalable_vector<HypernodeID>::const_iterator;
+  using ChildIterator = typename parallel::scalable_thp_vector<HypernodeID>::const_iterator;
 
   explicit ContractionTree() :
     _num_hypernodes(0),
@@ -537,11 +537,11 @@ class ContractionTree {
 
   HypernodeID _num_hypernodes;
   bool _finalized;
-  parallel::scalable_vector<Node> _tree;
+  parallel::scalable_thp_vector<Node> _tree;
   parallel::scalable_vector<HypernodeID> _roots;
   parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> _version_roots;
-  parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _out_degrees;
-  parallel::scalable_vector<HypernodeID> _incidence_array;
+  parallel::scalable_thp_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _out_degrees;
+  parallel::scalable_thp_vector<HypernodeID> _incidence_array;
 };
 
 }  // namespace ds

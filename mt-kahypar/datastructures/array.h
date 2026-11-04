@@ -373,7 +373,7 @@ class Array {
 
  private:
   void allocate_data(const size_type size) {
-    _data = parallel::make_unique<value_type>(size);
+    _data = parallel::make_unique_thp<value_type>(size);
     _underlying_data = _data.get();
     _size = size;
   }
@@ -381,7 +381,7 @@ class Array {
   std::string _group;
   std::string _key;
   size_type _size;
-  parallel::tbb_unique_ptr<value_type> _data;
+  parallel::tbb_unique_ptr_thp<value_type> _data;
   value_type* _underlying_data;
 };
 

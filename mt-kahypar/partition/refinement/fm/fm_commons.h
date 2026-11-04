@@ -36,6 +36,7 @@
 
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/priority_queue.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/parallel/thread_management.h"
@@ -46,8 +47,8 @@ namespace mt_kahypar {
 
 
 struct GlobalMoveTracker {
-  vec<Move> moveOrder;
-  vec<MoveID> moveOfNode;
+  parallel::scalable_thp_vector<Move> moveOrder;
+  parallel::scalable_thp_vector<MoveID> moveOfNode;
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
@@ -101,7 +102,7 @@ struct GlobalMoveTracker {
 };
 
 struct NodeTracker {
-  vec<CAtomic<SearchID>> searchOfNode;
+  parallel::scalable_thp_vector<CAtomic<SearchID>> searchOfNode;
 
   SearchID releasedMarker = 1;
   SearchID deactivatedNodeMarker = 2;
@@ -261,7 +262,7 @@ struct FMSharedData {
   WorkContainer<HypernodeID> refinementNodes;
 
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
-  vec<PosT> vertexPQHandles;
+  parallel::scalable_thp_vector<PosT> vertexPQHandles;
 
   // ! Stores the sequence of performed moves and assigns IDs to moves that can be used in the global rollback code
   GlobalMoveTracker moveTracker;
@@ -270,7 +271,7 @@ struct FMSharedData {
   NodeTracker nodeTracker;
 
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
-  vec<PartitionID> targetPart;
+  parallel::scalable_thp_vector<PartitionID> targetPart;
 
   // ! Additional data for unconstrained FM algorithm
   UnconstrainedFMData unconstrained;

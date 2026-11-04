@@ -159,7 +159,7 @@ class MemoryPoolT {
     // ! Note, the memory chunk is zero initialized.
     bool allocate() {
       if ( !_data && !_defer_allocation ) {
-        _data = (char*) mtk_scalable_calloc(_num_elements, _size);
+        _data = (char*) mtk_scalable_calloc_thp(_num_elements, _size);
         if ( !_data ) {
           unsigned long mb_value = std::round(size_in_megabyte(_num_elements * _size));
           throw SystemException("Failed to allocate " + std::to_string(mb_value) + " MB of memory: " +
@@ -175,7 +175,7 @@ class MemoryPoolT {
     // ! Frees the memory chunk
     void free() {
       if ( _data ) {
-        mtk_scalable_free(_data);
+        mtk_scalable_free_thp(_data);
         _data = nullptr;
       }
     }

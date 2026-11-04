@@ -31,6 +31,7 @@
 #include <tbb/parallel_reduce.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -193,7 +194,7 @@ void DeterministicJetRefiner<GraphAndGainTypes>::computeActiveNodesFromGraph(con
     _active_nodes.clear();
     _tmp_active_nodes.clear_sequential();
 
-    // compute gain for every node 
+    // compute gain for every node
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
         _part_before_round[hn] = phg.partID(hn);
         const bool is_locked = _locks[hn];
@@ -491,7 +492,7 @@ bool DeterministicJetRefiner<GraphAndGainTypes>::arePotentialMovesToOtherParts(c
 }
 
 template <typename GraphAndGainTypes>
-bool DeterministicJetRefiner<GraphAndGainTypes>::noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts) {
+bool DeterministicJetRefiner<GraphAndGainTypes>::noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_thp_vector<PartitionID>& parts) {
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
         ASSERT(parts[hn] != kInvalidPartition);
         ASSERT(parts[hn] < _current_k);

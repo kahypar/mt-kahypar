@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -155,7 +156,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
         throw InvalidInputException("Edge " + STR(pos) + " has identical source and target: " + STR(pins[0]) + " " + STR(pins[0]));
       }
 
-      parallel::scalable_vector<size_t>& num_incident_nets_per_vertex =
+      parallel::scalable_thp_vector<size_t>& num_incident_nets_per_vertex =
         local_incident_nets_per_vertex.local();
       for (const HypernodeID& pin: pins) {
         if (pin >= _num_nodes) {
@@ -182,7 +183,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   // We sum up the number of incident nets per vertex only thread local.
   // To obtain the global number of incident nets per vertex, we iterate
   // over each thread local counter and sum it up.
-  for ( const parallel::scalable_vector<size_t>& c : local_incident_nets_per_vertex ) {
+  for ( const parallel::scalable_thp_vector<size_t>& c : local_incident_nets_per_vertex ) {
     tbb::parallel_for(ID(0), _num_nodes, [&](const size_t pos) {
       node_degrees[pos] += c[pos];
     });

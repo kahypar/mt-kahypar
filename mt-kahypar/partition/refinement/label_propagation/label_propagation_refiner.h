@@ -203,8 +203,8 @@ class LabelPropagationRefiner final : public IRefiner {
   HyperedgeID _current_num_edges;
   GainCalculator _gain;
   ActiveNodes _active_nodes;
-  parallel::scalable_vector<uint8_t> _active_node_was_moved;
-  parallel::scalable_vector<PartitionID> _old_part;
+  parallel::scalable_thp_vector<uint8_t> _active_node_was_moved;
+  parallel::scalable_thp_vector<PartitionID> _old_part;
   kahypar::ds::FastResetFlagArray<> _old_part_is_initialized;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
