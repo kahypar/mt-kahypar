@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <span>
+
 #include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "include/mtkahypartypes.h"
@@ -107,7 +109,7 @@ private:
   }
 
   template<bool has_fixed_vertices>
-  void clusterNodesInRange(vec<HypernodeID>& clusters,
+  void clusterNodesInRange(std::span<HypernodeID> clusters,
                            HypernodeID& num_nodes,
                            size_t first,
                            size_t last,
@@ -115,12 +117,12 @@ private:
 
   template<bool has_fixed_vertices, typename RatingMap>
   void calculatePreferredTargetCluster(HypernodeID u,
-                                       const vec<HypernodeID>& clusters,
+                                       std::span<const HypernodeID> clusters,
                                        RatingMap& tmp_ratings,
                                        const ds::FixedVertexSupport& fixed_vertices);
 
   template<bool has_fixed_vertices>
-  size_t approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport& fixed_vertices);
+  size_t approveNodes(std::span<HypernodeID> clusters, ds::FixedVertexSupport& fixed_vertices);
 
   HypernodeID currentNumberOfNodesImpl() const override {
     return Base::currentNumNodes();

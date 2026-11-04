@@ -29,6 +29,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -117,7 +118,7 @@ class MultiTryKWayFM final : public IRefiner {
   std::unique_ptr<IFMStrategy> fm_strategy;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
-  vec<Move> tmp_move_order;
+  parallel::scalable_thp_vector<Move> tmp_move_order;
   IRebalancer& rebalancer;
 };
 

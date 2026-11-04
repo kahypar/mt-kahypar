@@ -29,6 +29,7 @@
 
 
 #include <functional>
+#include <span>
 
 #include <tbb/parallel_for.h>
 
@@ -738,7 +739,7 @@ class StaticHypergraph {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic = false);
+  StaticHypergraph contract(std::span<HypernodeID> communities, bool deterministic = false);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
     throw UnsupportedOperationException(

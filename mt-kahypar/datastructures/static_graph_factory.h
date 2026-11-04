@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/exception.h"
 
 
@@ -41,8 +42,8 @@ namespace ds {
 class StaticGraphFactory {
   using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-  using Counter = parallel::scalable_vector<size_t>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using Counter = parallel::scalable_thp_vector<size_t>;
+  using AtomicCounter = parallel::scalable_thp_vector<parallel::IntegralAtomicWrapper<size_t>>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
 
  public:

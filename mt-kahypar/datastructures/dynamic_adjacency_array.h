@@ -129,8 +129,8 @@ class EdgeIterator {
 class DynamicAdjacencyArray {
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
-  using ThreadLocalCounter = tbb::enumerable_thread_specific<parallel::scalable_vector<size_t>>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using ThreadLocalCounter = tbb::enumerable_thread_specific<parallel::scalable_thp_vector<size_t>>;
+  using AtomicCounter = parallel::scalable_thp_vector<parallel::IntegralAtomicWrapper<size_t>>;
 
   using AcquireLockFunc = std::function<void (const HypernodeID)>;
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;

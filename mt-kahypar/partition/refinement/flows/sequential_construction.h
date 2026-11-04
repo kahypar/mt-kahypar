@@ -31,6 +31,7 @@
 #include "WHFC/algorithm/hyperflowcutter.h"
 #include "WHFC/algorithm/sequential_push_relabel.h"
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
@@ -98,7 +99,7 @@ class SequentialConstruction {
 
    private:
     whfc::FlowHypergraph& _flow_hg;
-    vec<HashBucket> _hash_buckets;
+    parallel::scalable_thp_vector<HashBucket> _hash_buckets;
     uint32_t _threshold;
   };
 

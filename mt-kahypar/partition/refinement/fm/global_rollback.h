@@ -28,6 +28,7 @@
 
 #include <tbb/parallel_invoke.h>
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
@@ -114,7 +115,7 @@ private:
   double max_part_weight_scaling;
 
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
-  vec<CAtomic<uint32_t>> last_recalc_round;
+  parallel::scalable_thp_vector<CAtomic<uint32_t>> last_recalc_round;
   uint32_t round;
 };
 

@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/coarsening/multilevel/concurrent_clustering_data.h"
 
 #include <atomic>
+#include <span>
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
@@ -62,7 +63,7 @@ ConcurrentClusteringData::~ConcurrentClusteringData() {
 
 template<typename Hypergraph>
 void ConcurrentClusteringData::initializeCoarseningPass(Hypergraph& current_hg,
-                                                        parallel::scalable_vector<HypernodeID>& cluster_ids) {
+                                                        parallel::scalable_thp_vector<HypernodeID>& cluster_ids) {
   cluster_ids.resize(current_hg.initialNumNodes());
   tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
     // Reset clustering
@@ -94,7 +95,7 @@ template<bool has_fixed_vertices, typename Hypergraph>
 bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
                                              const HypernodeID u,
                                              const HypernodeID v,
-                                             parallel::scalable_vector<HypernodeID>& cluster_ids,
+                                             std::span<HypernodeID> cluster_ids,
                                              MultilevelVertexPairRater& rater,
                                              ds::FixedVertexSupport& fixed_vertices) {
   // MEMORY ORDERING AND SYNCHRONIZATION
@@ -196,7 +197,7 @@ bool ConcurrentClusteringData::matchVertices(const Hypergraph& hypergraph,
 // ! Only for testing
 template<typename Hypergraph>
 bool ConcurrentClusteringData::verifyClustering(const Hypergraph& current_hg,
-                                                const parallel::scalable_vector<HypernodeID>& cluster_ids) const {
+                                                std::span<const HypernodeID> cluster_ids) const {
   parallel::scalable_vector<HypernodeWeight> expected_weights(current_hg.initialNumNodes());
   // Verify that clustering is correct
   for ( const HypernodeID& hn : current_hg.nodes() ) {
@@ -227,7 +228,7 @@ template<bool has_fixed_vertices, typename Hypergraph>
 bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
                                            const HypernodeID u,
                                            const HypernodeID rep,
-                                           vec<HypernodeID>& cluster_ids,
+                                           std::span<HypernodeID> cluster_ids,
                                            ds::FixedVertexSupport& fixed_vertices) {
   ASSERT(rep == cluster_ids[rep]);
   bool success = false;
@@ -250,18 +251,18 @@ bool ConcurrentClusteringData::joinCluster(const Hypergraph& hypergraph,
 
 namespace {
   #define INITIALIZE_PASS(X) void ConcurrentClusteringData::initializeCoarseningPass(                         \
-                                      X& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids)
+                                      X& current_hg, parallel::scalable_thp_vector<HypernodeID>& cluster_ids)
 
   #define MATCH_VERTICES(X) bool ConcurrentClusteringData::matchVertices<false>(const X& hypergraph, const HypernodeID u, \
-                                   const HypernodeID v, parallel::scalable_vector<HypernodeID>& cluster_ids,              \
+                                   const HypernodeID v, std::span<HypernodeID> cluster_ids,                               \
                                    MultilevelVertexPairRater& rater, ds::FixedVertexSupport& fixed_vertices)
   #define MATCH_VERTICES_FIXED(X) bool ConcurrentClusteringData::matchVertices<true>(const X& hypergraph,              \
                                          const HypernodeID u, const HypernodeID v,                                     \
-                                         parallel::scalable_vector<HypernodeID>& cluster_ids,                          \
+                                         std::span<HypernodeID> cluster_ids,                                           \
                                          MultilevelVertexPairRater& rater, ds::FixedVertexSupport& fixed_vertices)
 
   #define VERIFY_CLUSTERING(X) bool ConcurrentClusteringData::verifyClustering(const X& current_hg,           \
-                                        const parallel::scalable_vector<HypernodeID>& cluster_ids) const
+                                        std::span<const HypernodeID> cluster_ids) const
 }
 
 INSTANTIATE_FUNC_WITH_MULTILEVEL_HYPERGRAPHS(INITIALIZE_PASS)

@@ -41,7 +41,7 @@ class Level {
 
 public:
   explicit Level(Hypergraph&& contracted_hypergraph,
-                 parallel::scalable_vector<HypernodeID>&& communities,
+                 parallel::scalable_thp_vector<HypernodeID>&& communities,
                  double coarsening_time) :
     _contracted_hypergraph(std::move(contracted_hypergraph)),
     _communities(std::move(communities)),
@@ -79,7 +79,7 @@ private:
   Hypergraph _contracted_hypergraph;
   // ! Defines the communities that are contracted
   // ! in the coarse hypergraph
-  parallel::scalable_vector<HypernodeID> _communities;
+  parallel::scalable_thp_vector<HypernodeID> _communities;
   // ! Time to create the coarsened hypergraph
   // ! (includes coarsening + contraction time)
   double _coarsening_time;
@@ -165,7 +165,7 @@ public:
   }
 
   void performMultilevelContraction(
-          parallel::scalable_vector<HypernodeID>&& communities, bool deterministic,
+          parallel::scalable_thp_vector<HypernodeID>&& communities, bool deterministic,
           const HighResClockTimepoint& round_start) {
     ASSERT(!is_finalized);
     Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();

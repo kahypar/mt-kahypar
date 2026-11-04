@@ -26,6 +26,8 @@
 
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 
+#include <span>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 
@@ -214,7 +216,7 @@ FixedVertexSupport FixedVertexSupport::copy() const {
 }
 
 template<typename Hypergraph>
-bool FixedVertexSupport::verifyClustering(const Hypergraph& hg, const vec<HypernodeID>& cluster_ids) const {
+bool FixedVertexSupport::verifyClustering(const Hypergraph& hg, std::span<const HypernodeID> cluster_ids) const {
   vec<PartitionID> fixed_vertex_blocks(hg.initialNumNodes(), kInvalidPartition);
   for ( const HypernodeID& hn : hg.nodes() ) {
     if ( hg.isFixed(hn) ) {
@@ -255,7 +257,7 @@ namespace {
   #define CONTRACT(X) bool FixedVertexSupport::contract(const X& hg, const HypernodeID u, const HypernodeID v)
   #define CONTRACT_WITHOUT_CHAINS(X) bool FixedVertexSupport::contractWithoutChains(const X& hg, const HypernodeID u, const HypernodeID v)
   #define CONTRACT_IMPL(X) bool FixedVertexSupport::contractImpl(const X& hg, const HypernodeID u, const HypernodeID v, bool ignore_v)
-  #define VERIFY_CLUSTERING(X) bool FixedVertexSupport::verifyClustering(const X& hg, const vec<HypernodeID>& cluster_ids) const
+  #define VERIFY_CLUSTERING(X) bool FixedVertexSupport::verifyClustering(const X& hg, std::span<const HypernodeID> cluster_ids) const
 }
 
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FIX_TO_BLOCK)

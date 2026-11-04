@@ -27,6 +27,7 @@
 #pragma once
 
 #include <atomic>
+#include <span>
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -122,7 +123,7 @@ class FixedVertexSupport {
 
   // ! Only for testing
   template<class Hypergraph>
-  bool verifyClustering(const Hypergraph& hg, const vec<HypernodeID>& cluster_ids) const;
+  bool verifyClustering(const Hypergraph& hg, std::span<const HypernodeID> cluster_ids) const;
 
   FixedVertexSupport copy() const;
 

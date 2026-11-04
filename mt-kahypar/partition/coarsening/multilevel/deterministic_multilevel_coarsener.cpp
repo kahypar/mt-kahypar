@@ -27,6 +27,7 @@
 #include "deterministic_multilevel_coarsener.h"
 
 #include <atomic>
+#include <span>
 
 #include <tbb/parallel_sort.h>
 
@@ -86,7 +87,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   HypernodeID num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
 
-  vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
+  parallel::scalable_thp_vector<HypernodeID> clusters(num_nodes, kInvalidHypernode);
   tbb::parallel_for(ID(0), num_nodes, [&](HypernodeID u) {
     cluster_weight[u] = hg.nodeWeight(u);
     opportunistic_cluster_weight[u] = cluster_weight[u];
@@ -123,7 +124,7 @@ bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
 
 template<typename TypeTraits>
 template<bool has_fixed_vertices>
-void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<HypernodeID>& clusters,
+void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(std::span<HypernodeID> clusters,
                                                                        HypernodeID& num_nodes,
                                                                        size_t first,
                                                                        size_t last,
@@ -216,7 +217,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::clusterNodesInRange(vec<Hyper
 template<typename TypeTraits>
 template<bool has_fixed_vertices, typename RatingMap>
 void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u,
-                                                                                   const vec<HypernodeID>& clusters,
+                                                                                   std::span<const HypernodeID> clusters,
                                                                                    RatingMap& tmp_ratings,
                                                                                    const ds::FixedVertexSupport& fixed_vertices) {
   const Hypergraph& hg = Base::currentHypergraph();
@@ -295,7 +296,7 @@ void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetClust
 
 template<typename TypeTraits>
 template<bool has_fixed_vertices>
-size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(vec<HypernodeID>& clusters, ds::FixedVertexSupport& fixed_vertices) {
+size_t DeterministicMultilevelCoarsener<TypeTraits>::approveNodes(std::span<HypernodeID> clusters, ds::FixedVertexSupport& fixed_vertices) {
   const Hypergraph& hg = Base::currentHypergraph();
   tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 

@@ -30,6 +30,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <span>
 
 #include <tbb/parallel_for.h>
 
@@ -775,8 +776,8 @@ class DynamicHypergraph {
 
   // ####################### Contract / Uncontract #######################
 
-  DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&, bool deterministic = false) {
-    unused(deterministic);
+  DynamicHypergraph contract([[maybe_unused]] std::span<HypernodeID> communities,
+                             [[maybe_unused]] bool deterministic) {
     throw UnsupportedOperationException(
       "contract(c, id) is not supported in dynamic hypergraph");
     return DynamicHypergraph();

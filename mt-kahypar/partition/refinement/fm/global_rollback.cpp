@@ -30,6 +30,7 @@
 #include <tbb/parallel_scan.h>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
@@ -41,7 +42,7 @@ namespace mt_kahypar {
   template<typename PartitionedHypergraph>
   struct BalanceAndBestIndexScan {
     const PartitionedHypergraph& phg;
-    const vec<Move>& moves;
+    const parallel::scalable_thp_vector<Move>& moves;
 
     struct Prefix {
       Gain gain = 0;                           /** gain when using valid moves up to best_index */
@@ -71,7 +72,7 @@ namespace mt_kahypar {
 
 
     BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
-                            const vec<Move>& moves,
+                            const parallel::scalable_thp_vector<Move>& moves,
                             const vec<HypernodeWeight>& part_weights,
                             const std::vector<HypernodeWeight>& max_part_weights) :
             phg(phg),
@@ -162,7 +163,7 @@ namespace mt_kahypar {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
-    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
+    const parallel::scalable_thp_vector<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     recalculateGains(phg, sharedData);
     HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
@@ -401,7 +402,7 @@ namespace mt_kahypar {
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     const MoveID numMoves = tracker.numPerformedMoves();
-    const vec<Move>& move_order = tracker.moveOrder;
+    const parallel::scalable_thp_vector<Move>& move_order = tracker.moveOrder;
 
     // revert all moves
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
@@ -467,7 +468,7 @@ namespace mt_kahypar {
 
   template<typename GraphAndGainTypes>
   bool GlobalRollback<GraphAndGainTypes>::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-    vec<Move>& move_order = sharedData.moveTracker.moveOrder;
+    parallel::scalable_thp_vector<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     auto recompute_penalty_terms = [&] {
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {

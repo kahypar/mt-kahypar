@@ -131,7 +131,7 @@ class MultilevelCoarsener : public ICoarsener,
         << V(current_hg.initialNumPins());
 
     // initialization of various things
-    parallel::scalable_vector<HypernodeID> cluster_ids;
+    parallel::scalable_thp_vector<HypernodeID> cluster_ids;
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     const HypernodeID two_hop_contraction_limit = twoHopContractionThreshold(current_hg);
     ClusteringContext<Hypergraph> cc(_context, hierarchy_contraction_limit, cluster_ids,

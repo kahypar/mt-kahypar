@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/parallel/thread_management.h"
 #include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
@@ -336,7 +337,7 @@ namespace mt_kahypar {
       insert_moves_to_balance_part(part);
     }
 
-    const vec<Move>& move_order = move_tracker.moveOrder;
+    const parallel::scalable_thp_vector<Move>& move_order = move_tracker.moveOrder;
     const MoveID num_moves = move_tracker.numPerformedMoves();
     for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
       const Move& m = move_order[move_id];

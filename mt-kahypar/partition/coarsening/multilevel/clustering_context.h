@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/definitions.h"
@@ -50,7 +51,7 @@ struct ClusteringContext {
 
   explicit ClusteringContext(const Context& context,
                              HypernodeID hierarchy_contraction_limit,
-                             vec<HypernodeID>& cluster_ids,
+                             parallel::scalable_thp_vector<HypernodeID>& cluster_ids,
                              MultilevelVertexPairRater& rater,
                              ConcurrentClusteringData& clustering_data):
     hierarchy_contraction_limit(hierarchy_contraction_limit),
@@ -164,7 +165,7 @@ struct ClusteringContext {
   NumNodesTracker num_nodes_tracker;
   ds::FixedVertexSupport fixed_vertices;
 
-  vec<HypernodeID>& cluster_ids;
+  parallel::scalable_thp_vector<HypernodeID>& cluster_ids;
   MultilevelVertexPairRater& rater;
   ConcurrentClusteringData& clustering_data;
 };

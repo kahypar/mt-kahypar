@@ -31,6 +31,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <span>
 
 #include <tbb/parallel_for.h>
 
@@ -678,8 +679,8 @@ class DynamicGraph {
 
   // ####################### Contract / Uncontract #######################
 
-  DynamicGraph contract(parallel::scalable_vector<HypernodeID>&, bool deterministic = false) {
-    unused(deterministic);
+  DynamicGraph contract([[maybe_unused]] std::span<HypernodeID>,
+                        [[maybe_unused]] bool deterministic = false) {
     throw UnsupportedOperationException(
       "contract(c, id) is not supported in dynamic graph");
     return DynamicGraph();

@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <span>
 #include <stack>
 #include <vector>
 
@@ -116,7 +117,7 @@ class MultilevelVertexPairRater {
            bool has_fixed_vertices, typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
-                        const parallel::scalable_vector<HypernodeID>& cluster_ids,
+                        std::span<const HypernodeID> cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight) {
@@ -158,7 +159,7 @@ class MultilevelVertexPairRater {
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
-                        const parallel::scalable_vector<HypernodeID>& cluster_ids,
+                        std::span<const HypernodeID> cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const ds::FixedVertexSupport& fixed_vertices,
                         const HypernodeWeight max_allowed_node_weight,
@@ -217,7 +218,7 @@ class MultilevelVertexPairRater {
   void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
-                     const parallel::scalable_vector<HypernodeID>& cluster_ids) {
+                     std::span<const HypernodeID> cluster_ids) {
     if constexpr (Hypergraph::is_graph) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
         const RatingType score = ScorePolicy::score(hypergraph.edgeWeight(he), hypergraph.edgeSize(he));
@@ -254,7 +255,7 @@ class MultilevelVertexPairRater {
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
-                                 const parallel::scalable_vector<HypernodeID>& cluster_ids) {
+                                 std::span<const HypernodeID> cluster_ids) {
     size_t num_tmp_rating_map_accesses = 0;
     if constexpr (Hypergraph::is_graph) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
@@ -303,7 +304,7 @@ class MultilevelVertexPairRater {
   inline HypernodeID adaptiveEdgeSize(const Hypergraph& hypergraph,
                                       const HyperedgeID he,
                                       kahypar::ds::FastResetFlagArray<>& bloom_filter,
-                                      const parallel::scalable_vector<HypernodeID>& cluster_ids) {
+                                      std::span<const HypernodeID> cluster_ids) {
     HypernodeID edge_size = 0;
     for ( const HypernodeID& v : hypergraph.pins(he) ) {
       const HypernodeID representative = parallel::atomic_load(cluster_ids[v], std::memory_order_relaxed);

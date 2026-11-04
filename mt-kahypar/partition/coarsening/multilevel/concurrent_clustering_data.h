@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <span>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/coarsening/multilevel/multilevel_vertex_pair_rater.h"
@@ -66,7 +68,7 @@ class ConcurrentClusteringData {
   }
 
   template<typename Hypergraph>
-  void initializeCoarseningPass(Hypergraph& current_hg, parallel::scalable_vector<HypernodeID>& cluster_ids);
+  void initializeCoarseningPass(Hypergraph& current_hg, parallel::scalable_thp_vector<HypernodeID>& cluster_ids);
 
   /*!
    * We maintain the invariant during clustering that each cluster has a unique
@@ -88,20 +90,20 @@ class ConcurrentClusteringData {
   bool matchVertices(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      const HypernodeID v,
-                     parallel::scalable_vector<HypernodeID>& cluster_ids,
+                     std::span<HypernodeID> cluster_ids,
                      MultilevelVertexPairRater& rater,
                      ds::FixedVertexSupport& fixed_vertices);
 
   // ! Only for testing
   template<typename Hypergraph>
-  bool verifyClustering(const Hypergraph& current_hg, const parallel::scalable_vector<HypernodeID>& cluster_ids) const;
+  bool verifyClustering(const Hypergraph& current_hg, std::span<const HypernodeID> cluster_ids) const;
 
  private:
   template<bool has_fixed_vertices, typename Hypergraph>
   bool joinCluster(const Hypergraph& hypergraph,
                    const HypernodeID u,
                    const HypernodeID rep,
-                   vec<HypernodeID>& cluster_ids,
+                   std::span<HypernodeID> cluster_ids,
                    ds::FixedVertexSupport& fixed_vertices);
 
   const Context& _context;

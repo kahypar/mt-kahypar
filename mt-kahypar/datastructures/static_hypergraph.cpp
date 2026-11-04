@@ -28,6 +28,7 @@
 #include "static_hypergraph.h"
 
 #include <atomic>
+#include <span>
 
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
@@ -61,7 +62,7 @@ namespace mt_kahypar::ds {
    *
    * \param communities Community structure that should be contracted
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities, bool deterministic) {
+  StaticHypergraph StaticHypergraph::contract(std::span<HypernodeID> communities, bool deterministic) {
 
     ASSERT(communities.size() == _num_hypernodes);
 

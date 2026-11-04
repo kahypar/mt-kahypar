@@ -117,7 +117,7 @@ private:
 
   bool arePotentialMovesToOtherParts(const PartitionedHypergraph& hypergraph, const parallel::scalable_vector<HypernodeID>& moves);
 
-  bool noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_vector<PartitionID>& parts);
+  bool noInvalidPartitions(const PartitionedHypergraph& phg, const parallel::scalable_thp_vector<PartitionID>& parts);
 
   void resizeDataStructuresForCurrentK();
 
@@ -129,16 +129,16 @@ private:
   ActiveNodes _active_nodes;
   ds::StreamingVector<HypernodeID> _tmp_active_nodes;
   parallel::scalable_vector<HypernodeID> _moves;
-  parallel::scalable_vector<PartitionID> _best_partition;
-  parallel::scalable_vector<PartitionID> _part_before_round;
-  parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
+  parallel::scalable_thp_vector<PartitionID> _best_partition;
+  parallel::scalable_thp_vector<PartitionID> _part_before_round;
+  parallel::scalable_thp_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   kahypar::ds::FastResetFlagArray<> _locks;
   GainCache& _gain_cache;
   GainComputation _gain_computation;
   IRebalancer& _rebalancer;
 
   // hypergraph afterburner
-  parallel::scalable_vector<std::atomic<Gain>> _afterburner_gain;
+  parallel::scalable_thp_vector<std::atomic<Gain>> _afterburner_gain;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> _afterburner_edge_buffer;
   ds::ThreadSafeFastResetFlagArray<> _afterburner_visited_hes;
 };
