@@ -98,6 +98,9 @@ option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options.
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`, or `/arch:AVX` for `MSVC`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
+option(KAHYPAR_ENABLE_THP "Use transparent huge pages for large memory allocations (Linux only)."
+    $<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>
+)
 
 # algorithm features for CLI build (note: the library always contains all non-experimental features)
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)
@@ -180,6 +183,10 @@ elseif(NOT WIN32)
   message(FATAL_ERROR "Only unix-based operating systems and windows are supported.")
 endif()
 
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux"))
+  message(WARNING "THP is disabled since host is not a Linux platform.")
+  set(KAHYPAR_ENABLE_THP OFF CACHE STRING "" FORCE)
+endif()
 
 #################################################################
 ## Options that translate into compile flags                   ##
@@ -247,6 +254,10 @@ endif()
 
 if(KAHYPAR_DISABLE_PARLAY)
   target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_DISABLE_PARLAY)
+endif()
+
+if(KAHYPAR_ENABLE_THP)
+  target_compile_definitions(MtKaHyPar-BuildFlags INTERFACE KAHYPAR_ENABLE_THP)
 endif()
 
 

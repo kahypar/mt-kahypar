@@ -36,6 +36,7 @@ namespace mt_kahypar {
 namespace parallel {
 
 #ifndef NDEBUG
+// TODO: Do we really need zero_allocator? std::allocator returns unitialized memory
 template<typename T>
 using zero_allocator = std::allocator<T>;
 #else
@@ -57,6 +58,14 @@ class zero_allocator : public parallel::scalable_allocator<T> {
   }
 };
 #endif
+
+#ifdef KAHYPAR_ENABLE_THP
+template<typename T>
+using zero_allocator_thp = thp_allocator<T, true>;
+#else
+template<typename T>
+using zero_allocator_thp = zero_allocator<T>;
+#endif // KAHYPAR_ENABLE_THP
 
 }  // namespace parallel
 }  // namespace mt_kahypar
