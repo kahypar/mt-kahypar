@@ -98,9 +98,7 @@ option(KAHYPAR_USE_ADDRESS_SANITIZER "Adds address sanitizer to compile options.
 option(KAHYPAR_ENABLE_EXTENDED_INSTRUCTIONS "Allows instructions that might not be fully portable: `-mcx16 -msse4.2 -mcrc32`" OFF)
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS "Adds the compile flags `-mtune=native -march=native`, or `/arch:AVX` for `MSVC`" OFF)
 option(KAHYPAR_ENABLE_THREAD_PINNING "Enables thread pinning in Mt-KaHyPar." OFF)
-option(KAHYPAR_ENABLE_THP "Use transparent huge pages for large memory allocations (Linux only)."
-    $<STREQUAL:${CMAKE_SYSTEM_NAME},Linux>
-)
+option(KAHYPAR_ENABLE_THP "Use transparent huge pages for large memory allocations (Linux only)." ON)
 
 # algorithm features for CLI build (note: the library always contains all non-experimental features)
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES "Enables graph partitioning features. Can be turned off for faster compilation." OFF)

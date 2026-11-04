@@ -160,9 +160,9 @@ public:
 
     T *ptr = nullptr;
     if constexpr (zero_initialize) {
-      ptr = mtk_scalable_calloc_thp(1, nbytes);
+      ptr = reinterpret_cast<T*>(mtk_scalable_calloc_thp(1, nbytes));
     } else {
-      ptr = mtk_scalable_malloc_thp(nbytes);
+      ptr = reinterpret_cast<T*>(mtk_scalable_malloc_thp(nbytes));
     }
     if (nullptr == ptr) {
       throw std::bad_alloc();
@@ -182,10 +182,18 @@ public:
     mtk_scalable_free_thp(p);
   }
 
+  template <typename U>
+  struct rebind {
+      using other = thp_allocator<U>;
+  };
+
 private:
   static constexpr size_t kTHPThreshold = 16 * (1 << 20);
   static constexpr size_t kTHPPageSize = 2 * (1 << 20);
 };
+
+template<typename T, typename U>
+inline bool operator==(const thp_allocator<T>&, const thp_allocator<U>&) noexcept { return true; }
 
 template <typename T>
 using scalable_thp_allocator = thp_allocator<T>;
