@@ -252,6 +252,7 @@ struct RefinementParameters {
   size_t min_border_vertices_per_thread = 0;
   double coarsest_epsilon_relaxation = 0.0;
   bool relax_only_by_imbalance = true;
+  bool relax_blockwise = false;
 };
 
 struct InitialPartitioningParameters {

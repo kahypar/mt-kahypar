@@ -415,7 +415,8 @@ namespace mt_kahypar {
           if (relaxation > 0) {
             HNWeightScalar& max_weight = partition.max_part_weights[part].at(d);
             if (refinement.relax_only_by_imbalance && part_weights != nullptr) {
-              max_weight = std::max(max_weight, std::min<HNWeightScalar>((1 + relaxation) * max_weight, relaxation_limit.at(d)));
+              const HNWeightScalar limit = refinement.relax_blockwise ? (*part_weights)[part].at(d) : relaxation_limit.at(d);
+              max_weight = std::max(max_weight, std::min<HNWeightScalar>((1 + relaxation) * max_weight, limit));
             } else {
               max_weight = (1 + relaxation) * max_weight;
             }
@@ -459,7 +460,8 @@ namespace mt_kahypar {
       const AllocatedHNWeight max_weight(partition.max_part_weights[0]);
       for (PartitionID part = 0; part != k; ++part) {
         if (relaxation > 0 && refinement.relax_only_by_imbalance && part_weights != nullptr) {
-          partition.max_part_weights[part] = weight::max(max_weight, weight::min((1 + relaxation) * max_weight, relaxation_limit));
+          const HNWeightConstRef limit = refinement.relax_blockwise ? (*part_weights)[part] : relaxation_limit;
+          partition.max_part_weights[part] = weight::max(max_weight, weight::min((1 + relaxation) * max_weight, limit));
         } else {
           partition.max_part_weights[part] = (1 + relaxation) * max_weight;
         }

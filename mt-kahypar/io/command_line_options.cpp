@@ -615,6 +615,12 @@ namespace mt_kahypar {
         context.initial_partitioning.refinement.relax_only_by_imbalance),
       "If true, don't relax epsilon beyond the current imbalance of the partition."
     )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-relax-blockwise" : "--r-relax-blockwise"),
+      (!initial_partitioning ? context.refinement.relax_blockwise:
+        context.initial_partitioning.refinement.relax_blockwise),
+      "If true, decide separately per block whether to relax epsilon."
+    )->capture_default_str();
 
     // Label Propagation
     app.add_option_function<std::string>(
