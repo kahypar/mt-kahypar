@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 #include <tbb/parallel_for.h>
@@ -44,113 +45,36 @@ namespace parallel {
 template <typename T>
 using scalable_vector = vec<T>;
 
-template<typename T>
-static inline void free(scalable_vector<T>& vec) {
-  scalable_vector<T> tmp_vec;
+template <typename>
+struct is_scalable_vector : std::false_type {};
+template <typename T>
+struct is_scalable_vector<scalable_vector<T>> : std::true_type {};
+#ifdef KAHYPAR_ENABLE_THP
+template <typename T>
+struct is_scalable_vector<scalable_thp_vector<T>> : std::true_type {};
+#endif
+
+template <typename T>
+concept ScalableVector = is_scalable_vector<std::remove_cvref_t<T>>::value;
+
+template<ScalableVector T>
+static inline void free(T& vec) {
+  T tmp_vec;
   vec = std::move(tmp_vec);
 }
 
-template<typename T>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<scalable_vector<T>>& vec) {
+template<ScalableVector T> requires ScalableVector<typename T::value_type>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(T& vec) {
   tbb::parallel_for(UL(0), vec.size(), [&](const size_t i) {
     free(vec[i]);
   });
 }
 
-template<typename T1,
-         typename T2>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
-                                                             scalable_vector<T2>& vec2) {
-  tbb::parallel_invoke([&] {
-    free(vec1);
-  }, [&] {
-    free(vec2);
-  });
-}
-
-template<typename T1,
-         typename T2,
-         typename T3>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
-                                                             scalable_vector<T2>& vec2,
-                                                             scalable_vector<T3>& vec3) {
-  tbb::parallel_invoke([&] {
-    free(vec1);
-  }, [&] {
-    free(vec2);
-  }, [&] {
-    free(vec3);
-  });
-}
-
-template<typename T1,
-         typename T2,
-         typename T3,
-         typename T4>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
-                                                             scalable_vector<T2>& vec2,
-                                                             scalable_vector<T3>& vec3,
-                                                             scalable_vector<T4>& vec4) {
-  tbb::parallel_invoke([&] {
-    free(vec1);
-  }, [&] {
-    free(vec2);
-  }, [&] {
-    free(vec3);
-  }, [&] {
-    free(vec4);
-  });
-}
-
-
-template<typename T1,
-         typename T2,
-         typename T3,
-         typename T4,
-         typename T5>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
-                                                             scalable_vector<T2>& vec2,
-                                                             scalable_vector<T3>& vec3,
-                                                             scalable_vector<T4>& vec4,
-                                                             scalable_vector<T5>& vec5) {
-  tbb::parallel_invoke([&] {
-    free(vec1);
-  }, [&] {
-    free(vec2);
-  }, [&] {
-    free(vec3);
-  }, [&] {
-    free(vec4);
-  }, [&] {
-    free(vec5);
-  });
-}
-
-template<typename T1,
-         typename T2,
-         typename T3,
-         typename T4,
-         typename T5,
-         typename T6>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
-                                                             scalable_vector<T2>& vec2,
-                                                             scalable_vector<T3>& vec3,
-                                                             scalable_vector<T4>& vec4,
-                                                             scalable_vector<T5>& vec5,
-                                                             scalable_vector<T6>& vec6) {
-  tbb::parallel_invoke([&] {
-    free(vec1);
-  }, [&] {
-    free(vec2);
-  }, [&] {
-    free(vec3);
-  }, [&] {
-    free(vec4);
-  }, [&] {
-    free(vec5);
-  }, [&] {
-    free(vec6);
-  });
+template<ScalableVector... ScalableVectors>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ScalableVectors&... vecs) {
+    tbb::parallel_invoke(
+        [&] { free(vecs); }...
+    );
 }
 
 }  // namespace parallel
