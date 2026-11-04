@@ -50,5 +50,21 @@ static tbb_unique_ptr<T> make_unique(const size_t size) {
   return tbb_unique_ptr<T>(ptr, scalable_deleter<T>());
 }
 
+template<typename T>
+struct scalable_deleter_thp {
+  void operator()(T *p) {
+    mtk_scalable_free_thp(p);
+  }
+};
+
+template<typename T>
+using tbb_unique_ptr_thp = std::unique_ptr<T, scalable_deleter_thp<T>>;
+
+template<typename T>
+static tbb_unique_ptr_thp<T> make_unique_thp(const size_t size) {
+  T* ptr = (T*) mtk_scalable_malloc_thp(sizeof(T) * size);
+  return tbb_unique_ptr_thp<T>(ptr, scalable_deleter_thp<T>());
+}
+
 }  // namespace parallel
 }  // namespace mt_kahypar

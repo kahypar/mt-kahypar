@@ -43,6 +43,8 @@ using vec = std::vector<T, parallel::scalable_allocator<T> >;  // shorter name
 namespace parallel {
 template <typename T>
 using scalable_vector = vec<T>;
+template <typename T>
+using scalable_thp_vector = std::vector<T, parallel::scalable_thp_allocator<T>>;
 
 template<typename T>
 static inline void free(scalable_vector<T>& vec) {
