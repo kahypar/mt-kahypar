@@ -32,6 +32,7 @@
 #include <tbb/parallel_for.h>
 
 #include <atomic>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -383,7 +384,8 @@ Construct a target graph.
       }, "Preset of the context")
     .def_property("k",
       [](const Context& context) {
-        return context.partition.k;
+        return context.partition.k == std::numeric_limits<PartitionID>::max() ?
+          std::optional<PartitionID>{} : std::optional<PartitionID>{context.partition.k};
       }, [](Context& context, const PartitionID k) {
         if (k != context.partition.k) {
           context.partition.k = k;
@@ -392,13 +394,15 @@ Construct a target graph.
       }, "Number of blocks in which the (hyper)graph should be partitioned into")
     .def_property("epsilon",
       [](const Context& context) {
-        return context.partition.epsilon.empty() ? 0.0 : context.partition.epsilon[0];
+        return context.partition.epsilon.empty() ?
+          std::optional<double>{} : std::optional<double>{context.partition.epsilon[0]};
       }, [](Context& context, const double epsilon) {
         context.partition.epsilon = {epsilon};
       }, "Allowed imbalance")
     .def_property("objective",
       [](const Context& context) {
-        return context.partition.objective;
+        return context.partition.objective == Objective::UNDEFINED ?
+          std::optional<Objective>{} : std::optional<Objective>{context.partition.objective};
       }, [](Context& context, const Objective objective) {
         context.partition.objective = objective;
       }, "Sets the objective function for partitioning (CUT, KM1 or SOED)")
