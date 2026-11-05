@@ -47,6 +47,11 @@ def _make_mapped_hg(context, target_graph):
   return hypergraph.map_onto_graph(target_graph, context)
 
 class MainTest(unittest.TestCase):
+  def test_uninitialized_context(self):
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    self.assertEqual(context.k, None)
+    self.assertEqual(context.epsilon, None)
+    self.assertEqual(context.objective, None)
 
   def test_set_partitioning_parameters_in_context(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
