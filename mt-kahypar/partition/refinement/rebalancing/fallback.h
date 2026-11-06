@@ -56,7 +56,8 @@ class Fallback {
                                                         ds::Array<Move>& moves,
                                                         ds::Array<MoveID>& move_id_of_node,
                                                         const vec<double>& weight_normalizer,
-                                                        size_t& global_move_id);
+                                                        size_t& global_move_id,
+                                                        bool is_toplevel);
 };
 
 } // namespace rebalancer

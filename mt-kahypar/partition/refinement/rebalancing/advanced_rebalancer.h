@@ -146,7 +146,10 @@ private:
 
   std::pair<int64_t, size_t> runGreedyRebalancingRound(PartitionedHypergraph& phg, size_t& global_move_id);
 
-  std::tuple<size_t, size_t> runGreedyAlgorithm(PartitionedHypergraph& phg, int64_t& attributed_gain, size_t& global_move_id);
+  std::tuple<size_t, size_t> runGreedyAlgorithm(PartitionedHypergraph& phg,
+                                                int64_t& attributed_gain,
+                                                size_t& global_move_id,
+                                                bool is_fallback);
 
   std::pair<int64_t, size_t> runDeadlockFallback(PartitionedHypergraph& phg, size_t& global_move_id);
 
@@ -159,6 +162,7 @@ private:
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
+  HypernodeID _top_level_num_nodes;
   GainCalculator _gain;
 
   ds::Array<Move> _moves;
