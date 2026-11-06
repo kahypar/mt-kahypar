@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <numeric>
+
 #include <tbb/parallel_sort.h>
 
 #include "mt-kahypar/partition/context.h"

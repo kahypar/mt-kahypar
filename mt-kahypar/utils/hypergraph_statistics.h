@@ -25,7 +25,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#pragma once
+
 #include <stdint.h>
+#include <cmath>
+#include <functional>
 #include <vector>
 
 #include <tbb/parallel_reduce.h>
