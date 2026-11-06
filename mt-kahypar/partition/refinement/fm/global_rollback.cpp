@@ -436,6 +436,53 @@ namespace mt_kahypar {
     return -best_metrics.quality;
   }
 
+  template<typename GraphAndGainTypes>
+  vec<uint8_t> GlobalRollback<GraphAndGainTypes>::reportBalancedPositions(PartitionedHypergraph& phg,
+                                                                          FMSharedData& sharedData,
+                                                                          const HypernodeWeightArray& partWeights,
+                                                                          const HypernodeWeightArray& maxPartWeights) {
+
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    const MoveID numMoves = tracker.numPerformedMoves();
+    const vec<Move>& move_order = tracker.moveOrder;
+
+    // revert all moves
+    tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
+      const Move& m = move_order[localMoveID];
+      if (m.isValid()) {
+        moveVertex(phg, m.node, m.to, m.from);
+      }
+    });
+
+    vec<uint8_t> result;
+
+    // roll forward sequentially
+    metrics::MetricsTracker<PartitionedHypergraph> metrics_tracker(phg, context, partWeights, maxPartWeights);
+    if (metrics_tracker.isValid()) {
+      result.push_back(true);
+    }
+    for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
+      const Move& m = move_order[localMoveID];
+      if (!m.isValid()) continue;
+
+      Gain gain = 0;
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        [&](const SynchronizedEdgeUpdate& sync_update) {
+          gain -= AttributedGains::gain(sync_update);
+        });
+      metrics_tracker.applyMove(m.from, m.to, m.node, gain);
+      result.push_back(metrics_tracker.isValid());
+    }
+
+    if constexpr (GainCache::invalidates_entries) {
+      tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
+        gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
+      });
+    }
+
+    return result;
+  }
+
 
   template<typename GraphAndGainTypes>
   bool GlobalRollback<GraphAndGainTypes>::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
