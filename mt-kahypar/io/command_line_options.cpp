@@ -851,6 +851,12 @@ namespace mt_kahypar {
       "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to "
       "the next finer level."
     )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-fm-reorder-moves" : "--r-fm-reorder-moves"),
+      (!initial_partitioning ? context.refinement.fm.reorder_moves:
+        context.initial_partitioning.refinement.fm.reorder_moves ),
+      "Activates move reordering of unconstrained FM. "
+    )->capture_default_str();
 
     // global refinement for n-level partitioning
     app.add_option(
