@@ -424,8 +424,10 @@ namespace impl {
     impl::MovesPerBlockLookup lookup(rebalancing_moves, context.partition.k);
     metrics::MetricsAndBlockTracker<PartitionedHypergraph> tracker(phg, context, initialPartWeights, max_part_weights);
 
-    // it might be possible that the initial weights are already imbalanced
-    insertRebalancingMoves(tracker, lookup, next_move_index, tmp_move_order);
+    if (context.refinement.fm.reorder_moves) {
+      // it might be possible that the initial weights are already imbalanced
+      insertRebalancingMoves(tracker, lookup, next_move_index, tmp_move_order);
+    }
 
     const vec<Move>& move_order = move_tracker.moveOrder;
     const MoveID num_moves = move_tracker.numPerformedMoves();
@@ -434,8 +436,10 @@ namespace impl {
       if (m.isValid()) {
         tracker.applyMove(m);
         tmp_move_order[next_move_index++] = m;
-        // insert rebalancing moves if necessary
-        insertRebalancingMoves(tracker, lookup, next_move_index, tmp_move_order);
+        if (context.refinement.fm.reorder_moves) {
+          // insert rebalancing moves if necessary
+          insertRebalancingMoves(tracker, lookup, next_move_index, tmp_move_order);
+        }
       } else {
         // setting moveOfNode to zero is necessary because, after replacing the move sequence,
         // wasNodeMovedInThisRound() could falsely return true otherwise
