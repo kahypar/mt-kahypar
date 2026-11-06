@@ -306,7 +306,7 @@ namespace impl {
         }
       }
 
-      if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 1))
+      if ( (improvement <= 0 && (!is_unconstrained || round > 1))
             || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
