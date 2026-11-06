@@ -267,6 +267,14 @@ namespace impl {
           // compute new move sequence where each imbalanced move is immediately rebalanced
           interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, rebalancing_moves);
         }
+        if constexpr (debug) {
+          auto balanced = globalRollback.reportBalancedPositions(phg, sharedData, initialPartWeights, max_part_weights);
+          std::cout << "AFTER:  ";
+          for (auto val: balanced) {
+            std::cout << UL(val) << " ";
+          }
+          std::cout << std::endl;
+        }
       }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
