@@ -174,13 +174,17 @@ jobs:
         run: |
           sudo apt-get -y update && sudo apt-get -y install libtbb-dev libhwloc-dev
 
-      - name: Run Mt-KaHyPar C Library Interface Tests
+      - name: Build Mt-KaHyPar C Library Interface Tests
         run: |
           rm -rf build
           mkdir build
           cd build
           cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON
           make -j4 mtkahypar_interface_test
+
+      - name: Run Mt-KaHyPar C Library Interface Tests
+        run: |
+          ctest --test-dir build -R mtkahypar_interface_test --output-on-failure
 
   mt_kahypar_python_interface_tests:
     name: Python Interface Tests

@@ -1,4 +1,8 @@
 # taken from http://johnlamp.net/cmake-tutorial-5-functionally-improved-testing.html
+#
+# Note: the tests are not executed as part of the build. Run them via ctest
+# (e.g., `ctest --test-dir <build-dir> -R <target> --output-on-failure`) or by
+# executing the binary directly.
 function(add_gmock_test target)
     add_mtkahypar_executable(${target} ${ARGN})
 
@@ -7,18 +11,5 @@ function(add_gmock_test target)
     set_property(TARGET ${target} PROPERTY CXX_STANDARD 20)
     set_property(TARGET ${target} PROPERTY CXX_STANDARD_REQUIRED ON)
 
-    add_test(${target} ${target})
-
-    add_custom_command(TARGET ${target}
-                       POST_BUILD
-                       COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${target}> $<TARGET_FILE_DIR:${target}>/${target}_failed$<TARGET_FILE_SUFFIX:${target}>
-                       COMMAND $<TARGET_FILE:${target}>
-                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                       COMMENT "Running ${target}" VERBATIM)
-
-    add_custom_command(TARGET ${target}
-                       POST_BUILD
-                       COMMAND ${CMAKE_COMMAND} -E remove $<TARGET_FILE_DIR:${target}>/${target}_failed$<TARGET_FILE_SUFFIX:${target}>
-                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                       COMMENT "Running ${target}" VERBATIM)
+    add_test(NAME ${target} COMMAND ${target})
 endfunction()
