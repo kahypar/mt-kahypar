@@ -102,6 +102,10 @@ void initialize(const size_t num_threads, const bool interleaved_allocations, co
   register_algorithms_and_policies();
 }
 
+bool terminate() {
+  return parallel::terminate_tbb();
+}
+
 bool is_compatible(mt_kahypar_hypergraph_t hypergraph, mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
     case DEFAULT:

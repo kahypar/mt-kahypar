@@ -70,14 +70,23 @@ namespace {
 
   struct mt_kahypar_py_target_graph_t: public mt_kahypar_py_graph_t {};
 
+  std::atomic_bool is_initialized = false;
+
   void initialize(const size_t num_threads, const bool print_warnings) {
-    static std::atomic_bool is_initialized = false;
     bool expected = false;
     if (is_initialized.compare_exchange_strong(expected, true)) {
       lib::initialize(num_threads, true, print_warnings);
     } else if (print_warnings) {
       WARNING("Mt-KaHyPar is already initialized");
     }
+  }
+
+  bool terminate_thread_pool() {
+    bool expected = true;
+    if (is_initialized.compare_exchange_strong(expected, false)) {
+      return lib::terminate();
+    }
+    return true; // nothing to terminate
   }
 
   template<typename T>
@@ -166,6 +175,11 @@ PYBIND11_MODULE(mtkahypar, m) {
       return Initializer{};
     }, "Initializes Mt-KaHyPar with the given number of threads.",
     py::arg("number of threads"), py::arg("print_warnings") = true);
+
+  m.def("terminate_thread_pool", &terminate_thread_pool,
+    "Terminates the thread pool (only supported for oneTBB version >= 2021.6). "
+    "Afterwards, Mt-KaHyPar can be initialized again via initialize(). "
+    "Returns True if the thread pool was successfully terminated.");
 
   m.def("set_seed", [&](const int seed) {
       mt_kahypar::utils::Randomize::instance().setSeed(seed);

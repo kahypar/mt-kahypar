@@ -29,7 +29,9 @@
 
 #include <thread>
 
+#include <tbb/global_control.h>
 #include <tbb/parallel_invoke.h>
+#include <tbb/version.h>
 
 #include "mtkahypar.h"
 #include "mt-kahypar/macros.h"
@@ -39,6 +41,25 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
+  TEST(MtKaHyPar, TerminatesAndReinitializesTheThreadPool) {
+    mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
+
+    const bool terminated = mt_kahypar_terminate_thread_pool();
+    #if TBB_INTERFACE_VERSION >= 12060
+    ASSERT_TRUE(terminated);
+    #else
+    ASSERT_FALSE(terminated);
+    #endif
+
+    // The thread pool can be initialized again, also with a different number of threads
+    mt_kahypar_initialize(1, false);
+    ASSERT_EQ(tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism), 1);
+
+    // Restore the default for subsequent tests
+    mt_kahypar_terminate_thread_pool();
+    mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
+  }
+
   TEST(MtKaHyPar, LoadsContextFromFile) {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_file("test_preset.ini", &error);

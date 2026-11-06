@@ -33,9 +33,12 @@
 
 #include <mutex>
 #include <memory>
+#include <new>
+#include <optional>
 #include <shared_mutex>
 #include <functional>
 
+#include <tbb/version.h>
 #include <tbb/task_arena.h>
 #include <tbb/task_group.h>
 #include <tbb/global_control.h>
@@ -45,6 +48,26 @@
 
 namespace mt_kahypar {
 namespace parallel {
+
+// oneTBB provides tbb::finalize (which waits for the worker threads to exit)
+// only since version 2021.6 (interface version 12060).
+#if TBB_INTERFACE_VERSION >= 12060
+  #define MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
+#endif
+
+/**
+ * Waits until all TBB worker threads have exited and then shuts down the TBB task scheduler.
+ * Returns false if this is not possible (not supported by the TBB version in use,
+ * or the scheduler is still in use, e.g. by another thread).
+ */
+inline bool finalize_tbb_scheduler() {
+#ifdef MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
+  tbb::task_scheduler_handle handle(tbb::attach{});
+  return tbb::finalize(handle, std::nothrow);
+#else
+  return false;
+#endif
+}
 
 #ifndef KAHYPAR_DISABLE_HWLOC
 /**
@@ -69,12 +92,14 @@ class TBBInitializer {
   TBBInitializer(TBBInitializer&&) = delete;
   TBBInitializer & operator= (TBBInitializer &&) = delete;
 
+  // ! Initializes TBB with the given number of threads. Does nothing if already initialized.
   static void initialize(const size_t num_threads) {
-    instanceImpl(num_threads);
+    instance().initializeImpl(num_threads);
   }
 
   static TBBInitializer& instance() {
-    return instanceImpl(0);
+    static TBBInitializer instance;
+    return instance;
   }
 
   int total_number_of_threads() const {
@@ -100,20 +125,36 @@ class TBBInitializer {
     return cpuset;
   }
 
-  void terminate() {
+  /**
+   * Terminates the thread pool and resets this object, such that initialize can be called again.
+   * Returns true if the worker threads have been shut down successfully, which requires
+   * oneTBB >= 2021.6 and that no other thread is currently using TBB.
+   */
+  bool terminate() {
+    std::lock_guard<std::mutex> lock(_mutex);
     if ( _global_observer ) {
       _global_observer->observe(false);
+      _global_observer.reset();
     }
+    // The global_control must be released before the scheduler can be finalized
+    _gc.reset();
+    _num_threads = 0;
+    _cpus.clear();
+    _numa_node_to_cpu_id.clear();
+    return finalize_tbb_scheduler();
   }
 
  private:
-  explicit TBBInitializer(const int num_threads) :
-    _num_threads(num_threads),
-    _gc(tbb::global_control::max_allowed_parallelism, num_threads),
-    _global_observer(nullptr),
-    _cpus(),
-    _numa_node_to_cpu_id() {
+  TBBInitializer() = default;
+
+  void initializeImpl(const size_t num_threads) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if ( _gc ) {
+      return;
+    }
     ALWAYS_ASSERT(num_threads > 0);
+    _num_threads = num_threads;
+    _gc.emplace(tbb::global_control::max_allowed_parallelism, num_threads);
     HwTopology& topology = HwTopology::instance();
     int num_numa_nodes = topology.num_numa_nodes();
     DBG << "Initialize TBB with" << num_threads << "threads";
@@ -150,13 +191,9 @@ class TBBInitializer {
     }
   }
 
-  static TBBInitializer& instanceImpl(const size_t num_threads) {
-    static TBBInitializer instance(num_threads);
-    return instance;
-  }
-
-  int _num_threads;
-  tbb::global_control _gc;
+  std::mutex _mutex;
+  int _num_threads = 0;
+  std::optional<tbb::global_control> _gc;
   std::unique_ptr<ThreadPinningObserver> _global_observer;
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
@@ -175,12 +212,14 @@ class SimpleTBBInitializer {
   SimpleTBBInitializer(SimpleTBBInitializer&&) = delete;
   SimpleTBBInitializer & operator= (SimpleTBBInitializer &&) = delete;
 
+  // ! Initializes TBB with the given number of threads. Does nothing if already initialized.
   static void initialize(const size_t num_threads) {
-    instanceImpl(num_threads);
+    instance().initializeImpl(num_threads);
   }
 
   static SimpleTBBInitializer& instance() {
-    return instanceImpl(0);
+    static SimpleTBBInitializer instance;
+    return instance;
   }
 
   int num_used_numa_nodes() const {
@@ -191,20 +230,33 @@ class SimpleTBBInitializer {
     return _num_threads;
   }
 
-  void terminate() { }
-
- private:
-  explicit SimpleTBBInitializer(const int num_threads) :
-    _num_threads(num_threads),
-    _gc(tbb::global_control::max_allowed_parallelism, num_threads) { }
-
-  static SimpleTBBInitializer& instanceImpl(const size_t num_threads) {
-    static SimpleTBBInitializer instance(num_threads);
-    return instance;
+  /**
+   * Terminates the thread pool and resets this object, such that initialize can be called again.
+   * Returns true if the worker threads have been shut down successfully, which requires
+   * oneTBB >= 2021.6 and that no other thread is currently using TBB.
+   */
+  bool terminate() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    // The global_control must be released before the scheduler can be finalized
+    _gc.reset();
+    _num_threads = 0;
+    return finalize_tbb_scheduler();
   }
 
-  int _num_threads;
-  tbb::global_control _gc;
+ private:
+  SimpleTBBInitializer() = default;
+
+  void initializeImpl(const size_t num_threads) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if ( !_gc ) {
+      _num_threads = num_threads;
+      _gc.emplace(tbb::global_control::max_allowed_parallelism, num_threads);
+    }
+  }
+
+  std::mutex _mutex;
+  int _num_threads = 0;
+  std::optional<tbb::global_control> _gc;
 };
 #endif
 
