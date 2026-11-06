@@ -40,19 +40,16 @@
 
 using ::testing::Test;
 
-// Path of a file relative to the directory of this test (set by CMake),
-// such that the test can be executed from any working directory.
 #ifndef MT_KAHYPAR_INTERFACE_TEST_DIR
   #error "MT_KAHYPAR_INTERFACE_TEST_DIR must be defined"
 #endif
+// Path of a file relative to the directory of this test (set by CMake),
+// such that the test can be executed from any working directory.
 #define TEST_FILE(relative_path) MT_KAHYPAR_INTERFACE_TEST_DIR "/" relative_path
 
 namespace mt_kahypar {
-  namespace {
-    // Temporary file for partitions written by the tests (not the working directory)
-    std::string tmp_partition_file() {
-      return (std::filesystem::temp_directory_path() / "mtkahypar_interface_test.partition").string();
-    }
+  std::string tmp_partition_file() {
+    return (std::filesystem::temp_directory_path() / "mtkahypar_interface_test.partition").string();
   }
 
   TEST(MtKaHyPar, LoadsContextFromFile) {
