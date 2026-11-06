@@ -128,6 +128,16 @@ MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_co
  */
 MT_KAHYPAR_API void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allocations);
 
+/**
+ * Terminates the thread pool, i.e., waits until all worker threads have exited. Afterwards, `mt_kahypar_initialize`
+ * can be called again. Must not be called while any other thread is still using Mt-KaHyPar.
+ *
+ * Note: Terminating the thread pool is only supported with oneTBB version >= 2021.6.
+ *
+ * \return `true` if the thread pool was successfully terminated, `false` otherwise.
+ */
+MT_KAHYPAR_API bool mt_kahypar_terminate_thread_pool();
+
 
 // ####################### Error Handling #######################
 

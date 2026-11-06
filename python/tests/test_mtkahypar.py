@@ -1128,6 +1128,16 @@ class MainTest(unittest.TestCase):
     partitioned_hg = _make_partitioned_hg(context)
     self.assertEqual(len(partitioned_hg.get_partition()), 7)
 
+  def test_terminates_and_reinitializes_thread_pool(self):
+    terminated = mtkahypar.terminate_thread_pool()
+    self.assertIsInstance(terminated, bool)
+    # Mt-KaHyPar can be initialized again afterwards
+    new_mtk = mtkahypar.initialize(multiprocessing.cpu_count())
+    context = new_mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+    partitioned_hg = _make_partitioned_hg(context)
+    self.assertEqual(len(partitioned_hg.get_partition()), 7)
+
   def test_map_onto_hypergraph(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     context.set_partitioning_parameters(8, 0.03, mtkahypar.Objective.KM1)
