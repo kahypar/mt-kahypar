@@ -59,6 +59,11 @@ public:
     }
   }
 
+  vec<uint8_t> reportBalancedPositions(PartitionedHypergraph& phg,
+                                       FMSharedData& sharedData,
+                                       const HypernodeWeightArray& partWeights,
+                                       const HypernodeWeightArray& maxPartWeights);
+
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
                                      const HypernodeWeightArray& partWeights,
