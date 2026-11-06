@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
 
@@ -614,7 +615,11 @@ namespace impl {
   template <typename GraphAndGainTypes>
   std::tuple<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(PartitionedHypergraph& phg,
                                                                                        int64_t& attributed_gain,
-                                                                                       size_t& global_move_id) {
+                                                                                       size_t& global_move_id,
+                                                                                       bool is_fallback) {
+    auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
+
     size_t round = 0;
     size_t num_overloaded_blocks = 0;
     double old_overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
@@ -635,6 +640,17 @@ namespace impl {
         num_moves_first_round = global_move_id;
       }
       ++round;
+
+      stats.update_stat("rebalancing_greedy_rounds", 1);
+      if (is_top_level) {
+        stats.update_stat("rebalancing_greedy_rounds_toplevel", 1);
+      }
+      if (!is_fallback) {
+        stats.update_stat("rebalancing_greedy_rounds_base", 1);
+        if (is_top_level) {
+          stats.update_stat("rebalancing_greedy_rounds_base_toplevel", 1);
+        }
+      }
     } while (phg.dimension() > 1
              && _context.refinement.rebalancing.allow_multiple_moves
              && num_overloaded_blocks > 0
@@ -647,25 +663,39 @@ namespace impl {
 
   template <typename GraphAndGainTypes>
   std::pair<int64_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runDeadlockFallback(PartitionedHypergraph& phg, size_t& global_move_id) {
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
     return rebalancer::Fallback<GraphAndGainTypes>::runDeadlockFallback(phg, _gain_cache, _context, _tmp_potential_moves, _moves,
-                                                                        _move_id_of_node, _weight_normalizer, global_move_id);
+                                                                        _move_id_of_node, _weight_normalizer, global_move_id, is_top_level);
   }
 
   template <typename GraphAndGainTypes>
   std::pair<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithmWithFallback(PartitionedHypergraph& phg,
                                                                                                   int64_t& attributed_gain,
                                                                                                   size_t& global_move_id) {
-    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id);
+    const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
+
+    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id, false);
 
     if (phg.dimension() > 1 && _context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
+      auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
       const size_t old_id = global_move_id;
       for (size_t round = 0; round < _context.refinement.rebalancing.fallback_rounds && num_overloaded_blocks > 0; ++round) {
+        stats.update_stat("fallback_calls", 1);
+        if (is_top_level) {
+          stats.update_stat("fallback_calls_toplevel", 1);
+        }
+        if (round == 1) {
+          stats.update_stat("fallback_second_round", 1);
+          if (is_top_level) {
+            stats.update_stat("fallback_second_round_toplevel", 1);
+          }
+        }
         auto [added_gain, n_moved] = runDeadlockFallback(phg, global_move_id);
         if (n_moved == 0) break;
 
         attributed_gain += added_gain;
-        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id);
+        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id, true);
         num_overloaded_blocks = n_overloaded;
       }
 
@@ -701,6 +731,12 @@ namespace impl {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance << " initial cut =" << best_metric.quality;
+
+    auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
+    stats.update_stat("rebalancer_calls", 1);
+    if (phg.initialNumNodes() == _top_level_num_nodes) {
+      stats.update_stat("rebalancer_calls_toplevel", 1);
+    }
 
     if (_context.refinement.rebalancing.allow_multiple_moves) {
       _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
@@ -788,6 +824,7 @@ namespace impl {
     best_metric.quality += attributed_gain;
     best_metric.imbalance = metrics::imbalance(phg, _context);
     if (num_overloaded_blocks > 0) {
+      stats.update_stat("unsuccessful_rebalancing_calls", 1);
       DBG << RED << "Rebalancing:   final imbalance =" << best_metric.imbalance << " final cut =" << best_metric.quality << END;
     } else {
       DBG << GREEN << "Rebalancing:   final imbalance =" << best_metric.imbalance << " final cut =" << best_metric.quality << END;
@@ -820,6 +857,7 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _context(context),
         _gain_cache(gain_cache),
         _current_k(_context.partition.k),
+        _top_level_num_nodes(num_nodes),
         _gain(context),
         _moves(2 * num_nodes),  // TODO: is this sufficient?
         _move_id_of_node(num_nodes),
