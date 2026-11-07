@@ -56,6 +56,7 @@ struct QuotientGraphEdge {
     ownership(false),
     is_in_queue(false),
     cut_hes(),
+    num_cut_hes(0),
     cut_he_weight(0),
     num_improvements_found(0),
     total_improvement(0) { }
@@ -129,6 +130,10 @@ struct QuotientGraphEdge {
   CAtomic<bool> is_in_queue;
   // ! Cut hyperedges of block pair
   tbb::concurrent_vector<HyperedgeID> cut_hes;
+  // ! Used for synchronization by threads that need to access cut_hes concurrently.
+  // ! (Concurrent_vector allows access to elements under construction, which can cause
+  // ! a data race. We avoid this by incrementing num_cut_hes after insertion is complete.)
+  CAtomic<HyperedgeID> num_cut_hes;
   // ! Current weight of all cut hyperedges
   CAtomic<HyperedgeWeight> cut_he_weight;
   // ! Number of improvements found on this block pair

@@ -108,10 +108,11 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
   Subhypergraph sub_hg;
 
   auto& cut_hes = quotient_graph.edge(blocks).cut_hes;
+  const size_t num_cut_hes = quotient_graph.edge(blocks).num_cut_hes.load(std::memory_order_acquire);
   if (deterministic) {
-    tbb::parallel_sort(cut_hes.begin(), cut_hes.end());
+    tbb::parallel_sort(cut_hes.begin(), cut_hes.begin() + num_cut_hes);
   } else {
-    std::shuffle(cut_hes.begin(), cut_hes.end(), utils::Randomize::instance().getGenerator());
+    std::shuffle(cut_hes.begin(), cut_hes.begin() + num_cut_hes, utils::Randomize::instance().getGenerator());
   }
 
   // NOTE: the BFS initialzation must happen after cut_hes, otherwise tbb::parallel_sort could
@@ -133,7 +134,6 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const BlockPair& blocks
   // We initialize the BFS with all cut hyperedges running
   // between the involved block associated with the search
   bfs.clearQueue();
-  const size_t num_cut_hes = cut_hes.size();  // size() is expensive on concurrent_vector
   for ( size_t i = 0; i < num_cut_hes; ++i ) {
     const HyperedgeID he = cut_hes[i];
     if ( phg.pinCountInPart(he, blocks.i) > 0 && phg.pinCountInPart(he, blocks.j) > 0 ) {

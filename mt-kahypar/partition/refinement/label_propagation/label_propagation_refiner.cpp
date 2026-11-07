@@ -271,6 +271,8 @@ namespace mt_kahypar {
       ASSERT(m.isValid());
       bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[m.node];
       if (old_part_unintialized || m.from == _old_part[m.node]) {
+        ASSERT(!_next_active[m.node]);
+        _next_active.set(m.node, true);
         size_t i = _active_nodes.size();
         _active_nodes.push_back(m.node);
         _active_node_was_moved[i] = uint8_t(true);
@@ -296,8 +298,9 @@ namespace mt_kahypar {
       forEachMovedNode([&](size_t j) {
         const HypernodeID hn = _active_nodes[j];
         ASSERT(!_might_be_uninitialized || _old_part_is_initialized[hn]);
-        if (hypergraph.partID(hn) != _old_part[hn]) {
-          changeNodePart<true>(hypergraph, hn, hypergraph.partID(hn), _old_part[hn], noop_obj_fn);
+        const PartitionID part = hypergraph.partID(hn);
+        if (part != _old_part[hn]) {
+          changeNodePart<true>(hypergraph, hn, part, _old_part[hn], noop_obj_fn);
         }
       });
       return true;

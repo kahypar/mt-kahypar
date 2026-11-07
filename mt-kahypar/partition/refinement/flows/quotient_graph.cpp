@@ -40,10 +40,12 @@ namespace mt_kahypar {
 void QuotientGraphEdge::addHyperedge(const HyperedgeID he, const HyperedgeWeight weight) {
   cut_hes.push_back(he);
   cut_he_weight.fetch_add(weight, std::memory_order_relaxed);
+  num_cut_hes.fetch_add(1, std::memory_order_release);
 }
 
 void QuotientGraphEdge::reset() {
   cut_hes.clear();
+  num_cut_hes.store(0, std::memory_order_relaxed);
   ownership.store(false, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
   cut_he_weight.store(0, std::memory_order_relaxed);

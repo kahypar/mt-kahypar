@@ -26,9 +26,8 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
-
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/partition/context.h"
@@ -51,7 +50,7 @@ class BestRatingWithoutTieBreaking final : public kahypar::meta::PolicyBase {
                                                               const HypernodeID u,
                                                               const HypernodeID v,
                                                               const int,
-                                                              const kahypar::ds::FastResetFlagArray<> &) {
+                                                              const ds::ThreadSafeFastResetFlagArray<> &) {
     return max_rating < tmp || ( max_rating == tmp && u < v );
   }
 };
