@@ -27,6 +27,8 @@
 
 #include "gmock/gmock.h"
 
+#include <filesystem>
+#include <string>
 #include <thread>
 
 #include <tbb/global_control.h>
@@ -40,7 +42,18 @@
 
 using ::testing::Test;
 
+#ifndef MT_KAHYPAR_INTERFACE_TEST_DIR
+  #error "MT_KAHYPAR_INTERFACE_TEST_DIR must be defined"
+#endif
+// Path of a file relative to the directory of this test (set by CMake),
+// such that the test can be executed from any working directory.
+#define TEST_FILE(relative_path) MT_KAHYPAR_INTERFACE_TEST_DIR "/" relative_path
+
 namespace mt_kahypar {
+  std::string tmp_partition_file() {
+    return (std::filesystem::temp_directory_path() / "mtkahypar_interface_test.partition").string();
+  }
+
   TEST(MtKaHyPar, TerminatesAndReinitializesTheThreadPool) {
     mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
 
@@ -62,14 +75,14 @@ namespace mt_kahypar {
 
   TEST(MtKaHyPar, LoadsContextFromFile) {
     mt_kahypar_error_t error;
-    mt_kahypar_context_t* context = mt_kahypar_context_from_file("test_preset.ini", &error);
+    mt_kahypar_context_t* context = mt_kahypar_context_from_file(TEST_FILE("test_preset.ini"), &error);
     ASSERT_NE(context, nullptr);
     // verbose should be false by default
     ASSERT_FALSE(reinterpret_cast<Context*>(context)->partition.enable_logging);
     ASSERT_EQ(DEFAULT, mt_kahypar_get_preset(context));
     mt_kahypar_free_context(context);
 
-    context = mt_kahypar_context_from_file("error.ini", &error);
+    context = mt_kahypar_context_from_file(TEST_FILE("error.ini"), &error);
     ASSERT_EQ(nullptr, context);
     ASSERT_EQ(INVALID_INPUT, error.status);
     mt_kahypar_free_error_content(&error);
@@ -132,7 +145,7 @@ namespace mt_kahypar {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
     mt_kahypar_hypergraph_t hypergraph =
-      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS, &error);
+      mt_kahypar_read_hypergraph_from_file(TEST_FILE("test_instances/ibm01.hgr"), context, HMETIS, &error);
 
     ASSERT_EQ(12752, mt_kahypar_num_hypernodes(hypergraph));
     ASSERT_EQ(14111, mt_kahypar_num_hyperedges(hypergraph));
@@ -146,7 +159,7 @@ namespace mt_kahypar {
     mt_kahypar_error_t error;
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset(DEFAULT);
     mt_kahypar_hypergraph_t graph =
-      mt_kahypar_read_hypergraph_from_file("test_instances/delaunay_n15.graph", context, METIS, &error);
+      mt_kahypar_read_hypergraph_from_file(TEST_FILE("test_instances/delaunay_n15.graph"), context, METIS, &error);
 
     ASSERT_EQ(32768,  mt_kahypar_num_hypernodes(graph));
     ASSERT_EQ(196548, mt_kahypar_num_hyperedges(graph));
@@ -822,10 +835,10 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t partitioned_hg =
       mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 2, partition.get(), &error);
 
-    mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition", &error);
+    mt_kahypar_write_partition_to_file(partitioned_hg, tmp_partition_file().c_str(), &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_hg_2 =
-      mt_kahypar_read_partition_from_file(hypergraph, context, 2, "tmp.partition", &error);
+      mt_kahypar_read_partition_from_file(hypergraph, context, 2, tmp_partition_file().c_str(), &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -927,10 +940,10 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
       mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get(), &error);
 
-    mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
+    mt_kahypar_write_partition_to_file(partitioned_graph, tmp_partition_file().c_str(), &error);
 
     mt_kahypar_partitioned_hypergraph_t partitioned_graph_2 =
-      mt_kahypar_read_partition_from_file(graph, context, 2, "tmp.partition", &error);
+      mt_kahypar_read_partition_from_file(graph, context, 2, tmp_partition_file().c_str(), &error);
 
     std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
       std::make_unique<mt_kahypar_partition_id_t[]>(7);
@@ -972,7 +985,7 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t partitioned_graph =
       mt_kahypar_create_partitioned_hypergraph(graph, context, 2, partition.get(), &error);
 
-    mt_kahypar_write_partition_to_file(partitioned_graph, "tmp.partition", &error);
+    mt_kahypar_write_partition_to_file(partitioned_graph, tmp_partition_file().c_str(), &error);
 
     mt_kahypar_hypergraph_t graph_2 = mt_kahypar_create_graph(
       context, num_vertices - 1, num_hyperedges - 1, edges.get(), nullptr, nullptr, &error);
@@ -982,7 +995,7 @@ namespace mt_kahypar {
     ASSERT_EQ(error.status, INVALID_INPUT);
     mt_kahypar_free_error_content(&error);
 
-    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, context, 2, "tmp.partition", &error).partitioned_hg, nullptr);
+    ASSERT_EQ(mt_kahypar_read_partition_from_file(graph_2, context, 2, tmp_partition_file().c_str(), &error).partitioned_hg, nullptr);
     ASSERT_EQ(error.status, INVALID_INPUT);
     mt_kahypar_free_error_content(&error);
 
@@ -996,11 +1009,11 @@ namespace mt_kahypar {
       static constexpr bool debug = false;
 
     public:
-      static constexpr char HYPERGRAPH_FILE[] = "test_instances/ibm01.hgr";
-      static constexpr char GRAPH_FILE[] = "test_instances/delaunay_n15.graph";
-      static constexpr char HYPERGRAPH_FIX_FILE[] = "test_instances/ibm01.k4.p1.fix";
-      static constexpr char GRAPH_FIX_FILE[] = "test_instances/delaunay_n15.k4.p1.fix";
-      static constexpr char TARGET_GRAPH_FILE[] = "test_instances/target.graph";
+      static constexpr char HYPERGRAPH_FILE[] = TEST_FILE("test_instances/ibm01.hgr");
+      static constexpr char GRAPH_FILE[] = TEST_FILE("test_instances/delaunay_n15.graph");
+      static constexpr char HYPERGRAPH_FIX_FILE[] = TEST_FILE("test_instances/ibm01.k4.p1.fix");
+      static constexpr char GRAPH_FIX_FILE[] = TEST_FILE("test_instances/delaunay_n15.k4.p1.fix");
+      static constexpr char TARGET_GRAPH_FILE[] = TEST_FILE("test_instances/target.graph");
 
       APartitioner() :
         error(),
@@ -1259,7 +1272,7 @@ namespace mt_kahypar {
   }
 
   TEST_F(APartitioner, PartitionsAHypergraphWithSinglePinsAndSpaces) {
-    Partition("test_instances/single_pin_hes.hgr", HMETIS, DEFAULT, 2, 0.03, KM1, false);
+    Partition(TEST_FILE("test_instances/single_pin_hes.hgr"), HMETIS, DEFAULT, 2, 0.03, KM1, false);
   }
 
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {
@@ -1779,7 +1792,7 @@ namespace mt_kahypar {
     tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const int /*id*/) {
       while ( cnt.load(std::memory_order_relaxed) < max_runs ) {
         ++cnt;
-        PartitionAnotherHypergraph("test_instances/test_instance.hgr", HMETIS, DEFAULT, 4, 0.03, KM1, false);
+        PartitionAnotherHypergraph(TEST_FILE("test_instances/test_instance.hgr"), HMETIS, DEFAULT, 4, 0.03, KM1, false);
       }
     });
   }
