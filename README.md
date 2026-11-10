@@ -426,7 +426,9 @@ Note the following:
   Likewise, (hyper)graphs, partitions and contexts created before `terminate()` must not be used afterwards:
   Operations on them that require the thread pool raise an error as long as Mt-KaHyPar is not initialized.
   Create new objects from the new `Initializer` after re-initializing.
-- `terminate()` must not be called while another thread is still using Mt-KaHyPar.
+- In free-threaded builds of Python, `terminate()` must not be called concurrently with other calls into Mt-KaHyPar.
+  (With the GIL, calls into Mt-KaHyPar cannot run concurrently with `terminate()`.)
+  The same applies to the C interface: `mt_kahypar_terminate()` must not be called while another thread is still using Mt-KaHyPar.
 
 Supported Objective Functions
 -----------

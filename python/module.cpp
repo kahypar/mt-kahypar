@@ -77,8 +77,10 @@ namespace {
   // Incremented on every terminate. Tokens created before a terminate are invalid afterwards.
   std::atomic<uint64_t> current_generation = 0;
 
-  // Note: No binding releases the GIL, such that calls into Mt-KaHyPar
-  // cannot run concurrently with terminate().
+  // Note: No binding releases the GIL, such that calls into Mt-KaHyPar cannot run
+  // concurrently with terminate(), and the checks below are race-free. This does not
+  // hold for free-threaded Python builds, where terminate() must not be called
+  // concurrently with other calls (see the documentation of terminate).
 
   void ensure_initialized() {
     if (!is_initialized.load()) {
@@ -206,7 +208,8 @@ PYBIND11_MODULE(mtkahypar, m) {
     "Terminates the thread pool (only supported for oneTBB version >= 2021.6). "
     "All Initializers obtained before are invalid afterwards, and (hyper)graphs, partitions and contexts "
     "created before must not be used anymore. Mt-KaHyPar can be initialized again via initialize(), "
-    "which returns a new Initializer. Must not be called while another thread is still using Mt-KaHyPar. "
+    "which returns a new Initializer. In free-threaded builds of Python, this function must not be called "
+    "concurrently with other calls into Mt-KaHyPar. "
     "Returns True if the thread pool was successfully terminated.");
 
   m.def("set_seed", [&](const int seed) {
