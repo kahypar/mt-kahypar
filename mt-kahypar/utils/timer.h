@@ -65,21 +65,28 @@ class Timer {
     ActiveTiming() :
       _key(""),
       _description(""),
+      _parent(""),
       _start() { }
 
     ActiveTiming(const std::string& key,
                  const std::string& description,
+                 const std::string& parent,
                  const HighResClockTimepoint& start) :
       _key(key),
       _description(description),
+      _parent(parent),
       _start(start) { }
 
-    std::string key() const {
+    const std::string& key() const {
       return _key;
     }
 
-    std::string description() const {
+    const std::string& description() const {
       return _description;
+    }
+
+    const std::string& parent() const {
+      return _parent;
     }
 
     HighResClockTimepoint start() const {
@@ -89,6 +96,7 @@ class Timer {
    private:
     std::string _key;
     std::string _description;
+    std::string _parent;
     HighResClockTimepoint _start;
   };
 
@@ -104,15 +112,15 @@ class Timer {
       _order(order),
       _timing(0.0) { }
 
-    std::string key() const {
+    const std::string& key() const {
       return _key;
     }
 
-    std::string description() const {
+    const std::string& description() const {
       return _description;
     }
 
-    std::string parent() const {
+    const std::string& parent() const {
       return _parent;
     }
 
