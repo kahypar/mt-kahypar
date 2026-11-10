@@ -85,15 +85,32 @@ void Timer::clear() {
 }
 
 void Timer::start_timer(const std::string& key,
-                  const std::string& description,
-                  bool is_parallel_context,
-                  bool force) {
+                        const std::string& description,
+                        bool is_parallel_context,
+                        bool force) {
   if (_is_enabled || force) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
+
+    // Parent is either the last element on the local stack and
+    // if there are no timings on the local stack the parent is
+    // on the global stack. If there are no elements on the global
+    // stack the timing represents a root.
+    std::string parent = "";
+    if (!_local_active_timings.local().empty()) {
+      const auto& last_local_timing = _local_active_timings.local().back();
+      parent = last_local_timing.key();
+      if (key == parent) {
+        // prevents an edge case where the same key is pushed twice to the local stack
+        parent = last_local_timing.parent();
+      }
+    } else if (!_active_timings.empty()) {
+      parent = _active_timings.back().key();
+    }
     if (force || is_parallel_context) {
-      _local_active_timings.local().emplace_back(key, description, std::chrono::high_resolution_clock::now());
+      _local_active_timings.local().emplace_back(key, description, parent, std::chrono::high_resolution_clock::now());
     } else {
-      _active_timings.emplace_back(key, description, std::chrono::high_resolution_clock::now());
+      ASSERT(_local_active_timings.local().empty());
+      _active_timings.emplace_back(key, description, parent, std::chrono::high_resolution_clock::now());
     }
   }
 }
@@ -120,24 +137,13 @@ void Timer::stop_timer(const std::string& key, bool force) {
       _active_timings.pop_back();
     }
 
-    // Parent is either the last element on the local stack and
-    // if there are no timings on the local stack the parent is
-    // on the global stack. If there are no elements on the global
-    // stack the timing represents a root.
-    std::string parent = "";
-    if (!_local_active_timings.local().empty()) {
-      parent = _local_active_timings.local().back().key();
-    } else if (!_active_timings.empty()) {
-      parent = _active_timings.back().key();
-    }
-
-    Key timing_key { parent, current_timing.key() };
+    Key timing_key { current_timing.parent(), current_timing.key() };
     if (_timings.find(timing_key) == _timings.end()) {
       _timings.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(timing_key),
         std::forward_as_tuple(current_timing.key(),
-                              current_timing.description(), parent, _index++));
+                              current_timing.description(), current_timing.parent(), _index++));
     }
     double time = std::chrono::duration<double>(end - current_timing.start()).count();
     _timings.at(timing_key).add_timing(time);
