@@ -26,6 +26,9 @@
 
 import unittest
 import os
+import subprocess
+import sys
+import textwrap
 import multiprocessing
 import math
 
@@ -1129,14 +1132,50 @@ class MainTest(unittest.TestCase):
     self.assertEqual(len(partitioned_hg.get_partition()), 7)
 
   def test_terminates_and_reinitializes_thread_pool(self):
-    terminated = mtkahypar.terminate()
-    self.assertIsInstance(terminated, bool)
-    # Mt-KaHyPar can be initialized again afterwards
-    new_mtk = mtkahypar.initialize(multiprocessing.cpu_count())
-    context = new_mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
-    context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
-    partitioned_hg = _make_partitioned_hg(context)
-    self.assertEqual(len(partitioned_hg.get_partition()), 7)
+    # Terminating invalidates the module-wide initializer used by all other tests,
+    # therefore this test runs in a separate process.
+    script = textwrap.dedent("""
+      import multiprocessing
+      import mtkahypar
+
+      def assert_raises(f):
+        try:
+          f()
+        except mtkahypar.UnsupportedOperationError:
+          return
+        raise AssertionError("expected UnsupportedOperationError")
+
+      num_threads = multiprocessing.cpu_count()
+      mtk = mtkahypar.initialize(num_threads)
+      context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+      context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+      hypergraph = mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+      partitioned_hg = hypergraph.partition(context)
+
+      assert isinstance(mtkahypar.terminate(), bool)
+
+      # Neither the old initializer nor existing objects can be used for anything that needs the thread pool
+      assert_raises(lambda: mtk.context_from_preset(mtkahypar.PresetType.DEFAULT))
+      assert_raises(lambda: mtk.create_hypergraph(context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]]))
+      assert_raises(lambda: hypergraph.partition(context))
+      assert_raises(lambda: partitioned_hg.km1())
+      assert_raises(lambda: partitioned_hg.improve_partition(context, 1))
+
+      # Terminating twice does nothing
+      assert mtkahypar.terminate() is True
+
+      # Mt-KaHyPar can be initialized again, but the old initializer stays invalid
+      new_mtk = mtkahypar.initialize(num_threads)
+      assert_raises(lambda: mtk.context_from_preset(mtkahypar.PresetType.DEFAULT))
+      new_context = new_mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+      new_context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+      new_hypergraph = new_mtk.create_hypergraph(new_context, 7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+      new_partitioned_hg = new_hypergraph.partition(new_context)
+      assert len(new_partitioned_hg.get_partition()) == 7
+    """)
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path))
+    result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True)
+    self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
   def test_map_onto_hypergraph(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)

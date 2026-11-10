@@ -62,8 +62,11 @@ namespace py = pybind11;
 using namespace mt_kahypar;
 
 namespace {
-  // Token type for initialization
-  struct Initializer {};
+  // Token type for initialization. It remembers the generation of the thread pool it was created
+  // for, such that it becomes invalid once the thread pool has been terminated.
+  struct Initializer {
+    uint64_t generation;
+  };
 
   // Graph types
   struct mt_kahypar_py_graph_t: public mt_kahypar_hypergraph_t {};
@@ -71,19 +74,43 @@ namespace {
   struct mt_kahypar_py_target_graph_t: public mt_kahypar_py_graph_t {};
 
   std::atomic_bool is_initialized = false;
+  // Incremented on every terminate. Tokens created before a terminate are invalid afterwards.
+  std::atomic<uint64_t> current_generation = 0;
 
-  void initialize(const size_t num_threads, const bool print_warnings) {
+  // Note: No binding releases the GIL, such that calls into Mt-KaHyPar
+  // cannot run concurrently with terminate().
+
+  void ensure_initialized() {
+    if (!is_initialized.load()) {
+      throw UnsupportedOperationException(
+        "Mt-KaHyPar is not initialized. Call mtkahypar.initialize() first "
+        "(the thread pool might have been terminated via mtkahypar.terminate()).");
+    }
+  }
+
+  void ensure_initialized(const Initializer& initializer) {
+    if (!is_initialized.load() || initializer.generation != current_generation.load()) {
+      throw UnsupportedOperationException(
+        "This Initializer is invalid because the thread pool of Mt-KaHyPar has been terminated. "
+        "Call mtkahypar.initialize() again to obtain a new Initializer.");
+    }
+  }
+
+  Initializer initialize(const size_t num_threads, const bool print_warnings) {
     bool expected = false;
     if (is_initialized.compare_exchange_strong(expected, true)) {
       lib::initialize(num_threads, true, print_warnings);
     } else if (print_warnings) {
       WARNING("Mt-KaHyPar is already initialized");
     }
+    return Initializer{current_generation.load()};
   }
 
   bool terminate() {
     bool expected = true;
     if (is_initialized.compare_exchange_strong(expected, false)) {
+      // invalidates all existing tokens
+      ++current_generation;
       return lib::terminate();
     }
     return true; // nothing to terminate
@@ -171,14 +198,15 @@ PYBIND11_MODULE(mtkahypar, m) {
   // ####################### Initialize Thread Pool and RNG #######################
 
   m.def("initialize", [&](const size_t num_threads, const bool print_warnings) {
-      initialize(num_threads, print_warnings);
-      return Initializer{};
+      return initialize(num_threads, print_warnings);
     }, "Initializes Mt-KaHyPar with the given number of threads.",
     py::arg("number of threads"), py::arg("print_warnings") = true);
 
   m.def("terminate", &terminate,
     "Terminates the thread pool (only supported for oneTBB version >= 2021.6). "
-    "Afterwards, Mt-KaHyPar can be initialized again via initialize(). "
+    "All Initializers obtained before are invalid afterwards, and (hyper)graphs, partitions and contexts "
+    "created before must not be used anymore. Mt-KaHyPar can be initialized again via initialize(), "
+    "which returns a new Initializer. Must not be called while another thread is still using Mt-KaHyPar. "
     "Returns True if the thread pool was successfully terminated.");
 
   m.def("set_seed", [&](const int seed) {
@@ -191,21 +219,24 @@ PYBIND11_MODULE(mtkahypar, m) {
 
   initializer_class
     .def("context_from_preset",
-      [](Initializer&, const PresetType preset) {
+      [](Initializer& initializer, const PresetType preset) {
+        ensure_initialized(initializer);
         return lib::context_from_preset(preset);
       }, "Creates a context from the given preset.",
       py::arg("preset"))
     .def("context_from_file",
-      [](Initializer&, const std::string& config_file) {
+      [](Initializer& initializer, const std::string& config_file) {
+        ensure_initialized(initializer);
         return lib::context_from_file(config_file.c_str());
       }, "Creates a context from a configuration file.",
       py::arg("config_file"))
     .def("create_hypergraph",
-      [](Initializer&,
+      [](Initializer& initializer,
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges) {
+        ensure_initialized(initializer);
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         return lib::create_hypergraph(
           context, num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr);
@@ -224,13 +255,14 @@ Construct an unweighted hypergraph.
     // Note: Using default arguments, i.e., nullable raw pointers, for the weights does not seem to work here.
     // The overload resolution fails due to a bug in pybind (seems related to https://github.com/pybind/pybind11/issues/4956)
     .def("create_hypergraph",
-      [](Initializer&,
+      [](Initializer& initializer,
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
          const vec<vec<HypernodeID>>& hyperedges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& hyperedge_weights) {
+        ensure_initialized(initializer);
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         ensure_correct_size(num_hypernodes, node_weights, "nodes");
         ensure_correct_size(num_hyperedges, hyperedge_weights, "hyperedges");
@@ -253,19 +285,21 @@ Construct a weighted hypergraph.
       py::arg("node_weights"),
       py::arg("hyperedge_weights"))
     .def("hypergraph_from_file",
-      [](Initializer&,
+      [](Initializer& initializer,
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
+        ensure_initialized(initializer);
         return lib::hypergraph_from_file(file_name, context, InstanceType::hypergraph, file_format);
       }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::hMetis)
     .def("create_graph",
-      [](Initializer&,
+      [](Initializer& initializer,
          const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
+        ensure_initialized(initializer);
         ensure_correct_size(num_edges, edges, "edges");
         return mt_kahypar_py_graph_t{lib::create_graph(
           context, num_nodes, num_edges, edges, nullptr, nullptr)};
@@ -282,13 +316,14 @@ Construct an unweighted graph.
       py::arg("num_edges"),
       py::arg("edges"))
     .def("create_graph",
-      [](Initializer&,
+      [](Initializer& initializer,
          const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& edge_weights) {
+        ensure_initialized(initializer);
         ensure_correct_size(num_edges, edges, "edges");
         ensure_correct_size(num_nodes, node_weights, "nodes");
         ensure_correct_size(num_edges, edge_weights, "edges");
@@ -311,20 +346,22 @@ Construct a weighted graph.
       py::arg("node_weights"),
       py::arg("edge_weights"))
     .def("graph_from_file",
-      [](Initializer&,
+      [](Initializer& initializer,
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
+        ensure_initialized(initializer);
         return mt_kahypar_py_graph_t{lib::hypergraph_from_file(file_name, context, InstanceType::graph, file_format)};
       }, "Reads a graph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("context"), py::arg("format") = FileFormat::Metis)
     .def("create_target_graph",
-      [](Initializer&,
+      [](Initializer& initializer,
          const Context& context,
          const HypernodeID num_nodes,
          const HyperedgeID num_edges,
          const vec<std::pair<HypernodeID,HypernodeID>>& edges,
          const vec<HyperedgeWeight>& edge_weights) {
+        ensure_initialized(initializer);
         unused(context);
         ensure_correct_size(num_edges, edges, "edges");
         ensure_correct_size(num_edges, edge_weights, "edges");
@@ -347,10 +384,11 @@ Construct a target graph.
       py::arg("edges"),
       py::arg("edge_weights"))
     .def("target_graph_from_file",
-      [](Initializer&,
+      [](Initializer& initializer,
          const std::string& file_name,
          const Context& context,
          const FileFormat file_format) {
+        ensure_initialized(initializer);
         unused(context);
         return mt_kahypar_py_target_graph_t{
           reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
@@ -475,6 +513,7 @@ If indiviual target weights are set, these are used for the calculation instead.
     .def("add_fixed_vertices", [&](mt_kahypar_hypergraph_t hypergraph,
                                    const vec<PartitionID>& fixed_vertices,
                                    const PartitionID num_blocks) {
+        ensure_initialized();
         io::addFixedVertices(hypergraph, fixed_vertices.data(), num_blocks);
       }, R"pbdoc(
 Adds the fixed vertices specified in the array to the (hyper)graph. The array must contain
@@ -484,6 +523,7 @@ corresponding node or -1 if the node is not fixed.
     .def("add_fixed_vertices_from_file", [&](mt_kahypar_hypergraph_t hypergraph,
                                              const std::string& fixed_vertex_file,
                                              const PartitionID num_blocks) {
+        ensure_initialized();
         io::addFixedVerticesFromFile(hypergraph, fixed_vertex_file, num_blocks);
       }, R"pbdoc(
 Adds the fixed vertices specified in the fixed vertex file to the (hyper)graph. The file must contain
@@ -491,6 +531,7 @@ n lines (n = number of nodes). Each line contains either the fixed vertex block 
 corresponding node or -1 if the node is not fixed.
           )pbdoc", py::arg("fixed_vertex_file"), py::arg("num_blocks"))
     .def("remove_fixed_vertices", [&](mt_kahypar_hypergraph_t hypergraph) {
+        ensure_initialized();
         io::removeFixedVertices(hypergraph);
     }, "Removes all fixed vertices from the hypergraph")
     .def("edge_size", &lib::edge_size<true>,
@@ -533,11 +574,13 @@ corresponding node or -1 if the node is not fixed.
       }, "Returns whether or not the given hypergraph can be partitioned with the preset", py::arg("preset"))
     .def("partition",
       [&](mt_kahypar_hypergraph_t hypergraph, const Context& context) {
+        ensure_initialized();
         return lib::partition(hypergraph, context);
       }, "Partitions the hypergraph with the parameters given in the partitioning context",
       py::arg("context"), py::keep_alive<0, 1>())
     .def("map_onto_graph",
       [&](mt_kahypar_hypergraph_t hypergraph, mt_kahypar_py_target_graph_t graph, const Context& context) {
+        ensure_initialized();
         TargetGraph target_graph(target_graph_cast(graph).copy());
         return lib::map(hypergraph, target_graph, context);
       },
@@ -555,6 +598,7 @@ corresponding node or -1 if the node is not fixed.
         const Context& context,
         const PartitionID num_blocks,
         const vec<PartitionID>& partition) {
+      ensure_initialized();
       ensure_correct_size(lib::num_nodes<true>(hypergraph), partition, "nodes");
       auto result = lib::create_partitioned_hypergraph(hypergraph, context, num_blocks, partition.data());
       if (result.partitioned_hg == nullptr) {
@@ -575,6 +619,7 @@ Construct a partitioned hypergraph from this hypergraph.
         const Context& context,
         const PartitionID num_blocks,
         const std::string& partition_file) {
+      ensure_initialized();
       std::vector<PartitionID> partition;
       io::readPartitionFile(partition_file, lib::num_nodes<true>(hypergraph), partition);
       auto result = lib::create_partitioned_hypergraph(hypergraph, context, num_blocks, partition.data());
@@ -658,16 +703,29 @@ Construct a partitioned hypergraph from this hypergraph.
       "Number of distinct blocks to which the pins of the corresponding hyperedge are assigned", py::arg("hyperedge"))
     .def("num_pins_in_block", &lib::num_pins_in_block<true>,
       "Number of pins assigned to the corresponding block in the given hyperedge", py::arg("hyperedge"), py::arg("block_id"))
-    .def("imbalance", &lib::imbalance<true>,
-      "Computes the imbalance of the partition", py::arg("context"))
-    .def("cut", &lib::cut<true>,
-      "Computes the cut-net metric of the partition")
-    .def("km1", &lib::km1<true>,
-      "Computes the connectivity metric of the partition")
-    .def("soed", &lib::soed<true>,
-      "Computes the sum-of-external-degree metric of the partition")
+    .def("imbalance",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const Context& context) {
+        ensure_initialized();
+        return lib::imbalance<true>(p, context);
+      }, "Computes the imbalance of the partition", py::arg("context"))
+    .def("cut",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        ensure_initialized();
+        return lib::cut<true>(p);
+      }, "Computes the cut-net metric of the partition")
+    .def("km1",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        ensure_initialized();
+        return lib::km1<true>(p);
+      }, "Computes the connectivity metric of the partition")
+    .def("soed",
+      [&](mt_kahypar_partitioned_hypergraph_t p) {
+        ensure_initialized();
+        return lib::soed<true>(p);
+      }, "Computes the sum-of-external-degree metric of the partition")
     .def("steiner_tree",
       [&](mt_kahypar_partitioned_hypergraph_t p, mt_kahypar_py_target_graph_t graph) {
+        ensure_initialized();
         return lib::switch_phg<PartitionID, true>(p, [&](auto& phg) {
           TargetGraph target_graph(target_graph_cast(graph).copy());
           target_graph.precomputeDistances(4);
@@ -681,6 +739,7 @@ Construct a partitioned hypergraph from this hypergraph.
       }, "Returns whether or not improving the given partitioned hypergraph is compatible with the preset", py::arg("preset"))
     .def("get_partition",
       [&](mt_kahypar_partitioned_hypergraph_t phg) {
+        ensure_initialized();
         std::vector<PartitionID> result;
         HypernodeID num_nodes = lib::switch_phg<HypernodeID, true>(phg, [=](const auto& p) {
           return p.initialNumNodes();
@@ -689,13 +748,20 @@ Construct a partitioned hypergraph from this hypergraph.
         lib::get_partition<true>(phg, result.data());
         return result;
       }, "Returns a list with the block to which each node is assigned.")
-    .def("write_partition_to_file", &lib::write_partition_to_file<true>,
-      "Writes the partition to a file", py::arg("partition_file"))
-    .def("improve_partition", &lib::improve,
-      "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
+    .def("write_partition_to_file",
+      [&](mt_kahypar_partitioned_hypergraph_t p, const std::string& partition_file) {
+        ensure_initialized();
+        lib::write_partition_to_file<true>(p, partition_file);
+      }, "Writes the partition to a file", py::arg("partition_file"))
+    .def("improve_partition",
+      [&](mt_kahypar_partitioned_hypergraph_t phg, const Context& context, size_t num_vcycles) {
+        ensure_initialized();
+        lib::improve(phg, context, num_vcycles);
+      }, "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
       py::arg("context"), py::arg("num_vcycles"))
     .def("improve_mapping",
       [&](mt_kahypar_partitioned_hypergraph_t phg, mt_kahypar_py_target_graph_t graph, const Context& context, size_t num_vcycles) {
+        ensure_initialized();
         TargetGraph target_graph(target_graph_cast(graph).copy());
         lib::improve_mapping(phg, target_graph, context, num_vcycles);
       }, "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
