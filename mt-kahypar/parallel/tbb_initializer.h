@@ -49,12 +49,6 @@
 namespace mt_kahypar {
 namespace parallel {
 
-// oneTBB provides tbb::finalize (which waits for the worker threads to exit)
-// only since version 2021.6 (interface version 12060).
-#if TBB_INTERFACE_VERSION >= 12060
-  #define MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
-#endif
-
 /**
  * Waits until all TBB worker threads have exited and then shuts down the TBB task scheduler.
  * Returns false if this is not possible (not supported by the TBB version in use,

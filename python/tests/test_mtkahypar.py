@@ -1129,7 +1129,7 @@ class MainTest(unittest.TestCase):
     self.assertEqual(len(partitioned_hg.get_partition()), 7)
 
   def test_terminates_and_reinitializes_thread_pool(self):
-    terminated = mtkahypar.terminate_thread_pool()
+    terminated = mtkahypar.terminate()
     self.assertIsInstance(terminated, bool)
     # Mt-KaHyPar can be initialized again afterwards
     new_mtk = mtkahypar.initialize(multiprocessing.cpu_count())

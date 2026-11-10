@@ -271,7 +271,7 @@ void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allo
   lib::initialize(num_threads, interleaved_allocations, false);
 }
 
-bool mt_kahypar_terminate_thread_pool() {
+bool mt_kahypar_terminate() {
   return lib::terminate();
 }
 

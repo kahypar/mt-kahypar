@@ -136,7 +136,7 @@ MT_KAHYPAR_API void mt_kahypar_initialize(const size_t num_threads, const bool i
  *
  * \return `true` if the thread pool was successfully terminated, `false` otherwise.
  */
-MT_KAHYPAR_API bool mt_kahypar_terminate_thread_pool();
+MT_KAHYPAR_API bool mt_kahypar_terminate();
 
 
 // ####################### Error Handling #######################

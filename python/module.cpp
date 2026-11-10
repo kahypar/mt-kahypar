@@ -81,7 +81,7 @@ namespace {
     }
   }
 
-  bool terminate_thread_pool() {
+  bool terminate() {
     bool expected = true;
     if (is_initialized.compare_exchange_strong(expected, false)) {
       return lib::terminate();
@@ -176,7 +176,7 @@ PYBIND11_MODULE(mtkahypar, m) {
     }, "Initializes Mt-KaHyPar with the given number of threads.",
     py::arg("number of threads"), py::arg("print_warnings") = true);
 
-  m.def("terminate_thread_pool", &terminate_thread_pool,
+  m.def("terminate", &terminate,
     "Terminates the thread pool (only supported for oneTBB version >= 2021.6). "
     "Afterwards, Mt-KaHyPar can be initialized again via initialize(). "
     "Returns True if the thread pool was successfully terminated.");
