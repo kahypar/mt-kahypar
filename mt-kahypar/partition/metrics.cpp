@@ -200,12 +200,25 @@ bool isValidPartition(const PartitionedHypergraph& phg, const Context& context) 
   return imbalance_metrics.isValidPartition();
 }
 
-template<typename PartitionedHypergraph, typename Func>
-BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
-                              const Context& context,
-                              Func&& part_weight_fn,
-                              const HypernodeWeightArray& max_part_weights) {
-  ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+  return imbalance(hypergraph, context, hypergraph.partWeights(), context.partition.max_part_weights);
+}
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const HypernodeWeightArray& max_part_weights) {
+  return imbalance(hypergraph, context, hypergraph.partWeights(), max_part_weights);
+}
+
+template<typename PartitionedHypergraph>
+BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
+                         const Context& context,
+                         const HypernodeWeightArray& part_weights,
+                         const HypernodeWeightArray& max_part_weights) {
+  ASSERT(part_weights.size() == UL(context.partition.k));
+  ASSERT(context.partition.perfect_balance_part_weights.size() == UL(context.partition.k));
   const bool consider_empty_part_weight = !context.partition.allow_empty_blocks && hypergraph.numRemovedHypernodes() > 0;
 
   size_t num_empty_parts = 0;
@@ -216,7 +229,7 @@ BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    const auto part_weight = part_weight_fn(i);
+    const auto part_weight = part_weights[i];
     for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
       const double curr_balance = part_weight.at(d) / static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d));
       max_balance = std::max(max_balance, curr_balance);
@@ -239,39 +252,6 @@ BalanceMetrics imbalance_impl(const PartitionedHypergraph& hypergraph,
     && !(hypergraph.maxWeightOfRemovedDegreeZeroNode() <= min_empty_part_weight);
   return BalanceMetrics{max_balance - 1.0, violates_balance,
     !context.partition.allow_empty_blocks && (too_many_empty_parts || too_small_empty_parts)};
-}
-
-template<typename PartitionedHypergraph>
-BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
-  return imbalance_impl(
-    hypergraph,
-    context,
-    [&](PartitionID i) { return hypergraph.partWeight(i); },
-    context.partition.max_part_weights);
-}
-
-template<typename PartitionedHypergraph>
-BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
-                         const Context& context,
-                         const HypernodeWeightArray& max_part_weights) {
-  return imbalance_impl(
-    hypergraph,
-    context,
-    [&](PartitionID i) { return hypergraph.partWeight(i); },
-    max_part_weights);
-}
-
-template<typename PartitionedHypergraph>
-BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
-                         const Context& context,
-                         const HypernodeWeightArray& part_weights,
-                         const HypernodeWeightArray& max_part_weights) {
-  ASSERT(part_weights.size() == (size_t)context.partition.k);
-  return imbalance_impl(
-    hypergraph,
-    context,
-    [&](PartitionID i) { return part_weights[i]; },
-    max_part_weights);
 }
 
 template<typename PartitionedHypergraph>

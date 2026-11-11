@@ -96,14 +96,14 @@ BalanceMetrics imbalance(const PartitionedHypergraph& hypergraph,
                          const HypernodeWeightArray& part_weights,
                          const HypernodeWeightArray& max_part_weights);
 
-template<typename PartitionedHypergraph>
-BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
-  // cheaper variant that does not consider any constraints other than balance
+// ! Cheaper variant that does not consider any constraints other than balance
+inline BalanceMetrics onlyImbalance(const Context& context, const HypernodeWeightArray& part_weights) {
+  ASSERT(part_weights.size() == UL(context.partition.k));
   double max_balance = 0.0;
   bool violates_balance = false;
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    const auto part_weight = hypergraph.partWeight(i);
-    for (Dimension d = 0; d < hypergraph.dimension(); ++d) {
+    const auto part_weight = part_weights[i];
+    for (Dimension d = 0; d < context.dimension(); ++d) {
       const double curr_balance = part_weight.at(d) / static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d));
       max_balance = std::max(max_balance, curr_balance);
       if (part_weight.at(d) > context.partition.max_part_weights[i].at(d)) {
@@ -112,6 +112,12 @@ BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Cont
     }
   }
   return BalanceMetrics{max_balance - 1.0, violates_balance, false};
+}
+
+// ! Cheaper variant that does not consider any constraints other than balance
+template<typename PartitionedHypergraph>
+BalanceMetrics onlyImbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
+  return onlyImbalance(context, hypergraph.partWeights());
 }
 
 template<typename PartitionedHypergraph>
