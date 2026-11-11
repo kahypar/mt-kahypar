@@ -85,8 +85,7 @@ namespace {
   void ensure_initialized() {
     if (!is_initialized.load()) {
       throw UnsupportedOperationException(
-        "Mt-KaHyPar is not initialized. Call mtkahypar.initialize() first "
-        "(the thread pool might have been terminated via mtkahypar.terminate()).");
+        "Mt-KaHyPar has been terminated. Call mtkahypar.initialize() first.");
     }
   }
 
@@ -111,7 +110,6 @@ namespace {
   bool terminate() {
     bool expected = true;
     if (is_initialized.compare_exchange_strong(expected, false)) {
-      // invalidates all existing tokens
       ++current_generation;
       return lib::terminate();
     }
@@ -205,12 +203,10 @@ PYBIND11_MODULE(mtkahypar, m) {
     py::arg("number of threads"), py::arg("print_warnings") = true);
 
   m.def("terminate", &terminate,
-    "Terminates the thread pool (only supported for oneTBB version >= 2021.6). "
-    "All Initializers obtained before are invalid afterwards, and (hyper)graphs, partitions and contexts "
-    "created before must not be used anymore. Mt-KaHyPar can be initialized again via initialize(), "
-    "which returns a new Initializer. In free-threaded builds of Python, this function must not be called "
-    "concurrently with other calls into Mt-KaHyPar. "
-    "Returns True if the thread pool was successfully terminated.");
+    "Terminates the thread pool, invalidating existing Initializers. "
+    "Mt-KaHyPar can be initialized again via initialize(). "
+    "In free-threaded Python, this function must not be called concurrently with other calls into Mt-KaHyPar. "
+    "Returns True if termination was successful.");
 
   m.def("set_seed", [&](const int seed) {
       mt_kahypar::utils::Randomize::instance().setSeed(seed);

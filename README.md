@@ -417,19 +417,6 @@ if hypergraph.is_compatible(context.preset):
    partitioned_hg = hypergraph.partition(context)
 ```
 
-**Terminating the thread pool.** You can shut down the thread pool of Mt-KaHyPar with `mtkahypar.terminate()` (C interface: `mt_kahypar_terminate()`), e.g., to change the number of threads.
-This requires oneTBB version >= 2021.6 and returns `True` if the worker threads have been shut down successfully.
-Afterwards, you have to call `mtkahypar.initialize(...)` again to obtain a new `Initializer`.
-Note the following:
-
-- The `Initializer` obtained before `terminate()` becomes invalid, and using it raises an `UnsupportedOperationError`.
-  Likewise, (hyper)graphs, partitions and contexts created before `terminate()` must not be used afterwards:
-  Operations on them that require the thread pool raise an error as long as Mt-KaHyPar is not initialized.
-  Create new objects from the new `Initializer` after re-initializing.
-- In free-threaded builds of Python, `terminate()` must not be called concurrently with other calls into Mt-KaHyPar.
-  (With the GIL, calls into Mt-KaHyPar cannot run concurrently with `terminate()`.)
-  The same applies to the C interface: `mt_kahypar_terminate()` must not be called while another thread is still using Mt-KaHyPar.
-
 Supported Objective Functions
 -----------
 
