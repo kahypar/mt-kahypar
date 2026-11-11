@@ -83,10 +83,12 @@ class MultiTryKWayFM final : public IRefiner {
   void roundInitialization(PartitionedHypergraph& phg,
                            const vec<HypernodeID>& refinement_nodes);
 
+  template<typename BalancePolicy>
   void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
                                                   const HypernodeWeightArray& initialPartWeights,
                                                   const HypernodeWeightArray& max_part_weights,
-                                                  vec<Move>& rebalancing_moves);
+                                                  vec<Move>& rebalancing_moves,
+                                                  BalancePolicy&& balance_policy);
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
     return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);

@@ -58,6 +58,8 @@ class IRebalancer: public IRefiner {
     return refineAndOutputMovesLinearImpl(hypergraph, refinement_nodes, moves, best_metrics, time_limit);
   }
 
+  virtual const HypernodeWeightArray& targetPartWeights() const = 0;
+
  protected:
   IRebalancer() = default;
 

@@ -857,6 +857,18 @@ namespace mt_kahypar {
         context.initial_partitioning.refinement.fm.reorder_moves ),
       "Activates move reordering of unconstrained FM. "
     )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-fm-reorder-by-progress" : "--r-fm-reorder-by-progress"),
+      (!initial_partitioning ? context.refinement.fm.reorder_by_progress:
+        context.initial_partitioning.refinement.fm.reorder_by_progress ),
+      "Move reordering of unconstrained FM: by progress"
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-fm-reorder-reduced-weight" : "--r-fm-reorder-reduced-weight"),
+      (!initial_partitioning ? context.refinement.fm.reorder_reduced_weight:
+        context.initial_partitioning.refinement.fm.reorder_reduced_weight ),
+      "Move reordering of unconstrained FM: use reduced target weights"
+    )->capture_default_str();
 
     // global refinement for n-level partitioning
     app.add_option(
