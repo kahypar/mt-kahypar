@@ -113,6 +113,10 @@ public:
                         const Context& context,
                         gain_cache_t gain_cache);
 
+  const HypernodeWeightArray& targetPartWeights() const final {
+    return _target_part_weights;
+  }
+
 private:
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const vec<HypernodeID>& refinement_nodes,

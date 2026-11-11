@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 class DoNothingRefiner final : public IRebalancer {
@@ -67,6 +68,10 @@ class DoNothingRefiner final : public IRebalancer {
                                               Metrics&,
                                               const double) override final {
     return false;
+  }
+
+  const HypernodeWeightArray& targetPartWeights() const final {
+    throw UnsupportedOperationException("Not implemented.");
   }
 };
 }  // namespace kahypar

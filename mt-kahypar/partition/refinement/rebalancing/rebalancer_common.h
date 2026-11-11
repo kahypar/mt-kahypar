@@ -169,6 +169,31 @@ inline float computeBalanceProgress(HNWeightConstRef wu, HNWeightExpression from
   return progress;
 }
 
+// TODO: optimize for O(1) balance computation?
+struct ImbalanceSumTrackerPolicy {
+  const HypernodeWeightArray& target_part_weights;
+  const vec<double>& weight_normalizer;
+
+  ImbalanceSumTrackerPolicy(const HypernodeWeightArray& target_part_weights, const vec<double>& weight_normalizer):
+    target_part_weights(target_part_weights),
+    weight_normalizer(weight_normalizer) { }
+
+  double computeImbalance(const Context& context, const HypernodeWeightArray& part_weights) const {
+    return imbalanceSum(part_weights, target_part_weights, context, weight_normalizer);
+  }
+
+  bool improvesBalanceViolation(const Context&,
+                                const HypernodeWeightArray& part_weights,
+                                const HypernodeWeightArray& /*max_part_weights*/,
+                                PartitionID from,
+                                PartitionID to,
+                                const HNWeightConstRef node_weight) {
+    float progress = computeBalanceProgress(node_weight, part_weights[from], target_part_weights[from],
+      part_weights[to].load(std::memory_order_relaxed), target_part_weights[to], weight_normalizer);
+    return progress > -1e-6;
+  }
+};
+
 inline vec<vec<double>> computeBlockWeightNormalizers(const Context& context) {
   vec<vec<double>> block_weight_normalizers(context.partition.k, vec<double>{});
   for (PartitionID block = 0; block < context.partition.k; ++block) {

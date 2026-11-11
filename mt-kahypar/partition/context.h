@@ -176,6 +176,8 @@ struct FMParameters {
   double unconstrained_upper_bound_min = 0.0;
   double unconstrained_min_improvement = -1.0;
   bool reorder_moves = true;
+  bool reorder_by_progress = true;
+  bool reorder_reduced_weight = true;
 
   bool activate_unconstrained_dynamically = false;
   double penalty_for_activation_test = 0.5;

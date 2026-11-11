@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/metrics_tracker.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_common.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/weight/hypernode_weight_common.h"
@@ -129,8 +130,8 @@ namespace impl {
     vec<Move>& _moves;
   };
 
-  template<typename PartitionedHypergraph>
-  void insertRebalancingMoves(metrics::MetricsAndBlockTracker<PartitionedHypergraph>& tracker,
+  template<typename PartitionedHypergraph, typename BalancePolicy>
+  void insertRebalancingMoves(metrics::MetricsAndBlockTracker<PartitionedHypergraph, BalancePolicy>& tracker,
                               impl::MovesPerBlockLookup& lookup,
                               MoveID& next_move_index,
                               vec<Move>& tmp_move_order) {
@@ -205,6 +206,8 @@ namespace impl {
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
+    const auto weight_normalizer = impl::computeUniformWeightNormalizer(context);
+
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       ENABLE_ASSERTIONS(const bool was_balanced_before =
         metrics::imbalance(phg, context, max_part_weights).isValidPartition());
@@ -265,7 +268,14 @@ namespace impl {
 
         if (!rebalancing_moves.empty()) {
           // compute new move sequence where each imbalanced move is immediately rebalanced
-          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, rebalancing_moves);
+          if (!context.refinement.fm.reorder_by_progress || phg.dimension() == 1) {
+            interleaveMoveSequenceWithRebalancingMoves<metrics::DefaultBalanceTrackerPolicy>(
+              phg, initialPartWeights, max_part_weights, rebalancing_moves, {});
+          } else {
+            impl::ImbalanceSumTrackerPolicy policy(context.refinement.fm.reorder_reduced_weight ? rebalancer.targetPartWeights() : max_part_weights, weight_normalizer);
+            interleaveMoveSequenceWithRebalancingMoves(
+              phg, initialPartWeights, max_part_weights, rebalancing_moves, std::move(policy));
+          }
         }
         if constexpr (debug) {
           auto balanced = globalRollback.reportBalancedPositions(phg, sharedData, initialPartWeights, max_part_weights);
@@ -387,10 +397,12 @@ namespace impl {
   }
 
   template<typename GraphAndGainTypes>
+  template<typename BalancePolicy>
   void MultiTryKWayFM<GraphAndGainTypes>::interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
                                                                                      const HypernodeWeightArray& initialPartWeights,
                                                                                      const HypernodeWeightArray& max_part_weights,
-                                                                                     vec<Move>& rebalancing_moves) {
+                                                                                     vec<Move>& rebalancing_moves,
+                                                                                     BalancePolicy&& balance_policy) {
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
       for (const Move& m: rebalancing_moves) {
@@ -430,7 +442,8 @@ namespace impl {
     // the move sequence). We might replace it with a parallel implementation later.
     MoveID next_move_index = 0;
     impl::MovesPerBlockLookup lookup(rebalancing_moves, context.partition.k);
-    metrics::MetricsAndBlockTracker<PartitionedHypergraph> tracker(phg, context, initialPartWeights, max_part_weights);
+    metrics::MetricsAndBlockTracker<PartitionedHypergraph, BalancePolicy> tracker(
+      phg, context, initialPartWeights, max_part_weights, std::move(balance_policy));
 
     if (context.refinement.fm.reorder_moves) {
       // it might be possible that the initial weights are already imbalanced

@@ -103,6 +103,10 @@ public:
         throw UnsupportedOperationException("deterministic rebalancer can not be used for unconstrained refinement");
     }
 
+    const HypernodeWeightArray& targetPartWeights() const final {
+        throw UnsupportedOperationException("deterministic rebalancer can not be used for unconstrained refinement");
+    }
+
 private:
 
     void resizeDataStructuresForCurrentK();
