@@ -31,6 +31,7 @@
 #include <string>
 #include <thread>
 
+#include <tbb/global_control.h>
 #include <tbb/parallel_invoke.h>
 
 #include "mtkahypar.h"
@@ -50,6 +51,27 @@ using ::testing::Test;
 namespace mt_kahypar {
   std::string tmp_partition_file() {
     return (std::filesystem::temp_directory_path() / "mtkahypar_interface_test.partition").string();
+  }
+
+  TEST(MtKaHyPar, TerminatesAndReinitializesTheThreadPool) {
+    mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
+
+    const bool terminated = mt_kahypar_terminate();
+    #ifdef MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
+    ASSERT_TRUE(terminated);
+    #else
+    ASSERT_FALSE(terminated);
+    #endif
+
+    // The thread pool can be initialized again, also with a different number of threads
+    mt_kahypar_initialize(1, false);
+    #ifdef MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
+    ASSERT_EQ(tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism), 1);
+    #endif
+
+    // Restore the default for subsequent tests
+    mt_kahypar_terminate();
+    mt_kahypar_initialize(std::thread::hardware_concurrency(), false);
   }
 
   TEST(MtKaHyPar, LoadsContextFromFile) {

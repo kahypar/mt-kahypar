@@ -40,8 +40,10 @@ static constexpr bool provides_hardware_information = true;
 // ! Initialize TBB with specified number of threads
 void initialize_tbb(const size_t num_threads);
 
-// ! Terminate TBB
-void terminate_tbb();
+// ! Terminate TBB, i.e. shut down its worker threads (requires oneTBB >= 2021.6).
+// ! Afterwards, TBB can be initialized again via initialize_tbb.
+// ! Returns true if the thread pool was successfully terminated.
+bool terminate_tbb();
 
 // ! Get number of available threads
 int total_number_of_threads();

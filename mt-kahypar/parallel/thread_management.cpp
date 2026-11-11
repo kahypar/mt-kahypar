@@ -58,8 +58,8 @@ void initialize_tbb(const size_t num_threads) {
   mt_kahypar::TBBInitializer::initialize(std::max(num_threads, UL(1)));
 }
 
-void terminate_tbb() {
-  mt_kahypar::TBBInitializer::instance().terminate();
+bool terminate_tbb() {
+  return mt_kahypar::TBBInitializer::instance().terminate();
 }
 
 size_t max_num_thread_ids() {

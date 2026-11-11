@@ -1128,6 +1128,43 @@ class MainTest(unittest.TestCase):
     partitioned_hg = _make_partitioned_hg(context)
     self.assertEqual(len(partitioned_hg.get_partition()), 7)
 
+  def test_terminates_and_reinitializes_thread_pool(self):
+    global mtk
+    def assert_raises(f):
+      with self.assertRaises(mtkahypar.UnsupportedOperationError):
+        f()
+
+    edges = [[0,2],[0,1,3,4],[3,4,6],[2,5,6]]
+    context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+    context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+    hypergraph = mtk.create_hypergraph(context, 7, 4, edges)
+    partitioned_hg = hypergraph.partition(context)
+    old_mtk = mtk
+
+    try:
+      self.assertIsInstance(mtkahypar.terminate(), bool)
+
+      # Neither the old initializer nor existing objects can be used for anything that needs the thread pool
+      assert_raises(lambda: old_mtk.context_from_preset(mtkahypar.PresetType.DEFAULT))
+      assert_raises(lambda: old_mtk.create_hypergraph(context, 7, 4, edges))
+      assert_raises(lambda: hypergraph.partition(context))
+      assert_raises(lambda: partitioned_hg.km1())
+      assert_raises(lambda: partitioned_hg.improve_partition(context, 1))
+
+      # Terminating twice does nothing
+      self.assertTrue(mtkahypar.terminate())
+
+      # Mt-KaHyPar can be initialized again, but the old initializer stays invalid
+      mtk = mtkahypar.initialize(multiprocessing.cpu_count())
+      assert_raises(lambda: old_mtk.context_from_preset(mtkahypar.PresetType.DEFAULT))
+      new_context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
+      new_context.set_partitioning_parameters(2, 0.03, mtkahypar.Objective.KM1)
+      new_hypergraph = mtk.create_hypergraph(new_context, 7, 4, edges)
+      self.assertEqual(len(new_hypergraph.partition(new_context).get_partition()), 7)
+    finally:
+      # make sure the other tests have a valid initializer
+      mtk = mtkahypar.initialize(multiprocessing.cpu_count(), False)
+
   def test_map_onto_hypergraph(self):
     context = mtk.context_from_preset(mtkahypar.PresetType.DEFAULT)
     context.set_partitioning_parameters(8, 0.03, mtkahypar.Objective.KM1)

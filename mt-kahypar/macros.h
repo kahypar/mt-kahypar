@@ -30,6 +30,14 @@
 #include <sstream>
 #include <type_traits>
 
+#include <tbb/version.h>
+
+// oneTBB provides tbb::finalize (which waits for the worker threads to exit)
+// only since version 2021.6 (interface version 12060).
+#if TBB_INTERFACE_VERSION >= 12060
+#define MT_KAHYPAR_TBB_SUPPORTS_FINALIZE
+#endif
+
 #if defined(MT_KAHYPAR_LIBRARY_MODE) ||                                        \
     !defined(KAHYPAR_ENABLE_THREAD_PINNING)
 #include <tbb/task_arena.h>

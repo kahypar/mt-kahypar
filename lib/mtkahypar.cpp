@@ -271,6 +271,10 @@ void mt_kahypar_initialize(const size_t num_threads, const bool interleaved_allo
   lib::initialize(num_threads, interleaved_allocations, false);
 }
 
+bool mt_kahypar_terminate() {
+  return lib::terminate();
+}
+
 void mt_kahypar_free_error_content(mt_kahypar_error_t* error) {
   free(const_cast<char*>(error->msg));
   error->status = mt_kahypar_status_t::SUCCESS;
