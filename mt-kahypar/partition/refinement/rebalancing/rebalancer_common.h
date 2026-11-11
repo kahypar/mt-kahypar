@@ -181,5 +181,19 @@ inline vec<vec<double>> computeBlockWeightNormalizers(const Context& context) {
   return block_weight_normalizers;
 }
 
+inline vec<double> computeUniformWeightNormalizer(const Context& context) {
+  vec<double> weight_normalizer(context.dimension(), 0);
+  vec<double> total_weight(context.dimension(), 0);
+  for (PartitionID block = 0; block < context.partition.k; ++block) {
+    for (Dimension d = 0; d < context.dimension(); ++d) {
+      total_weight[d] += context.partition.max_part_weights[block].at(d);
+    }
+  }
+  for (Dimension d = 0; d < context.dimension(); ++d) {
+    weight_normalizer[d] = 1.0 / total_weight[d];
+  }
+  return weight_normalizer;
+}
+
 } // namespace impl
 }  // namespace mt_kahypar
