@@ -102,20 +102,6 @@ inline float internalImbalance(const HNWeightExpression& weight, const vec<doubl
   return (0.01 * weight_sum + max_weight) / (1.01 * weight_sum - max_weight);
 }
 
-inline double imbalance(const HypernodeWeightArray& part_weights, const Context& context) {
-  double max_balance = 0;
-  for (PartitionID i = 0; i < context.partition.k; ++i) {
-    for (Dimension d = 0; d < part_weights.dimension(); ++d) {
-      const double curr_balance =
-              (part_weights[i].at(d) /
-                  static_cast<double>(context.partition.perfect_balance_part_weights[i].at(d)));
-      max_balance = std::max(max_balance, curr_balance);
-    }
-  }
-
-  return max_balance - 1.0;
-}
-
 inline double imbalanceSum(const HypernodeWeightArray& part_weights,
                            const HypernodeWeightArray& max_part_weights,
                            const Context& context,
