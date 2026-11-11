@@ -123,7 +123,6 @@ std::pair<int64_t, size_t> Fallback<GraphAndGainTypes>::runDeadlockFallback(Part
     float best_rating = std::numeric_limits<float>::lowest();
     HyperedgeWeight best_gain = std::numeric_limits<HyperedgeWeight>::min();
     const HyperedgeWeight penalty_term = gain_cache.penaltyTerm(hn, phg.partID(hn));
-    HyperedgeWeight adjacent_weight = 0;
 
     for (PartitionID to = 0; to < context.partition.k; ++to) {
       if (from == to) continue;
