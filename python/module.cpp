@@ -107,7 +107,8 @@ namespace {
     return Initializer{current_generation.load()};
   }
 
-  bool terminate() {
+  // can't name it `terminate` due to name collision
+  bool terminate_tbb() {
     bool expected = true;
     if (is_initialized.compare_exchange_strong(expected, false)) {
       ++current_generation;
@@ -202,8 +203,8 @@ PYBIND11_MODULE(mtkahypar, m) {
     }, "Initializes Mt-KaHyPar with the given number of threads.",
     py::arg("number of threads"), py::arg("print_warnings") = true);
 
-  m.def("terminate", &terminate,
-    "Terminates the thread pool, invalidating existing Initializers. "
+  m.def("terminate", &terminate_tbb,
+    "Terminates the TBB thread pool, invalidating existing Initializers. "
     "Mt-KaHyPar can be initialized again via initialize(). "
     "In free-threaded Python, this function must not be called concurrently with other calls into Mt-KaHyPar. "
     "Returns True if termination was successful.");
