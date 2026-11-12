@@ -44,9 +44,11 @@ class HwlocTopology {
  public:
   static void initialize(hwloc_topology_t& topology) {
     hwloc_topology_init(&topology);
+    #ifdef HWLOC_TOPOLOGY_FLAG_RESTRICT_TO_CPUBINDING  // guard for old hwloc versions
     hwloc_topology_set_flags(topology,
                              HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM |
                                  HWLOC_TOPOLOGY_FLAG_RESTRICT_TO_CPUBINDING);
+    #endif
     hwloc_topology_load(topology);
   }
 
