@@ -227,7 +227,8 @@ class AGainCache : public Test {
       });
   }
 
-  void simulateNLevelWithGainCacheUpdates(const bool simulate_localized_refinement) {
+  void simulateNLevelWithGainCacheUpdates(const bool simulate_localized_refinement,
+                                          const bool simulate_refinement_after_restoring_nets = false) {
     if constexpr ( !Hypergraph::is_static_hypergraph ) {
       // Coarsening
       utils::Randomize& rand = utils::Randomize::instance();
@@ -314,6 +315,13 @@ class AGainCache : public Test {
           if ( debug && !partitioned_hg.checkTrackedPartitionInformation(gain_cache) ) {
             LOG << "FAILED AFTER RESTORE SINGLE-PIN AND PARALLEL NETS";
             return;
+          }
+
+          if ( simulate_refinement_after_restoring_nets ) {
+            // Nodes are moved after restoring the nets, but before the next batch uncontraction.
+            // Gain cache entries of newly adjacent blocks are then initialized while the restored
+            // nets are part of the graph.
+            moveAllNodesAtRandom();
           }
         }
         hierarchy.pop_back();
@@ -507,6 +515,11 @@ TYPED_TEST(AGainCache, HasCorrectGainsAfterNLevelUncontraction) {
 
 TYPED_TEST(AGainCache, HasCorrectGainsAfterNLevelUncontractionWithLocalizedRefinement) {
   this->simulateNLevelWithGainCacheUpdates(true);
+  this->verifyGainCacheEntries();
+}
+
+TYPED_TEST(AGainCache, HasCorrectGainsAfterRefinementOnRestoredSinglePinAndParallelNets) {
+  this->simulateNLevelWithGainCacheUpdates(true, true);
   this->verifyGainCacheEntries();
 }
 

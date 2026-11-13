@@ -200,6 +200,11 @@ void GraphSteinerTreeGainCache::restoreIdenticalHyperedge(const PartitionedHyper
     ASSERT(u != kInvalidHypernode && v != kInvalidHypernode && u != v, V(u) << V(v));
     ASSERT(partitioned_hg.nodeIsEnabled(u));
     ASSERT(partitioned_hg.nodeIsEnabled(v));
+    // Restoring an identical edge can change which pair of nodes a unique edge ID refers to, but
+    // does not increment the uncontraction version. The edge state recorded for this ID by earlier
+    // moves would still look valid, although it belongs to a different edge. Invalidate it here.
+    ASSERT(UL(partitioned_hg.uniqueEdgeID(he)) < _edge_state.size());
+    _edge_state[partitioned_hg.uniqueEdgeID(he)].updateBlocks(kInvalidPartition, kInvalidPartition, 0);
     const PartitionID block_of_u = partitioned_hg.partID(u);
     const PartitionID block_of_v = partitioned_hg.partID(v);
     incrementIncidentEdges(u, block_of_u);
