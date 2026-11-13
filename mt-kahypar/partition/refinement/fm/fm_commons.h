@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <array>
 #include <limits>
 
 #include <tbb/enumerable_thread_specific.h>
@@ -178,9 +179,14 @@ class UnconstrainedFMData {
     initialized(false),
     current_k(0),
     bucket_weights(),
+    gain_for_bucket(),
     virtual_weight_delta(),
     local_bucket_weights(),
-    rebalancing_nodes(num_nodes) { }
+    rebalancing_nodes(num_nodes) {
+      for (size_t i = 0; i < NUM_BUCKETS; ++i) {
+        gain_for_bucket[i] = std::pow(BUCKET_FACTOR, static_cast<int32_t>(i) - static_cast<int32_t>(BUCKET_ONE));
+      }
+    }
 
   template<typename GraphAndGainTypes>
   void initialize(const Context& context,
@@ -234,8 +240,9 @@ class UnconstrainedFMData {
   }
 
   // upper bound of gain values in bucket
-  static double gainPerWeightForBucket(BucketID bucketId) {
-    const double result =  std::pow(BUCKET_FACTOR, static_cast<int32_t>(bucketId) - static_cast<int32_t>(BUCKET_ONE));
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  double gainPerWeightForBucket(BucketID bucketId) const {
+    const double result = bucketId < NUM_BUCKETS ? gain_for_bucket[bucketId] : std::pow(BUCKET_FACTOR, static_cast<int32_t>(bucketId) - static_cast<int32_t>(BUCKET_ONE));
     ASSERT(bucketForGainPerWeight(result) == bucketId);
     return result;
   }
@@ -248,6 +255,7 @@ class UnconstrainedFMData {
   Dimension dimension = 0;
   PartitionID current_k;
   parallel::scalable_vector<HNWeightScalar> bucket_weights;
+  std::array<double, NUM_BUCKETS> gain_for_bucket;
   HypernodeWeightArray virtual_weight_delta;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HNWeightScalar>> local_bucket_weights;
   parallel::scalable_vector<parallel::scalable_vector<HNWeightScalar>> fallback_bucket_weights;
