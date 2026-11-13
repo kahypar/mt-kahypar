@@ -169,6 +169,7 @@ struct FMParameters {
 
   // unconstrained
   size_t unconstrained_rounds = 8;
+  double penalty_heavy_node_threshold = 0.01;
   double treshold_border_node_inclusion = 0.75;
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;

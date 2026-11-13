@@ -168,8 +168,9 @@ class UnconstrainedFMData {
                            const typename GraphAndGainTypes::GainCache& gain_cache);
   };
 
-  static constexpr BucketID NUM_BUCKETS = 16;
-  static constexpr double BUCKET_FACTOR = 1.5;
+  static constexpr BucketID NUM_BUCKETS = 32;
+  static constexpr BucketID BUCKET_ONE = 15;
+  static constexpr double BUCKET_FACTOR = 2;
   static constexpr double FALLBACK_TRESHOLD = 0.75;
 
  public:
@@ -234,25 +235,13 @@ class UnconstrainedFMData {
 
   // upper bound of gain values in bucket
   static double gainPerWeightForBucket(BucketID bucketId) {
-    if (bucketId > 1) {
-      return std::pow(BUCKET_FACTOR, bucketId - 2);
-    } else if (bucketId == 1) {
-      return 0.5;
-    } else {
-      return 0;
-    }
+    const double result =  std::pow(BUCKET_FACTOR, static_cast<int32_t>(bucketId) - static_cast<int32_t>(BUCKET_ONE));
+    ASSERT(bucketForGainPerWeight(result) == bucketId);
+    return result;
   }
 
   static BucketID bucketForGainPerWeight(double gainPerWeight) {
-    if (gainPerWeight >= 1) {
-      return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR));
-    } else if (gainPerWeight > 0.5) {
-      return 2;
-    } else if (gainPerWeight > 0) {
-      return 1;
-    } else {
-      return 0;
-    }
+    return std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR)) + BUCKET_ONE;
   }
 
   bool initialized = false;
