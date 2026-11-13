@@ -783,6 +783,12 @@ namespace mt_kahypar {
       "FM releases nodes that weren't moved, so they might be found by another search."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-fm-penalty-heavy-node-threshold" : "--r-fm-penalty-heavy-node-threshold"),
+      (!initial_partitioning ? context.refinement.fm.penalty_heavy_node_threshold :
+        context.initial_partitioning.refinement.fm.penalty_heavy_node_threshold ),
+      "Threshold relative to maximum block weight. Nodes heavier than this are ignored for computing rebalancing penalties."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-fm-threshold-border-node-inclusion" : "--r-fm-threshold-border-node-inclusion"),
       (!initial_partitioning ? context.refinement.fm.treshold_border_node_inclusion :
         context.initial_partitioning.refinement.fm.treshold_border_node_inclusion ),

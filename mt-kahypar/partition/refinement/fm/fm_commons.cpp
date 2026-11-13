@@ -98,6 +98,9 @@ namespace mt_kahypar {
 
     const Dimension dimension = phg.dimension();
     const double bn_treshold = context.refinement.fm.treshold_border_node_inclusion;
+    const AllocatedHNWeight heavy_node_threshold(
+      weight::max(context.refinement.fm.penalty_heavy_node_threshold * phg.totalWeight() / context.partition.k, weight::broadcast(100, dimension)));
+
     const auto weight_init_fn = [dimension]{ return AllocatedHNWeight(dimension, 0); };
     tbb::enumerable_thread_specific<AllocatedHNWeight> local_considered_weight(weight_init_fn);
     tbb::enumerable_thread_specific<AllocatedHNWeight> local_inserted_weight(weight_init_fn);
@@ -105,7 +108,7 @@ namespace mt_kahypar {
     // collect nodes and fill buckets
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       const HNWeightConstRef hn_weight = phg.nodeWeight(hn);
-      if (weight::isZero(hn_weight)) return;
+      if (weight::isZero(hn_weight) || !(hn_weight <= heavy_node_threshold)) return;
 
       auto [internal_weight, total_incident_weight] = get_node_stats(hn);
       if (static_cast<double>(internal_weight) >= bn_treshold * total_incident_weight) {
