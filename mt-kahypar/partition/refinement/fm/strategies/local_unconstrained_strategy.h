@@ -53,7 +53,47 @@ namespace mt_kahypar {
    */
 
 class LocalUnconstrainedStrategy {
-  using VirtualWeightMap = ds::SparseMap<PartitionID, HNWeightScalar>;
+  struct WeightDeltaMap {
+    WeightDeltaMap(Dimension dimension, PartitionID k):
+      active_blocks(),
+      deltas(k, dimension, 0, false) { }
+
+    HNWeightConstRef get(PartitionID block) const {
+      return deltas[block];
+    }
+
+    void add(PartitionID block, HNWeightConstRef weight) {
+      if (weight::isZero(weight)) return;
+
+      if (weight::isZero(deltas[block])) {
+        active_blocks.push_back(block);
+      }
+      deltas[block] += weight;
+    }
+
+    template<typename F>
+    void forEach(F&& func) {
+      for (PartitionID block : active_blocks) {
+        func(block, deltas[block]);
+      }
+    }
+
+    template<typename F>
+    void forEachAndClear(F&& func) {
+      forEach([&func](PartitionID block, HNWeightRef&& delta){
+        func(block, std::move(delta));
+        delta = weight::broadcast(0, delta.dimension());
+      });
+      active_blocks.clear();
+    }
+
+    void clear() {
+      forEachAndClear([](PartitionID, HNWeightRef){ });
+    }
+
+    vec<PartitionID> active_blocks;
+    HypernodeWeightArray deltas;
+  };
 
  public:
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -71,7 +111,7 @@ class LocalUnconstrainedStrategy {
       sharedData(sharedData),
       blockPQ(blockPQ),
       vertexPQs(vertexPQs),
-      localVirtualWeightDelta(context.partition.k),
+      localVirtualWeightDelta(context.dimension(), context.partition.k),
       penaltyFactor(context.refinement.fm.imbalance_penalty_max),
       upperBound(context.refinement.fm.unconstrained_upper_bound) { }
 
@@ -135,12 +175,11 @@ class LocalUnconstrainedStrategy {
 
       bool apply_move = (gain >= estimated_gain); // accept any gain that is at least as good
       if (apply_move && to != kInvalidPartition && penaltyFactor > 0) {
-        ASSERT(phg.dimension() == 1);
         // TODO: does this really make sense? (seems to be some second gain recomputation)
-        const HNWeightScalar wu = phg.nodeWeight(u).at(0);
-        const HNWeightScalar to_weight = phg.partWeight(to).at(0);
-        const HNWeightScalar max_part_weight = context.partition.max_part_weights[to].at(0);
-        if (upperBound >= 1 && to_weight + wu > upperBound * max_part_weight) {
+        const auto wu = phg.nodeWeight(u);
+        const auto to_weight = phg.partWeight(to);
+        const auto max_part_weight = context.partition.max_part_weights[to];
+        if (upperBound >= 1 && !(to_weight + wu <= upperBound * max_part_weight)) {
           apply_move = false;
         } else if (!(to_weight + wu <= max_part_weight)) {
           const Gain imbalance_penalty = estimatePenalty(to, to_weight, wu);
@@ -172,22 +211,21 @@ class LocalUnconstrainedStrategy {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void applyMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
     if (sharedData.unconstrained.isRebalancingNode(m.node)) {
-      ASSERT(phg.dimension() == 1);
       // If a node is moved which is already in use for penalty estimation, we need to make
       // an adjustment so future estimations are not overly optimistic (since in reality, the
       // node is not available anymore). This is achieved by increasing the "virtual" weight of
       // the origin block, thus pessimizing future estimations
-      localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node).at(0);
+      localVirtualWeightDelta.add(m.from, phg.nodeWeight(m.node));
     }
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void flushLocalChanges() {
-    for (auto [block, delta]: localVirtualWeightDelta) {
-      ASSERT(delta >= 0);
-      sharedData.unconstrained.virtualWeightDelta(block).fetch_add(delta, std::memory_order_relaxed);
-    }
-    localVirtualWeightDelta.clear();
+    localVirtualWeightDelta.forEachAndClear([&](PartitionID block, auto delta) {
+      ASSERT(!weight::isZero(delta));
+      weight::eval(sharedData.unconstrained.virtualWeightDelta(block)
+        .fetch_add(delta, std::memory_order_relaxed));
+    });
   }
 
   void reset() {
@@ -264,8 +302,7 @@ private:
           // don't take imbalanced move without improved gain
           continue;
         } else if (is_imbalanced && penaltyFactor > 0) {
-          ASSERT(phg.dimension() == 1);
-          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight.at(0), wu.at(0));
+          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
@@ -306,8 +343,7 @@ private:
         if (upperBound >= 1 && !(tmpHNWeight + wu <= upperBound * max_weight)) {
           continue;
         } else if (penaltyFactor > 0 && !(tmpHNWeight + wu <= max_weight)) {
-          ASSERT(phg.dimension() == 1);
-          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight.at(0), wu.at(0));
+          const Gain imbalance_penalty = estimatePenalty(i, tmpHNWeight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             if (i == designatedTargetU) {
               // Edge case: the cached target block for u is overloaded (infinite penalty) and no longer valid.
@@ -334,13 +370,13 @@ private:
     return std::make_pair(to, gain);
   }
 
+  template<typename Expr>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  Gain estimatePenalty(PartitionID to, HNWeightScalar to_weight, HNWeightScalar wu) const {
-    ASSERT(context.dimension() == 1);
-    HNWeightScalar virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
-                                    + localVirtualWeightDelta.getOrDefault(to);
-    HNWeightScalar initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to].at(0);
-    return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initial_imbalance, wu);
+  Gain estimatePenalty(PartitionID to, const Expr& to_weight, HNWeightConstRef wu) {
+    auto virtual_delta = sharedData.unconstrained.virtualWeightDelta(to).load(std::memory_order_relaxed)
+                         + localVirtualWeightDelta.get(to);
+    initialImbalance = to_weight + virtual_delta - context.partition.max_part_weights[to];
+    return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initialImbalance, wu);
   }
 
   const Context& context;
@@ -358,7 +394,7 @@ private:
 
   // ! Virtual block weights are saved as delta to the actual block weight. They
   // ! are necessary to ensure a reasonable penalty estimation in some edge cases.
-  VirtualWeightMap localVirtualWeightDelta;
+  WeightDeltaMap localVirtualWeightDelta;
 
   double penaltyFactor;
   double upperBound;
@@ -366,6 +402,7 @@ private:
   // ! Buffers for comparing the weight of target blocks
   AllocatedHNWeight bestTargetBlockWeight;
   AllocatedHNWeight tmpHNWeight;
+  AllocatedHNWeight initialImbalance;
 };
 
 }

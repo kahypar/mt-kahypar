@@ -509,7 +509,7 @@ namespace impl {
       // as we initialize them with the final number of blocks. This is just a fallback
       // if someone changes this in the future.
       globalRollback.changeNumberOfBlocks(current_k);
-      sharedData.unconstrained.changeNumberOfBlocks(current_k);
+      sharedData.unconstrained.changeNumberOfBlocks(current_k, context.dimension());
       for ( auto& localized_fm : ets_fm ) {
         localized_fm.changeNumberOfBlocks(current_k);
       }

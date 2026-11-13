@@ -185,15 +185,16 @@ class UnconstrainedFMData {
   void initialize(const Context& context,
                   const typename GraphAndGainTypes::PartitionedHypergraph& phg,
                   const typename GraphAndGainTypes::GainCache& gain_cache) {
-    changeNumberOfBlocks(context.partition.k);
+    dimension = context.dimension();
+    changeNumberOfBlocks(context.partition.k, dimension);
     reset();
 
     InitializationHelper<GraphAndGainTypes>::initialize(*this, context, phg, gain_cache);
   }
 
-  Gain estimatePenaltyForImbalancedMove(PartitionID to, HNWeightScalar initial_imbalance, HNWeightScalar moved_weight) const;
+  Gain estimatePenaltyForImbalancedMove(PartitionID to, HNWeightConstRef initial_imbalance, HNWeightConstRef moved_weight) const;
 
-  AtomicWeight& virtualWeightDelta(PartitionID block) {
+  HNWeightRef virtualWeightDelta(PartitionID block) {
     ASSERT(block >= 0 && static_cast<size_t>(block) < virtual_weight_delta.size());
     return virtual_weight_delta[block];
   }
@@ -204,10 +205,10 @@ class UnconstrainedFMData {
 
   void reset();
 
-  void changeNumberOfBlocks(PartitionID new_k) {
+  void changeNumberOfBlocks(PartitionID new_k, Dimension dimension) {
     if (new_k != current_k) {
       current_k = new_k;
-      local_bucket_weights = tbb::enumerable_thread_specific<vec<HNWeightScalar>>(new_k * NUM_BUCKETS);
+      local_bucket_weights = tbb::enumerable_thread_specific<vec<HNWeightScalar>>(new_k * dimension * NUM_BUCKETS);
       initialized = false;
     }
   }
@@ -216,9 +217,19 @@ class UnconstrainedFMData {
   template<typename GraphAndGainTypes>
   friend class InitializationHelper;
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
-    ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
-    return block * NUM_BUCKETS + bucketId;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, Dimension d, BucketID bucketId) const {
+    const size_t result = block * dimension * NUM_BUCKETS + d * NUM_BUCKETS + bucketId;
+    ASSERT(bucketId < NUM_BUCKETS && d < dimension && result < bucket_weights.size());
+    return result;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t fallbackIndex(PartitionID block, Dimension d) const {
+    ASSERT(d < dimension && block * dimension + d < fallback_bucket_weights.size());
+    return block * dimension + d;
+  }
+
+  parallel::scalable_vector<HNWeightScalar>& fallbackWeights(PartitionID block, Dimension d) {
+    return fallback_bucket_weights[fallbackIndex(block, d)];
   }
 
   // upper bound of gain values in bucket
@@ -245,9 +256,10 @@ class UnconstrainedFMData {
   }
 
   bool initialized = false;
+  Dimension dimension = 0;
   PartitionID current_k;
   parallel::scalable_vector<HNWeightScalar> bucket_weights;
-  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
+  HypernodeWeightArray virtual_weight_delta;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HNWeightScalar>> local_bucket_weights;
   parallel::scalable_vector<parallel::scalable_vector<HNWeightScalar>> fallback_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
