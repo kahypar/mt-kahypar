@@ -583,12 +583,13 @@ namespace impl {
     const size_t old_id = global_move_id;
     int64_t attributed_gain = findMoves(phg, global_move_id);
 
+    const size_t largest_moved_id = global_move_id;
     if (phg.dimension() > 1 && _context.refinement.rebalancing.use_rollback) {
       attributed_gain += applyRollback(phg, old_id, global_move_id);
     }
 
     if constexpr (GainCache::invalidates_entries) {
-      tbb::parallel_for(old_id, global_move_id, [&](const size_t i) {
+      tbb::parallel_for(old_id, largest_moved_id, [&](const size_t i) {
         _gain_cache.recomputeInvalidTerms(phg, _moves[i].node);
       });
     }
