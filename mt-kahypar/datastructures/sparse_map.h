@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <cmath>
@@ -257,7 +258,8 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
  * sparse map. Otherwise, the behavior is undefined.
  */
 template <typename Key = Mandatory,
-          typename Value = Mandatory>
+          typename Value = Mandatory,
+          bool hugepages = false>
 class FixedSizeSparseMap {
 
   struct MapElement {
@@ -416,13 +418,17 @@ class FixedSizeSparseMap {
   void allocate(const size_t size) {
     if ( _data == nullptr ) {
       _map_size = align_to_next_power_of_two(size);
-      _data = std::make_unique<uint8_t[]>(
-        _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement));
+      const size_t nbytes = _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement);
+      if constexpr (hugepages) {
+        _data = parallel::make_unique_thp<uint8_t>(nbytes);
+      } else {
+        _data = std::make_unique<uint8_t[]>(nbytes);
+      }
       _size = 0;
       _timestamp = 1;
       _sparse = reinterpret_cast<SparseElement*>(_data.get());
       _dense = reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * _map_size);
-      memset(_data.get(), 0, _map_size * (sizeof(MapElement) + sizeof(SparseElement)));
+      memset(_data.get(), 0, nbytes);
     }
 
   }
@@ -433,7 +439,10 @@ class FixedSizeSparseMap {
 
   size_t _map_size;
   const Value _initial_value;
-  std::unique_ptr<uint8_t[]> _data;
+  using MemoryType =
+      std::conditional_t<hugepages, parallel::tbb_unique_ptr_thp<uint8_t>,
+                         std::unique_ptr<uint8_t[]>>;
+  MemoryType _data;
 
   size_t _size;
   size_t _timestamp;

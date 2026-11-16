@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <atomic>
 #include <limits>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include <cmath>
@@ -43,7 +44,8 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename Key = Mandatory,
-          typename Value = Mandatory>
+          typename Value = Mandatory,
+          bool hugepages = false>
 class ConcurrentFlatMap {
 
   struct MapElement {
@@ -158,10 +160,15 @@ class ConcurrentFlatMap {
   void allocate(const size_t size) {
     if ( _data == nullptr ) {
       _map_size = align_to_next_power_of_two(size);
-      _data = std::make_unique<uint8_t[]>(_map_size * sizeof(MapElement));
+      const size_t nbytes = _map_size * sizeof(MapElement);
+      if constexpr (hugepages) {
+        _data = parallel::make_unique_thp<uint8_t>(nbytes);
+      } else {
+        _data = std::make_unique<uint8_t[]>(nbytes);
+      }
       _threshold = 2;
       _map = reinterpret_cast<MapElement*>(_data.get());
-      memset(_data.get(), 0, _map_size * sizeof(MapElement));
+      memset(_data.get(), 0, nbytes);
     }
   }
 
@@ -170,7 +177,10 @@ class ConcurrentFlatMap {
   }
 
   size_t _map_size;
-  std::unique_ptr<uint8_t[]> _data;
+  using MemoryType =
+      std::conditional_t<hugepages, parallel::tbb_unique_ptr_thp<uint8_t>,
+                         std::unique_ptr<uint8_t[]>>;
+  MemoryType _data;
 
   int32_t _threshold;
   MapElement* _map;
