@@ -158,7 +158,6 @@ namespace mt_kahypar {
       bool moved = false;
 
       const HNWeightConstRef allowed_weight = context.partition.max_part_weights[move.to];
-      const HNWeightConstRef heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k, tmpHNWeight).second;
       const auto toWeight = deltaPhg.partWeight(move.to);
       if (expect_improvement) {
         // since we will flush the move sequence, don't bother running it through the deltaPhg
@@ -189,10 +188,13 @@ namespace mt_kahypar {
         localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
         bool improved_km1 = estimatedImprovement > bestImprovement;
-        bool improved_balance_less_equal_km1 = !improved_km1  // guard eval if improvement is already guaranteed
-                                               && estimatedImprovement >= bestImprovement
-                                               && fromWeight == heaviestPartWeight
-                                               && weight::sum(toWeight + phg.nodeWeight(move.node)) < weight::sum(heaviestPartWeight);
+        bool improved_balance_less_equal_km1 = false;
+        if (estimatedImprovement == bestImprovement) {
+          // TODO
+          const HNWeightConstRef heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k, tmpHNWeight).second;
+          improved_balance_less_equal_km1 = (fromWeight == heaviestPartWeight)
+            && weight::sum(toWeight + phg.nodeWeight(move.node)) < weight::sum(heaviestPartWeight);
+        }
         if (improved_km1 || improved_balance_less_equal_km1) {
           // Apply move sequence to global partition
           for (size_t i = 0; i < localMoves.size(); ++i) {
