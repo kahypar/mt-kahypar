@@ -139,7 +139,7 @@ private:
 
   // hypergraph afterburner
   parallel::scalable_thp_vector<std::atomic<Gain>> _afterburner_gain;
-  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> _afterburner_edge_buffer;
+  tbb::enumerable_thread_specific<parallel::scalable_thp_vector<HypernodeID>> _afterburner_edge_buffer;
   ds::ThreadSafeFastResetFlagArray<> _afterburner_visited_hes;
 };
 

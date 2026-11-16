@@ -131,7 +131,7 @@ class SequentialConstruction {
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
-                                      vec<HypernodeID>& whfc_to_node,
+                                      parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                       const bool deterministic);
 
   // ! Only for testing
@@ -139,7 +139,7 @@ class SequentialConstruction {
                                               const Subhypergraph& sub_hg,
                                               const PartitionID block_0,
                                               const PartitionID block_1,
-                                              vec<HypernodeID>& whfc_to_node,
+                                              parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                               const bool default_construction,
                                               const bool deterministic);
 
@@ -148,20 +148,20 @@ class SequentialConstruction {
                                const Subhypergraph& sub_hg,
                                const PartitionID block_0,
                                const PartitionID block_1,
-                               vec<HypernodeID>& whfc_to_node);
+                               parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg,
                                             const PartitionID block_0,
                                             const PartitionID block_1,
-                                            vec<HypernodeID>& whfc_to_node);
+                                            parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,
                                 const whfc::Node sink,
                                 const PartitionID block_0,
                                 const PartitionID block_1,
-                                const vec<HypernodeID>& whfc_to_node);
+                                const parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   const Context& _context;
 

@@ -102,7 +102,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraph(con
                                                                              const Subhypergraph& sub_hg,
                                                                              const PartitionID block_0,
                                                                              const PartitionID block_1,
-                                                                             vec<HypernodeID>& whfc_to_node,
+                                                                             parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                                                              const bool deterministic) {
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
@@ -115,7 +115,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructFlowHypergraphExpl
                                                                                      const Subhypergraph& sub_hg,
                                                                                      const PartitionID block_0,
                                                                                      const PartitionID block_1,
-                                                                                     vec<HypernodeID>& whfc_to_node,
+                                                                                     parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                                                                      const bool default_construction,
                                                                                      const bool deterministic) {
   ALWAYS_ASSERT(!deterministic || MT_KAHYPAR_HAS_DETERMINISTIC_FEATURES);
@@ -177,7 +177,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefault(const Part
                                                                       const Subhypergraph& sub_hg,
                                                                       const PartitionID block_0,
                                                                       const PartitionID block_1,
-                                                                      vec<HypernodeID>& whfc_to_node) {
+                                                                      parallel::scalable_thp_vector<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -315,7 +315,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructDefaultDeterminist
                                                                                    const Subhypergraph& sub_hg,
                                                                                    const PartitionID block_0,
                                                                                    const PartitionID block_1,
-                                                                                   vec<HypernodeID>& whfc_to_node) {
+                                                                                   parallel::scalable_thp_vector<HypernodeID>& whfc_to_node) {
   ALWAYS_ASSERT(!PartitionedHypergraph::is_graph);
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
@@ -472,7 +472,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
                                                                                    const Subhypergraph& sub_hg,
                                                                                    const PartitionID block_0,
                                                                                    const PartitionID block_1,
-                                                                                   vec<HypernodeID>& whfc_to_node) {
+                                                                                   parallel::scalable_thp_vector<HypernodeID>& whfc_to_node) {
   ALWAYS_ASSERT(!PartitionedHypergraph::is_graph);
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
@@ -635,7 +635,7 @@ FlowProblem ParallelConstruction<GraphAndGainTypes>::constructOptimizedForLargeH
                                                                                                 const Subhypergraph& sub_hg,
                                                                                                 const PartitionID block_0,
                                                                                                 const PartitionID block_1,
-                                                                                                vec<HypernodeID>& whfc_to_node) {
+                                                                                                parallel::scalable_thp_vector<HypernodeID>& whfc_to_node) {
   ALWAYS_ASSERT(!PartitionedHypergraph::is_graph);
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
@@ -853,7 +853,7 @@ void ParallelConstruction<GraphAndGainTypes>::initializeWHFCNodes(const Partitio
                                                                   const PartitionID block_0,
                                                                   const PartitionID block_1,
                                                                   FlowProblem& flow_problem,
-                                                                  vec<HypernodeID>& whfc_to_node,
+                                                                  parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                                                   bool collect_pins) {
   const size_t num_buckets = _pins.numBuckets();
   const HyperedgeID max_hyperedges = sub_hg.hes.size();
@@ -953,7 +953,7 @@ void ParallelConstruction<GraphAndGainTypes>::determineDistanceFromCut(const Par
                                                                     const whfc::Node sink,
                                                                     const PartitionID block_0,
                                                                     const PartitionID block_1,
-                                                                    const vec<HypernodeID>& whfc_to_node) {
+                                                                    const parallel::scalable_thp_vector<HypernodeID>& whfc_to_node) {
   auto& distances = _hfc.cs.border_nodes.distance;
   distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());

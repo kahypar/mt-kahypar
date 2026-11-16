@@ -632,7 +632,7 @@ class DynamicGraph {
   }
 
   // ! Reset internal community information
-  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+  void setCommunityIDs(const ds::Clustering& community_ids) {
     ASSERT(community_ids.size() == UI64(numNodes()));
     doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode(hn).setCommunityID(community_ids[hn]);

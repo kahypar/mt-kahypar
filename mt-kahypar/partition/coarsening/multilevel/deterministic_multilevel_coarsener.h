@@ -67,7 +67,7 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, double>;
+  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, double, true>;
   using LargeRatingMap = ds::SparseMap<HypernodeID, double>;
 
 public:
@@ -155,8 +155,8 @@ private:
   DeterministicCoarseningConfig config;
   HypernodeID initial_num_nodes;
   utils::ParallelPermutation<HypernodeID> permutation;
-  vec<HypernodeID> propositions;
-  vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
+  parallel::scalable_thp_vector<HypernodeID> propositions;
+  parallel::scalable_thp_vector<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
   ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
   tbb::enumerable_thread_specific<LargeRatingMap> default_rating_maps;
   tbb::enumerable_thread_specific<CacheEfficientRatingMap> cache_efficient_rating_maps;

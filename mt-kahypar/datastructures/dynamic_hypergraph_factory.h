@@ -32,7 +32,6 @@
 
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -40,8 +39,7 @@ namespace ds {
 class DynamicHypergraphFactory {
 
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-  using Counter = parallel::scalable_vector<size_t>;
-  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
+  using Counter = parallel::scalable_thp_vector<size_t>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
   using ThreadLocalBitset = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
   using ThreadLocalBitvector = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;

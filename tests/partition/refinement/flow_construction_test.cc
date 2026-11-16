@@ -116,7 +116,7 @@ class AFlowHypergraphConstructor : public Test {
   FlowHypergraphBuilder flow_hg;
   whfc::HyperFlowCutter<FlowAlgo> hfc;
   std::unique_ptr<Constructor> constructor;
-  vec<HypernodeID> whfc_to_node;
+  parallel::scalable_thp_vector<HypernodeID> whfc_to_node;
 };
 
 typedef ::testing::Types<Config<SequentialConstruction<GraphAndGainTypes<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, true, false>

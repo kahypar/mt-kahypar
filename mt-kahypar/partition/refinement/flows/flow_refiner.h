@@ -126,7 +126,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
-  vec<HypernodeID> _whfc_to_node;
+  parallel::scalable_thp_vector<HypernodeID> _whfc_to_node;
   std::unique_ptr<SequentialConstruction<GraphAndGainTypes>> _sequential_construction;
   std::unique_ptr<ParallelConstruction<GraphAndGainTypes>> _parallel_construction;
 };

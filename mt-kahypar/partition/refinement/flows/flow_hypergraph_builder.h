@@ -298,6 +298,6 @@ namespace mt_kahypar {
     size_t _numPinsAtHyperedgeStart;
 
     vec<TmpCSRBucket> _tmp_csr_buckets;
-    vec<uint32_t> _inc_he_pos;
+    parallel::scalable_thp_vector<uint32_t> _inc_he_pos;
   };
 }

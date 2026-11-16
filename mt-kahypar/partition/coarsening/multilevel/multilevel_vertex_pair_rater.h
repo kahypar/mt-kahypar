@@ -47,7 +47,7 @@
 namespace mt_kahypar {
 class MultilevelVertexPairRater {
   using LargeTmpRatingMap = ds::SparseMap<HypernodeID, RatingType>;
-  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
+  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType, true>;
   using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
   using ThreadLocalVertexDegreeBoundedRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
   using ThreadLocalLargeTmpRatingMap = tbb::enumerable_thread_specific<LargeTmpRatingMap>;

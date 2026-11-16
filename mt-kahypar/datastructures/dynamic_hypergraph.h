@@ -386,7 +386,7 @@ class DynamicHypergraph {
   };
 
   using IncidenceArray = Array<HypernodeID>;
-  using OwnershipVector = parallel::scalable_vector<SpinLock>;
+  using OwnershipVector = parallel::scalable_thp_vector<SpinLock>;
   using ThreadLocalHyperedgeVector = tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID>>;
   using ThreadLocalBitset = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
   using ThreadLocalBitvector = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
@@ -935,7 +935,7 @@ class DynamicHypergraph {
   // ####################### Initialization / Reset Functions #######################
 
   // ! Reset internal community information
-  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+  void setCommunityIDs(const ds::Clustering& community_ids) {
     ASSERT(community_ids.size() == UI64(_num_hypernodes));
     doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode(hn).setCommunityID(community_ids[hn]);

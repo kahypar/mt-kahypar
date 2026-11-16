@@ -86,7 +86,7 @@ static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max
 static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
 
 namespace ds {
-  using Clustering = vec<PartitionID>;
+  using Clustering = parallel::scalable_thp_vector<PartitionID>;
 }
 
 struct Move {

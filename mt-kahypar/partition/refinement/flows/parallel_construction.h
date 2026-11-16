@@ -164,7 +164,7 @@ class ParallelConstruction {
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
-                                      vec<HypernodeID>& whfc_to_node,
+                                      parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                       const bool deterministic);
 
   // ! Only for testing
@@ -172,7 +172,7 @@ class ParallelConstruction {
                                               const Subhypergraph& sub_hg,
                                               const PartitionID block_0,
                                               const PartitionID block_1,
-                                              vec<HypernodeID>& whfc_to_node,
+                                              parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                                               const bool default_construction,
                                               const bool deterministic);
 
@@ -181,32 +181,32 @@ class ParallelConstruction {
                                const Subhypergraph& sub_hg,
                                const PartitionID block_0,
                                const PartitionID block_1,
-                               vec<HypernodeID>& whfc_to_node);
+                               parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   FlowProblem constructDefaultDeterministic(const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg,
                                             const PartitionID block_0,
                                             const PartitionID block_1,
-                                            vec<HypernodeID>& whfc_to_node);
+                                            parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg,
                                             const PartitionID block_0,
                                             const PartitionID block_1,
-                                            vec<HypernodeID>& whfc_to_node);
+                                            parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   FlowProblem constructOptimizedForLargeHEsDeterministic(const PartitionedHypergraph& phg,
                                                          const Subhypergraph& sub_hg,
                                                          const PartitionID block_0,
                                                          const PartitionID block_1,
-                                                         vec<HypernodeID>& whfc_to_node);
+                                                         parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   void initializeWHFCNodes(const PartitionedHypergraph& phg,
                            const Subhypergraph& sub_hg,
                            const PartitionID block_0,
                            const PartitionID block_1,
                            FlowProblem& flow_problem,
-                           vec<HypernodeID>& whfc_to_node,
+                           parallel::scalable_thp_vector<HypernodeID>& whfc_to_node,
                            bool collect_pins);
 
   bool checkIfHyperedgesAreParallel(const TmpDeterministicHyperedge& lhs,
@@ -221,20 +221,20 @@ class ParallelConstruction {
                                 const whfc::Node sink,
                                 const PartitionID block_0,
                                 const PartitionID block_1,
-                                const vec<HypernodeID>& whfc_to_node);
+                                const parallel::scalable_thp_vector<HypernodeID>& whfc_to_node);
 
   const Context& _context;
 
   FlowHypergraphBuilder& _flow_hg;
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel>& _hfc;
 
-  ds::ConcurrentFlatMap<HypernodeID, whfc::Node> _node_to_whfc;
+  ds::ConcurrentFlatMap<HypernodeID, whfc::Node, true> _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   tbb::enumerable_thread_specific<vec<whfc::Node>> _tmp_pins;
   tbb::concurrent_vector<TmpHyperedge> _cut_hes;
 
   ds::ConcurrentBucketMap<TmpPin> _pins;
-  ds::ConcurrentFlatMap<HyperedgeID, HyperedgeID> _he_to_whfc;
+  ds::ConcurrentFlatMap<HyperedgeID, HyperedgeID, true> _he_to_whfc;
 
   DynamicIdenticalNetDetection _identical_nets;
 

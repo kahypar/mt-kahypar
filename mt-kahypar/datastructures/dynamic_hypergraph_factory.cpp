@@ -86,7 +86,8 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
   // Compute prefix sum over the number of pins per hyperedge and the.
   // The prefix sum is used than as
   // start position for each hyperedge in the incidence array.
-  parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
+  parallel::TBBPrefixSum<size_t, parallel::scalable_thp_vector> pin_prefix_sum(
+      num_pins_per_hyperedge);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
     UL(0), UI64(num_hyperedges)), pin_prefix_sum);
 

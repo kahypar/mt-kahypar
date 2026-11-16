@@ -326,7 +326,7 @@ namespace mt_kahypar::io {
                     vec<HypernodeWeight>& vertices_weight) {
     vec<LineRange> line_ranges;
     vec<vec<EdgeT>> local_edges;
-    vec<vec<HyperedgeWeight>> local_edges_weight;
+    vec<parallel::scalable_thp_vector<HyperedgeWeight>> local_edges_weight;
     tbb::parallel_invoke([&] {
       // Sequential pass over all lines to determine ranges in the
       // input file that are read in parallel.
@@ -349,7 +349,7 @@ namespace mt_kahypar::io {
     // Process all ranges in parallel, build edge vector and assign weights
     tbb::parallel_for(UL(0), line_ranges.size(), [&](const size_t i) {
       vec<EdgeT>& my_edges = local_edges[i];
-      vec<HyperedgeWeight>& my_edges_weight = local_edges_weight[i];
+      parallel::scalable_thp_vector<HyperedgeWeight>& my_edges_weight = local_edges_weight[i];
 
       const LineRange& range = line_ranges[i];
       size_t current_pos = range.start;

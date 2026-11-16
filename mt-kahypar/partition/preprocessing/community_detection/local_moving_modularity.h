@@ -78,7 +78,7 @@ class ParallelLocalMovingModularity {
   size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
 public:
   struct ClearList {
-    vec<double> weights;
+    parallel::scalable_thp_vector<double> weights;
     vec<PartitionID> used;
     ClearList(size_t n) : weights(n) { }
   };
@@ -151,7 +151,7 @@ public:
     return bestCluster;
   }
 
-private: 
+private:
 
   inline double modularityGain(const ArcWeight weight_to,
                                const ArcWeight volume_to,

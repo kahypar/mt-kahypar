@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <fcntl.h>
 #include <string>
 #include <string_view>
@@ -316,8 +317,11 @@ vec<LineRange> split_lines(char* mapped_file,
   return result;
 }
 
-template<typename T>
-size_t copy_to_global_list(const vec<vec<T>>& source, vec<T>& target) {
+template <parallel::NestedScalableVector Source,
+          parallel::ScalableVector Target>
+  requires std::same_as<typename Source::value_type::value_type,
+                        typename Target::value_type>
+size_t copy_to_global_list(const Source &source, Target &target) {
   vec<size_t> prefix_sum;
   prefix_sum.reserve(source.size() + 1);
   prefix_sum.push_back(0);
