@@ -954,6 +954,12 @@ namespace mt_kahypar {
        "Multiconstraint: maximum number of rebalancing rounds (0 = unlimited)."
     )->capture_default_str();
     app.add_option(
+      (initial_partitioning ? "--i-r-reduced-rebalancing-rounds": "--r-reduced-rebalancing-rounds"),
+      (!initial_partitioning ? context.refinement.rebalancing.reduced_rounds :
+        context.initial_partitioning.refinement.rebalancing.reduced_rounds ),
+       "Multiconstraint: number of rebalancing rounds for reduced effort (0 = unlimited)."
+    )->capture_default_str();
+    app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-any-progress": "--r-rebalancing-any-progress"),
       (!initial_partitioning ? context.refinement.rebalancing.allow_any_progress :
         context.initial_partitioning.refinement.rebalancing.allow_any_progress ),
@@ -976,6 +982,12 @@ namespace mt_kahypar {
       (!initial_partitioning ? context.refinement.rebalancing.use_deadlock_fallback :
         context.initial_partitioning.refinement.rebalancing.use_deadlock_fallback ),
        "Multiconstraint: whether to use a 'deadlock breaking' fallback if greedy rebalancing does not succeed."
+    )->capture_default_str();
+    app.add_option(
+      (initial_partitioning ? "--i-r-rebalancing-low-effort-skip-fallback": "--r-rebalancing-low-effort-skip-fallback"),
+      (!initial_partitioning ? context.refinement.rebalancing.low_effort_skip_fallback :
+        context.initial_partitioning.refinement.rebalancing.low_effort_skip_fallback ),
+       "Multiconstraint: whether to skip the 'deadlock breaking' for reduced effort rebalancing."
     )->capture_default_str();
     app.add_option(
       (initial_partitioning ? "--i-r-rebalancing-fallback-weight-treshold": "--r-rebalancing-fallback-weight-treshold"),

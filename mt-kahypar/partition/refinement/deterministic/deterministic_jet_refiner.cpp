@@ -153,9 +153,9 @@ void DeterministicJetRefiner<GraphAndGainTypes>::runJetRounds(PartitionedHypergr
             if constexpr (PartitionedHypergraph::is_graph) {
                 // if it is a graph, the gain update happens later via calculateGainDelta => use copy of metrics
                 Metrics tmp_metrics{current_metrics};
-                _rebalancer.refine(part_hg, {}, tmp_metrics, time_limit);
+                _rebalancer.rebalance(part_hg, {}, tmp_metrics, false);
             } else {
-                _rebalancer.refine(part_hg, {}, current_metrics, time_limit);
+                _rebalancer.rebalance(part_hg, {}, current_metrics, false);
             }
             current_metrics.imbalance = metrics::imbalance(phg, _context);
             timer.stop_timer("rebalance");

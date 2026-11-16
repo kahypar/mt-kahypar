@@ -27,8 +27,6 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/deterministic_rebalancer.h"
 
-#include <tbb/parallel_for_each.h>
-#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/definitions.h"
@@ -78,10 +76,10 @@ static float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightConstRef cur
 }
 
 template <typename GraphAndGainTypes>
-bool DeterministicRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                            const vec<HypernodeID>&,
-                                                            Metrics& best_metrics,
-                                                            double) {
+bool DeterministicRebalancer<GraphAndGainTypes>::rebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                               const vec<HypernodeID>&,
+                                                               Metrics& best_metrics,
+                                                               const bool) {
   if (_gain_cache.isInitialized()) {
     throw UnsupportedOperationException("deterministic rebalancer does not support algorithms with gain cache (FM refinement)");
   }

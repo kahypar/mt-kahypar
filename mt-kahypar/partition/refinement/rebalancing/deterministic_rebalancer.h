@@ -80,26 +80,26 @@ public:
     DeterministicRebalancer& operator= (const DeterministicRebalancer&) = delete;
     DeterministicRebalancer& operator= (DeterministicRebalancer&&) = delete;
 
-    bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                    const vec<HypernodeID>&,
-                    Metrics& best_metrics,
-                    double) final;
+    bool rebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                       const vec<HypernodeID>&,
+                       Metrics& best_metrics,
+                       const bool) final;
 
     void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final {}
 
-    bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
+    bool rebalanceAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
                                   const vec<HypernodeID>&,
                                   vec<vec<Move>>&,
                                   Metrics&,
-                                  const double) override final {
+                                  const bool) override final {
         throw UnsupportedOperationException("deterministic rebalancer can not be used for unconstrained refinement");
     }
 
-    bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
+    bool rebalanceAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
         const vec<HypernodeID>&,
         vec<Move>&,
         Metrics&,
-        const double) override final {
+        const bool) override final {
         throw UnsupportedOperationException("deterministic rebalancer can not be used for unconstrained refinement");
     }
 

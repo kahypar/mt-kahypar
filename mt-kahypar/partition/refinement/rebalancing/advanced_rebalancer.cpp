@@ -647,7 +647,8 @@ namespace impl {
   std::tuple<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithm(PartitionedHypergraph& phg,
                                                                                        int64_t& attributed_gain,
                                                                                        size_t& global_move_id,
-                                                                                       bool is_fallback) {
+                                                                                       bool is_fallback,
+                                                                                       bool full_effort) {
     auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
@@ -657,7 +658,7 @@ namespace impl {
     double new_overweight = old_overweight;
     size_t num_moves_first_round = 0;
     bool moved_nodes = false;
-    const size_t max_rounds = _context.refinement.rebalancing.max_rounds;
+    const size_t max_rounds = full_effort ? _context.refinement.rebalancing.max_rounds : _context.refinement.rebalancing.reduced_rounds;
     do {
       old_overweight = new_overweight;
       const size_t old_id = global_move_id;
@@ -701,12 +702,16 @@ namespace impl {
   template <typename GraphAndGainTypes>
   std::pair<size_t, size_t> AdvancedRebalancer<GraphAndGainTypes>::runGreedyAlgorithmWithFallback(PartitionedHypergraph& phg,
                                                                                                   int64_t& attributed_gain,
-                                                                                                  size_t& global_move_id) {
+                                                                                                  size_t& global_move_id,
+                                                                                                  const bool full_effort) {
     const bool is_top_level = phg.initialNumNodes() == _top_level_num_nodes;
 
-    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id, false);
+    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithm(phg, attributed_gain, global_move_id, false, full_effort);
 
-    if (phg.dimension() > 1 && _context.refinement.rebalancing.use_deadlock_fallback && num_overloaded_blocks > 0) {
+    if (phg.dimension() > 1
+        && num_overloaded_blocks > 0
+        && _context.refinement.rebalancing.use_deadlock_fallback
+        && (full_effort || !_context.refinement.rebalancing.low_effort_skip_fallback)) {
       DBG << YELLOW << "Starting deadlock fallback..." << END;
       auto& stats = utils::Utilities::instance().getStats(_context.utility_id);
       const size_t old_id = global_move_id;
@@ -725,7 +730,7 @@ namespace impl {
         if (n_moved == 0) break;
 
         attributed_gain += added_gain;
-        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id, true);
+        auto [n_overloaded, _] = runGreedyAlgorithm(phg,  attributed_gain, global_move_id, true, full_effort);
         num_overloaded_blocks = n_overloaded;
       }
 
@@ -754,10 +759,11 @@ namespace impl {
   }
 
   template <typename GraphAndGainTypes>
-  bool AdvancedRebalancer<GraphAndGainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                  vec<vec<Move>>* moves_by_part,
-                                                                  vec<Move>* moves_linear,
-                                                                  Metrics& best_metric) {
+  bool AdvancedRebalancer<GraphAndGainTypes>::rebalanceInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                        vec<vec<Move>>* moves_by_part,
+                                                                        vec<Move>* moves_linear,
+                                                                        Metrics& best_metric,
+                                                                        const bool full_effort) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
     DBG << "Rebalancing: initial imbalance =" << best_metric.imbalance << " initial cut =" << best_metric.quality;
@@ -802,7 +808,7 @@ namespace impl {
       });
     }
 
-    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithmWithFallback(phg, attributed_gain, global_move_id);
+    auto [num_overloaded_blocks, num_moves_first_round] = runGreedyAlgorithmWithFallback(phg, attributed_gain, global_move_id, full_effort);
 
     if (_context.dimension() > 1 && (moves_by_part != nullptr || moves_linear != nullptr)) {
       // deduplicate moves: callers are allowed to assume that each move is is unique in the move sequence
@@ -899,9 +905,9 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
 
 
 template <typename GraphAndGainTypes>
-bool AdvancedRebalancer<GraphAndGainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                const vec<HypernodeID>& , Metrics& best_metrics, double) {
-  return refineInternalParallel(hypergraph, nullptr, nullptr, best_metrics);
+bool AdvancedRebalancer<GraphAndGainTypes>::rebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                const vec<HypernodeID>& , Metrics& best_metrics, const bool full_effort) {
+  return rebalanceInternalParallel(hypergraph, nullptr, nullptr, best_metrics, full_effort);
 }
 
 template <typename GraphAndGainTypes>
@@ -914,21 +920,21 @@ void AdvancedRebalancer<GraphAndGainTypes>::initializeImpl(mt_kahypar_partitione
 }
 
 template <typename GraphAndGainTypes>
-bool AdvancedRebalancer<GraphAndGainTypes>::refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                  const vec<HypernodeID>& ,
-                                                                  vec<vec<Move>>& moves_by_part,
-                                                                  Metrics& best_metrics,
-                                                                  const double) {
-  return refineInternalParallel(hypergraph, &moves_by_part, nullptr, best_metrics);
+bool AdvancedRebalancer<GraphAndGainTypes>::rebalanceAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                        const vec<HypernodeID>& ,
+                                                                        vec<vec<Move>>& moves_by_part,
+                                                                        Metrics& best_metrics,
+                                                                        const bool full_effort) {
+  return rebalanceInternalParallel(hypergraph, &moves_by_part, nullptr, best_metrics, full_effort);
 }
 
 template <typename GraphAndGainTypes>
-bool AdvancedRebalancer<GraphAndGainTypes>::refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+bool AdvancedRebalancer<GraphAndGainTypes>::rebalanceAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                                         const vec<HypernodeID>& ,
                                                                         vec<Move>& moves,
                                                                         Metrics& best_metrics,
-                                                                        const double) {
-  return refineInternalParallel(hypergraph, nullptr, &moves, best_metrics);
+                                                                        const bool full_effort) {
+  return rebalanceInternalParallel(hypergraph, nullptr, &moves, best_metrics, full_effort);
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file

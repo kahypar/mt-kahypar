@@ -292,7 +292,7 @@ namespace mt_kahypar {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("rebalance_lp", "Rebalance");
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
-    _rebalancer.refineAndOutputMovesLinear(phg, {}, rebalance_moves, current_metrics, 0.0);
+    _rebalancer.rebalanceAndOutputMovesLinear(phg, {}, rebalance_moves, current_metrics, false);
 
     // append to active nodes so they are included for gain cache updates and rollback
     _active_nodes.reserve(_active_nodes.size() + rebalance_moves.size());

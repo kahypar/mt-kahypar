@@ -118,29 +118,30 @@ public:
   }
 
 private:
-  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  bool rebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
-                  double);
+                  const bool full_effort);
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final;
 
-  bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  bool rebalanceAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                 const vec<HypernodeID>& refinement_nodes,
                                 vec<vec<Move>>& moves_by_part,
                                 Metrics& best_metrics,
-                                const double);
+                                const bool full_effort);
 
-  bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+  bool rebalanceAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                       const vec<HypernodeID>& refinement_nodes,
                                       vec<Move>& moves,
                                       Metrics& best_metrics,
-                                      const double);
+                                      const bool full_effort);
 
-  bool refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                              vec<vec<Move>>* moves_by_part,
-                              vec<Move>* moves_linear,
-                              Metrics& best_metric);
+  bool rebalanceInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                 vec<vec<Move>>* moves_by_part,
+                                 vec<Move>* moves_linear,
+                                 Metrics& best_metric,
+                                 const bool full_effort);
 
   void insertNodesInOverloadedBlocks(PartitionedHypergraph& phg);
 
@@ -153,13 +154,15 @@ private:
   std::tuple<size_t, size_t> runGreedyAlgorithm(PartitionedHypergraph& phg,
                                                 int64_t& attributed_gain,
                                                 size_t& global_move_id,
-                                                bool is_fallback);
+                                                bool is_fallback,
+                                                bool full_effort);
 
   std::pair<int64_t, size_t> runDeadlockFallback(PartitionedHypergraph& phg, size_t& global_move_id);
 
   std::pair<size_t, size_t> runGreedyAlgorithmWithFallback(PartitionedHypergraph& phg,
                                                            int64_t& attributed_gain,
-                                                           size_t& global_move_id);
+                                                           size_t& global_move_id,
+                                                           bool full_effort);
 
   void initializeTargetPartWeights(const PartitionedHypergraph& phg);
 

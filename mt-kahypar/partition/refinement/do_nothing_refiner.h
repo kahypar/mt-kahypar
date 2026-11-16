@@ -26,16 +26,11 @@
 
 #pragma once
 
-#include <array>
-#include <string>
-#include <utility>
-#include <vector>
-
 #include "mt-kahypar/partition/refinement/i_rebalancer.h"
 #include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
-class DoNothingRefiner final : public IRebalancer {
+class DoNothingRefiner final : public IRebalancer, public IRefiner {
  public:
   template <typename ... Args>
   explicit DoNothingRefiner(Args&& ...) noexcept { }
@@ -54,19 +49,26 @@ class DoNothingRefiner final : public IRebalancer {
     return false;
   }
 
-  virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
-                                        const parallel::scalable_vector<HypernodeID>&,
-                                        parallel::scalable_vector<parallel::scalable_vector<Move>>&,
-                                        Metrics&,
-                                        const double) override final {
+  virtual bool rebalanceImpl(mt_kahypar_partitioned_hypergraph_t&,
+                             const parallel::scalable_vector<HypernodeID>&,
+                             Metrics&,
+                             const bool) override final {
     return false;
   }
 
-  virtual bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
+  virtual bool rebalanceAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
+                                        const parallel::scalable_vector<HypernodeID>&,
+                                        parallel::scalable_vector<parallel::scalable_vector<Move>>&,
+                                        Metrics&,
+                                        const bool) override final {
+    return false;
+  }
+
+  virtual bool rebalanceAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
                                               const parallel::scalable_vector<HypernodeID>&,
                                               parallel::scalable_vector<Move>&,
                                               Metrics&,
-                                              const double) override final {
+                                              const bool) override final {
     return false;
   }
 

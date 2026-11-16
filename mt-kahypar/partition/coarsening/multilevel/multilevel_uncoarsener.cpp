@@ -195,7 +195,7 @@ namespace mt_kahypar {
     }
     if ( !metrics::isValidPartition(partitioned_hypergraph, _context) && _context.refinement.rebalancing.algorithm != RebalancingAlgorithm::do_nothing ) {
       _timer.start_timer("rebalance", "Rebalance");
-      _rebalancer->refine(phg, dummy, _current_metrics, 0.0);
+      _rebalancer->rebalance(phg, dummy, _current_metrics, true);
       _timer.stop_timer("rebalance");
     }
 

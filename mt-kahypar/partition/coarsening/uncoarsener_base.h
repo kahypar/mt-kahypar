@@ -164,7 +164,7 @@ class UncoarsenerBase {
       _timer.start_timer("rebalance", "Rebalance");
       mt_kahypar_partitioned_hypergraph_t phg =
         utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
-      _rebalancer->refine(phg, {}, _current_metrics, 0.0);
+      _rebalancer->rebalance(phg, {}, _current_metrics, false);
       _timer.stop_timer("rebalance");
 
       const HyperedgeWeight quality_after = _current_metrics.quality;

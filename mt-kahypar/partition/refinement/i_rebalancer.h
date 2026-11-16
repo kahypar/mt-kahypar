@@ -26,36 +26,43 @@
 
 #pragma once
 
-#include <vector>
-
 #include "include/mtkahypartypes.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
 
-class IRebalancer: public IRefiner {
+class IRebalancer {
 
  public:
   virtual ~IRebalancer() = default;
 
-  bool refineAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                            parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
-                            Metrics& best_metrics,
-                            const double time_limit) {
-    return refineAndOutputMovesImpl(hypergraph, refinement_nodes, moves_by_part, best_metrics, time_limit);
+  void initialize(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+    initializeImpl(hypergraph);
   }
 
-  bool refineAndOutputMovesLinear(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+  bool rebalance(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+              const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
+              Metrics& best_metrics,
+              const bool full_effort) {
+    return rebalanceImpl(hypergraph, rebalancement_nodes, best_metrics, full_effort);
+  }
+
+  bool rebalanceAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                            const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
+                            parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
+                            Metrics& best_metrics,
+                            const bool full_effort) {
+    return rebalanceAndOutputMovesImpl(hypergraph, rebalancement_nodes, moves_by_part, best_metrics, full_effort);
+  }
+
+  bool rebalanceAndOutputMovesLinear(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                  const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
                                   parallel::scalable_vector<Move>& moves,
                                   Metrics& best_metrics,
-                                  const double time_limit) {
-    return refineAndOutputMovesLinearImpl(hypergraph, refinement_nodes, moves, best_metrics, time_limit);
+                                  const bool full_effort) {
+    return rebalanceAndOutputMovesLinearImpl(hypergraph, rebalancement_nodes, moves, best_metrics, full_effort);
   }
 
   virtual const HypernodeWeightArray& targetPartWeights() const = 0;
@@ -64,17 +71,24 @@ class IRebalancer: public IRefiner {
   IRebalancer() = default;
 
  private:
-  virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+  virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) = 0;
+
+  virtual bool rebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                          const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
+                          Metrics& best_metrics,
+                          const bool full_effort) = 0;
+
+  virtual bool rebalanceAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                        const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
                                         parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
                                         Metrics& best_metrics,
-                                        const double time_limit) = 0;
+                                        const bool full_effort) = 0;
 
-  virtual bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+  virtual bool rebalanceAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                              const parallel::scalable_vector<HypernodeID>& rebalancement_nodes,
                                               parallel::scalable_vector<Move>& moves,
                                               Metrics& best_metrics,
-                                              const double time_limit) = 0;
+                                              const bool full_effort) = 0;
 };
 
 }  // namespace mt_kahypar

@@ -263,7 +263,7 @@ namespace impl {
         HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
 
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
-        rebalancer.refineAndOutputMovesLinear(hypergraph, {}, rebalancing_moves, tmp_metrics, current_time_limit);
+        rebalancer.rebalanceAndOutputMovesLinear(hypergraph, {}, rebalancing_moves, tmp_metrics, false);
         timer.stop_timer("rebalance_fm");
 
         if (!rebalancing_moves.empty()) {

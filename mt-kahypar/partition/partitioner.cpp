@@ -329,7 +329,7 @@ namespace mt_kahypar {
       timer.start_timer("refinement", "Refinement");
       timer.start_timer("rebalance", "Rebalance");
       rebalancer->initialize(phg);
-      rebalancer->refine(phg, {}, metrics, 0.0);
+      rebalancer->rebalance(phg, {}, metrics, true);
       GainCachePtr::deleteGainCache(gain_cache);
       timer.stop_timer("rebalance");
       timer.stop_timer("refinement");
