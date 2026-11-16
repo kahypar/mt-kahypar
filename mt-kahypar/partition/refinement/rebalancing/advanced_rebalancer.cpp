@@ -165,8 +165,10 @@ namespace impl {
       _target_part[v].store(newTarget, std::memory_order_relaxed);
     }
 
-    bool checkCandidate(HypernodeID u, float& gain_in_pq) {
-      if (!_node_state[u].tryLock()) return false;
+    enum class CandidateStatus { ACQUIRED, UPDATED, LOCK_FAILED };
+
+    CandidateStatus checkCandidate(HypernodeID u, float& gain_in_pq, PartitionID& new_target) {
+      if (!_node_state[u].tryLock()) return CandidateStatus::LOCK_FAILED;
 
       const PartitionID from = _phg.partID(u);
       auto [to, true_gain] = computeBestTargetBlock(_phg, _context, _gain_cache, u, from);
@@ -175,12 +177,12 @@ namespace impl {
         next_move.to = to;
         next_move.from = from;
         next_move.gain = true_gain;
-        return true;
+        return CandidateStatus::ACQUIRED;
       } else {
         _target_part[u].store(to, std::memory_order_relaxed);
         gain_in_pq = true_gain;
-        _node_state[u].unlock();
-        return false;
+        new_target = to;
+        return CandidateStatus::UPDATED;
       }
     }
 
@@ -190,23 +192,24 @@ namespace impl {
 
       HypernodeID node = pq.top();
       float gain_in_pq = pq.topKey();
-      const bool success = checkCandidate(node, gain_in_pq);
+      PartitionID new_target = kInvalidPartition;
+      const CandidateStatus status = checkCandidate(node, gain_in_pq, new_target);
 
-      if (success) {
+      if (status == CandidateStatus::ACQUIRED) {
         pq.deleteTop();
         gpq.updateKey();
-      } else {
-        // gain was updated by success_func in this case
-        if (_target_part[node].load(std::memory_order_relaxed) != kInvalidPartition) {
+      } else if (status == CandidateStatus::UPDATED) {
+        if (new_target != kInvalidPartition) {
           pq.adjustKey(node, gain_in_pq);
           gpq.top_key.store(pq.topKey(), std::memory_order_relaxed);
         } else {
           pq.deleteTop();
           gpq.updateKey();
         }
+        _node_state[node].unlock();
       }
       gpq.lock.unlock();
-      return success;
+      return status == CandidateStatus::ACQUIRED;
     }
 
     bool tryPop() {
@@ -431,6 +434,7 @@ namespace impl {
                 _node_state[v].unlock();
               }
 
+              gpq.updateKey();
               gpq.lock.unlock();
               pqs_to_update[i] = pqs_to_update.back();
               pqs_to_update.pop_back();
