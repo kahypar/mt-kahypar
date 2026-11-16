@@ -171,6 +171,7 @@ private:
 
   ds::Array<Move> _moves;
   ds::Array<MoveID> _move_id_of_node;
+  ds::Array<MoveID> _tmp_move_id_of_node;  // for rollback
   vec<rebalancer::GuardedPQ> _pqs;
   vec<PartitionID> _overloaded_blocks;
   vec<uint8_t> _is_overloaded;

@@ -526,16 +526,29 @@ namespace impl {
     HypernodeWeightArray part_weights = phg.partWeights().copy();
 
     double best_imbalance = impl::imbalanceSum(part_weights, _target_part_weights, _context, _weight_normalizer);
+    double curr_imbalance = best_imbalance;
     size_t best_move_id = global_move_id;
     for (size_t i = global_move_id; i > old_move_id; --i) {
       const size_t move_id = i - 1;
       const Move& m = _moves[move_id];
       ASSERT(m.isValid());
-      HNWeightConstRef weight = phg.nodeWeight(m.node);
+
       // revert the move
+      HNWeightConstRef weight = phg.nodeWeight(m.node);
+      curr_imbalance -= impl::computeBalanceProgress(weight, part_weights[m.to], _target_part_weights[m.to],
+        part_weights[m.from], _target_part_weights[m.from], _weight_normalizer);
       part_weights[m.to] -= weight;
       part_weights[m.from] += weight;
-      double curr_imbalance = impl::imbalanceSum(part_weights, _target_part_weights, _context, _weight_normalizer);
+
+      ASSERT([&]{
+        const double exp_imbalance = impl::imbalanceSum(part_weights, _target_part_weights, _context, _weight_normalizer);
+        if (curr_imbalance > 1.00001 * exp_imbalance || exp_imbalance > 1.00001 * curr_imbalance) {
+          LOG << V(curr_imbalance) << V(exp_imbalance);
+          return false;
+        }
+        return true;
+      }());
+
       // TODO: quality tie break?
       // note: < seems better than <= since it has a better chance of allowing progress
       if (curr_imbalance < best_imbalance) {
@@ -544,19 +557,36 @@ namespace impl {
       }
     }
 
-    int64_t attributed_gain = 0;
-    for (size_t i = global_move_id; i > best_move_id; --i) {
-      const size_t move_id = i - 1;
+    // prepare parallel rollback by marking the first move of every node
+    tbb::parallel_for(best_move_id, global_move_id, [&](const size_t move_id) {
       const Move& m = _moves[move_id];
-      bool success = phg.changeNodePart(_gain_cache, m.node, m.to, m.from,
+      _tmp_move_id_of_node[m.node] = kInvalidMove;
+    });
+    for (size_t move_id = best_move_id; move_id < global_move_id; ++move_id) {
+      const Move& m = _moves[move_id];
+      if (_tmp_move_id_of_node[m.node] == kInvalidMove) {
+        _tmp_move_id_of_node[m.node] = move_id;
+      }
+    }
+
+    // revert the moves in parallel
+    int64_t attributed_gain = 0;
+    tbb::parallel_for(best_move_id, global_move_id, [&](const size_t move_id) {
+      const Move& m = _moves[move_id];
+      if (_tmp_move_id_of_node[m.node] != move_id) return;
+      const PartitionID current_part = phg.partID(m.node);
+      if (current_part == m.from) return;
+
+      bool success = phg.changeNodePart(_gain_cache, m.node, current_part, m.from,
         [&](const SynchronizedEdgeUpdate& sync_update) {
-          attributed_gain += AttributedGains::gain(sync_update);
+          auto gain = AttributedGains::gain(sync_update);
+          std::atomic_ref(attributed_gain).fetch_add(gain, std::memory_order_relaxed);
         });
       ASSERT(success); unused(success);
       if (_move_id_of_node[m.node] == move_id) {
         _move_id_of_node[m.node] = kInvalidMove;
       }
-    }
+    });
     if (debug && best_move_id < global_move_id) {
       float overweight = impl::imbalanceSum(phg.partWeights(), _target_part_weights, _context, _weight_normalizer);
       DBG << "Rolling back" << (global_move_id - best_move_id) << "moves, overweight:" << overweight;
@@ -738,7 +768,9 @@ namespace impl {
       stats.update_stat("rebalancer_calls_toplevel", 1);
     }
 
-    _move_id_of_node.assign(phg.initialNumNodes(), kInvalidMove);
+    tbb::parallel_for(ID(0), phg.initialNumNodes(), [&](const HypernodeID hn) {
+      _move_id_of_node[hn] = kInvalidMove;
+    });
 
     // Recomputation is necessary because missing degree 0 nodes might skew the distribution otherwise.
     // We use double to avoid any danger of overflow
@@ -852,6 +884,7 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _gain(context),
         _moves(2 * num_nodes),  // TODO: is this sufficient?
         _move_id_of_node(num_nodes),
+        _tmp_move_id_of_node(num_nodes),
         _target_part(num_nodes, CAtomic<PartitionID>(kInvalidPartition)),
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),

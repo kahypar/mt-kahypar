@@ -150,9 +150,9 @@ inline float transformGain(Gain gain_, HNWeightConstRef wu, HNWeightAtomicCRef f
   }
 }
 
-template<typename HNWeightExpression>
-inline float computeBalanceProgress(HNWeightConstRef wu, HNWeightExpression from_weight, HNWeightConstRef max_part_weight_from,
-                                    HNWeightAtomicCRef to_weight, HNWeightConstRef max_part_weight_to, const vec<float>& weight_normalizer) {
+template<typename WeightExpr1, typename WeightExpr2>
+inline float computeBalanceProgress(HNWeightConstRef wu, const WeightExpr1& from_weight, HNWeightConstRef max_part_weight_from,
+                                    const WeightExpr2& to_weight, HNWeightConstRef max_part_weight_to, const vec<float>& weight_normalizer) {
   ASSERT(wu.dimension() > 1);
   float progress = 0;
   const auto new_to_weight = wu + to_weight;
