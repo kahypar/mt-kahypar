@@ -182,6 +182,7 @@ private:
   ds::Array<PosT> _pq_handles;
   ds::Array<int> _pq_id;
   ds::Array<rebalancer::NodeState> _node_state;
+  tbb::enumerable_thread_specific<int64_t> _local_gain;
   RepairEmptyBlocks<GraphAndGainTypes> _repair_empty_blocks;
 
   // ! For computing node weight related metrics

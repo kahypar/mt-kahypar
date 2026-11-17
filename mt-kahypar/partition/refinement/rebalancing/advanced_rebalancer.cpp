@@ -570,17 +570,20 @@ namespace impl {
     }
 
     // revert the moves in parallel
-    int64_t attributed_gain = 0;
+    for (auto& val: _local_gain) {
+      val = 0;
+    }
     tbb::parallel_for(best_move_id, global_move_id, [&](const size_t move_id) {
       const Move& m = _moves[move_id];
       if (_tmp_move_id_of_node[m.node] != move_id) return;
       const PartitionID current_part = phg.partID(m.node);
       if (current_part == m.from) return;
 
+      auto& local_attributed_gain = _local_gain.local();
       bool success = phg.changeNodePart(_gain_cache, m.node, current_part, m.from,
         [&](const SynchronizedEdgeUpdate& sync_update) {
           auto gain = AttributedGains::gain(sync_update);
-          std::atomic_ref(attributed_gain).fetch_add(gain, std::memory_order_relaxed);
+          local_attributed_gain += gain;
         });
       ASSERT(success); unused(success);
       if (_move_id_of_node[m.node] == move_id) {
@@ -592,7 +595,7 @@ namespace impl {
       DBG << "Rolling back" << (global_move_id - best_move_id) << "moves, overweight:" << overweight;
     }
     global_move_id = best_move_id;
-    return attributed_gain;
+    return _local_gain.combine(std::plus<>());
   }
 
   template <typename GraphAndGainTypes>
@@ -895,6 +898,7 @@ AdvancedRebalancer<GraphAndGainTypes>::AdvancedRebalancer(
         _pq_handles(num_nodes, invalid_position),
         _pq_id(num_nodes, -1),
         _node_state(num_nodes),
+        _local_gain(0),
         _repair_empty_blocks(context, gain_cache),
         _target_part_weights() { }
 
