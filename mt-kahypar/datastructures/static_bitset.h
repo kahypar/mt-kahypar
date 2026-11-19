@@ -168,7 +168,7 @@ class StaticBitset {
     ASSERT(pos < _num_blocks * BITS_PER_BLOCK);
     const size_t block_idx = pos >> DIV_SHIFT;
     const size_t idx = pos & MOD_MASK;
-    return ( *(_bitset + block_idx) >> idx ) & UL(1);
+    return ( parallel::atomic_load(_bitset[block_idx], std::memory_order::relaxed) >> idx ) & UL(1);
   }
 
   // ! Returns the number of one bits in the bitset
@@ -184,7 +184,7 @@ class StaticBitset {
   Bitset copy() const {
     Bitset res(_num_blocks * BITS_PER_BLOCK);
     for ( size_t i = 0; i < _num_blocks; ++i ) {
-      res._bitset[i] = *( _bitset + i );
+      res._bitset[i] = parallel::atomic_load(_bitset[i], std::memory_order::relaxed);
     }
     return res;
   }
@@ -193,7 +193,9 @@ class StaticBitset {
     ASSERT(_num_blocks == other._num_blocks);
     Bitset res(_num_blocks * BITS_PER_BLOCK);
     for ( size_t i = 0; i < _num_blocks; ++i ) {
-      res._bitset[i] = *( _bitset + i ) ^ *( other._bitset + i );
+      res._bitset[i] =
+          parallel::atomic_load(_bitset[i], std::memory_order::relaxed) ^
+          parallel::atomic_load(other._bitset[i], std::memory_order::relaxed);
     }
     return res;
   }

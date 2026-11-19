@@ -28,10 +28,12 @@
 
 #pragma once
 
+#include <atomic>
 #include <cmath>
 
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 
@@ -84,7 +86,9 @@ class PinCountSnapshot {
   }
 
   void snapshot(const Value* src)  {
-    std::memcpy(_pin_counts.data(), src, sizeof(Value) * _pin_counts.size());
+    for ( size_t i = 0; i < _pin_counts.size(); ++i ) {
+      _pin_counts[i] = parallel::atomic_load(src[i], std::memory_order::relaxed);
+    }
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
