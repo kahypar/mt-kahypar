@@ -456,11 +456,17 @@ void SteinerTreeGainCache::updateAdjacentBlocks(const PartitionedHypergraph& par
   }
 }
 
+// The counter of incident edges and the set of adjacent blocks are two separate atomics that are
+// not updated together. Concurrent moves can therefore interleave such that a thread that has
+// brought the counter to zero has not yet removed the block from the set when another thread
+// brings the counter back to one (and vice versa). Adding and removing a block are toggles and
+// each 0 -> 1 and 1 -> 0 transition of the counter is observed by exactly one thread, so the set is
+// consistent with the counter as soon as all concurrent updates have finished
+// (see verifyTrackedAdjacentBlocksOfNodes). However, the set must not be asserted on in between.
 HyperedgeID SteinerTreeGainCache::incrementIncidentEdges(const HypernodeID u, const PartitionID to) {
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].add_fetch(1, std::memory_order_relaxed);
   if ( incident_count_after == 1 ) {
-    ASSERT(!_adjacent_blocks.contains(u, to));
     _gain_cache[benefit_index(u, to)].store(0, std::memory_order_relaxed);
     _adjacent_blocks.add(u, to);
   }
@@ -472,7 +478,6 @@ HyperedgeID SteinerTreeGainCache::decrementIncidentEdges(const HypernodeID u, co
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].sub_fetch(1, std::memory_order_relaxed);
   if ( incident_count_after == 0 ) {
-    ASSERT(_adjacent_blocks.contains(u, to));
     _adjacent_blocks.remove(u, to);
   }
   return incident_count_after;
