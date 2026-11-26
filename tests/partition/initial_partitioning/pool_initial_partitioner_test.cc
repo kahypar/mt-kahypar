@@ -31,6 +31,7 @@
 
 #include <tbb/parallel_invoke.h>
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -82,7 +83,7 @@ class APoolInitialPartitionerTest : public Test {
     context.initial_partitioning.lp_maximum_iterations = 1;
     context.initial_partitioning.lp_initial_block_size = 1;
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/test_instance.hgr", FileFormat::hMetis, true, true, true);
+      TEST_FILE("instances/test_instance.hgr"), FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());

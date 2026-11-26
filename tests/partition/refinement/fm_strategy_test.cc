@@ -27,9 +27,9 @@
 #include <random>
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
@@ -79,7 +79,7 @@ TYPED_TEST(AFMStrategy, FindNextMove) {
   context.partition.k = k;
   context.partition.epsilon = 0.03;
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+    TEST_FILE("instances/contracted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {

@@ -29,15 +29,12 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/macros.h"
-
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
@@ -53,7 +50,7 @@ namespace {
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true, true, true);
+    TEST_FILE("instances/twocenters.hgr"), FileFormat::hMetis, true, true, true);
   PartitionID k = 2;
 
   PartitionedHypergraph phg(k, hg);
@@ -113,7 +110,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 TEST(RollbackTests, GainRecalculation2) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true, true, true);
+    TEST_FILE("instances/twocenters.hgr"), FileFormat::hMetis, true, true, true);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);

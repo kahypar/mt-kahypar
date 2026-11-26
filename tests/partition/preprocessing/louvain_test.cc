@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/graph.h"
@@ -54,7 +55,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph> {
     context(),
     karate_club_hg(),
     karate_club_graph(nullptr) {
-    context.partition.graph_filename = "../tests/instances/karate_club.graph.hgr";
+    context.partition.graph_filename = TEST_FILE("instances/karate_club.graph.hgr");
     context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::uniform;
     context.preprocessing.community_detection.max_pass_iterations = 100;
     context.preprocessing.community_detection.min_vertex_move_fraction = 0.0001;

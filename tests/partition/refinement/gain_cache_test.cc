@@ -30,6 +30,7 @@
 #include <tbb/parallel_for.h>
 #include <tbb/enumerable_thread_specific.h>
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
@@ -85,10 +86,10 @@ class AGainCache : public Test {
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true, true, true);
+        TEST_FILE("instances/delaunay_n10.graph"), FileFormat::Metis, true, true, true);
     } else {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+        TEST_FILE("instances/contracted_unweighted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     }
     partitioned_hg = PartitionedHypergraph(k, hypergraph, parallel_tag_t { });
     delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context);
@@ -128,9 +129,9 @@ class AGainCache : public Test {
     if ( !is_nlevel ) {
       std::vector<PartitionID> partition;
       if constexpr ( Hypergraph::is_graph ) {
-        io::readPartitionFile("../tests/instances/delaunay_n10.graph.part8", hypergraph.initialNumNodes(), partition);
+        io::readPartitionFile(TEST_FILE("instances/delaunay_n10.graph.part8"), hypergraph.initialNumNodes(), partition);
       } else {
-        io::readPartitionFile("../tests/instances/contracted_unweighted_ibm01.hgr.part8", hypergraph.initialNumNodes(), partition);
+        io::readPartitionFile(TEST_FILE("instances/contracted_unweighted_ibm01.hgr.part8"), hypergraph.initialNumNodes(), partition);
       }
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         partitioned_hg.setOnlyNodePart(hn, partition[hn]);

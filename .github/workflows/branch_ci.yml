@@ -64,8 +64,7 @@ jobs:
 
       - name: Run Mt-KaHyPar Tests
         run: |
-          cd build
-          ./tests/mtkahypar_tests
+          ctest --test-dir build -R mtkahypar_tests --output-on-failure
 
   mt_kahypar_c_interface_tests:
     name: C Interface Tests

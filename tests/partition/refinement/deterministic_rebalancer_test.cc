@@ -30,6 +30,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/parallel/thread_management.h"
@@ -91,10 +92,10 @@ class DeterministicRebalancerTest : public Test {
   void constructFromFile() {
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/delaunay_n10.graph", FileFormat::Metis, true, true, true);
+        TEST_FILE("instances/delaunay_n10.graph"), FileFormat::Metis, true, true, true);
     } else {
       hypergraph = io::readInputFile<Hypergraph>(
-        "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+        TEST_FILE("instances/contracted_unweighted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     }
   }
 

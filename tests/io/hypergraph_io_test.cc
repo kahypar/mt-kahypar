@@ -130,7 +130,7 @@ using AGraphReader = AnInputReader<Graph>;
 TYPED_TEST_SUITE(AGraphReader, tests::GraphAndHypergraphTestTypes);
 
 TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
-  this->readHypergraph("../tests/instances/unweighted_hypergraph.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/unweighted_hypergraph.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -158,7 +158,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraphWithDuplicatedPins) {
-  this->readHypergraph("../tests/instances/unweighted_hypergraph_duplicated_pins.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/unweighted_hypergraph_duplicated_pins.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -171,7 +171,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraphWithDuplicatedPins) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeightsAndSinglePin) {
-  this->readHypergraph("../tests/instances/hypergraph_with_edge_weights_single_pin.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/hypergraph_with_edge_weights_single_pin.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -197,7 +197,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeightsAndSinglePin) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
-  this->readHypergraph("../tests/instances/hypergraph_with_edge_weights.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/hypergraph_with_edge_weights.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -225,7 +225,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
-  this->readHypergraph("../tests/instances/hypergraph_with_node_weights.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/hypergraph_with_node_weights.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -253,7 +253,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
-  this->readHypergraph("../tests/instances/hypergraph_with_node_and_edge_weights.hgr", FileFormat::hMetis);
+  this->readHypergraph(TEST_FILE("instances/hypergraph_with_node_and_edge_weights.hgr"), FileFormat::hMetis);
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -281,15 +281,15 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
 }
 
 TYPED_TEST(AHypergraphReader, HypergraphIdOverflow) {
-  this->verifyParsingException("../tests/instances/hypergraph_id_overflow.hgr", FileFormat::hMetis);
+  this->verifyParsingException(TEST_FILE("instances/hypergraph_id_overflow.hgr"), FileFormat::hMetis);
 }
 
 TYPED_TEST(AHypergraphReader, HypergraphTooFewNodeWeights) {
-  this->verifyParsingException("../tests/instances/hypergraph_with_too_few_node_weights.hgr", FileFormat::hMetis);
+  this->verifyParsingException(TEST_FILE("instances/hypergraph_with_too_few_node_weights.hgr"), FileFormat::hMetis);
 }
 
 TYPED_TEST(AGraphReader, ReadsAMetisGraph) {
-  this->readHypergraph("../tests/instances/unweighted_graph.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/unweighted_graph.graph"), FileFormat::Metis);
 
   // Verify Neighbors
   this->verifyNeighbors(
@@ -319,7 +319,7 @@ TYPED_TEST(AGraphReader, ReadsAMetisGraph) {
 }
 
 TYPED_TEST(AGraphReader, ReadsAMetisGraphWithNodeWeights) {
-  this->readHypergraph("../tests/instances/graph_with_node_weights.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_with_node_weights.graph"), FileFormat::Metis);
 
   // Verify Neighbors
   this->verifyNeighbors(
@@ -349,7 +349,7 @@ TYPED_TEST(AGraphReader, ReadsAMetisGraphWithNodeWeights) {
 }
 
 TYPED_TEST(AGraphReader, ReadsAMetisGraphWithEdgeWeights) {
-  this->readHypergraph("../tests/instances/graph_with_edge_weights.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_with_edge_weights.graph"), FileFormat::Metis);
 
   // Verify Neighbors and Edge Weights
   this->verifyNeighborsAndEdgeWeights(
@@ -374,7 +374,7 @@ TYPED_TEST(AGraphReader, ReadsAMetisGraphWithEdgeWeights) {
 }
 
 TYPED_TEST(AGraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
-  this->readHypergraph("../tests/instances/graph_with_node_and_edge_weights.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_with_node_and_edge_weights.graph"), FileFormat::Metis);
 
   // Verify Neighbors and Edge Weights
   this->verifyNeighborsAndEdgeWeights(
@@ -399,7 +399,7 @@ TYPED_TEST(AGraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
 }
 
 TYPED_TEST(AGraphReader, MetisGraphWithMissingNewline) {
-  this->readHypergraph("../tests/instances/graph_no_newline.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_no_newline.graph"), FileFormat::Metis);
 
   // Verify Neighbors
   this->verifyNeighbors(
@@ -427,7 +427,7 @@ TYPED_TEST(AGraphReader, MetisGraphWithMissingNewline) {
 }
 
 TYPED_TEST(AGraphReader, MetisGraphWithMissingNewlineWindow) {
-  this->readHypergraph("../tests/instances/graph_no_newline_windows.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_no_newline_windows.graph"), FileFormat::Metis);
 
   // Verify Neighbors
   this->verifyNeighbors(
@@ -455,7 +455,7 @@ TYPED_TEST(AGraphReader, MetisGraphWithMissingNewlineWindow) {
 }
 
 TYPED_TEST(AGraphReader, MetisGraphEmptyLines) {
-  this->readHypergraph("../tests/instances/graph_empty_lines.graph", FileFormat::Metis);
+  this->readHypergraph(TEST_FILE("instances/graph_empty_lines.graph"), FileFormat::Metis);
 
   // Verify Neighbors
   this->verifyNeighbors(
@@ -467,27 +467,27 @@ TYPED_TEST(AGraphReader, MetisGraphEmptyLines) {
 }
 
 TYPED_TEST(AGraphReader, MetisTooFewLines) {
-  this->verifyParsingException("../tests/instances/graph_too_few_lines.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_too_few_lines.graph"), FileFormat::Metis);
 }
 
 TYPED_TEST(AGraphReader, MetisTooFewLinesWindows) {
-  this->verifyParsingException("../tests/instances/graph_too_few_lines_windows.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_too_few_lines_windows.graph"), FileFormat::Metis);
 }
 
 TYPED_TEST(AGraphReader, MetisOneLineTooFew) {
-  this->verifyParsingException("../tests/instances/graph_one_line_too_few.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_one_line_too_few.graph"), FileFormat::Metis);
 }
 
 TYPED_TEST(AGraphReader, MetisOneEdgeTooMany) {
-  this->verifyParsingException("../tests/instances/graph_too_many_edges.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_too_many_edges.graph"), FileFormat::Metis);
 }
 
 TYPED_TEST(AGraphReader, MetisOneEdgeTooFew) {
-  this->verifyParsingException("../tests/instances/graph_too_few_edges.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_too_few_edges.graph"), FileFormat::Metis);
 }
 
 TYPED_TEST(AGraphReader, MetisIdOverflow) {
-  this->verifyParsingException("../tests/instances/graph_id_overflow.graph", FileFormat::Metis);
+  this->verifyParsingException(TEST_FILE("instances/graph_id_overflow.graph"), FileFormat::Metis);
 }
 
 }  // namespace io

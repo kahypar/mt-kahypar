@@ -118,8 +118,7 @@ jobs:
 
       - name: Run Mt-KaHyPar Tests
         run: |
-          cd build
-          ./tests/mtkahypar_tests
+          ctest --test-dir build -R mtkahypar_tests --output-on-failure
 
       - name: Report Code Coverage
         run: |
@@ -241,8 +240,7 @@ jobs:
       - name: Run Mt-KaHyPar Tests
         shell: cmd
         run: |
-          cd build
-          .\tests\mtkahypar_tests.exe
+          ctest --test-dir build -R mtkahypar_tests --output-on-failure
 
   mt_kahypar_macos_build:
     name: MacOS Build
@@ -268,5 +266,4 @@ jobs:
 
       - name: Run Mt-KaHyPar Tests
         run: |
-          cd build
-          ./tests/mtkahypar_tests
+          ctest --test-dir build -R mtkahypar_tests --output-on-failure
