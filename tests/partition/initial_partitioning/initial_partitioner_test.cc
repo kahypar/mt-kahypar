@@ -28,6 +28,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -64,14 +65,14 @@ class AInitialPartitionerTest : public Test {
 
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     if ( !context.isNLevelPartitioning() ) {
-      parseIniToContext(context, "../config/default_preset.ini", true);
+      parseIniToContext(context, TEST_FILE("../config/default_preset.ini"), true);
     } else {
-      parseIniToContext(context, "../config/highest_quality_preset.ini", true);
+      parseIniToContext(context, TEST_FILE("../config/highest_quality_preset.ini"), true);
     }
     context.partition.partition_type = PartitionedHypergraph::TYPE;
 
-    context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
-    context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
+    context.partition.graph_filename = TEST_FILE("instances/contracted_unweighted_ibm01.hgr");
+    context.partition.graph_community_filename = TEST_FILE("instances/contracted_ibm01.hgr.community");
     context.partition.mode = Mode::direct;
     #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
@@ -112,7 +113,7 @@ class AInitialPartitionerTest : public Test {
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+      TEST_FILE("instances/contracted_unweighted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());

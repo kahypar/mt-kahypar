@@ -33,6 +33,7 @@
 #include <tbb/task_arena.h>
 #include <tbb/task_group.h>
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
@@ -68,7 +69,7 @@ class AConcurrentHypergraph : public Test {
   {
     int cpu_id = THREAD_ID;
     underlying_hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+      TEST_FILE("instances/contracted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     hypergraph = PartitionedHypergraph(k, underlying_hypergraph, parallel_tag_t());
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);

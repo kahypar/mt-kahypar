@@ -29,6 +29,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -66,7 +67,7 @@ public:
           context(),
           metrics(),
           gain_cache() {
-    context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
+    context.partition.graph_filename = TEST_FILE("instances/powersim.mtx.hgr");
     context.partition.mode = Mode::direct;
     context.partition.preset_type = PresetType::deterministic;
     context.partition.instance_type = InstanceType::hypergraph;

@@ -30,6 +30,15 @@
 
 #include "mt-kahypar/definitions.h"
 
+
+#ifndef MT_KAHYPAR_TESTS_DIR
+  #error "MT_KAHYPAR_TESTS_DIR must be defined"
+#endif
+// Path of a file relative to the directory of this test (set by CMake),
+// such that the test can be executed from any working directory.
+#define TEST_FILE(relative_path) MT_KAHYPAR_TESTS_DIR "/" relative_path
+
+
 namespace mt_kahypar::tests {
 
 using Hypergraph = ds::StaticHypergraph;

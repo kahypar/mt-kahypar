@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -58,7 +59,7 @@ class ABipartitioningPolicy : public Test {
     partitioned_hg(),
     context() {
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+      TEST_FILE("instances/contracted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     partitioned_hg = PartitionedHypergraph(4, hypergraph, parallel_tag_t { });
 
     presetToContext(context, PresetType::default_preset, true);

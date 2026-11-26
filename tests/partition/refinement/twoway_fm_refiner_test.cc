@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -67,7 +68,7 @@ class ATwoWayFmRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
-      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true, true, true);
+      TEST_FILE("instances/contracted_ibm01.hgr"), FileFormat::hMetis, true, true, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());

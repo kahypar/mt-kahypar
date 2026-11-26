@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -244,7 +245,7 @@ class AFlowRefinementEndToEnd : public Test {
     max_part_weights(8, 200),
     mover(nullptr) {
 
-    context.partition.graph_filename = "../tests/instances/ibm01.hgr";
+    context.partition.graph_filename = TEST_FILE("instances/ibm01.hgr");
     context.partition.k = 8;
     context.partition.epsilon = 0.03;
     context.partition.mode = Mode::direct;
@@ -263,7 +264,7 @@ class AFlowRefinementEndToEnd : public Test {
 
     // Read Partition
     std::vector<PartitionID> partition;
-    io::readPartitionFile("../tests/instances/ibm01.hgr.part8", phg.initialNumNodes(), partition);
+    io::readPartitionFile(TEST_FILE("instances/ibm01.hgr.part8"), phg.initialNumNodes(), partition);
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       phg.setOnlyNodePart(hn, partition[hn]);
     });
