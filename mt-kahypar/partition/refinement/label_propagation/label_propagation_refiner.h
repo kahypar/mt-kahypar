@@ -27,10 +27,11 @@
 
 #pragma once
 
-#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include <atomic>
 
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -147,11 +148,12 @@ class LabelPropagationRefiner final : public IRefiner {
                                 bool activate_moved) {
     auto activate = [&](const HypernodeID hn) {
       bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[hn];
-      if (activate_moved || old_part_unintialized || hypergraph.partID(hn) == _old_part[hn]) {
+      if (activate_moved || old_part_unintialized ||
+          hypergraph.partID(hn) == parallel::atomic_load(_old_part[hn], std::memory_order_relaxed)) {
         if ( _next_active.compare_and_set_to_true(hn) ) {
           next_active_nodes.stream(hn);
           if ( old_part_unintialized ) {
-            _old_part[hn] = hypergraph.partID(hn);
+            std::atomic_ref(_old_part[hn]).store(hypergraph.partID(hn), std::memory_order_relaxed);
             _old_part_is_initialized.set(hn, true);
           }
         }
@@ -204,7 +206,7 @@ class LabelPropagationRefiner final : public IRefiner {
   ActiveNodes _active_nodes;
   parallel::scalable_vector<uint8_t> _active_node_was_moved;
   parallel::scalable_vector<PartitionID> _old_part;
-  kahypar::ds::FastResetFlagArray<> _old_part_is_initialized;
+  ds::ThreadSafeFastResetFlagArray<> _old_part_is_initialized;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   ds::ThreadSafeFastResetFlagArray<> _visited_he;
   IRebalancer& _rebalancer;

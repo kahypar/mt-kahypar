@@ -26,11 +26,13 @@
 
 #pragma once
 
+#include <atomic>
 #include <bit>
 #include <cmath>
 #include <limits>
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_ops.h"
 
@@ -84,7 +86,9 @@ class Bitset {
   void copy(const size_t num_blocks, const Block* blocks) {
     _size = num_blocks * BITS_PER_BLOCK;
     _bitset.resize(num_blocks);
-    std::memcpy(_bitset.data(), blocks, sizeof(Block) * num_blocks);
+    for ( size_t i = 0; i < num_blocks; ++i ) {
+      _bitset[i] = parallel::atomic_load(blocks[i], std::memory_order::relaxed);
+    }
   }
 
   bool isSet(const size_t pos) const {
