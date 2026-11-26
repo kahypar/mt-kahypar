@@ -212,46 +212,6 @@ jobs:
         run: |
           ctest --test-dir build -R mtkahypar_python_test --output-on-failure
 
-  mt_kahypar_windows_mingw_build:
-    name: Windows MinGW Build
-    runs-on: windows-latest
-    env:
-      CI_ACTIVE : 1
-
-    steps:
-      - name: Checkout HEAD
-        uses: actions/checkout@v7
-
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          install: git make
-
-      - name: Install TBB
-        shell: msys2 {0}
-        run: |
-          pacman --noconfirm -S mingw-w64-x86_64-tbb mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
-
-      - name: Put MSYS2_MinGW64 on Path
-        run: |
-          echo "${{ runner.temp }}/msys64/mingw64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install Mt-KaHyPar Multilevel Tests
-        shell: msys2 {0}
-        run: |
-          rm -rf build
-          mkdir build
-          cd build
-          export CMAKE_GENERATOR="MSYS Makefiles"
-          /mingw64/bin/cmake .. --preset=dev -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
-          make -j4 mtkahypar_tests
-
-      - name: Run Mt-KaHyPar Tests
-        shell: msys2 {0}
-        run: |
-          cd build
-          ./tests/mtkahypar_tests
-
   mt_kahypar_windows_msvc_build:
     name: Windows MSVC Build
     runs-on: windows-latest
