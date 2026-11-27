@@ -279,7 +279,6 @@ mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
   check_overflow<HypernodeID>(num_vertices, "number of vertices");
   check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
 
-  // sort and deduplicate the pins, such that the behavior is equivalent to reading the hypergraph from a file
   size_t num_duplicated_pins = 0;
   size_t num_hes_with_duplicated_pins = 0;
   tbb::parallel_for(UL(0), edge_vector.size(), [&](const size_t he) {
