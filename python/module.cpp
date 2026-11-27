@@ -235,7 +235,7 @@ PYBIND11_MODULE(mtkahypar, m) {
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
-         const vec<vec<HypernodeID>>& hyperedges) {
+         vec<vec<HypernodeID>>& hyperedges) {
         ensure_initialized(initializer);
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         return lib::create_hypergraph(
@@ -259,7 +259,7 @@ Construct an unweighted hypergraph.
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
-         const vec<vec<HypernodeID>>& hyperedges,
+         vec<vec<HypernodeID>>& hyperedges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& hyperedge_weights) {
         ensure_initialized(initializer);

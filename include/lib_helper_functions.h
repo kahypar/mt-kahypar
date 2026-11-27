@@ -273,11 +273,20 @@ mt_kahypar_hypergraph_t hypergraph_from_file(const std::string& file_name,
 mt_kahypar_hypergraph_t create_hypergraph(const Context& context,
                                           const mt_kahypar_hypernode_id_t num_vertices,
                                           const mt_kahypar_hyperedge_id_t num_hyperedges,
-                                          const vec<vec<HypernodeID>>& edge_vector,
+                                          vec<vec<HypernodeID>>& edge_vector,
                                           const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                           const mt_kahypar_hypernode_weight_t* vertex_weights) {
   check_overflow<HypernodeID>(num_vertices, "number of vertices");
   check_overflow<HyperedgeID>(num_hyperedges, "number of hyperedges");
+
+  size_t num_duplicated_pins = 0;
+  size_t num_hes_with_duplicated_pins = 0;
+  tbb::parallel_for(UL(0), edge_vector.size(), [&](const size_t he) {
+    utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
+  });
+  if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
+    WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
+  }
 
   switch ( context.partition.preset_type ) {
     case PresetType::deterministic:
@@ -314,8 +323,6 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
   }
 
   // Transform adjacence array into adjacency list
-  size_t num_duplicated_pins = 0;
-  size_t num_hes_with_duplicated_pins = 0;
   vec<vec<HypernodeID>> edge_vector(num_hyperedges);
   tbb::parallel_for<HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
     const char* help_msg = "(Note: the last element of 'hyperedge_indices' must be a sentinel with value "
@@ -333,13 +340,8 @@ mt_kahypar_hypergraph_t create_hypergraph_from_adjacency_array(const Context& co
       check_overflow<HypernodeID>(pin, "pin");
       edge_vector[he][i] = pin;
     }
-
-    utils::deduplicateHyperedgePins(edge_vector[he], num_duplicated_pins, num_hes_with_duplicated_pins);
   });
 
-  if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
-    WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
-  }
   return create_hypergraph(context, num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 }
 
