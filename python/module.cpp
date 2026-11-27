@@ -52,7 +52,6 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
-#include "mt-kahypar/utils/deduplicate.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/exception.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -122,19 +121,6 @@ namespace {
   void ensure_correct_size(size_t expected, const vec<T>& data, const char* data_kind) {
     if (data.size() != expected) {
       throw InvalidInputException(std::string("Number of ") + data_kind + " does not match length of input data!");
-    }
-  }
-
-  // sorts and deduplicates the pins, such that the behavior is equivalent to reading the hypergraph from a file
-  void deduplicate_pins(const Context& context, vec<vec<HypernodeID>>& hyperedges) {
-    size_t num_duplicated_pins = 0;
-    size_t num_hes_with_duplicated_pins = 0;
-    tbb::parallel_for(UL(0), hyperedges.size(), [&](const size_t he) {
-      utils::deduplicateHyperedgePins(hyperedges[he], num_duplicated_pins, num_hes_with_duplicated_pins);
-    });
-
-    if ( context.partition.enable_logging && num_hes_with_duplicated_pins > 0 ) {
-      WARNING("Removed " << num_duplicated_pins << " duplicated pins in " << num_hes_with_duplicated_pins << " hyperedges!");
     }
   }
 
@@ -249,10 +235,9 @@ PYBIND11_MODULE(mtkahypar, m) {
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
-         vec<vec<HypernodeID>> hyperedges) {
+         vec<vec<HypernodeID>>& hyperedges) {
         ensure_initialized(initializer);
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
-        deduplicate_pins(context, hyperedges);
         return lib::create_hypergraph(
           context, num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr);
       }, R"pbdoc(
@@ -274,14 +259,13 @@ Construct an unweighted hypergraph.
          const Context& context,
          const HypernodeID num_hypernodes,
          const HyperedgeID num_hyperedges,
-         vec<vec<HypernodeID>> hyperedges,
+         vec<vec<HypernodeID>>& hyperedges,
          const vec<HypernodeWeight>& node_weights,
          const vec<HyperedgeWeight>& hyperedge_weights) {
         ensure_initialized(initializer);
         ensure_correct_size(num_hyperedges, hyperedges, "hyperedges");
         ensure_correct_size(num_hypernodes, node_weights, "nodes");
         ensure_correct_size(num_hyperedges, hyperedge_weights, "hyperedges");
-        deduplicate_pins(context, hyperedges);
         return lib::create_hypergraph(
           context, num_hypernodes, num_hyperedges, hyperedges, hyperedge_weights.data(), node_weights.data());
       }, R"pbdoc(
